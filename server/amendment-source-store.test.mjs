@@ -34,7 +34,7 @@ test('retained raw bytes serve the exact current descriptor at any age and keep 
   const {issued:_issued,...unrecorded}=descriptor;assert(await sources.read(unrecorded));
   for(const changed of [{url:url+'x'},{language:'fr'},{byteSize:31},{byteSize:null},{issued:'2026-10-20T09:00:00+02:00'}])
     assert.equal(await sources.read({...descriptor,...changed}),null,JSON.stringify(changed));
-  assert.equal(sources.has(descriptor),true);assert.equal(sources.has({...descriptor,byteSize:31}),false);
+  assert.equal(Boolean(sources.match(descriptor)),true);assert.equal(Boolean(sources.match({...descriptor,byteSize:31})),false);
   assert.equal(rows(store).length,1);
 });
 
@@ -43,10 +43,32 @@ test('an unissued row cannot bridge known issue changes, while matching issued b
   await sources.save(legacy,buffer,retrievedAt);
   assert(await sources.read(descriptor),'First use remains compatible with legacy bytes.');
   const next={...descriptor,issued:'2026-10-20T09:00:00+02:00'};
-  assert.equal(await sources.read(next,{previousDescriptor:descriptor}),null);
-  assert(await sources.read({...descriptor,issued:'2026-10-16T15:04:06Z'},{previousDescriptor:descriptor}),'Equivalent instants do not change publication.');
+  assert.equal(await sources.read(next),null);
+  assert(await sources.read({...descriptor,issued:'2026-10-16T15:04:06Z'}),'Equivalent instants do not change publication.');
   await sources.save(next,buffer,retrievedAt);
-  assert(await sources.read(next,{previousDescriptor:descriptor}),'An already retained matching publication needs no new download.');
+  assert(await sources.read(next),'An already retained matching publication needs no new download.');
+});
+
+test('an unissued retrieval cannot be promoted to a later publication, including through save',async t=>{
+  const {store,sources,buffer}=fixture(t),{issued:_issued,...undated}=descriptor;
+  const retrievedAt='2026-10-20T00:00:00Z',later={...descriptor,issued:'2026-10-25T00:00:00Z'};
+  await sources.save(undated,buffer,retrievedAt);
+  assert.equal(await sources.read(later),null);
+  let changed=false;
+  assert.equal(await sources.save(later,buffer,retrievedAt,{downloaded:false,onPublicationChange:()=>{changed=true;}}),false);
+  assert.equal(changed,true);assert.deepEqual(bindings(store),[]);assert.equal(rows(store)[0].issued,'');
+  const initial={...descriptor,issued:retrievedAt};
+  assert(await sources.read(initial));assert.equal(await sources.save(initial,buffer,retrievedAt,{downloaded:false}),true);
+});
+
+test('an orphan-maintenance failure logs once, leaves retained reads available and retries later',async t=>{
+  const {sources,buffer,advance}=fixture(t);await sources.save(descriptor,buffer,retrievedAt);
+  sources.sweepAfter=0;
+  const warnings=[];t.mock.method(console,'warn',message=>warnings.push(message));
+  const failure=t.mock.method(sources,'sweepOrphans',()=>{throw Object.assign(new Error('Cannot list retained directory'),{code:'EACCES'});});
+  assert.equal(await sources.initialize(),false);
+  assert.deepEqual((await sources.read(descriptor)).buffer,buffer);assert.equal(failure.mock.calls.length,1);assert.equal(warnings.length,1);
+  failure.mock.restore();advance(60_001);assert.equal(await sources.initialize(),true);
 });
 
 test('download and retained-save paths never downgrade publication bindings on undated identical bytes',async t=>{
@@ -61,7 +83,7 @@ test('download and retained-save paths never downgrade publication bindings on u
   await sources.read(undated,{listId:'L2'});
   assert.deepEqual(bindings(store),original,'List-ID updates do not change publication evidence.');
   const next={...descriptor,issued:'2026-10-25T09:00:00+02:00'};
-  await assert.rejects(sources.save(next,buffer,retrievedAt,{downloaded:false}),/requires downloaded bytes/);
+  assert.equal(await sources.save(next,buffer,retrievedAt,{downloaded:false}),false);
   assert.deepEqual(bindings(store),original);assert.equal(await sources.read(next),null);
   // An actual dated download may establish T2 even when its bytes equal T1.
   await sources.save(next,buffer,'2026-10-25T08:00:00.000Z',{downloaded:true});
@@ -180,7 +202,7 @@ test('superseded versions published by active, previous or working generations r
   const extra={...descriptor,url:url+'extra'};
   listSource(store,3,'L2',[extra]);
   assert(await sources.save(extra,Buffer.alloc(30,4),retrievedAt,{listId:'L2'}));
-  assert.equal(sources.has(versions[0]),false,'Only the unreferenced superseded version is eligible.');
+  assert.equal(Boolean(sources.match(versions[0])),false,'Only the unreferenced superseded version is eligible.');
   for(const file of versions.slice(1))assert(await sources.read(file));
   assert.equal(await sources.save({...extra,url:url+'overflow'},Buffer.alloc(30,5),retrievedAt),false);
   assert.equal(readdirSync(blobs).length,4);
@@ -210,7 +232,7 @@ test('a destination write failure preserves valid legacy input for a restarted w
   const file=legacyRecord(directory,buffer);
   // A directory at the destination makes the atomic publication fail.
   const destination=path.join(blobs,sha(buffer)+'.docx');mkdirSync(destination,{recursive:true});
-  await assert.rejects(sources.initialize(),error=>['EISDIR','ENOTDIR','EEXIST'].includes(error.code));
+  await assert.doesNotReject(sources.initialize());
   assert(existsSync(file));assert.deepEqual(rows(store),[]);
   rmSync(destination,{recursive:true});store.release();
   const successor=new ActivityStore(directory,{clock:()=>store.clock()});

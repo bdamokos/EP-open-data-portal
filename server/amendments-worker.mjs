@@ -62,23 +62,15 @@ function mergeAmendmentEvidence(priorWork,fresh) {
 }
 const extractionSource=extraction=>extraction?.sourceUrl?{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language}:null;
 function publicationEvidence(sources,descriptor,buffer,prior) {
-  const sourceHash=createHash('sha256').update(buffer).digest('hex'),sourceDescriptor=sources.boundDescriptor(descriptor,sourceHash);
+  const sourceHash=createHash('sha256').update(buffer).digest('hex');
+  let sourceDescriptor=sources.boundDescriptor(descriptor,sourceHash);
   const previous=normalizedDocxDescriptor(prior?.sourceDescriptor || prior?.descriptor);
   const priorBinding=prior?.publicationBinding || (previous?.issued?{descriptor:previous,sha256:prior?.sourceHash || prior?.source?.contentHash || null}:null);
+  if(!sourceDescriptor?.issued&&priorBinding?.sha256===sourceHash&&sameDocxDescriptor(sourceDescriptor,priorBinding.descriptor))sourceDescriptor={...sourceDescriptor,issued:priorBinding.descriptor.issued};
   // A different undated byte observation has no assigned publication. Retain
   // the last known binding separately rather than attributing it to those bytes.
   const publicationBinding=sourceDescriptor?.issued?{descriptor:sourceDescriptor,sha256:sourceHash}:priorBinding;
   return {sourceDescriptor,sourceHash,publicationBinding};
-}
-function publicationHistory(...observations) {
-  const bindings=new Map();
-  for(const observation of observations.flat()) {
-    const descriptor=normalizedDocxDescriptor(observation?.descriptor);
-    if(!descriptor?.issued)continue;
-    const hash=observation.sha256 ?? null,key=JSON.stringify([descriptor.url,descriptor.language,descriptor.byteSize,hash]);
-    bindings.set(key,{descriptor,sha256:hash});
-  }
-  return [...bindings.values()];
 }
 const linkedListKey=(target,listId)=>'amendment:discover:'+target+':'+listId;
 function verifiedList(work,target,listId) {
@@ -762,8 +754,8 @@ export async function amendmentTask(worker,task) {
     // Parser-only work, and a retry after this job's own download, read the
     // retained bytes of a still-current descriptor at any age. Their original
     // retrieval time remains the wording's retrieval time.
-    const retrieve=async (descriptor,previousDescriptor)=>{
-      const retained=parserUpgrade||body.sourceDownloaded?await sources.read(descriptor,{listId:body.listId,previousDescriptor,signal}):null;
+    const retrieve=async (descriptor,forceDownload=false)=>{
+      const retained=!forceDownload&&(parserUpgrade||body.sourceDownloaded)?await sources.read(descriptor,{listId:body.listId,signal}):null;
       if(retained)return {...retained,retained:true};
       const defer=wait=>{
         store.assertWriter();
@@ -785,9 +777,24 @@ export async function amendmentTask(worker,task) {
       catch(error){signal.throwIfAborted();throw error;}
       signal.throwIfAborted();
       if(paced>0)return defer(paced);
-      return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString()};
+      return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString(),retained:false};
     };
-    const downloaded=await retrieve(file,saved.work.extraction?.publicationBinding?.descriptor || saved.work.extraction?.sourceDescriptor);
+    const parseSource=async (descriptor,prior,downloaded)=>{
+      for(let attempt=0;attempt<2;attempt++) {
+        const fetchedAt=downloaded.fetchedAt;
+        const extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:descriptor.language,sourceUrl:descriptor.url,fetchedAt},{signal});
+        signal.throwIfAborted();
+        if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
+        let publicationChanged=false;
+        await sources.save(descriptor,downloaded.buffer,fetchedAt,{listId:body.listId,signal,downloaded:!downloaded.retained,onPublicationChange:()=>{publicationChanged=true;}});
+        if(!publicationChanged)return {extraction,downloaded,publication:publicationEvidence(sources,descriptor,downloaded.buffer,prior)};
+        // A defensive refusal is a cache miss, not a failed list job. The
+        // ordinary download admission and pacing still apply to the retry.
+        downloaded=await retrieve(descriptor,true);if(!downloaded)return null;
+      }
+      return null;
+    };
+    const downloaded=await retrieve(file);
     if(!downloaded)return;
     signal.throwIfAborted();
     // Extraction is CPU work: parse off the main thread and run each list's
@@ -796,12 +803,8 @@ export async function amendmentTask(worker,task) {
     await extractionTurn(pace,{signal});
     const sliceStarted=performance.now();
     try {
-      const fetchedAt=downloaded.fetchedAt,extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt},{signal});
-      signal.throwIfAborted();
-      if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
-      // All byte paths use the store's monotonic publication binding rule.
-      await sources.save(file,downloaded.buffer,fetchedAt,{listId:body.listId,signal,downloaded:!downloaded.retained});
-      const publication=publicationEvidence(sources,file,downloaded.buffer,saved.work.extraction);
+      const primary=await parseSource(file,saved.work.extraction,downloaded);if(!primary)return;
+      const {extraction,publication}=primary,fetchedAt=primary.downloaded.fetchedAt;
       if(!parserUpgrade)for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
       signal.throwIfAborted();
       let authorNames=null;
@@ -809,21 +812,16 @@ export async function amendmentTask(worker,task) {
       if(alternate){
         if(!body.sourceDownloaded)store.taskProgress(task,{...body,sourceDownloaded:true});
         try {
-          const other=await retrieve(alternate,saved.work.authorNames?.publicationBinding?.descriptor || saved.work.authorNames?.descriptor);
+          const other=await retrieve(alternate);
           if(!other)return;
           signal.throwIfAborted();
-          const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
-          const parsed=await worker.extractAmendmentList(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt},{signal});
-          signal.throwIfAborted();
-          if(!Array.isArray(parsed.amendments)||parsed.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Alternate byline extraction exceeded its record budget.');
-          await sources.save(alternate,other.buffer,retrievedAt,{listId:body.listId,signal,downloaded:!other.retained});
-          const otherPublication=publicationEvidence(sources,alternate,other.buffer,saved.work.authorNames);
+          const result=await parseSource(alternate,saved.work.authorNames,other);if(!result)return;
+          const parsed=result.extraction,otherPublication=result.publication,retrievedAt=result.downloaded.fetchedAt;
+          const source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:otherPublication.sourceHash};
           authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:publication.sourceDescriptor,descriptor:otherPublication.sourceDescriptor,publicationBinding:otherPublication.publicationBinding,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
         }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
       }
-      const publicationBindings=publicationHistory(saved.work.extraction?.publicationBindings || [],saved.work.extraction?.publicationBinding,
-        saved.work.authorNames?.publicationBinding,publication.publicationBinding,authorNames?.publicationBinding);
-      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),...publication,publicationBindings}};
+      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),...publication}};
       delete next.wordingRefreshFailure;
       store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});

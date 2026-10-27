@@ -54,15 +54,27 @@ class AmendmentSourceStore {
   // Import once per process; revisit recent interrupted publications on later
   // writer accesses after their publication grace period has elapsed.
   async initialize({signal}={}) {
-    this.ready??=(async()=>{
+    try {
+      if(!this.schemaReady&&this.store.clock()<(this.retryAt ?? 0))return false;
       this.store.assertWriter();this.schema();
-      await this.migrateLegacy({signal});
-    })();
-    try {await this.ready;}catch(error){this.ready=null;throw error;}
-    if(this.store.clock() >= (this.sweepAfter ?? 0)) {
-      await this.sweepOrphans();
-      this.sweepAfter=this.store.clock()+10*60_000;
+      if(this.store.clock()>=(this.retryAt ?? 0)) {
+        this.ready??=this.migrateLegacy({signal});
+        if(!await this.ready){this.ready=null;this.retryAt=this.store.clock()+60_000;}
+        if(this.store.clock()>=(this.sweepAfter ?? 0)) {
+          await this.sweepOrphans();this.sweepAfter=this.store.clock()+10*60_000;
+        }
+      }
+      return true;
+    }catch(error){
+      this.ready=null;this.retryAt=this.store.clock()+60_000;
+      return this.storageFailure(error,{signal});
     }
+  }
+  storageFailure(error,{signal}={}) {
+    signal?.throwIfAborted();
+    if(error?.name==='AbortError'||error?.code==='ABORT_ERR'||error?.message==='Activity-index writer lease was lost.')throw error;
+    if(!this.warned){console.warn(`[amendment-sources] byte retention unavailable (${error?.code || 'storage error'}); extraction continues without retention`);this.warned=true;}
+    return false;
   }
   async sweepOrphans() {
     this.store.assertWriter();
@@ -80,8 +92,8 @@ class AmendmentSourceStore {
   }
   async migrateLegacy({signal}={}) {
     let names;
-    try {names=(await readdir(this.legacyDirectory)).filter(name=>LEGACY.test(name));}catch(error){if(error.code==='ENOENT')return;throw error;}
-    let imported=0;
+    try {names=(await readdir(this.legacyDirectory)).filter(name=>LEGACY.test(name));}catch(error){if(error.code==='ENOENT')return true;throw error;}
+    let imported=0,complete=true;
     for(const name of names) {
       signal?.throwIfAborted();
       const file=path.join(this.legacyDirectory,name);
@@ -94,6 +106,7 @@ class AmendmentSourceStore {
         if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&Number.isFinite(Date.parse(record.fetchedAt))&&normalizedDocxDescriptor(record.descriptor)) {
           remove=await this.save(record.descriptor,buffer,record.fetchedAt,{signal,legacy:true});
           if(remove)imported++;
+          else complete=false;
         }
       }
       signal?.throwIfAborted();this.store.assertWriter();
@@ -101,18 +114,14 @@ class AmendmentSourceStore {
       await yieldTurn();
     }
     await rmdir(this.legacyDirectory).catch(()=>{});
-    if(names.length)console.info(`[amendment-sources] imported ${imported} of ${names.length} legacy DOCX cache records`);
-  }
-  // Index-only check for scheduling; it reads no file.
-  has(descriptor) {
-    this.schema();
-    return Boolean(this.match(descriptor));
+    if(imported)console.info(`[amendment-sources] imported ${imported} of ${names.length} legacy DOCX cache records`);
+    return complete;
   }
   match(descriptor) {
     const wanted=key(descriptor);if(!wanted)return null;
     const dated=this.store.db.prepare('SELECT 1 FROM amendment_source_bindings WHERE url=? AND language=? AND byte_size=? LIMIT 1').get(wanted.url,wanted.language,wanted.byteSize);
     const rows=this.store.db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
-      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&!(wanted.issued&&!row.issued&&dated));
+      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&!(wanted.issued&&!row.issued&&(dated||Date.parse(row.retrieved_at)<Date.parse(wanted.issued))));
     // Prefer a row with the same published issue time over one without it.
     return rows.sort((a,b)=>Number(Boolean(b.issued&&wanted.issued))-Number(Boolean(a.issued&&wanted.issued))||b.retrieved_at.localeCompare(a.retrieved_at))[0] || null;
   }
@@ -120,20 +129,22 @@ class AmendmentSourceStore {
   // recover the binding for these exact bytes; they never replace it.
   boundDescriptor(descriptor,hash) {
     const file=normalizedDocxDescriptor(descriptor),wanted=key(file);
-    if(!wanted||file.issued)return file;
-    const binding=this.store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=? AND language=? AND byte_size=? AND sha256=?')
-      .get(wanted.url,wanted.language,wanted.byteSize,hash);
-    return binding?{...file,issued:binding.issued}:file;
+    if(!wanted||file.issued||!this.schemaReady)return file;
+    try {
+      const binding=this.store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=? AND language=? AND byte_size=? AND sha256=?')
+        .get(wanted.url,wanted.language,wanted.byteSize,hash);
+      return binding?{...file,issued:binding.issued}:file;
+    }catch(error){this.storageFailure(error);return file;}
   }
   // Returns the exact retained bytes and their original retrieval time. A
   // missing or damaged file removes its row so the caller can download again.
-  async read(descriptor,{listId=null,previousDescriptor=null,signal}={}) {
-    await this.initialize({signal});
+  async read(descriptor,options={}) {
+    try {return await this.readBytes(descriptor,options);}
+    catch(error){this.storageFailure(error,options);return null;}
+  }
+  async readBytes(descriptor,{listId=null,signal}={}) {
+    if(!await this.initialize({signal}))return null;
     const row=this.match(descriptor);if(!row)return null;
-    // Older writers could record an issue time in extraction while leaving the
-    // retained row unissued. That row cannot bridge a known publication change.
-    const current=normalizedDocxDescriptor(descriptor),previous=normalizedDocxDescriptor(previousDescriptor);
-    if(!row.issued&&current?.issued&&previous?.issued&&Date.parse(current.issued)!==Date.parse(previous.issued))return null;
     const file=path.join(this.directory,row.sha256+'.docx');
     let buffer=null;
     try {buffer=await readFile(file);}catch(error){signal?.throwIfAborted();if(error.code!=='ENOENT')throw error;}
@@ -149,8 +160,12 @@ class AmendmentSourceStore {
   }
   // Records bytes served for a current descriptor. Returns false when they
   // cannot be retained; extraction can still use the in-memory bytes.
-  async save(descriptor,buffer,retrievedAt,{listId=null,signal,legacy=false,downloaded=!legacy}={}) {
-    if(!legacy)await this.initialize({signal});
+  async save(descriptor,buffer,retrievedAt,options={}) {
+    try {return await this.saveBytes(descriptor,buffer,retrievedAt,options);}
+    catch(error){return this.storageFailure(error,options);}
+  }
+  async saveBytes(descriptor,buffer,retrievedAt,{listId=null,signal,legacy=false,downloaded=!legacy,onPublicationChange}={}) {
+    if(!legacy&&!await this.initialize({signal}))return false;
     let wanted=key(descriptor);const db=this.store.db;
     if(!wanted||!Buffer.isBuffer(buffer)||buffer.length>AMENDMENT_SOURCE_LIMITS.maxFileBytes||!Number.isFinite(Date.parse(retrievedAt)))return false;
     // The same or a less specific descriptor is replaced; other versions of the
@@ -164,9 +179,8 @@ class AmendmentSourceStore {
       const proved=bindings.some(row=>row.sha256===hash&&Date.parse(row.issued)===Date.parse(wanted.issued))||
         db.prepare('SELECT issued FROM amendment_sources WHERE url=? AND language=? AND byte_size=? AND sha256=? AND issued<>?').all(wanted.url,wanted.language,wanted.byteSize,hash,'')
           .some(row=>Date.parse(row.issued)===Date.parse(wanted.issued));
-      if(!downloaded&&bindings.length&&!proved) {
-        if(legacy)return false;
-        throw new Error('A changed amendment publication requires downloaded bytes.');
+      if(!downloaded&&!proved&&(bindings.length||Date.parse(retrievedAt)<Date.parse(wanted.issued))) {
+        onPublicationChange?.();return false;
       }
       // First-use legacy compatibility establishes the first binding. Only a
       // dated download can replace an existing binding, even for identical bytes.

@@ -1,7 +1,8 @@
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { deflateRawSync } from 'node:zlib';
@@ -715,6 +716,70 @@ test('parser recovery reuses retained bytes at any age and downloads only a chan
   }
 });
 
+for(const [issued,expectedDownloads] of [['2026-10-19T00:00:00Z',0],['2026-10-20T00:00:00Z',0],['2026-10-25T00:00:00Z',1]])test('first legacy reuse requires retrieval at or after publication: '+issued,async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  const sources=amendmentSourceStore(store),retrievedAt='2026-10-20T00:00:00Z';
+  await sources.save(descriptor,amendmentDocx(),retrievedAt);
+  context.advance(10*86400000);await context.reverify({...descriptor,issued});downgrade(context);
+  let downloads=0;
+  const proposed='A new requirement.',zipped=amendmentDocx(proposed),buffer=Buffer.concat([zipped,Buffer.alloc(descriptor.byteSize-zipped.length)]);
+  buffer.writeUInt16LE(descriptor.byteSize-zipped.length,zipped.length-2);
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer};};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  const extraction=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,expectedDownloads);
+  assert.equal(extraction.sourceDescriptor.issued,issued);
+  assert.equal(extraction.amendments[0].proposedText,expectedDownloads?proposed:oldProposed);
+  assert.equal(extraction.fetchedAt,expectedDownloads?context.at():retrievedAt);
+});
+
+test('a raw-file write failure keeps the finished extraction and logs storage failure once',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context,sources=amendmentSourceStore(store);
+  const buffer=amendmentDocx(freshProposed),file={...descriptor,url:newUrl,byteSize:buffer.length};
+  const blocked=path.join(sources.directory,createHash('sha256').update(buffer).digest('hex')+'.docx');mkdirSync(blocked);
+  const warnings=[];t.mock.method(console,'warn',message=>warnings.push(message));
+  await context.reverify(file);
+  worker.downloadAmendmentDocx=async()=>({buffer});
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(extractionJob(store,generation).done,1);
+  assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
+  assert.equal(await sources.save(file,buffer,context.at()),false);assert.equal(warnings.length,1);
+  rmSync(blocked,{recursive:true});assert.equal(await sources.save(file,buffer,context.at()),true);
+});
+
+test('initialization failure does not block a completed extraction and maintenance retries later',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context,sources=amendmentSourceStore(store);
+  const buffer=amendmentDocx(freshProposed);await context.reverify({...descriptor,url:newUrl,byteSize:buffer.length});
+  const warnings=[];t.mock.method(console,'warn',message=>warnings.push(message));
+  sources.schemaReady=false;
+  const failed=t.mock.method(sources,'schema',()=>{throw Object.assign(new Error('Storage unavailable'),{code:'EIO'});});
+  worker.downloadAmendmentDocx=async()=>({buffer});
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(extractionJob(store,generation).done,1);
+  assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
+  assert.equal(warnings.length,1);assert.equal(failed.mock.calls.length,1);
+  failed.mock.restore();context.advance(60_001);assert.equal(await sources.initialize(),true);
+});
+
+test('a defensive retained-publication refusal downloads and reparses instead of failing the list',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.reverify({...descriptor,issued:'2026-10-02T00:00:00Z'});downgrade(context);
+  let injected=false,downloads=0;
+  const extract=worker.extractAmendmentList;
+  worker.extractAmendmentList=async(...args)=>{
+    const result=await extract(...args);
+    if(!injected) {
+      injected=true;
+      store.db.prepare('INSERT INTO amendment_source_bindings VALUES (?,?,?,?,?)').run(descriptor.url,descriptor.language,descriptor.byteSize,createHash('sha256').update(amendmentDocx()).digest('hex'),'2026-10-03T00:00:00Z');
+    }
+    return result;
+  };
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(downloads,1);assert.equal(extractionJob(store,generation).done,1);assert.equal(extractionJob(store,generation).attempts,0);
+  assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
+});
+
 for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse records its first issue time and later republication requires a download; '+mode,async t=>{
   const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);context.advance(30*86400000);
   const observe=issued=>{
@@ -814,12 +879,12 @@ test('primary and alternate byline downloads and reuse share publication-history
   worker.downloadAmendmentDocx=async url=>{if(url===otherUrl)throw new Error('Alternate source unavailable');return originalDownload(url);};
   await extract(false);work=store.source(generation,listKey).work;
   assert.match(work.authorNames.error,/Alternate source unavailable/);
-  assert(work.extraction.publicationBindings.some(binding=>binding.descriptor.url===otherUrl&&binding.descriptor.issued===t1),'Failed alternate observations retain earlier publication evidence.');
+  assert.equal(store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=?').get(otherUrl).issued,t1);
   worker.downloadAmendmentDocx=async url=>{assert.equal(url,oldUrl);return {buffer:alternate};};
   await extract(false);work=store.source(generation,listKey).work;
   assert.equal(work.authorNames,null,'A Latin-only parse no longer needs the alternate source.');
   assert.equal(work.extraction.sourceDescriptor.issued,undefined,'Different undated primary bytes remain unassigned.');
-  assert(work.extraction.publicationBindings.some(binding=>binding.descriptor.url===otherUrl&&binding.descriptor.issued===t1),'An unused alternate source retains its publication history.');
+  assert.equal(store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=?').get(otherUrl).issued,t1);
   worker.downloadAmendmentDocx=originalDownload;
   context.advance(86400000);observe(t2);downloads=0;await extract(true);assert.equal(downloads,2);
   work=store.source(generation,listKey).work;
