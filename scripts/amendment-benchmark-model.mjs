@@ -1,5 +1,6 @@
 import {parseTargetLabel} from '../server/proposal-structure.mjs';
-import {segmentMotionUnits,placementReference} from '../server/document-context-model.mjs';
+import {placementReference} from '../server/document-context-model.mjs';
+import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -36,11 +37,6 @@ const suffixOrder = suffix => {
   return [...suffix].reduce((value,c) => value*26+c.charCodeAt(0)-96,0);
 };
 const ordinal = value => typeof value==='number'?value:typeof value==='string'&&/^[A-Z]+$/.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
-function ambiguousRomanHeading(text,unit) {
-  const value=text?.paragraphs?.[unit?.start],format=text?.paragraphFormats?.[unit?.start];
-  if(typeof value!=='string'||unit.start!==unit.end||!/^\s*[IVXLCDM]+\.\s+\p{Lu}[^\n]*[^.;!?\s]\s*$/u.test(value))return false;
-  return ['bold','italic'].every(kind=>format?.marks?.some(mark=>mark.kind===kind&&mark.start===0&&mark.end===value.length));
-}
 const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
@@ -92,7 +88,8 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
     } else {
       const label=target.segments.at(-1),parent=target.segments.at(-2);
       if(!['paragraph','recital','citation','point'].includes(label.kind)||label.kind==='point'&&parent?.kind!=='paragraph')return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
-      const units=segmentMotionUnits(text,wording.language);
+      const {units,reason}=rawResolutionUnits(text,wording.language);
+      if(reason)return {status:'unverified',reason};
       candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===label.value&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
     }
     if(!candidates.length)return {status:'unverified',reason:'oracle-address-unit-unavailable'};
@@ -111,6 +108,7 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
       return true;
     };
     if(!candidates.some(inside))return fail('oracle-address-span-mismatch');
+    if(!proposal&&candidates.some(unit=>!unit.complete))return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
     if(candidates.length===1)return {...verified('oracle-addressed-source-span'),originalOccurrences:count};
   }
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
@@ -136,7 +134,7 @@ export function verifyPlacement({placement, wording, items, text, target = parse
       const span = placement.span;
       if (!span || !Number.isInteger(span.start) || !Number.isInteger(span.end) || span.start < 0 || span.end < span.start || span.end >= (text?.paragraphs?.length || 0)) return fail('oracle-invalid-span');
       source = text.paragraphs.slice(span.start,span.end+1).join('\n');
-      labels = segmentMotionUnits(text,wording.language).filter(u=>u.kind!=='heading').map(u=>({value:u.label}));
+      labels = [...rawResolutionUnits(text,wording.language).units.map(u=>({value:u.label})),...target.segments.map(segment=>({value:segment.value}))];
     }
     if (source.includes('\uFFFC') || wording.originalText.includes('\uFFFC')) return {status:'unverified',reason:'oracle-object-comparison-unavailable'};
     const key = value => oracleNormal(value,labels);
@@ -161,16 +159,18 @@ export function verifyPlacement({placement, wording, items, text, target = parse
     end = anchor.extent.end;
   } else {
     if (wording.language !== 'en' || !['paragraph','recital'].includes(label.kind)) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-    const units = segmentMotionUnits(text,wording.language);
-    const published = placement.evidence?.find(e => e.basis === 'published-reference');
-    const candidates = units.filter(u => u.kind === label.kind && u.label === published?.anchor && u.end === placement.insertAfter);
-    if (candidates.length !== 1) return fail('oracle-anchor-missing');
-    anchor = candidates[0];
-    // The resolution grammar currently has no nested insertion form.
-    if (target.segments.length !== 1) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+    const raw=rawResolutionUnits(text,wording.language);
+    if(raw.reason)return {status:'unverified',reason:raw.reason};
+    const units=raw.units;
     const split = value => {const match = /^(\d+|[A-Z]+)([a-z]*)$/.exec(value); return match ? {number:/^\d+$/.test(match[1])?Number(match[1]):match[1],suffix:match[2]} : {number:null,suffix:''};};
-    siblings = units.filter(u => u.kind === label.kind && u.parent === anchor.parent).map(u => ({...u,...split(u.label)}));
-    anchor = {...anchor,...split(anchor.label)};
+    const bases=units.filter(u=>u.kind===label.kind&&u.label===String(label.number));
+    if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    const base=bases[0];
+    siblings=units.filter(u=>u.kind===label.kind&&u.parent===base.parent&&u.group===base.group).map(u=>({...u,...split(u.label)}));
+    const preceding=siblings.filter(u=>u.number===label.number&&suffixOrder(u.suffix)!==null&&suffixOrder(u.suffix)<rank).sort((a,b)=>suffixOrder(a.suffix)-suffixOrder(b.suffix));
+    anchor=preceding.at(-1);
+    if(!anchor||!anchor.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if (target.segments.length !== 1) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
     end = anchor.end+1;
   }
   // Recital letters are carried as value rather than number by the parser.
@@ -180,11 +180,6 @@ export function verifyPlacement({placement, wording, items, text, target = parse
   const ordered = siblings.sort((a,b) => a.start-b.start), at = ordered.findIndex(u => u.start === anchor.start);
   if (at < 0 || ordered.some(u => u.number === wanted && u.suffix === label.suffix)) return fail('oracle-duplicate-insertion-label');
   const previous=ordered[at-1],next = ordered[at+1],wantedOrdinal=ordinal(wanted);
-  // The shared segmenter can label a Roman section title "I. State ..." as
-  // recital I. Full bold/italic source marks make its kind ambiguous; they do
-  // not prove a backwards recital sequence or a wrong insertion. Do not score
-  // this as correct or as false without an independent sibling-kind oracle.
-  if(!proposal&&[previous,anchor,next].some(unit=>unit&&ambiguousRomanHeading(text,unit)))return {status:'unverified',reason:'oracle-sibling-kind-unverified'};
   if(previous&&(ordinal(previous.number)>ordinal(anchor.number)||ordinal(previous.number)===ordinal(anchor.number)&&suffixOrder(previous.suffix)>=suffixOrder(anchor.suffix)))return fail('oracle-previous-sibling-order');
   if (next && (next.start < end || ordinal(next.number) < wantedOrdinal || ordinal(next.number) === wantedOrdinal && (suffixOrder(next.suffix) == null || suffixOrder(next.suffix) <= rank))) return fail('oracle-next-sibling-order');
   return verified('oracle-sibling-boundary');
@@ -237,14 +232,24 @@ export function projectionCompatibility(rows,code) {
   return {liveContextVersions,liveProposalParserVersions,liveDocumentExtractionVersions,checkoutDocumentContextVersion:code.documentContextVersion,checkoutProposalParserVersion:code.proposalParserVersion,checkoutDocumentExtractionVersion:code.documentExtractionVersion,mismatches,compatible:!mismatches.length};
 }
 
-export function compareBaseline(current, baseline) {
+export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   // Refuse a changing census or input snapshot: a score difference would not
   // isolate checkout behaviour. Code identity deliberately does not participate.
   const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
-  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark.mjs'])if(current.code?.files?.[file]!==baseline.code?.files?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
-  if(current.compatibility?.compatible===false||baseline.compatibility?.compatible===false)return {failed:true,refused:true,warnings,reason:'Live projection versions differ from checkout; in-process source replay is required.',deltas:{},taxonomyDeltas:[],regressions:[]};
+  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark.mjs'])if(current.code?.files?.[file]!==baseline.code?.files?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  const scope=placementOnly?'placement-only-frozen-projections':'full-pipeline';
+  const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});
+  if(placementOnly) {
+    const before=baseline.code?.producerFingerprint,after=current.code?.producerFingerprint;
+    if(!before?.sha256||!after?.sha256||before.schemaVersion!==1||after.schemaVersion!==1||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison is unavailable pending #278.');
+    for(const report of [baseline,current]) {
+      const compatibility=report.compatibility;
+      if(typeof compatibility?.compatible!=='boolean'||!Array.isArray(compatibility.mismatches)||!compatibility.compatible&&!compatibility.mismatches.length||compatibility.mismatches.some(m=>m.kind!=='document-context'||!Number.isInteger(m.observed)||m.observed<1||!Number.isInteger(m.expected)||m.expected<1))return refuse('Placement-only mode waives only a recorded document-context wrapper-version mismatch.');
+    }
+    warnings.push('Placement-only scope: frozen API projections; unchanged source producers; document-context wrapper-version mismatches acknowledged. Extraction/projection changes are not evaluated.');
+  } else if(current.compatibility?.compatible===false||baseline.compatibility?.compatible===false)return refuse('Live projection versions differ from checkout; in-process source replay is required.');
   const now = new Map(current.rows.map(row=>[row.key,row]));
   const regressions = baseline.rows.filter(old => {
     const row = now.get(old.key);
@@ -257,5 +262,5 @@ export function compareBaseline(current, baseline) {
   const before=new Map(baseline.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const after=new Map(current.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const taxonomyDeltas=[...new Set([...before.keys(),...after.keys()])].sort().map(key=>({key,count:(after.get(key)?.count||0)-(before.get(key)?.count||0),share:(after.get(key)?.share||0)-(before.get(key)?.share||0)}));
-  return {warnings,deltas,taxonomyDeltas,regressions,failed:regressions.length>0||current.metrics.falsePlacements>0};
+  return {scope,warnings,deltas,taxonomyDeltas,regressions,failed:regressions.length>0||current.metrics.falsePlacements>0};
 }
