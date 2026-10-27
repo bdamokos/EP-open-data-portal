@@ -415,10 +415,11 @@ for(const change of ['ordinal','segment','containerPath','complete'])test(`sourc
   assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'));
   assert.equal(placement(text,{originalText:'(a) body point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).status,'unresolved');
 });
-test('a locally complete child cannot be addressed when its ancestor subtree breaks later',()=>{
+test('a closed child keeps its extent when its ancestor subtree breaks later',()=>{
   const text=motion(['19. Main:', '(a) first;', '(b) second;', 'broken continuation;', '20. Next;']);
   text.paragraphSources[6].complete=false;
-  assert.equal(placement(text,{originalText:'(a) first;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'source_passage_incomplete');
+  assert.deepEqual(placement(text,{originalText:'(a) first;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).span,{start:4,end:4});
+  assert.equal(placement(text,{originalText:'(b) second;',proposedText:'Changed;',targetLabel:'Paragraph 19 point b'}).reason,'source_passage_incomplete');
 });
 for(const heading of ['Annex','ANNEX','ANNEX II','EXPLANATORY STATEMENT','Signature','Notes'])test(`explicit ${heading} boundary caps the last provision before subsequent material`,()=>{
   const text=motion(['19. Final provision;',heading,'1. Annex text;']);
@@ -484,7 +485,8 @@ for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow
     assert.equal(placement(text,options).reason,'resolution_extent_uncertain');
     const source='19. Calls for: – first item; – second item;';
     for (const proposedText of ['Changed;', '', 'deleted']) {
-      assert.equal(placement(text,{originalText:source,proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+      assert.deepEqual(placement(text,{originalText:source,proposedText,targetLabel:'Paragraph 19'}).span,{start:3,end:5});
+      assert.equal(placement(text,{originalText:'19. Calls for:',proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
       assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
     }
     assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
@@ -507,7 +509,7 @@ for (const heading of ['Further action and monitoring.', 'Follow-up actions and 
       assert(!units.some(unit=>unit.kind==='point'&&unit.label==='b'));
       assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
       for (const proposedText of ['Changed;', '', 'deleted']) {
-        assert.equal(placement(text,{originalText:'19. Calls for: (a) first point; – first item;',proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+        assert.deepEqual(placement(text,{originalText:'19. Calls for: (a) first point; – first item;',proposedText,targetLabel:'Paragraph 19'}).span,{start:3,end:5});
         assert.equal(placement(text,{originalText:'(a) first point;',proposedText,targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');
         assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
         for (const originalText of [heading,'follow-up prose;','(b) orphan point;',heading+' follow-up prose;']) {
@@ -647,4 +649,221 @@ test('conflicting comparison sources never enter motion placement or legacy unkn
     assert.equal(placement(text,{...options,baseline:'unknown',baselineSource,resolutionDocument:false}).reason,'baseline_unavailable');
     for(const baseline of ['commission-proposal','council-position','present-text','other'])assert.equal(placement(text,{...options,baseline,baselineSource}).reason,'baseline_unavailable');
   }
+});
+
+// Public discharge reports A-10-2026-0050 (two decisions), 0085 (split
+// contents), and 0199 (a decision reproduced in an annex) supply these shapes.
+const resolutionSection = ['3. MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION', 'on discharge', '(2025/2154(DEC))',
+  'The European Parliament,', '– having regard to its decision,', '1. Resolution wording;', '2. Final resolution provision;'];
+const decisionSection = ['1. PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION', 'on discharge', '(2025/2154(DEC))',
+  'The European Parliament,', '– having regard to the budget,', '1. Decision wording;', '2. Final decision provision;'];
+const publishedResolution = {baseline:'motion-resolution', baselineSource:{conflicted:false,
+  headings:[{left:{raw:'Motion for a resolution',category:'motion-resolution'}}]}, language:'en', targetLabel:'Paragraph 1',
+  originalText:'Resolution wording;', proposedText:'Amended resolution wording;'};
+
+test('a single opening retains its resolution placement', () => {
+  const text=document(['The European Parliament,', '– having regard to the budget,', '1. Resolution wording;', '2. Final provision;', 'ANNEX']);
+  assert.deepEqual(placement(text,publishedResolution).span,{start:2,end:2});
+});
+
+test('two or three openings select the explicitly addressed resolution, never a numbered decision', () => {
+  for(const decisions of [decisionSection,[...decisionSection,...decisionSection.map(value=>value.replace(/^1\. PROPOSAL/,'2. PROPOSAL'))]]) {
+    const text=document([...decisions,...resolutionSection,'ANNEX']);
+    const result=placement(text,publishedResolution);
+    assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:decisions.length+5,end:decisions.length+5});
+    assert.equal(placement(text,{...publishedResolution,originalText:'Decision wording;'}).reason,'conflicting_target_evidence');
+    assert.equal(placement(text,{...publishedResolution,targetLabel:'Unsupported reference',originalText:'Decision wording;'}).status,'unresolved');
+  }
+});
+
+test('contents page numbers and split contents headings cannot select the report body', () => {
+  const contents=['CONTENTS','3. MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION\t7',
+    '3.\tMOTION FOR A EUROPEAN PARLIAMENT RESOLUTION','on discharge\t7'];
+  const text=document([...contents,...decisionSection,...resolutionSection,'ANNEX']);
+  assert.deepEqual(placement(text,publishedResolution).span,{start:contents.length+decisionSection.length+5,end:contents.length+decisionSection.length+5});
+});
+
+test('multiple openings need the published resolution label, with conflicting section labels withheld', () => {
+  const text=document([...decisionSection,...resolutionSection,'ANNEX']);
+  const {baselineSource,...withoutHeading}=publishedResolution;
+  assert.equal(placement(text,withoutHeading).reason,'baseline_unavailable');
+  assert.equal(placement(text,{...withoutHeading,documentReferences:[{field:'DocAmend',raw:'Motion for a resolution'}]}).status,'placed');
+  assert.equal(placement(text,{...publishedResolution,documentReferences:[{field:'DocAmend',raw:'Proposal for a decision'}]}).reason,'baseline_unavailable');
+});
+
+test('several body resolution headings or openings within one section remain ambiguous', () => {
+  for(const paragraphs of [
+    [...resolutionSection,...resolutionSection,'ANNEX'],
+    [...resolutionSection,'The European Parliament,','1. Other wording;','ANNEX'],
+    [...decisionSection,'The European Parliament,','1. Other wording;'],
+  ]) assert.equal(placement(document(paragraphs),publishedResolution).reason,'baseline_unavailable');
+});
+
+test('an annex reproduction and following decision sections cannot supply resolution units', () => {
+  for(const end of ['ANNEX: ACTIVITIES','4. PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION']) {
+    const text=document([...resolutionSection,end,'The European Parliament,','1. Decision wording;','9. Annex provision;']);
+    assert(!segmentMotionUnits(text,'en').some(unit=>unit.label==='9'));
+    assert.equal(placement(text,{...publishedResolution,targetLabel:'Paragraph 9',originalText:'Annex provision;'}).reason,'target_not_found');
+    assert.equal(placement(text,{...publishedResolution,targetLabel:'Paragraph 2 a (new)',originalText:'',proposedText:'Inserted provision;'}).insertAfter,6);
+  }
+});
+
+test('a table or incomplete heading cannot establish the selected section', () => {
+  for(const source of [{container:'table-cell'}, {complete:false}]) {
+    const text=document([...decisionSection,...resolutionSection,'ANNEX'],{sources:{[decisionSection.length]:source}});
+    assert.equal(placement(text,publishedResolution).status,'unresolved');
+  }
+});
+
+test('an omitted blank title row does not prevent selecting the section, but provision gaps still withhold wording', () => {
+  const text=document([...decisionSection,...resolutionSection,'ANNEX']);
+  for(let index=decisionSection.length+2;index<text.paragraphs.length;index++) {
+    text.paragraphSources[index].ordinal++;text.paragraphSources[index].segment=1;
+  }
+  assert.equal(placement(text,publishedResolution).status,'placed');
+  text.paragraphs.splice(decisionSection.length+6,0,'continues here;');
+  // A separate broken extent must never gain completeness from heading selection.
+  const broken=document(text.paragraphs,{sources:{[decisionSection.length+6]:{segment:2}}});
+  assert.equal(placement(broken,{...publishedResolution,originalText:'Resolution wording; continues here;'}).reason,'source_passage_incomplete');
+});
+
+test('0085 EDF subheading closes paragraph 216 before amendment 57 inserts paragraph 216a', () => {
+  const title='European Development Funds (EDF)';
+  for(const italic of [false,true]) {
+    const text=document([...decisionSection,...resolutionSection.slice(0,5),'216. Existing provision;',title,'217. Following provision;','ANNEX']);
+    const start=decisionSection.length+5;
+    text.paragraphFormats=text.paragraphs.map((value,index)=>index===start+1?{marks:[{kind:'bold',start:0,end:value.length},
+      ...(italic?[{kind:'italic',start:0,end:value.length}]:[])]}:{});
+    const before=structuredClone(text);
+    assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='216').end,start);
+    const result=placement(text,{originalText:'',proposedText:'New provision;',targetLabel:'Paragraph 216 a (new)',referenceText:'After § 216',baselineSource:publishedResolution.baselineSource});
+    assert.equal(result.status,'placed');assert.equal(result.insertAfter,start);assert.equal(result.insertBefore,start+1);
+    assert.deepEqual(placement(text,{originalText:'216. Existing provision;',proposedText:'Changed;',targetLabel:'Paragraph 216',baselineSource:publishedResolution.baselineSource}).span,{start,end:start});
+    assert.equal(placement(text,{originalText:title,proposedText:'Changed;'}).status,'unresolved');
+    assert.deepEqual(text,before);
+  }
+});
+
+test('0199 closing separators stay after amendments 72/73 inserting paragraphs 132a/132b', () => {
+  const text=document([...decisionSection,...resolutionSection.slice(0,5),'132. Existing provision;','°','°\t°','133. Final instruction.','EXPLANATORY STATEMENT']);
+  const start=decisionSection.length+5;
+  text.paragraphFormats=text.paragraphs.map((_,index)=>index===start+1||index===start+2?{align:'center'}:{});
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='132').end,start);
+  for(const suffix of ['a','b']) {
+    const result=placement(text,{originalText:'',proposedText:'New provision;',targetLabel:`Paragraph 132 ${suffix} (new)`,referenceText:'After § 132',baselineSource:publishedResolution.baselineSource});
+    assert.equal(result.status,'placed');assert.equal(result.insertAfter,start);assert.equal(result.insertBefore,start+1);
+  }
+  assert.deepEqual(placement(text,{originalText:'132. Existing provision;',proposedText:'Changed;',targetLabel:'Paragraph 132',baselineSource:publishedResolution.baselineSource}).span,{start,end:start});
+  assert.deepEqual(placement(text,{originalText:'133. Final instruction.',proposedText:'Changed;',targetLabel:'Paragraph 133',baselineSource:publishedResolution.baselineSource}).span,{start:start+3,end:start+3});
+});
+
+test('bold numbered rows and punctuated continuation prose retain their provision roles', () => {
+  const text=document([...decisionSection,...resolutionSection.slice(0,5),'19. Main provision:','(a) first point;','Further work is necessary;','20. Next provision;','ANNEX']);
+  const start=decisionSection.length+5;
+  text.paragraphFormats=text.paragraphs.map(value=>({marks:[{kind:'bold',start:0,end:value.length}]}));
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',baselineSource:publishedResolution.baselineSource});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,start+2);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='a').parent,start);
+});
+
+// Synthetic rows model public report subheadings in A-10-2026-0080,
+// A-10-2026-0272 and A-10-2026-0044; no network or corpus download.
+const emphasizeRow = (text,index) => {
+  text.paragraphFormats=text.paragraphs.map((value,i)=>i===index?{marks:['bold','italic'].map(kind=>({kind,start:0,end:value.length}))}:{});
+  return text;
+};
+test('whole-row bold italic subheading closes a paragraph before the next numbered provision',()=>{
+  const text=emphasizeRow(motion(['19. Calls for:', '(a) first;', '– continuation;', 'Prevention and detection', '20. Next;']),6);
+  const before=structuredClone(text);
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,5);assert.equal(result.insertBefore,6);
+  assert.deepEqual(placement(text,{originalText:'19. Calls for: (a) first; – continuation;',proposedText:'Changed;',targetLabel:'Paragraph 19'}).span,{start:3,end:5});
+  assert.deepEqual(text,before);
+});
+test('partial emphasis, missing numbering, incomplete rows and source gaps do not establish heading boundaries',()=>{
+  const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+  for(const change of ['bold-only','partial','prose','incomplete','gap','table']) {
+    const text=emphasizeRow(motion(['19. Calls for;', 'Prevention and detection', '20. Next;']),4);
+    if(change==='bold-only')text.paragraphFormats[4].marks.pop();
+    if(change==='partial')text.paragraphFormats[4].marks[0].end=4;
+    if(change==='prose')text.paragraphs[5]='unclassified continuation;';
+    if(change==='incomplete')text.paragraphSources[5].complete=false;
+    if(change==='gap')text.paragraphSources[5].ordinal++;
+    if(change==='table')Object.assign(text.paragraphSources[5],{container:'table-cell',containerPath:'cell'});
+    assert.equal(placement(text,options).status,'unresolved',change);
+  }
+});
+test('insertion separately checks the next sibling source row',()=>{
+  const text=motion(['19. Complete;', '20. Next;']);
+  text.paragraphSources[4].ordinal++;
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).status,'unresolved');
+});
+test('a late ordinal gap under a section heading affects only provisions open at the break',()=>{
+  const text=motion(['GENERAL PRINCIPLES', '50. Earlier;', '51. At the break;', '53. Later;', '54. Next;']);
+  for(let i=6;i<text.paragraphSources.length;i++)text.paragraphSources[i].ordinal++;
+  assert.deepEqual(placement(text,{originalText:'50. Earlier;',proposedText:'Changed;',targetLabel:'Paragraph 50'}).span,{start:4,end:4});
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 50 a (new)'}).status,'placed');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 51 a (new)'}).reason,'source_passage_incomplete');
+  // A-10-2026-0042 paragraph 52 is genuinely absent from the extracted source.
+  assert.equal(placement(text,{originalText:'52. Missing;',proposedText:'Changed;',targetLabel:'Paragraph 52'}).reason,'target_not_found');
+});
+test('exact labelled whole-unit wording proves extent but partial, duplicate and incomplete wording does not',()=>{
+  const text=motion(['19. First line', 'continues here;', 'Further action:', 'unclassified prose;', '20. Next;']);
+  const options={originalText:'19. First line continues here;',proposedText:'Changed;',targetLabel:'Paragraph 19'};
+  assert.deepEqual(placement(text,options).span,{start:3,end:4});
+  assert.equal(placement(text,{...options,originalText:'19. First line'}).reason,'resolution_extent_uncertain');
+  assert.equal(placement(text,{...options,referenceText:'Paragraph 20'}).reason,'conflicting_target_evidence');
+  const broken=structuredClone(text);broken.paragraphSources[4].complete=false;
+  assert.equal(placement(broken,options).reason,'source_passage_incomplete');
+  const duplicate=motion(['19. First line continues here;', '19. First line continues here;', '20. Next;']);
+  assert.equal(placement(duplicate,options).reason,'multiple_published_targets');
+});
+test('the first operative paragraph is a sibling boundary after the last recital',()=>{
+  const text=motion(['J. whereas last;', '1. First operative provision;']);
+  assert.equal(placement(text,{originalText:'',proposedText:'Ja. whereas new;',targetLabel:'Recital J a (new)'}).insertBefore,4);
+});
+test('Roman numbered subheadings remain a sibling boundary before the next paragraph',()=>{
+  const text=emphasizeRow(motion(['51. Last section paragraph;', 'VI. Fight against corruption', '52. First paragraph in the next section;']),4);
+  assert.equal(placement(text,{originalText:'',proposedText:'51a. New;',targetLabel:'Paragraph 51 a (new)'}).insertBefore,4);
+});
+
+// Direct official-DOCX inspection found these single-body cases despite the
+// benchmark's shared segmentation oracle: 0106-AM-18, 0162-AM-10,
+// 0169-AM-6 and 0238-AM-1 (all A-10-2026 reports).
+test('degree-sign separators close insertion anchors before the forwarding instruction',()=>{
+  for(const separator of [['°','°\t°'],['° ° °']]) {
+    const text=motion(['64. Last substantive paragraph;',...separator,'65. Instructs its President;']);
+    assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 64 a (new)'}).insertBefore,4);
+    assert.deepEqual(placement(text,{originalText:'64. Last substantive paragraph;',proposedText:'Changed;',targetLabel:'Paragraph 64'}).span,{start:3,end:3});
+  }
+});
+// Typographic variants occur in A-10-2026-0172-AM-19 and
+// A-10-2026-0121-AM-43; the missing label space occurs in A-10-2026-0124-AM-10.
+test('resolution comparison folds proposal typography and a label without a following space',()=>{
+  for(const [source,originalText] of [["16. Takes account of Ukraine’s non‑alignment;","16.Takes account of Ukraine's non-alignment;"],['16. Uses “quoted” text;','16. Uses "quoted" text;']]) {
+    const text=motion([source,'17. Next;']),copy=structuredClone(text);
+    assert.deepEqual(placement(text,{originalText,proposedText:'Changed;',targetLabel:'Paragraph 16'}).span,{start:3,end:3});
+    assert.deepEqual(text,copy,'normalization never changes source text or offsets');
+  }
+});
+test('real punctuation and wording differences remain withheld, including A-10-2026-0124-AM-13 comma differences',()=>{
+  const text=motion(['16. Takes account of the report, including its conclusions;', '17. Next;']);
+  for(const originalText of ['16.Takes account of the report including its conclusions;', '16. Takes account of another report, including its conclusions;', '16. takes account of the report, including its conclusions;'])
+    assert.equal(placement(text,{originalText,proposedText:'Changed;',targetLabel:'Paragraph 16'}).reason,'conflicting_target_evidence');
+});
+test('unparsed vote descriptions provide no location evidence for insertions, replacements or quote fallback',()=>{
+  const text=motion(['19. Exact wording;', '20. Next;']);
+  for(const referenceText of ['Compromise amendment','Joint statement on the report','Съображение З']) {
+    for(const targetLabel of ['Paragraph 19', 'Unsupported location'])assert.equal(placement(text,{originalText:'19. Exact wording;',proposedText:'Changed;',targetLabel,referenceText}).status,'placed');
+    assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',referenceText}).insertBefore,4);
+  }
+});
+test('English vote references do not contradict a uniquely quoted Bulgarian amendment',()=>{
+  const text=document(['Европейският парламент,','– като взе предвид публичния документ,','З. като има предвид точния текст;','1. Приема текста;'],{textLanguage:'bg'});
+  assert.deepEqual(placement(text,{language:'bg',originalText:'З. като има предвид точния текст;',proposedText:'Нов текст;',targetLabel:'Съображение З',referenceText:'Recital H'}).span,{start:2,end:2});
+});
+test('parsed same-language vote conflicts remain withheld as in A-10-2026-0042-AM-46',()=>{
+  const text=motion(['19. Exact wording;', '20. Next;']);
+  for(const targetLabel of ['Paragraph 19','Unsupported location'])assert.equal(placement(text,{originalText:'19. Exact wording;',proposedText:'Changed;',targetLabel,referenceText:'Paragraph 20'}).reason,'conflicting_target_evidence');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 20'}).reason,'conflicting_target_evidence');
 });

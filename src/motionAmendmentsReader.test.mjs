@@ -24,7 +24,7 @@ function amendment(number=13,extra={}) {
 }
 function page({items=[amendment()],document=documentId,scope='member',language='en',offset=0,total=items.length,
   selected=null,requestedId=selected?.id??null,selectionStatus=selected?'available':'not-requested',...extra}={}) {
-  return {schemaVersion:1,text:{id:document,reference:document,status:'indexed',kind:document.startsWith('RC-')?'joint':'original',
+  return {schemaVersion:2,text:{id:document,reference:document,status:'indexed',kind:document.startsWith('RC-')?'joint':'original',
     title:'A public motion title',titleLanguage:language,date:'2026-10-08',files:[],availableLanguages:[language],preferredFile:null,languageFallback:false,
     authors:[],memberAuthorship:{memberId,status:'not-recorded',relationships:[],sources:[]},sources:[source],generation:1,
     outcome:{status:'unavailable',totalsStatus:'unavailable',evidenceGaps:[]},
@@ -319,7 +319,7 @@ test('a failed read can be retried, and invalid target or payload version never 
   await h.respond({error:{message:'Temporary public source failure'}},{status:503});
   assert.match(h.container.textContent,/Amendment information could not be loaded/);
   await h.click('Try again');assert.equal(h.requests.length,2);
-  await h.respond({...page(),schemaVersion:2});
+  await h.respond({...page(),schemaVersion:3});
   assert.equal(h.container.querySelector('.motion-amendments__row'),null);
   await h.click('Try again');await h.respond(page());
   assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);
@@ -938,9 +938,9 @@ test('failed and malformed reader responses settle readiness and retries become 
   assert.equal(pending(),'true');
   await h.respond({error:{message:'Fixture source unavailable'}},{status:503});assert.equal(pending(),null);
   await h.click('Try again');assert.equal(pending(),'true');
-  await h.respond({schemaVersion:1});assert.equal(pending(),null,'a malformed list is a settled error');
+  await h.respond({schemaVersion:2});assert.equal(pending(),null,'a malformed list is a settled error');
   await h.click('Try again');assert.equal(pending(),'true');await h.respond(page());assert.equal(pending(),null);
-  for(const [number,response,status] of [[98,{error:{message:'Fixture exact read unavailable'}},503],[99,{schemaVersion:1},200]]) {
+  for(const [number,response,status] of [[98,{error:{message:'Fixture exact read unavailable'}},503],[99,{schemaVersion:2},200]]) {
     await h.updateState({amendmentId:`${documentId}-AM-${number}`});assert.equal(pending(),'true');
     await h.respond(response,{status});assert.equal(pending(),null,'an exact failure is settled while the accepted list remains readable');
   }
@@ -991,4 +991,42 @@ test('motion proposers get country only and cannot join by name',async t=>{
  await h.click(/^Amendment 13/);
  const tags=h.container.querySelectorAll('.motion-amendments__proposers .member-affiliation');
  assert.equal(tags.length,1);assert.equal(tags[0].textContent,'HUHungary');assert.equal(tags[0].querySelector('i'),null);
+});
+
+function summaryBallot(id,position,outcome) {
+  const sitting=id.slice(0,17),date=sitting.slice(7);
+  const vote={id,sittingId:sitting,date,title:'Exact amendment decision',titleLanguage:'en',titles:{en:'Exact amendment decision'},referenceTexts:{en:'Amendment 13'},
+    method:'VOTE_ELECTRONIC_ROLLCALL',outcome,ballotStatus:'conducted',scope:{kind:'amendment'},actualPosition:{status:'recorded',position},intention:{status:'not-reported',positions:[]},
+    totals:{for:400,against:200,abstaining:0},alignment:'with',subjectId:null,context:{documentIds:[documentId],amendmentIds:[documentId+'-AM-13'],componentIds:[]},parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
+  return {version:7,member:{id:memberId},period:{kind:'sitting',week:null,sittingId:sitting,from:date,to:date},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[vote],subjects:[],
+    pagination:{offset:0,limit:50,returned:1,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:null},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
+}
+
+test('amendment context reuses loaded split ballots and reload restores each exact part summary',async t=>{
+  const decisions=[1,2].map(number=>({id:'MTG-PL-2026-10-08-DEC-'+number,scope:'split-part',partId:'part-'+number,partNumber:number,outcome:number===1?'ADOPTED':'REJECTED',method:'VOTE_ELECTRONIC_ROLLCALL'}));
+  const item=amendment(13,{decisions,splitParts:decisions.map((_,index)=>({id:'part-'+(index+1),number:index+1,description:'Texte exact '+(index+1),language:'fr',wordingGrounding:'not-validated'}))});
+  for(const reload of [false,true])await t.test(reload?'reload':'open from detail',async t=>{
+    const h=await readerHarness(t,{realContext:true,state:{open:true,scope:'all',amendmentId:item.id,variantListId:item.listId,...(reload?{view:'context',contextTarget:'amendment',wordingLanguage:'en'}:{})}});
+    await h.respond(page({items:[item],scope:'all'}));
+    for(const [index,decision] of decisions.entries()) {
+      const request=h.requests.find(request=>request.url.searchParams.get('decision')===decision.id);assert(request);
+      await h.respond(summaryBallot(decision.id,index===0?'for':'against',decision.outcome),{request});
+    }
+    if(!reload){
+      const now=Date.now();t.mock.method(Date,'now',()=>now+60_000);
+      await h.click('Read in context');
+    }
+    const summary=h.container.querySelector('[aria-label="Votes on this amendment"]');assert(summary);
+    const rows=[...summary.querySelectorAll('.member-votes-context-vote')];assert.equal(rows.length,2);
+    for(const [index,row] of rows.entries()) {
+      assert.match(row.textContent,new RegExp('Amendment 13 · Part '+(index+1)));
+      assert.equal(row.querySelector('.motion-amendments__split-description').lang,'fr');
+      assert.equal(row.querySelector('.member-votes-position strong').textContent,index===0?'For':'Against');
+      assert.equal(row.querySelector('.member-votes-result strong').textContent,index===0?'Adopted':'Rejected');
+    }
+    assert.equal(h.requests.filter(request=>request.url.pathname.includes('/member-votes/')).length,2,'opening context reuses each loaded ballot');
+    await h.click('← Back to amendments');
+    assert.equal(h.state().view,'amendments');assert.equal(h.state().amendmentId,item.id);assert.equal(h.state().variantListId,item.listId);
+    assert.equal(document.activeElement,h.button('Read in context'));
+  });
 });

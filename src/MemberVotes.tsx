@@ -1,11 +1,12 @@
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
+import type {WordingFormat} from './components/WordingFormatting';
 import {VoteSubjectTitle} from './VoteSubjectTitle';
 import {AttendanceLine,AttendanceDetail} from './MemberAttendance';
 import type {MemberAttendanceResponse} from './MemberAttendanceTypes';
 import {memberAttendanceRoute,validateMemberAttendanceResponse} from './memberAttendancePresentation.mjs';
 import {voteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
-import {Result,Position} from './MemberVoteSummary';
+import {Result,Position,VotePartDescriptions} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
 import {votePeriodTransition} from './plenaryPeriods.mjs';
@@ -35,7 +36,7 @@ export const defaultMemberVotesState:MemberVotesState={week:'latest',sittingId:n
 type WordingVariant={
   listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
   targetLabelSource?:Record<string,unknown>|null;fieldSources?:Record<string,unknown>|null;
-  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;authors:{name:string;personId?:string|null}[];
+  wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];authors:{name:string;personId?:string|null}[];
   source?:Record<string,unknown>|null;sourceFreshness?:{status:string}|null;
   wordingRetained?:boolean|null;proposerRetained?:boolean|null;recordRetained?:boolean|null;
 };
@@ -86,7 +87,7 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
       {selected&&<>
         {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p></>}
         {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&'Text language: '+languageLabel(textLanguage)}{authors.length>0&&<>{readable&&textLanguage?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/><RecordMemberAffiliation id={author.personId} language={language}/></span>)}</>}</p>}
-        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
+        {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff originalFormatting={selected.originalFormatting} proposedFormatting={selected.proposedFormatting} key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>
       </>}
@@ -97,7 +98,7 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
 // The reader replaces the vote detail, so it keeps the position and result in view.
 function ContextVote({vote,memberName,language}:{vote:MemberVote;memberName:string;language:string}) {
   return <section className="member-votes-context-vote" aria-label="Vote on this text"><p className="member-votes-eyebrow">{dateLabel(vote.date)}</p><p className="member-votes-context-label">{memberVoteLabel(vote,language)}</p>
-    <div className="member-votes-strip"><Position vote={vote} memberName={memberName}/><Result vote={vote}/></div></section>;
+    <VotePartDescriptions vote={vote} language={language}/><div className="member-votes-strip"><Position vote={vote} memberName={memberName}/><Result vote={vote}/></div></section>;
 }
 
 function Detail({vote,data,memberName,language,onDecision,openContext,attendance,attendanceLoading,attendanceAttempted,retryAttendance,explanationsActive}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;attendance:MemberAttendanceResponse|null;attendanceLoading:boolean;attendanceAttempted:boolean;retryAttendance:()=>void;explanationsActive:boolean}) {
@@ -115,10 +116,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,attendance
       {attendanceAttempted&&<AttendanceDetail day={attendance?.sittings.find(day=>day.sittingId===vote.sittingId)} loading={attendanceLoading} onRetry={retryAttendance}/>}
     </section>
     {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
-    {vote.parts.map(part=>{
-      const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
-      return text.text?<section className="member-votes-part" key={part.componentId}><h3>Published description{part.number!==null?' of part '+part.number:''}</h3><p lang={text.language}>{text.text}</p></section>:null;
-    })}
+    <VotePartDescriptions vote={vote} language={language}/>
     {targets.map(target=><Wording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext} showHeading={targets.length!==1||memberVoteLabel(vote,language)!=='Amendment '+(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p>Amendment wording unavailable here.</p>}
     {contexts.length>0&&<details className="member-votes-related"><summary>Other parts of this split vote</summary>{contexts.map(component=>{

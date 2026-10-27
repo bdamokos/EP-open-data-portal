@@ -1,13 +1,15 @@
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import {knownVoteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
-import {ActivityVote} from './ActivityVote';
+import type {DocumentContextRequest} from './DocumentContextTypes';
+import {ActivityVote,type ActivityVoteSnapshot} from './ActivityVote';
 import {useCallback,useEffect,useId,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {api} from './data';
 import {Status} from './Status';
 import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
 import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,MotionAmendmentsPage,MotionAmendmentsScope} from './MotionAmendmentsTypes';
 import './MotionAmendments.css';
+import {FormattedWording} from './components/WordingFormatting';
 import {WordingDiff} from './components/WordingDiff';
 
 export const MOTION_AMENDMENTS_PAGE_SIZE=20;
@@ -19,7 +21,7 @@ export type MotionAmendmentsState={
 export function createMotionAmendmentsState():MotionAmendmentsState {
   return {open:false,scope:'member',offset:0,amendmentId:null,variantListId:null,view:'amendments',contextView:'document',contextTarget:'text'};
 }
-export type MotionAmendmentsContextRequest={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void};
+export type MotionAmendmentsContextRequest=DocumentContextRequest;
 export type MotionAmendmentsChangeReason='toggle'|'scope'|'page'|'amendment'|'variant'|'context'|'back-context';
 export type MotionAmendmentsProps={
   documentId:string;memberId:string|number;memberName?:string;language:string;state:MotionAmendmentsState;
@@ -67,7 +69,7 @@ function validWordingLanguage(state:MotionAmendmentsState,documentId:string) {
     Boolean(list&&Number(list[1])>0&&Number(list[2])>=Number(list[1]));
 }
 function matchesPage(value:unknown,documentId:string,member:string,language:string,state:MotionAmendmentsState,requestedId:string|null):value is MotionAmendmentsPage {
-  if(!object(value)||value.schemaVersion!==1||!object(value.text)||value.text.id!==documentId||!object(value.scope)||
+  if(!object(value)||value.schemaVersion!==2||!object(value.text)||value.text.id!==documentId||!object(value.scope)||
     value.scope.documentId!==documentId||value.scope.memberId!==member||value.scope.results!==state.scope||value.scope.requestedLanguage!==language||
     value.offset!==state.offset||value.limit!==MOTION_AMENDMENTS_PAGE_SIZE||!nonnegative(value.total)||!Array.isArray(value.items)||
     value.items.length>MOTION_AMENDMENTS_PAGE_SIZE||!object(value.totals)||!nonnegative(value.totals.allIndexed)||
@@ -153,7 +155,7 @@ function Wording({record,kind}:{record:MotionAmendment|MotionAmendmentVariant;ki
   const available=status==='available'&&typeof text==='string';
   return <section className={'motion-amendments__wording motion-amendments__wording--'+kind}>
     <h5>{kind==='original'?'Original wording quoted in the amendment':'Proposed wording'}</h5>
-    {available?<p className="motion-amendments__passage" lang={sourceLanguage(record.wording?.language)}>{text||' '}</p>:
+    {available?<p className="motion-amendments__passage" lang={sourceLanguage(record.wording?.language)}>{<FormattedWording text={text||' '} formatting={kind==='original'?record.originalFormatting:record.proposedFormatting}/>}</p>:
       <p className="motion-amendments__muted">{status==='withheld'?'This wording could not be read reliably.':kind==='original'?'Original wording is unavailable.':'Proposed wording is unavailable.'}</p>}
     {available&&text===''&&<p className="motion-amendments__muted">No {kind==='original'?'original':'proposed'} wording supplied.</p>}
   </section>;
@@ -177,17 +179,21 @@ function Totals({decision,language}:{decision:MotionAmendmentDecision;language:s
     <dl>{keys.map((key,index)=><div key={key}><dt>{labels[index]}</dt><dd lang={language}>{typeof totals[key]==='number'&&Number.isFinite(totals[key])&&totals[key]!>=0?formatNumber(totals[key]!,language):'—'}</dd></div>)}</dl>
   </div>;
 }
-function Decision({item,decision,language,member,memberName}:{item:MotionAmendment;decision:MotionAmendmentDecision;language:string;member:string;memberName?:string}) {
+function Decision({item,decision,language,member,memberName,context=false,snapshots}:{item:MotionAmendment;decision:MotionAmendmentDecision;language:string;member:string;memberName?:string;context?:boolean;snapshots:Map<string,ActivityVoteSnapshot>}) {
+  const snapshotKey=JSON.stringify([member,language,decision]);
   const part=amendmentDecisionPart(item.splitParts,decision),split=decision.scope!=='whole-amendment';
   const partNumber=part?.number??decision.partNumber;
   const heading=decision.scope==='unresolved-split'?'Collective or unresolved split decision':split?partNumber!=null?`Part ${partNumber}`:'Split decision':'Whole amendment';
   const date=dateLabel(decision.date,language),method=knownVoteMethodLabel(decision.method);
-  return <li className="motion-amendments__decision">
-    <div className="motion-amendments__decision-head"><strong>{heading}</strong></div>
+  return <li className={context?"motion-amendments__decision member-votes-context-vote":"motion-amendments__decision"}>
+    <div className={context?"member-votes-context-label":"motion-amendments__decision-head"}><strong>{context?title(item)+' · ':''}{heading}</strong></div>
     {part?.description&&<p className="motion-amendments__split-description" lang={sourceLanguage(part.language)}>{part.description}</p>}
-    {part?.description&&<p className="motion-amendments__muted">Published split description.</p>}
+    {!context&&part?.description&&<p className="motion-amendments__muted">Published split description.</p>}
     {decision.scope==='unresolved-split'&&<p className="motion-amendments__muted">This decision cannot be assigned to an individual part.</p>}
-    <ActivityVote indexed={decision} decisionId={decision.id} memberId={member} memberName={memberName} language={language}>
+    <ActivityVote context={context} snapshot={context?snapshots.get(snapshotKey):undefined} onSnapshot={context?undefined:snapshot=>{
+      snapshots.set(snapshotKey,snapshot);
+      while(snapshots.size>120)snapshots.delete(snapshots.keys().next().value!);
+    }} indexed={decision} decisionId={decision.id} memberId={member} memberName={memberName} language={language}>
       <Outcome value={decision.outcome}/>
       {(date||method)&&<p className="motion-amendments__muted">{date&&<span lang={language}>{date}</span>}{date&&method?' · ':''}{method}</p>}
       <Totals decision={decision} language={language}/>
@@ -195,7 +201,7 @@ function Decision({item,decision,language,member,memberName}:{item:MotionAmendme
     </ActivityVote>
   </li>;
 }
-function AmendmentDetail({item,member,memberName,language,listId,onVariant,onContext,contextButton}:{item:MotionAmendment;member:string;memberName?:string;language:string;listId:string|null;onVariant:(id:string|null)=>void;onContext:()=>void;contextButton:RefObject<HTMLButtonElement|null>}) {
+function AmendmentDetail({item,member,memberName,language,listId,onVariant,onContext,contextButton,snapshots}:{item:MotionAmendment;member:string;memberName?:string;language:string;listId:string|null;onVariant:(id:string|null)=>void;onContext:()=>void;contextButton:RefObject<HTMLButtonElement|null>;snapshots:Map<string,ActivityVoteSnapshot>}) {
   const records=wordingRecords(item),record=chosenRecord(item,listId),needsChoice=item.conflicted||records.length>1;
   const selectable=records.filter(candidate=>candidate.listId&&records.filter(record=>record.listId===candidate.listId).length===1);
   const url=record?wordingSource(record):null;
@@ -223,14 +229,14 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       </p>}
       
       {record.wording?.originalStatus==='available'&&record.wording.proposedStatus==='available'&&typeof record.originalText==='string'&&record.originalText!==''&&typeof record.proposedText==='string'&&record.proposedText!==''?
-        <WordingDiff key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
+        <WordingDiff originalFormatting={record.originalFormatting} proposedFormatting={record.proposedFormatting} key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
         <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>}
       {url&&<p className="motion-amendments__source"><a href={url} target="_blank" rel="noreferrer">Official amendment wording ↗</a></p>}
     </>}
     <div className="motion-amendments__detail-actions"><button type="button" ref={contextButton} onClick={onContext} disabled={!record?.listId}>Read in context</button></div>
     <section className="motion-amendments__decisions" aria-label="Amendment decisions">
       {!(item.decisions.length===1&&item.decisions[0].scope==='whole-amendment')&&<div className="motion-amendments__decision-head"><h5>Whole amendment</h5><Outcome value={item.wholeAmendmentOutcome} split={hasVerifiedSplits(item)}/></div>}
-      {item.decisions.length>0?<ul>{item.decisions.map((decision,index)=><Decision item={item} decision={decision} language={language} member={member} memberName={memberName} key={amendmentDecisionKey(decision)+':'+index}/>)}</ul>:
+      {item.decisions.length>0?<ul>{item.decisions.map((decision,index)=><Decision snapshots={snapshots} item={item} decision={decision} language={language} member={member} memberName={memberName} key={amendmentDecisionKey(decision)+':'+index}/>)}</ul>:
         <p className="motion-amendments__muted">No decision is available for this amendment.</p>}
     </section>
   </article>;
@@ -246,7 +252,7 @@ function emptyMessage(page:MotionAmendmentsPage) {
 export function MotionAmendments({documentId,memberId,memberName,language,state,onStateChange,renderContext}:MotionAmendmentsProps) {
   const member=String(memberId),headingRef=useRef<HTMLHeadingElement>(null),id=useId(),panelId='motion-amendments-'+id;
   const motionButton=useRef<HTMLButtonElement>(null),adoptedButton=useRef<HTMLButtonElement>(null),amendmentButton=useRef<HTMLButtonElement>(null);
-  const contextRef=useRef<HTMLDivElement>(null);
+  const contextRef=useRef<HTMLDivElement>(null),voteSnapshots=useRef(new Map<string,ActivityVoteSnapshot>());
   const requestOrder=useRef(0),nextOrder=useCallback(()=>++requestOrder.current,[]);
   const previousView=useRef<{documentId:string;view:MotionAmendmentsState['view'];contextView:MotionAmendmentsState['contextView'];contextTarget:MotionAmendmentsState['contextTarget']}|null>(null);
   useEffect(()=>{
@@ -314,7 +320,7 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
       wordingLanguage:typeof wordingLanguage==='string'&&/^[a-z]{2}$/.test(wordingLanguage)?wordingLanguage:null},'context');
   };
   const detail=(item:MotionAmendment)=><AmendmentDetail item={item} member={member} memberName={memberName} language={language} listId={state.variantListId}
-    onVariant={value=>change({variantListId:value},'variant')} onContext={()=>openAmendmentContext(item)} contextButton={amendmentButton}/>;
+    onVariant={value=>change({variantListId:value},'variant')} onContext={()=>openAmendmentContext(item)} contextButton={amendmentButton} snapshots={voteSnapshots.current}/>;
   const selectionUnavailable=Boolean(state.amendmentId&&selection?.status==='unavailable');
   const readingText=state.view==='context'&&state.contextTarget==='text';
   const message=!motionAllowed?'This motion reader selection is unavailable.':!allowed&&!readingText?'The linked amendment is unavailable for this motion.':badPage||badSelection?'Amendment information could not be loaded.':
@@ -341,7 +347,8 @@ export function MotionAmendments({documentId,memberId,memberName,language,state,
       {state.open&&<div id={panelId} className="motion-amendments__panel">
         {state.view==='context'?<div ref={contextRef} className="motion-amendments__context" role="region" tabIndex={-1} aria-label={state.contextView==='adopted'?'Adopted text context':state.contextTarget==='amendment'?'Amendment in context':'Motion text'}>
           {contextReady?renderContext({documentId,...(state.contextTarget==='amendment'?{amendmentId:selected!.id,listId:selectedRecord!.listId!,
-            ...(Object.hasOwn(state,'wordingLanguage')&&state.wordingLanguage!==undefined?{wordingLanguage:state.wordingLanguage}:{})}:{}),view:state.contextView,onBack:backContext}):
+            ...(Object.hasOwn(state,'wordingLanguage')&&state.wordingLanguage!==undefined?{wordingLanguage:state.wordingLanguage}:{})}:{}),view:state.contextView,onBack:backContext,backLabel:'Back to amendments',
+            ...(state.contextTarget==='amendment'?{summary:<section aria-label="Votes on this amendment"><ul className="motion-amendments__context-votes">{selected!.decisions.map((decision,index)=><Decision context snapshots={voteSnapshots.current} item={selected!} decision={decision} language={language} member={member} memberName={memberName} key={amendmentDecisionKey(decision)+':'+index}/>)}</ul>{!selected!.decisions.length&&<p>Vote unavailable</p>}</section>}:{})}):
             <div className="motion-amendments__context-gap"><button type="button" onClick={backContext}>Back to amendments</button>
               <p>{state.amendmentId&&selected&&!selectedRecord?.listId?'Choose an available wording version before opening context.':list.loading||selectedPending?'Loading amendment information…':'The requested context is unavailable.'}</p>
               {(list.error||badPage||selectedRoute&&(exact.error||badSelection))&&<button type="button" onClick={()=>{focusHeading();if(selectedRoute&&(exact.error||badSelection))exact.retry();else list.retry();}}>Try again</button>}

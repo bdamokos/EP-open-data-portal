@@ -1046,3 +1046,32 @@ test('wording proposers get exact-ID country without current political group',as
  assert.equal(rows[0].querySelector('.member-affiliation i'),null);
  assert.equal(rows[1].querySelector('.member-affiliation'),null);
 });
+
+test('Votes wording preserves vertical spans and shows a formatting-only edit in both modes',async t=>{
+  const variant=wordingVariant({originalText:'CO2 note4',proposedText:'CO2 note4',originalFormatting:[{start:2,end:3,kind:'subscript'}],proposedFormatting:[{start:2,end:3,kind:'subscript'},{start:8,end:9,kind:'superscript'}]});
+  const h=await mountWording(t,{variants:[variant]});
+  const comparison=h.container.querySelector('.member-votes-comparison');
+  assert.equal(comparison.querySelector('sub').textContent,'2');
+  assert.equal(comparison.querySelector('ins sup').textContent,'4');
+  assert.equal(wordingText(comparison,'original'),variant.originalText);assert.equal(wordingText(comparison,'proposed'),variant.proposedText);
+  await h.click('Side by side');
+  assert.equal(comparison.querySelectorAll('sub').length,2);assert.equal(comparison.querySelector('ins sup').textContent,'4');
+  assert.equal(wordingText(comparison,'original'),variant.originalText);assert.equal(wordingText(comparison,'proposed'),variant.proposedText);
+});
+
+test('split amendment and whole-text context restore published part descriptions after remount',async t=>{
+  for(const kind of ['amendment','whole-text'])await t.test(kind,async t=>{
+    const context={documentId:DOCUMENT,view:'document'};
+    const item=vote(1,{scope:{kind,basis:'exact-component-reference'},parts:[part(1,{contentByLanguage:{fr:{text:null,sourceLiteral:'Première phrase exacte.'}}})],context:{...vote(1).context,documentIds:[DOCUMENT]}});
+    const h=await mount(t,{state:{week:WEEK,decisionId:item.id,context},renderContext:request=>createElement('section',null,request.summary,createElement('button',{onClick:request.onBack},'Back from context')),handler:url=>Response.json(responseFor(url,{items:[item]}))});
+    const check=()=>{
+      const summary=h.container.querySelector('[aria-label="Vote on this text"]');assert(summary);
+      assert.equal(summary.querySelector('.member-votes-part p').textContent,'Première phrase exacte.');
+      assert.equal(summary.querySelector('.member-votes-part p').lang,'fr');
+      assert.match(summary.textContent,/Published description of part 1/);
+      assert(summary.querySelector('.member-votes-position'));assert(summary.querySelector('.member-votes-result'));
+    };
+    check();await h.remount();check();await h.click('Back from context');
+    assert.equal(h.state.context,null);assert.equal(h.state.decisionId,item.id);
+  });
+});

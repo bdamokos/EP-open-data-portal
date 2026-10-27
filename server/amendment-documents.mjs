@@ -3,16 +3,16 @@ import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='12';
+export const AMENDMENT_EXTRACTION_VERSION='13';
 
-const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-text-loss','text-unavailable','numbering-warning']);
+const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
 const nonTextContent=key=>/(?:^|:)(?:oMath|oMathPara)$/.test(key)||['w:drawing','w:pict','w:object','w:altChunk','w:contentPart','w:subDoc'].includes(key);
 const CONTENT_LOSSES={
   'inline-content-loss':'Visible ruby or unsupported inline annotation/content cannot be represented reliably as plain wording; its wording is withheld.',
   'non-text-content':'Visible mathematical, drawing or embedded content cannot be represented reliably as plain wording; its wording is withheld.',
   'structural-revision':'Current paragraph-mark revisions make text boundaries ambiguous; revision acceptance is unresolved and its wording is withheld.',
-  'vertical-text-loss':'Visible text uses superscript, subscript or a shifted baseline that cannot be represented reliably as plain wording; its wording is withheld.',
+  'vertical-formatting-loss':'Vertical formatting cannot be tied to exact wording offsets; its wording is withheld.',
 };
 const TABLE_MARKERS=new Set(['w:bookmarkStart','w:bookmarkEnd','w:commentRangeStart','w:commentRangeEnd','w:permStart','w:permEnd','w:proofErr','w:moveFromRangeStart','w:moveFromRangeEnd','w:moveToRangeStart','w:moveToRangeEnd']);
 const INLINE_CONTAINERS=new Set(['w:hyperlink','w:ins','w:moveTo','w:smartTag','w:customXml','w:sdt','w:sdtContent','w:fldSimple']);
@@ -42,6 +42,42 @@ const attribute=(node,key)=>node?.[':@']?.['@_w:'+key];
 const property=(nodes,key)=>attribute(child(nodes,key),'val');
 const parser=()=>new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false});
 const clean=value=>String(value??'').replace(/\r\n?/g,'\n').replace(/[ \t]+\n/g,'\n').trim();
+// Apply the existing text cleanup and carry UTF-16 boundaries through each edit.
+function rewriteWording(value,expression,replacement) {
+  const offsets=new Array(value.text.length+1);let text='',cursor=0;
+  for(const match of value.text.matchAll(expression)) {
+    for(let i=cursor;i<=match.index;i++)offsets[i]=text.length+i-cursor;
+    text+=value.text.slice(cursor,match.index);
+    const start=text.length;text+=replacement;
+    offsets[match.index]=start;
+    for(let i=match.index+1;i<=match.index+match[0].length;i++)offsets[i]=text.length;
+    cursor=match.index+match[0].length;
+  }
+  for(let i=cursor;i<=value.text.length;i++)offsets[i]=text.length+i-cursor;
+  text+=value.text.slice(cursor);
+  return {text,formatting:value.formatting.map(mark=>({...mark,start:offsets[mark.start],end:offsets[mark.end]})).filter(mark=>mark.end>mark.start)};
+}
+function trimWording(value) {return rewriteWording(value,/^\s+|\s+$/gu,'');}
+function cleanWording(text,formatting) {
+  return trimWording(rewriteWording(rewriteWording({text,formatting},/\r\n?/g,'\n'),/[ \t]+(?=\n)/g,''));
+}
+function joinWording(parts) {
+  let text='';const formatting=[];
+  for(const [index,part] of parts.entries()) {
+    if(index)text+='\n';const offset=text.length;
+    formatting.push(...part.formatting.map(mark=>({...mark,start:mark.start+offset,end:mark.end+offset})));text+=part.text;
+  }
+  return {text,formatting};
+}
+function canonicalFormatting(formatting) {
+  const marks=[];
+  for(const mark of formatting) {
+    const previous=marks.at(-1);
+    if(previous?.kind===mark.kind&&previous.end===mark.start)previous.end=mark.end;
+    else marks.push({...mark});
+  }
+  return marks;
+}
 const enabled=node=>node?!['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()):undefined;
 
 const direct=(nodes,key)=>(nodes||[]).filter(node=>Object.hasOwn(node,key));
@@ -114,7 +150,7 @@ function visibility(xml) {
   };
   return {defaults,hidden,inheritedProperty,defaultVertical:property(defaultProps,'w:vertAlign')??'baseline',defaultPosition:property(defaultProps,'w:position')??'0',paragraph:defaultId('paragraph'),character:defaultId('character')};
 }
-function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'baseline',position:'0'}) {
+function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'baseline',position:'0'},formatting=[]) {
   let out='';
   for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
     if(key==='w:r') {
@@ -124,9 +160,17 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
         const id=property(props,'w:rStyle')||style.character;
         const vertical=property(props,'w:vertAlign')??style.inheritedProperty(id,'vertical',format.vertical);
         const position=property(props,'w:position')??style.inheritedProperty(id,'position',format.position);
-        const text=inline(value,style,false,raw,losses,{vertical,position});
-        if(!raw&&text.trim()&&(vertical!=='baseline'||!Number.isFinite(Number(position))||Number(position)!==0))losses.add('vertical-text-loss');
-        out+=text;
+        const marks=[],text=inline(value,style,false,raw,losses,{vertical,position},marks),start=out.length;
+        if(!raw&&text.length) {
+          const shifted=Number(position),valid=['baseline','superscript','subscript'].includes(vertical)&&Number.isFinite(shifted);
+          if(!valid)losses.add('vertical-formatting-loss');
+          else {
+            // An explicit vertical alignment takes precedence over a baseline shift.
+            const kind=vertical!=='baseline'?vertical:shifted>0?'superscript':shifted<0?'subscript':null;
+            if(kind)marks.push({start:0,end:text.length,kind});
+          }
+        }
+        formatting.push(...marks.map(mark=>({...mark,start:start+mark.start,end:start+mark.end})));out+=text;
       }
     } else if(alternateBranch(key)) {
       if(!raw)losses.add('comparison-structure');
@@ -148,7 +192,10 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
     else if(key==='w:br'||key==='w:cr')out+='\n';
     else if(key==='w:noBreakHyphen')out+='‑';
     else if(key==='w:softHyphen')out+='­';
-    else if(INLINE_CONTAINERS.has(key)&&Array.isArray(value))out+=inline(value,style,hidden,raw,losses,format);
+    else if(INLINE_CONTAINERS.has(key)&&Array.isArray(value)) {
+      const marks=[],text=inline(value,style,hidden,raw,losses,format,marks),start=out.length;
+      formatting.push(...marks.map(mark=>({...mark,start:start+mark.start,end:start+mark.end})));out+=text;
+    }
     // Cached field-result runs remain visible; empty field delimiters and
     // source properties are not text. Opaque field/form content is not guessed.
     else if(key==='w:fldChar'){if(value?.length&&!raw)losses.add('inline-content-loss');}
@@ -167,12 +214,13 @@ function documentBlocks(parts,warnings) {
     const raw=clean(inline(nodes,style,hidden,true,new Set(),format));
     const losses=new Set();
     if(structuralRevision(props))losses.add('structural-revision');
-    let text=clean(inline(nodes,style,hidden,false,losses,format));
-    const prefix=label(props);if(prefix&&text)text=prefix+'\t'+text;
+    const marks=[],wording=cleanWording(inline(nodes,style,hidden,false,losses,format,marks),marks);
+    let {text,formatting}=wording;
+    const prefix=label(props);if(prefix&&text){const offset=prefix.length+1;text=prefix+'\t'+text;formatting=formatting.map(mark=>({...mark,start:mark.start+offset,end:mark.end+offset}));}
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    return {raw,text,formatting,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const paragraphs=nodes=>{
@@ -204,7 +252,7 @@ function documentBlocks(parts,warnings) {
             const content=paragraphs(cell['w:tc']);
             unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
             revised ||= structuralRevision(children(cell['w:tc'],'w:tcPr'))||structuralMove(cell['w:tc']);
-            return {text:content.map(p=>p.text).filter(Boolean).join('\n'),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"'),grid:currentCellGrid(cell['w:tc'])};
+            return {...joinWording(content.filter(p=>p.text)),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"'),grid:currentCellGrid(cell['w:tc'])};
           });
           gridUnsupported ||= !currentRowGridSupported(row['w:tr'],cells);
           return cells;
@@ -303,7 +351,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
         }
         if(cells.length!==2){gap('comparison-columns',number,'A comparison row does not contain exactly two columns.');continue;}
         if(cells.some(c=>c.hasNotes))gap('notes-unavailable',number,'The comparison contains footnote or endnote references whose note text is not included in this extraction.');
-        comparableRows++;before.push(cells[0].text);after.push(cells[1].text);
+        comparableRows++;before.push(cells[0]);after.push(cells[1]);
       }
     }
     const ownDate=documentDate(raw),date=ownDate||(!field(raw,'Date').length&&committee?coverDate:null);
@@ -318,7 +366,8 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     if(justificationParts.some(Boolean))justification=justificationParts.filter(Boolean).join('\n');
     const baselineSource={...baselineDescriptor(comparisonHeadings),language,sourceUrl,fetchedAt},baseline=baselineSource.category;
     if(baselineSource.conflicted)gap('baseline-conflict',number,'Comparison tables name different baseline categories.');
-    const record={baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?before.join('\n').trim():null,proposedText:comparableRows?after.join('\n').trim():null,justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
+    const original=trimWording(joinWording(before)),proposed=trimWording(joinWording(after));
+    const record={baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?original.text:null,proposedText:comparableRows?proposed.text:null,originalFormatting:comparableRows?canonicalFormatting(original.formatting):[],proposedFormatting:comparableRows?canonicalFormatting(proposed.formatting):[],justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
     if(!authors.length)gap('authors-unavailable',number,'No explicit amendment proposer names were found in this document block.');
     if(!date)gap('date-unavailable',number,'The amendment document does not supply a supported document date.');
     if(!targetLabel)gap('target-unavailable',number,'The amendment target location was not recorded.');
@@ -349,6 +398,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     if(amendment.gaps.some(item=>TEXT_LOSS_CODES.has(item.code))) {
       amendment.originalText=null;
       amendment.proposedText=null;
+      amendment.originalFormatting=[];amendment.proposedFormatting=[];
     }
   }
   return {amendments,gaps};

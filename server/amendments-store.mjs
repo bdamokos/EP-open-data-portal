@@ -1,7 +1,7 @@
 import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
-import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
+import { AMENDMENT_LIMITS, PROPOSER_DATE_BASES, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, SPLIT_BINDING_GAP, amendmentRowOutcome, checkedAmendmentBindings, resolvedAmendmentAuthorId, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, checkedAggregateAttribution, amendmentReference, amendmentTarget, canonicalEPReference } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
@@ -35,8 +35,12 @@ function checkedAmendmentRead(record) {
   const row=checkedAmendmentBindings({...checkedProposer(record),...checkedLabel(record)});
   if((record.listId || record.textParserVersion!=null || typeof record.originalText==='string' || typeof record.proposedText==='string')&&record.textParserVersion!==AMENDMENT_EXTRACTION_VERSION) {
     row.baseline='unknown';row.baselineSource=null;row.documentReferences=[];row.targetPath=null;
-    row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
+    row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
     row.gaps=[...new Set([...row.gaps,wordingUpgradeGap])];
+  }
+  if(!validAmendmentFormatting(row)) {
+    row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
+    row.gaps=[...new Set([...row.gaps,'Vertical formatting cannot be tied to exact wording offsets; its wording is withheld.'])];
   }
   if(record.listId || typeof record.originalText==='string' || typeof record.proposedText==='string') {
     row.sourceFreshness=record.sourceFreshness?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION?record.sourceFreshness:{...(record.sourceFreshness || {descriptor:null,sourceDescriptor:null}),version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status:'unverified',distributionState:'unknown'};
@@ -158,7 +162,7 @@ export function recordSplitResults(store,result) {
 export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
   store.transaction(()=>{
     store.assertWriter();
-    const prior=store.db.prepare('SELECT id,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
+    const prior=store.db.prepare('SELECT id,date,outcome,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
     const merged=new Map(rows.map(row=>[row.id,row]));
     const observed=new Set(observedDecisionIds);
     const invalidatedLists=new Set(invalidatedTextListIds),currentLists=currentListIds===null?null:new Set(currentListIds);
@@ -183,7 +187,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       for(const field of incoming.conflicted?[]:['originalText','proposedText','targetLabel','language','listId','justification','onBehalfOf']){
         if(field==='onBehalfOf'&&!incoming.proposerRetained&&(incoming.authors?.length||incoming.committeeProposer))continue;
         if(['originalText','proposedText'].includes(field)&&(incoming.textIntegrity==='incomplete'||old.textIntegrity==='incomplete'||invalidBaseline(old)||amendmentTextLosses(null,old).length))continue;
-        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];if(field==='targetLabel')Object.assign(incoming,checkedLabel(old));incoming.fieldSources={...(incoming.fieldSources || {}),[field]:field==='targetLabel'?old.targetLabelSource || null:old.fieldSources?.[field] || (['originalText','proposedText','language'].includes(field)?old.wordingSource:old.metadataSource) || null};stale.push(field);}
+        if(incoming[field]==null&&old[field]!=null){incoming[field]=old[field];if(['originalText','proposedText'].includes(field))incoming[field.replace('Text','Formatting')]=old[field.replace('Text','Formatting')] || [];if(field==='targetLabel')Object.assign(incoming,checkedLabel(old));incoming.fieldSources={...(incoming.fieldSources || {}),[field]:field==='targetLabel'?old.targetLabelSource || null:old.fieldSources?.[field] || (['originalText','proposedText','language'].includes(field)?old.wordingSource:old.metadataSource) || null};stale.push(field);}
       }
       const acceptedProposer=checkedProposer(old);
       const retainProposer=()=>Object.assign(incoming,{proposerSource:old.proposerSource || old.metadataSource || null,proposerRetained:true,proposerDate:acceptedProposer.proposerDate,proposerDateBasis:acceptedProposer.proposerDateBasis});
@@ -236,7 +240,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       const textLosses=amendmentTextLosses(null,row);
       const oldParser=(row.listId || row.textParserVersion!=null || typeof row.originalText==='string' || typeof row.proposedText==='string')&&row.textParserVersion!==AMENDMENT_EXTRACTION_VERSION;
       if(invalidBaseline(row)||oldParser||textLosses.length) {
-        row.originalText=null;row.proposedText=null;row.textIntegrity='incomplete';row.wordingRetained=false;
+        row.originalText=null;row.proposedText=null;row.originalFormatting=[];row.proposedFormatting=[];row.textIntegrity='incomplete';row.wordingRetained=false;
         row.gaps.push(...textLosses.map(gap=>gap.message || gap.code));
         if(invalidBaseline(row))row.gaps.push('Earlier wording has no verified baseline compatible with the current document parser and is withheld.');
         if(oldParser)row.gaps.push(wordingUpgradeGap);
@@ -247,7 +251,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
         if(!incompatible&&!losses.length)return variant;
         row.gaps.push('Some retained amendment variants have unverified wording, which is withheld.');
         extraGaps.add('Some amendment variant wording is withheld because its complete extraction could not be verified.');
-        return {...variant,originalText:null,proposedText:null,textIntegrity:'incomplete',wordingRetained:false,gaps:[...new Set([...(variant.gaps || []),...losses.map(gap=>gap.message || gap.code),...(incompatible?['Earlier wording has no verified baseline compatible with the current document parser and is withheld.']:[])])]};
+        return {...variant,originalText:null,proposedText:null,originalFormatting:[],proposedFormatting:[],textIntegrity:'incomplete',wordingRetained:false,gaps:[...new Set([...(variant.gaps || []),...losses.map(gap=>gap.message || gap.code),...(incompatible?['Earlier wording has no verified baseline compatible with the current document parser and is withheld.']:[])])]};
       });
       if(listRelationshipsKnown!==false&&currentLists&&row.listId&&!currentLists.has(row.listId)) {
         row.listRelationship='absent-current-relationship';
@@ -262,8 +266,15 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
       row.gaps=[...new Set(row.gaps)];
       row.topics=checkedTargetTopics(row);
     }
+    // A target rebuild re-derives every row, but one list refresh usually
+    // changes only its own rows. Identical rows keep their stored bytes.
+    const stored=new Map(prior.map(row=>[row.id,row]));
     const put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');
-    for(const row of merged.values())put.run(generation,row.id,target.id,row.date || target.date || '',amendmentRowOutcome(row),JSON.stringify({...row,outcome:amendmentRowOutcome(row)}));
+    for(const row of merged.values()) {
+      const outcome=amendmentRowOutcome(row),date=row.date || target.date || '',body=JSON.stringify({...row,outcome}),previous=stored.get(row.id);
+      if(previous?.body===body&&previous.date===date&&previous.outcome===outcome)continue;
+      put.run(generation,row.id,target.id,date,outcome,body);
+    }
     const sittingIds=[...new Set([...(target.sittingIds || []),...[...merged.values()].flatMap(row=>(row.decisions || []).map(decision=>decision.sittingId).filter(Boolean))])];
     store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,sittingIds,...(retained||extraGaps.size?{complete:false,gaps:[...new Set([...(coverage.gaps || []),...extraGaps,...(retained?['Previously accepted amendment components are retained after an incomplete refresh.']:[])])]}: {})}));
   });
