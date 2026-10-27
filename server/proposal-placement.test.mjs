@@ -306,7 +306,7 @@ test('COM(2025)531 quotation ownership contradicts a skipped point c but permits
   const rejected=resolveProposalPlacement(items,recorded.amendment);
   assert.equal(rejected.status,'unresolved');assert.equal(rejected.reason,'conflicting_target_evidence');
   const agreeing=resolveProposalPlacement(items,{...recorded.amendment,targetLabel:'Article 3 – paragraph 1 – point 2 – point d'});
-  assert.equal(agreeing.status,'placed');assert.equal(agreeing.evidence.at(-1).basis,'ancestor-unique-wording');
+  assert.equal(agreeing.status,'placed');assert.equal(agreeing.evidence.at(-1).basis,'normalised-original-match');
   assert.deepEqual(agreeing.span,{start:250-recorded.sourceParagraphRange.start,end:250-recorded.sourceParagraphRange.start});
 });
 
@@ -320,4 +320,28 @@ test('ancestor recovery uses explicit instruction references only when the ownin
   const labelled=source(['Article 1','The act is amended:','(1) Instructions:','(d) An explicit source point.','(2) Next instruction.'],['Titrearticle','','Point0','Point1','Point0']);
   assert.equal(resolve(labelled,'Article 1 – paragraph 1 – point 1 – subparagraph 1 – point c','An explicit source point.').reason,'conflicting_target_evidence');
   assert.equal(resolve(labelled,'Article 1 – paragraph 1 – point 1 – subparagraph 1 – point d','An explicit source point.').status,'placed');
+});
+
+test('real Commission structures place EP quotations and insertions at their official source paragraphs',()=>{
+  const recorded=fixture('proposal-structure-real-excerpts.json');
+  for(const amendment of recorded.amendments){
+    const excerpt=recorded.examples.find(e=>e.name===amendment.example),proposal=parseProposal(excerpt,excerpt);
+    const placed=resolveProposalPlacement([{kind:excerpt.item,index:1,proposal}],amendment);
+    assert.equal(placed.status,amendment.expected.status,amendment.id);
+    if(placed.status!=='placed'){assert.equal(placed.reason,amendment.expected.reason,amendment.id);continue;}
+    const offset=excerpt.sourceParagraphRange.start;
+    if(amendment.expected.span)assert.deepEqual(placed.span,{start:amendment.expected.span.start-offset,end:amendment.expected.span.end-offset},amendment.id);
+    else {assert.equal(placed.insertAfter,amendment.expected.insertAfter-offset,amendment.id);assert.equal(placed.insertBefore,amendment.expected.insertBefore-offset,amendment.id);}
+  }
+  const excerpt=recorded.examples.find(e=>e.name==='continuation'),proposal=parseProposal(excerpt,excerpt),amendment=recorded.amendments.find(e=>e.id==='A-10-2026-0257-AM-143');
+  assert.equal(resolveProposalPlacement([{kind:'act',index:1,proposal}],{...amendment,targetLabel:'Article 13 – paragraph 2 – subparagraph 1'}).status,'unresolved');
+});
+
+test('a dotted alphabetic annex point cannot consume its following published siblings',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='dotted-alphabetic-annex'),proposal=parseProposal(excerpt,excerpt),items=[{kind:'annex',index:1,proposal}];
+  // Structural probe on the real Commission list; the new amendment is constructed.
+  const placed=resolveProposalPlacement(items,{language:'en',targetLabel:'Annex II – paragraph 1 – point 3 – point d a (new)',originalText:'',proposedText:'New point.'});
+  assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,excerpt.sourceParagraphIndices.indexOf(68));assert.equal(placed.insertBefore,excerpt.sourceParagraphIndices.indexOf(69));
+  const wrongSibling=resolveProposalPlacement(items,{language:'en',targetLabel:'Annex II – paragraph 1 – point 3 – point d',originalText:excerpt.paragraphs[excerpt.sourceParagraphIndices.indexOf(69)],proposedText:'Changed wording.'});
+  assert.equal(wrongSibling.status,'unresolved');assert.equal(wrongSibling.reason,'conflicting_target_evidence');
 });

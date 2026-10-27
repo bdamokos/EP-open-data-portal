@@ -1,7 +1,7 @@
 // Independent raw-row boundaries for benchmark assertions. Do not import the
 // server motion segmenter: its extent errors are precisely what this checks.
 const label=value=>{
-  let match=/^(\d{1,6}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
+  let match=/^(\d{1,6}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'paragraph',label:match[1].replace(/\s/g,'')};
   match=/^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'recital',label:match[1]};
@@ -25,17 +25,20 @@ export function rawResolutionUnits(text,language) {
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
   // Native-script provision labels remain literal. English and Romanian report
   // headings delimit their motion; other duplicated bodies remain unverified.
-  const grammar=language==='en'?{opening:/^\s*The European Parliament\s*,?\s*$/iu,heading:/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u}:language==='ro'?{opening:/^\s*Parlamentul European\s*,?\s*$/u,heading:/^(?:\d+[.)]\s*)?PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN$/u}:null;
-  const openers=paragraphs.flatMap((p,i)=>(grammar?.opening||/^\s*The European Parliament\s*,?\s*$/iu).test(p)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
-  if(grammar&&!openers.length)return {units:[],reason:'oracle-resolution-start-unverified'};
-  // A report can reproduce other resolutions/decisions in its annexes. Select
-  // the published motion heading independently of the placer's section hint.
-  // Require a whole-row bold heading, excluding plain TOC entries and page suffixes.
-  const headings=paragraphs.flatMap((p,i)=>grammar?.heading.test(p.trim())&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
-  const scoped=Boolean(grammar)&&headings.length===1;
-  const opening=scoped?openers.find(i=>i>headings[0]):openers[0];
-  const start=grammar?opening+1:0,events=[],openerRows=new Set(openers);
-  if(grammar&&!Number.isInteger(opening))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const openings={en:'The European Parliament',fr:'Le Parlement européen',es:'El Parlamento Europeo',de:'Das Europäische Parlament',bg:'Европейският парламент',el:'Το Ευρωπαϊκό Κοινοβούλιο',hr:'Europski parlament',cs:'Evropský parlament',ro:'Parlamentul European'};
+  const opening=openings[language];
+  const openers=paragraphs.flatMap((p,i)=>opening&&p.replace(/\s+/gu,' ').trim().replace(/[,;:]$/u,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
+  const reportHeading=language==='en'?/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u:language==='ro'?/^(?:\d+[.)]\s*)?PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN$/u:null;
+  // Scope a report independently of the placer's section hint. Plain TOC
+  // entries and page suffixes cannot establish the published motion heading.
+  const headings=paragraphs.flatMap((p,i)=>reportHeading?.test(p.trim())&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
+  const scoped=Boolean(reportHeading)&&headings.length===1;
+  if(opening&&(!openers.length||!reportHeading&&openers.length!==1))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const selectedOpening=scoped?openers.find(i=>i>headings[0]):openers[0];
+  if(opening&&!Number.isInteger(selectedOpening))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const start=opening?selectedOpening+1:0,events=[],openerRows=new Set(openers);
+  const endings={fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
+  const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
@@ -46,11 +49,12 @@ export function rawResolutionUnits(text,language) {
       if(source?.complete!==true||source.container!=='body')continue;
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
-    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value)&&!/[.;!?]$/u.test(value);
+    const translatedEnd=languageEnd?.test(value.split(/[\r\n]/u)[0]);
+    const section=(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value))&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {
       events.push({start:i,boundary:true});group++;parent=null;
-      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value)){if(scoped)break;active=false;}
+      if(section&&(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value))){if(scoped)break;active=false;}
       continue;
     }
     let ref=label(value);

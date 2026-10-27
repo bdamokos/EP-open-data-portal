@@ -241,13 +241,15 @@ export function resolveDocumentTarget(text, {originalText, targetLabel, referenc
 // markers. Only a whole cell is a marker; prose containing these words is text.
 export const DELETION_MARKERS = Object.freeze([
   'deleted', 'supprimé', 'supprimée', 'entfällt', 'gestrichen', 'suprimido',
-  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'udgår',
+  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'schrappen', 'udgår',
   'utgår', 'poistetaan', 'διαγράφεται', 'törölve', 'eliminat', 'eliminată',
   'заличава се', 'vypouští se', 'vypúšťa sa', 'črtano', 'briše se',
   'skreśla się', 'svītrots', 'išbraukta', 'välja jäetud', 'imħassar', 'scriosta',
 ]);
 const deletionMarkers = new Set(DELETION_MARKERS);
-export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase());
+// Published FI/LT/HR cells also use a terminal full stop. Do not strip other
+// punctuation, quotes or words: only an entire instruction cell is deletion.
+export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase().replace(/\.$/u,'').trimEnd());
 export function amendmentOperation({originalText, proposedText} = {}) {
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
   if (whitespace(originalText)) return !whitespace(proposedText) || isDeletionMarker(proposedText) ? 'delete' : 'replace';
@@ -322,7 +324,7 @@ function motionStructure(text, language) {
       close(index - 1, true);
       // Incomplete labels still prevent a complete duplicate from claiming identity.
       if (row.source.container === 'body') {
-        const match = /^([1-9]\d{0,5}\s*[a-z]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
+        const match = /^([1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
         if (match) incompleteLabels.add(match[1].replace(/\s/g, ''));
       }
       continue;
@@ -338,7 +340,7 @@ function motionStructure(text, language) {
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
-    let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
+    let match = /^([1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
     else if ((match = /^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
     else if ((match = /^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
@@ -349,7 +351,7 @@ function motionStructure(text, language) {
       close(index - 1);
       kind = 'heading'; label = value; level = 0;
     }
-    else if (recordedHeading || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
+    else if (recordedHeading || resolutionSubheading(row.value, formats[index]) || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
       // Recorded outline headings also close scope when their text resembles prose.
       // A whole-row bold/italic EP subheading followed immediately by a
       // complete numbered provision closes the preceding extent. Plain or
@@ -357,7 +359,7 @@ function motionStructure(text, language) {
       const next = rows[index + 1];
       const certain = resolutionSubheading(row.value, formats[index]) && next?.complete
         && next.source.container === 'body' && consecutive(row, next)
-        && /^[1-9]\d{0,5}\s*[a-z]{0,3}[.)]\s+/u.test(next.normal);
+        && /^[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.test(next.normal);
       if (certain) certainHeadings.add(index);
       else for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
       close(index - 1);
@@ -400,13 +402,28 @@ export function placementReference(value, language = 'en', proposedText = '') {
   if (language === 'en') text = text.replace(/^(Paragraph\s+\d+\s*[a-z]{0,3})\s*,?\s+point\s+\(?([a-z]{1,4})\)?$/iu, '$1 – point $2');
   if (language === 'da') text = text.replace(/^Punkt\b/iu, 'Stykke');
   if (language === 'ro') text = text.replace(/^Punctul\b/iu, 'Paragraful');
+  if (language === 'de') text = text.replace(/^Ziffer(?=\s)/iu, 'Absatz');
+  if (language === 'cs') text = text.replace(/^Bod(?=\s+\d)/iu, 'odstavec');
+  const translatedCitation = language === 'bg' && /^Позоваване\s+([1-9]\d{0,5})$/iu.exec(text);
+  if (translatedCitation) return {kind:'citation',label:translatedCitation[1],base:translatedCitation[1],suffix:'',isNew:false,parents:[]};
   // Citation ordinals count the published dash-led preambular siblings.
   const citation = language === 'en' && /^Citation (\d+)(?:\s*([a-z]{1,3}))?(?:\s*\(new\))?$/iu.exec(text);
   if (citation) return {kind: 'citation', label: citation[1] + (citation[2] || ''), base: citation[1], suffix: citation[2] || '', isNew: /\(new\)/iu.test(text), parents: []};
   if (language === 'en' && /^\d+\s+[a-z] \(new\)$/u.test(text)) text = 'Paragraph ' + text;
   let target;
   try {target = parseTargetLabel(text, language);} catch {return null;}
-  if (!target.complete || target.underlyingLabel || !target.segments.length) return null;
+  if (!target.complete || target.underlyingLabel || !target.segments.length) {
+    // Translated resolution recitals can use multiletter capitals plus a Latin
+    // suffix, e.g. the published Spanish "Considerando AL ter (nuevo)".
+    const recitals={fr:'considérant',es:'considerando',de:'Erwägung|Erwägungsgrund',bg:'съображение',el:'αιτιολογική σκέψη',hr:'uvodna izjava',cs:'bod odůvodnění'};
+    const qualifiers={fr:'nouveau|nouvelle',es:'nuevo|nueva',de:'neu',bg:'нов|нова|ново',el:'νέο|νέα|νέος',hr:'novi|nova|novo',cs:'nový|nová|nové'};
+    if (!recitals[language]) return null;
+    const qualifier=new RegExp(`\\s*\\((?:${qualifiers[language]})\\)\\s*$`,'iu');
+    const isNew=qualifier.test(text),label=text.replace(qualifier,'').replace(/\.$/,'');
+    const bare=label.replace(new RegExp(`^(?:${recitals[language]})\\s+`,'iu'),'');
+    const recital=bare!==label&&/^([A-ZА-Я]{1,3})(?:\s*([a-z]{1,8}))?$/u.exec(bare);
+    return recital?{kind:'recital',label:recital[1]+(recital[2]||''),base:recital[1],suffix:recital[2]||'',isNew,parents:[]}:null;
+  }
   const segments = target.segments.map(segment => {
     let kind = segment.kind;
     // The source calls these "Recital 6 b" / "Paragraph B a", while the
@@ -491,7 +508,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     const rank = suffix => {
       const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
       if (options.language === 'fr' && (!suffix || latin.includes(suffix))) return suffix ? latin.indexOf(suffix) + 1 : 0;
-      return /^[a-z]{0,3}$/u.test(suffix) ? suffix : null;
+      return /^[a-zα-ωа-я]{0,3}$/u.test(suffix) ? suffix : null;
     };
     const siblings = units.filter(unit => unit.kind === ref.kind && parentMatches(unit, ref)
       && (unit.label === ref.base || !ref.after && unit.label.startsWith(ref.base) && rank(unit.label.slice(ref.base.length)) !== null && rank(unit.label.slice(ref.base.length)) < rank(ref.suffix)));

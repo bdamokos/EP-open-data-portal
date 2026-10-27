@@ -1,0 +1,149 @@
+{
+  "description": "Published resolution target labels from exact translated amendment lists; script spelling is preserved.",
+  "examples": [
+    {
+      "amendmentId": "A-10-2026-0047-AM-3",
+      "listId": "A-10-2026-0047-AM-003-003",
+      "language": "es",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0047-AM-003-003/A-10-2026-0047-AM-003-003_es.docx",
+      "fetchedAt": "2026-10-27T16:17:29.322Z",
+      "targetLabel": "Apartado 7 ter (nuevo)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "7ter"
+      }
+    },
+    {
+      "amendmentId": "A-10-2026-0047-AM-4",
+      "listId": "A-10-2026-0047-AM-004-004",
+      "language": "es",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0047-AM-004-004/A-10-2026-0047-AM-004-004_es.docx",
+      "fetchedAt": "2026-10-27T16:18:26.307Z",
+      "targetLabel": "Considerando AL ter (nuevo)",
+      "expected": {
+        "kind": "recital",
+        "label": "ALter"
+      }
+    },
+    {
+      "amendmentId": "A-10-2026-0069-AM-64",
+      "listId": "A-10-2026-0069-AM-064-064",
+      "language": "fr",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0069-AM-064-064/A-10-2026-0069-AM-064-064_fr.docx",
+      "fetchedAt": "2026-10-27T16:20:43.154Z",
+      "targetLabel": "Paragraphe 1 ter (nouveau)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "1ter"
+      }
+    },
+    {
+      "amendmentId": "A-10-2026-0170-AM-1",
+      "listId": "A-10-2026-0170-AM-001-001",
+      "language": "de",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0170-AM-001-001/A-10-2026-0170-AM-001-001_de.docx",
+      "fetchedAt": "2026-10-27T16:25:01.376Z",
+      "targetLabel": "Ziffer 25 a (neu)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "25a"
+      }
+    },
+    {
+      "amendmentId": "A-10-2026-0171-AM-4",
+      "listId": "A-10-2026-0171-AM-001-007",
+      "language": "fr",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0171-AM-001-007/A-10-2026-0171-AM-001-007_fr.docx",
+      "fetchedAt": "2026-10-27T16:25:17.349Z",
+      "targetLabel": "Paragraphe 41 bis (nouveau)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "41bis"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0408-AM-1",
+      "listId": "B-10-2026-0408-AM-001-001",
+      "language": "el",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0408-AM-001-001/B-10-2026-0408-AM-001-001_el.docx",
+      "fetchedAt": "2026-10-27T16:31:30.677Z",
+      "targetLabel": "Παράγραφος 12 α (νέα)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "12α"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0413-AM-1",
+      "listId": "B-10-2026-0413-AM-001-001",
+      "language": "hr",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0413-AM-001-001/B-10-2026-0413-AM-001-001_hr.docx",
+      "fetchedAt": "2026-10-27T16:32:51.342Z",
+      "targetLabel": "Stavak 8.a (novi)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "8a"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0424-AM-68",
+      "listId": "B-10-2026-0424-AM-068-068",
+      "language": "bg",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-068-068/B-10-2026-0424-AM-068-068_bg.docx",
+      "fetchedAt": "2026-10-27T16:27:01.062Z",
+      "targetLabel": "Съображение М a (ново)",
+      "expected": {
+        "kind": "recital",
+        "label": "Мa"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0468-AM-6",
+      "listId": "B-10-2026-0468-AM-005-014",
+      "language": "bg",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0468-AM-005-014/B-10-2026-0468-AM-005-014_bg.docx",
+      "fetchedAt": "2026-10-27T16:31:35.184Z",
+      "targetLabel": "Позоваване 17",
+      "expected": {
+        "kind": "citation",
+        "label": "17"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0468-AM-3",
+      "listId": "B-10-2026-0468-AM-002-003",
+      "language": "bg",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0468-AM-002-003/B-10-2026-0468-AM-002-003_bg.docx",
+      "fetchedAt": "2026-10-27T16:31:44.203Z",
+      "targetLabel": "Параграф 43 б (нов)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "43б"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0468-AM-33",
+      "listId": "B-10-2026-0468-AM-033-033",
+      "language": "cs",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0468-AM-033-033/B-10-2026-0468-AM-033-033_cs.docx",
+      "fetchedAt": "2026-10-27T16:31:40.443Z",
+      "targetLabel": "Bod 14 a (nový)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "14a"
+      }
+    },
+    {
+      "amendmentId": "B-10-2026-0468-AM-4",
+      "listId": "B-10-2026-0468-AM-004-004",
+      "language": "cs",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0468-AM-004-004/B-10-2026-0468-AM-004-004_cs.docx",
+      "fetchedAt": "2026-10-27T16:31:44.956Z",
+      "targetLabel": "Bod 137 a (nový)",
+      "expected": {
+        "kind": "paragraph",
+        "label": "137a"
+      }
+    }
+  ]
+}

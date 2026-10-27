@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {verifyPlacement,parseBenchmarkTarget} from './amendment-benchmark-model.mjs';
 
@@ -54,10 +56,11 @@ test('raw resolution assertions select the report motion independently and prese
   assert.equal(verifyPlacement({text,wording,placement:insert(6)}).status,'verified');
   assert.equal(verifyPlacement({text,wording,placement:insert(2)}).status,'failed');
   for(const [language,targetLabel,prefix] of [['bg','Съображение Р','Р.'],['hu','Q preambulumbekezdés','Q.'],['sv','Skäl K','K.'],['sk','Odôvodnenie E','E.']]) {
-    const text={paragraphs:[prefix+' Source wording.','1. Next.'],paragraphSources:[0,1].map(ordinal=>({ordinal,complete:true,container:'body',containerPath:'body',segment:0}))};
+    const opening=language==='bg'?['Европейският парламент,']:[],paragraphs=[...opening,prefix+' Source wording.','1. Next.'];
+    const text={paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({ordinal,complete:true,container:'body',containerPath:'body',segment:0}))};
     const wording={...amendment(targetLabel,'Source wording.'),language,baseline:'motion-resolution'};
     assert.equal(parseBenchmarkTarget(wording).complete,true);
-    assert.equal(verifyPlacement({text,wording,placement:replace(0)}).status,'verified',language);
+    assert.equal(verifyPlacement({text,wording,placement:replace(opening.length)}).status,'verified',language);
   }
 });
 
@@ -76,4 +79,24 @@ test('raw address recovery cannot replace an unavailable object comparison with 
   const result=verifyPlacement({placement,wording,items:[{proposal:p}]});
   assert.equal(result.status,'unverified');
   assert.equal(result.reason,'oracle-object-comparison-unavailable');
+});
+
+test('integrated raw resolution assertions retain published Greek and Cyrillic numeric suffixes',async()=>{
+  const {examples}=JSON.parse(await readFile(new URL('../server/fixtures/amendment-language-labels.json',import.meta.url),'utf8'));
+  const openings={el:'Το Ευρωπαϊκό Κοινοβούλιο,',bg:'Европейският парламент,'};
+  for(const example of examples.filter(e=>openings[e.language]&&e.expected.kind==='paragraph')) {
+    const paragraphs=[openings[example.language],example.expected.label+'. Published provision.','99. Next provision.','ANNEX'];
+    const text={paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({ordinal,complete:true,container:'body',containerPath:'body',segment:0}))};
+    const result=rawResolutionUnits(text,example.language);
+    assert(result.units.some(unit=>unit.kind==='paragraph'&&unit.label===example.expected.label),example.amendmentId);
+  }
+});
+
+test('raw proposal recovery cannot override a failed independent operation assertion',()=>{
+  const p=proposal([['Article 1','Titrearticle'],['1. Published source sentence.','ManualNumPar1'],['Article 2','Titrearticle']]);
+  const wording={...amendment('Article 1 – paragraph 1 – subparagraph 1',p.paragraphs[1].text),proposedText:'Deleted.'};
+  const placement={...replace(1),operation:'delete',itemIndex:0,splice:{start:{paragraph:1,offset:0},end:{paragraph:1,offset:p.paragraphs[1].text.length}}};
+  assert.equal(verifyPlacement({placement,wording,items:[{proposal:p}]}).status,'verified');
+  const wrong=verifyPlacement({placement:{...placement,operation:'replace'},wording,items:[{proposal:p}]});
+  assert.equal(wrong.status,'failed');assert.equal(wrong.reason,'oracle-operation-mismatch');
 });

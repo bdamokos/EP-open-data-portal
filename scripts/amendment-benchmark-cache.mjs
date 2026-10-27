@@ -26,6 +26,7 @@ export function allowedInput(url,apiBase) {
   const value = new URL(url);
   return value.protocol === 'https:' && !value.username && !value.password && !value.hash && (
     value.origin === apiBase && /^\/api\/(?:amendments$|document-context\/(?:A|B|RC)-10-\d{4}-\d{4,6}$)/.test(value.pathname)
+    || value.origin === 'https://data.europarl.europa.eu' && /^\/api\/v2\/(?:plenary-documents\/(?:A|B|RC)-10-\d{4}-\d{4,6}|documents\/(?:A|B|RC)-10-\d{4}-\d{4,6}-AM-\d+-\d+)$/.test(value.pathname) && value.search === '?format=application%2Fld%2Bjson'
     || value.origin === 'https://data.europarl.europa.eu' && /^\/distribution\/.+\.docx$/i.test(value.pathname) && !value.search);
 }
 export function allowedSource(url) {
@@ -50,7 +51,7 @@ const wait = async milliseconds => {
 // Use standard HTTPS for EP publications. These routes can return HTTP 500
 // through Node fetch while the same anonymous HTTPS request succeeds.
 function publicFetch(url,options) {
-  if(!allowedDownload(url)&&!url.startsWith('https://data.europarl.europa.eu/api/v2/plenary-documents/'))return fetch(url,options);
+  if(!allowedDownload(url)&&!url.startsWith('https://data.europarl.europa.eu/api/v2/'))return fetch(url,options);
   return new Promise((resolve,reject)=>{
     https.get(url,{headers:options.headers,signal:options.signal},response=>{
       const body=[204,304].includes(response.statusCode)?null:Readable.toWeb(response);
@@ -94,7 +95,7 @@ export class InputCache {
         this.requests++;this.last=Date.now();
         const fetchedAt=new Date().toISOString();
         try {
-          const response=await this.fetcher(url,{headers:{'User-Agent':userAgent('amendment benchmark'),Accept:accept||(url.endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/json'),...(language?{'Accept-Language':language}:{})},redirect:'manual',credentials:'omit',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60_000)]):AbortSignal.timeout(60_000)});
+          const response=await this.fetcher(url,{headers:{'User-Agent':userAgent('amendment benchmark'),Accept:accept||(url.endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':url.startsWith('https://data.europarl.europa.eu/api/v2/')?'application/ld+json':'application/json'),...(language?{'Accept-Language':language}:{})},redirect:'manual',credentials:'omit',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60_000)]):AbortSignal.timeout(60_000)});
           const chunks=[];let bytes=0;
           for await (const chunk of response.body || []) {
             bytes+=chunk.length;
