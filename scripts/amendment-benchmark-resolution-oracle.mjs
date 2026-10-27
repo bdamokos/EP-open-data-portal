@@ -1,11 +1,11 @@
 // Independent raw-row boundaries for benchmark assertions. Do not import the
 // server motion segmenter: its extent errors are precisely what this checks.
 const label=value=>{
-  let match=/^(\d{1,6}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
+  let match=/^(\d{1,6}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'paragraph',label:match[1].replace(/\s/g,'')};
-  match=/^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value);
+  match=/^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'recital',label:match[1]};
-  match=/^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value);
+  match=/^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value);
   return match?{kind:'point',label:match[1]||match[2]}:null;
 };
 function wholeBold(value,format) {
@@ -23,11 +23,13 @@ const contiguous=(a,b)=>a?.complete===true&&b?.complete===true&&a.container==='b
 export function rawResolutionUnits(text,language) {
   const paragraphs=text?.paragraphs,sources=text?.paragraphSources;
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
-  // Insertions currently have English label grammar. For other languages an
-  // exact unique raw label may verify a span; duplicates remain unverified.
-  const openers=paragraphs.flatMap((p,i)=>/^\s*The European Parliament\s*,?\s*$/i.test(p)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
-  if(language==='en'&&!openers.length)return {units:[],reason:'oracle-resolution-start-unverified'};
-  const start=language==='en'?openers[0]+1:0,events=[],openerRows=new Set(openers);
+  const openings={en:'The European Parliament',fr:'Le Parlement européen',es:'El Parlamento Europeo',de:'Das Europäische Parlament',bg:'Европейският парламент',el:'Το Ευρωπαϊκό Κοινοβούλιο',hr:'Europski parlament',cs:'Evropský parlament'};
+  const opening=openings[language];
+  const openers=paragraphs.flatMap((p,i)=>opening&&p.replace(/\s+/gu,' ').trim().replace(/[,;:]$/u,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
+  if(language==='en'&&!openers.length||language!=='en'&&opening&&openers.length!==1)return {units:[],reason:'oracle-resolution-start-unverified'};
+  const start=opening?openers[0]+1:0,events=[],openerRows=new Set(openers);
+  const endings={fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
+  const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
@@ -38,11 +40,12 @@ export function rawResolutionUnits(text,language) {
       if(source?.complete!==true||source.container!=='body')continue;
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
-    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter)\b/iu.test(value)&&!/[.;!?]$/u.test(value);
+    const translatedEnd=languageEnd?.test(value.split(/[\r\n]/u)[0]);
+    const section=(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter)\b/iu.test(value))&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {
       events.push({start:i,boundary:true});group++;parent=null;
-      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?)\b/iu.test(value))active=false;
+      if(section&&(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?)\b/iu.test(value)))active=false;
       continue;
     }
     let ref=label(value);
