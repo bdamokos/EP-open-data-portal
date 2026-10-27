@@ -2,7 +2,7 @@ import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
 import {agendaTopics} from './insights-legislation-model.mjs';
-import {suppliedTitles} from './insights-model.mjs';
+import {suppliedTitles,canonical} from './insights-model.mjs';
 import {languagePreference} from './language-order.mjs';
 import {requestSignal} from './request-budget.mjs';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
@@ -31,6 +31,9 @@ export class ParliamentSearch {
     const status=this.store.status(),generation=status.servingGeneration;
     if(!generation)throw new HttpError(503,'search_unavailable','Search unavailable.');
     const selected=types.filter(type=>query.type==='all'||query.type===type),matches=new Map(selected.map(type=>[type,[]]));
+    const totals=new Map(selected.map(type=>[type,0]));
+    const compare=type=>(a,b)=>type==='mep'?a.title.localeCompare(b.title,query.language)||a.id.localeCompare(b.id):(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id);
+    const add=result=>{const rows=matches.get(result.type);totals.set(result.type,totals.get(result.type)+1);rows.push(result);if(rows.length>2020){rows.sort(compare(result.type));rows.length=1010;}};
     const coverage=Object.fromEntries(selected.map(type=>[type,{complete:false,available:true,limited:false}]));
     const inPeriod=value=>(!query.from||value&&value>=query.from)&&(!query.to||value&&value<=query.to);
     const match=values=>values.some(value=>query.terms.every(term=>fold(value).includes(term)));
@@ -38,23 +41,23 @@ export class ParliamentSearch {
     if(matches.has('mep')) {
       for(const row of this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all()) {
         const member=JSON.parse(row.body),name=member.name||[member.firstName,member.lastName].filter(Boolean).join(' ');
-        if(match([row.id,name,...(member.nameVariants||[]).map(variant=>variant.value)]))matches.get('mep').push({id:row.id,type:'mep',title:name||'MEP',titleLanguage:null,date:null,sourceUrl:'https://www.europarl.europa.eu/meps/en/'+row.id,source:{url:'https://data.europarl.europa.eu/api/v2/meps/show-current',fetchedAt:status.rosterFetchedAt||null}});
+        if(match([row.id,name,...(member.nameVariants||[]).map(variant=>variant.value)]))add({id:row.id,type:'mep',title:name||'MEP',titleLanguage:null,date:null,sourceUrl:'https://www.europarl.europa.eu/meps/en/'+row.id,source:{url:'https://data.europarl.europa.eu/api/v2/meps/show-current',fetchedAt:status.rosterFetchedAt||null}});
       }
       coverage.mep.complete=Boolean(status.currentMeps);
     }
     if(matches.has('question')) {
       const rows=this.store.db.prepare(`SELECT key,json_extract(body,'$.identifier') id,json_extract(body,'$.document_date') date,
         json_extract(body,'$.title_dcterms') titles,(SELECT json_group_array(json_extract(expression.value,'$.title')) FROM json_each(sources.body,'$.is_realized_by') expression) expression_titles,fetched_at
-        FROM sources WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 50001`).all(generation);
-      coverage.question.limited=rows.length>50000;
-      const seen=new Set();
-      for(let i=0;i<Math.min(rows.length,50000);i++) {
-        if(i%250===0){await yieldTurn();requestSignal()?.throwIfAborted();}
-        const row=rows[i],id=row.id||row.key.split('/').at(-1);
+        FROM sources INDEXED BY question_window WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 50001`).iterate(generation);
+      const seen=new Set();let scanned=0;
+      for(const row of rows) {
+        if(scanned++===50000){coverage.question.limited=true;break;}
+        if(scanned%250===0){await yieldTurn();requestSignal()?.throwIfAborted();}
+        const id=row.id||row.key.split('/').at(-1);
         if(!/^[EOP]-10-\d{4}-\d{6}$/.test(id)||seen.has(id)||!inPeriod(row.date))continue;
         seen.add(id);
         const titles=suppliedTitles({title_dcterms:JSON.parse(row.titles||'{}'),is_realized_by:JSON.parse(row.expression_titles||'[]').map(title=>({title}))});
-        if(match([id,...Object.values(titles)]))matches.get('question').push({id,type:'question',...title(titles,id),date:row.date,sourceUrl:`https://www.europarl.europa.eu/doceo/document/${id}_${query.language.toUpperCase()}.html`,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:row.fetched_at}});
+        if(match([id,...Object.values(titles)]))add({id,type:'question',...title(titles,id),date:row.date,sourceUrl:`https://www.europarl.europa.eu/doceo/document/${id}_${query.language.toUpperCase()}.html`,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:row.fetched_at}});
       }
     }
     if(matches.has('topic')) {
@@ -70,7 +73,7 @@ export class ParliamentSearch {
         if(!inPeriod(sitting.activity_date))continue;
         const nodes=[],sources=[],nodeSources=new Map();
         for(let page=0;page<2;page++) {
-          try {const record=await this.request('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});nodes.push(...record.payload.data);sources.push(record);for(const node of record.payload.data)nodeSources.set(node.activity_id,record);if(record.payload.data.length<50)break;}
+          try {const record=await this.request('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});nodes.push(...record.payload.data);sources.push(record);for(const node of record.payload.data)nodeSources.set(node.activity_id||canonical(node.id).split('/').at(-1),record);if(record.payload.data.length<50)break;}
           catch(error){requestSignal()?.throwIfAborted();if(error.code!=='odp_cache_miss')coverage.topic.error=true;break;}
         }
         if(!sources.length){coverage.topic.missingAgendas++;continue;}
@@ -79,15 +82,15 @@ export class ParliamentSearch {
         for(const item of topics) {
           if(seen.has(item.id))continue;seen.add(item.id);
           const source=nodeSources.get(item.id);
-          if(match([item.id,...Object.values(item.titles)]))matches.get('topic').push({id:item.id,type:'topic',...title(item.titles,item.id),date:item.date||sitting.activity_date,sittingId:sitting.activity_id,source:{url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:source.stale===true}});
+          if(match([item.id,...Object.values(item.titles)]))add({id:item.id,type:'topic',...title(item.titles,item.id),date:item.date||sitting.activity_date,sittingId:sitting.activity_id,source:{url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:source.stale===true}});
         }
       }
       if(coverage.topic.missingAgendas&&!coverage.topic.agendasRead)coverage.topic.available=false;
     }
     const sections=selected.map(type=>{
-      const rows=matches.get(type).sort((a,b)=>type==='mep'?a.title.localeCompare(b.title,query.language)||a.id.localeCompare(b.id):(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
+      const rows=matches.get(type).sort(compare(type)),total=totals.get(type);
       const next=query.offset+10;
-      return {type,total:rows.length,results:rows.slice(query.offset,next),nextOffset:next<rows.length&&next<=1000?next:null,truncated:rows.length>1010,coverage:coverage[type]};
+      return {type,total,results:rows.slice(query.offset,next),nextOffset:next<total&&next<=1000?next:null,truncated:total>1010,coverage:coverage[type]};
     });
     if(this.store.status().servingGeneration!==generation)throw new HttpError(409,'generation_changed','Search changed. Try again.');
     return {version:PARLIAMENT_SEARCH_VERSION,query:query.query,offset:query.offset,sections};

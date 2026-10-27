@@ -53,6 +53,19 @@ test('missing calendar observations remain unavailable while MEP and question re
   assert.equal(response.sections.find(s=>s.type==='mep').total,1);
   assert.equal(response.sections.find(s=>s.type==='topic').coverage.available,false);
 });
+test('question title pages retain exact totals, newest ordering and expression-only titles',async t=>{
+  const {service,store,generation,work}=setup(t);
+  store.acquire();
+  for(let i=1;i<=13;i++){
+    const id='E-10-2026-'+String(i).padStart(6,'0');
+    store.putSource(generation,'/parliamentary-questions/'+id,'document',projectDocument({...work,id:'eli/dl/doc/'+id,identifier:id,document_date:'2026-10-'+String(i).padStart(2,'0'),title_dcterms:{},is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',title:{en:'Expression title for paging'},is_embodied_by:[]}]}),activity.verifiedAt);
+  }
+  store.release();
+  const first=(await service.query(query('q=expression&type=question'))).sections[0],second=(await service.query(query('q=expression&type=question&offset=10'))).sections[0];
+  assert.equal(first.total,13);assert.equal(first.results.length,10);assert.equal(first.nextOffset,10);assert.equal(first.results[0].id,'E-10-2026-000013');
+  assert.equal(second.total,13);assert.equal(second.results.length,3);assert.equal(second.nextOffset,null);assert.equal(second.results.at(-1).id,'E-10-2026-000001');
+  assert.equal(new Set([...first.results,...second.results].map(row=>row.id)).size,13);
+});
 test('query validation bounds types, dates, offsets and repeated parameters',()=>{
   assert.deepEqual(query('q=%22blue+flag%22+beach').terms,['blue flag','beach']);
   for(const value of ['q=','q=a&type=wrong','q=a&offset=-1','q=a&offset=1001','q=a&offset=1.5','q=a&from=2026-02-30','q=a&from=2026-10-01&to=2026-09-01','q=a&q=b','q=a&other=x'])assert.throws(()=>query(value),error=>error.status===400,value);
