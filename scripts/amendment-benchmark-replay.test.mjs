@@ -95,3 +95,14 @@ test('a CELLAR metadata request beyond the shared cap aborts the proposal reader
   await assert.rejects(()=>sourceReplay(cache,runtime).proposal({celex:'52026PC0001',language:'en'}),/request-cap-exhausted/);
   assert.equal(cache.requests,1);
 });
+
+test('transient 500 retries are capped and CELLAR metadata keeps the production byte bound',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-bounds-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  let calls=0;const url='https://publications.europa.eu/resource/celex/52026PC0001';
+  const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:2,delay:0,sleep:async()=>{},fetcher:async()=>++calls===1?new Response('busy',{status:500}):new Response('rdf')});
+  assert.equal((await cache.get(url,{accept:'application/rdf+xml;notice=tree',raw:true})).body.toString(),'rdf');
+  assert.equal(cache.requests,2);assert.equal(cache.manifest().length,1);
+  const oversized=new InputCache(directory,{apiBase,fetchMissing:true,cap:1,delay:0,sleep:async()=>{},fetcher:async()=>new Response('x'.repeat(3*1024*1024+1))});
+  await assert.rejects(()=>oversized.get(url.replace('0001','0002'),{accept:'application/rdf+xml;notice=tree',raw:true}),/input-size-limit/);
+  assert.equal(oversized.manifest().length,0);
+});

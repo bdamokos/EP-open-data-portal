@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import https from 'node:https';
 import {Readable} from 'node:stream';
 import {userAgent} from '../server/user-agent.mjs';
-import {cellarTransportUrl} from '../server/cellar-documents.mjs';
+import {cellarTransportUrl,CELLAR_DOCX_MIME,CELLAR_LIMITS} from '../server/cellar-documents.mjs';
 import {allowedDownload} from '../server/document-text.mjs';
 
 export const digest = value => createHash('sha256').update(value).digest('hex');
@@ -47,10 +47,10 @@ const wait = async milliseconds => {
     await new Promise(resolve=>setTimeout(resolve,chunk)); milliseconds-=chunk;
   }
 };
-// Match the application's standard HTTPS transport for official DOCX files:
-// this distribution route returns 500 to Node fetch instead of its normal 302.
+// Use standard HTTPS for EP publications. These routes can return HTTP 500
+// through Node fetch while the same anonymous HTTPS request succeeds.
 function publicFetch(url,options) {
-  if(!allowedDownload(url))return fetch(url,options);
+  if(!allowedDownload(url)&&!url.startsWith('https://data.europarl.europa.eu/api/v2/plenary-documents/'))return fetch(url,options);
   return new Promise((resolve,reject)=>{
     https.get(url,{headers:options.headers,signal:options.signal},response=>{
       const body=[204,304].includes(response.statusCode)?null:Readable.toWeb(response);
@@ -72,12 +72,14 @@ export class InputCache {
     if (!(officialRedirect?allowedDownload(url):allowedInput(url,this.apiBase)||allowedSource(url))) throw new Error('Unsupported public input URL: '+url);
     const request=accept?{accept,...(language?{language}:{})}:null;
     const identity=request?JSON.stringify([url,request]):url;
+    const maximum=accept===CELLAR_DOCX_MIME||allowedDownload(url)?CELLAR_LIMITS.itemBytes:accept?.startsWith('application/rdf+xml')||accept==='application/sparql-results+json'?CELLAR_LIMITS.metadataBytes:16*1024*1024;
     const key=digest(identity), metaPath=path.join(this.directory,key+'.json'), bodyPath=path.join(this.directory,key+'.body');
     let meta,body;
     try {meta=JSON.parse(await readFile(metaPath,'utf8'));} catch(error) {if(error.code!=='ENOENT')throw error;}
     if (meta) {
       if (meta.url!==url||JSON.stringify(meta.request??null)!==JSON.stringify(request)) throw new Error('Cache URL mismatch: '+url);
       body=await readFile(bodyPath);
+      if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
     } else {
       if (!this.fetchMissing || this.requests>=this.cap) {
@@ -95,7 +97,7 @@ export class InputCache {
           const chunks=[];let bytes=0;
           for await (const chunk of response.body || []) {
             bytes+=chunk.length;
-            if(bytes>16*1024*1024)throw new Error('input-size-limit');
+            if(bytes>maximum)throw new Error('input-size-limit');
             chunks.push(chunk);
           }
           body=Buffer.concat(chunks);
@@ -119,7 +121,10 @@ export class InputCache {
           if(error.message.startsWith('retry-after-exceeds-cap')||attempt===2||this.requests>=this.cap)throw new Error('Acquisition failed (not cached): '+url+' '+error.message);
           continue;
         }
-        if(responseIsTransient(meta))throw new Error('Acquisition failed (not cached): '+url+' '+meta.error);
+        if(responseIsTransient(meta)) {
+          if(attempt<2&&this.requests<this.cap){this.last=Date.now()+Math.max(this.delay,1000*2**attempt)-this.delay;continue;}
+          throw new Error('Acquisition failed (not cached): '+url+' '+meta.error);
+        }
         break;
       }
       await writeFile(bodyPath+'.tmp',body);await rename(bodyPath+'.tmp',bodyPath);
