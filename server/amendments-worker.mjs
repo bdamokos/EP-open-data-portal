@@ -61,6 +61,25 @@ function mergeAmendmentEvidence(priorWork,fresh) {
   return {...evidence,decisions:decisions.slice(-5000),splitRequests:keptRequests.map(([,node])=>node),parsedSplits:[...parsed].filter(([key])=>keptKeys.has(key)).map(([,node])=>node),retainedEvidence:retained||capped,splitProjectionTruncated:Boolean(fresh.splitProjectionTruncated||capped)};
 }
 const extractionSource=extraction=>extraction?.sourceUrl?{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language}:null;
+function publicationEvidence(sources,descriptor,buffer,prior) {
+  const sourceHash=createHash('sha256').update(buffer).digest('hex'),sourceDescriptor=sources.boundDescriptor(descriptor,sourceHash);
+  const previous=normalizedDocxDescriptor(prior?.sourceDescriptor || prior?.descriptor);
+  const priorBinding=prior?.publicationBinding || (previous?.issued?{descriptor:previous,sha256:prior?.sourceHash || prior?.source?.contentHash || null}:null);
+  // A different undated byte observation has no assigned publication. Retain
+  // the last known binding separately rather than attributing it to those bytes.
+  const publicationBinding=sourceDescriptor?.issued?{descriptor:sourceDescriptor,sha256:sourceHash}:priorBinding;
+  return {sourceDescriptor,sourceHash,publicationBinding};
+}
+function publicationHistory(...observations) {
+  const bindings=new Map();
+  for(const observation of observations.flat()) {
+    const descriptor=normalizedDocxDescriptor(observation?.descriptor);
+    if(!descriptor?.issued)continue;
+    const hash=observation.sha256 ?? null,key=JSON.stringify([descriptor.url,descriptor.language,descriptor.byteSize,hash]);
+    bindings.set(key,{descriptor,sha256:hash});
+  }
+  return [...bindings.values()];
+}
 const linkedListKey=(target,listId)=>'amendment:discover:'+target+':'+listId;
 function verifiedList(work,target,listId) {
   const type=String(work?.work_type || '').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
@@ -768,7 +787,7 @@ export async function amendmentTask(worker,task) {
       if(paced>0)return defer(paced);
       return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString()};
     };
-    const downloaded=await retrieve(file,saved.work.extraction?.sourceDescriptor);
+    const downloaded=await retrieve(file,saved.work.extraction?.publicationBinding?.descriptor || saved.work.extraction?.sourceDescriptor);
     if(!downloaded)return;
     signal.throwIfAborted();
     // Extraction is CPU work: parse off the main thread and run each list's
@@ -780,9 +799,9 @@ export async function amendmentTask(worker,task) {
       const fetchedAt=downloaded.fetchedAt,extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt},{signal});
       signal.throwIfAborted();
       if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
-      // Bind a known issue time after successful legacy reuse. An observation
-      // without one must not erase a retained row's existing publication binding.
-      if(!downloaded.retained||file.issued)await sources.save(file,downloaded.buffer,fetchedAt,{listId:body.listId,signal});
+      // All byte paths use the store's monotonic publication binding rule.
+      await sources.save(file,downloaded.buffer,fetchedAt,{listId:body.listId,signal,downloaded:!downloaded.retained});
+      const publication=publicationEvidence(sources,file,downloaded.buffer,saved.work.extraction);
       if(!parserUpgrade)for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
       signal.throwIfAborted();
       let authorNames=null;
@@ -790,18 +809,21 @@ export async function amendmentTask(worker,task) {
       if(alternate){
         if(!body.sourceDownloaded)store.taskProgress(task,{...body,sourceDownloaded:true});
         try {
-          const other=await retrieve(alternate,saved.work.authorNames?.descriptor);
+          const other=await retrieve(alternate,saved.work.authorNames?.publicationBinding?.descriptor || saved.work.authorNames?.descriptor);
           if(!other)return;
           signal.throwIfAborted();
           const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
           const parsed=await worker.extractAmendmentList(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt},{signal});
           signal.throwIfAborted();
           if(!Array.isArray(parsed.amendments)||parsed.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Alternate byline extraction exceeded its record budget.');
-          if(!other.retained||alternate.issued)await sources.save(alternate,other.buffer,retrievedAt,{listId:body.listId,signal});
-          authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:normalizedDocxDescriptor(file),descriptor:alternate,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
+          await sources.save(alternate,other.buffer,retrievedAt,{listId:body.listId,signal,downloaded:!other.retained});
+          const otherPublication=publicationEvidence(sources,alternate,other.buffer,saved.work.authorNames);
+          authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:publication.sourceDescriptor,descriptor:otherPublication.sourceDescriptor,publicationBinding:otherPublication.publicationBinding,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
         }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
       }
-      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),sourceDescriptor:normalizedDocxDescriptor(file)}};
+      const publicationBindings=publicationHistory(saved.work.extraction?.publicationBindings || [],saved.work.extraction?.publicationBinding,
+        saved.work.authorNames?.publicationBinding,publication.publicationBinding,authorNames?.publicationBinding);
+      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),...publication,publicationBindings}};
       delete next.wordingRefreshFailure;
       store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});

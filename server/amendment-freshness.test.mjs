@@ -747,6 +747,85 @@ for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse 
   assert.deepEqual(store.db.prepare('SELECT issued FROM amendment_sources ORDER BY retrieved_at').all().map(row=>row.issued),mode==='older-writer'?['2026-10-20T09:00:00+02:00']:['2026-10-02T17:04:06+02:00','2026-10-20T09:00:00+02:00']);
 });
 
+for(const mode of ['identical','different','evicted'])test('an undated normal download preserves publication history before a same-size T2 upgrade; '+mode,async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  const t1='2026-10-02T17:04:06+02:00',t2='2026-10-25T09:00:00+02:00';
+  const upgrade=async()=>{downgrade(context);prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));};
+  await context.reverify({...descriptor,issued:t1});await upgrade();
+  const bound=store.source(generation,listKey).work.extraction.publicationBinding;
+  assert.equal(bound.descriptor.issued,t1);assert.equal(typeof bound.sha256,'string');
+  context.advance(8*86400000);await context.reverify(descriptor);
+  if(mode==='evicted') {
+    const sources=amendmentSourceStore(store),observation=store.source(generation,listKey);sources.maxBytes=1;
+    // The list still references T1, so test the actual eligible eviction path
+    // only after that generation stops publishing the list.
+    store.db.prepare("DELETE FROM sources WHERE key=?").run(listKey);
+    await sources.reserve(1);sources.maxBytes=1024*1024;
+    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM amendment_sources').get().n,0);
+    // Restore only the list observation/extraction, as a later generation can.
+    store.putSource(generation,listKey,'amendment-list',observation.work,observation.fetchedAt);
+  }
+  let downloads=0;
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(mode==='different'?'Different undated wording.':oldProposed)};};
+  enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(downloads,1);
+  const undated=store.source(generation,listKey).work.extraction;
+  if(mode==='different') {
+    assert.equal(undated.sourceDescriptor.issued,undefined,'Different undated bytes cannot inherit T1.');
+    assert.deepEqual(undated.publicationBinding,bound,'The last known byte/publication binding remains recorded.');
+  } else assert.equal(undated.sourceDescriptor.issued,t1);
+  context.advance(2*86400000);await context.reverify({...descriptor,issued:t2});downloads=0;
+  const proposed='A new requirement.',zipped=amendmentDocx(proposed),buffer=Buffer.concat([zipped,Buffer.alloc(descriptor.byteSize-zipped.length)]);
+  buffer.writeUInt16LE(descriptor.byteSize-zipped.length,zipped.length-2);
+  assert.equal(buffer.length,amendmentDocx().length);
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer};};
+  await upgrade();
+  const result=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,1);assert.equal(result.amendments[0].proposedText,proposed);
+  assert.equal(result.sourceDescriptor.issued,t2);assert.equal(result.publicationBinding.descriptor.issued,t2);
+});
+
+test('primary and alternate byline downloads and reuse share publication-history preservation',async t=>{
+  const context=await fixture(t,{baseline:false}),{store,worker,generation,descriptor}=context;
+  const primary=amendmentDocx(oldProposed,'Данило Дела Вале'),alternate=amendmentDocx(oldProposed,'Danilo Della Valle');
+  const otherUrl=oldUrl.replace('_en','_de'),files=[{...descriptor,language:'bg',byteSize:primary.length},{url:otherUrl,language:'de',byteSize:alternate.length}];
+  let downloads=0;
+  worker.downloadAmendmentDocx=async url=>{downloads++;assert([oldUrl,otherUrl].includes(url));return {buffer:url===oldUrl?primary:alternate};};
+  const observe=issued=>{
+    const saved=store.source(generation,listKey);
+    store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:files.map(file=>({...file,...(issued?{issued}:{})}))}},saved.fetchedAt);
+  };
+  const extract=async parserUpgrade=>{
+    enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId,parserUpgrade},112,true);
+    const task=extractionJob(store,generation);await worker.task({...task,amendmentJob:true,body:JSON.parse(task.body)});
+  };
+  observe();await extract(true);assert.equal(downloads,2);
+  const t1='2026-10-02T17:04:06+02:00',t2='2026-10-25T09:00:00+02:00';
+  observe(t1);downloads=0;await extract(true);assert.equal(downloads,0);
+  let work=store.source(generation,listKey).work;
+  assert.equal(work.extraction.sourceDescriptor.issued,t1);assert.equal(work.authorNames.descriptor.issued,t1);
+  const roster=store.source(generation,'amendment:roster:'+documentDate);
+  store.putSource(generation,'amendment:roster:'+documentDate,'amendment-roster',{...roster.work,nameVersion:1},roster.fetchedAt);
+  context.advance(8*86400000);observe();downloads=0;await extract(false);assert.equal(downloads,2);
+  work=store.source(generation,listKey).work;
+  assert.equal(work.extraction.sourceDescriptor.issued,t1);assert.equal(work.authorNames.descriptor.issued,t1);
+  assert.equal(work.extraction.publicationBinding.descriptor.issued,t1);assert.equal(work.authorNames.publicationBinding.descriptor.issued,t1);
+  const originalDownload=worker.downloadAmendmentDocx;
+  worker.downloadAmendmentDocx=async url=>{if(url===otherUrl)throw new Error('Alternate source unavailable');return originalDownload(url);};
+  await extract(false);work=store.source(generation,listKey).work;
+  assert.match(work.authorNames.error,/Alternate source unavailable/);
+  assert(work.extraction.publicationBindings.some(binding=>binding.descriptor.url===otherUrl&&binding.descriptor.issued===t1),'Failed alternate observations retain earlier publication evidence.');
+  worker.downloadAmendmentDocx=async url=>{assert.equal(url,oldUrl);return {buffer:alternate};};
+  await extract(false);work=store.source(generation,listKey).work;
+  assert.equal(work.authorNames,null,'A Latin-only parse no longer needs the alternate source.');
+  assert.equal(work.extraction.sourceDescriptor.issued,undefined,'Different undated primary bytes remain unassigned.');
+  assert(work.extraction.publicationBindings.some(binding=>binding.descriptor.url===otherUrl&&binding.descriptor.issued===t1),'An unused alternate source retains its publication history.');
+  worker.downloadAmendmentDocx=originalDownload;
+  context.advance(86400000);observe(t2);downloads=0;await extract(true);assert.equal(downloads,2);
+  work=store.source(generation,listKey).work;
+  assert.equal(work.extraction.sourceDescriptor.issued,t2);assert.equal(work.authorNames.descriptor.issued,t2);
+});
+
 test('parser-upgrade extraction reads retained bytes off the main thread and paces consecutive lists',async t=>{
   const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(90*86400000);
   const calls=[];const extract=worker.extractAmendmentList;
