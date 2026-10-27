@@ -64,3 +64,81 @@ test('an open membership reads as present only when it began in the current serv
   assert.doesNotMatch(probe('2024-09-01',{end:{raw:'unknown'}}),/Present/,'an invalid supplied end is not a missing end');
   assert.match(probe('2024-09-01',{currentSince:'2025-03-01'}),/From 2024-09-01/,'a membership from before a return to Parliament is not present');
 });
+
+
+test('contiguous profile periods merge by exact organisation identity and preserve current evidence',async t=>{
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {profileMembershipPeriods}=await loadModule('/src/profileMembershipPeriods.ts');
+  const {ProfileMemberships}=await loadModule('/src/ProfileMemberships.tsx');
+  const item=(index,start,end,bodyId='org/5153',extra={})=>({index,section:'political-groups',membershipId:'membership/'+index,bodyId,role:'def/ep-roles/MEMBER',classification:'def/ep-entities/EU_POLITICAL_GROUP',start,end,dateIssues:[],observation:{id:'membership/'+index},body:{id:bodyId,classification:'def/ep-entities/EU_POLITICAL_GROUP',isVersionOf:'org/PPE',prefLabel:{en:'European People’s Party'},temporal:end?{endDate:end}:{},source:{stale:false}},...extra});
+  const old=item(1,'2019-07-02','2024-07-15');
+  const current=item(2,'2024-07-16',null,'org/7018');
+  const ongoing=row=>row===current;
+  const input=[current,old],original=JSON.stringify(input);
+  const merged=profileMembershipPeriods(input,ongoing);
+  assert.equal(merged.length,1);
+  assert.deepEqual([merged[0].start,merged[0].end,merged[0].ongoing],['2019-07-02',null,true]);
+  assert.deepEqual(merged[0].items,[old,current]);
+  assert.equal(JSON.stringify(input),original,'source observations are unchanged');
+  const markup=renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory:{observationAvailable:true,observationComplete:true,items:input},currentAffiliation:{status:'matched',day:'2026-10-27'},parliamentaryService:{currentSince:'2019-07-02'}},lang:'en',date:value=>value,roleName:role=>role,retry:()=>{}}));
+  assert.match(markup,/2019-07-02<\/span> — <span lang="en">Present/);
+  assert.equal((markup.match(/<li>/g)||[]).length,1);
+  for(const changed of [
+    {...current,start:'2024-07-17'}, // A day without membership.
+    {...current,start:'2024-07-15'}, // Overlap.
+    {...current,start:'2024-02-30'},
+    {...current,end:{raw:'unknown'}},
+    {...current,end:'2020-01-01'},
+    {...current,role:'def/ep-roles/CHAIR'},
+    {...current,classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP'},
+    {...current,body:{...current.body,isVersionOf:'org/OTHER'}},
+    {...current,body:{...current.body,isVersionOf:null}},
+  ])assert.equal(profileMembershipPeriods([old,changed],()=>false).length,2,JSON.stringify(changed));
+  assert.equal(profileMembershipPeriods([{...old,end:null},current],ongoing).length,2,'an unknown earlier end cannot bridge a period');
+  assert.equal(profileMembershipPeriods([{...old,body:null},{...current,bodyId:old.bodyId,body:null}],ongoing).length,1,'an exact body ID needs no family relationship');
+  assert.equal(profileMembershipPeriods([old,{...current,body:{...current.body,isVersionOf:'https://data.europarl.europa.eu/org/PPE'}}],ongoing).length,1);
+  const conflict=item(3,'2024-07-01','2024-08-01','org/7018',{role:'def/ep-roles/CHAIR'});
+  assert.equal(profileMembershipPeriods([old,current,conflict],ongoing).length,3,'a conflicting role across the boundary stays visible');
+  const third=item(4,'2014-07-01','2019-07-01');
+  assert.equal(profileMembershipPeriods([current,old,third],ongoing)[0].start,'2014-07-01','multiple boundaries merge');
+  const leapOld=item(5,'2020-01-01','2020-02-29');
+  assert.equal(profileMembershipPeriods([leapOld,item(6,'2020-03-01','2020-12-31')],()=>false).length,1);
+});
+
+test('national-party display merges require exact metadata at a term boundary',async t=>{
+  const loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>loadModule.close());
+  const {profileMembershipPeriods}=await loadModule('/src/profileMembershipPeriods.ts');
+  const {ProfileMemberships}=await loadModule('/src/ProfileMemberships.tsx');
+  const make=(index,bodyId,start,end)=>({index,section:'national-parties',membershipId:'membership/'+index,bodyId,role:'def/ep-roles/MEMBER',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',start,end,dateIssues:[],observation:{id:'membership/'+index},body:{id:bodyId,classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',label:'PP',prefLabel:{en:'Partido Popular',es:'Partido Popular'},represents:['http://publications.europa.eu/resource/authority/country/ESP'],temporal:{startDate:start,...(end?{endDate:end}:{})},source:{stale:false}}});
+  const old=make(1,'org/5211','2019-07-02','2024-07-15'),current=make(2,'org/6666','2024-07-16',null);
+  const render=items=>renderToStaticMarkup(createElement(ProfileMemberships,{profile:{membershipHistory:{observationAvailable:true,observationComplete:true,items},currentAffiliation:{status:'matched',day:'2026-10-27'},parliamentaryService:{currentSince:'2019-07-02'}},lang:'en',date:value=>value,roleName:role=>role,retry:()=>{}}));
+  const input=[current,old],original=JSON.stringify(input),merged=profileMembershipPeriods(input,row=>row===current);
+  assert.equal(merged.length,1);assert.deepEqual(merged[0].items,[old,current]);assert.equal(JSON.stringify(input),original);
+  assert.equal((render(input).match(/<li>/g)||[]).length,1);assert.match(render(input),/2019-07-02<\/span> — <span lang="en">Present/);
+  for(const body of [
+    {...current.body,label:'P.P.'},
+    {...current.body,label:'-'},
+    {...current.body,prefLabel:{en:'Partido popular',es:'Partido Popular'}},
+    {...current.body,prefLabel:{en:'Partido Popular'}},
+    {...current.body,prefLabel:{en:'Partido Popular',es:''}},
+    {...current.body,represents:['http://publications.europa.eu/resource/authority/country/PRT']},
+    {...current.body,represents:[]},
+    {...current.body,source:{stale:true}},
+    {...current.body,temporal:{startDate:'2024-07-17'}},
+    {...current.body,id:'org/OTHER'},
+  ])assert.equal(profileMembershipPeriods([old,{...current,body}],()=>false).length,2,JSON.stringify(body));
+  assert.equal(profileMembershipPeriods([{...old,body:{...old.body,label:'-'}},{...current,body:{...current.body,label:'-'}}],()=>false).length,2,'matching placeholders are not party names');
+  assert.equal(profileMembershipPeriods([{...old,body:{...old.body,isVersionOf:'org/OLD'}},{...current,body:{...current.body,isVersionOf:'org/NEW'}}],()=>false).length,2,'published identities cannot be overridden by labels');
+  assert.equal(profileMembershipPeriods([{...old,end:'2023-12-31',body:{...old.body,temporal:{endDate:'2023-12-31'}}},{...current,start:'2024-01-01',body:{...current.body,temporal:{startDate:'2024-01-01'}}}],()=>false).length,2,'a midterm body replacement does not use the fallback');
+  assert.equal(profileMembershipPeriods([old,current,{...current,index:3,membershipId:'membership/3',bodyId:'org/999',body:{...current.body,id:'org/999'}}],()=>false).length,3,'ambiguous successor observations stay separate');
+  const earlier=make(4,'org/1234','2014-07-01','2019-07-01');
+  assert.equal(profileMembershipPeriods([earlier,old,current],()=>false).length,1,'multiple term boundaries merge');
+  const conflictingChain=profileMembershipPeriods([
+    {...earlier,body:{...earlier.body,isVersionOf:'org/OLD'}},old,
+    {...current,body:{...current.body,isVersionOf:'org/NEW'}},
+  ],()=>false);
+  assert.equal(conflictingChain.length,2,'an unlinked middle term cannot bridge conflicting canonical identities');
+  assert.deepEqual(conflictingChain.map(period=>period.items.map(item=>item.bodyId)),[['org/1234','org/5211'],['org/6666']]);
+  const oldMidterm={...old,start:'2020-03-01'};
+  assert.equal(profileMembershipPeriods([oldMidterm,current],()=>false).length,1,'a membership can begin after its body’s term start');
+});
