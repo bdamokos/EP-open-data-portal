@@ -17,6 +17,7 @@ const dated=(a:ProgressEvent,b:ProgressEvent)=>(a.date||'9999').localeCompare(b.
 const partial=(coverage:Coverage)=>coverage.limited||coverage.invalidRows>0||coverage.incompleteEvents>0||coverage.timeline==='unavailable';
 function EventName({event}:{event:ProgressEvent}){return <span lang={event.labelLanguage||'en'}>{eventLabel(event)}</span>;}
 function EventDate({event,language}:{event:ProgressEvent;language:string}){return event.date?<time dateTime={event.date} lang={language}>{humanDate(event.date,language)}</time>:null;}
+function EventInstitutions({event}:{event:ProgressEvent}){return <span className="procedure-progress-institutions">{event.institutions.length?event.institutions.map(term=><span key={term.id} lang={term.language||'en'}>{institutionLabel(term)}</span>):<span className="procedure-progress-muted">Institution unavailable</span>}</span>;}
 function Status({event,today}:{event:ProgressEvent;today:string}) {
   if(event.status==='projected')return <span className="procedure-progress-tag">Scheduled</span>;
   if(event.status==='cancelled')return <span className="procedure-progress-tag procedure-progress-tag-muted">Cancelled</span>;
@@ -66,17 +67,17 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
       {data.state==='mapped'&&<>
         {partial(data.coverage)&&<p className="procedure-progress-status">{data.coverage.limited?'Timeline incomplete':'Partial coverage'}</p>}
         {events.length>0&&<div className="procedure-progress-overview">
-          {latest?<p className="procedure-progress-latest"><strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p>:<p className="procedure-progress-muted">No dated milestone.</p>}
+          {latest?<p className="procedure-progress-latest">{latest.institutions.length>0&&<EventInstitutions event={latest}/>}<strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p>:<p className="procedure-progress-muted">No dated milestone.</p>}
           <button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{expanded?'Hide timeline':'Show timeline'}</button>
         </div>}
-        {next&&<div className="procedure-progress-next"><span className="procedure-progress-tag">Next scheduled action</span><p><strong><EventName event={next}/></strong><EventDate event={next} language={language}/></p></div>}
+        {next&&<div className="procedure-progress-next"><span className="procedure-progress-tag">Next scheduled action</span><p>{next.institutions.length>0&&<EventInstitutions event={next}/>}<strong><EventName event={next}/></strong><EventDate event={next} language={language}/></p></div>}
         {scheduled.some(event=>!event.date)&&<p className="procedure-progress-muted">Scheduled date unavailable.</p>}
         {scheduled.some(event=>event.date&&event.date<today)&&<p className="procedure-progress-muted">Past scheduled dates.</p>}
         {events.length>0&&expanded&&<div id={timelineId} className="procedure-progress-expanded">
             {(options.length>0||hasOtherEvents)&&<div className="procedure-progress-filters">{options.length>0&&<label>Institution<select value={institution} onChange={event=>setInstitution(event.target.value)}><option value="all">All institutions</option>{options.map(term=><option key={term.id} value={term.id} lang={term.language||'en'}>{institutionLabel(term)}</option>)}</select></label>}{hasOtherEvents&&<button type="button" aria-pressed={allEvents} onClick={()=>setAllEvents(value=>!value)}>{allEvents?'Show key milestones':'Show all recorded events'}</button>}</div>}
             <p className="procedure-progress-muted" role="status">{visible.length} {visible.length===1?'event':'events'} in this selection{data.coverage.limited?' · incomplete':''}</p>
             <ol className="procedure-progress-timeline">{visible.map(event=><li key={event.id} className={event.status==='projected'?'procedure-progress-scheduled':undefined}>
-              <EventDate event={event} language={language}/><div><Status event={event} today={today}/><h4><EventName event={event}/></h4>{event.institutions.length>0&&<p className="procedure-progress-muted">{event.institutions.map((term,index)=><span key={term.id} lang={term.language||'en'}>{index>0?' · ':''}{institutionLabel(term)}</span>)}</p>}
+              <div className="procedure-progress-event-date">{event.date?<EventDate event={event} language={language}/>:<span>Date unavailable</span>}</div><EventInstitutions event={event}/><div className="procedure-progress-event-detail"><Status event={event} today={today}/><h4><EventName event={event}/></h4>
                 {event.issues.length>0&&<p className="procedure-progress-muted">Partial details</p>}
                 {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docFreshness.stale||docFreshness.failed)&&!documents.loading&&docRetryAt<=Date.now())documents.retry();}}}><summary>Documents</summary>
                   {documents.loading&&!docData&&<p role="status">Loading document links…</p>}

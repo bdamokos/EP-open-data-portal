@@ -7,7 +7,7 @@
 .insight-subject-classification li {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;min-width:0;font-size:15px;line-height:1.5;}
 .insight-subject-classification li span {overflow-wrap:anywhere;}
 .insight-subject-classification small {color:var(--ink-muted);font-size:13px;white-space:nowrap;}
-.procedure-progress {padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--line);min-width:0;}
+.procedure-progress {padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--line);min-width:0;container-type:inline-size;}
 .procedure-progress header {justify-content:flex-start;gap:4px 16px;}
 .procedure-progress header h3 {margin:0 auto 0 0;font-size:18px;line-height:1.4;}
 .procedure-progress header button {font-size:14px;}
@@ -30,15 +30,19 @@
 .procedure-progress-filters select {font:inherit;max-width:100%;padding:8px;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-sm);}
 .procedure-progress-filters button[aria-pressed=true] {color:var(--accent-strong);background:var(--accent-soft);border-color:var(--accent);}
 .procedure-progress-timeline {list-style:none;padding:0;margin:16px 0 0;max-width:90ch;}
-.procedure-progress-timeline>li {display:grid;grid-template-columns:120px minmax(0,1fr);gap:20px;padding:18px 0;border-top:1px solid var(--line);}
-.procedure-progress-timeline>li>div {min-width:0;}
-.procedure-progress-timeline h4 {font-size:17px;line-height:1.5;margin:0 0 6px;overflow-wrap:anywhere;}
+.procedure-progress-timeline>li {display:grid;grid-template-columns:110px minmax(140px,180px) minmax(0,1fr);gap:20px;padding:18px 0;border-top:1px solid var(--line);}
+.procedure-progress-timeline>li>* {min-width:0;}
+.procedure-progress-event-date {font-size:14px;line-height:1.6;color:var(--ink-muted);}
+.procedure-progress-institutions {display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:1.6;font-weight:600;overflow-wrap:anywhere;}
+.procedure-progress-institutions>.procedure-progress-muted {font-weight:400;}
+.procedure-progress-timeline h4 {font-size:17px;font-weight:600;line-height:1.5;margin:0 0 6px;overflow-wrap:anywhere;}
 .procedure-progress-timeline p {margin:6px 0;}
-.procedure-progress-scheduled>div {border-left:2px dashed var(--accent);padding-left:14px;}
+.procedure-progress-scheduled>.procedure-progress-event-detail {border-left:2px dashed var(--accent);padding-left:14px;}
 .procedure-progress-documents summary {cursor:pointer;width:fit-content;padding:10px 0;font-size:14px;}
 .procedure-progress-documents ul {padding-left:20px;}
 .procedure-progress-documents li {padding:4px 0;overflow-wrap:anywhere;}
 .procedure-progress-documents a {display:inline-block;min-height:44px;padding:8px 0;font-size:15px;}
+@container(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}}
 @media(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-filters{align-items:start;}.procedure-progress-filters label{width:100%;}.procedure-progress-latest{gap:2px 12px;}}
 .insight-dossier-title {margin-bottom:24px;max-width:80ch;}
 .insight-dossier-title h2 {font-size:24px;line-height:1.4;margin:0 0 4px;}
