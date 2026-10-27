@@ -1,4 +1,5 @@
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
+import {parseTargetLabel} from './proposal-labels.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -321,7 +322,7 @@ function motionStructure(text, language) {
       close(index - 1, true);
       // Incomplete labels still prevent a complete duplicate from claiming identity.
       if (row.source.container === 'body') {
-        const match = /^([1-9]\d{0,5}\s*[a-z]{0,3}|[A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value);
+        const match = /^([1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}|[A-ZА-Я]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value);
         if (match) incompleteLabels.add(match[1].replace(/\s/g, ''));
       }
       continue;
@@ -337,9 +338,9 @@ function motionStructure(text, language) {
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
-    let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
+    let match = /^([1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
-    else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
+    else if ((match = /^([A-ZА-Я]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
     else if ((match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
     else if (!provisionsStarted && /^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
     // Fill only the absorption gaps. The existing policy for recognised
@@ -356,7 +357,7 @@ function motionStructure(text, language) {
       const next = rows[index + 1];
       const certain = resolutionSubheading(row.value, formats[index]) && next?.complete
         && next.source.container === 'body' && consecutive(row, next)
-        && /^[1-9]\d{0,5}\s*[a-z]{0,3}[.)]\s+/u.test(next.normal);
+        && /^[1-9]\d{0,5}\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.test(next.normal);
       if (certain) certainHeadings.add(index);
       else for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
       close(index - 1);
@@ -387,8 +388,29 @@ export function segmentMotionUnits(text, language) {
 
 // Only the first (proposal-level) target line selects a provision. Underlying-act
 // lines are deliberately excluded, including their '(new)' annotations.
-export function placementReference(value) {
+export function placementReference(value, language='en') {
   const first = typeof value === 'string' ? value.split(/[\r\n]/)[0] : '';
+  if (!english(language)) {
+    // These resolution languages occur in the missing-English publication
+    // cases. Reuse the proposal label grammar, keeping recital capitals.
+    if (!['fr','es','de','bg','el','hr','cs'].includes(language)) return null;
+    // EP resolution lists use Ziffer for operative paragraphs, unlike the
+    // legislative Absatz vocabulary (A-10-2026-0170).
+    const primary=language==='de'?first.replace(/^Ziffer(?=\s)/iu,'Absatz'):language==='cs'?first.replace(/^Bod(?=\s+\d)/iu,'odstavec'):first;
+    const citation=language==='bg'&&/^Позоваване\s+([1-9]\d{0,5})$/iu.exec(whitespace(first));
+    if(citation)return {kind:'citation',label:citation[1]};
+    const parsed = parseTargetLabel(primary, language), [segment, point] = parsed.segments;
+    if (parsed.complete && segment?.kind === 'paragraph' && Number.isSafeInteger(segment.number) && /^[a-zα-ωа-я]*$/.test(segment.suffix)
+      && (parsed.segments.length === 1 || parsed.segments.length === 2 && point.kind === 'point')) {
+      return {kind:point?'point':'paragraph',label:point?.value||segment.value,paragraph:segment.value,base:String(segment.number),suffix:segment.suffix};
+    }
+    const recitals={fr:'considérant',es:'considerando',de:'Erwägung|Erwägungsgrund',bg:'съображение',el:'αιτιολογική σκέψη',hr:'uvodna izjava',cs:'bod odůvodnění'};
+    const qualifiers={fr:'nouveau|nouvelle',es:'nuevo|nueva',de:'neu',bg:'нов|нова|ново',el:'νέο|νέα|νέος',hr:'novi|nova|novo',cs:'nový|nová|nové'};
+    const label=whitespace(first).replace(new RegExp(`\\s*\\((?:${qualifiers[language]})\\)\\s*$`,'iu'),'').replace(/\.$/,'');
+    const bare=label.replace(new RegExp(`^(?:${recitals[language]})\\s+`,'iu'),'');
+    const recital=bare!==label&&/^([A-ZА-Я]{1,3})(?:\s*([a-z]{1,8}))?$/u.exec(bare);
+    return recital?{kind:'recital',label:recital[1]+(recital[2]||''),base:recital[1],suffix:recital[2]||''}:null;
+  }
   const text = whitespace(first).replace(/\s*\(\s*new\s*\)\s*$/i, '').replace(/\.$/, '');
   let match = /^(?:paragraph\s+|§\s*)([1-9]\d{0,5})\s*([a-z]{0,3})(?:\s*[,–—-]?\s*point\s+\(?([a-z]{1,4})\)?)?$/i.exec(text);
   if (match) return {kind: match[3] ? 'point' : 'paragraph', label: match[3] || match[1] + match[2].toLowerCase(), paragraph: match[1] + match[2].toLowerCase(), base: match[1], suffix: match[2].toLowerCase()};
@@ -441,7 +463,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       || headings.length && headings.every(heading => label(heading.left?.raw)))) return unresolved('baseline_unavailable');
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
-  const ref = english(options.language) ? placementReference(options.targetLabel) : null;
+  const ref = placementReference(options.targetLabel, options.language);
   const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label &&
     (reference.kind !== 'point' || units.find(parent => parent.start === unit.parent)?.label === reference.paragraph));
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
@@ -449,7 +471,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   if (operation === 'insert') {
     if (!ref || !ref.suffix || !['paragraph', 'recital'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
     if (matching(ref).length) return unresolved('duplicate_target_label');
-    const siblings = units.filter(unit => unit.kind === ref.kind && (unit.label === ref.base || unit.label.startsWith(ref.base) && /^[a-z]+$/.test(unit.label.slice(ref.base.length)) && unit.label.slice(ref.base.length) < ref.suffix));
+    const siblings = units.filter(unit => unit.kind === ref.kind && (unit.label === ref.base || unit.label.startsWith(ref.base) && /^[a-zα-ωа-я]+$/.test(unit.label.slice(ref.base.length)) && unit.label.slice(ref.base.length) < ref.suffix));
     if (!siblings.some(unit => unit.label === ref.base)) return unresolved('relative_target_not_found');
     const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');

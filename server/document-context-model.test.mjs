@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {amendmentOperation,DELETION_MARKERS,resolveAmendmentPlacement,segmentMotionUnits,resolveDocumentTarget} from './document-context-model.mjs';
+import {readFileSync} from 'node:fs';
+import {amendmentOperation,DELETION_MARKERS,resolveAmendmentPlacement,segmentMotionUnits,resolveDocumentTarget,placementReference} from './document-context-model.mjs';
 
 function document(paragraphs, overrides = {}) {
   const {sources = {}, ...fields} = overrides;
@@ -14,6 +15,18 @@ function document(paragraphs, overrides = {}) {
 const resolve = (text, options = {}) => resolveDocumentTarget(text, {language: 'en', ...options});
 const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relation = 'at') => ({
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
+});
+
+test('published translated resolution labels preserve native numbering and script',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
+  for(const example of fixture.examples) {
+    const ref=placementReference(example.targetLabel,example.language);
+    assert(ref,example.amendmentId);assert.equal(ref.kind,example.expected.kind,example.amendmentId);assert.equal(ref.label,example.expected.label,example.amendmentId);
+  }
+  const options={language:'bg',baseline:'motion-resolution',originalText:'',proposedText:'Ново съображение',targetLabel:'Съображение М a (ново)'};
+  const body=labels=>document(['Европейският парламент,',labels[0]+'. Публикувано съображение;',labels[1]+'. Следващо съображение;'],{textLanguage:'bg'});
+  assert.equal(resolveAmendmentPlacement(body(['М','Н']),options).insertAfter,1);
+  assert.equal(resolveAmendmentPlacement(body(['M','N']),options).reason,'relative_target_not_found','Latin and Cyrillic letters are different source labels');
 });
 
 test('exact quote comparison collapses whitespace without changing source strings', () => {

@@ -33,21 +33,27 @@ const suffixOrder = suffix => {
   const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
   if (!suffix) return 0;
   if (latin.includes(suffix)) return latin.indexOf(suffix)+1;
+  const alphabet=/^[α-ω]+$/u.test(suffix)?'αβγδεζηθικλμνξοπρστυφχψω':/^[а-я]+$/u.test(suffix)?'абвгдежзийклмнопрстуфхцчшщъьюя':null;
+  if(alphabet)return [...suffix].reduce((value,c)=>value*alphabet.length+alphabet.indexOf(c)+1,0);
   if (!/^[a-z]{1,3}$/.test(suffix)) return null;
   return [...suffix].reduce((value,c) => value*26+c.charCodeAt(0)-96,0);
 };
-const ordinal = value => typeof value==='number'?value:typeof value==='string'&&/^[A-Z]+$/.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+const ordinal = value => {
+  if(typeof value==='number')return value;
+  const alphabet=typeof value==='string'&&/^[A-Z]+$/.test(value)?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':typeof value==='string'&&/^[А-Я]+$/u.test(value)?'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ':null;
+  return alphabet?[...value].reduce((n,c)=>n*alphabet.length+alphabet.indexOf(c)+1,0):null;
+};
 const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
   try {
-    if (wording.language === 'en' && ['motion-resolution','unknown'].includes(wording.baseline)) {
-      const ref=placementReference(wording.targetLabel);
+    if (['motion-resolution','unknown'].includes(wording.baseline)) {
+      const ref=placementReference(wording.targetLabel,wording.language);
       if(ref) {
-        const split=/^(\d+|[A-Z]+)([a-z]*)$/.exec(ref.kind==='point'?ref.paragraph:ref.label);
-        const segment={kind:ref.kind==='point'?'paragraph':ref.kind,value:ref.kind==='point'?ref.paragraph:ref.label,number:split?(/^\d+$/.test(split[1])?Number(split[1]):split[1]):null,suffix:split?.[2]||'',isNew:/\(\s*new\s*\)/i.test((wording.targetLabel||'').split('\n')[0])};
-        return {raw:wording.targetLabel,language:'en',complete:true,segments:ref.kind==='point'?[segment,{kind:'point',value:ref.label,number:null,suffix:'',isNew:false}]:[segment],unparsed:[]};
+        const split=/^(\d+|[A-ZА-Я]+)([a-zα-ωа-я]*)$/u.exec(ref.kind==='point'?ref.paragraph:ref.label);
+        const segment={kind:ref.kind==='point'?'paragraph':ref.kind,value:ref.kind==='point'?ref.paragraph:ref.label,number:split?(/^\d+$/.test(split[1])?Number(split[1]):split[1]):null,suffix:split?.[2]||'',isNew:/\(\s*(?:new|nouveau|nouvelle|nuevo|nueva|neu|нов|нова|ново|νέο|νέα|νέος|novi|nova|novo|nový|nová|nové)\s*\)/iu.test((wording.targetLabel||'').split('\n')[0])};
+        return {raw:wording.targetLabel,language:wording.language,complete:true,segments:ref.kind==='point'?[segment,{kind:'point',value:ref.label,number:null,suffix:'',isNew:false}]:[segment],unparsed:[]};
       }
     }
     const raw = wording.targetPath?.proposal?.length === 1 ? wording.targetPath.proposal[0].raw : wording.targetLabel;
@@ -169,11 +175,11 @@ export function verifyPlacement({placement, wording, items, text, target = parse
     anchor = {...anchor, number:anchor.label?.number, suffix:anchor.label?.suffix || '', start:anchor.extent.start};
     end = anchor.extent.end;
   } else {
-    if (wording.language !== 'en' || !['paragraph','recital'].includes(label.kind)) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+    if (!['en','fr','es','de','bg','el','hr','cs'].includes(wording.language) || !['paragraph','recital'].includes(label.kind)) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
     const raw=rawResolutionUnits(text,wording.language);
     if(raw.reason)return {status:'unverified',reason:raw.reason};
     const units=raw.units;
-    const split = value => {const match = /^(\d+|[A-Z]+)([a-z]*)$/.exec(value); return match ? {number:/^\d+$/.test(match[1])?Number(match[1]):match[1],suffix:match[2]} : {number:null,suffix:''};};
+    const split = value => {const match = /^(\d+|[A-ZА-Я]+)([a-zα-ωа-я]*)$/u.exec(value); return match ? {number:/^\d+$/.test(match[1])?Number(match[1]):match[1],suffix:match[2]} : {number:null,suffix:''};};
     const bases=units.filter(u=>u.kind===label.kind&&u.label===String(label.number));
     if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
     const base=bases[0];

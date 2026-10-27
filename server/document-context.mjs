@@ -15,8 +15,9 @@ import {parseProposal} from './proposal-structure.mjs';
 import {documentContextPlacement} from './document-context-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
+import {amendmentLanguagePreference} from './language-order.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=12;
+export const DOCUMENT_CONTEXT_VERSION=13;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -142,10 +143,31 @@ export class DocumentContext {
     }
     let document=null;
     if(!query.adopted&&query.includeBody!==false)document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText:await this.readText(work,query.language),requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
-    const amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
+    let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
     const wordingSelected=Object.hasOwn(query,'wordingLanguage');
-    const candidates=amendment?.variants.filter(variant=>!wordingSelected||variant.listId===query.listId&&variant.language===query.wordingLanguage)||[];
-    const chosen=candidates.length===1&&candidates[0].wordingStatus==='available'&&(query.listId||!amendment.gaps.length)?candidates[0]:null;
+    let candidates=amendment?.variants.filter(variant=>!wordingSelected||variant.listId===query.listId&&variant.language===query.wordingLanguage)||[];
+    const listIds=[...new Set(candidates.map(variant=>variant.listId))];
+    if(!wordingSelected&&listIds.length===1) {
+      const language=amendmentLanguagePreference(candidates.map(variant=>variant.language),query.language)[0];
+      candidates=candidates.filter(variant=>variant.language===language);
+    }
+    let chosen=candidates.length===1&&candidates[0].wordingStatus==='available'&&(query.listId||!amendment.gaps.length)?candidates[0]:null;
+    let wordingLanguageFallback=null;
+    const textLanguages=document?.selectedText?.availableTextLanguages||[];
+    const requestedWording=wordingSelected?query.wordingLanguage:chosen?.language||query.language;
+    const exactList=query.listId||(listIds.length===1?listIds[0]:null);
+    // Only a missing publication language permits a translation of this exact
+    // list/number. An unreadable or competing same-language source stays a gap.
+    if(document&&exactList&&requestedWording&&textLanguages.length&&!textLanguages.includes(requestedWording)&&!candidates.some(variant=>variant.baseline==='commission-proposal')) {
+      const fallback=await this.amendment({...query,listId:exactList,matchingTextLanguages:textLanguages},null,work,sources,read);
+      const readable=fallback.variants.filter(variant=>variant.wordingStatus==='available');
+      if(readable.length===1) {
+        chosen=readable[0];
+        amendment={...amendment,status:'available',variants:[...amendment.variants.filter(variant=>variant.listId!==chosen.listId||variant.language!==chosen.language),chosen]};
+        wordingLanguageFallback={listId:exactList,requestedLanguage:requestedWording,language:chosen.language};
+        if(document.selectedText.textLanguage!==chosen.language)document={...document,selectedText:await this.readText(work,chosen.language)};
+      }
+    }
     const differentLanguage=chosen&&(wordingSelected&&chosen.language===null||chosen.language!==document?.selectedText?.textLanguage);
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
@@ -179,7 +201,7 @@ export class DocumentContext {
       }
     }
     if(proposal&&document)document={...document,selectedText:undefined};
-    return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
+    return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),wordingLanguageFallback,document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }
   async amendment(query,indexed,work,sources,read) {
     const base={id:query.amendmentId,status:'unavailable',basis:null,variants:[],gaps:[]};
@@ -201,11 +223,11 @@ export class DocumentContext {
       const listId=tail(ref(candidate)),fingerprint=JSON.stringify(candidate);
       if(observed.has(listId)){if(observed.get(listId)!==fingerprint)base.gaps.push('conflicting-list-metadata');continue;}observed.set(listId,fingerprint);
       let list=candidate,metadataSource=sources[0];
-      if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by'))try {const result=await read('/plenary-documents/'+listId,listId);list=result.work;metadataSource=result.source;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
+      if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by')||query.matchingTextLanguages&&!declaredDocxFiles(candidate).some(file=>query.matchingTextLanguages.includes(file.language)))try {const result=await read('/documents/'+listId,listId);list=result.work;metadataSource=result.source;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
-      const wordingSelected=Object.hasOwn(query,'wordingLanguage');
+      const wordingSelected=Object.hasOwn(query,'wordingLanguage')||Boolean(query.matchingTextLanguages);
       const files=wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
-      const languages=[...new Set(files.map(file=>file.language))],language=wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
+      const languages=[...new Set(files.map(file=>file.language))],language=query.matchingTextLanguages?amendmentLanguagePreference(languages.filter(language=>query.matchingTextLanguages.includes(language)),query.wordingLanguage||query.language,array(work.originalLanguage).map(languageCode))[0]:wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
       const selected=files.filter(file=>file.language===language);
       // Preserve declared alternatives without downloading unrequested wording.
       // Every same-language file competes, including one we cannot parse.
