@@ -1,3 +1,4 @@
+import {relativeResolutionHeading} from './resolution-labels.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
@@ -395,11 +396,12 @@ export function placementReference(value, language = 'en', proposedText = '') {
   const first = typeof value === 'string' ? value.split(/[\r\n]/)[0] : '';
   let text = whitespace(first);
   // These are published resolution forms, separate from legislative paths.
-  const subheading = language === 'en' && /^Subheading \(new\)\s*(?:[–—-]\s*)?after paragraph (\d+)$/iu.exec(text);
-  if (subheading) return {kind: 'paragraph', label: subheading[1], base: subheading[1], suffix: '', after: true, isNew: true, parents: []};
+  const subheading = relativeResolutionHeading(text, language);
+  if (subheading) return subheading;
   if (language === 'en') text = text.replace(/^§\s*/u, 'Paragraph ').replace(/^Paragraph(?=\d)/iu, 'Paragraph ')
     .replace(/^Rectial\b/u, 'Recital').replace(/^Paragraph (\d+) \(([a-z]+)\) ([a-z]) (\(new\))$/u, 'Paragraph $1 – point $2 $3 $4');
   if (language === 'en') text = text.replace(/^(Paragraph\s+\d+\s*[a-z]{0,3})\s*,?\s+point\s+\(?([a-z]{1,4})\)?$/iu, '$1 – point $2');
+  if (language === 'et') text = text.replace(/^Punkt(?=\s)/iu, 'Lõige');
   if (language === 'da') text = text.replace(/^Punkt\b/iu, 'Stykke');
   if (language === 'ro') text = text.replace(/^Punctul\b/iu, 'Paragraful');
   if (language === 'de') text = text.replace(/^Ziffer(?=\s)/iu, 'Absatz');
@@ -434,7 +436,7 @@ export function placementReference(value, language = 'en', proposedText = '') {
     return {...segment, kind, label: segment.value};
   });
   const last = segments.at(-1);
-  if (!['paragraph', 'recital', 'point'].includes(last.kind) || segments.slice(0,-1).some(s => !['paragraph','point'].includes(s.kind))) return null;
+  if (!['paragraph', 'recital', 'point', 'citation'].includes(last.kind) || segments.slice(0,-1).some(s => !['paragraph','point'].includes(s.kind))) return null;
   const parents = segments.slice(0,-1).map(({kind,label}) => ({kind,label}));
   if (last.kind === 'point' && parents[0]?.kind !== 'paragraph') return null;
   return {kind: last.kind, label: last.value, base: last.base ?? (last.number != null ? String(last.number) : last.suffix ? last.value.slice(0,-last.suffix.length) : last.value), suffix: last.suffix, isNew: last.isNew,
@@ -483,7 +485,15 @@ export function resolveAmendmentPlacement(text, options = {}) {
       || headings.length && headings.every(heading => label(heading.left?.raw)))) return unresolved('baseline_unavailable');
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
-  const ref = placementReference(options.targetLabel, options.language, options.proposedText);
+  let ref = placementReference(options.targetLabel, options.language, options.proposedText);
+  // A-10-2026-0080 AM2/3 print Latin B; the source uses Greek ordinal Β.
+  // Recognise this published alias only in the source's Α, Β, Γ convention.
+  const recitalLabels=units.filter(unit=>unit.kind==='recital').map(unit=>unit.label);
+  if(options.language==='el'&&ref?.kind==='recital'&&ref.base==='B'
+    &&!recitalLabels.includes('B')&&recitalLabels.slice(0,3).join('|')==='Α|Β|Γ') {
+    evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
+    ref={...ref,label:'Β'+ref.suffix,base:'Β'};
+  }
   const parentMatches = (unit, reference) => {
     if (reference.kind !== 'point') return true;
     let parent = units.find(candidate => candidate.start === unit.parent);
@@ -507,7 +517,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     }
     const rank = suffix => {
       const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
-      if (options.language === 'fr' && (!suffix || latin.includes(suffix))) return suffix ? latin.indexOf(suffix) + 1 : 0;
+      if (!suffix || latin.includes(suffix)) return suffix ? latin.indexOf(suffix) + 1 : 0;
       return /^[a-zα-ωа-я]{0,3}$/u.test(suffix) ? suffix : null;
     };
     const siblings = units.filter(unit => unit.kind === ref.kind && parentMatches(unit, ref)

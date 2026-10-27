@@ -1,0 +1,159 @@
+{
+  "source": {
+    "parent": "A-10-2026-0080",
+    "id": "A-10-2026-0080",
+    "kind": "body",
+    "language": "el",
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_el.docx",
+    "fetchedAt": "2026-10-27T20:19:25.963683+00:00",
+    "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_el.docx",
+    "sha256": "68f5254a3bea90c6f1c1c0851054e98e4884e7294d8ce4beee4e3c9194a41bf5"
+  },
+  "excerpt": "Exact opening/first citation and consecutive Greek recitals Α, Β, Γ; omitted earlier citations cannot affect the named recital labels.",
+  "sourceIndices": [
+    23,
+    24,
+    49,
+    50,
+    51
+  ],
+  "text": {
+    "paragraphs": [
+      "Το Ευρωπαϊκό Κοινοβούλιο,",
+      "–\tέχοντας υπόψη το άρθρο 310 παράγραφος 6 και το άρθρο 325 παράγραφος 5 της Συνθήκης για τη λειτουργία της Ευρωπαϊκής Ένωσης (ΣΛΕΕ),",
+      "Α.\tλαμβάνοντας υπόψη ότι η Επιτροπή υποβάλλει ετησίως στο Κοινοβούλιο και το Συμβούλιο έκθεση, γνωστή ως έκθεση PIF, την οποία συντάσσει σε συνεργασία με τα κράτη μέλη σχετικά με τα μέτρα που ελήφθησαν για την εφαρμογή του άρθρου 325 παράγραφος 5 ΣΛΕΕ·",
+      "Β.\tλαμβάνοντας υπόψη ότι η χρηστή διαχείριση των πόρων της ΕΕ, στο σκέλος τόσο των δαπανών όσο και των εσόδων, και η προστασία των οικονομικών συμφερόντων της ΕΕ θα πρέπει να αποτελούν καθοριστικά στοιχεία κάθε πολιτικής της ΕΕ, ώστε να προωθείται η αποτελεσματική εφαρμογή τους, να διασφαλίζεται η ορθή, αποτελεσματική και διαφανής χρήση των χρημάτων των φορολογουμένων και να αυξάνεται η εμπιστοσύνη των πολιτών στα θεσμικά όργανα της ΕΕ·",
+      "Γ.\tλαμβάνοντας υπόψη ότι η ετήσια έκθεση PIF βασίζεται κυρίως σε πληροφορίες που παρέχουν τα κράτη μέλη, μέσω του συστήματος διαχείρισης παρατυπιών (IMS), και η Επιτροπή, μέσω του λογιστικού της συστήματος (ABAC), που περιλαμβάνει δεδομένα σχετικά με παρατυπίες και τον εντοπισμό περιπτώσεων απάτης, τα οποία αναλύονται για τον εντοπισμό των τομέων που θεωρούνται περισσότερο εκτεθειμένοι·"
+    ],
+    "structureStatus": "extracted",
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[26]",
+        "ordinal": 28,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[27]",
+        "ordinal": 29,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[52]",
+        "ordinal": 54,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[53]",
+        "ordinal": 55,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[54]",
+        "ordinal": 56,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 11,
+        "complete": true
+      }
+    ],
+    "paragraphFormats": [
+      {},
+      {
+        "indent": 2.36,
+        "hanging": 2.36
+      },
+      {
+        "indent": 2.36,
+        "hanging": 2.36
+      },
+      {
+        "indent": 2.36,
+        "hanging": 2.36
+      },
+      {
+        "indent": 2.36,
+        "hanging": 2.36
+      }
+    ],
+    "documentObjects": [],
+    "notes": [],
+    "textLanguage": "el"
+  },
+  "expectedInsertAfter": 3,
+  "amendments": [
+    {
+      "number": 2,
+      "listId": "A-10-2026-0080-AM-001-007",
+      "language": "el",
+      "targetLabel": "Αιτιολογική σκέψη B α (νέα)",
+      "originalText": "",
+      "proposedText": "Β α.\tλαμβάνοντας υπόψη ότι το Δικαστήριο της Ευρωπαϊκής Ένωσης έχει διαπιστώσει και επιβεβαιώσει, σε διάφορες αποφάσεις του, τη σαφή σχέση μεταξύ του σεβασμού του κράτους δικαίου και της αποτελεσματικής εκτέλεσης του προϋπολογισμού της ΕΕ, σύμφωνα με τις αρχές της χρηστής δημοσιονομικής διαχείρισης και της προστασίας των οικονομικών συμφερόντων της ΕΕ·",
+      "baseline": "motion-resolution",
+      "baselineSource": {
+        "category": "motion-resolution",
+        "headings": [
+          {
+            "left": {
+              "raw": "Πρόταση ψηφίσματος",
+              "category": "motion-resolution"
+            },
+            "right": {
+              "raw": "Τροπολογία",
+              "category": "other"
+            }
+          }
+        ],
+        "conflicted": false,
+        "language": "el",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+        "fetchedAt": "2026-10-27T20:19:28.987714+00:00"
+      },
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+      "fetchedAt": "2026-10-27T20:19:28.987714+00:00",
+      "sha256": "5dcbf21f072b56dd849682f86f5a67607c0d416b23ae2231e22a2d61a5943ac9"
+    },
+    {
+      "number": 3,
+      "listId": "A-10-2026-0080-AM-001-007",
+      "language": "el",
+      "targetLabel": "Αιτιολογική σκέψη B β (νέα)",
+      "originalText": "",
+      "proposedText": "Β β.\tλαμβάνοντας υπόψη ότι ο κανονισμός για την αιρεσιμότητα εξουσιοδοτεί την ΕΕ να θεσπίζει, εγκαίρως, αναλογικά οικονομικά μέτρα για τη διασφάλιση των οικονομικών συμφερόντων της όταν παραβιάσεις του κράτους δικαίου σε ένα κράτος μέλος επηρεάζουν ή απειλούν σοβαρά να επηρεάσουν τη χρηστή δημοσιονομική διαχείριση του προϋπολογισμού της ΕΕ· λαμβάνοντας υπόψη ότι ο εν λόγω κανονισμός εγκρίθηκε στο πλαίσιο της δέσμης μέτρων για το πολυετές δημοσιονομικό πλαίσιο (ΠΔΠ) 2021-2027, μετά από μακρές και δύσκολες διαπραγματεύσεις μεταξύ των συννομοθετών, ιδίως εξαιτίας των προσπαθειών ορισμένων κρατών μελών να συνδέσουν τις διαπραγματεύσεις για το ΠΔΠ με τις διαπραγματεύσεις για τον μηχανισμό αιρεσιμότητας για το κράτος δικαίου· λαμβάνοντας υπόψη ότι ο κανονισμός για την αιρεσιμότητα έχει δεσμευτικό χαρακτήρα για όλα τα κράτη μέλη από την έναρξη ισχύος του την 1η Ιανουαρίου 2021·",
+      "baseline": "motion-resolution",
+      "baselineSource": {
+        "category": "motion-resolution",
+        "headings": [
+          {
+            "left": {
+              "raw": "Πρόταση ψηφίσματος",
+              "category": "motion-resolution"
+            },
+            "right": {
+              "raw": "Τροπολογία",
+              "category": "other"
+            }
+          }
+        ],
+        "conflicted": false,
+        "language": "el",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+        "fetchedAt": "2026-10-27T20:19:28.987714+00:00"
+      },
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+      "fetchedAt": "2026-10-27T20:19:28.987714+00:00",
+      "sha256": "5dcbf21f072b56dd849682f86f5a67607c0d416b23ae2231e22a2d61a5943ac9"
+    }
+  ]
+}

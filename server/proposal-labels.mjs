@@ -49,6 +49,37 @@ const extra={
 const chapterWords={bg:'глава',cs:'kapitola',da:'kapitel',es:'capítulo',et:'peatükk',hr:'poglavlje',it:'capo',lt:'skyrius',lv:'nodaļa',mt:'kapitolu',nl:'hoofdstuk',pl:'rozdział',pt:'capítulo',ro:'capitolul',sk:'kapitola',sl:'poglavje',sv:'kapitel'};
 const sectionWords={bg:'раздел',cs:'oddíl',da:'afdeling',es:'sección',et:'jagu',hr:'odjeljak',it:'sezione',lt:'skirsnis',lv:'iedaļa',mt:'taqsima',nl:'afdeling',pl:'sekcja',pt:'secção',ro:'secțiunea',sk:'oddiel',sl:'oddelek',sv:'avsnitt'};
 const titleWords={bg:'дял',cs:'hlava',da:'afsnit',es:'título',et:'jaotis',hr:'glava',it:'titolo',lt:'antraštinė dalis',lv:'sadaļa',mt:'titolu',nl:'titel',pl:'tytuł',pt:'título',ro:'titlul',sk:'hlava',sl:'naslov',sv:'avdelning'};
+// Bare selectors and subparagraph terms from the same public EP list in all
+// languages; fixtures/proposal-selector-labels.json retains the exact labels.
+const selectors={
+  bg:["уводна част", "заглавие"],
+  es:["parte introductoria", "título"],
+  cs:["návětí", "název"],
+  da:["indledning", "overskrift"],
+  de:["Einleitung", "Überschrift"],
+  et:["sissejuhatav osa", "pealkiri"],
+  el:["εισαγωγικό μέρος", "τίτλος"],
+  en:["introductory part", "title"],
+  fr:["partie introductive", "titre"],
+  ga:["an chuid réamhráiteach", "teideal"],
+  hr:["uvodni dio", "naslov"],
+  it:["parte introduttiva", "titolo"],
+  lv:["ievaddaļa", "virsraksts"],
+  lt:["įžanginė dalis", "pavadinimas"],
+  hu:["bevezető rész", "cím"],
+  mt:["parti introduttorja", "titolu"],
+  nl:["inleidende formule", "titel"],
+  pl:["wprowadzenie", "nagłówek"],
+  pt:["parte introdutória", "título"],
+  ro:["partea introductivă", "titlu"],
+  sk:["úvodná časť", "nadpis"],
+  sl:["uvodni del", "naslov"],
+  fi:["johdantokappale", "otsikko"],
+  sv:["inledningen", "rubriken"],
+};
+const selectorKeys=Object.fromEntries(Object.entries(selectors).map(([language,terms])=>[language,terms.map(term=>fold(term).toLocaleLowerCase(language))]));
+const subparagraphWords={"bg": "алинея", "es": "párrafo", "cs": "pododstavec", "da": "afsnit", "de": "Unterabsatz", "et": "lõik", "el": "εδάφιο", "en": "subparagraph", "fr": "alinéa", "ga": "fomhír", "hr": "podstavak", "it": "comma", "lv": "daļa", "lt": "pastraipa|pastraipos", "hu": "albekezdés", "mt": "subparagrafu", "nl": "alinea", "pl": "akapit", "pt": "parágrafo", "ro": "paragraful", "sk": "pododsek", "sl": "pododstavek", "fi": "alakohta", "sv": "stycke"};
+const citationWords={"bg": "Позоваване", "es": "Visto", "cs": "Právní východisko", "da": "Henvisning", "de": "Bezugsvermerk", "et": "Volitus", "el": "Αιτιολογική αναφορά", "en": "Citation", "fr": "Visa", "ga": "Lua", "hr": "Pozivanje", "it": "Visto", "lv": "norāde", "lt": "nurodomoji dalis", "hu": "bevezető hivatkozás", "mt": "Kunsiderazzjoni", "nl": "Visum", "pl": "Umocowanie", "pt": "Citação", "ro": "Referirea", "sk": "Citácia", "sl": "Navedba sklicevanja", "fi": "Johdanto-osan viite", "sv": "Beaktandeled"};
 const reverseOrder=new Set(['fi','hu','lt','lv']);
 const grammars=new Map();
 const qualifiers=new Map();
@@ -56,6 +87,8 @@ function grammar(language) {
   if(grammars.has(language))return grammars.get(language);
   const row=rows[language],words=Object.fromEntries(kinds.map((kind,i)=>[kind,row[i]]));
   Object.assign(words,extra[language]??{chapter:chapterWords[language],section:sectionWords[language],title:titleWords[language]});
+  words.subparagraph=subparagraphWords[language];
+  words.citation=citationWords[language];
   if(language==='sv')words.recommendation='rekommendation';
   if(language==='en'){words.subheading='subheading';words.citation='Citation';}
   const out=Object.entries(words).map(([kind,terms])=>{
@@ -71,6 +104,8 @@ export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
   // EP separates an inserted suffix from its alphabetic/Roman base; source
   // point labels also publish compact forms such as Croatian "ba".
+  const latinSuffix=text.match(/^([\p{Lu}]{1,3})\s*(bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)$/u);
+  if(latinSuffix)return {value:latinSuffix[1]+latinSuffix[2],number:null,base:latinSuffix[1],suffix:latinSuffix[2]};
   const spaced=text.match(/^([\p{Lu}]{1,3}|[a-z]{1,8})\s+([\p{Ll}]{1,2})$/u);
   if(spaced)return {value:spaced[1]+spaced[2],number:null,base:spaced[1],suffix:spaced[2]};
   const romanSuffix=text.match(/^([IVXLCDM]+)\s*([a-z]{1,2})$/u);
@@ -92,10 +127,14 @@ export function parseLabelSegment(label,language='en') {
   if(!qualifiers.has(language))qualifiers.set(language,new RegExp(`\\s*\\((?:${rows[language][5].split('|').map(escape).join('|')})\\)\\s*$`,'iu'));
   text=text.replace(qualifiers.get(language),()=>{isNew=true;return '';});
   if(language==='el'&&/^εισαγωγικό μέρος$/iu.test(text))return {kind:'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
-  if(language==='en'&&/^(?:introductory part|title)$/iu.test(text))return {kind:/^title$/iu.test(text)?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
+  const selector=language==='en'?(/^title$/iu.test(text)?1:/^introductory part$/iu.test(text)?0:-1)
+    :selectorKeys[language].indexOf(text.toLocaleLowerCase(language));
+  if(selector>=0)return {kind:selector===1?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
+  if(isBareLabel(text,'annex',language))return {kind:'annex',value:'',number:null,suffix:'',isNew,raw:label};
   // Finnish recital numbers occur inside the compound noun, e.g. the
   // published "Johdanto-osan Q a kappale (uusi)" (A-10-2026-0237 AM57).
-  if(language==='fi')text=text.replace(/^johdanto-osan (.+) kappale$/iu,'$1 johdanto-osan kappale');
+  if(language==='fi')text=text.replace(/^johdanto-osan (.+) kappale$/iu,'$1 johdanto-osan kappale')
+    .replace(/^johdanto-osan (.+) viite$/iu,'$1 Johdanto-osan viite');
   for(const {kind,forward:forwardPattern,backward:backwardPattern} of grammar(language)) {
     const forward=text.match(forwardPattern);
     const backward=text.match(backwardPattern);
@@ -104,7 +143,7 @@ export function parseLabelSegment(label,language='en') {
     // Greek annex/title headings use Greek Ι/Χ glyphs in Roman numerals.
     // This is an ordinal grammar rule, never transliteration of a suffix.
     if(language==='el'&&['annex','title','chapter','section'].includes(kind)&&/^[IVXLCDMΙΧ]+\.?$/u.test(rawValue.trim())){const roman=rawValue.replaceAll('Ι','I').replaceAll('Χ','X');if(roman!==rawValue){sourceValue=rawValue;rawValue=roman;}}
-    if(language==='pt'&&kind==='point')rawValue=rawValue.replace(/^([a-z])[‑–-]([A-Z])$/u,(_,base,suffix)=>base+' '+suffix.toLowerCase());
+    if(language==='pt'&&['point','recital'].includes(kind))rawValue=rawValue.replace(/^([a-z]|[\p{Lu}]{1,3})[‑–-]([A-Z])$/u,(_,base,suffix)=>base+' '+suffix.toLowerCase());
     rawValue=rawValue.trim().replace(/^[−‑–]/u,'-').replace(/\.$/u,'');
     const negative=/^-(?:[\p{L}]|\d+)(?:\s*[a-z])?$/u.test(rawValue);
     const value=proposalNumber(negative?rawValue.slice(1):rawValue,language);
@@ -124,14 +163,23 @@ export function parseTargetLabel(label,language='en') {
   const raw=String(label??''),lines=raw.split(/\r?\n/).filter(line=>line.trim());
   // EP's second line identifies the underlying act. Never append it to the
   // proposal path. Keep it verbatim for the caller's separate identity check.
-  const primary=lines[0]??'',segments=[],unparsed=[];
-  const parts=primary.split(/\s+[–—-]\s+/u);
+  let primary=lines[0]??'';const segments=[],unparsed=[];
+  if(language==='en')primary=primary.replace(/^Annex(?=point\s*[−-]?\d)/iu,'Annex – ').replace(/\bpoint(?=[−-]?\d)/iu,'point ');
+  // The published Lithuanian genitive names point 1 of the bare annex, not
+  // a numbered Annex 1. Keep the complete original address in raw above.
+  if(language==='lt'&&/^Priedo\s+\d+[\p{L}.]*\s+punkt/iu.test(primary))primary=primary.replace(/^Priedo\s+/iu,'Priedo – ');
+  const parts=primary.split(/\s*[–—]\s+|\s+-\s+/u);
   for(const part of parts) {
     let parsed=parseLabelSegment(part,language);
     if(!parsed&&language==='nl'&&segments.at(-1)?.kind==='point'&&/^[a-z]$/u.test(part.trim()))parsed={kind:'point',...proposalNumber(part.trim(),language),isNew:false,raw:part};
     if(parsed) {
-      // EP's Polish and Latvian forms use the same noun at two levels.
-      if(parsed.kind==='paragraph'&&((language==='pl'&&segments.at(-1)?.kind==='paragraph'&&/ustęp|ust\./iu.test(part))||(language==='lv'&&/punkts/iu.test(part)&&['paragraph','annex'].includes(segments.at(-1)?.kind))))parsed={...parsed,kind:'point'};
+      // Shared nouns are disambiguated only by their explicit parent level.
+      if(['paragraph','title'].includes(parsed.kind)&&segments.at(-1)?.kind==='paragraph') {
+        const entry=grammar(language).find(entry=>entry.kind==='subparagraph');
+        if(entry?.forward.test(fold(part))||entry?.backward.test(fold(part)))parsed={...parsed,kind:'subparagraph'};
+      }
+      // These published forms use a shared noun at different explicit levels.
+      if(parsed.kind==='paragraph'&&((language==='fi'&&segments.at(-1)?.kind==='annex'&&/\bkohta\b/iu.test(part))||(language==='pl'&&segments.at(-1)?.kind==='paragraph'&&/ustęp|ust\./iu.test(part))||(language==='lv'&&/punkts/iu.test(part)&&['paragraph','annex'].includes(segments.at(-1)?.kind))))parsed={...parsed,kind:'point'};
       segments.push(parsed);
     } else if(parts.length===1) {
       // Lithuanian labels are inflected and space-separated, without dashes.
@@ -139,7 +187,7 @@ export function parseTargetLabel(label,language='en') {
       const words=fold(part).split(' ');let at=0;
       while(at<words.length) {
         let found=null,width=0;
-        for(let n=Math.min(6,words.length-at);n>=2;n--){found=parseLabelSegment(words.slice(at,at+n).join(' '),language);if(found){width=n;break;}}
+        for(let n=Math.min(6,words.length-at);n>=1;n--){found=parseLabelSegment(words.slice(at,at+n).join(' '),language);if(found){width=n;break;}}
         if(!found){unparsed.push(words.slice(at).join(' '));break;}
         segments.push(found);at+=width;
       }

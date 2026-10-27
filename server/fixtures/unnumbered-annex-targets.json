@@ -1,0 +1,218 @@
+[
+  {
+    "language": "en",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_en.docx",
+    "fetchedAt": "2026-10-27T16:24:57.200Z",
+    "sha256": "5397d69dfa655899c6d9b82303f686c10989ff8a5b164673d96ddfa1f2cf60d5",
+    "targetLabel": "Annex – point 1"
+  },
+  {
+    "language": "bg",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_bg.docx",
+    "fetchedAt": "2026-10-27T20:16:46.385453+00:00",
+    "sha256": "825270f8f7493525a8d31edb5bd1527e7b05722ca96db6ce6fcfdc5999119760",
+    "targetLabel": "Приложение – точка 1"
+  },
+  {
+    "language": "cs",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_cs.docx",
+    "fetchedAt": "2026-10-27T20:16:52.387326+00:00",
+    "sha256": "5a7235236a26bd8ed6cb5814e134c3e1ff036baf7d5e7708dff4adc57e616604",
+    "targetLabel": "Příloha – bod 1"
+  },
+  {
+    "language": "da",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_da.docx",
+    "fetchedAt": "2026-10-27T20:16:58.393720+00:00",
+    "sha256": "07ec9f2e360dfd1b3b1dba9b7e5cd91544116177aa27f8f65d5b0beb8f9a67ef",
+    "targetLabel": "Bilag – nr. 1"
+  },
+  {
+    "language": "de",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_de.docx",
+    "fetchedAt": "2026-10-27T20:17:04.389389+00:00",
+    "sha256": "bf58bccb7d530cfae3a67774725095a91a549bbace4c2641e5ea7f302ba58005",
+    "targetLabel": "Anhang – Nummer 1"
+  },
+  {
+    "language": "el",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_el.docx",
+    "fetchedAt": "2026-10-27T20:17:10.449830+00:00",
+    "sha256": "7029d380b3a847c3dc309eec4558186eb88890efa3be6bdb2efbf0df1e9bdf64",
+    "targetLabel": "Παράρτημα – σημείο 1"
+  },
+  {
+    "language": "es",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_es.docx",
+    "fetchedAt": "2026-10-27T20:17:16.490331+00:00",
+    "sha256": "ba66ec5c940c0e6755348f17fdaae7f6f1377a9ce4de92d41943f5dbdd5a8056",
+    "targetLabel": "Anexo – punto 1"
+  },
+  {
+    "language": "et",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_et.docx",
+    "fetchedAt": "2026-10-27T20:17:22.476804+00:00",
+    "sha256": "4a9838cab1c5c9407fd0e56e442b02423bb08f49fc7a33390edc0777e6b2ac53",
+    "targetLabel": "Lisa – punkt 1"
+  },
+  {
+    "language": "fi",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fi.docx",
+    "fetchedAt": "2026-10-27T20:17:28.594947+00:00",
+    "sha256": "ed5029e5881c9d447647b7886529fd15c644c1e117532cb040c067f5b3d40f03",
+    "targetLabel": "Liite – 1 kohta"
+  },
+  {
+    "language": "fr",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fr.docx",
+    "fetchedAt": "2026-10-27T20:17:34.609154+00:00",
+    "sha256": "a55ed913f41aa9742e3a5a50c66ac73e9005ec53827827b481b80edd4a773ba4",
+    "targetLabel": "Annexe – point 1"
+  },
+  {
+    "language": "ga",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ga.docx",
+    "fetchedAt": "2026-10-27T20:17:40.619047+00:00",
+    "sha256": "cdc20d23d5870d108f3e78fb23884b643395c13ba7aa614b578e66100ba86961",
+    "targetLabel": "Iarscríbhinn – pointe 1"
+  },
+  {
+    "language": "hr",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hr.docx",
+    "fetchedAt": "2026-10-27T20:17:46.571569+00:00",
+    "sha256": "bd81cac3d32ed82fafacbb64419adb1b676ee6d3f897994e9f7be149de16a76a",
+    "targetLabel": "Prilog – točka 1."
+  },
+  {
+    "language": "hu",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hu.docx",
+    "fetchedAt": "2026-10-27T20:17:52.630833+00:00",
+    "sha256": "d6bb2c14969f54343e4bbf42e6289fc63ba2f80959cf7950c7aed2f0662f4011",
+    "targetLabel": "Melléklet – 1 pont"
+  },
+  {
+    "language": "it",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_it.docx",
+    "fetchedAt": "2026-10-27T20:17:58.625123+00:00",
+    "sha256": "cd1611006e0335416603273ad391061441a55bfd4b313ad99e8d21233f819853",
+    "targetLabel": "Allegato – punto 1"
+  },
+  {
+    "language": "lt",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lt.docx",
+    "fetchedAt": "2026-10-27T20:18:04.671798+00:00",
+    "sha256": "1f22c729d60d3c3e53b8890a890f9637c26792051868ba554cd825644cf305fc",
+    "targetLabel": "Priedo 1 punktas"
+  },
+  {
+    "language": "lv",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+    "fetchedAt": "2026-10-27T20:18:10.701572+00:00",
+    "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+    "targetLabel": "Pielikums - 1. punkts"
+  },
+  {
+    "language": "mt",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_mt.docx",
+    "fetchedAt": "2026-10-27T20:18:16.713507+00:00",
+    "sha256": "e7d66d4edcaf90e16bac3ab9af3bf5ed9a2908105f8a92c0da8ee75cdadf7dfc",
+    "targetLabel": "Anness – punt 1"
+  },
+  {
+    "language": "nl",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+    "fetchedAt": "2026-10-27T20:18:22.771658+00:00",
+    "sha256": "c3dae014db7eb08f0cb520b304425e5b64892bcfb12d484a64eb1dde7b2a3809",
+    "targetLabel": "Bijlage – punt 1"
+  },
+  {
+    "language": "pl",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pl.docx",
+    "fetchedAt": "2026-10-27T20:18:28.851081+00:00",
+    "sha256": "95c772b1dfe81dd1eee506f5d67cb91564a3239615fb1c216d0e6b45d8835434",
+    "targetLabel": "Załącznik – punkt 1"
+  },
+  {
+    "language": "pt",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pt.docx",
+    "fetchedAt": "2026-10-27T20:18:34.877103+00:00",
+    "sha256": "18039d55c56e9947a602ac08349eb3e3911fa288f9964e2e9b83213513a23e01",
+    "targetLabel": "Anexo – ponto 1"
+  },
+  {
+    "language": "ro",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ro.docx",
+    "fetchedAt": "2026-10-27T20:18:40.805242+00:00",
+    "sha256": "ea2fb6c5b28108f286cc0922eff0a7b8dcb9bdedcdf72382ac023d37e05c68d4",
+    "targetLabel": "Anexă– punctul 1"
+  },
+  {
+    "language": "sk",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sk.docx",
+    "fetchedAt": "2026-10-27T20:18:46.879279+00:00",
+    "sha256": "857ca4771cf9b9507ce1bb47b4da6c9aad4b83379b255e9f01d50934bb7e2f9c",
+    "targetLabel": "Príloha – bod 1"
+  },
+  {
+    "language": "sl",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sl.docx",
+    "fetchedAt": "2026-10-27T20:18:52.883616+00:00",
+    "sha256": "a2cbcc06499a771e7d3079440eb422f9b2b4b89552e4130a986c0686830aa2b7",
+    "targetLabel": "Priloga – točka 1"
+  },
+  {
+    "language": "sv",
+    "listId": "A-10-2025-0150-AM-001-129",
+    "number": 108,
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sv.docx",
+    "fetchedAt": "2026-10-27T20:18:58.925491+00:00",
+    "sha256": "884551ec8ad605477c1cc936118c343e69fcb29c8772740ac6a253b35a7d95e0",
+    "targetLabel": "Bilaga – led 1"
+  }
+]

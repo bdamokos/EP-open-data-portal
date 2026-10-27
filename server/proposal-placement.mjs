@@ -9,7 +9,8 @@ const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children)]);
 const parentKey=unit=>JSON.stringify(unit.path.slice(0,-1).map(({kind,value,occurrence})=>[kind,value,occurrence??null]));
 const suffixes=['','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','ab','ac'];
 const latinSuffixes=['','bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
-const suffixRank=(suffix,requested)=> (latinSuffixes.includes(requested)&&requested?latinSuffixes:suffixes).indexOf(suffix);
+const greekSuffixes=['','α','β','γ','δ','ε','στ','ζ','η','θ','ι','ια','ιβ','ιγ','ιδ','ιε','ιστ','ιζ','ιη','ιθ','κ'];
+const suffixRank=(suffix,requested)=> (greekSuffixes.includes(requested)&&requested?greekSuffixes:latinSuffixes.includes(requested)&&requested?latinSuffixes:suffixes).indexOf(suffix);
 
 // Retain UTF-16 source ranges while normalizing punctuation and whitespace.
 // Numbering is removed only for labels supplied by the parsed unit metadata.
