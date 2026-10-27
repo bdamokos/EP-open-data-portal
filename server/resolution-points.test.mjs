@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolveAmendmentPlacement} from './document-context-model.mjs';
+import {verifyPlacement} from '../scripts/amendment-benchmark-model.mjs';
 const fixtures=JSON.parse(readFileSync(new URL('./fixtures/resolution-nested-points.json',import.meta.url)));
 const place=(text,targetLabel,originalText='',language=text.language)=>resolveAmendmentPlacement(text,{targetLabel,originalText,proposedText:'Replacement.',language,baseline:'motion-resolution'});
 
@@ -41,4 +42,20 @@ test('insertion requires the published base and a verified sibling or heading bo
  assert.equal(place(text,'Paragraphe 1 – point z a (nouveau)').status,'unresolved');
  const duplicate=structuredClone(text);duplicate.paragraphs[8]=duplicate.paragraphs[8].replace(/^e\)/,'d)');
  assert.equal(place(duplicate,'Paragraphe 1 – point d a (nouveau)').reason,'multiple_published_targets');
+});
+
+test('published French alphabetic points retain Latin insertion suffixes at the topic boundary',()=>{
+ const text=fixtures[0];
+ for(const suffix of ['bis','ter','quater','quinquies','sexies']){
+  const result=place(text,`Paragraphe 1 – point i ${suffix} (nouveau)`);
+  assert.equal(result.status,'placed',suffix+': '+result.reason);assert.equal(result.insertBefore,13);
+  const wording={language:'fr',baseline:'motion-resolution',targetLabel:`Paragraphe 1 – point i ${suffix} (nouveau)`,originalText:'',proposedText:'Replacement.'};
+  assert.equal(verifyPlacement({placement:result,wording,text}).status,'verified');
+  assert.equal(verifyPlacement({placement:{...result,insertAfter:13,insertBefore:14},wording,text}).status,'failed');
+ }
+});
+
+test('an incomplete duplicate point cannot establish an insertion anchor',()=>{
+ const text=structuredClone(fixtures[0]);text.paragraphs[8]=text.paragraphs[8].replace(/^e\)/,'d)');text.paragraphSources[8].complete=false;
+ assert.equal(place(text,'Paragraphe 1 – point d bis (nouveau)').status,'unresolved');
 });

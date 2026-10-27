@@ -299,12 +299,37 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
+  // The first printed subparagraph comprises a provision's lead and its
+  // directly nested points. The parser need not invent an unlabelled container
+  // for that address; its next outdented subparagraph supplies the boundary.
+  let subparagraphBounds=null;
+  const subparagraph=target.segments.findIndex((segment,index)=>segment.kind==='subparagraph'&&index<target.segments.length-1);
+  if(subparagraph>=0){
+    const label=target.segments[subparagraph],parents=items.flatMap((item,itemIndex)=>
+      item.kind==='annex'&&!target.segments.some(segment=>segment.kind==='annex')?[]:
+        proposalCandidates(item.proposal,target.segments.slice(0,subparagraph)).map(unit=>({unit,itemIndex,proposal:item.proposal})));
+    if(label.number!==1||label.suffix||label.isNew)return unresolved('source_structure_unavailable');
+    if(parents.length===1){
+      const {unit,itemIndex,proposal}=parents[0],points=unit.children.filter(child=>child.kind==='point');
+      const boundary=unit.children.find(child=>child.kind==='subparagraph')?.extent.start??unit.extent.end;
+      if(!unit.pathConflict&&['paragraph','point'].includes(unit.kind)&&unit.content.length
+        &&/:\s*$/u.test(proposal.paragraphs[unit.content.at(-1)].text)&&points.length
+        &&points.every(point=>point.extent.start<boundary&&point.extent.end<=boundary)
+        &&unit.children.every(child=>child.extent.start>=boundary||child.kind==='point')){
+        subparagraphBounds={itemIndex,start:unit.extent.start,end:boundary};
+        target={...target,segments:target.segments.filter((_,index)=>index!==subparagraph)};
+        evidence.push({basis:'first-subparagraph-points',anchor:unit.id});
+      }
+    }
+    if(!subparagraphBounds&&operation==='insert')return unresolved('source_structure_unavailable');
+  }
   // An uncontained annex paragraph can share an act address. The item identity
   // still establishes that an address without Annex cannot select it.
   const eligible=item=>item.kind!=='annex'||target.segments.some(segment=>segment.kind==='annex');
   const candidatesFor=address=>items.flatMap((item,itemIndex)=>!eligible(item)?[]:proposalCandidates(item.proposal,address).map(unit=>({itemIndex,unit,proposal:item.proposal})));
   const candidates=candidatesFor(target);
   const placedMatch=(selected,basis)=>{
+    if(subparagraphBounds&&(selected.itemIndex!==subparagraphBounds.itemIndex||selected.match.span.start<subparagraphBounds.start||selected.match.span.end>=subparagraphBounds.end))return unresolved('conflicting_target_evidence');
     evidence.push({basis,anchor:selected.unit.id});
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
@@ -312,6 +337,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     if(candidates.length)return unresolved('duplicate_target_label');
     const insertion=insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
+    if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
     evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
     return {operation,status:'placed',itemIndex:insertion.itemIndex,insertAfter:insertion.insertBefore-1,insertBefore:insertion.insertBefore,evidence};
   }

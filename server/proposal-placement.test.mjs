@@ -187,7 +187,7 @@ test('missing parser levels fall back to the deepest unique ancestor and whole s
     [source(['Article 13','2. Intro:','(d) Verified point.']),'Article 13 – paragraph 2 – subparagraph 1 – point d','Verified point.',2],
     [source(['Article 1','The act is amended:','(1) Article 9 is replaced by the following:','‘Article 9','1. Early quotation.’;','(a) A unique later line.','(2) Other instruction.'],['Titrearticle','','Point0','Titrearticle','','Point1','Point0']),'Article 1 – paragraph 1 – point 1 – subparagraph 1 – point a','A unique later line.',5],
   ];
-  for(const [projection,label,original,start] of cases){const placed=resolve(projection,label,original);assert.equal(placed.status,'placed',label);assert.equal(placed.span.start,start);assert.equal(placed.splice.start.offset,0);assert.equal(placed.evidence.at(-1).basis,'ancestor-unique-wording');}
+  for(const [projection,label,original,start] of cases){const placed=resolve(projection,label,original);assert.equal(placed.status,'placed',label);assert.equal(placed.span.start,start);assert.equal(placed.splice.start.offset,0);assert.equal(placed.evidence.at(-1).basis,placed.evidence.some(e=>e.basis==='first-subparagraph-points')?'normalised-original-match':'ancestor-unique-wording');}
   const projection=source(['Article 1','First source line.','Second source line.','Article 2','Second source line.']);
   assert.equal(resolve(projection,'Article 1 – paragraph 2','Second source line.').status,'unresolved','wording elsewhere in the document is not unique');
   assert.equal(resolve(projection,'Article 1 – paragraph 2','First source').status,'unresolved','a partial line cannot repair an address');

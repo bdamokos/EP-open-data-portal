@@ -4,6 +4,10 @@ import {resolutionSubheading, resolutionSeparator} from './resolution-body.mjs';
 const pointLabel = value => /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\)|([ivxlcdm]+)\.)\s+/u.exec(value);
 const pointValue = match => match[1] || match[2] || match[3];
 const alphabetic = value => [...value].reduce((n, c) => n * 26 + c.charCodeAt(0) - 96, 0);
+const roman = value => [...value].reduce((sum, c, i) => {
+  const digits = {i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000};
+  return sum + (digits[c] < (digits[value[i + 1]] || 0) ? -digits[c] : digits[c]);
+}, 0);
 const samePath = (a, b) => a.length === b.length && a.every((part, i) => part.kind === b[i].kind && part.value === b[i].value);
 const contiguous = (a, b) => a?.complete && b?.complete && a.source.container === 'body' && b.source.container === 'body'
   && a.source.containerPath === b.source.containerPath && a.source.segment === b.source.segment && b.source.ordinal === a.source.ordinal + 1;
@@ -13,6 +17,8 @@ const contiguous = (a, b) => a?.complete && b?.complete && a.source.container ==
 // rather than a Roman-compatible letter, establishes the child level.
 function pointUnits(text, rows, structure) {
   const units = [], stack = [];
+  const headings = new Set(structure.units.filter(unit => unit.kind === 'heading').map(unit => unit.start));
+  const paragraphCounts = new Map();
   let paragraph = null, previousPoint = null;
   const close = (end, broken = false, keepParagraph = false) => {
     while (stack.length && (!keepParagraph || stack.at(-1).kind === 'point')) {
@@ -22,9 +28,16 @@ function pointUnits(text, rows, structure) {
   };
   for (let i = structure.start + 1; i <= structure.end; i++) {
     const row = rows[i], format = text.paragraphFormats?.[i], value = row.normal;
+    const number = /^([1-9]\d{0,5}[a-z]{0,3})[.)]\s+/u.exec(value);
+    if (number && row.source.container === 'body') paragraphCounts.set(number[1], (paragraphCounts.get(number[1]) || 0) + 1);
+    const incompletePoint = !row.complete && pointLabel(value);
+    if (incompletePoint && paragraph) {
+      while (stack.at(-1)?.kind === 'point' && stack.at(-1).indent >= (format?.indent ?? Infinity)) stack.pop().end = i - 1;
+      const parent = stack.at(-1), label = pointValue(incompletePoint);
+      units.push({kind: 'point', value: label, start: i, end: i, broken: true, parent, path: [...parent.path, {kind: 'point', value: label}]});
+    }
     if (!contiguous(rows[i - 1], row)) close(i - 1, true);
     if (!row.complete || row.source.container !== 'body') { close(i - 1, true); continue; }
-    const number = /^([1-9]\d{0,5}[a-z]{0,3})[.)]\s+/u.exec(value);
     if (number) {
       close(i - 1);
       paragraph = {kind: 'paragraph', value: number[1], start: i, indent: format?.indent, path: [{kind: 'paragraph', value: number[1]}]};
@@ -53,11 +66,11 @@ function pointUnits(text, rows, structure) {
       close(i - 1, false, Boolean(continues));
       continue;
     }
-    if (resolutionSeparator(value) || structure.units.some(unit => unit.kind === 'heading' && unit.start === i)) close(i - 1);
+    if (resolutionSeparator(value) || headings.has(i)) close(i - 1);
   }
   close(structure.end, !structure.endAvailable);
   return units.filter(unit => unit.kind === 'point').map(unit => ({...unit,
-    complete: !unit.broken && rows.slice(unit.start, unit.end + 1).every((row, offset) => row.complete && row.source.container === 'body'
+    complete: !unit.broken && paragraphCounts.get(unit.path[0].value) === 1 && rows.slice(unit.start, unit.end + 1).every((row, offset) => row.complete && row.source.container === 'body'
       && (!offset || contiguous(rows[unit.start + offset - 1], row))),
   }));
 }
@@ -67,6 +80,7 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
   const segments = target.segments;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
+  if (segments.slice(1).some(part => !/^[a-z]+$/u.test(part.value))) return null;
   if (segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
     && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
     && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
@@ -76,7 +90,8 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   if (operation === 'insert') {
     if (matches.length) return unresolved('duplicate_target_label');
     const label = segments.at(-1);
-    if (!label.isNew || !label.base || !/^[a-z]{1,3}$/u.test(label.suffix)) return unresolved('insertion_reference_unavailable');
+    const latinSuffix = options.language === 'fr' && /^(?:bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)$/u.test(label.suffix);
+    if (!label.isNew || !label.base || !(/^[a-z]{1,3}$/u.test(label.suffix) || latinSuffix)) return unresolved('insertion_reference_unavailable');
     const anchors = units.filter(unit => samePath(unit.path.slice(0, -1), segments.slice(0, -1)) && unit.value === label.base);
     if (!anchors.length && segments.length === 2) return null;
     if (anchors.length !== 1) return unresolved(anchors.length ? 'multiple_published_targets' : 'relative_target_not_found');
@@ -85,10 +100,12 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
     const siblings = units.filter(unit => unit.parent === anchor.parent).sort((a, b) => a.start - b.start);
     if (new Set(siblings.map(unit => unit.value)).size !== siblings.length) return unresolved('multiple_published_targets');
     const at = siblings.indexOf(anchor), following = siblings[at + 1];
-    if (following && alphabetic(following.value) !== alphabetic(anchor.value) + 1) return unresolved('resolution_extent_uncertain');
+    const ordinal = anchor.parent.kind === 'point' ? roman : alphabetic;
+    if (following && ordinal(following.value) !== ordinal(anchor.value) + 1) return unresolved('resolution_extent_uncertain');
     if (!next || !contiguous(rows[anchor.end], next) || !(following?.start === anchor.end + 1
       || resolutionSubheading(next.value, text.paragraphFormats?.[anchor.end + 1])
-      || units.some(unit => unit.start === anchor.end + 1 && samePath(unit.path, anchor.path.slice(0, -1)))
+      || units.some(unit => unit.start === anchor.end + 1 && unit.path.length < anchor.path.length
+        && samePath(unit.path.slice(0, -1), anchor.path.slice(0, unit.path.length - 1)))
       || /^[1-9]\d{0,5}[.)]\s+/u.test(next.normal) || anchor.end === structure.end && structure.endAvailable)) return unresolved('resolution_extent_uncertain');
     if (options.referenceText) return unresolved('conflicting_target_evidence');
     evidence.push({basis: 'preceding-point-subtree', anchor: anchor.start});

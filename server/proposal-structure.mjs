@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='8';
+export const PROPOSAL_PARSER_VERSION='9';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -304,6 +304,12 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       const parent=points.at(-1)?.unit??implicit(i);
       last=make(parent,'indent',i,{segment:label('indent',String(parent.children.filter(child=>child.kind==='indent').length+1),language)});retain(last,i);continue;
     }
+    // COM(2025)471/472 return to the paragraph's indentation after the last
+    // lettered point. That unnumbered row starts the next subparagraph rather
+    // than extending the final point's subtree.
+    while(points.length && Number.isFinite(format?.indent)
+      && Number.isFinite(content.paragraphFormats?.[points.at(-1).unit.extent.start]?.indent)
+      && format.indent < content.paragraphFormats[points.at(-1).unit.extent.start].indent) points.pop();
     const parent=points.at(-1)?.unit??implicit(i);
     if(operation&&!points.length&&!paragraph.instruction)paragraph.instruction=operation;
     last=make(parent,'subparagraph',i,{...(operation?{instruction:operation}:{})});retain(last,i);inlineQuotation(last,i);
