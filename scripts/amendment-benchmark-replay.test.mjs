@@ -53,9 +53,13 @@ test('offline replay improves proposal-parser outcomes on identical bytes despit
   await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));
   const manifest=cache.manifest();assert(manifest.some(m=>m.request?.accept==='application/rdf+xml;notice=tree'));assert(manifest.every(m=>m.sha256&&m.fetchedAt));assert.equal(cache.missing.size,0);
   const offline=new InputCache(directory,{apiBase,fetcher:()=>{throw new Error('Network forbidden');}});
-  await acquireReport([f.row],sample,offline,sourceReplay(offline,runtime));
+  await offline.seal(manifest);
   const broken={...runtime,parseProposal:()=>{throw new Error('old parser');}};
   const before=await evaluateReport([f.row],sample,offline,{runtime:broken,replay:sourceReplay(offline,broken)});
+  const identityChanged={...runtime,createProposalBaseline:()=>async()=>({status:'unresolved',items:[],gaps:['changed-identity-rule']})};
+  const withheld=await evaluateReport([f.row],sample,offline,{runtime:identityChanged,replay:sourceReplay(offline,identityChanged)});
+  assert.equal(withheld[0].outcome,'acquisition-unavailable');
+  assert.deepEqual(offline.manifest(),manifest,'a producer reading fewer files retains the full sealed manifest');
   const after=await evaluateReport([f.row],sample,offline,{runtime,replay:sourceReplay(offline,runtime)});
   assert.equal(before[0].outcome,'withheld-pipeline');assert.equal(after[0].outcome,'correct',JSON.stringify(after[0].stages));assert.equal(offline.requests,0);
   assert.deepEqual(offline.manifest(),manifest);
@@ -105,4 +109,13 @@ test('transient 500 retries are capped and CELLAR metadata keeps the production 
   const oversized=new InputCache(directory,{apiBase,fetchMissing:true,cap:1,delay:0,sleep:async()=>{},fetcher:async()=>new Response('x'.repeat(3*1024*1024+1))});
   await assert.rejects(()=>oversized.get(url.replace('0001','0002'),{accept:'application/rdf+xml;notice=tree',raw:true}),/input-size-limit/);
   assert.equal(oversized.manifest().length,0);
+});
+
+test('a frozen manifest rejects even cached files outside its declared inputs',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-seal-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const first=apiBase+'/api/amendments?offset=0',second=apiBase+'/api/amendments?offset=50';
+  const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:2,delay:0,sleep:async()=>{},fetcher:async()=>new Response('{}')});
+  await cache.get(first);const manifest=cache.manifest();await cache.get(second);
+  const replay=new InputCache(directory,{apiBase});await replay.seal(manifest);
+  await assert.rejects(()=>replay.get(second),/input-not-in-snapshot/);assert.equal(replay.requests,0);
 });

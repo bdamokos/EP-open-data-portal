@@ -73,6 +73,7 @@ export class InputCache {
     const request=accept?{accept,...(language?{language}:{})}:null;
     const identity=request?JSON.stringify([url,request]):url;
     const maximum=accept===CELLAR_DOCX_MIME||allowedDownload(url)?CELLAR_LIMITS.itemBytes:accept?.startsWith('application/rdf+xml')||accept==='application/sparql-results+json'?CELLAR_LIMITS.metadataBytes:16*1024*1024;
+    if(this.sealed&&!this.sealed.has(identity))throw new Error('input-not-in-snapshot: '+url);
     const key=digest(identity), metaPath=path.join(this.directory,key+'.json'), bodyPath=path.join(this.directory,key+'.body');
     let meta,body;
     try {meta=JSON.parse(await readFile(metaPath,'utf8'));} catch(error) {if(error.code!=='ENOENT')throw error;}
@@ -141,6 +142,13 @@ export class InputCache {
     }
     if(!meta.ok&&!(raw&&[301,302,303,307,308].includes(meta.status)&&meta.headers?.location))this.missing.set(url,meta.error);
     return {...meta,body};
+  }
+  async seal(manifest) {
+    this.fetchMissing=false;
+    // Validate every frozen input, including files this producer no longer reads.
+    for(const meta of manifest)await this.get(meta.url,{...meta.request,raw:true,officialRedirect:allowedDownload(meta.url)});
+    if(JSON.stringify(this.manifest())!==JSON.stringify(manifest))throw new Error('Frozen snapshot manifest/cache metadata mismatch.');
+    this.sealed=new Set(manifest.map(meta=>meta.request?JSON.stringify([meta.url,meta.request]):meta.url));
   }
   manifest() {return [...this.used.values()].sort((a,b)=>a.url.localeCompare(b.url,'en')||JSON.stringify(a.request||{}).localeCompare(JSON.stringify(b.request||{}),'en'));}
   async json(url) {

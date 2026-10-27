@@ -232,6 +232,7 @@ export async function main(args=process.argv.slice(2)) {
   try{snapshot=JSON.parse(await readFile(snapshotPath,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
   if(!snapshot){snapshot={schemaVersion:3,apiBase:opts.apiBase,asOf:opts.asOf||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels'}).format(new Date())};await writeFile(snapshotPath,JSON.stringify(snapshot)+'\n');}
   if(snapshot.schemaVersion!==3||snapshot.apiBase!==opts.apiBase)throw new Error('Snapshot origin/schema mismatch; legacy live-projection snapshots need upstream acquisition in a new cache directory.');
+  if(snapshot.snapshotId)await cache.seal(snapshot.manifest);
   opts.asOf=opts.asOf||snapshot.asOf;
   spool=await mkdtemp(path.join(output,'spool-'));
   const index=await catalogue(cache,opts,spool);
@@ -239,7 +240,7 @@ export async function main(args=process.argv.slice(2)) {
   const filenames=(await readdir(spool)).sort();
   // Complete and seal acquisition before invoking any checkout extraction or
   // placement. The evaluation phase cannot fill even a previously unseen URL.
-  for(const filename of filenames) {
+  for(const filename of snapshot.snapshotId?[]:filenames) {
     const rows=await readRows(path.join(spool,filename));
     await acquireReport(rows,sample,cache,sourceReplay(cache,runtime));
     process.stderr.write(`Acquired ${filename.replace('.jsonl','')}; ${cache.requests} requests\n`);
@@ -248,7 +249,7 @@ export async function main(args=process.argv.slice(2)) {
   if(snapshot.snapshotId&&snapshot.snapshotId!==snapshotId)throw new Error('Frozen snapshot manifest changed; acquisition must be independent of checkout output.');
   if(!snapshot.snapshotId){snapshot={...snapshot,sample,manifest,snapshotId};await writeFile(snapshotPath,JSON.stringify(snapshot,null,2)+'\n');}
   if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:manifest.length,requests:cache.requests},null,2)+'\n');return;}
-  cache.fetchMissing=false;
+  if(!cache.sealed)await cache.seal(manifest);
   const resultRows=[],liveRows=[];
   for(const filename of filenames) {
     const rows=await readRows(path.join(spool,filename));
