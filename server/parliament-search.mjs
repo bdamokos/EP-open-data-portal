@@ -36,7 +36,7 @@ export class ParliamentSearch {
     const add=result=>{const rows=matches.get(result.type);totals.set(result.type,totals.get(result.type)+1);rows.push(result);if(rows.length>2020){rows.sort(compare(result.type));rows.length=1010;}};
     const coverage=Object.fromEntries(selected.map(type=>[type,{complete:false,available:true,limited:false}]));
     const inPeriod=value=>(!query.from||value&&value>=query.from)&&(!query.to||value&&value<=query.to);
-    const match=values=>values.some(value=>query.terms.every(term=>fold(value).includes(term)));
+    const match=values=>values.some(value=>{const folded=fold(value);return query.terms.every(term=>folded.includes(term));});
     const title=(titles,fallback)=>{const language=languagePreference(Object.keys(titles).filter(key=>typeof titles[key]==='string'&&titles[key].trim()),query.language)[0];return {title:language?titles[language]:fallback,titleLanguage:language||null};};
     if(matches.has('mep')) {
       for(const row of this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all()) {
