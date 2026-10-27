@@ -326,6 +326,14 @@ function motionStructure(text, language) {
       }
       continue;
     }
+    // Degree-sign rows close the final substantive paragraph in both single-
+    // and multi-body resolutions, before the instruction to forward the text.
+    if (resolutionSeparator(value)) {
+      close(index - 1);
+      certainHeadings.add(index);
+      units.push({kind: 'heading', label: value, parent: null, start: index, end: index, level: 0});
+      continue;
+    }
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
@@ -390,11 +398,21 @@ function placementReference(value) {
   if (match) return {kind: 'citation', label: match[1]};
   return null;
 }
+// Match the proposal alignment's typographic folding while retaining every
+// punctuation mark; its full normalizer also removes boundary terminators.
 const wordingNormal = value => whitespace(value).normalize('NFC').replace(/\u00ad/g, '')
-  .replace(/^(?:\d+\s*[a-z]*|[A-Z]{1,3}[a-z]*)[.)]\s+/u, '');
+  .replace(/[‘’‚‛ʻʼ]/g, "'").replace(/[“”„‟«»]/g, '"').replace(/[‐‑‒–—]/g, '-')
+  .replace(/^(?:\d+\s*[a-z]*|[A-Z]{1,3}[a-z]*)[.)](?:\s+|(?=\p{Lu}))/u, '');
+
+// Plenary decision references are published in English. Unparsed descriptions
+// and references in a different wording language carry no location evidence.
+// Keep them in provenance; only parsed comparable locations constrain placement.
+export const resolutionReference = (value, language) => english(language)
+  && (parseReference(value) || placementReference(value)) ? value : undefined;
 
 export function resolveAmendmentPlacement(text, options = {}) {
   const operation = amendmentOperation(options), evidence = [];
+  const referenceText = resolutionReference(options.referenceText, options.language);
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const placed = fields => ({operation, status: 'placed', ...fields, evidence});
   if (!operation) return unresolved('amendment_wording_unavailable');
@@ -436,11 +454,11 @@ export function resolveAmendmentPlacement(text, options = {}) {
     const ordered = siblings.sort((a, b) => a.start - b.start), anchor = ordered.at(-1);
     if (new Set(siblings.map(unit => unit.label)).size !== siblings.length || siblings.some(unit => unit.parent !== anchor.parent)) return unresolved('multiple_published_targets');
     evidence.push({basis: 'published-reference', label: ref.label, anchor: anchor.label});
-    if (options.referenceText) {
-      const relative = parseReference(options.referenceText);
+    if (referenceText) {
+      const relative = parseReference(referenceText);
       // Independent decision evidence may name the unsuffixed parent (After §19).
       if (!relative || relative.relation !== 'after' || relative.kind !== ref.kind || (relative.number ?? relative.letter) !== ref.base) return unresolved('conflicting_target_evidence');
-      evidence.push({basis: 'relative-reference', reference: options.referenceText});
+      evidence.push({basis: 'relative-reference', reference: referenceText});
     }
     if (structure.invalid.has(anchor.start) || structure.incompleteLabels.has(anchor.label) || !complete(anchor.start, anchor.end)) return unresolved('source_passage_incomplete');
     if (structure.uncertain.has(anchor.start)) return unresolved('resolution_extent_uncertain');
@@ -469,8 +487,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (!wordingProvesExtent && (structure.invalid.has(unit.start) || structure.incompleteLabels.has(unit.label) || !complete(unit.start, unit.end))) return unresolved('source_passage_incomplete');
     if (!wordingProvesExtent && structure.uncertain.has(unit.start)) return unresolved('resolution_extent_uncertain');
     if (wordingNormal(source) !== wordingNormal(options.originalText)) return unresolved('conflicting_target_evidence');
-    if (options.referenceText) {
-      const decision = placementReference(options.referenceText);
+    if (referenceText) {
+      const decision = placementReference(referenceText);
       if (!decision || decision.kind !== ref.kind || decision.label !== ref.label || decision.kind === 'point' && decision.paragraph !== ref.paragraph) return unresolved('conflicting_target_evidence');
     }
     evidence.push({basis: 'published-reference', label: ref.label}, {basis: 'quoted-original'});
@@ -485,8 +503,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const owners = units.filter(unit => unit.kind !== 'heading' && !structure.invalid.has(unit.start) && start >= unit.start && end <= unit.end);
   if (!owners.length) return unresolved('target_not_found');
   if (owners.some(unit => structure.uncertain.has(unit.start))) return unresolved('resolution_extent_uncertain');
-  if (options.referenceText) {
-    const decision = placementReference(options.referenceText), matches = decision ? matching(decision) : [];
+  if (referenceText) {
+    const decision = placementReference(referenceText), matches = decision ? matching(decision) : [];
     if (matches.length !== 1 || start < matches[0].start || end > matches[0].end) return unresolved('conflicting_target_evidence');
   }
   evidence.push({basis: 'quoted-original'});

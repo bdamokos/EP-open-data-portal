@@ -830,9 +830,40 @@ test('Roman numbered subheadings remain a sibling boundary before the next parag
 // Direct official-DOCX inspection found these single-body cases despite the
 // benchmark's shared segmentation oracle: 0106-AM-18, 0162-AM-10,
 // 0169-AM-6 and 0238-AM-1 (all A-10-2026 reports).
-test('an insertion cannot consume closing degree-sign separator rows',()=>{
+test('degree-sign separators close insertion anchors before the forwarding instruction',()=>{
   for(const separator of [['°','°\t°'],['° ° °']]) {
     const text=motion(['64. Last substantive paragraph;',...separator,'65. Instructs its President;']);
-    assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 64 a (new)'}).reason,'resolution_extent_uncertain');
+    assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 64 a (new)'}).insertBefore,4);
+    assert.deepEqual(placement(text,{originalText:'64. Last substantive paragraph;',proposedText:'Changed;',targetLabel:'Paragraph 64'}).span,{start:3,end:3});
   }
+});
+// Typographic variants occur in A-10-2026-0172-AM-19 and
+// A-10-2026-0121-AM-43; the missing label space occurs in A-10-2026-0124-AM-10.
+test('resolution comparison folds proposal typography and a label without a following space',()=>{
+  for(const [source,originalText] of [["16. Takes account of Ukraine’s non‑alignment;","16.Takes account of Ukraine's non-alignment;"],['16. Uses “quoted” text;','16. Uses "quoted" text;']]) {
+    const text=motion([source,'17. Next;']),copy=structuredClone(text);
+    assert.deepEqual(placement(text,{originalText,proposedText:'Changed;',targetLabel:'Paragraph 16'}).span,{start:3,end:3});
+    assert.deepEqual(text,copy,'normalization never changes source text or offsets');
+  }
+});
+test('real punctuation and wording differences remain withheld, including A-10-2026-0124-AM-13 comma differences',()=>{
+  const text=motion(['16. Takes account of the report, including its conclusions;', '17. Next;']);
+  for(const originalText of ['16.Takes account of the report including its conclusions;', '16. Takes account of another report, including its conclusions;', '16. takes account of the report, including its conclusions;'])
+    assert.equal(placement(text,{originalText,proposedText:'Changed;',targetLabel:'Paragraph 16'}).reason,'conflicting_target_evidence');
+});
+test('unparsed vote descriptions provide no location evidence for insertions, replacements or quote fallback',()=>{
+  const text=motion(['19. Exact wording;', '20. Next;']);
+  for(const referenceText of ['Compromise amendment','Joint statement on the report','Съображение З']) {
+    for(const targetLabel of ['Paragraph 19', 'Unsupported location'])assert.equal(placement(text,{originalText:'19. Exact wording;',proposedText:'Changed;',targetLabel,referenceText}).status,'placed');
+    assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',referenceText}).insertBefore,4);
+  }
+});
+test('English vote references do not contradict a uniquely quoted Bulgarian amendment',()=>{
+  const text=document(['Европейският парламент,','– като взе предвид публичния документ,','З. като има предвид точния текст;','1. Приема текста;'],{textLanguage:'bg'});
+  assert.deepEqual(placement(text,{language:'bg',originalText:'З. като има предвид точния текст;',proposedText:'Нов текст;',targetLabel:'Съображение З',referenceText:'Recital H'}).span,{start:2,end:2});
+});
+test('parsed same-language vote conflicts remain withheld as in A-10-2026-0042-AM-46',()=>{
+  const text=motion(['19. Exact wording;', '20. Next;']);
+  for(const targetLabel of ['Paragraph 19','Unsupported location'])assert.equal(placement(text,{originalText:'19. Exact wording;',proposedText:'Changed;',targetLabel,referenceText:'Paragraph 20'}).reason,'conflicting_target_evidence');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 20'}).reason,'conflicting_target_evidence');
 });
