@@ -66,13 +66,12 @@ export function parseBenchmarkTarget(wording) {
 // prefix, enclosing quotes, whitespace and comparison-column terminators.
 export function oracleNormal(value,labels=[]) {
   const escape=value=>String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const prefixes=[...new Set(labels.map(label=>label.value))].map(value=>'\\('+escape(value)+'\\)|'+escape(value)+'[.)]');
+  const prefix=prefixes.length?new RegExp('^(?:'+prefixes.join('|')+')\\s*','u'):null;
   return value.normalize('NFC').replace(/\u00ad/g,'').replace(/[‘’‚‛ʻʼ]/g,"'").replace(/[“”„‟«»]/g,'"').replace(/[‐‑‒–—]/g,'-')
     .split(/\r?\n/).map(line=>{
       let text=line.trim().replace(/^["']\s*/, '');
-      for(const label of labels) {
-        const prefix=new RegExp('^(?:\\('+escape(label.value)+'\\)|'+escape(label.value)+'[.)])\\s*','u');
-        if(prefix.test(text)){text=text.replace(prefix,'');break;}
-      }
+      if(prefix)text=text.replace(prefix,'');
       return text.replace(/[.;'"\s]+$/u,'').trim();
     }).join(' ').replace(/\s+/gu,' ').trim();
 }
