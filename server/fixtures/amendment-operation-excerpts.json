@@ -1,0 +1,439 @@
+{
+  "attribution": "European Parliament",
+  "listId": "A-10-2025-0150-AM-001-129",
+  "targetDocumentId": "A-10-2025-0150",
+  "examples": [
+    {
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_en.docx",
+      "retrievedAt": "2026-10-27T16:24:57.200Z",
+      "sha256": "5397d69dfa655899c6d9b82303f686c10989ff8a5b164673d96ddfa1f2cf60d5",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tAt its annual session in 2022, the GFCM adopted Recommendation GFCM/45/2022/1 on a multiannual management plan for European eel in the Mediterranean Sea, amending Recommendation GFCM/42/2018/1.",
+        "proposedText": "deleted",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Recital 3 a (new)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "bg",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_bg.docx",
+      "retrievedAt": "2026-10-27T20:16:46.385453+00:00",
+      "sha256": "825270f8f7493525a8d31edb5bd1527e7b05722ca96db6ce6fcfdc5999119760",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tНа годишното си заседание през 2022 г. GFCM прие Препоръка GFCM/45/2022/1 относно многогодишен план за управление на европейската змиорка в Средиземно море и за изменение на Препоръка GFCM/42/2018/1.",
+        "proposedText": "заличава се",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Съображение 3 a (ново)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "cs",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_cs.docx",
+      "retrievedAt": "2026-10-27T20:16:52.387326+00:00",
+      "sha256": "5a7235236a26bd8ed6cb5814e134c3e1ff036baf7d5e7708dff4adc57e616604",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tNa výročním zasedání v roce 2022 přijala GFCM doporučení GFCM/45/2022/1 o stanovení víceletého plánu řízení lovu úhoře říčního ve Středozemním moři, kterým se mění doporučení GFCM/42/2018/1.",
+        "proposedText": "vypouští se",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Bod odůvodnění 3 a (nový)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "da",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_da.docx",
+      "retrievedAt": "2026-10-27T20:16:58.393720+00:00",
+      "sha256": "07ec9f2e360dfd1b3b1dba9b7e5cd91544116177aa27f8f65d5b0beb8f9a67ef",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGFCM vedtog på sit årsmøde i 2022 henstilling GFCM/45/2022/1 om en flerårig forvaltningsplan for europæisk ål i Middelhavet og om ændring af henstilling GFCM/42/2018/1.",
+        "proposedText": "udgår",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Betragtning 3 a (ny)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "de",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_de.docx",
+      "retrievedAt": "2026-10-27T20:17:04.389389+00:00",
+      "sha256": "bf58bccb7d530cfae3a67774725095a91a549bbace4c2641e5ea7f302ba58005",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tAuf ihrer Jahrestagung 2022 hat die GFCM die Empfehlung GFCM/45/2022/1 über einen mehrjährigen Bewirtschaftungsplan für den Europäischen Aal im Mittelmeer und zur Änderung der Empfehlung GFCM/42/2018/1 angenommen.",
+        "proposedText": "entfällt",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Erwägung 3 a (neu)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "el",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_el.docx",
+      "retrievedAt": "2026-10-27T20:17:10.449830+00:00",
+      "sha256": "7029d380b3a847c3dc309eec4558186eb88890efa3be6bdb2efbf0df1e9bdf64",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tΚατά την ετήσια σύνοδό της το 2022, η ΓΕΑΜ εξέδωσε τη σύσταση GFCM/45/2022/1 σχετικά με πολυετές σχέδιο διαχείρισης για το ευρωπαϊκό χέλι στη Μεσόγειο θάλασσα, με την οποία τροποποιήθηκε η σύσταση GFCM/42/2018/1.",
+        "proposedText": "διαγράφεται",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Αιτιολογική σκέψη 3 α (νέα)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "es",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_es.docx",
+      "retrievedAt": "2026-10-27T20:17:16.490331+00:00",
+      "sha256": "ba66ec5c940c0e6755348f17fdaae7f6f1377a9ce4de92d41943f5dbdd5a8056",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tEn su reunión anual de 2022, la CGPM adoptó además la Recomendación GFCM/45/2022/1, relativa a un plan de gestión plurianual para la anguila europea en el mar Mediterráneo, y por la que se modifica la Recomendación GFCM/42/2018/1.",
+        "proposedText": "suprimido",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Considerando 3 bis (nuevo)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "et",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_et.docx",
+      "retrievedAt": "2026-10-27T20:17:22.476804+00:00",
+      "sha256": "4a9838cab1c5c9407fd0e56e442b02423bb08f49fc7a33390edc0777e6b2ac53",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGFCM võttis 2022. aasta istungil vastu soovituse GFCM/45/2022/1 Vahemerel kohaldatava euroopa angerja püügi mitmeaastase majandamiskava kohta, millega muudeti soovitust GFCM/42/2018/1.",
+        "proposedText": "välja jäetud",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Põhjendus 3 a (uus)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "fi",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fi.docx",
+      "retrievedAt": "2026-10-27T20:17:28.594947+00:00",
+      "sha256": "ed5029e5881c9d447647b7886529fd15c644c1e117532cb040c067f5b3d40f03",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGFCM antoi vuoden 2022 vuosikokouksessaan suosituksen GFCM/45/2022/1 ankeriaan monivuotisesta hoitosuunnitelmasta Välimerellä; suosituksella muutetaan suositusta GFCM/42/2018/1.",
+        "proposedText": "Poistetaan.",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Johdanto-osan 3 a kappale (uusi)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "fr",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fr.docx",
+      "retrievedAt": "2026-10-27T20:17:34.609154+00:00",
+      "sha256": "a55ed913f41aa9742e3a5a50c66ac73e9005ec53827827b481b80edd4a773ba4",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tLors de sa session annuelle de 2022, la CGPM a adopté la recommandation CGPM/45/2022/1 relative à un plan de gestion pluriannuel de l’anguille d’Europe en mer Méditerranée, modifiant la recommandation CGPM/42/2018/1.",
+        "proposedText": "supprimé",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Considérant 3 bis (nouveau)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "ga",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ga.docx",
+      "retrievedAt": "2026-10-27T20:17:40.619047+00:00",
+      "sha256": "cdc20d23d5870d108f3e78fb23884b643395c13ba7aa614b578e66100ba86961",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tAg a sheisiún bliantúil in 2022, ghlac CGIM Moladh CGIM/45/2022/1 maidir le plean bainistithe ilbhliantúil le haghaidh eascanna Eorpacha sa Mheánmhuir, lena leasaítear Moladh CGIM/42/2018/1.",
+        "proposedText": "scriosta",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Aithris 3 a (nua)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "hr",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hr.docx",
+      "retrievedAt": "2026-10-27T20:17:46.571569+00:00",
+      "sha256": "bd81cac3d32ed82fafacbb64419adb1b676ee6d3f897994e9f7be149de16a76a",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGFCM je na svojem godišnjem zasjedanju 2022. donio Preporuku GFCM/45/2022/1 o višegodišnjem planu upravljanja ribolovom jegulje u Sredozemnome moru i o izmjeni Preporuke GFCM/42/2018/1.",
+        "proposedText": "Briše se.",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Uvodna izjava 3.a (nova)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "hu",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hu.docx",
+      "retrievedAt": "2026-10-27T20:17:52.630833+00:00",
+      "sha256": "d6bb2c14969f54343e4bbf42e6289fc63ba2f80959cf7950c7aed2f0662f4011",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\t2022. évi éves ülésén a GFCM elfogadta a Földközi-tengeren az európai angolnára vonatkozó többéves állománygazdálkodási tervről szóló GFCM/45/2022/1. sz. ajánlást, amely módosította a GFCM/42/2018/1. sz. ajánlást.",
+        "proposedText": "törölve",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "3 a preambulumbekezdés (új)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "it",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_it.docx",
+      "retrievedAt": "2026-10-27T20:17:58.625123+00:00",
+      "sha256": "cd1611006e0335416603273ad391061441a55bfd4b313ad99e8d21233f819853",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tNella sessione annuale del 2022 la CGPM ha adottato la raccomandazione CGPM/45/2022/1 relativa a un piano di gestione pluriennale per l'anguilla nel Mediterraneo, che modifica la raccomandazione CGPM/42/2018/1.",
+        "proposedText": "soppresso",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Considerando 3 bis (nuovo)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "lt",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lt.docx",
+      "retrievedAt": "2026-10-27T20:18:04.671798+00:00",
+      "sha256": "1f22c729d60d3c3e53b8890a890f9637c26792051868ba554cd825644cf305fc",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\t2022 m. metinėje sesijoje GFCM priėmė Rekomendaciją GFCM/45/2022/1 dėl daugiamečio europinių upinių ungurių išteklių Viduržemio jūroje valdymo plano, kuria iš dalies keičiama Rekomendacija GFCM/42/2018/1;",
+        "proposedText": "Išbraukta.",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "3 a konstatuojamoji dalis (nauja)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "lv",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+      "retrievedAt": "2026-10-27T20:18:10.701572+00:00",
+      "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGadskārtējā sesijā 2022. gadā GFCM ir pieņēmusi Ieteikumu GFCM/45/2022/1 par daudzgadu pārvaldības plānu attiecībā uz zuti Vidusjūrā un ar ko groza Ieteikumu GFCM/42/2018/1.",
+        "proposedText": "svītrots",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "3.a apsvērums (jauns)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "mt",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_mt.docx",
+      "retrievedAt": "2026-10-27T20:18:16.713507+00:00",
+      "sha256": "e7d66d4edcaf90e16bac3ab9af3bf5ed9a2908105f8a92c0da8ee75cdadf7dfc",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tFis-sessjoni annwali tagħha tal-2022, il-GFCM adottat ir-Rakkomandazzjoni GFCM/45/2022/1 dwar pjan ta’ ġestjoni pluriennali għas-sallura fil-Baħar Mediterran, li temenda r-Rakkomandazzjoni GFCM/42/2018/1.",
+        "proposedText": "imħassar",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Premessa 3a (ġdida)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "nl",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+      "retrievedAt": "2026-10-27T20:18:22.771658+00:00",
+      "sha256": "c3dae014db7eb08f0cb520b304425e5b64892bcfb12d484a64eb1dde7b2a3809",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tOp haar jaarvergadering van 2022 heeft de GFCM Aanbeveling GFCM/45/2022/1 inzake een meerjarig beheersplan voor Europese aal in de Middellandse Zee en tot wijziging van Aanbeveling GFCM/42/2018/1 aangenomen.",
+        "proposedText": "Schrappen",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Overweging 3 bis (nieuw)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "pl",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pl.docx",
+      "retrievedAt": "2026-10-27T20:18:28.851081+00:00",
+      "sha256": "95c772b1dfe81dd1eee506f5d67cb91564a3239615fb1c216d0e6b45d8835434",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tNa corocznym posiedzeniu w 2022 r. GFCM przyjęła zalecenie GFCM/45/2022/1 dotyczące wieloletniego planu zarządzania węgorzem europejskim w Morzu Śródziemnym, zmieniające zalecenie GFCM/42/2018/1.",
+        "proposedText": "skreśla się",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Motyw 3 a (nowy)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "pt",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pt.docx",
+      "retrievedAt": "2026-10-27T20:18:34.877103+00:00",
+      "sha256": "18039d55c56e9947a602ac08349eb3e3911fa288f9964e2e9b83213513a23e01",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tNa sua sessão anual de 2022, a CGPM adotou a Recomendação CGPM/45/2022/1 relativa a um plano de gestão plurianual para a enguia-europeia no mar Mediterrâneo, que altera a Recomendação CGPM/42/2018/1.",
+        "proposedText": "Suprimido",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Considerando 3-A (novo)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "ro",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ro.docx",
+      "retrievedAt": "2026-10-27T20:18:40.805242+00:00",
+      "sha256": "ea2fb6c5b28108f286cc0922eff0a7b8dcb9bdedcdf72382ac023d37e05c68d4",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tLa sesiunea sa anuală din 2022, CGPM a adoptat Recomandarea GFCM/45/2022/1 privind un plan multianual de gestionare a anghilei europene în Marea Mediterană, modificând Recomandarea GFCM/42/2018/1.",
+        "proposedText": "eliminat",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Considerentul 3 a (nou)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "sk",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sk.docx",
+      "retrievedAt": "2026-10-27T20:18:46.879279+00:00",
+      "sha256": "857ca4771cf9b9507ce1bb47b4da6c9aad4b83379b255e9f01d50934bb7e2f9c",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGFCM na svojom výročnom zasadnutí v roku 2022 prijala odporúčanie GFCM/45/2022/1 týkajúce sa viacročného riadiaceho plánu pre úhora európskeho v Stredozemnom mori, ktorým sa mení odporúčanie GFCM/42/2018/1.",
+        "proposedText": "vypúšťa sa",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Odôvodnenie 3 a (nové)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "sl",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sl.docx",
+      "retrievedAt": "2026-10-27T20:18:52.883616+00:00",
+      "sha256": "a2cbcc06499a771e7d3079440eb422f9b2b4b89552e4130a986c0686830aa2b7",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tGFCM je na svoji letni seji leta 2022 sprejela Priporočilo GFCM/45/2022/1 o večletnem načrtu upravljanja za jeguljo v Sredozemskem morju in spremembi Priporočila GFCM/42/2018/1.",
+        "proposedText": "črtano",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Uvodna izjava 3 a (novo)",
+        "expectedOperation": "insert"
+      }
+    },
+    {
+      "language": "sv",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sv.docx",
+      "retrievedAt": "2026-10-27T20:18:58.925491+00:00",
+      "sha256": "884551ec8ad605477c1cc936118c343e69fcb29c8772740ac6a253b35a7d95e0",
+      "deletion": {
+        "number": 5,
+        "originalText": "(13)\tVid sitt årliga sammanträde 2022 antog AKFM rekommendation GFCM/45/2022/1 om en flerårig förvaltningsplan för ål i Medelhavet och om ändring av rekommendation GFCM/42/2018/1.",
+        "proposedText": "utgår",
+        "expectedOperation": "delete"
+      },
+      "insertion": {
+        "number": 3,
+        "originalText": "",
+        "targetLabel": "Skäl 3a (nytt)",
+        "expectedOperation": "insert"
+      }
+    }
+  ]
+}
