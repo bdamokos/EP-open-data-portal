@@ -15,15 +15,17 @@ import {PROPOSAL_PARSER_VERSION} from '../server/proposal-structure.mjs';
 import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
+import {sourceDiagnostics} from './amendment-benchmark-source-diagnostics.mjs';
 import {checkoutProducers} from './amendment-benchmark-producers.mjs';
 import {acquireLanguageVariants,languageVariantContext} from './amendment-benchmark-languages.mjs';
 import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
 export function options(args) {
   const result={apiBase:process.env.AMENDMENT_BENCHMARK_API_BASE,weeks:8,documents:[],fetchMissing:false,cap:1500,delay:750,cache:process.env.AMENDMENT_BENCHMARK_CACHE_DIR||path.join(process.env.XDG_CACHE_HOME||path.join(os.homedir(),'.cache'),'ep-explorer/amendment-benchmark')};
-  const values={'--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
+  const values={'--source-negotiation-cache':'negotiationCache','--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
   for(let i=0;i<args.length;i++) {
     const arg=args[i];
+    if(arg==='--diagnose-sources'){result.diagnoseSources=true;continue;}
     if(arg==='--placement-only'){result.placementOnly=true;continue;}
     if(arg==='--language-variants'){result.languageVariants=true;continue;}
     if(arg==='--acquire-only'){result.acquireOnly=true;continue;}
@@ -34,9 +36,10 @@ export function options(args) {
   }
   result.maxRetryAfter=Number(result.maxRetryAfter??60000);
   if(!Number.isSafeInteger(result.maxRetryAfter)||result.maxRetryAfter<0||result.maxRetryAfter>60000)throw new Error('Retry-After cap must be between 0 and 60000 ms.');
+  if(result.negotiationCache&&!result.diagnoseSources)throw new Error('--source-negotiation-cache requires --diagnose-sources');
   if(result.apiBase)result.apiBase=apiOrigin(result.apiBase);
   for(const key of ['weeks','cap','delay']) {result[key]=Number(result[key]);if(!Number.isSafeInteger(result[key])||result[key]<(key==='weeks'?1:0))throw new Error('Invalid '+key);}
-  if(result.fetchMissing&&result.delay<750)throw new Error('Public acquisition requires --delay-ms of at least 750.');
+  if((result.fetchMissing||result.negotiationCache)&&result.delay<750)throw new Error('Public acquisition requires --delay-ms of at least 750.');
   for(const key of ['from','to','asOf'])if(result[key]&&(!/^\d{4}-\d{2}-\d{2}$/.test(result[key])||new Date(result[key]).toISOString().slice(0,10)!==result[key]))throw new Error('Invalid date: '+key);
   if(Boolean(result.from)!==Boolean(result.to)||result.from>result.to)throw new Error('--from and --to require an ordered inclusive date window.');
   result.documents=[...new Set(result.documents)].sort();
@@ -233,20 +236,20 @@ async function checkoutIdentity(root,runtime) {
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-languages.mjs','package-lock.json'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','package-lock.json'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
+  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT] [--diagnose-sources [--source-negotiation-cache NEW_PATH]]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot. --diagnose-sources inspects frozen inputs; --source-negotiation-cache explicitly permits paced public representation checks in a separate cache, without changing scores.\n');return;}
   if(!opts.apiBase)throw new Error('Provide --api-base or AMENDMENT_BENCHMARK_API_BASE; no deployment host is built in.');
   const root=fileURLToPath(new URL('../',import.meta.url)),runtimeRoot=path.resolve(opts.runtimeRoot||root),runtime=await replayRuntime(runtimeRoot),code=await checkoutIdentity(runtimeRoot,runtime),harness=await harnessIdentity(root);
   if(opts.placementOnly)process.stderr.write('NOTE: --placement-only is a compatibility alias for full cached-source replay; producer changes are evaluated.\n');
   const directory=await outsideRepository(path.resolve(opts.cache)),output=await outsideRepository(path.resolve(opts.output||path.join(directory,'output')));
   const lock=path.join(directory,'.benchmark-lock');
   try {await mkdir(lock);}catch(error){if(error.code==='EEXIST')throw new Error('Another benchmark owns this cache. If interrupted, verify it has stopped before removing '+lock);throw error;}
-  let spool;
+  let spool,negotiationLock;
   try {
   const inputs=path.join(directory,'inputs');await mkdir(inputs,{recursive:true});
   const cache=new InputCache(inputs,opts);
@@ -273,6 +276,18 @@ export async function main(args=process.argv.slice(2)) {
   if(!snapshot.snapshotId){snapshot={...snapshot,sample,manifest,snapshotId};await writeFile(snapshotPath,JSON.stringify(snapshot,null,2)+'\n');}
   if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:manifest.length,requests:cache.requests},null,2)+'\n');return;}
   if(!cache.sealed)await cache.seal(manifest);
+  let diagnostics;
+  if(opts.diagnoseSources) {
+    const negotiationDirectory=opts.negotiationCache?await outsideRepository(path.resolve(opts.negotiationCache)):null;
+    if(negotiationDirectory&&(negotiationDirectory===directory||negotiationDirectory.startsWith(directory+path.sep)))throw new Error('Source negotiation cache must be separate from the sealed snapshot.');
+    if(negotiationDirectory) {
+      const candidate=path.join(negotiationDirectory,'.benchmark-lock');
+      try{await mkdir(candidate);}catch(error){if(error.code==='EEXIST')throw new Error('Another source diagnostic owns this negotiation cache.');throw error;}
+      negotiationLock=candidate;
+    }
+    const negotiationCache=negotiationDirectory?new InputCache(negotiationDirectory,{...opts,fetchMissing:true}):null;
+    diagnostics={observations:await sourceDiagnostics(cache,manifest,{negotiationCache}),acquisition:{requests:negotiationCache?.requests??0,requestCap:opts.cap,delayMs:opts.delay,inputs:negotiationCache?.manifest()??[]}};
+  }
   const resultRows=[],liveRows=[];
   for(const filename of filenames) {
     const rows=await readRows(path.join(spool,filename));
@@ -287,13 +302,13 @@ export async function main(args=process.argv.slice(2)) {
   if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(runtimeRoot,runtime))||JSON.stringify(harness)!==JSON.stringify(await harnessIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
   const compatibility={...projectionCompatibility(resultRows,code),projectionMode:'cached-source-replay'};
   const scope='full-pipeline-cached-sources';
-  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId,sample,code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,acquisition:{amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
+  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId,sample,code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
   if(opts.baseline){const baseline=JSON.parse(await readFile(opts.baseline,'utf8'));result.comparison=compareBaseline(result,baseline,{placementOnly:opts.placementOnly});for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
 
-  const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,harness,scope})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');
+  const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,harness,scope,diagnostics})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');
   await writeFile(jsonPath,JSON.stringify(result,null,2)+'\n');await writeFile(mdPath,markdown(result));
-  process.stdout.write(JSON.stringify({jsonPath,mdPath,scope,snapshotId,compatibility,sample,metrics:result.metrics,acquisition:result.acquisition,...(result.comparison?{comparison:result.comparison}:{})},null,2)+'\n');
+  process.stdout.write(JSON.stringify({jsonPath,mdPath,scope,snapshotId,compatibility,sample,metrics:result.metrics,acquisition:result.acquisition,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),...(result.comparison?{comparison:result.comparison}:{})},null,2)+'\n');
   if(result.metrics.falsePlacements||result.comparison?.failed)process.exitCode=1;
-  } finally {if(spool)await rm(spool,{recursive:true,force:true});await rm(lock,{recursive:true,force:true});}
+  } finally {if(negotiationLock)await rm(negotiationLock,{recursive:true,force:true});if(spool)await rm(spool,{recursive:true,force:true});await rm(lock,{recursive:true,force:true});}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{process.stderr.write(error.stack+'\n');process.exitCode=1;});

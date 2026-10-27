@@ -12,7 +12,7 @@ const words={
   fi:['muutetaan','korvataan','lisätään','poistetaan'],
   fr:['modifi','remplac','insér|ajout','supprim'],
   ga:['leasaítear','ionad','cuirtear.*isteach|cuirtear.*leis','scriostar'],
-  hr:['mijenja','zamjenjuje','umeće|dodaje','briše'],
+  hr:['mijenja','zamjenjuje|zamjenjuju','umeće|dodaje|dodaju','briše|brišu'],
   hu:['módosul|módosít','helyébe','beilleszt|egészül ki','elhagy|töröl'],
   it:['modificat','sostituit','inserit|aggiunt','soppress|eliminat'],
   lt:['iš dalies keičiam','pakeičiam','papildom|įterpiam','išbraukiam'],

@@ -22,7 +22,9 @@ import {documentAuthorIdentities} from './document-authors.mjs';
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
 
-const MAX_FILE=8*1024*1024,MAX_XML=4*1024*1024,DAY=86400000;
+// A-10-2026-0105 has an 8,602,381-byte main XML part in a 0.8 MiB archive.
+// Bound the aggregate inflated parts independently of the download size.
+const MAX_FILE=8*1024*1024,MAX_XML=12*1024*1024,DAY=86400000;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
 const memory=new Map(),pending=new Map(),failures=new Map(),reformatted=new Set();
 // Published DOCX files carry no HTTP validators. Recent texts are re-read weekly;
@@ -66,12 +68,13 @@ export function docxParts(buffer) {
     const name=buffer.subarray(cursor+46,cursor+46+nameLength).toString('utf8');
     cursor+=46+nameLength+extra+comment;
     if(!DOCX_PARTS.includes(name))continue;
+    const partLimit=name==='word/document.xml'?MAX_XML:4*1024*1024;
     total+=size;
-    if(parts.has(name) || flags&1 || total>MAX_XML || compressed>MAX_FILE || offset+30>buffer.length || buffer.readUInt32LE(offset)!==0x04034b50)throw new Error('Unsupported DOCX document entry.');
+    if(parts.has(name) || flags&1 || total>MAX_XML || size>partLimit || compressed>MAX_FILE || offset+30>buffer.length || buffer.readUInt32LE(offset)!==0x04034b50)throw new Error('Unsupported DOCX document entry.');
     const start=offset+30+buffer.readUInt16LE(offset+26)+buffer.readUInt16LE(offset+28);
     if(start+compressed>buffer.length)throw new Error('Truncated DOCX entry.');
     const bytes=buffer.subarray(start,start+compressed);
-    const decoded=method===0?bytes:method===8?inflateRawSync(bytes,{maxOutputLength:MAX_XML}):null;
+    const decoded=method===0?bytes:method===8?inflateRawSync(bytes,{maxOutputLength:partLimit}):null;
     if(!decoded || decoded.length!==size)throw new Error('Invalid DOCX compression.');
     const xml=decoded.toString('utf8');
     if(!xml || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml)!==true)throw new Error('Invalid DOCX document XML.');

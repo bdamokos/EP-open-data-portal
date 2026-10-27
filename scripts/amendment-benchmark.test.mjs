@@ -13,6 +13,7 @@ import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
 import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl} from './amendment-benchmark.mjs';
+import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
 const apiBase='https://explorer.example';
@@ -46,6 +47,23 @@ test('replace/delete oracle reads exact splice coordinates, tolerates only provi
   assert.equal(verifyPlacement({placement:{...placement,span:{start:2,end:2},splice:{start:{paragraph:2,offset:0},end:{paragraph:2,offset:24}}},wording:amendment,items}).status,'failed');
   assert.equal(verifyPlacement({placement:{...placement,splice:{start:{paragraph:1,offset:500},end:{paragraph:1,offset:1}}},wording:amendment,items}).reason,'oracle-invalid-span');
   assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:'(not) A café sentence.'},items}).status,'failed');
+});
+test('independent operation oracle fails the old localized replace placements at the correct coordinates',async()=>{
+  const {examples}=JSON.parse(await readFile(new URL('../server/fixtures/amendment-operation-excerpts.json',import.meta.url),'utf8'));
+  for(const {language,deletion,insertion} of examples) {
+    const amendment={...deletion,language,baseline:'motion-resolution',targetLabel:'',targetPath:null};
+    const text={...source([deletion.originalText]),textLanguage:language};
+    const placement={status:'placed',operation:'replace',span:{start:0,end:0}};
+    const result=verifyPlacement({placement,wording:amendment,text});
+    assert.deepEqual(result,{status:'failed',reason:'oracle-operation-mismatch',expectedOperation:'delete',actualOperation:'replace'},language);
+    const value=stages();value.S5=placement;value.S6=result;
+    assert.equal(classify(value).outcome,'false-placement',language);
+    assert.equal(expectedOperation({...insertion,proposedText:'New wording.'}),'insert',language);
+    assert.equal(expectedOperation({...deletion,proposedText:deletion.proposedText+' Ordinary prose.'}),'replace',language);
+    assert.equal(expectedOperation({...deletion,proposedText:null}),null,language);
+  }
+  const amendment=wording('Article 1','Original.','Replacement.');
+  assert.equal(verifyPlacement({placement:{status:'placed',operation:'delete'},wording:amendment}).reason,'oracle-operation-mismatch');
 });
 test('introductory-part addresses are checked against their own provision',()=>{
   const items=item(['Article 1','1. Lead text of the paragraph:','(a) first point;','2. Other paragraph lead:']);

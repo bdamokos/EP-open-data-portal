@@ -3,7 +3,7 @@ import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='14';
+export const AMENDMENT_EXTRACTION_VERSION='16';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -61,10 +61,10 @@ function trimWording(value) {return rewriteWording(value,/^\s+|\s+$/gu,'');}
 function cleanWording(text,formatting) {
   return trimWording(rewriteWording(rewriteWording({text,formatting},/\r\n?/g,'\n'),/[ \t]+(?=\n)/g,''));
 }
-function joinWording(parts) {
+function joinWording(parts,separator='\n') {
   let text='';const formatting=[];
   for(const [index,part] of parts.entries()) {
-    if(index)text+='\n';const offset=text.length;
+    if(index)text+=separator;const offset=text.length;
     formatting.push(...part.formatting.map(mark=>({...mark,start:mark.start+offset,end:mark.end+offset})));text+=part.text;
   }
   return {text,formatting};
@@ -89,7 +89,7 @@ function geometryNumber(nodes,key,fallback) {
   const value=attribute(matches[0],'val');
   return typeof value==='string'&&/^\d+$/.test(value)&&Number.isSafeInteger(Number(value))?Number(value):null;
 }
-function declaredGridSupported(nodes) {
+function declaredGridSupported(nodes,columnCount=2) {
   const grids=direct(nodes,'w:tblGrid');
   if(grids.length>1)return false;
   if(!grids.length)return true;
@@ -97,7 +97,7 @@ function declaredGridSupported(nodes) {
   if(unsupportedChildren(grid,new Set(['w:gridCol','w:tblGridChange'])))return false;
   // An absent/empty declaration does not establish a third column. Historical
   // tblGridChange snapshots do not describe the current comparison layout.
-  if(columns.length&&columns.length!==2)return false;
+  if(columns.length&&columns.length!==columnCount)return false;
   return columns.every(column=>{
     const width=attribute(column,'w');
     return emptyGeometry(column['w:gridCol'])&&(width==null||typeof width==='string'&&/^\d+$/.test(width)&&Number.isSafeInteger(Number(width)));
@@ -107,10 +107,11 @@ function currentCellGrid(nodes) {
   const properties=direct(nodes,'w:tcPr'),current=properties[0]?.['w:tcPr'];
   return {span:geometryNumber(current,'w:gridSpan',1),supported:properties.length<=1&&!direct(current,'w:hMerge').length&&!direct(current,'w:vMerge').length};
 }
-function currentRowGridSupported(nodes,cells) {
+function currentRowGridSupported(nodes,cells,{stacked=false,columnCount=2}={}) {
   const properties=direct(nodes,'w:trPr'),current=properties[0]?.['w:trPr'];
   if(properties.length>1||geometryNumber(current,'w:gridBefore',0)!==0||geometryNumber(current,'w:gridAfter',0)!==0)return false;
   if(cells.some(cell=>!cell.grid.supported))return false;
+  if(stacked)return cells.length>0&&cells.every(cell=>cell.grid.span>0)&&cells.reduce((sum,cell)=>sum+cell.grid.span,0)===columnCount;
   if(cells.length===2)return cells.every(cell=>cell.grid.span===1);
   // Public amendment DOCX files use this completely blank, two-column-spanning
   // separator. It carries no legal wording and does not shift either column.
@@ -223,13 +224,39 @@ function documentBlocks(parts,warnings) {
     return {raw,text,formatting,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
-  const paragraphs=nodes=>{
-    const result=[];
-    for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
-      if(key==='w:p')result.push(paragraph(value));
-      else if(key!=='w:tbl'&&key!==':@'&&Array.isArray(value))result.push(...paragraphs(value));
-    }
-    return result;
+  const summary=content=>({
+    ...joinWording(content.filter(part=>part.text)),raw:content.map(part=>part.raw).join('\n'),
+    hasNotes:content.some(part=>part.hasNotes),losses:[...new Set(content.flatMap(part=>part.losses))],
+    symbolLoss:content.some(part=>part.symbolLoss),unsupportedBody:content.some(part=>part.unsupportedBody),
+  });
+  const tableOf=nodes=>{
+    let unsupported=unsupportedChildren(nodes,TABLE_CHILDREN),revised=structuralRevision(children(nodes,'w:tblPr'))||structuralMove(nodes);
+    const gridColumns=direct(children(nodes,'w:tblGrid'),'w:gridCol').length||2;
+    const rows=direct(nodes,'w:tr').map(row=>{
+      const rowNodes=row['w:tr'];
+      unsupported ||= unsupportedChildren(rowNodes,ROW_CHILDREN);
+      revised ||= structuralRevision(children(rowNodes,'w:trPr'))||structuralRevision(children(rowNodes,'w:tblPrEx'))||structuralMove(rowNodes);
+      const cells=direct(rowNodes,'w:tc').map(cell=>{
+        const cellNodes=cell['w:tc'],content=[];
+        unsupported ||= unsupportedChildren(cellNodes,CELL_CHILDREN);
+        revised ||= structuralRevision(children(cellNodes,'w:tcPr'))||structuralMove(cellNodes);
+        for(const node of cellNodes) {
+          if(node['w:p'])content.push({kind:'paragraph',...paragraph(node['w:p'])});
+          else if(node['w:tbl'])content.push(tableOf(node['w:tbl']));
+        }
+        const value=summary(content);
+        unsupported ||= value.unsupportedBody;
+        return {...value,content,grid:currentCellGrid(cellNodes),nested:content.some(part=>part.nestedUnsupported),revised:content.some(part=>part.revised)};
+      });
+      cells.gridNodes=rowNodes;
+      revised ||= cells.some(cell=>cell.revised);
+      return cells;
+    });
+    const legalGridSupported=gridColumns>0&&declaredGridSupported(nodes,gridColumns)&&rows.every(cells=>currentRowGridSupported(cells.gridNodes,cells,{stacked:true,columnCount:gridColumns}));
+    const value=summary(rows.map(cells=>({...joinWording(cells,'\t'),raw:cells.map(cell=>cell.raw).join('\t'),hasNotes:cells.some(cell=>cell.hasNotes),losses:cells.flatMap(cell=>cell.losses),symbolLoss:cells.some(cell=>cell.symbolLoss),unsupportedBody:cells.some(cell=>cell.unsupportedBody)})));
+    return {kind:'table',...value,rows,unsupported,revised,gridColumns,gridNodes:nodes,legalGridSupported,
+      gridUnsupported:!declaredGridSupported(nodes)||rows.some(cells=>!currentRowGridSupported(cells.gridNodes,cells)),
+      nestedUnsupported:unsupported||revised||!legalGridSupported||rows.some(cells=>cells.some(cell=>cell.nested))};
   };
   const walk=nodes=>{
     for(const node of nodes||[])for(const [key,value] of Object.entries(node)) {
@@ -237,28 +264,8 @@ function documentBlocks(parts,warnings) {
       if(alternateBranch(key))blocks.push({kind:'unsupported',code:'comparison-structure',message:'Alternative document branches cannot be selected reliably; their content and any amendment identities inside them are unavailable.'});
       else if(nonTextContent(key))blocks.push({kind:'unsupported',code:'non-text-content',message:CONTENT_LOSSES['non-text-content']});
       else if(key==='w:p')blocks.push({kind:'paragraph',...paragraph(value)});
-      else if(key==='w:tbl') {
-        // Only direct rows/cells have a supported comparison layout. Content
-        // controls, custom XML and alternate branches may wrap legal content;
-        // report those structures instead of silently dropping or flattening
-        // them into the surrounding row (including nested-table descendants).
-        let unsupported=unsupportedChildren(value,TABLE_CHILDREN);
-        let revised=structuralRevision(children(value,'w:tblPr'))||structuralMove(value);
-        let gridUnsupported=!declaredGridSupported(value);
-        const rows=value.filter(n=>n['w:tr']).map(row=>{
-          unsupported ||= unsupportedChildren(row['w:tr'],ROW_CHILDREN);
-          revised ||= structuralRevision(children(row['w:tr'],'w:trPr'))||structuralRevision(children(row['w:tr'],'w:tblPrEx'))||structuralMove(row['w:tr']);
-          const cells=row['w:tr'].filter(n=>n['w:tc']).map(cell=>{
-            const content=paragraphs(cell['w:tc']);
-            unsupported ||= unsupportedChildren(cell['w:tc'],CELL_CHILDREN)||content.some(p=>p.unsupportedBody);
-            revised ||= structuralRevision(children(cell['w:tc'],'w:tcPr'))||structuralMove(cell['w:tc']);
-            return {...joinWording(content.filter(p=>p.text)),raw:content.map(p=>p.raw).join('\n'),hasNotes:content.some(p=>p.hasNotes),losses:[...new Set(content.flatMap(p=>p.losses))],symbolLoss:content.some(p=>p.symbolLoss),nested:JSON.stringify(cell['w:tc']).includes('"w:tbl"'),grid:currentCellGrid(cell['w:tc'])};
-          });
-          gridUnsupported ||= !currentRowGridSupported(row['w:tr'],cells);
-          return cells;
-        });
-        blocks.push({kind:'table',rows,unsupported,revised,gridUnsupported});
-      } else if(key!==':@'&&Array.isArray(value))walk(value);
+      else if(key==='w:tbl')blocks.push(tableOf(value));
+      else if(key!==':@'&&Array.isArray(value))walk(value);
     }
   };
   walk(parser().parse(parts.get('word/document.xml')));
@@ -281,6 +288,24 @@ const numberIn=(raw,paragraphStyle)=>{
 };
 const legacyHeading=text=>/^(?:Amendment|Amendement|Änderungsantrag|Ændringsforslag|Módosítás|Enmienda|Emendamento|Alteração|Amendament|Poprawka|Wijziging|Τροπολογία|Pozmeňujúci návrh|Pozměňovací návrh)$/iu.test(text);
 const groupNumber=group=>group?.filter(b=>b.kind==='paragraph').map(b=>numberIn(b.raw,b.paragraphStyle)).find(Boolean)||null;
+
+// Annex comparisons publish two vertical sections, sometimes in separate
+// tables. Only a full-width, exact heading establishes the side; the cells
+// below it are columns of that legal table, not original/proposed columns.
+function sectionHeading(cells,table,language) {
+  if(cells.length!==1||cells[0].grid.span!==table.gridColumns||cells[0].nested)return null;
+  const text=cells[0].text,heading=comparisonHeading(text,language);
+  if(isAmendmentHeading(text,language))return {side:'proposed',heading};
+  return !['unknown','other'].includes(heading.category)?{side:'original',heading}:null;
+}
+// A full-width layout cell cannot switch wording sides by horizontal position.
+// Keep its paragraphs and nested rows in order, with each inner table's own
+// grid. Paired comparison cells instead retain the whole nested table on their
+// already established side.
+function sectionRows(table) {
+  return table.rows.flatMap(cells=>cells.length===1&&cells[0].grid.span===table.gridColumns&&!cells[0].nested?
+    cells[0].content.flatMap(part=>part.kind==='table'?sectionRows(part):[{table,cells:[{...part,grid:cells[0].grid,nested:false}]}]):[{table,cells}]);
+}
 
 /** Extract individual amendments without flattening the original/proposed columns. */
 export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null}={}) {
@@ -333,18 +358,30 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       }
     }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
-    const before=[],after=[];let comparableRows=0,hasTable=false;
-    for(const table of group.filter(b=>b.kind==='table')) {
+    const before=[],after=[],tables=group.filter(b=>b.kind==='table');let comparableRows=0,hasTable=false;
+    const rows=tables.flatMap(sectionRows),first=rows.find(row=>row.cells.some(cell=>cell.text));
+    const stacked=first&&sectionHeading(first.cells,first.table,language)?.side==='original';
+    const sections=[];let section=null;
+    for(const table of tables) {
       hasTable=true;
-      if(table.gridUnsupported)gap('comparison-grid',number,'The comparison grid contains unsupported column counts, spans, offsets or merges; both wording columns are withheld.');
+      const gridUnsupported=stacked?!table.legalGridSupported:table.gridUnsupported;
+      if(gridUnsupported)gap('comparison-grid',number,'The comparison grid contains unsupported column counts, spans, offsets or merges; both wording columns are withheld.');
       if(table.unsupported)gap('comparison-structure',number,'The comparison contains unsupported wrapped or embedded row/cell content; its wording is withheld.');
       if(table.revised)gap('structural-revision',number,'The comparison contains tracked structural insertion, deletion, merge or move markers; revision acceptance is unresolved and its wording is withheld.');
       let headerConfirmed=false;
-      for(const cells of table.rows) {
+      const comparisonRows=stacked?sectionRows(table):table.rows.map(cells=>({table,cells}));
+      for(const {table:rowTable,cells} of comparisonRows) {
         if(cells.some(c=>c.nested)){gap('nested-table',number,'A nested comparison table is unsupported.');continue;}
         if(cells.some(c=>c.symbolLoss))gap('symbol-text-loss',number,'A visible font-encoded symbol cannot be decoded reliably; comparison wording is withheld.');
         for(const code of Object.keys(CONTENT_LOSSES))if(cells.some(cell=>cell.losses.includes(code)))gap(code,number,CONTENT_LOSSES[code]);
         if(cells.every(c=>!c.text))continue;
+        if(stacked) {
+          const heading=sectionHeading(cells,rowTable,language);
+          if(heading){section=heading;sections.push(heading);continue;}
+          if(!section){gap('comparison-header',number,'A stacked comparison section has no explicit heading.');continue;}
+          if(cells.some(c=>c.hasNotes))gap('notes-unavailable',number,'The comparison contains footnote or endnote references whose note text is not included in this extraction.');
+          comparableRows++;(section.side==='original'?before:after).push(joinWording(cells,'\t'));continue;
+        }
         if(!headerConfirmed) {
           if(cells.length===2&&(isAmendmentHeading(cells[1].text,language)||legacyHeading(cells[1].text))){headerConfirmed=true;comparisonHeadings.push({left:comparisonHeading(cells[0].text,language),right:comparisonHeading(cells[1].text,language)});continue;}
           gap('comparison-header',number,'The comparison column headings could not be identified.');break;
@@ -353,6 +390,10 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
         if(cells.some(c=>c.hasNotes))gap('notes-unavailable',number,'The comparison contains footnote or endnote references whose note text is not included in this extraction.');
         comparableRows++;before.push(cells[0]);after.push(cells[1]);
       }
+    }
+    if(stacked) {
+      if(sections.length!==2||sections[0].side!=='original'||sections[1].side!=='proposed')gap('comparison-header',number,'The stacked comparison does not supply exactly one original section followed by one proposed section.');
+      else comparisonHeadings.push({left:sections[0].heading,right:sections[1].heading});
     }
     const ownDate=documentDate(raw),date=ownDate||(!field(raw,'Date').length&&committee?coverDate:null);
     const dateBasis=ownDate?'individual-amendment-document':date?'amendment-list-document':null;
