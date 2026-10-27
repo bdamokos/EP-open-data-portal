@@ -332,7 +332,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,6);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,7);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -551,4 +551,13 @@ for(const basis of ['index','published-list'])test(`${basis} Commission routing 
     assert.equal(proposalReads,scenario.reads,scenario.name);assert.equal(result.placement.status,'unresolved',scenario.name);assert.equal(result.placement.reason,scenario.reason,scenario.name);
     if(!scenario.reads){assert.equal(result.baseline,null,scenario.name);assert.equal(result.proposal,null,scenario.name);assert.deepEqual(result.document.selectedText,summary,scenario.name);}
   }
+});
+
+
+test('indexed wording ranges remain tied to their exact selected source columns',async()=>{
+  const originalFormatting=[{start:2,end:3,kind:'subscript'}],proposedFormatting=[{start:2,end:3,kind:'superscript'}];
+  const reader=service({findAmendment:()=>({...indexed,originalText:'CO2',proposedText:'CO2',originalFormatting,proposedFormatting})});
+  const result=await reader.query(query({amendmentId,listId,includeBody:false}),{store:{}});
+  assert.deepEqual(result.amendment.variants[0].originalFormatting,originalFormatting);
+  assert.deepEqual(result.amendment.variants[0].proposedFormatting,proposedFormatting);
 });

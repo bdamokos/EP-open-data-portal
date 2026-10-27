@@ -1,30 +1,35 @@
 import {Fragment,useMemo,useState,type ReactNode} from 'react';
 import {textDiff,type TextDiffSegment} from '../textDiff.mjs';
 import './WordingDiff.css';
+import {FormattedWording,formattingDiff,type WordingFormat} from './WordingFormatting';
 
 type Props={
   original:string|null;proposed:string|null;language:string|null;
+  originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];
   emptySemantics:'insertion-deletion'|'not-supplied';
   presentation?:'comparison'|'context';
   // UTF-16 offsets count only original-side equal/deleted text, never insertions.
   renderOriginal?:(text:string,start:number)=>ReactNode;
   labels?:{original?:string;proposed?:string;emptyOriginal?:string;emptyProposed?:string};
 };
-function Passage({segments,language,renderOriginal}:{segments:TextDiffSegment[];language:string|null;renderOriginal?:Props['renderOriginal']}) {
-  let offset=0;
+function Passage({segments,language,renderOriginal,originalFormatting=[],proposedFormatting=[],side='original'}:{segments:TextDiffSegment[];language:string|null;renderOriginal?:Props['renderOriginal'];originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];side?:'original'|'proposed'}) {
+  let originalOffset=0,proposedOffset=0;
   return <p className="wording-diff__passage" lang={language||''}>{segments.map((segment,index)=>{
-    const start=offset;
-    if(segment.type!=='insert')offset+=segment.text.length;
-    const content=segment.type!=='insert'&&renderOriginal?renderOriginal(segment.text,start):segment.text;
+    const proposed=segment.type==='insert'||segment.type==='equal'&&side==='proposed';
+    const start=proposed?proposedOffset:originalOffset;
+    if(segment.type!=='insert')originalOffset+=segment.text.length;
+    if(segment.type!=='delete')proposedOffset+=segment.text.length;
+    const content=<FormattedWording text={segment.text} start={start} formatting={proposed?proposedFormatting:originalFormatting} renderText={proposed?undefined:renderOriginal}/>;
     if(segment.type==='equal')return <Fragment key={index}>{content}</Fragment>;
     const Tag=segment.type==='delete'?'del':'ins';
     return <Tag key={index}><span className="wording-diff__sr" lang="en">{segment.type==='delete'?'Deleted text: ':'Inserted text: '}</span>{content}<span className="wording-diff__sr" lang="en"> end</span></Tag>;
   })}</p>;
 }
-function Comparison({original,proposed,language,emptySemantics,presentation='comparison',labels={},renderOriginal}:Props) {
+function Comparison({original,proposed,language,emptySemantics,presentation='comparison',labels={},renderOriginal,originalFormatting=[],proposedFormatting=[]}:Props) {
   const comparable=original!==null&&proposed!==null&&(original!==''||proposed!=='')&&
     (emptySemantics==='insertion-deletion'||original!==''&&proposed!=='');
   const diff=useMemo(()=>comparable?textDiff(original!,proposed!,language):null,[comparable,original,proposed,language]);
+  const segments=useMemo(()=>diff?.status==='ok'?formattingDiff(diff.segments,originalFormatting,proposedFormatting):[],[diff,originalFormatting,proposedFormatting]);
   const oneSided=comparable&&(original===''||proposed==='');
   const mostlyRewritten=!oneSided&&diff?.status==='ok'&&diff.similarity<0.3;
   const [mode,setMode]=useState<'changes'|'sides'>(presentation==='context'||!mostlyRewritten?'changes':'sides');
@@ -44,16 +49,16 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
     </>}
     {diff?.status==='too-large'&&<p className="wording-diff__note">Too extensively changed to highlight.</p>}
     {diff?.status==='ok'&&mode==='changes'?<>
-      <Passage segments={diff.segments} language={language} renderOriginal={renderOriginal}/>
+      <Passage segments={segments} language={language} renderOriginal={renderOriginal} originalFormatting={originalFormatting} proposedFormatting={proposedFormatting}/>
     </>:<div className="wording-diff__columns">{columns.map(column=><section key={column.side}>
       <h5>{column.label}</h5>
       {column.text===null?<p>{column.side==='original'?'Original wording is unavailable.':'Proposed wording is unavailable.'}</p>:
         column.text===''?<p>{column.empty}</p>:
-        <Passage language={language} renderOriginal={column.side==='original'?renderOriginal:undefined} segments={diff?.status==='ok'?diff.segments.filter(segment=>segment.type!==(column.side==='original'?'insert':'delete')):[{type:'equal',text:column.text}]}/>}
+        <Passage language={language} side={column.side} originalFormatting={originalFormatting} proposedFormatting={proposedFormatting} renderOriginal={column.side==='original'?renderOriginal:undefined} segments={diff?.status==='ok'?segments.filter(segment=>segment.type!==(column.side==='original'?'insert':'delete')):[{type:'equal',text:column.text}]}/>}
     </section>)}</div>}
   </div>;
 }
 export function WordingDiff(props:Props) {
   // A new exact wording selection gets its own default; choices never persist outside this instance.
-  return <Comparison key={JSON.stringify([props.original,props.proposed,props.language,props.emptySemantics,props.presentation])} {...props}/>;
+  return <Comparison key={JSON.stringify([props.original,props.proposed,props.originalFormatting,props.proposedFormatting,props.language,props.emptySemantics,props.presentation])} {...props}/>;
 }

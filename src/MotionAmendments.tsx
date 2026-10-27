@@ -8,6 +8,7 @@ import {Status} from './Status';
 import {amendmentDecisionKey,amendmentDecisionPart,publicAmendmentSource} from './amendmentModel.mjs';
 import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,MotionAmendmentsPage,MotionAmendmentsScope} from './MotionAmendmentsTypes';
 import './MotionAmendments.css';
+import {FormattedWording} from './components/WordingFormatting';
 import {WordingDiff} from './components/WordingDiff';
 
 export const MOTION_AMENDMENTS_PAGE_SIZE=20;
@@ -153,7 +154,7 @@ function Wording({record,kind}:{record:MotionAmendment|MotionAmendmentVariant;ki
   const available=status==='available'&&typeof text==='string';
   return <section className={'motion-amendments__wording motion-amendments__wording--'+kind}>
     <h5>{kind==='original'?'Original wording quoted in the amendment':'Proposed wording'}</h5>
-    {available?<p className="motion-amendments__passage" lang={sourceLanguage(record.wording?.language)}>{text||' '}</p>:
+    {available?<p className="motion-amendments__passage" lang={sourceLanguage(record.wording?.language)}>{<FormattedWording text={text||' '} formatting={kind==='original'?record.originalFormatting:record.proposedFormatting}/>}</p>:
       <p className="motion-amendments__muted">{status==='withheld'?'This wording could not be read reliably.':kind==='original'?'Original wording is unavailable.':'Proposed wording is unavailable.'}</p>}
     {available&&text===''&&<p className="motion-amendments__muted">No {kind==='original'?'original':'proposed'} wording supplied.</p>}
   </section>;
@@ -227,7 +228,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       </p>}
       
       {record.wording?.originalStatus==='available'&&record.wording.proposedStatus==='available'&&typeof record.originalText==='string'&&record.originalText!==''&&typeof record.proposedText==='string'&&record.proposedText!==''?
-        <WordingDiff key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
+        <WordingDiff originalFormatting={record.originalFormatting} proposedFormatting={record.proposedFormatting} key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
         <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>}
       {url&&<p className="motion-amendments__source"><a href={url} target="_blank" rel="noreferrer">Official amendment wording ↗</a></p>}
     </>}

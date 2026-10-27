@@ -1,3 +1,4 @@
+import type {WordingFormat} from './components/WordingFormatting';
 export type AmendmentOutcome = 'ADOPTED' | 'REJECTED' | 'LAPSED' | 'WITHDRAWN' | 'mixed' | 'unavailable';
 export type AmendmentSource = {url:string;fetchedAt?:string|number|null;language?:string|null;date?:string|null;dateBasis?:string|null};
 export type AmendmentAuthor = {name:string;displayName?:string;nameVariants?:{value:string;script:string;language?:string|null;source?:unknown}[];personId:string|number|null;method?:string|null;status?:string|null;evidence?:unknown};
@@ -14,7 +15,7 @@ export type AmendmentVariant = {
   listId?:string|null;date?:string|null;documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;language?:string|null;
   textIntegrity?:'complete'|'incomplete'|'unavailable'|null;listRelationship?:'current'|'unverified'|'absent-current-relationship'|'conflicting-variants'|null;recordRetained?:boolean;
   proposerDate?:string|null;proposerDateBasis?:string|null;
-  targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;authors?:AmendmentAuthor[];
+  targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];authors?:AmendmentAuthor[];
   committeeProposer?:string|null;onBehalfOf?:string|string[]|null;sources?:AmendmentSource[];justification?:string|null;
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
 };
@@ -25,7 +26,7 @@ export type Amendment = {
   textIntegrity?:'complete'|'incomplete'|'unavailable'|null;listRelationship?:'current'|'unverified'|'absent-current-relationship'|'conflicting-variants'|null;recordRetained?:boolean;
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
   identifierBasis?:string;officialIds?:string[];
-  procedureIds?:string[];targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;language?:string|null;
+  procedureIds?:string[];targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];language?:string|null;
   authors?:AmendmentAuthor[];onBehalfOf?:string|string[]|null;decisions?:AmendmentDecision[];splitParts?:AmendmentSplit[];
   targetDocumentDate?:string|null;outcomeProofVersion?:number;splitCoverageComplete?:boolean;
   splitCoverage?:{requestId:string|null;registryRequestKey:string|null;componentCount:number|null;componentIds:string[];recordedComponentCount:number;recordedComponentIds:string[];boundComponentCount:number;boundComponentIds:string[];unboundComponentCount:number|null;complete:boolean}[];

@@ -974,6 +974,53 @@ test('title-case opinion headings cannot provide the main report amendment seque
   assert(h.container.textContent.includes('The amendment wording is unavailable.'));
 });
 
+
+for(const [name,originalText,sourceText] of [
+  ['punctuation','CO2.','1. CO2;'],
+  ['quotation','CO2 "target".','1. CO2 “target”.'],
+])test(`placed ${name} normalization keeps column formatting without inventing a change in either mode`,async t=>{
+  const paragraphs=['Article 1',sourceText];
+  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'act',index:1,proposal}],marks=[{start:2,end:3,kind:'subscript'}];
+  const variant={...value.amendment.variants[0],targetLabel:'Article 1 – paragraph 1',targetPath:{proposal:[],underlying:[],language:'en'},originalText,proposedText:originalText,originalFormatting:marks,proposedFormatting:marks};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
+  assert.equal(value.placement.status,'placed');assert.notEqual(value.placement.originalText,originalText);
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.dataset.contextTarget,'true');
+  for(const mode of ['Changes','Side by side']) {
+    await h.click([...block.querySelectorAll('button')].find(button=>button.textContent===mode));
+    assert.equal(wordingText(block,'original'),originalText);assert.equal(wordingText(block,'proposed'),originalText);
+    assert.equal(block.querySelector('del,ins'),null,'normalization must not become a wording or formatting edit');
+    assert.deepEqual([...block.querySelectorAll('sub')].map(node=>node.textContent),mode==='Changes'?['2']:['2','2']);
+  }
+});
+
+test('a separated provision prefix keeps later subscript ranges and source links aligned in both modes',async t=>{
+  const sourceText='1.\tLead CO2 text.',originalText='Lead CO2 text.',proposedText='Lead CO2 revised text.';
+  const paragraphs=['Article 1',sourceText];
+  const parsed=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:i?'Normal':'Titrearticle',numberingComplete:true,notesComplete:true}))});
+  const linkStart=sourceText.indexOf('text');
+  const proposal={...parsed,links:[...parsed.links,{paragraph:1,start:linkStart,end:linkStart+4,url:'https://example.org/after-subscript'}]};
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'act',index:1,proposal}],marks=[{start:7,end:8,kind:'subscript'}];
+  const variant={...value.amendment.variants[0],targetLabel:'Article 1 – paragraph 1',targetPath:{proposal:[],underlying:[],language:'en'},originalText,proposedText,originalFormatting:marks,proposedFormatting:marks};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
+  assert.equal(value.placement.status,'placed');assert.equal(value.placement.originalText,sourceText);
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');
+  for(const mode of ['Changes','Side by side']) {
+    await h.click([...block.querySelectorAll('button')].find(button=>button.textContent===mode));
+    assert.equal(block.querySelector('[data-source-label]').textContent,'1.');
+    assert.equal(wordingText(block,'original'),originalText);assert.equal(wordingText(block,'proposed'),proposedText);
+    const subscripts=[...block.querySelectorAll('sub')];
+    assert.deepEqual(subscripts.map(node=>node.textContent),mode==='Changes'?['2']:['2','2']);
+    assert(subscripts.every(node=>!node.closest('ins,del')),'unchanged subscript must not become a formatting edit');
+    assert.equal(block.querySelector('a[href="https://example.org/after-subscript"]').textContent,'text','annotation callback shifts comparison offsets past the source prefix exactly once');
+    if(mode==='Side by side')assert.equal(block.querySelectorAll('.wording-diff__columns section')[1].querySelector('a'),null);
+  }
+});
+
 test('failed and missing document bodies retain exact amendment wording, summary and Back',async t=>{
   for(const body of ['error','unavailable','missing'])await t.test(body,async t=>{
     const doc=body==='missing'?null:sourceDocument(report,[],{status:body});
