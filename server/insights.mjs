@@ -14,6 +14,7 @@ import {INSIGHTS_VERSION} from './insights-model.mjs';
 import {savedQuery,savedStates} from './insights-saved.mjs';
 import {participationQuery,participation} from './insights-participation.mjs';
 import {historyCacheKey} from './history-readiness.mjs';
+import {ParliamentSearch,parliamentSearchQuery} from './parliament-search.mjs';
 
 // Root integration supplies its already-owned store; this module never starts a worker.
 export function createInsights(store,options={}) {
@@ -36,7 +37,9 @@ export function createInsights(store,options={}) {
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
   const procedureProgress=new ProcedureProgress(officialSources);
   const views=new InsightViewCache({clock,...options.viewCache});
+  const search=new ParliamentSearch(store,{clock});
   return {async query(view,searchParams) {
+    if(view==='search')return search.query(parliamentSearchQuery(searchParams));
     if(view==='dossier-activity')return dossierActivity.query(dossierActivityQuery(searchParams));
     if(view==='dossier-references')return dossierActivity.references(dossierReferencesQuery(searchParams));
     if(view==='speech-words')return speechWords.query(speechWordsQuery(searchParams,{now:clock()}));

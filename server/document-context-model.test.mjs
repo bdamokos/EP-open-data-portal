@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {amendmentOperation,DELETION_MARKERS,resolveAmendmentPlacement,segmentMotionUnits,resolveDocumentTarget} from './document-context-model.mjs';
+import {readFileSync} from 'node:fs';
+import {amendmentOperation,DELETION_MARKERS,resolveAmendmentPlacement,segmentMotionUnits,resolveDocumentTarget,placementReference} from './document-context-model.mjs';
 
 function document(paragraphs, overrides = {}) {
   const {sources = {}, ...fields} = overrides;
@@ -14,6 +15,27 @@ function document(paragraphs, overrides = {}) {
 const resolve = (text, options = {}) => resolveDocumentTarget(text, {language: 'en', ...options});
 const found = (paragraphs, basis = 'quoted-original', quoteMatches = true, relation = 'at') => ({
   status: 'found', paragraphs, basis, relation, quoteMatches, reason: null,
+});
+
+test('published translated resolution labels preserve native numbering and script',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-labels.json',import.meta.url)));
+  for(const example of fixture.examples) {
+    const ref=placementReference(example.targetLabel,example.language);
+    assert(ref,example.amendmentId);assert.equal(ref.kind,example.expected.kind,example.amendmentId);assert.equal(ref.label,example.expected.label,example.amendmentId);
+  }
+  const options={language:'bg',baseline:'motion-resolution',originalText:'',proposedText:'Ново съображение',targetLabel:'Съображение М a (ново)'};
+  const body=labels=>document(['Европейският парламент,',labels[0]+'. Публикувано съображение;',labels[1]+'. Следващо съображение;'],{textLanguage:'bg'});
+  assert.equal(resolveAmendmentPlacement(body(['М','Н']),options).insertAfter,1);
+  assert.equal(resolveAmendmentPlacement(body(['M','N']),options).reason,'relative_target_not_found','Latin and Cyrillic letters are different source labels');
+});
+
+test('a Greek parenthesised subheading closes paragraph 34 before its inserted sibling',()=>{
+  // A-10-2026-0272-AM-119, official Greek report: the heading is a separate
+  // wholly bold/italic row between 34 and 35, not a continuation of 34.
+  const heading='Δοκιμαστικά σχέδια και προπαρασκευαστικές ενέργειες (ΔΣ-ΠΕ)';
+  const text=document(['Το Ευρωπαϊκό Κοινοβούλιο,','34. τροποποιεί τα σχόλια του προϋπολογισμού κατά περίπτωση·',heading,'35. υπογραμμίζει τη σημασία των δοκιμαστικών σχεδίων·'],{textLanguage:'el',paragraphFormats:[{},{},{marks:[{kind:'bold',start:0,end:heading.length},{kind:'italic',start:0,end:heading.length}]},{}]});
+  const placement=resolveAmendmentPlacement(text,{language:'el',baseline:'motion-resolution',originalText:'',proposedText:'Νέο κείμενο',targetLabel:'Παράγραφος 34 α (νέα)'});
+  assert.equal(placement.status,'placed');assert.equal(placement.insertAfter,1);assert.equal(placement.insertBefore,2);
 });
 
 test('exact quote comparison collapses whitespace without changing source strings', () => {
@@ -343,6 +365,26 @@ test('whole-cell localized deletion markers do not turn ordinary prose into a de
   for(const marker of DELETION_MARKERS)assert.equal(amendmentOperation({originalText:'Source text',proposedText:' '+marker.toUpperCase()+' '}),'delete',marker);
   assert.equal(amendmentOperation({originalText:'Source text',proposedText:'The word deleted occurs in this sentence.'}),'replace');
   assert.equal(amendmentOperation({originalText:null,proposedText:'New'}),null);
+});
+test('published deletion cells in all 24 languages allow a terminal full stop only', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const {examples}=JSON.parse(await readFile(new URL('./fixtures/amendment-operation-excerpts.json',import.meta.url),'utf8'));
+  assert.equal(examples.length,24);
+  for(const {language,deletion,insertion} of examples) {
+    assert.equal(amendmentOperation(deletion),'delete',language);
+    const marker=deletion.proposedText.replace(/\.$/u,'');
+    for(const proposedText of [marker,marker+'.','\n\t'+marker.toUpperCase()+'\u00a0. \n']) {
+      assert.equal(amendmentOperation({...deletion,proposedText}),'delete',language+': '+proposedText);
+      assert.equal(amendmentOperation({originalText:'',proposedText}),null,'a deletion instruction alone supplies no new wording');
+    }
+    for(const proposedText of [marker+' in ordinary prose.', 'Text '+marker+'.',marker+';',marker+'...', '“'+marker+'”']) {
+      assert.equal(amendmentOperation({...deletion,proposedText}),'replace',language+': '+proposedText);
+    }
+    // The localized '(new)' belongs to the address; the published original
+    // cell is empty. A new underlying provision can still be deleted.
+    assert.equal(amendmentOperation({...insertion,proposedText:'New wording.'}),'insert',language);
+    assert.equal(amendmentOperation({...deletion,targetLabel:insertion.targetLabel}),'delete',language);
+  }
 });
 test('CBAM amendment 7 is deletion despite a nested new provision; proposal baseline is unavailable', async () => {
   const {readFile}=await import('node:fs/promises');

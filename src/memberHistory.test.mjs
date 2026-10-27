@@ -54,7 +54,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
   function agree(role,lang='en') {
     const query=new URLSearchParams(location.search);
     assert.deepEqual(filters().map(node=>node.value),['6567',role,'HU','PfE'],'rendered filter controls');
-    assert.deepEqual(['committee','role','country','group','lang'].map(key=>query.get(key)),['6567',role,'HU','PfE',lang],'URL filters');
+    assert.deepEqual(['committee','role','country','group','lang'].map(key=>query.get(key)),['6567',role==='both'?null:role,'HU','PfE',lang==='en'?null:lang],'URL filters omit defaults');
     assert.equal(language().value,lang);assert.equal(document.documentElement.lang,lang);
     const expected=role==='member'?[members[0]]:role==='substitute'?[members[1]]:members.slice(0,2);
     assert.deepEqual([...container.querySelectorAll('[data-member-id]')].map(node=>Number(node.dataset.memberId)),expected.map(row=>row.id),'actual filtered member identities');

@@ -69,7 +69,7 @@ test('an explicit wording language selects only one exact list variant and retai
   assert.equal(hu.target.evidence.wordingLanguage,'hu');assert.deepEqual(hu.target.evidence.wordingSource,hungarianSource);assert.deepEqual(hu.target.evidence.fieldSources,variants[1].fieldSources);assert.deepEqual(hu.amendment.variants.map(row=>row.language),['en','hu']);
   const en=await reader.query(pinned('en','en'),{store:{}});assert.equal(en.target.status,'found');assert.equal(en.target.evidence.wordingLanguage,'en');assert.equal(en.amendment.variants[0].originalText,indexed.originalText);
   const fallback=await reader.query(pinned('hu','en'),{store:{}});assert.equal(fallback.target.reason,'different-text-languages');assert.deepEqual(fallback.target.paragraphs,[]);assert.deepEqual(fallback.target.evidence.wordingSource,hungarianSource);
-  const absent=await reader.query(query({amendmentId,listId,language:'hu'}),{store:{}});assert.equal(absent.target.reason,'choose-source-version');assert.equal(Object.hasOwn(absent,'requestedWordingLanguage'),false);
+  const absent=await reader.query(query({amendmentId,listId,language:'hu'}),{store:{}});assert.equal(absent.target.status,'found');assert.equal(absent.target.evidence.wordingLanguage,'hu');assert.equal(Object.hasOwn(absent,'requestedWordingLanguage'),false);
   const missing=await reader.query(pinned('fr','hu'),{store:{}});assert.equal(missing.target.status,'unavailable');assert.equal(missing.target.evidence,null);assert.equal(missing.amendment.variants.length,2);
   await reader.query(pinned('hu','hu'),{store:{}});assert.deepEqual(bodyLanguages,['hu','en','en','hu','hu'],'full-query cache entries retain the independent body and wording choices');
   const wording=await reader.query({...pinned('hu','hu'),includeBody:false},{store:{}});assert.equal(wording.document,null);assert.equal(wording.target.status,'not-requested');assert.equal(wording.target.evidence.wordingLanguage,'hu');assert.equal(bodyLanguages.length,5);
@@ -80,6 +80,32 @@ test('an explicit selector cannot hide a conflicting or unreadable same-list sam
     const reader=service({findAmendment:()=>({...indexed,variants:[indexed,{...indexed,...competing},{...indexed,language:'hu'}]})});
     const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
     assert.equal(result.amendment.variants.length,3);assert.equal(result.target.status,'unavailable');assert.equal(result.target.reason,'choose-source-version');assert.equal(result.target.evidence,null);assert.deepEqual(result.target.paragraphs,[]);
+  }
+});
+
+test('missing document languages use one exact translated list and amendment number in preference order',async()=>{
+  for(const [requested,originals,expected] of [['hu',['de'],'de'],['en',['de'],'de'],['en',['it'],'fr']]) {
+    const languages=['fr','de','es'],calls=[],bodyCalls=[];
+    const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+id,is_realized_by:languages.map(language=>({language,is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:source.url.replace('_en','_'+language)}]}))};
+    const publication={...work,originalLanguage:originals,inverse_foresees_change_of:['eli/dl/doc/'+listId]};
+    const reader=service({findAmendment:()=>({...indexed,language:requested,baseline:'motion-resolution'}),request:async path=>{calls.push(path);return record(path==='/documents/'+listId?list:publication);},readText:async(_work,language)=>{bodyCalls.push(language);return {...summary,textLanguage:languages.includes(language)?language:'fr',availableTextLanguages:languages};}});
+    reader.readList=async(_list,file)=>({source:{...source,url:file.url,language:file.language},extraction:{amendments:[{number:40,originalText:summary.paragraphs[0],proposedText:'Translated proposal',authors:[],baseline:'motion-resolution'}]}});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:requested}),{store:{}});
+    assert.deepEqual(result.wordingLanguageFallback,{listId,requestedLanguage:requested,language:expected});
+    assert.equal(result.target.evidence.wordingLanguage,expected);assert.equal(result.document.selectedText.textLanguage,expected);
+    assert.equal(result.amendment.variants.at(-1).source.language,expected);assert.deepEqual(calls,['/plenary-documents/'+id,'/documents/'+listId]);
+    assert.equal(bodyCalls.length,expected==='fr'?1:2);
+  }
+});
+
+test('translation fallback retains unavailable evidence for a different number, target, or duplicate language file',async()=>{
+  for(const failure of ['number','target','duplicate']) {
+    const file={format:'file-type/DOCX',is_exemplified_by:source.url.replace('_en','_fr')};
+    const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+(failure==='target'?'B-10-2026-0424':id),is_realized_by:[{language:'fr',is_embodied_by:failure==='duplicate'?[file,{...file,is_exemplified_by:file.is_exemplified_by.replace('.docx','-rev.docx')}]:[file]}]};
+    const reader=service({findAmendment:()=>indexed,request:async path=>record(path==='/documents/'+listId?list:{...work,inverse_foresees_change_of:['eli/dl/doc/'+listId]}),readText:async()=>({...summary,textLanguage:'fr',availableTextLanguages:['fr']})});
+    reader.readList=async()=>({source,extraction:{amendments:[{number:41,originalText:'Different amendment',proposedText:'Different proposal',authors:[]}]}});
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+    assert.equal(result.wordingLanguageFallback,null);assert.equal(result.target.evidence.wordingLanguage,'en');assert.equal(result.placement.status,'unresolved');assert.equal(result.amendment.variants.length,1);
   }
 });
 
@@ -149,7 +175,7 @@ test('the aggregate metadata limit stops procedure, adopted-text and amendment-l
   const scenarios=[
     {root:{...work,inverse_created_a_realization_of:['eli/dl/proc/'+procedure,'eli/dl/proc/'+secondProcedure]},extra:{adopted:true},documents:{['/procedures/'+procedure]:{...procedureNode,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/procedures/'+procedure]},
     {root:{...work,inverse_created_a_realization_of:['eli/dl/proc/'+procedure]},extra:{adopted:true},documents:{['/procedures/'+procedure]:procedureNode,['/adopted-texts/'+ta]:{id:'eli/dl/doc/'+ta,identifier:ta,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/procedures/'+procedure,'/adopted-texts/'+ta]},
-    {root:{...work,inverse_foresees_change_of:['eli/dl/doc/'+listId,'eli/dl/doc/'+secondList]},extra:{amendmentId},documents:{['/plenary-documents/'+listId]:{id:'eli/dl/doc/'+listId,identifier:listId,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/plenary-documents/'+listId]},
+    {root:{...work,inverse_foresees_change_of:['eli/dl/doc/'+listId,'eli/dl/doc/'+secondList]},extra:{amendmentId},documents:{['/documents/'+listId]:{id:'eli/dl/doc/'+listId,identifier:listId,padding:'x'.repeat(6000)}},paths:['/plenary-documents/'+id,'/documents/'+listId]},
   ];
   for(const scenario of scenarios) {
     const paths=[];const reader=service({limits:{metadataBytes:5000},request:async path=>{paths.push(path);return record(path==='/plenary-documents/'+id?scenario.root:scenario.documents[path]);}});
@@ -332,7 +358,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,14);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,19);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
