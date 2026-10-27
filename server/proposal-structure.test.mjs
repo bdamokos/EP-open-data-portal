@@ -292,7 +292,7 @@ test('inline replacement openings retain subsequent paragraphs and articles unti
 test('inner term quotes and apostrophes cannot close the outer replacement',()=>{
   for(const [language,open,close,innerOpen,innerClose] of [
     ['en','‘','’','“','”'],['en','“','”','‘','’'],['de','„','“','‚','‘'],
-    ['fr','«','»','“','”'],['sv','”','”','‘','’'],['pl','„','”','«','»'],
+    ['fr','«','»','“','”'],['sv','”','”','‘','’'],['pl','„','”','«','»'],['hr','„','”','„','”'],
     ['en','"','"',"'","'"],['en',"'","'",'“','”'],
   ]){
     const row=fixture('proposal-language-excerpts.json').languages.find(row=>row.language===language);
@@ -670,4 +670,24 @@ test('real Croatian plural insertion, replacement and deletion instructions clos
     assert.equal(candidates[0].instruction.operation,operation);
     assert.equal(instructionOperation(excerpt.paragraphs[excerpt.sourceParagraphIndices.indexOf(ordinal)],'hr'),operation);
   }
+});
+
+test('Croatian COM(2025)531 closes low-high quotations before dotted Roman outer instructions',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='croatian-roman-quotations'),result=parseProposal(excerpt,excerpt);
+  const [parent]=proposalCandidates(result,'Članak 2 – stavak 1 – točka 2 – podtočka a',{language:'hr'});
+  assert(parent);assert.deepEqual(parent.children.filter(u=>u.kind==='point').map(u=>u.label.value),['i','ii','iii']);
+  const expected=[['i',205,206,209],['ii',209,210,215],['iii',216,217,218]];
+  for(const [value,instruction,start,end] of expected){
+    const [unit]=proposalCandidates(result,`Članak 2 – stavak 1 – točka 2 – podtočka a – podtočka ${value}`,{language:'hr'});
+    assert(unit);assert.equal(unit.scope,'proposal');assert.equal(unit.extent.start,excerpt.sourceParagraphIndices.indexOf(instruction));
+    const quote=unit.children.find(u=>u.kind==='quotation');assert(quote);
+    assert.deepEqual(quote.extent,{start:excerpt.sourceParagraphIndices.indexOf(start),end:excerpt.sourceParagraphIndices.indexOf(end)});
+    assert(quote.children.every(child=>child.scope==='quoted'));assert(!flat(quote.children).some(child=>child.pathConflict));
+    assert.equal(unit.label.prefix,result.paragraphs[unit.extent.start].text.match(/^[ivxlcdm]+\.\s+/u)[0]);
+  }
+  assert(!result.gaps.some(g=>['duplicate-label','unclosed-quotation'].includes(g.code)));
+  const [b]=proposalCandidates(result,'Članak 2 – stavak 1 – točka 2 – podtočka b',{language:'hr'});
+  const quote=b.children.find(u=>u.kind==='quotation');
+  assert.equal(quote.extent.end,excerpt.sourceParagraphIndices.indexOf(223),'nested term quotations retain the whole replacement through paragraph 7');
+  assert.equal(proposalCandidates(result,'Članak 2 – stavak 1 – točka 3',{language:'hr'}).length,1);
 });
