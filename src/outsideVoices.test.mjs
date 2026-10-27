@@ -100,10 +100,29 @@ test('resolved agenda membership shows one debate and retains the original API l
   await act(async()=>container.querySelector('.ov-appearance-cards button').click());
   const drawer=container.querySelector('.ov-drawer');
   assert.equal(drawer.querySelectorAll('.ov-item').length,1);assert.equal(drawer.querySelectorAll('.ov-contribution').length,2);
-  assert.equal(drawer.querySelector('h3').textContent,'12. Discharge 2024 (joint debate)');
+  assert.equal(drawer.querySelector('h3').textContent,'Discharge 2024 (joint debate)');
   assert(!drawer.textContent.includes('Special event'));
   assert.equal(drawer.querySelectorAll('a[href$="CRE-10-2026-04-28-ITM-012_EN.html"]').length,2);
   assert.equal(drawer.querySelector('.ov-evidence'),null,'API identifiers are not shown');
+});
+
+test('agenda numbering is omitted across outside titles while source titles and languages remain intact',async t=>{
+  const day='2026-04-28',detail=speaker('42','Guest',[speech(day,'01',[item(day,'12-1')]),speech(day,'02',[item(day,13)])]);
+  detail.agendas[0].titles=detail.contributions[0].titles={hu:'12.1. Mentesítés 2024',en:'12.1. Discharge 2024'};
+  detail.agendas[1].titles=detail.contributions[1].titles={fr:'2024 priorités'};
+  const original=structuredClone(detail);
+  const {container,click,render}=await harness(t,[detail],'?view=outside&ov-person=42');
+  const titles=()=>[...container.querySelectorAll('.ov-appearance-cards strong,.ov-dossier strong')].map(n=>[n.textContent,n.lang]);
+  assert.deepEqual(titles(),[['Discharge 2024','en'],['2024 priorités','fr']]);
+  await render('hu');
+  assert.deepEqual(titles(),[['Mentesítés 2024','hu'],['2024 priorités','fr']]);
+  await click('Appearances');
+  assert.equal(container.querySelector('.ov-appearance summary span').textContent,'Mentesítés 2024 · 2024 priorités');
+  await click('Subjects & dossiers');
+  assert.deepEqual(titles(),[['Mentesítés 2024','hu'],['2024 priorités','fr']]);
+  await act(async()=>container.querySelector('.ov-dossier button').click());
+  assert.deepEqual([...container.querySelectorAll('.ov-drawer .ov-item h3')].map(n=>[n.textContent,n.lang]),[['Mentesítés 2024','hu'],['2024 priorités','fr']]);
+  assert.deepEqual(detail,original);
 });
 
 test('numbered transcript subitems retain their exact Debate link',async t=>{
@@ -122,6 +141,44 @@ test('only populated capacity buttons appear and stale empty-group links show al
   assert.equal(container.querySelector('.ov-groups button[aria-pressed=true]').textContent,'All speakers');
   assert.equal(container.querySelector('.ov-results strong').textContent,'1');
   await click('Other speakers');assert.equal(container.querySelector('.ov-results strong').textContent,'1');
+});
+
+test('timeline legends follow the displayed markers through filters and empty results',async t=>{
+  const debate=speaker('42','Debate guest',[speech('2026-01-07','01',[item('2026-01-07',1)])]);
+  const specialId=item('2026-04-07',2),lawId=item('2026-09-07',3);
+  const special=speaker('43','Special guest',[speech('2026-04-07','01',[specialId])],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
+  const law=speaker('44','Legislative guest',[speech('2026-09-07','01',[lawId])],{[lawId]:{legislative:true}});
+  const {container,change,navigate}=await harness(t,[debate,special,law]);
+  const legend=()=>[...container.querySelectorAll('.ov-legend>span')].map(n=>n.textContent);
+  assert.deepEqual(legend(),['■ Contributions','◇ Special event','L Legislative file']);
+  await change('Event','special');
+  assert.deepEqual(legend(),['◇ Special event']);
+  assert.equal(container.querySelectorAll('.ov-mark').length,1);
+  await change('Event','debate');
+  assert.deepEqual(legend(),['■ Contributions','L Legislative file']);
+  await navigate('?view=outside&ov-q=Debate');
+  assert.deepEqual(legend(),['■ Contributions']);
+  await navigate('?view=outside&ov-q=Legislative');
+  assert.deepEqual(legend(),['L Legislative file']);
+  await navigate('?view=outside&ov-q=Missing');
+  assert.equal(container.querySelector('.ov-legend'),null);
+  assert.equal(container.querySelectorAll('.ov-mark').length,0);
+  await navigate('?view=outside&ov-repeat=1');
+  assert.equal(container.querySelector('.ov-legend'),null);
+});
+
+test('clustered days only show legends for the resulting marker symbols',async t=>{
+  const debateId=item('2026-10-07',1),specialId=item('2026-10-08',2);
+  const detail=speaker('42','Mixed guest',[
+    speech('2026-10-07','01',[debateId]),speech('2026-10-08','02',[specialId]),
+  ],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
+  const {container,change}=await harness(t,[detail]);
+  assert.equal(container.querySelectorAll('.ov-mark').length,1);
+  assert(container.querySelector('.ov-mark.ov-special'));
+  assert.equal(container.querySelector('.ov-legend').textContent,'◇ Special event');
+  await change('Event','debate');
+  assert.equal(container.querySelector('.ov-legend').textContent,'■ Contributions');
+  assert(container.querySelector('.ov-mark:not(.ov-special)'));
 });
 
 test('historical URL filters cannot broaden directory, speaker or day-panel requests',async t=>{
