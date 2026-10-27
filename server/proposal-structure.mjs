@@ -306,8 +306,9 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     }
     // COM(2025)471/472 return to the paragraph's indentation after the last
     // lettered point. That unnumbered row starts the next subparagraph rather
-    // than extending the final point's subtree.
-    while(points.length && Number.isFinite(format?.indent)
+    // than extending the final point's subtree. A standalone terminator after
+    // a replacement quotation (COM(2025)531) still belongs to its instruction.
+    while(points.length && /[\p{L}\p{N}]/u.test(trim) && Number.isFinite(format?.indent)
       && Number.isFinite(content.paragraphFormats?.[points.at(-1).unit.extent.start]?.indent)
       && format.indent < content.paragraphFormats[points.at(-1).unit.extent.start].indent) points.pop();
     const parent=points.at(-1)?.unit??implicit(i);
