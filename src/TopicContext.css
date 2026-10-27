@@ -7,19 +7,23 @@
 .insight-subject-classification li {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;min-width:0;font-size:15px;line-height:1.5;}
 .insight-subject-classification li span {overflow-wrap:anywhere;}
 .insight-subject-classification small {color:var(--ink-muted);font-size:13px;white-space:nowrap;}
-.procedure-progress {padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid var(--line);min-width:0;container-type:inline-size;}
-.procedure-progress header {gap:8px 20px;}
+.procedure-progress {padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--line);min-width:0;container-type:inline-size;}
+.procedure-progress header {justify-content:flex-start;gap:4px 16px;}
+.procedure-progress header h3 {margin:0 auto 0 0;font-size:18px;line-height:1.4;}
+.procedure-progress header button {font-size:14px;}
 .procedure-progress-muted {color:var(--ink-muted);font-size:14px;line-height:1.6;}
-.procedure-progress-latest {display:grid;gap:6px;margin:20px 0;max-width:80ch;}
-.procedure-progress-latest strong {font-size:17px;line-height:1.5;}
-.procedure-progress-next {border-left:3px solid var(--accent);padding:12px 16px;background:var(--surface-2);border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin:20px 0;}
-.procedure-progress-next p {display:grid;gap:8px;margin:10px 0 0;}
+.procedure-progress-stage {font-size:14px;font-weight:600;}
+.procedure-progress-overview {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 16px;margin-top:8px;}
+.procedure-progress .procedure-progress-latest {display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px;margin:0;max-width:80ch;}
+.procedure-progress-latest strong {font-size:15px;font-weight:500;line-height:1.5;}
+.procedure-progress-next {border-left:2px solid var(--accent);padding:4px 12px;margin:12px 0;}
+.procedure-progress-next p {display:flex;flex-wrap:wrap;gap:4px 16px;margin:4px 0 0;}
 .procedure-progress-tag {display:inline-block;font-size:13px;color:var(--accent-strong);margin-bottom:5px;}
 .procedure-progress-tag-muted {color:var(--ink-muted);}
-.procedure-progress-status {padding-left:14px;border-left:2px solid var(--line);font-size:15px;max-width:80ch;}
+.procedure-progress-status {margin:8px 0;font-size:14px;color:var(--ink-muted);max-width:80ch;}
 .procedure-progress button,.procedure-progress select,.procedure-progress-documents summary {min-height:44px;}
 .procedure-progress button {padding:8px 14px;}
-.procedure-progress-toggle {margin-top:8px;}
+.procedure-progress-toggle {margin:0;font-size:14px;flex-shrink:0;}
 .procedure-progress-expanded {margin-top:20px;}
 .procedure-progress-filters {display:flex;align-items:end;flex-wrap:wrap;gap:16px;}
 .procedure-progress-filters label {display:grid;gap:8px;max-width:100%;font-size:14px;}
@@ -39,7 +43,7 @@
 .procedure-progress-documents li {padding:4px 0;overflow-wrap:anywhere;}
 .procedure-progress-documents a {display:inline-block;min-height:44px;padding:8px 0;font-size:15px;}
 @container(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}}
-@media(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-filters{align-items:start;}.procedure-progress-filters label{width:100%;}.procedure-progress-next{padding:12px;}.procedure-progress header>small{font-size:13px;}}
+@media(max-width:680px){.procedure-progress-timeline>li{grid-template-columns:1fr;gap:6px;}.procedure-progress-filters{align-items:start;}.procedure-progress-filters label{width:100%;}.procedure-progress-latest{gap:2px 12px;}}
 .insight-dossier-title {margin-bottom:24px;max-width:80ch;}
 .insight-dossier-title h2 {font-size:24px;line-height:1.4;margin:0 0 4px;}
 .dossier-identity-row {display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;}
