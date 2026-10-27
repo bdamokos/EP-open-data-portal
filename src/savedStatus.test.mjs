@@ -4,7 +4,7 @@ const baseline={activityVersion:3,activityIdsComplete:true,revision:'old',answer
 const member=(extra={})=>({kind:'mep',id:'42',title:'Fixture member',savedAt:1,...extra});
 const settle=()=>act(async()=>{});
 async function harness(t,items=[member()],v2=false) {
- const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+ const window=new Window({url:'http://localhost/'}),globals={window,document:window.document,Event:window.Event,IntersectionObserver:window.IntersectionObserver,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
  const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null;
@@ -39,7 +39,7 @@ async function harness(t,items=[member()],v2=false) {
  const tick=ms=>act(async()=>{t.mock.timers.tick(ms);});
  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
  function Checks({language}){controls.useSavedChecks(language);return null;}
- const render=(language='en',strict=false,following=true)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
+ const render=(language='en',strict=false,following=true,members)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{members,language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
  const click=async(text,scope=container)=>{await act(async()=>{const button=[...scope.querySelectorAll('button')].find(x=>x.textContent===text);assert(button,'Missing '+text+' in '+scope.textContent);button.click();});await settle();};
  const check=()=>click('Check for updates');
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
@@ -52,6 +52,20 @@ const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
 const dispatch=async(h,node,extra={},type='click')=>{const event=new h.window.MouseEvent(type,{bubbles:true,cancelable:true,button:0,...extra});await act(async()=>node.dispatchEvent(event));return event;};
 const speech={id:'late',title:'Late speech',titleLanguage:'fr',date:'2026-01-01',kind:'activity',recordKind:'speech',category:'plenary-contributions',mark:6};
 async function newSpeech(h){await h.render('en',true);await h.check();h.setStatus({generation:6});h.setDetail([['old',0,5],['late',0,6]],[speech]);await h.check();await settle();}
+
+test('Following affiliations use exact roster IDs, retain saved titles and omit former or loading affiliations',async t=>{
+ const h=await harness(t,[member({title:'Saved name'}),member({id:'43',title:'Same name'}),{kind:'question',id:'E-10-2026-003031',title:'Saved question',memberId:'42',savedAt:1}],true);
+ await h.render();
+ assert.equal(h.container.querySelectorAll('.explorer-saved-heading>.portrait img').length,2);
+ assert.equal(h.container.querySelector('.member-affiliation'),null);
+ await h.render('hu',false,true,[{id:42,firstName:'Roster',lastName:'Name',groupCode:'PPE',countryCode:'HU'},{id:44,firstName:'Same',lastName:'name',groupCode:'Renew',countryCode:'FR'}]);
+ const [current,former,question]=cards(h);
+ assert.equal(current.querySelector('h3').textContent,'Saved name');
+ assert.equal(current.querySelector('.member-affiliation').textContent,'EPP · Magyarország');
+ assert.equal(former.querySelector('.member-affiliation'),null,'a matching name at another ID cannot supply an affiliation');
+ assert(former.querySelector('.portrait img'));
+ assert.equal(question.querySelector('.portrait'),null);assert.equal(question.querySelector('.member-affiliation'),null);
+});
 
 test('navigation checks before Following opens, then waits four hours for a prepared snapshot',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);

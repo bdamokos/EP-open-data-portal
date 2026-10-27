@@ -1,3 +1,4 @@
+import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
 import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {matchesCommittee} from './memberFilters.mjs';
@@ -746,7 +747,7 @@ export default function App() {
   return (
     <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={view==='saved'?'saved':'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
-        {view === 'saved' ? <Suspense fallback={<ViewLoading language={lang} title="Following" embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : member ? (
+        {view === 'saved' ? <Suspense fallback={<ViewLoading language={lang} title="Following" embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved members={directory?.members} language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : member ? (
           <section className="explorer-profile">
             <button
               lang={lang}
@@ -770,9 +771,7 @@ export default function App() {
                   <br />
                   {profile.data?.lastName || selected?.lastName}
                 </h1>
-                <p lang="">
-                  {[selected?.countryCode,selected?.groupCode].filter(Boolean).join(' · ')}
-                </p>
+                <MemberAffiliation group={selected?.groupCode} country={selected?.countryCode} language={lang}/>
                 <SaveButton item={{kind:'mep',id:String(member),title:[profile.data?.firstName||selected?.firstName,profile.data?.lastName||selected?.lastName].filter(Boolean).join(' ')}}/>
               </div>
             </div>

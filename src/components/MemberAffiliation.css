@@ -1,0 +1,9 @@
+.member-affiliation {margin:4px 0;color:var(--ink-muted);font-size:14px;line-height:1.5;overflow-wrap:anywhere;}
+.member-affiliation__group {color:var(--ink);}
+.member-affiliation__group i {display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
+.member-affiliation--tag {font-size:.85em;}
+.member-affiliation--tag .member-affiliation__group {color:inherit;}
+@media(max-width:680px) {
+  .member-affiliation {font-size:13px;}
+  .member-affiliation--tag {font-size:.85em;}
+}
