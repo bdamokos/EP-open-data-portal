@@ -42,12 +42,13 @@ const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
   try {
-    if (wording.language === 'en' && ['motion-resolution','unknown'].includes(wording.baseline)) {
-      const ref=placementReference(wording.targetLabel);
+    if (['motion-resolution','unknown'].includes(wording.baseline)) {
+      const ref=placementReference(wording.targetLabel,wording.language,wording.proposedText);
       if(ref) {
-        const split=/^(\d+|[A-Z]+)([a-z]*)$/.exec(ref.kind==='point'?ref.paragraph:ref.label);
-        const segment={kind:ref.kind==='point'?'paragraph':ref.kind,value:ref.kind==='point'?ref.paragraph:ref.label,number:split?(/^\d+$/.test(split[1])?Number(split[1]):split[1]):null,suffix:split?.[2]||'',isNew:/\(\s*new\s*\)/i.test((wording.targetLabel||'').split('\n')[0])};
-        return {raw:wording.targetLabel,language:'en',complete:true,segments:ref.kind==='point'?[segment,{kind:'point',value:ref.label,number:null,suffix:'',isNew:false}]:[segment],unparsed:[]};
+        const segments=(ref.parents||[]).map(parent=>({kind:parent.kind,value:parent.label,number:/^\d+$/.test(parent.label)?Number(parent.label):null,suffix:'',isNew:false}));
+        segments.push({kind:ref.after?'heading':ref.kind,value:ref.label,base:ref.base,number:/^\d+$/.test(ref.base)?Number(ref.base):ref.base,suffix:ref.suffix,isNew:ref.isNew,
+          ...(ref.negative?{negative:true}:{}),...(ref.after?{after:ref.base}:{})});
+        return {raw:wording.targetLabel,language:wording.language,complete:true,segments,unparsed:[]};
       }
     }
     const raw = wording.targetPath?.proposal?.length === 1 ? wording.targetPath.proposal[0].raw : wording.targetLabel;
@@ -99,6 +100,9 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
       if(reason)return {status:'unverified',reason};
       candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===label.value&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
       if(introductory) {
+        // Repeated paragraph numbers elsewhere in a multilingual report do not
+        // determine the lead boundary of the unit containing the returned span.
+        candidates=candidates.filter(unit=>span.start>=unit.start&&span.end<=unit.end);
         candidates=candidates.map(unit=>{const children=units.filter(child=>child.parent===unit.start);return children.length?{...unit,end:Math.min(...children.map(child=>child.start))-1}:null;});
         if(candidates.some(unit=>!unit))return {status:'unverified',reason:'oracle-introductory-part-unavailable'};
       }
@@ -123,6 +127,46 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
     if(candidates.length===1)return {...verified('oracle-addressed-source-span'),originalOccurrences:count};
   }
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
+}
+
+function verifyResolutionInsertion(text,wording,target,placement) {
+  const label=target.segments.at(-1);
+  if(!label.isNew||label.negative)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const raw=rawResolutionUnits(text,wording.language);
+  if(raw.reason)return {status:'unverified',reason:raw.reason};
+  const units=raw.units,parents=target.segments.slice(0,-1);
+  const owns=unit=>{
+    let at=units.find(candidate=>candidate.start===unit.parent);
+    for(const wanted of [...parents].reverse()) {
+      if(!at||at.kind!==wanted.kind||at.label!==wanted.value)return false;
+      at=units.find(candidate=>candidate.start===at.parent);
+    }
+    return true;
+  };
+  const kind=label.after?'paragraph':label.kind;
+  if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
+  const before=suffix=>wording.language==='fr'?suffixOrder(suffix)<suffixOrder(label.suffix):suffix<label.suffix;
+  const preceding=family.filter(unit=>unit.label===String(label.base)||!label.after&&unit.label.startsWith(String(label.base))&&/^[a-z]+$/u.test(unit.label.slice(String(label.base).length))&&before(unit.label.slice(String(label.base).length)));
+  const anchor=preceding.sort((a,b)=>a.start-b.start).at(-1);
+  if(!anchor?.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+  if(!label.after&&family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
+  // Independently reject a predecessor that appears after a later-numbered
+  // sibling, even if the placement happened to use that raw extent.
+  const numeric=value=>/^(\d+|[A-Z]+)([a-z]*)$/u.exec(value);
+  const position=base=>/^\d+$/u.test(base)?Number(base):ordinal(base);
+  const ordered=family.filter(unit=>numeric(unit.label));
+  for(let i=1;i<ordered.length;i++) {
+    const previous=numeric(ordered[i-1].label),current=numeric(ordered[i].label);
+    if(position(previous[1])>position(current[1])
+      || position(previous[1])===position(current[1])&&suffixOrder(previous[2])>=suffixOrder(current[2]))return fail('oracle-previous-sibling-order');
+  }
+  const next=family.find(unit=>unit.start>anchor.start),nextLabel=next&&numeric(next.label),wanted=position(String(label.base));
+  if(!label.after&&nextLabel&&wanted!=null&&(position(nextLabel[1])<wanted||position(nextLabel[1])===wanted&&suffixOrder(nextLabel[2])<=suffixOrder(label.suffix)))return fail('oracle-next-sibling-order');
+  if(placement.insertBefore!==anchor.end+1||placement.insertAfter!==anchor.end)return fail('oracle-insertion-boundary-mismatch');
+  return verified('oracle-sibling-boundary');
 }
 
 /** Independent assertions on the returned source coordinates, never another
@@ -154,6 +198,7 @@ export function verifyPlacement({placement, wording, items, text, target = parse
     return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
   const label = target.segments.at(-1), rank = suffixOrder(label.suffix);
   if (!label.isNew || !rank || label.number == null) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   let siblings, anchor, end;
@@ -168,21 +213,6 @@ export function verifyPlacement({placement, wording, items, text, target = parse
     siblings = all.filter(u => u.kind === label.kind && parentKey(u) === parentKey(anchor)).map(u => ({...u, number:u.label?.number, suffix:u.label?.suffix || '', start:u.extent.start}));
     anchor = {...anchor, number:anchor.label?.number, suffix:anchor.label?.suffix || '', start:anchor.extent.start};
     end = anchor.extent.end;
-  } else {
-    if (wording.language !== 'en' || !['paragraph','recital'].includes(label.kind)) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-    const raw=rawResolutionUnits(text,wording.language);
-    if(raw.reason)return {status:'unverified',reason:raw.reason};
-    const units=raw.units;
-    const split = value => {const match = /^(\d+|[A-Z]+)([a-z]*)$/.exec(value); return match ? {number:/^\d+$/.test(match[1])?Number(match[1]):match[1],suffix:match[2]} : {number:null,suffix:''};};
-    const bases=units.filter(u=>u.kind===label.kind&&u.label===String(label.number));
-    if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
-    const base=bases[0];
-    siblings=units.filter(u=>u.kind===label.kind&&u.parent===base.parent&&u.group===base.group).map(u=>({...u,...split(u.label)}));
-    const preceding=siblings.filter(u=>u.number===label.number&&suffixOrder(u.suffix)!==null&&suffixOrder(u.suffix)<rank).sort((a,b)=>suffixOrder(a.suffix)-suffixOrder(b.suffix));
-    anchor=preceding.at(-1);
-    if(!anchor||!anchor.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
-    if (target.segments.length !== 1) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-    end = anchor.end+1;
   }
   // Recital letters are carried as value rather than number by the parser.
   const wanted = label.number;
