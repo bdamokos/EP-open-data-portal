@@ -29,6 +29,15 @@ test('published translated resolution labels preserve native numbering and scrip
   assert.equal(resolveAmendmentPlacement(body(['M','N']),options).reason,'relative_target_not_found','Latin and Cyrillic letters are different source labels');
 });
 
+test('a Greek parenthesised subheading closes paragraph 34 before its inserted sibling',()=>{
+  // A-10-2026-0272-AM-119, official Greek report: the heading is a separate
+  // wholly bold/italic row between 34 and 35, not a continuation of 34.
+  const heading='Δοκιμαστικά σχέδια και προπαρασκευαστικές ενέργειες (ΔΣ-ΠΕ)';
+  const text=document(['Το Ευρωπαϊκό Κοινοβούλιο,','34. τροποποιεί τα σχόλια του προϋπολογισμού κατά περίπτωση·',heading,'35. υπογραμμίζει τη σημασία των δοκιμαστικών σχεδίων·'],{textLanguage:'el',paragraphFormats:[{},{},{marks:[{kind:'bold',start:0,end:heading.length},{kind:'italic',start:0,end:heading.length}]},{}]});
+  const placement=resolveAmendmentPlacement(text,{language:'el',baseline:'motion-resolution',originalText:'',proposedText:'Νέο κείμενο',targetLabel:'Παράγραφος 34 α (νέα)'});
+  assert.equal(placement.status,'placed');assert.equal(placement.insertAfter,1);assert.equal(placement.insertBefore,2);
+});
+
 test('exact quote comparison collapses whitespace without changing source strings', () => {
   const text = document(['D.\twhereas the text has\u00a0spaces;']);
   const copy = structuredClone(text);

@@ -349,7 +349,7 @@ function motionStructure(text, language) {
       close(index - 1);
       kind = 'heading'; label = value; level = 0;
     }
-    else if (recordedHeading || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
+    else if (recordedHeading || resolutionSubheading(row.value, formats[index]) || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
       // Recorded outline headings also close scope when their text resembles prose.
       // A whole-row bold/italic EP subheading followed immediately by a
       // complete numbered provision closes the preceding extent. Plain or
