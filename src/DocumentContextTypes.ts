@@ -6,12 +6,13 @@ import type {PublicationDocument} from './explorerTypes';
 export type DocumentContextRequest={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void;backLabel?:string;summary?:ReactNode};
 export type ContextSource={url:string;fetchedAt:string;contentHash:string;stale:boolean;refreshInProgress:boolean;refreshError:string|null;language?:string|null;resolvedSourceUrl?:string;retrievedByteSize?:number;sourceVersion?:{byteSize:number|null;issued:string|null}};
 export type DocumentContextResponse={
-  version:14;
+  version:number;
   baseline?:null|{kind:'commission-proposal'|'council-position';celex:string|null;workId:string|null;language:string;status:string;items:{kind:'act'|'annex';index:number;source:{url:string;resolvedSourceUrl?:string;fetchedAt:string;sha256:string;stale:boolean;refreshError:string|null}}[];gaps:unknown[];attribution:string};
   proposal?:null|{items:{kind:'act'|'annex';index:number;proposal:ProposalDocument}[]};
   documentId:string;
   requestedLanguage:string;
   requestedWordingLanguage?:string|null;
+  wordingLanguageFallback?:{listId:string;requestedLanguage:string;language:string}|null;
   document:PublicationDocument|null;
   related:{status:'not-requested'|'available'|'partial'|'unavailable';items:(Omit<PublicationDocument,'selectedText'>&{relationship:{from:string;field:'adopts';to:string};source:ContextSource})[];gaps:string[]};
   amendment:null|{id:string;status:'available'|'unavailable';basis:'index'|'published-list'|null;variants:{listId:string;language:string|null;baseline?:'commission-proposal'|'present-text'|'council-position'|'motion-resolution'|'other'|'unknown'|null;baselineSource?:{category:string;headings:{left:{raw:string|null;category:string};right:{raw:string|null;category:string}}[];conflicted:boolean;language:string|null;sourceUrl:string|null;fetchedAt:string|null}|null;documentReferences?:{field:string;raw:string;sourceRaw?:string;scope?:string}[]|null;targetPath?:{proposal:{raw:string;labels:{raw:string}[]}[];underlying:{document:string|null;raw:string;labels:{raw:string}[]}[];language?:string|null;sourceUrl?:string|null;fetchedAt?:string|null}|null;targetLabel:string|null;targetLabelLanguage?:string|null;targetLabelSource?:Partial<ContextSource>|null;fieldSources?:Record<string,unknown>|null;wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];authors:{name:string;personId?:string|null;status?:string}[];source:Partial<ContextSource>|null;sourceFreshness?:{status:string}|null;parserVersion?:string;textParserVersion?:string|null;wordingRetained?:boolean|null;proposerRetained?:boolean|null;recordRetained?:boolean|null;listRelationship?:string|null;metadataSource?:Partial<ContextSource>|null;proposerSource?:Partial<ContextSource>|null;gaps:unknown[]}[];gaps:string[]};

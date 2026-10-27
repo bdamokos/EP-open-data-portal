@@ -166,3 +166,14 @@ test('an exact frozen public file declaration supplements a missing metadata lan
   assert.equal(result.stages.S4.projection.fileDeclarationSource.language,'en');
   assert.equal(result.stages.S4.projection.fileDeclarationSource.catalogue.url,contextUrl(apiBase,f.document,'en'));
 });
+
+test('translated-wording extraction helper retains the measured runtime on sealed replay',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-runtime-extractor-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const runtime=await replayRuntime(root),f=fixture(false),cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:10,delay:0,sleep:async()=>{},fetcher:f.fetcher});
+  await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));await cache.seal(cache.manifest());const requests=cache.requests;
+  const broken={...runtime,extractAmendments:()=>{throw new Error('synthetic measured extractor failure');}};
+  const [before]=await evaluateReport([f.row],sample,cache,{runtime:broken,replay:sourceReplay(cache,broken)});
+  assert.equal(before.outcome,'withheld-pipeline');assert.equal(before.stages.S2.reason,'docx-parser-error');
+  const [after]=await evaluateReport([f.row],sample,cache,{runtime,replay:sourceReplay(cache,runtime)});
+  assert.equal(after.outcome,'correct');assert.equal(cache.requests,requests);
+});

@@ -16,6 +16,7 @@ import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
 import {checkoutProducers} from './amendment-benchmark-producers.mjs';
+import {acquireLanguageVariants,languageVariantContext} from './amendment-benchmark-languages.mjs';
 import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
 export function options(args) {
@@ -24,6 +25,7 @@ export function options(args) {
   for(let i=0;i<args.length;i++) {
     const arg=args[i];
     if(arg==='--placement-only'){result.placementOnly=true;continue;}
+    if(arg==='--language-variants'){result.languageVariants=true;continue;}
     if(arg==='--acquire-only'){result.acquireOnly=true;continue;}
     if(arg==='--fetch'){result.fetchMissing=true;continue;}
     if(arg==='--help'){result.help=true;continue;}
@@ -110,31 +112,46 @@ export async function acquireReport(rows,sample,cache,replay) {
     for(const saved of [plain,proposal])if(saved.value&&saved.value.documentId!==rows[0].targetDocumentId)throw new Error('Context identity unavailable or inconsistent: '+saved.input.url);
     contexts.set(language,{plain,proposal});
   }
-  if(replay){replay.observeFiles(rows[0].targetDocumentId,contexts);await replay.acquire(rows[0].targetDocumentId,[...contexts.keys()],references);}
+  if(cache.languageVariants)contexts.languageVariants=await acquireLanguageVariants(rows.filter(row=>decisionsInSample(row,sample).length),contexts,cache);
+  if(replay){replay.observeFiles(rows[0].targetDocumentId,contexts);await replay.acquire(rows[0].targetDocumentId,[...new Set([...contexts.keys(),...[...(contexts.languageVariants?.values()||[])].map(saved=>saved.language)])],references);}
   return contexts;
 }
 
 export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache);
+  const extractionFor=async variant=>{
+    const url=variant.wordingSource?.url,language=variant.language||null,key=JSON.stringify([url,variant.listId,language]);
+    if(!extractions.has(key)) {
+      const input=await cache.get(url);let extraction=null,error=null;
+      if(input.ok)try{extraction=(runtime?.extractAmendments||extractAmendments)(input.body,{listId:variant.listId,targetDocumentId:rows[0].targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
+      extractions.set(key,{input,extraction,error});
+    }
+    return extractions.get(key);
+  };
   if(replay)replay.observeFiles(rows[0].targetDocumentId,contexts);
   const projected=new Map();
   const work=replay&&selected.length?(await replay.request('/plenary-documents/'+rows[0].targetDocumentId)).payload.data[0]:null;
   for(const row of selected) {
-    const variant=variants(row)[0],language=variant?.language||null,decisions=decisionsInSample(row,sample);
+    const originalVariant=variants(row)[0];
+    const available=contexts.get(originalVariant?.language||'en')?.plain.value?.document?.selectedText?.availableTextLanguages||[];
+    let translated=available.includes(originalVariant?.language)?null:contexts.languageVariants?.get(originalVariant?.listId);
+    // A legislative amendment uses its baseline language, independently of the
+    // report body's publication languages. Acquisition remains extraction-free.
+    if(translated&&originalVariant.wordingSource?.url&&allowedInput(originalVariant.wordingSource.url,cache.apiBase)) {
+      const original=await extractionFor(originalVariant);
+      const comparison=original.extraction?.amendments.find(amendment=>amendment.number===row.number)?.baseline;
+      if(['commission-proposal','council-position'].includes(comparison))translated=null;
+    }
+    const variant=translated?{...originalVariant,language:translated.language,wordingSource:{...originalVariant.wordingSource,url:translated.wording.url}}:originalVariant;
+    const language=variant?.language||null,decisions=decisionsInSample(row,sample);
     const stages={S1:passed({decisionIds:decisions.map(d=>d.id)}),S2:blocked('wording-not-evaluated'),S3:blocked('target-not-evaluated'),S4:blocked('baseline-not-evaluated'),S5:{status:'unresolved',reason:'placement-not-evaluated'},S6:{status:'not-applicable',reason:'not-placed'}};
     if(!decisions.length||decisions.some(d=>!d.id||!d.source?.url||!d.source?.fetchedAt||!(d.amendmentIds||[]).some(id=>id===row.id||(row.officialIds||[]).includes('eli/dl/doc/'+id))))stages.S1=blocked('decision-linkage-unverified');
     const url=variant?.wordingSource?.url;let wording=null,gaps=[],fetched=null;
     if(!url||!variant.listId)stages.S2=blocked('wording-source-not-indexed');
     else if(!allowedInput(url,cache.apiBase))stages.S2=blocked('input-unsupported-public-url');
     else {
-      const key=JSON.stringify([url,variant.listId,language]);
-      if(!extractions.has(key)) {
-        const input=await cache.get(url);let extraction=null,error=null;
-        if(input.ok)try {extraction=(runtime?.extractAmendments||extractAmendments)(input.body,{listId:variant.listId,targetDocumentId:row.targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
-        extractions.set(key,{input,extraction,error});
-      }
-      const {input,extraction,error}=extractions.get(key);fetched=input;
+      const {input,extraction,error}=await extractionFor(variant);fetched=input;
       if(!input.ok)stages.S2=blocked([404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable'));
       else if(error)stages.S2=blocked('docx-parser-error');
       else {
@@ -154,7 +171,8 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
       // from the sealed upstream bytes through the measured checkout.
       const commission=wording.baseline==='commission-proposal';
       const council=wording.baseline==='council-position',structured=commission||council;
-      const {input,value}=contexts.get(language||'en')[commission?'proposal':'plain'];
+      const pair=contexts.get(originalVariant?.language||'en');
+      const {input,value}=translated&&!structured?languageVariantContext(translated,pair.plain,runtime):pair[commission?'proposal':'plain'];
       let items=value?.proposal?.items,text=value?.document?.selectedText,baseline=value?.baseline;
       if(replay) {
         const key=JSON.stringify([language,wording.baseline,structured?wording.documentReferences:[]]);
@@ -198,7 +216,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
     const provisional=decisions.length>0&&decisions.every(d=>!placeableDecision(d));
     const classified=provisional?{outcome:'not-placeable',reason:'provisional-agreement'}:classify(stages);
     const baseline=wording?.baseline||variant?.baseline;
-    results.push({key:row.id,id:row.id,documentId:row.targetDocumentId,documentType:row.targetDocumentId.startsWith('A-')?(['commission-proposal','council-position'].includes(baseline)?'legislative-report':baseline==='motion-resolution'?'A-resolution':'A-unresolved'):'B/RC-resolution',number:row.number,listId:variant?.listId||null,language,targetLabel:wording?.targetLabel||variant?.targetLabel||null,acquisition:{contextVersions:[...new Set([...contexts.values()].flatMap(pair=>[pair.plain.value?.version,pair.proposal.value?.version]))],projectionVersions:[...contexts].map(([language,pair])=>({language,documentExtraction:pair.plain.value?.document?.selectedText?.extractionVersion??null,proposalParsers:[...new Set((pair.proposal.value?.proposal?.items||[]).map(item=>item.proposal.parserVersion))]})),status:stages.S4.reason?.startsWith('acquisition-')?'unavailable':'available'},wordingSource:fetched?{url:fetched.url,resolvedSourceUrl:fetched.resolvedSourceUrl||fetched.url,fetchedAt:fetched.fetchedAt,sha256:fetched.sha256,status:fetched.status}:null,variantAlternatives:variants(row).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url||null})),notPlaceableVoteIds:[...new Set(decisions.filter(d=>!placeableDecision(d)).map(d=>d.id))].sort(),voteIds:[...new Set(decisions.filter(placeableDecision).map(d=>d.id))].sort(),patterns:targetPatterns(wording||variant,gaps),stages,...classified});
+    results.push({key:row.id,id:row.id,documentId:row.targetDocumentId,documentType:row.targetDocumentId.startsWith('A-')?(['commission-proposal','council-position'].includes(baseline)?'legislative-report':baseline==='motion-resolution'?'A-resolution':'A-unresolved'):'B/RC-resolution',number:row.number,listId:variant?.listId||null,language,targetLabel:wording?.targetLabel||variant?.targetLabel||null,acquisition:{contextVersions:[...new Set([...contexts.values()].flatMap(pair=>[pair.plain.value?.version,pair.proposal.value?.version]))],projectionVersions:[...contexts].map(([language,pair])=>({language,documentExtraction:pair.plain.value?.document?.selectedText?.extractionVersion??null,proposalParsers:[...new Set((pair.proposal.value?.proposal?.items||[]).map(item=>item.proposal.parserVersion))]})),status:stages.S4.reason?.startsWith('acquisition-')?'unavailable':'available'},wordingSource:fetched?{url:fetched.url,resolvedSourceUrl:fetched.resolvedSourceUrl||fetched.url,fetchedAt:fetched.fetchedAt,sha256:fetched.sha256,status:fetched.status}:null,variantAlternatives:[...variants(row).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url||null})),...(translated?[{listId:variant.listId,language,url:variant.wordingSource.url}]:[])],notPlaceableVoteIds:[...new Set(decisions.filter(d=>!placeableDecision(d)).map(d=>d.id))].sort(),voteIds:[...new Set(decisions.filter(placeableDecision).map(d=>d.id))].sort(),patterns:targetPatterns(wording||variant,gaps),stages,...classified});
   }
   return results;
 }
@@ -214,13 +232,13 @@ async function checkoutIdentity(root,runtime) {
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','package-lock.json'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-languages.mjs','package-lock.json'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--acquire-only] [--runtime-root CLEAN_CHECKOUT]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
+  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
   if(!opts.apiBase)throw new Error('Provide --api-base or AMENDMENT_BENCHMARK_API_BASE; no deployment host is built in.');
   const root=fileURLToPath(new URL('../',import.meta.url)),runtimeRoot=path.resolve(opts.runtimeRoot||root),runtime=await replayRuntime(runtimeRoot),code=await checkoutIdentity(runtimeRoot,runtime),harness=await harnessIdentity(root);
   if(opts.placementOnly)process.stderr.write('NOTE: --placement-only is a compatibility alias for full cached-source replay; producer changes are evaluated.\n');
@@ -231,6 +249,7 @@ export async function main(args=process.argv.slice(2)) {
   try {
   const inputs=path.join(directory,'inputs');await mkdir(inputs,{recursive:true});
   const cache=new InputCache(inputs,opts);
+  cache.languageVariants=Boolean(opts.languageVariants);
   const snapshotPath=path.join(directory,'snapshot.json');let snapshot;
   try{snapshot=JSON.parse(await readFile(snapshotPath,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
   if(!snapshot){snapshot={schemaVersion:3,apiBase:opts.apiBase,asOf:opts.asOf||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels'}).format(new Date())};await writeFile(snapshotPath,JSON.stringify(snapshot)+'\n');}
@@ -239,7 +258,7 @@ export async function main(args=process.argv.slice(2)) {
   opts.asOf=opts.asOf||snapshot.asOf;
   spool=await mkdtemp(path.join(output,'spool-'));
   const index=await catalogue(cache,opts,spool);
-  const sample={term:10,asOf:opts.asOf,mode:opts.documents.length?'documents':opts.from?'date-window':'plenary-weeks',...(opts.documents.length?{documents:opts.documents}:opts.from?{from:opts.from,to:opts.to}:{requestedWeeks:opts.weeks,weeks:index.weeks}),decisionBasis:'indexed-plenary-decision-date',variantPolicy:'one exact variant per amendment: English, then language code, then list ID',indexGeneration:index.generation,indexedAmendments:index.indexed};
+  const sample={term:10,asOf:opts.asOf,mode:opts.documents.length?'documents':opts.from?'date-window':'plenary-weeks',...(opts.documents.length?{documents:opts.documents}:opts.from?{from:opts.from,to:opts.to}:{requestedWeeks:opts.weeks,weeks:index.weeks}),decisionBasis:'indexed-plenary-decision-date',variantPolicy:'one exact variant per amendment: English, then language code, then list ID',...(opts.languageVariants?{languageVariantInputs:'exact declared list translations and matching document DOCX'}:{}),indexGeneration:index.generation,indexedAmendments:index.indexed};
   const filenames=(await readdir(spool)).sort();
   // Complete and seal acquisition before invoking any checkout extraction or
   // placement. The evaluation phase cannot fill even a previously unseen URL.

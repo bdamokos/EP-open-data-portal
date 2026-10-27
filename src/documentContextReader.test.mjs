@@ -379,6 +379,27 @@ function overlayResponse({operation='insert',status='placed',reason,span,insertA
   });
 }
 const overlayRequest={documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}};
+
+test('a verified matching-document translation renders its own wording and actual text language',async t=>{
+  const value=overlayResponse();
+  value.document.selectedText.textLanguage='fr';value.document.selectedText.availableTextLanguages=['fr','es'];
+  value.wordingLanguageFallback={listId:list,requestedLanguage:'en',language:'fr'};
+  value.amendment.variants=[wordingVariant('en'),wordingVariant('fr',{originalText:'19. Texte original;',proposedText:'19. Texte proposé;'})];
+  value.target.evidence=pinnedEvidence('fr');
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
+  assert(block);assert(block.textContent.includes('Texte proposé'));assert(!block.textContent.includes('Proposed wording.'));
+  assert(h.container.querySelector('.document-context-language').textContent.includes('French'));
+  assert.equal(h.container.querySelector('.document-context-text').lang,'fr');
+});
+
+test('a translation cannot replace an available explicitly requested wording language',async t=>{
+  const value=overlayResponse();value.document.selectedText.textLanguage='fr';value.document.selectedText.availableTextLanguages=['en','fr'];
+  value.wordingLanguageFallback={listId:list,requestedLanguage:'en',language:'fr'};
+  value.amendment.variants=[wordingVariant('en'),wordingVariant('fr')];value.target.evidence=pinnedEvidence('fr');
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  assert.equal(h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]'),null);
+});
 test('placed insertion renders a framed WordingDiff between complete paragraph 19 and paragraph 20, with focus',async t=>{
   const h=await harness(t,()=>overlayResponse());await h.render({request:overlayRequest,language:'en'});
   const reader=h.container.querySelector('.document-context-text'),children=[...reader.children],block=reader.querySelector('[data-amendment-block]');

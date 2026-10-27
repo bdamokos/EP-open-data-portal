@@ -91,14 +91,22 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const text:DocumentText|undefined=document?.selectedText,reader=useRef<HTMLDivElement>(null),notePrefix='context-notes-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const target=data?.target,allParagraphs=text?.paragraphs||[],indices=target?.paragraphs||[];
   const wordingPinned=amendmentRequest?.wordingLanguage!==undefined;
-  const pinnedVariants=wordingPinned?data?.amendment?.variants.filter(variant=>variant.listId===amendmentRequest?.listId&&variant.language===amendmentRequest?.wordingLanguage)||[]:[];
+  const fallback=data?.wordingLanguageFallback;
+  const fallbackMatches=Boolean(fallback&&fallback.listId===amendmentRequest?.listId&&fallback.requestedLanguage===amendmentRequest?.wordingLanguage&&
+    text?.availableTextLanguages?.length&&!text.availableTextLanguages.includes(fallback.requestedLanguage)&&text.availableTextLanguages.includes(fallback.language)&&text.textLanguage===fallback.language);
+  const selectedWordingLanguage=fallbackMatches?fallback!.language:amendmentRequest?.wordingLanguage;
+  const pinnedVariants=wordingPinned?data?.amendment?.variants.filter(variant=>variant.listId===amendmentRequest?.listId&&variant.language===selectedWordingLanguage)||[]:[];
   const evidence=target?.evidence;
   const pinnedTargetMatches=Boolean(amendmentRequest?.listId&&typeof amendmentRequest.wordingLanguage==='string'&&pinnedVariants.length===1&&pinnedVariants[0].wordingStatus==='available'&&
-    evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===amendmentRequest.listId&&evidence?.wordingLanguage===amendmentRequest.wordingLanguage&&text?.textLanguage===amendmentRequest.wordingLanguage);
-  const amendmentMatches=amendmentRequest?.amendmentId&&data?.amendment?.id===amendmentRequest.amendmentId&&(wordingPinned?pinnedTargetMatches:data.amendment.status==='available'&&(!amendmentRequest.listId||data.amendment.variants.length===1&&data.amendment.variants[0].listId===amendmentRequest.listId));
+    evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===amendmentRequest.listId&&evidence?.wordingLanguage===selectedWordingLanguage&&text?.textLanguage===selectedWordingLanguage);
+  const variantLists=new Set(data?.amendment?.variants.map(variant=>variant.listId));
+  const variants=data?.amendment?.id===amendmentRequest?.amendmentId?data?.amendment?.variants.filter(variant=>(!amendmentRequest?.listId||variant.listId===amendmentRequest.listId)&&
+    (wordingPinned?variant.language===selectedWordingLanguage:variantLists.size===1&&evidence?variant.language===evidence.wordingLanguage:true))||[]:[];
+  const amendmentMatches=amendmentRequest?.amendmentId&&data?.amendment?.id===amendmentRequest.amendmentId&&(wordingPinned?pinnedTargetMatches:evidence?variants.length===1&&variants[0].wordingStatus==='available'&&
+    evidence.amendmentId===amendmentRequest.amendmentId&&evidence.listId===variants[0].listId&&evidence.wordingLanguage===variants[0].language&&text?.textLanguage===variants[0].language:
+    data.amendment.status==='available'&&(!amendmentRequest.listId||data.amendment.variants.length===1&&data.amendment.variants[0].listId===amendmentRequest.listId));
   const found=Boolean(!data?.placement&&amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
   const placement=data?.placement;
-  const variants=data?.amendment?.id===amendmentRequest?.amendmentId?data?.amendment?.variants.filter(variant=>(!amendmentRequest?.listId||variant.listId===amendmentRequest.listId)&&(!wordingPinned||variant.language===amendmentRequest?.wordingLanguage))||[]:[];
   const wording=variants.length===1&&variants[0].wordingStatus==='available'?variants[0]:null;
   const reportHeading=data?.amendment?.id===amendmentRequest?.amendmentId&&data?.placement?.reason==='amendment_wording_unavailable'&&!wording?
     reportAmendmentHeading(text,id,amendmentRequest?.amendmentId,amendmentRequest?.listId):null;
