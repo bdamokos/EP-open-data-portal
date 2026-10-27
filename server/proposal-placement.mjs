@@ -224,10 +224,8 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,originalText)}));
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
-  if(!matching.length&&matches.every(candidate=>candidate.match.reason==='conflicting_target_evidence')){
-    const fallback=ancestorFallback(target,originalText,candidatesFor);
-    if(fallback)return placedMatch(fallback,'ancestor-unique-wording');
-  }
+  // A resolved address with different wording is a conflict, even when a
+  // unique passage occurs elsewhere in its ancestor. Repair numbering first.
   if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');

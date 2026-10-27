@@ -205,3 +205,11 @@ test('an address without Annex excludes an annex item even when it lacks an anne
   assert.equal(placed.status,'placed');assert.equal(placed.itemIndex,1);assert.equal(placed.insertBefore,2);
   assert.equal(resolveProposalPlacement([annex],{...options,targetLabel:'Article 1a – paragraph 1',originalText:'Uncontained annex item.'}).status,'unresolved');
 });
+
+test('a resolved point with different wording never recovers through its ancestor',()=>{
+  // A-10-2026-0267 AM15: shifted point numbering must be repaired before
+  // the published address and independent placement oracle can agree.
+  const projection=source(['Article 1','1. Lead:','(a) Text at the parsed address.','(b) Unique amendment quotation.']);
+  const placed=resolve(projection,'Article 1 – paragraph 1 – point a','Unique amendment quotation.');
+  assert.equal(placed.status,'unresolved');assert.equal(placed.reason,'conflicting_target_evidence');
+});
