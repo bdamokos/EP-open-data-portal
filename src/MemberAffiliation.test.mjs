@@ -14,7 +14,7 @@ test('member affiliations omit gaps and render localized lines and accessible co
   for(const variant of ['line','tag']){
     for(const group of [undefined,null,'','Unknown','unavailable'])for(const country of [undefined,null,'','unknown','HUN','H'])assert.equal(render({group,country,variant}).innerHTML,'');
     const groupOnly=render({group:'PPE',country:'unknown',variant});assert.equal(groupOnly.textContent,'EPP');assert.equal(groupOnly.querySelectorAll('i').length,1);
-    const countryOnly=render({country:'HU',variant});assert.equal(countryOnly.textContent,variant==='tag'?'HU':'Hungary');assert.equal(countryOnly.querySelector('i'),null);assert.doesNotMatch(countryOnly.textContent,/·/);
+    const countryOnly=render({country:'HU',variant});assert.equal(countryOnly.textContent,variant==='tag'?'HUHungary':'Hungary');assert.equal(countryOnly.querySelector('i'),null);assert.doesNotMatch(countryOnly.textContent,/·/);
   }
   const line=render({group:'PPE',country:'HU',language:'hu'});
   assert.equal(line.firstElementChild.tagName,'P');assert.equal(line.textContent,'EPP · Magyarország');assert.equal(line.querySelector('[lang="hu"]').textContent,'Magyarország');
@@ -23,7 +23,7 @@ test('member affiliations omit gaps and render localized lines and accessible co
     const result=render({group,country:'EL'});assert.equal(result.querySelector('.member-affiliation__group').lang,'en');assert.equal(result.textContent,label+' · Greece');
   }
   const tag=render({group:'PPE',country:'HU',variant:'tag'}).firstElementChild;
-  assert.equal(tag.tagName,'SPAN');assert.ok(tag.classList.contains('member-affiliation--tag'));assert.equal(tag.textContent,'EPP · HU');assert.equal(tag.title,'Hungary');assert.equal(tag.getAttribute('aria-label'),'EPP, Hungary');
+  assert.equal(tag.tagName,'SPAN');assert.ok(tag.classList.contains('member-affiliation--tag'));assert.equal(tag.textContent,'EPP · HUHungary');assert.equal(tag.title,'Hungary');assert.equal(tag.getAttribute('aria-label'),null);assert.equal(tag.querySelector('[aria-hidden="true"]').tagName,'I');assert.equal(tag.querySelector('.member-affiliation__country-name').textContent,'Hungary');assert.equal(tag.querySelector('[lang="en"]>[aria-hidden="true"]').textContent,'HU');
   const {groupLabel,groupColor,groupTokens}=await load('/src/groupLabels.ts');
   const charts=await load('/src/InsightCharts.tsx');assert.equal(charts.groupLabel,groupLabel);assert.equal(charts.groupColor,groupColor);assert.equal(charts.groupTokens,groupTokens);
 });

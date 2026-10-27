@@ -1,3 +1,4 @@
+import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import {PersonName} from './PersonName';
 import {Fragment,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {selectLanguageText} from './language.mjs';
@@ -138,7 +139,7 @@ function AmendmentAuthors({item,language,onMember}:{item:Amendment;language:stri
     return <span key={String(author.personId||author.name)+':'+index}>{index>0?', ':''}{linked?<a href={insightMemberHref(String(author.personId),language)} onClick={onMember?event=>{
       if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;
       event.preventDefault();onMember(Number(author.personId));
-    }:undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a>:<><span lang="">{author.name}</span><small> ({note})</small></>}</span>;
+    }:undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a>:<><span lang="">{author.name}</span><small> ({note})</small></>}<RecordMemberAffiliation id={author.personId} language={language}/></span>;
   })}{item.committeeProposer&&<p>Committee proposer: <span lang={item.proposerSource?.language??''}>{item.committeeProposer}</span></p>}{onBehalfOf&&<p>{!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf)&&'On behalf of '}<span lang="">{onBehalfOf}</span></p>}</div>;
 }
 function SourceVariants({item,language}:{item:Amendment;language:string}) {

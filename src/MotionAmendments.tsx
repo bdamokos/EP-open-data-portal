@@ -1,3 +1,4 @@
+import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import {knownVoteMethodLabel} from './voteMethod.mjs';
 import {PersonName} from './PersonName';
 import type {DocumentContextRequest} from './DocumentContextTypes';
@@ -159,10 +160,10 @@ function Wording({record,kind}:{record:MotionAmendment|MotionAmendmentVariant;ki
     {available&&text===''&&<p className="motion-amendments__muted">No {kind==='original'?'original':'proposed'} wording supplied.</p>}
   </section>;
 }
-function Proposers({record}:{record:MotionAmendment|MotionAmendmentVariant}) {
+function Proposers({record,language}:{record:MotionAmendment|MotionAmendmentVariant;language:string}) {
   const authors=record.authors||[],groups=Array.isArray(record.onBehalfOf)?record.onBehalfOf:record.onBehalfOf?[record.onBehalfOf]:[];
   return <div className="motion-amendments__proposers">
-    {authors.length?<p>Proposed by <span lang="">{authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</span></p>:
+    {authors.length?<p>Proposed by <span lang="">{authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/><RecordMemberAffiliation id={author.personId} language={language}/></span>)}</span></p>:
       !record.committeeProposer&&!groups.length&&<p>Proposers unavailable.</p>}
     {record.committeeProposer&&<p>Committee proposer: <span lang={sourceLanguage(record.proposerSource?.language)}>{record.committeeProposer}</span></p>}
     {groups.length>0&&<p>On behalf of <span lang="">{groups.map(group=>group.replace(/^on behalf of\s+/i,'')).join(', ')}</span></p>}
@@ -219,7 +220,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       !record&&<p className="motion-amendments__notice">{selectable.length?'Choose a wording version to read this proposal.':'Wording unavailable: the published versions conflict.'}</p>}
     {record&&<>
       {record.targetLabel&&<p className="motion-amendments__target" lang={sourceLanguage(record.targetLabelLanguage)}>{record.targetLabel}</p>}
-      <Proposers record={record}/>
+      <Proposers record={record} language={language}/>
       {checked(record,member)&&<p className="motion-amendments__member-tag">Selected MEP’s proposal</p>}
       {(record.wording?.language||record.listDocumentDate)&&<p className="motion-amendments__muted">{record.wording?.language?(record.wording.languageFallback?
         <>Showing <span lang="">{languageLabel(record.wording.language)}</span> (requested <span lang="">{language.toUpperCase()}</span>)</>:
