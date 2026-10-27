@@ -1,13 +1,15 @@
 import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
 import {resolveProposalPlacement} from './proposal-placement.mjs';
+import {resolveExistingLawPlacement} from './existing-law-placement.mjs';
 
 /** Pure final placement selection shared by the endpoint and offline consumers.
  * Source acquisition, identity checks and proposal parsing belong to the caller. */
-export function documentContextPlacement({chosen,text,items,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true}={}) {
+export function documentContextPlacement({chosen,text,items,baseline,referenceTexts=[],resolutionDocument=false,includeBody=true,amendmentRequested=true}={}) {
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
   if(chosen.baselineSource?.conflicted===true)return unresolved('conflicting_baselines');
+  if(chosen.baseline==='present-text'&&chosen.baselineSource?.category==='present-text'&&chosen.baselineSource.conflicted===false&&(items?.length||baseline))return resolveExistingLawPlacement(items||[],chosen,baseline);
   const council=chosen.baseline==='council-position';
   const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language

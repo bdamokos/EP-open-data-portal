@@ -3,7 +3,7 @@ import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='13';
+export const AMENDMENT_EXTRACTION_VERSION='14';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -322,7 +322,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const onBehalfOf=field(raw,'AuNomDe').map(metadata).filter(Boolean).join('; ')||null;
     const documentReferences=['DocRef','DocAmend','Article','DocAmend2','Article2','DocAmend3','Article3','DocAmend4','Article4'].flatMap(tag=>field(raw,tag).map(value=>({field:tag,raw:metadata(value),sourceRaw:value,scope:'amendment'})));
     for(const value of field(coverRaw,'DocRef'))documentReferences.push({field:'DocRef',raw:metadata(value),sourceRaw:value,scope:'document'});
-    const targetPath={...amendmentTargetPath(documentReferences),language,sourceUrl,fetchedAt},comparisonHeadings=[];
+    const comparisonHeadings=[];
     const targetParts=field(raw,'Article');
     for(let i=2;i<=4;i++)for(const article of field(raw,'Article'+i))targetParts.push([field(raw,'DocAmend'+i)[0],article].filter(Boolean).join(' — '));
     if(!targetParts.length&&committee) {
@@ -365,6 +365,18 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     }
     if(justificationParts.some(Boolean))justification=justificationParts.filter(Boolean).join('\n');
     const baselineSource={...baselineDescriptor(comparisonHeadings),language,sourceUrl,fetchedAt},baseline=baselineSource.category;
+    // Committee lists publish inner-law coordinates as consecutive heading
+    // paragraphs even when the translation-template tags are absent.
+    if(baseline==='present-text'&&!documentReferences.some(r=>/^Article[2-4]$/.test(r.field))) {
+      const headings=[];
+      for(const block of group){if(block.kind==='table')break;if(block.kind==='paragraph'&&block.text)headings.push(block.text);}
+      for(let i=0;i<headings.length-1;i++)if(/^(?:Regulation|Directive|Decision|Dyrektywa)\b/u.test(headings[i])&&/\d{4}\s*\/\s*\d+|\d+\s*\/\s*\d{4}/u.test(headings[i])) {
+        documentReferences.push({field:'DocAmend2',raw:headings[i],scope:'amendment',basis:'published-heading'},{field:'Article2',raw:headings[i+1],scope:'amendment',basis:'published-heading'});
+      }
+    }
+    // Explicit dated CELEX citations can occur outside the hidden tags (AM104).
+    if(baseline==='present-text')for(const value of new Set([...raw.matchAll(/0(?:19|20)\d{2}[RLD]\d{4}-\d{8}\b/g)].map(m=>m[0])))documentReferences.push({field:'Consolidation',raw:value,scope:'amendment'});
+    const targetPath={...amendmentTargetPath(documentReferences),language,sourceUrl,fetchedAt};
     if(baselineSource.conflicted)gap('baseline-conflict',number,'Comparison tables name different baseline categories.');
     const original=trimWording(joinWording(before)),proposed=trimWording(joinWording(after));
     const record={baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?original.text:null,proposedText:comparableRows?proposed.text:null,originalFormatting:comparableRows?canonicalFormatting(original.formatting):[],proposedFormatting:comparableRows?canonicalFormatting(proposed.formatting):[],justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};

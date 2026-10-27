@@ -1073,3 +1073,19 @@ test('Council context uses the Council label, comparison heading and public read
   assert(h.container.querySelector('a[href*="CELEX:52026AG0006"]'));
   assert(h.container.querySelector('.document-context-amendment h4').textContent.includes('Council position'));
 });
+
+test('existing-act context compares the inner replacement and keeps its amending instruction separate',async t=>{
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/existing-law-excerpts.json',import.meta.url),'utf8'))[0];
+  const {resolveExistingLawPlacement}=await import('../server/existing-law-placement.mjs');
+  const value=proposalContextResponse(report,amendment,list,4),proposal=parsePublicLegalXhtml(fixture.xhtml,{language:'en',sourceUrl:fixture.sourceUrl,identity:{work:fixture.workId,celex:fixture.celex}});
+  const originalText='1. Any importer established in a\u00a0Member State shall, prior to importing goods into the customs territory of the Union, apply for the status of authorised CBAM declarant (“application for an authorisation”).';
+  const variant={...value.amendment.variants[0],baseline:'present-text',baselineSource:{category:'present-text',conflicted:false},documentDate:'2026-09-09',targetPath:{proposal:[{raw:'Article 1 – paragraph 1 – point 3 b (new)'}],underlying:[{document:'Regulation (EU) 2023/956',raw:'Article 5 – paragraph 1'}]},originalText,proposedText:'(3b) in Article 5, paragraph 1 is replaced by the following:\n"1. Replacement wording." ;'};
+  value.baseline={...value.baseline,kind:'existing-act',baseCelex:fixture.baseCelex,actLabel:'Regulation (EU) 2023/956',consolidationDate:fixture.date,amendmentDate:variant.documentDate,workId:fixture.workId,celex:fixture.celex};value.proposal.items=[{kind:'act',index:1,proposal}];value.amendment.variants=[variant];value.placement=resolveExistingLawPlacement(value.proposal.items,variant,value.baseline);
+  assert.equal(value.placement.status,'placed');
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert(h.container.querySelector('[data-context-target="true"]'));assert(h.container.textContent.includes('Existing act · Regulation (EU) 2023/956 · 2025-10-20'));
+  const block=h.container.querySelector('[data-amendment-block]');await h.click([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side'));
+  assert.equal(wordingText(block,'proposed'),'1. Replacement wording.');assert.match(block.querySelector('.document-context-instruction').textContent,/paragraph 1 is replaced/);
+  assert(block.querySelector('.wording-diff__columns').textContent.includes('Existing act'));
+  assert(h.container.querySelector('a[href*="CELEX:02023R0956-20251020"]'));assert(!h.container.textContent.includes('Commission proposal'));
+});

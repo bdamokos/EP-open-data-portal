@@ -28,10 +28,14 @@ export function councilCelex(value) {
   if(typeof value!=='string'||!/^5(?:19|20)\d{2}AG\d{4}\(01\)$/.test(value))throw new HttpError(400,'invalid_council_celex','Choose an exact Council position CELEX identifier.');
   return value;
 }
+export function existingLawCelex(value) {
+  if(typeof value!=='string'||!/^(?:3(?:19|20)\d{2}[RLD]\d{4}|0(?:19|20)\d{2}[RLD]\d{4}-\d{8})$/.test(value))throw failure('invalid_existing_law_celex','Invalid existing act identifier.');
+  return value;
+}
 // RDF identifiers retain HTTP spelling. Only transport URLs are upgraded.
 export function cellarTransportUrl(value,{redirect=false}={}) {
   let url;try{url=new URL(value);}catch{throw failure('cellar_url','Unsupported CELLAR URL.');}
-  if(!['https:',...(redirect?['http:']:[])].includes(url.protocol)||url.hostname!=='publications.europa.eu'||url.username||url.password||url.port||url.search||url.hash||!(/^\/resource\/celex\/5(?:19|20)\d{2}(?:PC\d{4}|AG\d{4}%2801%29)$/.test(url.pathname)||cellarPath.test(url.pathname)))throw failure('cellar_url','Unsupported CELLAR URL.');
+  if(!['https:',...(redirect?['http:']:[])].includes(url.protocol)||url.hostname!=='publications.europa.eu'||url.username||url.password||url.port||url.search||url.hash||!(/^\/resource\/celex\/(?:5(?:19|20)\d{2}(?:PC\d{4}|AG\d{4}%2801%29)|3(?:19|20)\d{2}[RLD]\d{4}|0(?:19|20)\d{2}[RLD]\d{4}-\d{8})$/.test(url.pathname)||cellarPath.test(url.pathname)))throw failure('cellar_url','Unsupported CELLAR URL.');
   url.protocol='https:';return url.href;
 }
 export async function limitedCellarBody(response,maximum) {
@@ -83,7 +87,7 @@ export class CellarDocuments {
     }});
   }
   async metadata(celex) {
-    if(celex?.includes('AG'))councilCelex(celex);else proposalCelex(celex);
+    if(/^[03]/.test(celex))existingLawCelex(celex);else if(celex?.includes('AG'))councilCelex(celex);else proposalCelex(celex);
     const encoded=encodeURIComponent(celex).replaceAll('(','%28').replaceAll(')','%29'),url=`https://publications.europa.eu/resource/celex/${encoded}`;
     return waitForRequest(this.sources.cache.get(['proposal-tree-v1',celex],async()=>{
       const result=await this.request(url,{accept:'application/rdf+xml;notice=tree'});
@@ -123,7 +127,7 @@ export class CellarDocuments {
   async content({celex,language,itemId,expressionId,manifestationId,format='DOCX'}) {
     const mime=format==='DOCX'?CELLAR_DOCX_MIME:format==='XHTML'?'application/xhtml+xml':null;
     if(!mime)throw failure('cellar_format','Unsupported CELLAR format.');
-    if(format==='DOCX')proposalCelex(celex);else councilCelex(celex);
+    if(format==='DOCX')proposalCelex(celex);else if(/^[03]/.test(celex))existingLawCelex(celex);else councilCelex(celex);
     const url=cellarTransportUrl(itemId,{redirect:true});
     if(!/\/DOC_\d+$/.test(url)||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/language\/[A-Z]{3}$/.test(language))throw failure('cellar_item','Invalid proposal item identity.');
     const identity=JSON.stringify([celex,language,itemId,format.toLowerCase()]),key=hash(identity);requestSignal()?.throwIfAborted();

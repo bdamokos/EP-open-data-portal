@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {proposalNumber,proposalLanguage} from './proposal-labels.mjs';
 
-export const PUBLIC_LEGAL_XHTML_VERSION='2';
+export const PUBLIC_LEGAL_XHTML_VERSION='3';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const uniqueLinks=links=>[...new Set(links.map(link=>link.url))];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
@@ -36,6 +36,7 @@ export function legalXhtmlXml(xml) {
 export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identity=null,coverage}={}) {
   language=proposalLanguage(language);
   const xml=Buffer.from(input).toString('utf8'),dom=documentTree(xml),nodes=all(dom),sourceHash=hash(input);
+  const consolidated=nodes.some(n=>has(n,'reference')&&/^0\d{4}[RLD]\d{4}\s*—/u.test(clean(text(n))));
   const prefix='legal-xhtml-v'+PUBLIC_LEGAL_XHTML_VERSION+':'+hash(JSON.stringify([sourceHash,language,sourceUrl,identity])).slice(0,24);
   const objectSourceUrl=/^5\d{4}AG\d{4}\(01\)$/.test(identity?.celex||'')?`https://eur-lex.europa.eu/legal-content/${language.toUpperCase()}/TXT/?uri=CELEX:${encodeURIComponent(identity.celex)}`:sourceUrl;
   const paragraphs=[],units=[],objects=[],notes=[],anchors=[],links=[],gaps=[];
@@ -51,11 +52,14 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   }
   function inline(node,state) {
     if(node.name==='#text'){state.text+=node.value;return;}
+    // Consolidations mark the origin of amendments outside the legal wording.
+    if(['a','span'].includes(node.name)&&/^[►◄▼]\s*(?:[BMCR]\d*)?\s*$/u.test(clean(text(node))))return;
     if(node.name==='br'){state.text+='\n';return;}
     if(['img','object','svg','math','iframe'].includes(node.name)) {
       state.objects.push({kind:node.name==='math'?'math':'drawing',status:'unresolved',complete:false,offset:state.text.length,path:node.path,sourcePart:'xhtml',sourceUrl:objectSourceUrl});state.text+='\uFFFC';return;
     }
     const href=node.attrs.href;
+    if(node.name==='a'&&href?.startsWith('#E'))state.complete=false;
     if(node.name==='a'&&href?.startsWith('#ntr')) {
       const note=noteMap.get(href.slice(1));
       if(note){state.anchors.push({note:note.id,label:note.label,offset:state.text.length});if(!note.complete)state.complete=false;}
@@ -108,6 +112,10 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     note.objects=state.objects.map(object=>({...object,offset:Math.max(0,object.offset-removed),note:note.id,paragraph:0,paragraphOffset:Math.max(0,object.offset-removed)}));objects.push(...note.objects);note.complete=state.complete;
   }
   function listRows(node) {
+    if(has(node,'grid-list')) {
+      const left=node.children.find(n=>has(n,'grid-list-column-1')),body=node.children.find(n=>has(n,'grid-list-column-2')),lead=left&&clean(text(left));
+      return body&&/^\(?[\p{L}\d]+\)$/u.test(lead)?{lead,body}:null;
+    }
     if(node.name!=='table')return null;
     const rows=node.children.flatMap(n=>n.name==='tbody'?n.children:n.name==='tr'?[n]:[]).filter(n=>n.name==='tr');
     if(rows.length!==1)return null;
@@ -118,6 +126,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   }
   function walk(node,parent,{inArticle=false}={}) {
     if(node.name==='#text'||noteNodes.has(node))return;
+    if(has(node,'modref')||has(node,'arrow'))return;
     const id=node.attrs.id||'';
     if(has(node,'oj-final')||node.name==='div'&&has(node,'oj-signatory')) {
       const signature=has(node,'oj-signatory'),owner=unit(parent,signature?'signature':'body',null,{normative:!signature});
@@ -132,7 +141,26 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     const named=/^(art|rct|anx|cit)_([\p{L}\d]+)$/u.exec(id);
     if(named) {
       const kind={art:'article',rct:'recital',anx:'annex',cit:'citation'}[named[1]],owner=unit(parent,kind,named[2],{normative:['article','annex'].includes(kind)});
-      for(const child of node.children)walk(child,owner,{inArticle:kind==='article'});
+      let paragraphOwner=null;
+      for(const child of node.children) {
+        const number=kind==='article'&&child.children.find(n=>has(n,'no-parag')),value=number&&clean(text(number)).replace(/\.$/,'');
+        if(value&&/^\d+[\p{L}]*$/u.test(value)) {
+          paragraphOwner=unit(owner,'paragraph',value,{label:{prefix:value+'. '}});
+          const inlineBody=child.children.find(n=>has(n,'inline-element'));
+          if(inlineBody){
+            if(inlineBody.children.some(n=>['p','div','table'].includes(n.name))) {
+              let first=true;
+              for(const part of inlineBody.children) {
+                if(part.name==='p'&&has(part,'norm')&&first){paragraph(paragraphOwner,part,value+'. ');first=false;}
+                else walk(part,paragraphOwner);
+              }
+            }else paragraph(paragraphOwner,inlineBody,value+'. ');
+            for(const rest of child.children)if(rest!==number&&rest!==inlineBody)walk(rest,paragraphOwner);
+          }
+          else {paragraph(paragraphOwner,child);}
+        } else if(paragraphOwner&&(has(child,'norm')||has(child,'grid-list')||has(child,'modref')||has(child,'arrow')))walk(child,paragraphOwner);
+        else walk(child,owner,{inArticle:kind==='article'});
+      }
       return;
     }
     if(!parent){for(const child of node.children)walk(child,null);return;}
@@ -150,7 +178,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
       if(parent.kind==='recital'){parent.label.prefix=row.lead+' ';let first=true;for(const child of row.body.children){if(first&&child.name==='p'){paragraph(parent,child,row.lead+' ');first=false;}else walk(child,parent);}return;}
       const quoted=/^[‘“]/u.test(row.lead),value=row.lead.replace(/^[‘“]?\(|\)$/gu,'');
       let ownerParent=parent;
-      if(inArticle){ownerParent=parent.children.find(u=>u.implicit)||unit(parent,'paragraph','1',{implicit:true});}
+      if(inArticle&&!consolidated){ownerParent=parent.children.find(u=>u.implicit)||unit(parent,'paragraph','1',{implicit:true});}
       if(quoted)ownerParent=unit(ownerParent,'quotation',null,{scope:'quoted',instructionPath:ownerParent.path,underlyingPath:[],boundaryBasis:'quotation-mark'});
       const owner=unit(ownerParent,'point',value,{label:{prefix:row.lead+' '}});
       let first=true;
@@ -172,9 +200,9 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
       gaps.push({code:'unsupported-xhtml-table',paragraph:owner.extent.start,sourcePath:node.path,message:'This legal table is retained without verified cell structure.'});return;
     }
     if(node.name==='p') {
-      if(has(node,'oj-ti-art')||has(node,'oj-doc-ti')){paragraph(parent,node);return;}
+      if(has(node,'oj-ti-art')||has(node,'oj-doc-ti')||has(node,'title-article-norm')){paragraph(parent,node);return;}
       let owner=parent;
-      if(inArticle)owner=parent.children.find(u=>u.implicit)||unit(parent,'paragraph','1',{implicit:true});
+      if(inArticle&&!consolidated)owner=parent.children.find(u=>u.implicit)||unit(parent,'paragraph','1',{implicit:true});
       if(['article','paragraph','point','annex'].includes(owner.kind))owner=unit(owner,'subparagraph');
       paragraph(owner,node);return;
     }

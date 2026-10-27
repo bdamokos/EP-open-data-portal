@@ -149,7 +149,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language&&
     (!amendmentRequest.listId||evidence.listId===amendmentRequest.listId)&&(!wordingPinned||evidence.wordingLanguage===amendmentRequest.wordingLanguage)&&
     typeof wording.language==='string'&&data?.baseline?.language===wording.language);
-  if(['commission-proposal','council-position'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
+  if(['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">Report amendment</p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
     <ProposalContextText data={proposalEvidenceMatches||data.placement?.status==='unresolved'?data:{...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}}} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage}/>
   </div>;

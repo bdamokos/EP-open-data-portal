@@ -57,7 +57,8 @@ export function parseBenchmarkTarget(wording) {
         return {raw:wording.targetLabel,language:wording.language,complete:true,segments,unparsed:[]};
       }
     }
-    const raw = wording.targetPath?.proposal?.length === 1 ? wording.targetPath.proposal[0].raw : wording.targetLabel;
+    const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
+    const raw = paths?.length === 1 ? paths[0].raw : wording.targetLabel;
     return parseTargetLabel(raw || '', wording.language);
   } catch {
     return {raw:wording.targetLabel, language:wording.language, complete:false, segments:[], unparsed:['unsupported-language']};
@@ -77,6 +78,15 @@ export function oracleNormal(value,labels=[]) {
       if(prefix)text=text.replace(prefix,'');
       return text.replace(/[.;'"\s]+$/u,'').trim();
     }).join(' ').replace(/\s+/gu,' ').trim();
+}
+// Consolidation comparisons can put several labelled list points in one cell
+// paragraph. Preserve their internal labels and punctuation across line wraps.
+export function existingLawOracleNormal(value,labels=[]) {
+  const escape=text=>String(text).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const prefixes=[...new Set(labels.map(label=>label.value))].flatMap(value=>['\\('+escape(value)+'\\)',escape(value)+'[.)]']);
+  let key=value.normalize('NFC').replace(/\u00ad/g,'').replace(/[‘’‚‛ʻʼ]/g,"'").replace(/[“”„‟«»]/g,'"').replace(/[‐‑‒–—]/g,'-').replace(/\s+/gu,' ').trim().replace(/^["']\s*/u,'').replace(/[.;'"\s]+$/u,'');
+  if(prefixes.length)key=key.replace(new RegExp('^(?:'+prefixes.join('|')+')\\s*','u'),'');
+  return key.trim();
 }
 const occurrences=(haystack,needle)=>{
   let count=0,offset=0;if(!needle)return 0;
@@ -198,7 +208,7 @@ export function verifyPlacement({placement, wording, items, text, target = parse
       labels = [...rawResolutionUnits(text,wording.language).units.map(u=>({value:u.label})),...target.segments.map(segment=>({value:segment.value}))];
     }
     if (source.includes('\uFFFC') || wording.originalText.includes('\uFFFC')) return {status:'unverified',reason:'oracle-object-comparison-unavailable'};
-    const key = value => oracleNormal(value,labels);
+    const key = value => wording.baseline==='present-text'?existingLawOracleNormal(value,labels):oracleNormal(value,labels);
     const left = key(source), right = key(wording.originalText);
     if(!left||!right||left!==right)return fail('oracle-original-span-mismatch');
     return locationOracle({proposal,text,target,wording,placement,labels});
