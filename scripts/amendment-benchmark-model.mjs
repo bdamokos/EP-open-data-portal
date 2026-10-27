@@ -249,12 +249,17 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
-  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark.mjs'])if(current.code?.files?.[file]!==baseline.code?.files?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
-  const scope=placementOnly?'placement-only-frozen-projections':'full-pipeline';
+  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  const replay=current.projectionMode==='cached-source-replay'&&['cached-source-replay','live-projection-comparison'].includes(baseline.projectionMode);
+  const scope=replay?'full-pipeline-cached-sources':placementOnly?'placement-only-frozen-projections':'full-pipeline';
   const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});
-  if(placementOnly) {
+  if(current.projectionMode!==baseline.projectionMode&&!replay)return refuse('Projection modes differ; create a cached-source baseline for this snapshot.');
+  if(replay) {
+    if(baseline.projectionMode==='live-projection-comparison')warnings.push('Baseline is the recorded live-projection comparison; deltas include switching to cached-source replay.');
+    if(placementOnly)warnings.push('--placement-only is an alias for full cached-source comparison; all producer outcomes are evaluated.');
+  } else if(placementOnly) {
     const before=baseline.code?.producerFingerprint,after=current.code?.producerFingerprint;
-    if(!before?.sha256||!after?.sha256||before.schemaVersion!==2||after.schemaVersion!==2||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison is unavailable pending #278.');
+    if(!before?.sha256||!after?.sha256||before.schemaVersion!==2||after.schemaVersion!==2||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison requires a new cached-source baseline.');
     for(const report of [baseline,current]) {
       const compatibility=report.compatibility;
       if(typeof compatibility?.compatible!=='boolean'||!Array.isArray(compatibility.mismatches)||!compatibility.compatible&&!compatibility.mismatches.length||compatibility.mismatches.some(m=>m.kind!=='document-context'||!Number.isInteger(m.observed)||m.observed<1||!Number.isInteger(m.expected)||m.expected<1))return refuse('Placement-only mode waives only a recorded document-context wrapper-version mismatch.');

@@ -316,7 +316,7 @@ test('producer fingerprints include transitive extraction helpers and locked dep
   assert.notEqual((await producerFingerprint(read)).sha256,before.sha256);
 });
 
-test('placement-only CLI lists correct-to-false regression and exits nonzero despite frozen wrapper incompatibility',async t=>{
+test('cached-source CLI reports correct-to-false regression despite live wrapper incompatibility',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-bench-placement-gate-'));
   t.after(()=>rm(directory,{recursive:true,force:true}));
   const inputs=path.join(directory,'inputs');await mkdir(inputs);
@@ -326,23 +326,26 @@ test('placement-only CLI lists correct-to-false regression and exits nonzero des
   const indexed={id,targetDocumentId:document,number:1,listId,language:'en',wordingSource:{url},decisions:[{id:'decision-1',date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[id],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]};
   const query=new URLSearchParams({limit:'50',offset:'0',lang:'en',document});
   const context={version:5,documentId:document,document:{selectedText:source(['The European Parliament,','3. Three.','4. Four.','3b. Misordered.','5. Five.','ANNEX'])}};
-  for(const [input,value] of [[apiBase+'/api/amendments?'+query,{total:1,offset:0,limit:50,coverage:{servingGeneration:5},items:[indexed]}],[url,body],[contextUrl(apiBase,document,'en'),context],[contextUrl(apiBase,document,'en',indexed,indexed),context]]) {
+  const rawUrl='https://data.europarl.europa.eu/distribution/test/body-gate.docx';
+  const rawBody=docx('<w:document xmlns:w="urn:word"><w:body>'+context.document.selectedText.paragraphs.map(paragraph).join('')+'</w:body></w:document>');
+  const rawWork={id:'eli/dl/doc/'+document,identifier:document,work_type:'def/ep-document-types/RESOLUTION_MOTION',is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'http://publications.europa.eu/resource/authority/file-type/DOCX',is_exemplified_by:rawUrl}]}]};
+  for(const [input,value] of [[rawUrl,rawBody],['https://data.europarl.europa.eu/api/v2/plenary-documents/'+document+'?format=application%2Fld%2Bjson',{data:[rawWork]}],[apiBase+'/api/amendments?'+query,{total:1,offset:0,limit:50,coverage:{servingGeneration:5},items:[indexed]}],[url,body],[contextUrl(apiBase,document,'en'),context],[contextUrl(apiBase,document,'en',indexed,indexed),context]]) {
     const bytes=Buffer.isBuffer(value)?value:Buffer.from(JSON.stringify(value));
     await writeFile(path.join(inputs,digest(input)+'.body'),bytes);
     await writeFile(path.join(inputs,digest(input)+'.json'),JSON.stringify({url:input,fetchedAt:'2026-10-27T00:00:00Z',status:200,ok:true,bytes:bytes.length,sha256:digest(bytes),error:null}));
   }
-  await writeFile(path.join(directory,'snapshot.json'),JSON.stringify({schemaVersion:2,apiBase,asOf:'2026-10-27'}));
+  await writeFile(path.join(directory,'snapshot.json'),JSON.stringify({schemaVersion:3,apiBase,asOf:'2026-10-27'}));
   const args=['scripts/amendment-benchmark.mjs','--api-base',apiBase,'--cache-dir',directory,'--document',document,'--placement-only'];
   const run=async extra=>{
     try {await execFileAsync(t,process.execPath,[...args,...extra],{cwd:fileURLToPath(new URL('../',import.meta.url)),maxBuffer:2*1024*1024});assert.fail('false placement must fail the CLI');}
-    catch(error){assert.equal(error.code,1,error.stderr);return JSON.parse(error.stdout);}
+    catch(error){assert.equal(error.code,1,error.stderr);assert(error.stdout,error.stderr);return JSON.parse(error.stdout);}
   };
   const first=await run([]),baseline=JSON.parse(await readFile(first.jsonPath,'utf8'));
   assert.equal(baseline.rows[0].outcome,'false-placement');
   baseline.rows[0].outcome='correct';baseline.rows[0].reason='oracle-verified';baseline.metrics=metrics(baseline.rows);
   const baselinePath=path.join(directory,'baseline.json');await writeFile(baselinePath,JSON.stringify(baseline));
   const result=await run(['--baseline',baselinePath]);
-  assert.equal(result.scope,'placement-only-frozen-projections');assert.equal(result.acquisition.requests,0);
+  assert.equal(result.scope,'full-pipeline-cached-sources');assert.equal(result.acquisition.requests,0);
   assert.equal(result.comparison.failed,true);assert.equal(result.comparison.refused,undefined);
   assert.deepEqual(result.comparison.regressions.map(row=>[row.id,row.before,row.after]),[[id,'correct','false-placement']]);
 });
