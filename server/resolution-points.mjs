@@ -67,6 +67,9 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
   try { target = parseTargetLabel(options.targetLabel, options.language); } catch { return null; }
   const segments = target.segments;
   if (!target.complete || segments?.length < 2 || segments[0].kind !== 'paragraph' || segments.slice(1).some(part => part.kind !== 'point')) return null;
+  if (segments.length === 2 && structure.units.some(unit => unit.kind === 'point'
+    && unit.label === (operation === 'insert' ? segments[1].base : segments[1].value)
+    && structure.units.find(parent => parent.start === unit.parent)?.label === segments[0].value)) return null;
   const units = pointUnits(text, rows, structure), evidence = [{basis: 'published-point-path', path: segments.map(({kind, value}) => ({kind, value}))}];
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const matches = units.filter(unit => samePath(unit.path, segments));
@@ -75,6 +78,7 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
     const label = segments.at(-1);
     if (!label.isNew || !label.base || !/^[a-z]{1,3}$/u.test(label.suffix)) return unresolved('insertion_reference_unavailable');
     const anchors = units.filter(unit => samePath(unit.path.slice(0, -1), segments.slice(0, -1)) && unit.value === label.base);
+    if (!anchors.length && segments.length === 2) return null;
     if (anchors.length !== 1) return unresolved(anchors.length ? 'multiple_published_targets' : 'relative_target_not_found');
     const anchor = anchors[0], next = rows[anchor.end + 1];
     if (!anchor.complete) return unresolved('source_passage_incomplete');
