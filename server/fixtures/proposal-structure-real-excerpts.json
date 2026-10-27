@@ -3307,6 +3307,419 @@
       ],
       "documentObjects": [],
       "tables": []
+    },
+    {
+      "name": "croatian-replace",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0014.01/DOC_1",
+      "sha256": "054c3939369d0d3b12bab28aa5b8fe9a162a485a79f893c8245e9ce057ba7208",
+      "retrievedAt": "2026-10-27T16:08:50.456092+00:00",
+      "language": "hr",
+      "item": "act",
+      "sourceParagraphRanges": [
+        {
+          "start": 232,
+          "end": 235
+        },
+        {
+          "start": 238,
+          "end": 253
+        }
+      ],
+      "sourceParagraphIndices": [
+        232,
+        233,
+        234,
+        238,
+        239,
+        240,
+        241,
+        242,
+        243,
+        244,
+        245,
+        246,
+        247,
+        248,
+        249,
+        250,
+        251,
+        252
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Članak 3.",
+        "Izmjene Uredbe (EU) 2019/1009",
+        "Uredba (EU) 2019/1009 mijenja se kako slijedi:",
+        "(2)\tčlanak 6. mijenja se kako slijedi:",
+        "(a)\tstavak 2. mijenja se kako slijedi:",
+        "(i)\t drugi podstavak zamjenjuje se sljedećim:",
+        "„Ako je tim postupkom ocjenjivanja usklađenosti dokazana sukladnost gnojidbenog proizvoda EU-a s primjenjivim zahtjevima utvrđenima u ovoj Uredbi, proizvođači sastavljaju EU izjavu o sukladnosti u elektroničkom obliku i stavljaju oznaku CE.”;",
+        "ii.\tdodaje se sljedeći podstavak:",
+        "„Proizvođači osiguravaju da je uz gnojidbeni proizvod EU-a priložena internetska adresa ili nosač podataka putem kojih se može pristupiti EU izjavi o sukladnosti.”;",
+        "(b)\tu stavku 3., drugi podstavak zamjenjuje se sljedećim:",
+        "„Proizvođači na zahtjev stavljaju EU izjavu o sukladnosti na raspolaganje drugim gospodarskim subjektima u elektroničkom obliku.”;",
+        "(c)\tu stavku 6. prvom podstavku, prva i druga rečenica zamjenjuju se sljedećim:",
+        "„Uvoznici na ambalaži gnojidbenog proizvoda EU-a navode svoje ime, registrirano trgovačko ime ili registrirani žig te poštansku adresu i digitalni kontakt ili, ako se gnojidbeni proizvod EU-a isporučuje bez ambalaže, u dokumentu priloženom uz gnojidbeni proizvod EU-a. U poštanskoj adresi i digitalnom kontaktu navodi se jedinstvena točka putem koje se može obratiti proizvođaču.”",
+        ";",
+        "(d)\tu stavku 9., prva rečenica zamjenjuje se sljedećim:",
+        "„Na obrazložen zahtjev nadležnog nacionalnog tijela proizvođači tom tijelu dostavljaju u elektroničkom obliku sve informacije i dokumentaciju potrebne za dokazivanje sukladnosti gnojidbenog proizvoda EU-a s ovom Uredbom, na jeziku koji to tijelo razumije bez poteškoća.”",
+        ";",
+        "(3)\tu članku 7. stavku 2., točka (b) zamjenjuje se sljedećim:"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[235]",
+          "ordinal": 234,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[236]",
+          "ordinal": 235,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[237]",
+          "ordinal": 236,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[241]",
+          "ordinal": 240,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[242]",
+          "ordinal": 241,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[243]",
+          "ordinal": 242,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[244]",
+          "ordinal": 243,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[245]",
+          "ordinal": 244,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[246]",
+          "ordinal": 245,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[247]",
+          "ordinal": 246,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[248]",
+          "ordinal": 247,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[249]",
+          "ordinal": 248,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[250]",
+          "ordinal": 249,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[251]",
+          "ordinal": 250,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[252]",
+          "ordinal": 251,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[253]",
+          "ordinal": 252,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[254]",
+          "ordinal": 253,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[255]",
+          "ordinal": 254,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 29,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
     }
   ],
   "amendments": [

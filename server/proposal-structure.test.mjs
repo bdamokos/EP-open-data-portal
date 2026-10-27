@@ -661,8 +661,8 @@ test('COM(2025)531 Text2 alphabetic replacement points remain siblings through c
   assert(paragraph.children.filter(u=>u.kind==='point').every(u=>!u.children.some(c=>c.kind==='point')));
 });
 
-test('real Croatian plural insertion and deletion instructions close replacement scopes',()=>{
-  for(const [name,article,point,ordinal,operation] of [['croatian-delete','2','3',224,'delete'],['croatian-insert','3','7',282,'insert']]){
+test('real Croatian plural insertion, replacement and deletion instructions close replacement scopes',()=>{
+  for(const [name,article,point,ordinal,operation] of [['croatian-delete','2','3',224,'delete'],['croatian-insert','3','7',282,'insert'],['croatian-replace','3','2 – podtočka c',246,'replace']]){
     const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name===name),result=parseProposal(excerpt,excerpt);
     const candidates=proposalCandidates(result,`Članak ${article} – stavak 1 – točka ${point}`,{language:'hr'});
     assert.equal(candidates.length,1,name);assert.equal(candidates[0].scope,'proposal');
