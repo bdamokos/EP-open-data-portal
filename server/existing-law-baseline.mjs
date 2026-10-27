@@ -13,7 +13,7 @@ export function actCelex(raw) {
   const m=/^(Regulation|Directive|Decision|Dyrektywa)\s*(?:\((?:EU|EC|EEC|UE|WE)\)\s*)?(?:No\s*)?(\d{1,4})\s*\/\s*(\d{1,4})(?:\s*\/\s*(?:EU|EC|EEC|UE|WE))?$/u.exec(raw?.trim()||'');
   if(!m)return null;
   const kind={Regulation:'R',Directive:'L',Dyrektywa:'L',Decision:'D'}[m[1]],first=Number(m[2]),second=Number(m[3]);
-  const year=first>=1900?first:second>=1900?second:null,number=first>=1900?second:first;
+  const numbered=/\bNo\s*\d/u.test(raw),year=numbered?second:first>=1950?first:second>=1950?second:null,number=numbered?first:first>=1950?second:first;
   if(!year||year>2099||number<1)return null;
   return `3${year}${kind}${String(number).padStart(4,'0')}`;
 }

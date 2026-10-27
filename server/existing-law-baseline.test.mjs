@@ -14,7 +14,7 @@ const chosen=(f,target)=>({baseline:'present-text',baselineSource:{category:'pre
 const projection=f=>parsePublicLegalXhtml(f.xhtml,{language:f.language,identity:{celex:f.celex,work:f.workId},sourceUrl:f.sourceUrl,coverage:f.coverage});
 const baseline=f=>({status:'available',baseCelex:f.baseCelex,celex:f.celex,workId:f.workId,amendmentDate:'2026-09-09',language:f.language});
 test('complete statutory citations identify their exact type, year and number; titles cannot identify an act',()=>{
-  for(const [raw,celex]of [['Regulation (EU) 2023/956','32023R0956'],['Regulation (EC) No 1223/2009','32009R1223'],['Decision (EU) 2015/1814','32015D1814'],['Dyrektywa 2007/2/WE','32007L0002'],['Directive 2003/87/EC','32003L0087']])assert.equal(actCelex(raw),celex);
+  for(const [raw,celex]of [['Regulation (EU) 2023/956','32023R0956'],['Regulation (EC) No 1223/2009','32009R1223'],['Decision (EU) 2015/1814','32015D1814'],['Dyrektywa 2007/2/WE','32007L0002'],['Directive 2003/87/EC','32003L0087'],['Regulation (EC) No 1907/2006','32006R1907']])assert.equal(actCelex(raw),celex);
   assert.equal(actCelex('Carbon border adjustment mechanism'),null);
   assert.equal(actCelex('Regulation (EU) 2023/956 and Regulation (EU) 2024/1689'),null);
 });
