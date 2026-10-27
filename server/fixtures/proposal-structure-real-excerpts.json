@@ -1,0 +1,5196 @@
+{
+  "examples": [
+    {
+      "name": "quotation",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "f4560910d9dc0dda9f926f4cce13bccb17f3bc99535350eae7bf90432abfa8f4",
+      "retrievedAt": "2026-10-27T16:08:48.294080+00:00",
+      "language": "en",
+      "item": "act",
+      "sourceParagraphRange": {
+        "start": 193,
+        "end": 225
+      },
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Article 2",
+        "Amendments to Regulation (EC) No 1223/2009",
+        "Regulation (EC) No 1223/2009 is amended as follows:",
+        "(1)\t The following Article is inserted:",
+        "‘Article 14a",
+        "Requests for inclusion of substances used as colorants, preservatives or UV-filters in Annexes IV, V or VI",
+        "1.\tA request for a substance to be used as a colorant, preservative or UV-filter to be included in Annex IV, Annex V or Annex VI, as applicable, may be submitted to the Commission. It shall be accompanied by scientific evidence and documentation showing that due to the latest technical and scientific progress, the substance is safe for use in cosmetic products.",
+        "2.\tAfter receiving the request referred to in paragraph 1, the Commission shall seek an opinion of the SCCS on the safety of the substance for use in cosmetic products without undue delay.",
+        "3.\tThe SCCS shall transmit its opinion to the Commission within 12 months after receiving the request from the Commission referred to in paragraph 2. The Commission may extend that deadline if additional evidence is required.’",
+        ";",
+        "(2)\tArticle 15 is amended as follows:",
+        "(a)\tparagraph 2 is amended as follows:",
+        "(i)\tthe second subparagraph is replaced by the following:",
+        "‘2. However, such substances may be used in cosmetic products if a derogation request is submitted to the Commission at the latest three months after at the date of entry into force of the amendments to Part 3 of Annex VI to Regulation (EC) No 1272/2008 classifying the substance as CMR substance of category 1A or 1B. The Commission shall grant the derogation where all of the following conditions are fulfilled:",
+        "(a)\tthere are no suitable alternative substances available as documented in an analysis of alternatives;",
+        "(b)\tthe substances have been evaluated and found safe by the SCCS for a particular use of the cosmetic product category, considering exposure to those products, overall exposure from sources other than cosmetics and of vulnerable population groups.’.",
+        "(ii)\tthe third subparagraph is replaced by the following:",
+        "‘For the purpose of the second subparagraph, point (a), a substance shall be considered a suitable alternative if it fulfils all of the following conditions:",
+        "(a)\tits use in cosmetic products results in reduced overall risk to human health and the environment;",
+        "(b)\tit provides an equivalent function to the classified substance, in a finished cosmetic product with a similar effect and the same level of efficacy;",
+        "(c)\tis technically feasible and economically viable;",
+        "(d)\t\tit is not restricted, not protected by exclusive rights, and is available on the market at scale, in quantities large enough to meet current and expected demand.’",
+        ";",
+        "(iii)\tthe following subparagraph is inserted after the fourth subparagraph:",
+        "‘The deadline laid down in the fourth subparagraph of this paragraph shall start on the date of entry into application of the relevant amendments to Part 3 of Annex VI to Regulation (EC) No 1272/2008 classifying the substance concerned as CMR substance of category 1A, or 1B.’;",
+        "(b)\tthe following paragraphs 5, 6 and 7 are added:",
+        "‘5. The prohibition referred to in paragraphs 1 and 2 of this Article shall not apply to a substance where the oral or inhalation route of exposure for CMR harmonised classification has been explicitly indicated in the ‘Hazard statement Code(s)’ column under the ‘Classification’ in Part 3 of Annex VI to Regulation (EC) No 1272/2008. If a potential risk to human health arises from cosmetic products containing such substance due to incidental ingestion or inhalation, the Commission shall request an SCCS opinion on the safety of the substance concerned in those specific product types without undue delay.",
+        "6. The prohibition referred to in paragraphs 1 and 2 of this Article shall not apply to a substance extracted from plants or plant parts and not chemically modified as defined in Article 3, point (40), of Regulation (EC) No 1907/2006, containing more than one constituent, at least one of which has been classified as a CMR substance of category 1A, 1B, or 2 under Part 3 of Annex VI to Regulation (EC) No 1272/2008. If a potential risk to human health arises from the use of such substance in cosmetic products, the Commission shall seek an opinion of the SCCS on the safety of that substance for its use in cosmetic products without undue delay.",
+        "For the purpose of this paragraph, ‘plants’ means living or dead organisms from the kingdoms Plantae and Fungi, and includes algae, lichens and yeasts.",
+        "7. Cosmetic products containing a substance classified as a CMR substance of category 1A, 1B, or 2 under Part 3 of Annex VI to Regulation (EC) No 1272/2008 prohibited from use in cosmetic products or such substance not compliant with a restriction may continue to be placed on the market for 12 months and be made available on the market for 24 months after the entry into force of the relevant amendments to the relevant Annexes to this Regulation.’",
+        ";",
+        "(3)\tIn Article 16, paragraphs 3 and 7 are deleted;"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[196]",
+          "ordinal": 195,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[197]",
+          "ordinal": 196,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[198]",
+          "ordinal": 197,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[199]",
+          "ordinal": 198,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[200]",
+          "ordinal": 199,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[201]",
+          "ordinal": 200,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[202]",
+          "ordinal": 201,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[203]",
+          "ordinal": 202,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[204]",
+          "ordinal": 203,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[205]",
+          "ordinal": 204,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[206]",
+          "ordinal": 205,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[207]",
+          "ordinal": 206,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[208]",
+          "ordinal": 207,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[209]",
+          "ordinal": 208,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[210]",
+          "ordinal": 209,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[211]",
+          "ordinal": 210,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[212]",
+          "ordinal": 211,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[213]",
+          "ordinal": 212,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[214]",
+          "ordinal": 213,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[215]",
+          "ordinal": 214,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[216]",
+          "ordinal": 215,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[217]",
+          "ordinal": 216,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[218]",
+          "ordinal": 217,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[219]",
+          "ordinal": 218,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[220]",
+          "ordinal": 219,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[221]",
+          "ordinal": 220,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[222]",
+          "ordinal": 221,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[223]",
+          "ordinal": 222,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[224]",
+          "ordinal": 223,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[225]",
+          "ordinal": 224,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[226]",
+          "ordinal": 225,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[227]",
+          "ordinal": 226,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 42,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 106,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 10.63,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "annex",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/ec207ea9-88a1-11f0-9af8-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "c629b187b46ec51fd7ab363f41e3b7f95777037fb093f3e9c026eb3c9a8518cd",
+      "retrievedAt": "2026-10-27T16:08:53.667821+00:00",
+      "language": "en",
+      "item": "annex",
+      "sourceParagraphRange": {
+        "start": 1,
+        "end": 19
+      },
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "ANNEX",
+        "ACTIONS ELIGIBLE FOR FUNDING",
+        "(1)\tThe exchanges and dissemination of information referred to in Article 8(5), point (a), shall, among others, be targeted at:",
+        "•\tbest practices in preventing counterfeiting and counterfeiting-related fraud relating to the euro, including potential threats to the future digital euro,",
+        "•\tmethodologies for monitoring and analysing the economic and financial impact of counterfeiting,",
+        "•\toperation of databases and early warning systems,",
+        "•\tuse of detection tools, including with computer back-up,",
+        "•\tenquiry and investigation methods,",
+        "•\tscientific assistance, including monitoring of new developments, also with regard to potential threats posed by and investigational opportunities offered by Artificial Intelligence,",
+        "•\tprotection of the euro outside the Union,",
+        "•\tresearch actions,",
+        "•\tprovision of specific operational expertise;",
+        "(2)\tThe technical, scientific and operational assistance referred to in Article 8(5), point (b), shall include in particular:",
+        "•\tany appropriate measure which establishes teaching resources at Union level, such as a handbook of Union legislation, information bulletins, practical manuals, glossaries and lexicons, databases, especially in the area of scientific assistance or technology watch, or computer support applications, such as software and Artificial Intelligence tools,",
+        "•\trelevant studies with a multidisciplinary and transnational dimension, including research on innovative security features,",
+        "•\tdevelopment of technical support instruments and methods to facilitate detection actions at Union level,",
+        "•\tsupport for cooperation in operations involving at least two countries when such support cannot be made available from other programmes of Union institutions and bodies;",
+        "(3)\tFor the purpose of Article 8(6), eligible professional groups shall include:"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[3]",
+          "ordinal": 2,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[4]",
+          "ordinal": 3,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[5]",
+          "ordinal": 4,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[6]",
+          "ordinal": 5,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[7]",
+          "ordinal": 6,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[8]",
+          "ordinal": 7,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[9]",
+          "ordinal": 8,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[10]",
+          "ordinal": 9,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[11]",
+          "ordinal": 10,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[12]",
+          "ordinal": 11,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[13]",
+          "ordinal": 12,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[14]",
+          "ordinal": 13,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 1,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[16]",
+          "ordinal": 15,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[17]",
+          "ordinal": 16,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[18]",
+          "ordinal": 17,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[19]",
+          "ordinal": 18,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[20]",
+          "ordinal": 19,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[22]",
+          "ordinal": 21,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 3,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Annexetitre",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0number",
+          "numberingLabel": "(1)",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "28",
+            "abstractId": "8",
+            "level": 0,
+            "format": "decimal"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "10",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point0number",
+          "numberingLabel": "(2)",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "37",
+            "abstractId": "8",
+            "level": 0,
+            "format": "decimal"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "11",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "11",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "11",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet0",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "11",
+            "abstractId": "16",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point0number",
+          "numberingLabel": "(3)",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "37",
+            "abstractId": "8",
+            "level": 0,
+            "format": "decimal"
+          }
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 5,
+              "kind": "bold"
+            },
+            {
+              "start": 0,
+              "end": 5,
+              "kind": "underline"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "indent": 2.95,
+          "hanging": 2.95,
+          "marks": [
+            {
+              "start": 0,
+              "end": 28,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "continuation",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f62464b8-6302-11f0-bf4e-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "81080a6a049ff765f8c5134333f4e39d52e204efc25bd908be4d0f638d2d4415",
+      "retrievedAt": "2026-10-27T16:08:54.782540+00:00",
+      "language": "en",
+      "item": "act",
+      "sourceParagraphRange": {
+        "start": 320,
+        "end": 336
+      },
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Article 13",
+        "Third countries associated to the Programme",
+        "1.\tThe Programme may be opened to the participation of the following third countries through full or partial association, in accordance with the objectives laid down in Article 3, and with the relevant international agreements or any decisions adopted under the framework of those agreements and applicable to:",
+        "(a)\tmembers of the European Free Trade Association which are members of the European Economic Area, as well as European micro-states;",
+        "(b)\tacceding countries, candidate countries and potential candidates;",
+        "(c)\tEuropean Neighbourhood Policy countries;",
+        "(d)\tother third countries.",
+        "2.\tThe association agreements for participation in the Programme shall:",
+        "(a)\tensure a fair balance as regards the contributions and benefits of the third country participating in the Programme;",
+        "(b)\tlay down the conditions of participation in the programmes, including the calculation of financial contributions, consisting of an operational contribution and a participation fee, to a programme and its general administrative costs;",
+        "(c)\tnot confer on the third country any decision-making power in the Programme;",
+        "(d)\tguarantee the rights of the Union to ensure sound financial management and to protect its financial interests;",
+        "(e)\twhere relevant, ensure the protection of security and public order interests of the Union.",
+        "For the purposes of point (d) , the third country shall grant the necessary rights and access required under Regulations (EU, Euratom) 2024/2509 and (EU, Euratom) No 883/2013, and guarantee that enforcement decisions imposing a pecuniary obligation on the basis of Article 299 TFEU, as well as judgements and orders of the Court of Justice of the European Union, are enforceable.",
+        "Article 14",
+        "Eligibility"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[328]",
+          "ordinal": 327,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[329]",
+          "ordinal": 328,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[330]",
+          "ordinal": 329,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[331]",
+          "ordinal": 330,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[332]",
+          "ordinal": 331,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[333]",
+          "ordinal": 332,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[334]",
+          "ordinal": 333,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[335]",
+          "ordinal": 334,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[336]",
+          "ordinal": 335,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[337]",
+          "ordinal": 336,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[338]",
+          "ordinal": 337,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[339]",
+          "ordinal": 338,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[340]",
+          "ordinal": 339,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[341]",
+          "ordinal": 340,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[342]",
+          "ordinal": 341,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[343]",
+          "ordinal": 342,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 7,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 43,
+              "kind": "bold"
+            },
+            {
+              "start": 0,
+              "end": 43,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "bold"
+            },
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "titles-regulation",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/90492010-d67e-11f0-8da2-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "7363add2fa424153e91470fbda7582eada3b3b4353abd6b809636afb5f08616d",
+      "retrievedAt": "2026-10-27T16:08:56.961599+00:00",
+      "language": "en",
+      "item": "act",
+      "sourceParagraphRange": {
+        "start": 82,
+        "end": 94
+      },
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "HAVE ADOPTED THIS REGULATION:",
+        "Article 1",
+        "Suspension of Article 56(3) of Regulation (EU) 2023/1542",
+        "The application of Article 56(3) of Regulation (EU) 2023/1542 shall be suspended until 1 January 2035.",
+        "As regards battery producers established in third countries, where Member States do not require the appointment of an authorised representative for extended producer responsibility, they shall ensure traceability and enforcement with regard to battery producers established in third countries through alternative means.",
+        "Article 2",
+        "Suspension of Article 45(3) of Regulation (EU) 2025/40",
+        "The application of Article 45(3) of Regulation (EU) 2025/40 shall be suspended until 1 January 2035.",
+        "Member States may either provide that producers established in third countries shall appoint, by written mandate, an authorised representative for the extended producer responsibility when making packaging or packaged products available on their territory for the first time or ensure traceability and enforcement with regard to packaging producers established in third countries through alternative means.",
+        "Article 3",
+        "Entry into force",
+        "This Regulation shall enter into force on the twentieth day following that of its publication in the Official Journal of the European Union."
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[87]",
+          "ordinal": 86,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[88]",
+          "ordinal": 87,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[89]",
+          "ordinal": 88,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[90]",
+          "ordinal": 89,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[91]",
+          "ordinal": 90,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[92]",
+          "ordinal": 91,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[93]",
+          "ordinal": 92,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[94]",
+          "ordinal": 93,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[95]",
+          "ordinal": 94,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[96]",
+          "ordinal": 95,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[97]",
+          "ordinal": 96,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[98]",
+          "ordinal": 97,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Formuledadoption",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 56,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 54,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 101,
+              "end": 139,
+              "kind": "italic"
+            }
+          ]
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "titles-directive",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/8566b7be-d67e-11f0-8da2-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "f8e2ba4a2093ef1b3882de12fb81deb3cd1cd128257cada70d4204015cdab3dc",
+      "retrievedAt": "2026-10-27T16:09:00.288568+00:00",
+      "language": "en",
+      "item": "act",
+      "sourceParagraphRange": {
+        "start": 85,
+        "end": 100
+      },
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "HAVE ADOPTED THIS DIRECTIVE:",
+        "Article 1",
+        "Suspension",
+        "The application of the following provisions is suspended until 1 January 2035:",
+        "(a)\tArticle 22a(3) of Directive 2008/98/EC.",
+        "Member States may either provide that a producer as defined in Article 3(4b), point (d), of that Directive established in a third country and making textile, textile-related or footwear products listed in Annex IVc of that Directive available for the first time on their territory is to appoint, by written mandate, a legal or natural person established on their territory as its authorised representative for the purpose of fulfilling the obligations of a producer related to the extended producer responsibility scheme on their territory or ensure traceability and enforcement with regard to producers established in third countries through alternative means;",
+        "(b)\tArticle 17(2) of Directive 2012/19/EU;",
+        "(c)\tArticle 8(7) of Directive (EU) 2019/904.",
+        "Article 2",
+        "Transposition",
+        "1.\tMember States shall bring into force the laws, regulations and administrative provisions necessary to comply with this Directive by [OP: please insert date 12 months after entry into force of this Directive] at the latest. They shall forthwith communicate to the Commission the text of those provisions.",
+        "When Member States adopt those provisions, they shall contain a reference to this Directive or be accompanied by such a reference on the occasion of their official publication. Member States shall determine how such reference is to be made.",
+        "2.\tMember States shall communicate to the Commission the text of the main provisions of national law which they adopt in the field covered by this Directive.",
+        "Article 3",
+        "Entry into force"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[90]",
+          "ordinal": 89,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[91]",
+          "ordinal": 90,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[92]",
+          "ordinal": 91,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[93]",
+          "ordinal": 92,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[94]",
+          "ordinal": 93,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[95]",
+          "ordinal": 94,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[96]",
+          "ordinal": 95,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[97]",
+          "ordinal": 96,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[98]",
+          "ordinal": 97,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[99]",
+          "ordinal": 98,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[100]",
+          "ordinal": 99,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[101]",
+          "ordinal": 100,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[102]",
+          "ordinal": 101,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[103]",
+          "ordinal": 102,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[104]",
+          "ordinal": 103,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 4,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Formuledadoption",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1letter",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "ManualNumPar1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 13,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "italic"
+            }
+          ]
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "alphabetic-text2",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "f4560910d9dc0dda9f926f4cce13bccb17f3bc99535350eae7bf90432abfa8f4",
+      "retrievedAt": "2026-10-27T16:08:48.294080+00:00",
+      "language": "en",
+      "item": "act",
+      "sourceParagraphRanges": [
+        {
+          "start": 232,
+          "end": 235
+        },
+        {
+          "start": 291,
+          "end": 305
+        }
+      ],
+      "sourceParagraphIndices": [
+        232,
+        233,
+        234,
+        291,
+        292,
+        293,
+        294,
+        295,
+        296,
+        297,
+        298,
+        299,
+        300,
+        301,
+        302,
+        303,
+        304
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Article 3",
+        "Amendments to Regulation (EU) 2019/1009",
+        "Regulation (EU) 2019/1009 is amended as follows:",
+        "(9)\tArticle 42 is amended as follows:",
+        "(a)\tin paragraph 4, the introductory statement is replaced by the following:",
+        "‘The Commission may adopt delegated acts pursuant to paragraph 1 amending Annex II to add new micro-organisms or strains of micro-organisms, or additional processing methods to the component material category for such organisms after having verified which strains of the additional micro-organism fulfil the criteria in paragraph 1, point (b), on the basis of the following data:’",
+        ";",
+        "(b)\tthe following paragraph 4a is inserted:",
+        "‘4a.   The Commission may also adopt delegated acts pursuant to paragraph 1 amending Annex II to set out criteria and a methodology for the assessment of micro-organisms other than those listed in Annex II, which, if compliance with those criteria is demonstrated in the conformity assessment of the EU fertilising product in accordance with that methodology, may be used as component material in EU fertilising products. The criteria and methodology shall allow for verification that the micro-organisms fulfil the criteria in paragraph 1, point (b), and provide, as a minimum, for the consideration of the following elements:",
+        "(a) scientific literature reporting about safe production, conservation and use of the micro-organism;",
+        "(b) taxonomic relation of the micro-organism to micro-organisms species fulfilling the requirements for a Qualified Presumption of Safety as established by the European Food Safety Authority;",
+        "(c) information on the production process of the micro-organism, including, where relevant, the composition of the cultivation medium, processing methods such as spray drying, fluid-bed drying, static drying, centrifugation, deactivation by heat, filtration and grinding;",
+        "(d) information on the identity and residue levels of residual intermediates, toxins or microbial metabolites in the component material;",
+        "(e) natural occurrence, survival and mobility in the environment;",
+        "(f) susceptibility to all relevant antimicrobial agents as defined in the Annex, Introduction to Part B, point (ii)(28), to Commission Regulation (EU) No 283/2013*, with the exception of intrinsic resistance.",
+        "*Commission Regulation (EU) No 283/2013 of 1 March 2013 setting out the data requirements for active substances, in accordance with Regulation (EC) No 1107/2009 of the European Parliament and of the Council concerning the placing of plant protection products on the market (OJ L 93, 3.4.2013, p. 1, ELI: http://data.europa.eu/eli/reg/2013/283/oj).’",
+        ";"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[235]",
+          "ordinal": 234,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[236]",
+          "ordinal": 235,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[237]",
+          "ordinal": 236,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[294]",
+          "ordinal": 293,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[295]",
+          "ordinal": 294,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[296]",
+          "ordinal": 295,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[297]",
+          "ordinal": 296,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[298]",
+          "ordinal": 297,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[299]",
+          "ordinal": 298,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[300]",
+          "ordinal": 299,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[301]",
+          "ordinal": 300,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[302]",
+          "ordinal": 301,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[303]",
+          "ordinal": 302,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[304]",
+          "ordinal": 303,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[305]",
+          "ordinal": 304,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[306]",
+          "ordinal": 305,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[307]",
+          "ordinal": 306,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 39,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "size": "sm",
+          "marks": [
+            {
+              "start": 304,
+              "end": 345,
+              "kind": "underline"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "croatian-delete",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0014.01/DOC_1",
+      "sha256": "054c3939369d0d3b12bab28aa5b8fe9a162a485a79f893c8245e9ce057ba7208",
+      "retrievedAt": "2026-10-27T16:08:50.456092+00:00",
+      "language": "hr",
+      "item": "act",
+      "sourceParagraphRanges": [
+        {
+          "start": 193,
+          "end": 196
+        },
+        {
+          "start": 203,
+          "end": 204
+        },
+        {
+          "start": 218,
+          "end": 226
+        }
+      ],
+      "sourceParagraphIndices": [
+        193,
+        194,
+        195,
+        203,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Članak 2.",
+        "Izmjene Uredbe (EZ) br. 1223/2009",
+        "Uredba (EZ) br. 1223/2009 mijenja se kako slijedi:",
+        "(2)\tčlanak 15. mijenja se kako slijedi:",
+        "(b)\tdodaju se sljedeći stavci 5., 6. i 7.:",
+        "„5. Zabrana iz ovog članka stavaka 1. i 2. ne primjenjuje se na tvar ako je u stupcu „Oznake upozorenja” u okviru stupca „Razvrstavanje” u dijelu 3. Priloga VI. Uredbi (EZ) br. 1272/2008 za usklađeno razvrstavanje tvari kao CMR tvari izričito naveden oralni ili inhalacijski put izlaganja. Ako zbog slučajnog unosa ili udisanja kozmetički proizvodi koji sadržavaju takvu tvar predstavljaju potencijalan rizik za zdravlje ljudi, Komisija bez nepotrebne odgode traži mišljenje SCCS-a o sigurnosti predmetne tvari u tim određenim vrstama proizvoda.",
+        "6. Zabrana iz ovog članka stavaka 1. i 2. ne primjenjuje se na tvar koja je ekstrahirana iz biljaka ili dijelova biljaka i koja nije kemijski promijenjena kako je definirano u članku 3. točki 40. Uredbe (EZ) br. 1907/2006, a koja sadržava više od jednog sastojka, od kojih je barem jedan razvrstan kao CMR tvar kategorije 1.A, 1.B ili 2. u skladu s dijelom 3. Priloga VI. Uredbi (EZ) br. 1272/2008. Ako uporaba takve tvari u kozmetičkim proizvodima predstavlja potencijalan rizik za zdravlje ljudi, Komisija bez nepotrebne odgode traži mišljenje SCCS-a o sigurnosti te tvari za njezinu uporabu u kozmetičkim proizvodima.",
+        "Za potrebe ovog stavka „biljke” se odnose na žive ili mrtve organizme iz carstava Plantae i Fungi te uključuju alge, lišajeve i kvasce.",
+        "7. Kozmetički proizvodi koji sadržavaju tvar razvrstanu kao CMR tvar kategorije 1.A, 1.B ili 2. u skladu s dijelom 3. Priloga VI. Uredbi (EZ) br. 1272/2008 čija je uporaba u kozmetičkim proizvodima zabranjena ili tvar koja nije u skladu s ograničenjem mogu se nastaviti stavljati na tržište 12 mjeseci i staviti na raspolaganje na tržištu 24 mjeseca nakon stupanja na snagu relevantnih izmjena odgovarajućih priloga ovoj Uredbi.”",
+        ";",
+        "(3)\tu članku 16., stavci 3. i 7. brišu se;",
+        "(4)\tu članku 19., stavak 6. zamjenjuje se sljedećim:"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[196]",
+          "ordinal": 195,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[197]",
+          "ordinal": 196,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[198]",
+          "ordinal": 197,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[206]",
+          "ordinal": 205,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[221]",
+          "ordinal": 220,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[222]",
+          "ordinal": 221,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[223]",
+          "ordinal": 222,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[224]",
+          "ordinal": 223,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[225]",
+          "ordinal": 224,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[226]",
+          "ordinal": 225,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[227]",
+          "ordinal": 226,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[228]",
+          "ordinal": 227,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 33,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "marks": [
+            {
+              "start": 82,
+              "end": 90,
+              "kind": "italic"
+            },
+            {
+              "start": 92,
+              "end": 97,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "croatian-insert",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0014.01/DOC_1",
+      "sha256": "054c3939369d0d3b12bab28aa5b8fe9a162a485a79f893c8245e9ce057ba7208",
+      "retrievedAt": "2026-10-27T16:08:50.456092+00:00",
+      "language": "hr",
+      "item": "act",
+      "sourceParagraphRanges": [
+        {
+          "start": 232,
+          "end": 235
+        },
+        {
+          "start": 276,
+          "end": 292
+        }
+      ],
+      "sourceParagraphIndices": [
+        232,
+        233,
+        234,
+        276,
+        277,
+        278,
+        279,
+        280,
+        281,
+        282,
+        283,
+        284,
+        285,
+        286,
+        287,
+        288,
+        289,
+        290,
+        291
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Članak 3.",
+        "Izmjene Uredbe (EU) 2019/1009",
+        "Uredba (EU) 2019/1009 mijenja se kako slijedi:",
+        "(6)\tčlanak 15. mijenja se kako slijedi:",
+        "(a)\tstavak 2. zamjenjuje se sljedećim:",
+        "„2. Zapisi i korespondencija koji se odnose na postupke ocjenjivanja sukladnosti sastavljaju se u elektroničkom obliku na službenom jeziku države članice u kojoj prijavljeno tijelo koje provodi postupke ima poslovni nastan ili na jeziku koji to tijelo prihvati.”;",
+        "(b)\tdodaje se sljedeći stavak 3.:",
+        "„3. Proizvođač prijavljenom tijelu koje provodi postupak ocjenjivanja sukladnosti u elektroničkom obliku dostavlja sve informacije i dokumentaciju u vezi s postupcima ocjenjivanja sukladnosti.”",
+        ";",
+        "(7)\tu članku 16. dodaju se sljedeći stavci 5. i 6.:",
+        "„5. EU izjava o sukladnosti dostavlja se u strojno čitljivom i otvorenom obliku kako je definirano u članku 2. točkama 13. i 14. Direktive (EU) 2019/1024 Europskog parlamenta i Vijeća* i ispunjava zahtjeve za digitalne naljepnice utvrđene u članku 11.b stavku 4. točkama od (a) do (d).",
+        "Ako se nosač podataka upotrebljava za omogućavanje pristupa EU izjavi o sukladnosti, on bi trebao biti priložen proizvodu u skladu s člankom 11.b stavkom 5. i temeljiti se na jednom od elektroničkih tehničkih rješenja kojima se gospodarski subjekti mogu koristiti za osiguravanje digitalne naljepnice utvrđene na temelju članka 42. stavka 9. Gospodarski subjekti koji EU izjavu o sukladnosti dostavljaju putem nosača podataka ne smiju pratiti, analizirati ni koristiti informacije o upotrebi u druge svrhe osim onih koje su apsolutno nužne za digitalno pružanje relevantnih informacija.",
+        "Ako se digitalna naljepnica upotrebljava u skladu s člankom 11.a, nosač podataka koji se upotrebljava za digitalnu naljepnicu omogućuje i pristup EU izjavi o sukladnosti.",
+        "* Direktiva (EU) 2019/1024 Europskog parlamenta i Vijeća od 20. lipnja 2019. o otvorenim podatcima i ponovnoj uporabi informacija javnog sektora (SL L 172, 26.6.2019., str. 56., ELI: http://data.europa.eu/eli/dir/2019/1024/oj).’",
+        "6. Ako se drugim zakonodavstvom Unije koje se primjenjuje na gnojidbene proizvode EU-a zahtijeva da gospodarski subjekt u digitalnoj putovnici za proizvode navede da proizvod ispunjava zahtjeve utvrđene u tom zakonodavstvu ili da u nju učita EU izjavu o sukladnosti, informacije iz Priloga V. koje treba navesti u EU izjavi o sukladnosti i sve informacije na digitalnoj naljepnici u skladu s člankom 11.b, ako je primjenjivo, navode se samo u toj digitalnoj putovnici za proizvode.”",
+        ";",
+        "(8)\tu članku 41. stavku 1., točka (c) zamjenjuje se sljedećim:",
+        "„(c) EU izjava o sukladnosti nije sastavljena ili nije pravilno sastavljena ili uz gnojidbeni proizvod EU-a nije priložena internetska adresa ili nosač podataka putem kojih se može pristupiti EU izjavi o sukladnosti.”;",
+        "(9)\tčlanak 42. mijenja se kako slijedi:"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[235]",
+          "ordinal": 234,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[236]",
+          "ordinal": 235,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[237]",
+          "ordinal": 236,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[279]",
+          "ordinal": 278,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[280]",
+          "ordinal": 279,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[281]",
+          "ordinal": 280,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[282]",
+          "ordinal": 281,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[283]",
+          "ordinal": 282,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[284]",
+          "ordinal": 283,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[285]",
+          "ordinal": 284,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[286]",
+          "ordinal": 285,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[287]",
+          "ordinal": 286,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[288]",
+          "ordinal": 287,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[289]",
+          "ordinal": 288,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[290]",
+          "ordinal": 289,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[291]",
+          "ordinal": 290,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[292]",
+          "ordinal": 291,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[293]",
+          "ordinal": 292,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[294]",
+          "ordinal": 293,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 29,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "size": "sm",
+          "marks": [
+            {
+              "start": 183,
+              "end": 225,
+              "kind": "underline"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "croatian-replace",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0014.01/DOC_1",
+      "sha256": "054c3939369d0d3b12bab28aa5b8fe9a162a485a79f893c8245e9ce057ba7208",
+      "retrievedAt": "2026-10-27T16:08:50.456092+00:00",
+      "language": "hr",
+      "item": "act",
+      "sourceParagraphRanges": [
+        {
+          "start": 232,
+          "end": 235
+        },
+        {
+          "start": 238,
+          "end": 253
+        }
+      ],
+      "sourceParagraphIndices": [
+        232,
+        233,
+        234,
+        238,
+        239,
+        240,
+        241,
+        242,
+        243,
+        244,
+        245,
+        246,
+        247,
+        248,
+        249,
+        250,
+        251,
+        252
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Članak 3.",
+        "Izmjene Uredbe (EU) 2019/1009",
+        "Uredba (EU) 2019/1009 mijenja se kako slijedi:",
+        "(2)\tčlanak 6. mijenja se kako slijedi:",
+        "(a)\tstavak 2. mijenja se kako slijedi:",
+        "(i)\t drugi podstavak zamjenjuje se sljedećim:",
+        "„Ako je tim postupkom ocjenjivanja usklađenosti dokazana sukladnost gnojidbenog proizvoda EU-a s primjenjivim zahtjevima utvrđenima u ovoj Uredbi, proizvođači sastavljaju EU izjavu o sukladnosti u elektroničkom obliku i stavljaju oznaku CE.”;",
+        "ii.\tdodaje se sljedeći podstavak:",
+        "„Proizvođači osiguravaju da je uz gnojidbeni proizvod EU-a priložena internetska adresa ili nosač podataka putem kojih se može pristupiti EU izjavi o sukladnosti.”;",
+        "(b)\tu stavku 3., drugi podstavak zamjenjuje se sljedećim:",
+        "„Proizvođači na zahtjev stavljaju EU izjavu o sukladnosti na raspolaganje drugim gospodarskim subjektima u elektroničkom obliku.”;",
+        "(c)\tu stavku 6. prvom podstavku, prva i druga rečenica zamjenjuju se sljedećim:",
+        "„Uvoznici na ambalaži gnojidbenog proizvoda EU-a navode svoje ime, registrirano trgovačko ime ili registrirani žig te poštansku adresu i digitalni kontakt ili, ako se gnojidbeni proizvod EU-a isporučuje bez ambalaže, u dokumentu priloženom uz gnojidbeni proizvod EU-a. U poštanskoj adresi i digitalnom kontaktu navodi se jedinstvena točka putem koje se može obratiti proizvođaču.”",
+        ";",
+        "(d)\tu stavku 9., prva rečenica zamjenjuje se sljedećim:",
+        "„Na obrazložen zahtjev nadležnog nacionalnog tijela proizvođači tom tijelu dostavljaju u elektroničkom obliku sve informacije i dokumentaciju potrebne za dokazivanje sukladnosti gnojidbenog proizvoda EU-a s ovom Uredbom, na jeziku koji to tijelo razumije bez poteškoća.”",
+        ";",
+        "(3)\tu članku 7. stavku 2., točka (b) zamjenjuje se sljedećim:"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[235]",
+          "ordinal": 234,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[236]",
+          "ordinal": 235,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[237]",
+          "ordinal": 236,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[241]",
+          "ordinal": 240,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[242]",
+          "ordinal": 241,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[243]",
+          "ordinal": 242,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[244]",
+          "ordinal": 243,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[245]",
+          "ordinal": 244,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[246]",
+          "ordinal": 245,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[247]",
+          "ordinal": 246,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[248]",
+          "ordinal": 247,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[249]",
+          "ordinal": 248,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[250]",
+          "ordinal": 249,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[251]",
+          "ordinal": 250,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[252]",
+          "ordinal": 251,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[253]",
+          "ordinal": 252,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[254]",
+          "ordinal": 253,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[255]",
+          "ordinal": 254,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text2",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 29,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 8.27,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 5.9
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "croatian-roman-quotations",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0014.01/DOC_1",
+      "sha256": "054c3939369d0d3b12bab28aa5b8fe9a162a485a79f893c8245e9ce057ba7208",
+      "retrievedAt": "2026-10-27T16:08:50.456092+00:00",
+      "language": "hr",
+      "item": "act",
+      "sourceParagraphRanges": [
+        {
+          "start": 193,
+          "end": 196
+        },
+        {
+          "start": 203,
+          "end": 226
+        }
+      ],
+      "sourceParagraphIndices": [
+        193,
+        194,
+        195,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "Članak 2.",
+        "Izmjene Uredbe (EZ) br. 1223/2009",
+        "Uredba (EZ) br. 1223/2009 mijenja se kako slijedi:",
+        "(2)\tčlanak 15. mijenja se kako slijedi:",
+        "(a)\tstavak 2. mijenja se kako slijedi:",
+        "i.\tdrugi podstavak zamjenjuje se sljedećim:",
+        "„2. Međutim, takve se tvari mogu koristiti u kozmetičkim proizvodima ako je Komisiji podnesen zahtjev za odstupanje najkasnije tri mjeseca nakon datuma stupanja na snagu izmjena dijela 3. Priloga VI. Uredbi (EZ) br. 1272/2008 kojima se tvar razvrstava kao CMR tvar kategorije 1.A ili 1.B. Komisija odobrava odstupanje ako su ispunjeni svi sljedeći uvjeti:",
+        "(a)\tnisu dostupne prikladne alternativne tvari kako je dokazano analizom alternativnih mogućnosti;",
+        "(b)\tSCCS je ocijenio tvari i utvrdio da su sigurne za specifičnu uporabu kategorije kozmetičkih proizvoda, uzimajući u obzir izloženost tim proizvodima i ukupnu izloženost iz drugih izvora osim kozmetičkih te vodeći računa o osjetljivim društvenim skupinama.”;",
+        "ii.\ttreći podstavak zamjenjuje se sljedećim:",
+        "„Za potrebe točke (a) drugog podstavka, tvar se smatra prikladnom alternativom ako ispunjava sve sljedeće uvjete:",
+        "(a)\tnjezina uporaba u kozmetičkim proizvodima dovodi do smanjenja ukupnog rizika za zdravlje ljudi i okoliš;",
+        "(b)\tima jednakovrijednu funkciju u gotovom kozmetičkom proizvodu kao razvrstana tvar, sličnog je učinka i jednake razine učinkovitosti;",
+        "(c)\ttehnički je izvediva i gospodarski održiva;",
+        "(d)\t\tnije ograničena, nije zaštićena isključivim pravima i dostupna je na tržištu u velikim količinama, dostatnima da zadovolje trenutačnu i očekivanu potražnju.”",
+        ";",
+        "iii.\tsljedeći se podstavak umeće iza četvrtog podstavka:",
+        "„Rok utvrđen u ovom stavku četvrtom podstavku počinje teći od datuma početka primjene relevantnih izmjena dijela 3. Priloga VI. Uredbi (EZ) br. 1272/2008 kojima se predmetna tvar razvrstava kao CMR tvar kategorije 1.A ili 1.B.”;",
+        "(b)\tdodaju se sljedeći stavci 5., 6. i 7.:",
+        "„5. Zabrana iz ovog članka stavaka 1. i 2. ne primjenjuje se na tvar ako je u stupcu „Oznake upozorenja” u okviru stupca „Razvrstavanje” u dijelu 3. Priloga VI. Uredbi (EZ) br. 1272/2008 za usklađeno razvrstavanje tvari kao CMR tvari izričito naveden oralni ili inhalacijski put izlaganja. Ako zbog slučajnog unosa ili udisanja kozmetički proizvodi koji sadržavaju takvu tvar predstavljaju potencijalan rizik za zdravlje ljudi, Komisija bez nepotrebne odgode traži mišljenje SCCS-a o sigurnosti predmetne tvari u tim određenim vrstama proizvoda.",
+        "6. Zabrana iz ovog članka stavaka 1. i 2. ne primjenjuje se na tvar koja je ekstrahirana iz biljaka ili dijelova biljaka i koja nije kemijski promijenjena kako je definirano u članku 3. točki 40. Uredbe (EZ) br. 1907/2006, a koja sadržava više od jednog sastojka, od kojih je barem jedan razvrstan kao CMR tvar kategorije 1.A, 1.B ili 2. u skladu s dijelom 3. Priloga VI. Uredbi (EZ) br. 1272/2008. Ako uporaba takve tvari u kozmetičkim proizvodima predstavlja potencijalan rizik za zdravlje ljudi, Komisija bez nepotrebne odgode traži mišljenje SCCS-a o sigurnosti te tvari za njezinu uporabu u kozmetičkim proizvodima.",
+        "Za potrebe ovog stavka „biljke” se odnose na žive ili mrtve organizme iz carstava Plantae i Fungi te uključuju alge, lišajeve i kvasce.",
+        "7. Kozmetički proizvodi koji sadržavaju tvar razvrstanu kao CMR tvar kategorije 1.A, 1.B ili 2. u skladu s dijelom 3. Priloga VI. Uredbi (EZ) br. 1272/2008 čija je uporaba u kozmetičkim proizvodima zabranjena ili tvar koja nije u skladu s ograničenjem mogu se nastaviti stavljati na tržište 12 mjeseci i staviti na raspolaganje na tržištu 24 mjeseca nakon stupanja na snagu relevantnih izmjena odgovarajućih priloga ovoj Uredbi.”",
+        ";",
+        "(3)\tu članku 16., stavci 3. i 7. brišu se;",
+        "(4)\tu članku 19., stavak 6. zamjenjuje se sljedećim:"
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[196]",
+          "ordinal": 195,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[197]",
+          "ordinal": 196,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[198]",
+          "ordinal": 197,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[206]",
+          "ordinal": 205,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[207]",
+          "ordinal": 206,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[208]",
+          "ordinal": 207,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[209]",
+          "ordinal": 208,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[210]",
+          "ordinal": 209,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[211]",
+          "ordinal": 210,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[212]",
+          "ordinal": 211,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[213]",
+          "ordinal": 212,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[214]",
+          "ordinal": 213,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[215]",
+          "ordinal": 214,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[216]",
+          "ordinal": 215,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[217]",
+          "ordinal": 216,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[218]",
+          "ordinal": 217,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[219]",
+          "ordinal": 218,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[220]",
+          "ordinal": 219,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[221]",
+          "ordinal": 220,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[222]",
+          "ordinal": 221,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[223]",
+          "ordinal": 222,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[224]",
+          "ordinal": 223,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[225]",
+          "ordinal": 224,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[226]",
+          "ordinal": 225,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[227]",
+          "ordinal": 226,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[228]",
+          "ordinal": 227,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "NormalCentered",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text3",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Text1",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 33,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 10.63,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 8.27
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "marks": [
+            {
+              "start": 82,
+              "end": 90,
+              "kind": "italic"
+            },
+            {
+              "start": 92,
+              "end": 97,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    },
+    {
+      "name": "dotted-alphabetic-annex",
+      "attribution": "European Commission / Publications Office",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/272e2bb6-bb7c-11ee-b164-01aa75ed71a1.0001.01/DOC_2",
+      "sha256": "a99eed8bc2100682f291e2b286fb281d8bbf7f3bc01220d83246dfcf5673c1a6",
+      "retrievedAt": "2026-10-27T16:08:41.965819+00:00",
+      "language": "en",
+      "item": "annex",
+      "sourceParagraphRanges": [
+        {
+          "start": 44,
+          "end": 50
+        },
+        {
+          "start": 54,
+          "end": 55
+        },
+        {
+          "start": 59,
+          "end": 60
+        },
+        {
+          "start": 64,
+          "end": 70
+        },
+        {
+          "start": 75,
+          "end": 76
+        },
+        {
+          "start": 80,
+          "end": 81
+        },
+        {
+          "start": 86,
+          "end": 87
+        },
+        {
+          "start": 91,
+          "end": 102
+        }
+      ],
+      "sourceParagraphIndices": [
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        54,
+        59,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        75,
+        80,
+        86,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101
+      ],
+      "coverage": {
+        "complete": false
+      },
+      "structureStatus": "extracted",
+      "sourceKind": "extracted-text",
+      "paragraphs": [
+        "ANNEX II",
+        "List of technologies, assets, facilities, equipment, networks, systems, services and economic activities of particular importance for the security or public order interests of the Union",
+        "1.\tItems listed in Annex I to Regulation (EU) 2021/821 of the European Parliament and of the Council (common list of dual-use items subject to export controls)",
+        "2.\tEquipment covered by Council Common Position 2008/944/CFSP defining common rules governing the control of exports of military technology and equipment (Common Military List of the European Union)",
+        "3.\tThe following critical technology areas for the EU’s economic security annexed to Commission Recommendation (EU) 2023/2113 of 3 October 2023 on critical technology areas for the EU’s economic security for further risk assessment with Member States:",
+        "a.\tAdvanced semiconductors technologies:",
+        "b.\tArtificial intelligence technologies:",
+        "c.\tQuantum technologies:",
+        "d.\tBiotechnologies:",
+        "•\ttechniques of genetic modification",
+        "•\tnew genomic techniques",
+        "•\tgene-drive",
+        "•\tsynthetic biology",
+        "e.\tAdvanced connectivity, navigation and digital technologies:",
+        "f.\tAdvanced sensing technologies:",
+        "g.\tSpace & propulsion technologies:",
+        "h.\tEnergy technologies:",
+        "i.\tRobotics and autonomous systems:",
+        "•\tDrones and vehicles (air, land, surface and underwater)",
+        "•\tRobots and robot-controlled precision systems",
+        "•\tExoskeletons",
+        "•\tAI-enabled systems",
+        "j.\tAdvanced materials, manufacturing and recycling technologies:",
+        "•\tTechnologies for nanomaterials, smart materials, advanced ceramic materials, stealth materials, safe and sustainable by design materials",
+        "•\tAdditive manufacturing, including in the field",
+        "•\tDigital controlled micro-precision manufacturing and small-scale laser machining/welding",
+        "•\tTechnologies for extraction, processing and recycling of critical raw materials (including hydrometallurgical extraction, bioleaching, nanotechnology-based filtration, electrochemical processing and black mass)",
+        "4.\tListed critical medicines: Medicines for human use that are essential for the proper functioning of the EU healthcare system and whose shortage would lead to an interruption in treatment and thus serious harm to patients, as listed in the Union list for critical medicines ."
+      ],
+      "paragraphSources": [
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[47]",
+          "ordinal": 46,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[48]",
+          "ordinal": 47,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[49]",
+          "ordinal": 48,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[50]",
+          "ordinal": 49,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[51]",
+          "ordinal": 50,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[52]",
+          "ordinal": 51,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[57]",
+          "ordinal": 56,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[62]",
+          "ordinal": 61,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[67]",
+          "ordinal": 66,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[68]",
+          "ordinal": 67,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[69]",
+          "ordinal": 68,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[70]",
+          "ordinal": 69,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[71]",
+          "ordinal": 70,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[72]",
+          "ordinal": 71,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[78]",
+          "ordinal": 77,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[83]",
+          "ordinal": 82,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[89]",
+          "ordinal": 88,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[94]",
+          "ordinal": 93,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[95]",
+          "ordinal": 94,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[96]",
+          "ordinal": 95,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[97]",
+          "ordinal": 96,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[98]",
+          "ordinal": 97,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[99]",
+          "ordinal": 98,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[100]",
+          "ordinal": 99,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[101]",
+          "ordinal": 100,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[102]",
+          "ordinal": 101,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[103]",
+          "ordinal": 102,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        },
+        {
+          "path": "/w:document[1]/w:body[1]/w:p[104]",
+          "ordinal": 103,
+          "container": "body",
+          "containerPath": "/w:document[1]/w:body[1]",
+          "segment": 2,
+          "complete": true
+        }
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Annexetitre",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point10",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Bullet3",
+          "numberingLabel": "•",
+          "numberingComplete": true,
+          "notesComplete": true,
+          "numbering": {
+            "id": "35",
+            "abstractId": "6",
+            "level": 0,
+            "format": "bullet"
+          }
+        },
+        {
+          "styleId": "Point0",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "bold"
+            },
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "underline"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 104,
+              "kind": "bold"
+            },
+            {
+              "start": 105,
+              "end": 185,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 5.9,
+          "hanging": 2.36
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 3.54,
+          "hanging": 3.54,
+          "marks": [
+            {
+              "start": 242,
+              "end": 276,
+              "kind": "underline"
+            }
+          ]
+        }
+      ],
+      "documentObjects": [],
+      "tables": []
+    }
+  ],
+  "amendments": [
+    {
+      "id": "A-10-2026-0257-AM-143",
+      "example": "continuation",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0257-AM-001-163/A-10-2026-0257-AM-001-163_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0257-AM-001-163/A-10-2026-0257-AM-001-163_en.docx",
+        "fetchedAt": "2026-10-27T00:45:40.298Z",
+        "sha256": "5927e406ad5659e1d42f26949bc21b48136732a581132285b5ab233a0b0f5a72",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 13 – paragraph 2 – subparagraph 2",
+      "originalText": "For the purposes of point (d) , the third country shall grant the necessary rights and access required under Regulations (EU, Euratom) 2024/2509 and (EU, Euratom) No 883/2013, and guarantee that enforcement decisions imposing a pecuniary obligation on the basis of Article 299 TFEU, as well as judgements and orders of the Court of Justice of the European Union, are enforceable.",
+      "proposedText": "For the purposes of point (d), the third country shall grant the necessary rights and access required under Regulations (EU, Euratom) 2024/2509 and (EU, Euratom) No 883/2013, including the audit rights of the European Court of Auditors pursuant to Article 287 of the Treaty on the Functioning of the European Union, and guarantee that enforcement decisions imposing a pecuniary obligation on the basis of Article 299 TFEU, as well as judgements and orders of the Court of Justice of the European Union, are enforceable.",
+      "expected": {
+        "status": "placed",
+        "span": {
+          "start": 333,
+          "end": 333
+        }
+      }
+    },
+    {
+      "id": "A-10-2026-0104-AM-101",
+      "example": "quotation",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0104-AM-100-101/A-10-2026-0104-AM-100-101_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0104-AM-100-101/A-10-2026-0104-AM-100-101_en.docx",
+        "fetchedAt": "2026-10-27T00:37:58.718Z",
+        "sha256": "e266261187078a76ea80cb88f1180840b3cc7a2c5580410da5948e2d4d756c60",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 2 – paragraph 1 – point 2 a (new)\nRegulation (EC) No 1223/2009 — Article 15a (new)",
+      "originalText": "",
+      "proposedText": "(2 a)\tThe following Article is inserted:\nArticle 15a\nPer- and polyfluoroalkyl substances (PFAS)\n1. The intentional use of per- and polyfluoroalkyl substances (PFAS) shall be prohibited in cosmetic products. ‘PFAS’ means any substance that contains at least one fully fluorinated methyl (CF3 -) or methylene (-CF2 -) carbon atom (without any H/Cl/Br/I attached to it.\n2. Paragraph 1 shall apply as of [OP: please insert the date of 18 months after entry into force of this Regulation].\n3. Restrictions or prohibitions on the use of PFAS laid down in accordance with Regulation (EC) No 1907/2006 or (EU) 2019/1021 of the European Parliament and of the Council shall take precedence over paragraph 1.",
+      "expected": {
+        "status": "placed",
+        "insertAfter": 223,
+        "insertBefore": 224
+      }
+    },
+    {
+      "id": "A-10-2026-0104-AM-51",
+      "example": "quotation",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0104-AM-001-089/A-10-2026-0104-AM-001-089_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0104-AM-001-089/A-10-2026-0104-AM-001-089_en.docx",
+        "fetchedAt": "2026-10-27T00:37:54.205Z",
+        "sha256": "34802a66c44d734ff168f6a0ae91fc8ed15e1990d2a4ea44ec6f04004f084c5a",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 2 – paragraph 1 – point 2 – point a – point ii",
+      "originalText": "(a)\tits use in cosmetic products results in reduced overall risk to human health and the environment;",
+      "proposedText": "(a)\tits use in cosmetic products is safe and results in reduction of overall risk to human health, when assessed against the substance it is intended to replace;",
+      "expected": {
+        "status": "placed",
+        "span": {
+          "start": 211,
+          "end": 211
+        }
+      }
+    },
+    {
+      "id": "A-10-2026-0104-AM-57",
+      "example": "quotation",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0104-AM-001-089/A-10-2026-0104-AM-001-089_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0104-AM-001-089/A-10-2026-0104-AM-001-089_en.docx",
+        "fetchedAt": "2026-10-27T00:37:54.205Z",
+        "sha256": "34802a66c44d734ff168f6a0ae91fc8ed15e1990d2a4ea44ec6f04004f084c5a",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 2 – paragraph 1 – point 2 – point a – point iii",
+      "originalText": "The deadline laid down in the fourth subparagraph of this paragraph shall start on the date of entry into application of the relevant amendments to Part 3 of Annex VI to Regulation (EC) No 1272/2008 classifying the substance concerned as CMR substance of category 1A, or 1B.;",
+      "proposedText": "The deadline laid down in the fourth subparagraph of this paragraph shall start on the date of entry into force of the relevant amendments to Part 3 of Annex VI to Regulation (EC) No 1272/2008 classifying the substance concerned as CMR substance of category 1A, or 1B.",
+      "expected": {
+        "status": "placed",
+        "span": {
+          "start": 217,
+          "end": 217
+        }
+      }
+    },
+    {
+      "id": "A-10-2026-0267-AM-12",
+      "example": "titles-directive",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0267-AM-001-020/A-10-2026-0267-AM-001-020_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0267-AM-001-020/A-10-2026-0267-AM-001-020_en.docx",
+        "fetchedAt": "2026-10-27T00:46:26.599Z",
+        "sha256": "607d33ba73ff1ed889c4e3d75c3d56d8f99386c996ecf4b88067826940b1eee0",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 1 – title",
+      "originalText": "Suspension",
+      "proposedText": "Suspension of Article 22a(3) of Directive 2008/98/EC",
+      "expected": {
+        "status": "placed",
+        "span": {
+          "start": 87,
+          "end": 87
+        }
+      }
+    },
+    {
+      "id": "A-10-2026-0267-AM-13",
+      "example": "titles-directive",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0267-AM-001-020/A-10-2026-0267-AM-001-020_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0267-AM-001-020/A-10-2026-0267-AM-001-020_en.docx",
+        "fetchedAt": "2026-10-27T00:46:26.599Z",
+        "sha256": "607d33ba73ff1ed889c4e3d75c3d56d8f99386c996ecf4b88067826940b1eee0",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 1 – paragraph 1 – introductory part",
+      "originalText": "The application of the following provisions is suspended until 1 January 2035:",
+      "proposedText": "The application of Article 22a(3) of Directive 2008/98/EC is suspended, as regards producers established in the Union qualifying as microenterprises or small enterprises within the meaning of Annex I to Commission Recommendation 2003/361/EC, until 1 January 2035 or until the date of application of a Union legal act establishing a horizontal framework for extended producer responsibility, including rules on authorised representatives [Circular Economy Act XXX], whichever is earlier.",
+      "expected": {
+        "status": "placed",
+        "span": {
+          "start": 88,
+          "end": 88
+        }
+      }
+    },
+    {
+      "id": "A-10-2026-0267-AM-15",
+      "example": "titles-directive",
+      "attribution": "European Parliament",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0267-AM-001-020/A-10-2026-0267-AM-001-020_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0267-AM-001-020/A-10-2026-0267-AM-001-020_en.docx",
+        "fetchedAt": "2026-10-27T00:46:26.599Z",
+        "sha256": "607d33ba73ff1ed889c4e3d75c3d56d8f99386c996ecf4b88067826940b1eee0",
+        "status": 200
+      },
+      "language": "en",
+      "targetLabel": "Article 1 – paragraph 1 – point b",
+      "originalText": "(b)\tMember States may either provide that a producer as defined in Article 3(4b), point (d), of that Directive established in a third country and making textile, textile-related or footwear products listed in Annex IVc of that Directive available for the first time on their territory is to appoint, by written mandate, a legal or natural person established on their territory as its authorised representative for the purpose of fulfilling the obligations of a producer related to the extended producer responsibility scheme on their territory or ensure traceability and enforcement with regard to producers established in third countries through alternative means;",
+      "proposedText": "deleted",
+      "expected": {
+        "status": "unresolved",
+        "reason": "conflicting_target_evidence"
+      }
+    }
+  ]
+}

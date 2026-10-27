@@ -7,7 +7,7 @@ function closingFor(mark,language){
   if(mark==='‘')return ['’'];
   if(mark==='‚')return ['‘'];
   if(mark==='“')return ['”'];
-  if(mark==='„')return ['pl','ro'].includes(language)?['”']:['“'];
+  if(mark==='„')return ['pl','ro','hr'].includes(language)?['”']:['“'];
   if(mark==='«')return ['»'];
   return [mark];
 }
