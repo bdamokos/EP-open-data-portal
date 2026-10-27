@@ -12,7 +12,7 @@ const fixture=JSON.parse(readFileSync(new URL('./fixtures/insights-live-20261014
 const activity=JSON.parse(readFileSync(new URL('./fixtures/activity-index-live-20261013.json',import.meta.url)));
 const clock=()=>Date.parse('2026-10-15T12:00:00Z');
 const query=value=>parliamentSearchQuery(new URLSearchParams(value));
-function setup(t,{missing=false}={}) {
+function setup(t,{missing=false,agenda}={}) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'parliament-search-')),store=new ActivityStore(directory);
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
   store.acquire();const {generation}=store.beginCycle();
@@ -23,6 +23,7 @@ function setup(t,{missing=false}={}) {
   const calls=[],request=yearCatalogue(async(endpoint,params)=>{
     calls.push([endpoint,params]);
     if(missing)throw Object.assign(new Error('Not retained'),{code:'odp_cache_miss'});
+    if(endpoint!=='/meetings'&&agenda)return agenda(endpoint,params);
     return endpoint==='/meetings'?{...fixture.meetings,fetchedAt:clock()}: {...fixture.foreseen,fetchedAt:clock()};
   });
   return {store,generation,calls,service:new ParliamentSearch(store,{request,clock}),work};
@@ -52,6 +53,27 @@ test('missing calendar observations remain unavailable while MEP and question re
   const response=await service.query(query('q=eva'));
   assert.equal(response.sections.find(s=>s.type==='mep').total,1);
   assert.equal(response.sections.find(s=>s.type==='topic').coverage.available,false);
+});
+test('conflicting agenda topics and containers are withheld while identical repeats keep exact first-page provenance',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const topic=fixture.foreseen.payload.data.find(node=>node.activity_id===sitting.activity_id+'-OJ-ITM-D-63');
+  const container=fixture.foreseen.payload.data.find(node=>JSON.stringify(node.consists_of||[]).includes(topic.id));
+  assert(topic&&container);
+  for(const conflict of ['none','title','container'])await t.test(conflict,async t=>{
+    const first={...topic,activity_label:{en:'Old energy title'}},second=conflict==='title'?{...first,activity_label:{en:'Revised climate title'}}:structuredClone(first);
+    const page0=[container,first,...Array.from({length:48},(_,i)=>({id:'eli/dl/event/'+sitting.activity_id+'-UNRELATED-'+i,activity_id:sitting.activity_id+'-UNRELATED-'+i}))];
+    const page1=conflict==='container'?[second,{...container,consists_of:[]}]:[second];
+    const url=offset=>'https://data.europarl.europa.eu/api/v2/meetings/'+sitting.activity_id+'/foreseen-activities?limit=50&offset='+offset;
+    const {service}=setup(t,{agenda:(endpoint,params)=>({url:url(params.offset),fetchedAt:clock()+params.offset,payload:{data:params.offset===0?page0:page1}})});
+    const section=(await service.query(query('q=old&type=topic'))).sections[0];
+    if(conflict==='none') {
+      assert.equal(section.total,1);assert.equal(section.results[0].title,'Old energy title');assert.equal(section.results[0].source.url,url(0));assert.equal(section.results[0].source.fetchedAt,new Date(clock()).toISOString());assert.deepEqual(section.coverage.conflicts,[]);
+    } else {
+      assert.equal(section.total,0);assert(section.coverage.conflicts.length>0);
+      assert.deepEqual(section.coverage.conflicts[0].sources.map(source=>source.url),[url(0),url(50)]);
+      assert.equal((await service.query(query('q=revised&type=topic'))).sections[0].total,0,'a disputed replacement cannot become a result');
+    }
+  });
 });
 test('question title pages retain exact totals, newest ordering and expression-only titles',async t=>{
   const {service,store,generation,work}=setup(t);

@@ -6,8 +6,9 @@ import {suppliedTitles,canonical} from './insights-model.mjs';
 import {languagePreference} from './language-order.mjs';
 import {requestSignal} from './request-budget.mjs';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
+import {comparable,exactReference} from './vote-evidence.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=1;
+export const PARLIAMENT_SEARCH_VERSION=2;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -67,21 +68,35 @@ export class ParliamentSearch {
       coverage.topic.catalogue=catalogue.coverage;
       coverage.topic.agendasRead=0;
       coverage.topic.missingAgendas=0;
+      coverage.topic.conflicts=[];
       const seen=new Set();
       for(const sitting of sittings) {
         requestSignal()?.throwIfAborted();
         if(!inPeriod(sitting.activity_date))continue;
-        const nodes=[],sources=[],nodeSources=new Map();
+        const sources=[],observations=new Map(),conflicts=new Set();
         for(let page=0;page<2;page++) {
-          try {const record=await this.request('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});nodes.push(...record.payload.data);sources.push(record);for(const node of record.payload.data)nodeSources.set(node.activity_id||canonical(node.id).split('/').at(-1),record);if(record.payload.data.length<50)break;}
+          try {
+            const record=await this.request('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});sources.push(record);
+            for(const node of record.payload.data) {
+              const uri=exactReference(node);if(!uri){coverage.topic.error=true;continue;}
+              const key=canonical(uri),previous=observations.get(key);
+              if(!previous)observations.set(key,{node,source:record});
+              else if(JSON.stringify(comparable(previous.node))!==JSON.stringify(comparable(node))) {
+                conflicts.add(key);
+                coverage.topic.conflicts.push({id:key,sittingId:sitting.activity_id,sources:[previous.source,record].map(source=>({url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString()}))});
+              }
+            }
+            if(record.payload.data.length<50)break;
+          }
           catch(error){requestSignal()?.throwIfAborted();if(error.code!=='odp_cache_miss')coverage.topic.error=true;break;}
         }
         if(!sources.length){coverage.topic.missingAgendas++;continue;}
         coverage.topic.agendasRead++;
+        const nodes=[...observations].filter(([key])=>!conflicts.has(key)).map(([,observation])=>observation.node);
         const first=sources[0],topics=agendaTopics({payload:{data:[sitting]}},{...first,payload:{data:nodes}});
         for(const item of topics) {
           if(seen.has(item.id))continue;seen.add(item.id);
-          const source=nodeSources.get(item.id);
+          const source=observations.get(item.uri).source;
           if(match([item.id,...Object.values(item.titles)]))add({id:item.id,type:'topic',...title(item.titles,item.id),date:item.date||sitting.activity_date,sittingId:sitting.activity_id,source:{url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:source.stale===true}});
         }
       }
