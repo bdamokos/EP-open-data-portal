@@ -17,7 +17,7 @@ test('progress is independent, preserves exact selection and lazy readable docum
   const ref='2025/0223(COD)',dossier='http://publications.europa.eu/resource/cellar/9d07a799-630b-11f0-bf4e-01aa75ed71a1',work=dossier+'a';
   const source={fetchedAt:'2026-10-20T23:30:00Z',stale:false,refreshInProgress:false,refreshError:null},coverage={limited:false,invalidRows:0,incompleteEvents:0};
   const event=(id,date,label,extra={})=>({id:dossier+'.'+id,date,dates:[date],label,labelLanguage:'en',types:[],statuses:[],status:'recorded',institutions:[{id:'EP',code:'EP',label:'European Parliament',language:'en'}],works:[],milestone:true,issues:[],...extra});
-  const progress={reference:ref,state:'mapped',dossier,coverage,source,events:[event('0001','2026-10-01','Committee report adopted',{works:[work]}),event('0002','2099-11-12','Plenary vote',{status:'projected'}),event('0003','2020-01-01','Past scheduled event',{status:'projected'}),event('0004','2099-11-13','Future unconfirmed event'),event('0005','2026-10-02','Working party',{milestone:false})]};
+  const progress={reference:ref,state:'mapped',dossier,coverage,source,events:[event('0001','2026-10-01','Committee report adopted',{works:[work]}),event('0002','2099-11-12','Plenary vote',{status:'projected'}),event('0003','2020-01-01','Past scheduled event',{status:'projected'}),event('0004','2099-11-13','Future unconfirmed event'),event('0005','2026-10-02','Working party',{milestone:false}),event('0006','2026-09-30','Joint signing',{institutions:[{id:'EP',code:'EP',label:'European Parliament',language:'en'},{id:'CONSIL',code:'CONSIL',label:'Conseil de l’Union européenne',language:'fr'}]}),event('0007',null,'Undated action',{institutions:[],issues:['date']})]};
   const calls=[];
   const pendingSummary=new Promise(resolve=>{answerSummary=resolve;});
   t.mock.method(globalThis,'fetch',async input=>{
@@ -39,12 +39,18 @@ test('progress is independent, preserves exact selection and lazy readable docum
   const checked=container.querySelector('.procedure-progress header time');
   assert.equal(checked.dateTime,source.fetchedAt);assert.equal(checked.textContent,'Oct 21, 2026','retrieval instants use the Brussels calendar day');
   assert.doesNotMatch(container.querySelector('.procedure-progress-latest').textContent,/Future|Past scheduled/);
+  assert.match(container.querySelector('.procedure-progress-latest').textContent,/European Parliament/);
   assert.match(container.querySelector('.procedure-progress-next').textContent,/Plenary vote/);
+  assert.match(container.querySelector('.procedure-progress-next').textContent,/European Parliament/);
   assert.match(container.textContent,/Some scheduled dates have passed\./);assert.doesNotMatch(container.textContent,/Some scheduled events have no date/,'a dated past event is not reported as undated');
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,0);
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
   await act(async()=>{button('Show timeline').focus();button('Show timeline').click();});
   assert.equal(document.activeElement,button('Hide timeline'));
+  const joint=[...container.querySelectorAll('.procedure-progress-timeline>li')].find(row=>row.textContent.includes('Joint signing'));
+  assert.match(joint.textContent,/European Parliament/);assert.equal(joint.querySelector('[lang="fr"]').textContent,'Conseil de l’Union européenne');
+  const undated=[...container.querySelectorAll('.procedure-progress-timeline>li')].find(row=>row.textContent.includes('Undated action'));
+  assert.match(undated.textContent,/Date unavailable/);assert.match(undated.textContent,/Institution unavailable/);
   const filter=container.querySelector('.procedure-progress-filters select');filter.focus();
   await act(async()=>{filter.value='EP';filter.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(document.activeElement,filter);
