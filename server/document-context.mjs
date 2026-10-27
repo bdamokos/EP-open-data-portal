@@ -8,11 +8,11 @@ import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-docume
 import {amendmentReference,amendmentTextLosses,canonicalEPReference} from './amendments.mjs';
 import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
-import {resolveAmendmentPlacement,resolveDocumentTarget} from './document-context-model.mjs';
+import {resolveDocumentTarget} from './document-context-model.mjs';
 import {languageCode} from './ep-links.mjs';
 import {proposalBaseline} from './proposal-baseline.mjs';
 import {parseProposal} from './proposal-structure.mjs';
-import {resolveProposalPlacement} from './proposal-placement.mjs';
+import {documentContextPlacement} from './document-context-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
 
@@ -150,8 +150,8 @@ export class DocumentContext {
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
     const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):references.length>1?{...unavailableTarget('conflicting-reference-decisions'),status:'ambiguous'}:differentLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language});
-    const baselineConflict=chosen?.baselineSource?.conflicted===true;
-    let placement=chosen&&query.includeBody!==false?baselineConflict?{operation:amendmentOperation(chosen),status:'unresolved',reason:'conflicting_baselines',evidence:[]}:resolveAmendmentPlacement(document?.selectedText,{originalText:chosen.originalText,proposedText:chosen.proposedText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language,baseline:chosen.baseline,baselineSource:chosen.baselineSource,resolutionDocument:['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].some(type=>canonicalType(work.work_type)==='def/ep-document-types/'+type)}):query.amendmentId&&query.includeBody!==false?{operation:null,status:'unresolved',reason:'amendment_wording_unavailable',evidence:[]}:null;
+    const placementOptions={chosen,text:document?.selectedText,referenceTexts:references,resolutionDocument:['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].some(type=>canonicalType(work.work_type)==='def/ep-document-types/'+type),includeBody:query.includeBody!==false,amendmentRequested:Boolean(query.amendmentId)};
+    let placement=documentContextPlacement(placementOptions);
     let baseline=null,proposal=null;
     const proposalKind=chosen?.baseline==='commission-proposal'&&chosen.baselineSource?.category==='commission-proposal'&&chosen.baselineSource.conflicted===false;
     if(chosen&&query.includeBody!==false&&proposalKind) {
@@ -171,16 +171,13 @@ export class DocumentContext {
         // Bound the public projection as well as the binary and parser caches.
         if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new RangeError('proposal-response-budget');
         if(items.length)proposal={items};
-        placement=proposal&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language?resolveProposalPlacement(items,chosen):{operation:amendmentOperation(chosen),status:'unresolved',reason:proposal?'different_text_languages':'proposal_baseline_unavailable',evidence:[]};
+        placement=documentContextPlacement({...placementOptions,items:proposal?items:null});
       }catch(error) {
         requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;
         proposal=null;baseline.status='unavailable';baseline.items=[];baseline.gaps.push('proposal-projection-unavailable');
         placement={operation:amendmentOperation(chosen),status:'unresolved',reason:'proposal_baseline_unavailable',evidence:[]};
       }
-    } else if(placement&&!baselineConflict&&['present-text','council-position'].includes(chosen?.baseline)) {
-      placement={operation:amendmentOperation(chosen),status:'unresolved',reason:chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable',evidence:[]};
     }
-    if(placement&&!baselineConflict&&!proposalKind&&references.length>1){placement.status='unresolved';placement.reason='conflicting_target_evidence';delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
     if(proposal&&document)document={...document,selectedText:undefined};
     return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }

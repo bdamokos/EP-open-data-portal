@@ -1,6 +1,6 @@
 import {parseTargetLabel} from '../server/proposal-structure.mjs';
 import {segmentMotionUnits,placementReference} from '../server/document-context-model.mjs';
-import {proposalMatchingOffsets} from '../server/proposal-placement.mjs';
+
 
 // Only these affirmative observations remove a row from the denominator.
 // HTTP 404/410 of the exact published DOCX proves that distribution unavailable
@@ -19,7 +19,7 @@ export function classify(stages) {
     // A parse limit does not erase a placement the actual pipeline can verify
     // through its quoted-original fallback. Still retain the failed parse stage.
     if (key === 'S3' && stages.S5.status === 'placed') continue;
-    if (stage.status !== 'passed') return {outcome:Object.hasOwn(SOURCE_REASONS, stage.reason) ? 'withheld-source' : 'withheld-pipeline', reason:stage.reason};
+    if (stage.status !== 'passed') return {outcome:stage.reason?.startsWith('acquisition-')?'acquisition-unavailable':Object.hasOwn(SOURCE_REASONS, stage.reason) ? 'withheld-source' : 'withheld-pipeline', reason:stage.reason};
   }
   if (stages.S5.status !== 'placed') return {outcome:'withheld-pipeline', reason:stages.S5.reason};
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
@@ -61,6 +61,62 @@ export function parseBenchmarkTarget(wording) {
   }
 }
 
+// Fixed oracle policy, deliberately independent of the placer's normaliser.
+// Preserve case, accents, words and numbers. Strip only a published provision
+// prefix, enclosing quotes, whitespace and comparison-column terminators.
+export function oracleNormal(value,labels=[]) {
+  const escape=value=>String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return value.normalize('NFC').replace(/\u00ad/g,'').replace(/[‘’‚‛ʻʼ]/g,"'").replace(/[“”„‟«»]/g,'"').replace(/[‐‑‒–—]/g,'-')
+    .split(/\r?\n/).map(line=>{
+      let text=line.trim().replace(/^["']\s*/, '');
+      for(const label of labels) {
+        const prefix=new RegExp('^(?:\\('+escape(label.value)+'\\)|'+escape(label.value)+'[.)])\\s*','u');
+        if(prefix.test(text)){text=text.replace(prefix,'');break;}
+      }
+      return text.replace(/[.;'"\s]+$/u,'').trim();
+    }).join(' ').replace(/\s+/gu,' ').trim();
+}
+const occurrences=(haystack,needle)=>{
+  let count=0,offset=0;if(!needle)return 0;
+  while((offset=haystack.indexOf(needle,offset))>=0){count++;offset++;}return count;
+};
+function locationOracle({proposal,text,target,wording,placement,labels}) {
+  const span=placement.span;
+  const source=proposal?proposal.paragraphs.map(p=>p.text).join('\n'):text.paragraphs.join('\n');
+  const count=occurrences(oracleNormal(source,labels),oracleNormal(wording.originalText,labels));
+  if(target.complete&&target.segments.length) {
+    let candidates=[];
+    if(proposal) {
+      if(target.segments.some(segment=>segment.kind==='subparagraph'))return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
+      candidates=flatten(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.path.length>=target.segments.length&&pathKey(unit.path.slice(-target.segments.length))===pathKey(target.segments))
+        .map(unit=>({start:unit.extent.start,end:unit.extent.end-1,spans:flatten([unit]).flatMap(child=>child.spans||[])}));
+    } else {
+      const label=target.segments.at(-1),parent=target.segments.at(-2);
+      if(!['paragraph','recital','citation','point'].includes(label.kind)||label.kind==='point'&&parent?.kind!=='paragraph')return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
+      const units=segmentMotionUnits(text,wording.language);
+      candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===label.value&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
+    }
+    if(!candidates.length)return {status:'unverified',reason:'oracle-address-unit-unavailable'};
+    const inside=unit=>{
+      if(span.start<unit.start||span.end>unit.end)return false;
+      if(!proposal)return true;
+      const splice=placement.splice;
+      // Every covered character must belong to this addressed subtree; paragraph
+      // extents alone cannot distinguish inline quoted provisions in one row.
+      for(let paragraph=span.start;paragraph<=span.end;paragraph++) {
+        const from=paragraph===span.start?splice.start.offset:0,to=paragraph===span.end?splice.end.offset:proposal.paragraphs.find(p=>p.index===paragraph)?.text.length;
+        const spans=unit.spans.filter(s=>s.paragraph===paragraph).sort((a,b)=>a.start-b.start);
+        let covered=from;for(const slice of spans){if(slice.start>covered)break;if(slice.end>covered)covered=slice.end;}
+        if(covered<to)return false;
+      }
+      return true;
+    };
+    if(!candidates.some(inside))return fail('oracle-address-span-mismatch');
+    if(candidates.length===1)return {...verified('oracle-addressed-source-span'),originalOccurrences:count};
+  }
+  return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
+}
+
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
@@ -84,9 +140,10 @@ export function verifyPlacement({placement, wording, items, text, target = parse
       labels = segmentMotionUnits(text,wording.language).filter(u=>u.kind!=='heading').map(u=>({value:u.label}));
     }
     if (source.includes('\uFFFC') || wording.originalText.includes('\uFFFC')) return {status:'unverified',reason:'oracle-object-comparison-unavailable'};
-    const key = value => proposalMatchingOffsets(value,value.split(/\r?\n/).map(() => labels))?.normal;
+    const key = value => oracleNormal(value,labels);
     const left = key(source), right = key(wording.originalText);
-    return left && right && left === right ? verified('oracle-original-equals-source-span') : fail('oracle-original-span-mismatch');
+    if(!left||!right||left!==right)return fail('oracle-original-span-mismatch');
+    return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const label = target.segments.at(-1), rank = suffixOrder(label.suffix);
@@ -149,29 +206,33 @@ export function targetPatterns(wording = {}, gaps = []) {
 
 const ratio = (n,d) => d ? n/d : null;
 export function metrics(rows) {
-  const counts = Object.fromEntries(['correct','placed-unverified','withheld-pipeline','withheld-source','false-placement'].map(key => [key,0]));
-  const votes = new Map(), groups = new Map(),strata=new Map();
+  const counts = Object.fromEntries(['correct','placed-unverified','withheld-pipeline','withheld-source','acquisition-unavailable','not-placeable','false-placement'].map(key => [key,0]));
+  const votes = new Map(), groups = new Map(),strata=new Map(),reasons=new Map();
   for(const row of rows){const key=JSON.stringify([row.documentType,row.language]);strata.set(key,(strata.get(key)||0)+1);}
   for (const row of rows) {
     counts[row.outcome]++;
+    const reason=reasons.get(row.reason)||{reason:row.reason,count:0,examples:[]};reason.count++;if(reason.examples.length<3)reason.examples.push(row.id);reasons.set(row.reason,reason);
     // Variants do not multiply votes. Every referenced amendment and every
     // evaluated source variant of that amendment must be correct for a vote.
-    for (const id of row.voteIds) votes.set(id,(votes.get(id) ?? true) && row.outcome === 'correct');
+    for (const id of row.outcome==='not-placeable'?[]:row.voteIds) votes.set(id,(votes.get(id) ?? true) && row.outcome === 'correct');
     for (const pattern of row.patterns) {
       const key = JSON.stringify([row.documentType,row.language,row.reason,pattern]);
       const group = groups.get(key) || {documentType:row.documentType,language:row.language,reason:row.reason,pattern,count:0,examples:[]};
       group.count++; if (group.examples.length < 3 && !group.examples.includes(row.id)) group.examples.push(row.id); groups.set(key,group);
     }
   }
-  const total = rows.length, eligible = total-counts['withheld-source'], correctVotes = [...votes.values()].filter(Boolean).length;
-  return {total,counts,eligible,headline:ratio(counts.correct,eligible),raw:ratio(counts.correct,total),falsePlacements:counts['false-placement'],votes:{total:votes.size,correct:correctVotes,share:ratio(correctVotes,votes.size)},taxonomy:[...groups.values()].map(group => ({...group,share:ratio(group.count,total),stratumShare:ratio(group.count,strata.get(JSON.stringify([group.documentType,group.language])))})).sort((a,b)=>b.count-a.count||JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))};
+  const total = rows.length, eligible = total-counts['withheld-source']-counts['not-placeable'], correctVotes = [...votes.values()].filter(Boolean).length;
+  return {total,counts,eligible,headline:ratio(counts.correct,eligible),raw:ratio(counts.correct,total),falsePlacements:counts['false-placement'],uniqueReasons:[...reasons.values()].map(r=>({...r,share:ratio(r.count,total)})).sort((a,b)=>b.count-a.count||a.reason.localeCompare(b.reason,'en')),votes:{total:votes.size,correct:correctVotes,share:ratio(correctVotes,votes.size)},taxonomy:[...groups.values()].map(group => ({...group,share:ratio(group.count,total),stratumShare:ratio(group.count,strata.get(JSON.stringify([group.documentType,group.language])))})).sort((a,b)=>b.count-a.count||JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))};
 }
 
 export function compareBaseline(current, baseline) {
   // Refuse a changing census or input snapshot: a score difference would not
   // isolate checkout behaviour. Code identity deliberately does not participate.
-  const fingerprint = value => JSON.stringify({sample:value.sample,inputs:value.inputs});
+  const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
+  const warnings=[];
+  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark.mjs'])if(current.code?.files?.[file]!==baseline.code?.files?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  if(current.compatibility?.compatible===false||baseline.compatibility?.compatible===false)return {failed:true,refused:true,warnings,reason:'Live document-context versions differ from checkout; in-process source replay is required.',deltas:{},taxonomyDeltas:[],regressions:[]};
   const now = new Map(current.rows.map(row=>[row.key,row]));
   const regressions = baseline.rows.filter(old => {
     const row = now.get(old.key);
@@ -184,5 +245,5 @@ export function compareBaseline(current, baseline) {
   const before=new Map(baseline.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const after=new Map(current.metrics.taxonomy.map(row=>[taxonomyKey(row),row]));
   const taxonomyDeltas=[...new Set([...before.keys(),...after.keys()])].sort().map(key=>({key,count:(after.get(key)?.count||0)-(before.get(key)?.count||0),share:(after.get(key)?.share||0)-(before.get(key)?.share||0)}));
-  return {deltas,taxonomyDeltas,regressions,failed:regressions.length>0||current.metrics.falsePlacements>0};
+  return {warnings,deltas,taxonomyDeltas,regressions,failed:regressions.length>0||current.metrics.falsePlacements>0};
 }
