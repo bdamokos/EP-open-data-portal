@@ -1,5 +1,14 @@
 // Shared resolution boundaries and source completeness for comparisons and readers.
 const normalize=value=>String(value).normalize('NFC').replace(/\u00ad/g,'').replace(/\s+/gu,' ').trim();
+export const resolutionSeparator=value=>/^\s*°(?:\s*°)*\s*$/u.test(value);
+// EP subheadings such as A-10-2026-0080's "Prevention and detection"
+// cover the whole source row with both marks. Partial emphasis is not a heading.
+export function resolutionSubheading(value,format) {
+  const start=value.search(/\S/u),end=value.trimEnd().length;
+  return start>=0 && ['bold','italic'].every(kind=>(format?.marks||[]).some(mark=>
+    mark.kind===kind && Number.isInteger(mark.start) && Number.isInteger(mark.end)
+    && mark.start<=start && mark.end>=end));
+}
 const openings={
   bg:'Европейският парламент',es:'El Parlamento Europeo',cs:'Evropský parlament',da:'Europa-Parlamentet',de:'Das Europäische Parlament',et:'Euroopa Parlament',
   el:'Το Ευρωπαϊκό Κοινοβούλιο',en:'The European Parliament',fr:'Le Parlement européen',ga:'Parlaimint na hEorpa',hr:'Europski parlament',it:'Il Parlamento europeo',

@@ -415,10 +415,11 @@ for(const change of ['ordinal','segment','containerPath','complete'])test(`sourc
   assert(!segmentMotionUnits(text,'en').some(unit=>unit.kind==='point'));
   assert.equal(placement(text,{originalText:'(a) body point;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).status,'unresolved');
 });
-test('a locally complete child cannot be addressed when its ancestor subtree breaks later',()=>{
+test('a closed child keeps its extent when its ancestor subtree breaks later',()=>{
   const text=motion(['19. Main:', '(a) first;', '(b) second;', 'broken continuation;', '20. Next;']);
   text.paragraphSources[6].complete=false;
-  assert.equal(placement(text,{originalText:'(a) first;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).reason,'source_passage_incomplete');
+  assert.deepEqual(placement(text,{originalText:'(a) first;',proposedText:'Changed;',targetLabel:'Paragraph 19 point a'}).span,{start:4,end:4});
+  assert.equal(placement(text,{originalText:'(b) second;',proposedText:'Changed;',targetLabel:'Paragraph 19 point b'}).reason,'source_passage_incomplete');
 });
 for(const heading of ['Annex','ANNEX','ANNEX II','EXPLANATORY STATEMENT','Signature','Notes'])test(`explicit ${heading} boundary caps the last provision before subsequent material`,()=>{
   const text=motion(['19. Final provision;',heading,'1. Annex text;']);
@@ -484,7 +485,8 @@ for (const heading of ['FOLLOW-UP','FOLLOW-UP:','FOLLOW-UP.','Follow-Up','Follow
     assert.equal(placement(text,options).reason,'resolution_extent_uncertain');
     const source='19. Calls for: – first item; – second item;';
     for (const proposedText of ['Changed;', '', 'deleted']) {
-      assert.equal(placement(text,{originalText:source,proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+      assert.deepEqual(placement(text,{originalText:source,proposedText,targetLabel:'Paragraph 19'}).span,{start:3,end:5});
+      assert.equal(placement(text,{originalText:'19. Calls for:',proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
       assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
     }
     assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='19').end,5);
@@ -507,7 +509,7 @@ for (const heading of ['Further action and monitoring.', 'Follow-up actions and 
       assert(!units.some(unit=>unit.kind==='point'&&unit.label==='b'));
       assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).reason,'resolution_extent_uncertain');
       for (const proposedText of ['Changed;', '', 'deleted']) {
-        assert.equal(placement(text,{originalText:'19. Calls for: (a) first point; – first item;',proposedText,targetLabel:'Paragraph 19'}).reason,'resolution_extent_uncertain');
+        assert.deepEqual(placement(text,{originalText:'19. Calls for: (a) first point; – first item;',proposedText,targetLabel:'Paragraph 19'}).span,{start:3,end:5});
         assert.equal(placement(text,{originalText:'(a) first point;',proposedText,targetLabel:'Paragraph 19 point a'}).reason,'resolution_extent_uncertain');
         assert.equal(placement(text,{originalText:'– first item;',proposedText}).reason,'resolution_extent_uncertain');
         for (const originalText of [heading,'follow-up prose;','(b) orphan point;',heading+' follow-up prose;']) {
@@ -762,4 +764,75 @@ test('bold numbered rows and punctuated continuation prose retain their provisio
   const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',baselineSource:publishedResolution.baselineSource});
   assert.equal(result.status,'placed');assert.equal(result.insertAfter,start+2);
   assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='a').parent,start);
+});
+
+// Synthetic rows model public report subheadings in A-10-2026-0080,
+// A-10-2026-0272 and A-10-2026-0044; no network or corpus download.
+const emphasizeRow = (text,index) => {
+  text.paragraphFormats=text.paragraphs.map((value,i)=>i===index?{marks:['bold','italic'].map(kind=>({kind,start:0,end:value.length}))}:{});
+  return text;
+};
+test('whole-row bold italic subheading closes a paragraph before the next numbered provision',()=>{
+  const text=emphasizeRow(motion(['19. Calls for:', '(a) first;', '– continuation;', 'Prevention and detection', '20. Next;']),6);
+  const before=structuredClone(text);
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,5);assert.equal(result.insertBefore,6);
+  assert.deepEqual(placement(text,{originalText:'19. Calls for: (a) first; – continuation;',proposedText:'Changed;',targetLabel:'Paragraph 19'}).span,{start:3,end:5});
+  assert.deepEqual(text,before);
+});
+test('partial emphasis, missing numbering, incomplete rows and source gaps do not establish heading boundaries',()=>{
+  const options={originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'};
+  for(const change of ['bold-only','partial','prose','incomplete','gap','table']) {
+    const text=emphasizeRow(motion(['19. Calls for;', 'Prevention and detection', '20. Next;']),4);
+    if(change==='bold-only')text.paragraphFormats[4].marks.pop();
+    if(change==='partial')text.paragraphFormats[4].marks[0].end=4;
+    if(change==='prose')text.paragraphs[5]='unclassified continuation;';
+    if(change==='incomplete')text.paragraphSources[5].complete=false;
+    if(change==='gap')text.paragraphSources[5].ordinal++;
+    if(change==='table')Object.assign(text.paragraphSources[5],{container:'table-cell',containerPath:'cell'});
+    assert.equal(placement(text,options).status,'unresolved',change);
+  }
+});
+test('insertion separately checks the next sibling source row',()=>{
+  const text=motion(['19. Complete;', '20. Next;']);
+  text.paragraphSources[4].ordinal++;
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)'}).status,'unresolved');
+});
+test('a late ordinal gap under a section heading affects only provisions open at the break',()=>{
+  const text=motion(['GENERAL PRINCIPLES', '50. Earlier;', '51. At the break;', '53. Later;', '54. Next;']);
+  for(let i=6;i<text.paragraphSources.length;i++)text.paragraphSources[i].ordinal++;
+  assert.deepEqual(placement(text,{originalText:'50. Earlier;',proposedText:'Changed;',targetLabel:'Paragraph 50'}).span,{start:4,end:4});
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 50 a (new)'}).status,'placed');
+  assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 51 a (new)'}).reason,'source_passage_incomplete');
+  // A-10-2026-0042 paragraph 52 is genuinely absent from the extracted source.
+  assert.equal(placement(text,{originalText:'52. Missing;',proposedText:'Changed;',targetLabel:'Paragraph 52'}).reason,'target_not_found');
+});
+test('exact labelled whole-unit wording proves extent but partial, duplicate and incomplete wording does not',()=>{
+  const text=motion(['19. First line', 'continues here;', 'Further action:', 'unclassified prose;', '20. Next;']);
+  const options={originalText:'19. First line continues here;',proposedText:'Changed;',targetLabel:'Paragraph 19'};
+  assert.deepEqual(placement(text,options).span,{start:3,end:4});
+  assert.equal(placement(text,{...options,originalText:'19. First line'}).reason,'resolution_extent_uncertain');
+  assert.equal(placement(text,{...options,referenceText:'Paragraph 20'}).reason,'conflicting_target_evidence');
+  const broken=structuredClone(text);broken.paragraphSources[4].complete=false;
+  assert.equal(placement(broken,options).reason,'source_passage_incomplete');
+  const duplicate=motion(['19. First line continues here;', '19. First line continues here;', '20. Next;']);
+  assert.equal(placement(duplicate,options).reason,'multiple_published_targets');
+});
+test('the first operative paragraph is a sibling boundary after the last recital',()=>{
+  const text=motion(['J. whereas last;', '1. First operative provision;']);
+  assert.equal(placement(text,{originalText:'',proposedText:'Ja. whereas new;',targetLabel:'Recital J a (new)'}).insertBefore,4);
+});
+test('Roman numbered subheadings remain a sibling boundary before the next paragraph',()=>{
+  const text=emphasizeRow(motion(['51. Last section paragraph;', 'VI. Fight against corruption', '52. First paragraph in the next section;']),4);
+  assert.equal(placement(text,{originalText:'',proposedText:'51a. New;',targetLabel:'Paragraph 51 a (new)'}).insertBefore,4);
+});
+
+// Direct official-DOCX inspection found these single-body cases despite the
+// benchmark's shared segmentation oracle: 0106-AM-18, 0162-AM-10,
+// 0169-AM-6 and 0238-AM-1 (all A-10-2026 reports).
+test('an insertion cannot consume closing degree-sign separator rows',()=>{
+  for(const separator of [['°','°\t°'],['° ° °']]) {
+    const text=motion(['64. Last substantive paragraph;',...separator,'65. Instructs its President;']);
+    assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 64 a (new)'}).reason,'resolution_extent_uncertain');
+  }
 });

@@ -1,4 +1,4 @@
-import {motionBodySelection,resolutionSectionHeading} from './resolution-body.mjs';
+import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -291,7 +291,7 @@ const structuralRow = (row, format) => row.normal === '°' || row.normal === '°
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], selection = motionBodySelection(paragraphs, language), {start} = selection, rows = sourceStructure(text);
   const formats = Array.isArray(text?.paragraphFormats) && text.paragraphFormats.length === paragraphs.length ? text.paragraphFormats : [];
-  const units = [], stack = [], invalid = new Set(), uncertain = new Set(), incompleteLabels = new Set();
+  const units = [], stack = [], invalid = new Set(), uncertain = new Set(), incompleteLabels = new Set(), certainHeadings = new Set();
   if (start < 0 || !rows || rows[start].source.container !== 'body' || !rows[start].complete) return {units, invalid, uncertain, incompleteLabels, start, end: -1, endAvailable: false};
   // Blank Word title rows may be omitted (A-10-2026-0199). Selecting a
   // section does not join wording across those gaps; provision extents below
@@ -342,9 +342,15 @@ function motionStructure(text, language) {
     }
     else if (recordedHeading || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
       // Recorded outline headings also close scope when their text resembles prose.
-      // A heading ends any list immediately. Later numbering cannot prove that
-      // the preceding provision stopped before this unclassified material.
-      for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
+      // A whole-row bold/italic EP subheading followed immediately by a
+      // complete numbered provision closes the preceding extent. Plain or
+      // partially emphasized heading-like prose remains ambiguous.
+      const next = rows[index + 1];
+      const certain = resolutionSubheading(row.value, formats[index]) && next?.complete
+        && next.source.container === 'body' && consecutive(row, next)
+        && /^[1-9]\d{0,5}\s*[a-z]{0,3}[.)]\s+/u.test(next.normal);
+      if (certain) certainHeadings.add(index);
+      else for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
       close(index - 1);
       kind = 'heading'; label = value; level = 0;
     }
@@ -354,13 +360,14 @@ function motionStructure(text, language) {
     units.push(unit); stack.push(unit);
   }
   close(end);
-  // A child may be locally complete while its parent's source subtree is broken.
+  // A break taints units still open at that break. Earlier closed children
+  // (including provisions under a long section heading) keep their own extent.
   const byStart = new Map(units.map(unit => [unit.start, unit]));
   for (const unit of units) for (let parent = byStart.get(unit.parent); parent; parent = byStart.get(parent.parent)) {
-    if (invalid.has(parent.start)) invalid.add(unit.start);
+    if (invalid.has(parent.start) && unit.end >= parent.end) invalid.add(unit.start);
     if (uncertain.has(parent.start)) uncertain.add(unit.start);
   }
-  return {units, invalid, uncertain, incompleteLabels, start, end, endAvailable, selection};
+  return {units, invalid, uncertain, incompleteLabels, certainHeadings, start, end, endAvailable, selection};
 }
 
 /** Inclusive extents from complete, contiguous body rows; source breaks end scope.
@@ -438,6 +445,13 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (structure.invalid.has(anchor.start) || structure.incompleteLabels.has(anchor.label) || !complete(anchor.start, anchor.end)) return unresolved('source_passage_incomplete');
     if (structure.uncertain.has(anchor.start)) return unresolved('resolution_extent_uncertain');
     if (anchor.end === structure.end && !structure.endAvailable) return unresolved('resolution_end_unavailable');
+    // Check the other side of the insertion independently of the anchor's
+    // extent: it must be the verified heading, the next sibling, or a body end.
+    const nextIndex = anchor.end + 1, next = rows[nextIndex];
+    const nextSibling = units.find(unit => unit.start === nextIndex && unit.level === anchor.level && unit.parent === anchor.parent);
+    if (resolutionSeparator(rows[anchor.end].value) || !next?.complete || !consecutive(rows[anchor.end], next)
+      || !(structure.certainHeadings.has(nextIndex) || nextSibling || units.some(unit => unit.start === nextIndex && unit.kind === 'heading') || anchor.end === structure.end && structure.endAvailable))
+      return unresolved('resolution_extent_uncertain');
     return placed({insertAfter: anchor.end, insertBefore: anchor.end + 1});
   }
   if (ref) {
@@ -445,9 +459,15 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (matches.length > 1) return unresolved('multiple_published_targets');
     if (!matches.length) return unresolved(structure.incompleteLabels.has(ref.label) ? 'source_passage_incomplete' : 'target_not_found');
     const unit = matches[0];
-    if (structure.invalid.has(unit.start) || structure.incompleteLabels.has(unit.label) || !complete(unit.start, unit.end)) return unresolved('source_passage_incomplete');
-    if (structure.uncertain.has(unit.start)) return unresolved('resolution_extent_uncertain');
     const source = text.paragraphs.slice(unit.start, unit.end + 1).join(' ');
+    // Exact whole-unit wording independently proves a labelled paragraph or
+    // recital's extent, even when the following boundary is unclassified.
+    // Never use it to recover incomplete rows, duplicate labels or point scope.
+    const wordingProvesExtent = ['paragraph', 'recital'].includes(unit.kind)
+      && complete(unit.start, unit.end) && !structure.incompleteLabels.has(unit.label)
+      && wordingNormal(source) === wordingNormal(options.originalText);
+    if (!wordingProvesExtent && (structure.invalid.has(unit.start) || structure.incompleteLabels.has(unit.label) || !complete(unit.start, unit.end))) return unresolved('source_passage_incomplete');
+    if (!wordingProvesExtent && structure.uncertain.has(unit.start)) return unresolved('resolution_extent_uncertain');
     if (wordingNormal(source) !== wordingNormal(options.originalText)) return unresolved('conflicting_target_evidence');
     if (options.referenceText) {
       const decision = placementReference(options.referenceText);

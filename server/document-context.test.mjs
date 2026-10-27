@@ -332,7 +332,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,8);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,9);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -450,7 +450,8 @@ for (const [name,properties,styles,level] of [
   const units=segmentMotionUnits(text,'en');assert.equal(units.find(unit=>unit.label==='19').end,2);assert.equal(units.find(unit=>unit.kind==='heading').start,3);
   for (const [originalText,proposedText,targetLabel,reason] of [
     ['','19a. New;','Paragraph 19 a (new)','resolution_extent_uncertain'],
-    ['19. Calls for: – first item;','Changed;','Paragraph 19','resolution_extent_uncertain'],
+    ['19. Calls for: – first item;','Changed;','Paragraph 19',null],
+    ['19. Calls for:','Changed;','Paragraph 19','resolution_extent_uncertain'],
     ['– first item;','Changed;',null,'resolution_extent_uncertain'],
     [heading,'Changed;',null,'target_not_found'],
     ['follow-up prose;','Changed;',null,'target_not_found'],
@@ -461,7 +462,7 @@ for (const [name,properties,styles,level] of [
     const reader=service({readText:async()=>text,findAmendment:()=>amendment});
     const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
     if(reason) {assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.reason,reason);}
-    else {assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:5,end:5});}
+    else {assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,targetLabel==='Paragraph 19'?{start:1,end:2}:{start:5,end:5});}
     assert.deepEqual(result.document.selectedText,before,'full source, formatting, links, notes and offsets remain intact');
     assert.equal(result.target.evidence.amendmentId,amendmentId);assert.equal(result.target.evidence.listId,listId);assert.equal(result.target.evidence.wordingLanguage,'en');
   }
