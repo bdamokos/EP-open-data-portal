@@ -124,7 +124,7 @@ export async function evaluateReport(rows,sample,cache) {
       const key=JSON.stringify([url,variant.listId,language]);
       if(!extractions.has(key)) {
         const input=await cache.get(url);let extraction=null,error=null;
-        if(input.ok)try {extraction=extractAmendments(input.body,{listId:variant.listId,targetDocumentId:row.targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
+        if(input.ok)try {extraction=extractAmendments(input.body,{listId:variant.listId,targetDocumentId:row.targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt,...(variant.wordingSource?.reportId?{reportId:variant.wordingSource.reportId}:{})});}catch(cause){error=cause.message;}
         extractions.set(key,{input,extraction,error});
       }
       const {input,extraction,error}=extractions.get(key);fetched=input;

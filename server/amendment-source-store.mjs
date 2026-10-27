@@ -229,8 +229,8 @@ class AmendmentSourceStore {
   referenced(row) {
     if(!row.list_id)return false;
     const descriptor=descriptorOf(row),generations=[...new Set([this.store.get('active'),this.store.get('previous'),this.store.get('working')?.generation].filter(Number.isInteger))];
-    const statement=this.store.db.prepare("SELECT d.value FROM sources AS s,json_each(s.body,'$.distributionEvidence.descriptors') AS d WHERE s.generation=? AND s.key=? AND s.kind='amendment-list'");
-    return generations.some(generation=>statement.all(generation,'amendment:list:'+row.list_id).some(({value})=>sameDocxDescriptor(JSON.parse(value),descriptor)));
+    const statement=this.store.db.prepare("SELECT d.value FROM sources AS s,json_each(s.body,?) AS d WHERE s.generation=? AND s.key=? AND s.kind='amendment-list'");
+    return generations.some(generation=>['$.distributionEvidence.descriptors','$.reportWording.distributionEvidence.descriptors'].some(path=>statement.all(path,generation,'amendment:list:'+row.list_id).some(({value})=>sameDocxDescriptor(JSON.parse(value),descriptor))));
   }
   *evictable() {
     const db=this.store.db,id=row=>[row.url,row.language,row.byte_size,row.issued].join('\n');

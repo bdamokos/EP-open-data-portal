@@ -60,7 +60,7 @@ function mergeAmendmentEvidence(priorWork,fresh) {
   const {results:_results,resultsUrl:_resultsUrl,resultsFetchedAt:_resultsFetchedAt,...evidence}=fresh;
   return {...evidence,decisions:decisions.slice(-5000),splitRequests:keptRequests.map(([,node])=>node),parsedSplits:[...parsed].filter(([key])=>keptKeys.has(key)).map(([,node])=>node),retainedEvidence:retained||capped,splitProjectionTruncated:Boolean(fresh.splitProjectionTruncated||capped)};
 }
-const extractionSource=extraction=>extraction?.sourceUrl?{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language}:null;
+const extractionSource=extraction=>extraction?.sourceUrl?{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language,...(extraction.reportId?{reportId:extraction.reportId}:{})}:null;
 function publicationEvidence(sources,descriptor,buffer,prior) {
   const sourceHash=createHash('sha256').update(buffer).digest('hex');
   let sourceDescriptor=sources.boundDescriptor(descriptor,sourceHash);
@@ -103,19 +103,25 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
   const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
-  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
+  const report=worker.store.source(generation,targetKey(target));
+  // The published list remains the number identity. A report distribution is
+  // only a candidate source; extraction must verify its cover and main block.
+  const reportWording=target.startsWith('A-')&&Number(list.itemNumberBegin)===1&&verifiedList(list,target,candidate.id)&&tail(report?.work.work_type)==='REPORT_PLENARY'&&canonicalEPReference(report.work.id)==='eli/dl/doc/'+target&&distributionEvidence.state!=='available'?
+    {reportId:target,distributionEvidence:distributionEvidenceFor(report.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:report.fetchedAt,language:null})}:null;
+  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(reportWording?{reportWording}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
 }
 function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true}={}) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
   for(const candidate of linked.candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget)) {
     let prior=worker.store.source(generation,sourceKey(candidate.id));
-    const expandedVerified=candidate.expanded&&!candidate.unverifiedExpanded&&typeof candidate.expanded.amendmentDistributionDeclared==='boolean';
-    if(discover&&expandedVerified&&(prior?.work.targetDocumentId!==id || !prior?.work.relationshipEvidence || Date.parse(prior.work.relationshipEvidence.fetchedAt)<=Date.parse(fetchedAt))) {
+    const expandedVerified=candidate.expanded&&!candidate.unverifiedExpanded&&candidate.expanded.amendmentDistributionDeclared===true;
+    const proof=prior?.work.relationshipEvidence;
+    const detailVerified=proof?.basis==='list-detail'&&proof.targetReference==='eli/dl/doc/'+id&&proof.fingerprint===candidate.fingerprint&&worker.clock()-Date.parse(proof.fetchedAt)<(prior?.work.distributionEvidence?.state==='unavailable'?DAY:7*DAY)&&verifiedList(prior.work,id,candidate.id)&&prior.work.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION;
+    const expandedObserved=candidate.expanded&&!candidate.unverifiedExpanded&&typeof candidate.expanded.amendmentDistributionDeclared==='boolean';
+    if(discover&&expandedObserved&&!detailVerified&&(prior?.work.targetDocumentId!==id || !proof || Date.parse(proof.fetchedAt)<=Date.parse(fetchedAt))) {
       saveVerifiedList(worker,generation,id,candidate,candidate.expanded,{basis:'expanded-target',url:'https://data.europarl.europa.eu/api/v2'+targetKey(id)+'?format=application%2Fld%2Bjson',fetchedAt});
       prior=worker.store.source(generation,sourceKey(candidate.id));
     }
-    const proof=prior?.work.relationshipEvidence;
-    const detailVerified=proof?.basis==='list-detail'&&proof.targetReference==='eli/dl/doc/'+id&&proof.fingerprint===candidate.fingerprint&&worker.clock()-Date.parse(proof.fetchedAt)<7*DAY&&verifiedList(prior.work,id,candidate.id)&&prior.work.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION;
     if(!expandedVerified&&!detailVerified) {
       unresolved.push(candidate.id);
       if(discover)enqueueAmendment(worker.store,generation,linkedListKey(id,candidate.id),'amendment-list-detail',{listId:candidate.id,targetDocumentId:id},115,true);
@@ -329,6 +335,8 @@ async function runParserUpgradeSlice(worker,task) {
   }
 }
 const preparationDocumentFilter=" AND (json_extract(body,'$.work_type') LIKE '%/REPORT_PLENARY' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION' OR json_extract(body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT')";
+const needsLinkObservation=work=>work.amendmentLinksVersion!==AMENDMENT_LINKS_VERSION||work.inverse_foresees_change_of==null;
+const linkUpgradeCursor='amendmentLinkUpgradeAfterKey';
 function preparationThrough(store,generation,stage) {
   return store.db.prepare('SELECT MAX(key) AS key FROM sources WHERE generation=? AND kind=?'+(stage==='documents'?preparationDocumentFilter:'')).get(generation,preparationKinds[stage])?.key || '';
 }
@@ -337,7 +345,7 @@ export async function prepareAmendments(worker,cycle) {
   for(const pilot of ['A-10-2026-0254','B-10-2026-0424'])if(!store.source(generation,targetKey(pilot)))store.enqueue(generation,targetKey(pilot),'document',{endpoint:targetKey(pilot)},109);
   if(Object.entries(markers).every(([key,value])=>cycle[key]===value))return true;
   const signature=createHash('sha256').update(JSON.stringify(markers)).digest('hex').slice(0,16),key='amendment:prepare:'+markers.amendmentsPreparedDay+':'+signature;
-  if(!enqueueAmendment(store,generation,key,'amendment-prepare',{markers,stage:'documents',afterKey:'',throughKey:preparationThrough(store,generation,'documents'),upgrades:0},113,true))return false;
+  if(!enqueueAmendment(store,generation,key,'amendment-prepare',{markers,stage:'documents',afterKey:'',throughKey:preparationThrough(store,generation,'documents'),upgrades:0,upgradeAfterKey:store.get(linkUpgradeCursor)||''},113,true))return false;
   const row=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=? AND done=0').get(generation,key);
   // Admission may be deferred in the existing bounded continuation snapshot.
   return row?runPreparationSlice(worker,{...row,body:JSON.parse(row.body),amendmentJob:true}):false;
@@ -352,14 +360,22 @@ async function runPreparationSlice(worker,task) {
     },
     action:(item,body)=>{
       if(item.end) {
+        if(item.end==='documents'&&body.upgrades<AMENDMENT_LIMITS.upgradeTargets)store.set(linkUpgradeCursor,'');
         const stage=item.end==='documents'?'gaps':item.end==='gaps'?'splits':'done';
         store.taskProgress(task,{...body,stage,afterKey:'',throughKey:stage==='done'?'':preparationThrough(store,generation,stage)});return;
       }
       const {source,stage}=item,work=JSON.parse(source.body);
       if(stage==='documents') {
         if(!amendmentTarget(idOf(work)))return;
-        if(work.amendmentLinksVersion!==AMENDMENT_LINKS_VERSION) {
-          if(body.upgrades<AMENDMENT_LIMITS.upgradeTargets){store.enqueue(generation,source.key,'document',{endpoint:source.key},106,true);rebuildAmendmentTarget(worker,generation,idOf(work));}
+        if(needsLinkObservation(work)) {
+          if(source.key>(body.upgradeAfterKey||'')&&body.upgrades<AMENDMENT_LIMITS.upgradeTargets){
+            store.enqueue(generation,source.key,'document',{endpoint:source.key},106,true);
+            // Overflow can invalidate earlier records again before the next
+            // daily pass. Rotate the bounded refresh window instead of always
+            // spending it on the first hundred A reports.
+            store.set(linkUpgradeCursor,source.key);
+            rebuildAmendmentTarget(worker,generation,idOf(work));
+          }
         } else scheduleAmendments(worker,generation,work,source.fetched_at,source.key);
       } else if(stage==='gaps') {
         const list=work.taskKind==='amendment-extract'?store.source(generation,sourceKey(work.taskBody.listId))?.work:null;
@@ -371,7 +387,7 @@ async function runPreparationSlice(worker,task) {
         if((evidence.splitParserVersion!==SPLIT_PARSER_VERSION||evidence.amendmentVersion!==AMENDMENTS_VERSION)&&evidence.splitRequests)enqueueAmendment(store,generation,'amendment:reparse:'+source.key,'amendment-reparse',{sourceKey:source.key},111,true);
       }
     },
-    advance:(item,body)=>item.source?{afterKey:item.source.key,upgrades:body.upgrades+Number(item.stage==='documents'&&amendmentTarget(idOf(JSON.parse(item.source.body)))&&JSON.parse(item.source.body).amendmentLinksVersion!==AMENDMENT_LINKS_VERSION)}:{},
+    advance:(item,body)=>item.source?{afterKey:item.source.key,upgrades:body.upgrades+Number(item.stage==='documents'&&amendmentTarget(idOf(JSON.parse(item.source.body)))&&needsLinkObservation(JSON.parse(item.source.body))&&item.source.key>(body.upgradeAfterKey||'')&&body.upgrades<AMENDMENT_LIMITS.upgradeTargets)}:{},
   });
   if(complete) {
     if(store.get('working')?.generation===generation)store.updateCycle(task.body.markers);
@@ -783,7 +799,8 @@ export async function amendmentTask(worker,task) {
     const parseSource=async (descriptor,prior,downloaded)=>{
       for(let attempt=0;attempt<2;attempt++) {
         const fetchedAt=downloaded.fetchedAt;
-        const extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:descriptor.language,sourceUrl:descriptor.url,fetchedAt},{signal});
+        const reportId=saved.work.reportWording&&sameDocxDescriptor(descriptor,currentDocxDescriptor({...saved.work,distributionEvidence:saved.work.reportWording.distributionEvidence}))?saved.work.reportWording.reportId:null;
+        const extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:descriptor.language,sourceUrl:descriptor.url,fetchedAt,...(reportId?{reportId}:{})},{signal});
         signal.throwIfAborted();
         if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
         let publicationChanged=false;
@@ -822,7 +839,7 @@ export async function amendmentTask(worker,task) {
           authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:publication.sourceDescriptor,descriptor:otherPublication.sourceDescriptor,publicationBinding:otherPublication.publicationBinding,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
         }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
       }
-      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),...publication}};
+      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language,...(extraction.reportId?{reportId:extraction.reportId}:{})},extraction.reportId?null:saved.work.document_date),...publication}};
       delete next.wordingRefreshFailure;
       store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});
