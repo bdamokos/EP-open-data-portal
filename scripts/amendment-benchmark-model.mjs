@@ -1,5 +1,6 @@
 import {parseTargetLabel} from '../server/proposal-structure.mjs';
 import {placementReference} from '../server/document-context-model.mjs';
+import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
@@ -105,7 +106,7 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
       if(!['paragraph','recital','citation','point'].includes(label.kind)||label.kind==='point'&&parent?.kind!=='paragraph')return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
       const {units,reason}=rawResolutionUnits(text,wording.language);
       if(reason)return {status:'unverified',reason};
-      candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===label.value&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
+      candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===(label.kind==='recital'?label.value.toUpperCase():label.value)&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
       if(introductory) {
         // Repeated paragraph numbers elsewhere in a multilingual report do not
         // determine the lead boundary of the unit containing the returned span.
@@ -130,7 +131,10 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
       return true;
     };
     if(!candidates.some(inside))return fail('oracle-address-span-mismatch');
-    if(!proposal&&candidates.some(unit=>!unit.complete))return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    // Replacement coordinates need a verified addressed span, not a complete
+    // trailing extent. Unknown rows already close the raw unit before them;
+    // insertion still requires the independently complete subtree below.
+    if(!proposal&&text.paragraphSources.slice(span.start,span.end+1).some(source=>source.complete!==true))return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
     if(candidates.length===1)return {...verified('oracle-addressed-source-span'),originalOccurrences:count};
   }
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
@@ -178,7 +182,15 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
-export function verifyPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
+export function verifyPlacement(input) {
+  const result=verifyKnownPlacement(input);
+  const proposal=input.items?.[input.placement.itemIndex]?.proposal;
+  if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable'].includes(result.reason))return result;
+  const raw=rawProposalAssertion({proposal,wording:input.wording,placement:input.placement});
+  return raw.status==='unverified'?result:raw;
+}
+
+function verifyKnownPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
@@ -301,7 +313,7 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
-  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
   const replay=current.projectionMode==='cached-source-replay'&&['cached-source-replay','live-projection-comparison'].includes(baseline.projectionMode);
   const scope=replay?'full-pipeline-cached-sources':placementOnly?'placement-only-frozen-projections':'full-pipeline';
   const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});
