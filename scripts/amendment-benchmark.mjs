@@ -116,8 +116,25 @@ export async function acquireReport(rows,sample,cache) {
 export async function evaluateReport(rows,sample,cache) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache);
+  const extractionFor=async variant=>{
+    const url=variant.wordingSource?.url,language=variant.language||null,key=JSON.stringify([url,variant.listId,language]);
+    if(!extractions.has(key)) {
+      const input=await cache.get(url);let extraction=null,error=null;
+      if(input.ok)try{extraction=extractAmendments(input.body,{listId:variant.listId,targetDocumentId:rows[0].targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
+      extractions.set(key,{input,extraction,error});
+    }
+    return extractions.get(key);
+  };
   for(const row of selected) {
-    const originalVariant=variants(row)[0],translated=contexts.languageVariants?.get(originalVariant?.listId);
+    const originalVariant=variants(row)[0];
+    const available=contexts.get(originalVariant?.language||'en')?.plain.value?.document?.selectedText?.availableTextLanguages||[];
+    let translated=available.includes(originalVariant?.language)?null:contexts.languageVariants?.get(originalVariant?.listId);
+    // A Commission amendment uses its proposal language, independently of the
+    // report body's publication languages. Acquisition remains extraction-free.
+    if(translated&&originalVariant.wordingSource?.url&&allowedInput(originalVariant.wordingSource.url,cache.apiBase)) {
+      const original=await extractionFor(originalVariant);
+      if(original.extraction?.amendments.find(amendment=>amendment.number===row.number)?.baseline==='commission-proposal')translated=null;
+    }
     const variant=translated?{...originalVariant,language:translated.language,wordingSource:{...originalVariant.wordingSource,url:translated.wording.url}}:originalVariant;
     const language=variant?.language||null,decisions=decisionsInSample(row,sample);
     const stages={S1:passed({decisionIds:decisions.map(d=>d.id)}),S2:blocked('wording-not-evaluated'),S3:blocked('target-not-evaluated'),S4:blocked('baseline-not-evaluated'),S5:{status:'unresolved',reason:'placement-not-evaluated'},S6:{status:'not-applicable',reason:'not-placed'}};
@@ -126,13 +143,7 @@ export async function evaluateReport(rows,sample,cache) {
     if(!url||!variant.listId)stages.S2=blocked('wording-source-not-indexed');
     else if(!allowedInput(url,cache.apiBase))stages.S2=blocked('input-unsupported-public-url');
     else {
-      const key=JSON.stringify([url,variant.listId,language]);
-      if(!extractions.has(key)) {
-        const input=await cache.get(url);let extraction=null,error=null;
-        if(input.ok)try {extraction=extractAmendments(input.body,{listId:variant.listId,targetDocumentId:row.targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
-        extractions.set(key,{input,extraction,error});
-      }
-      const {input,extraction,error}=extractions.get(key);fetched=input;
+      const {input,extraction,error}=await extractionFor(variant);fetched=input;
       if(!input.ok)stages.S2=blocked([404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable'));
       else if(error)stages.S2=blocked('docx-parser-error');
       else {
