@@ -61,7 +61,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'14');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -335,7 +335,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'14');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -441,7 +441,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'14');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -604,4 +604,27 @@ test('unknown vertical properties withhold wording with the narrower formatting 
   const xml=body(metadata()+table(row(cell('<w:p>'+formattedRun('<w:position w:val="invalid"/>','4')+'</w:p>'),cell(p('New'))))+p('</Amend>'));
   const {amendments:[a]}=extractAmendments(archive(xml),options);
   assert.equal(a.originalText,null);assert.deepEqual(a.originalFormatting,[]);assert(a.gaps.some(gap=>gap.code==='vertical-formatting-loss'));
+});
+
+
+test('Croatian A-10-2025-0150 amendments 3 and 4 retain distinct unstyled boundaries and bold targets',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-croatian-unstyled.json',import.meta.url),'utf8'));
+  const result=extractAmendments(archive(fixture.documentXml,fixture.stylesXml),fixture);
+  assert.deepEqual(result.amendments.map(a=>a.number),[3,4]);
+  for(const expected of fixture.expected) {
+    const actual=result.amendments.find(a=>a.number===expected.number);
+    for(const [key,value] of Object.entries(expected))assert.equal(actual[key],value,`AM${expected.number}: ${key}`);
+    assert.equal(actual.committeeProposer,'Odbor za ribarstvo');
+    assert.equal(actual.date,'2026-09-10');assert.equal(actual.sources[0].url,fixture.sourceUrl);
+    assert(!actual.targetLabel.includes('Amandman'));assert(!actual.targetLabel.includes('Prijedlog uredbe'));
+  }
+});
+
+test('Croatian target lines use inherited bold formatting and honor direct non-bold runs',()=>{
+  const styles='<w:styles><w:style w:styleId="Parent"><w:rPr><w:b/></w:rPr></w:style><w:style w:styleId="Child"><w:basedOn w:val="Parent"/></w:style></w:styles>';
+  const target='<w:p><w:pPr><w:pStyle w:val="Child"/></w:pPr>'+run('Uvodna izjava 3.a (nova)')+'</w:p>';
+  const ordinary='<w:p><w:pPr><w:pStyle w:val="Child"/></w:pPr><w:r><w:rPr><w:b w:val="0"/></w:rPr><w:t>Ordinary metadata</w:t></w:r></w:p>';
+  const xml=body(p('<Committee>Odbor za ribarstvo</Committee>')+p('Amandman3')+target+ordinary+table(row(cell(p('')),cell(p('Published new recital.')))));
+  const result=extractAmendments(archive(xml,styles),{...options,listId:'A-10-2025-0150-AM-001-129',language:'hr'});
+  assert.equal(result.amendments[0].targetLabel,'Uvodna izjava 3.a (nova)');
 });
