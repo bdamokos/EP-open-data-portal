@@ -1,7 +1,7 @@
 import {parseTargetLabel} from '../server/proposal-structure.mjs';
 import {placementReference} from '../server/document-context-model.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 
@@ -84,6 +84,17 @@ const occurrences=(haystack,needle)=>{
   let count=0,offset=0;if(!needle)return 0;
   while((offset=haystack.indexOf(needle,offset))>=0){count++;offset++;}return count;
 };
+function firstSubparagraphAddress(proposal,target){
+  const at=target.segments.findIndex((segment,index)=>segment.kind==='subparagraph'&&index<target.segments.length-1);
+  if(at<0)return {target};
+  if(target.segments[at].value!=='1')return null;
+  const parents=flatten(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind===target.segments[at-1]?.kind&&pathKey(unit.path)===pathKey(target.segments.slice(0,at)));
+  if(parents.length!==1)return null;
+  const parent=parents[0],first=proposal.paragraphs[parent.content?.at(-1)];
+  if(!first?.text.trimEnd().endsWith(':')||!parent.children.some(unit=>unit.kind==='point'))return null;
+  const end=parent.children.find(unit=>unit.kind==='subparagraph')?.extent.start??parent.extent.end;
+  return {target:{...target,segments:target.segments.filter((_,i)=>i!==at)},bounds:{start:parent.extent.start,end}};
+}
 function locationOracle({proposal,text,target,wording,placement,labels}) {
   const span=placement.span;
   const source=proposal?proposal.paragraphs.map(p=>p.text).join('\n'):text.paragraphs.join('\n');
@@ -95,7 +106,12 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   if(target.complete&&target.segments.length) {
     let candidates=[];
     if(proposal) {
-      if(target.segments.some(segment=>segment.kind==='subparagraph'))return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
+      if(target.segments.some(segment=>segment.kind==='subparagraph')){
+        const address=firstSubparagraphAddress(proposal,target);
+        if(!address?.bounds)return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
+        if(span.start<address.bounds.start||span.end>=address.bounds.end)return fail('oracle-subparagraph-span-mismatch');
+        target=address.target;
+      }
       candidates=flatten(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.path.length>=target.segments.length&&pathKey(unit.path.slice(-target.segments.length))===pathKey(target.segments))
         .map(unit=>introductory
           ?(unit.children.length?{start:unit.extent.start,end:Math.min(...unit.children.map(child=>child.extent.start))-1,spans:unit.spans||[]}:null)
@@ -103,10 +119,15 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
       if(introductory&&candidates.some(unit=>!unit))return {status:'unverified',reason:'oracle-introductory-part-unavailable'};
     } else {
       const label=target.segments.at(-1),parent=target.segments.at(-2);
-      if(!['paragraph','recital','citation','point'].includes(label.kind)||label.kind==='point'&&parent?.kind!=='paragraph')return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
+      if(!['paragraph','recital','citation','point'].includes(label.kind))return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
       const {units,reason}=rawResolutionUnits(text,wording.language);
       if(reason)return {status:'unverified',reason};
       candidates=units.filter(unit=>unit.kind===label.kind&&unit.label===(label.kind==='recital'?label.value.toUpperCase():label.value)&&(label.kind!=='point'||units.find(owner=>owner.start===unit.parent)?.label===parent.value));
+      if(label.kind==='point'){
+        const indented=rawResolutionPointUnits(text).units.filter(unit=>pathKey(unit.path)===pathKey(target.segments));
+        if(indented.length)candidates=indented;
+        else if(parent?.kind!=='paragraph')return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
+      }
       if(introductory) {
         // Repeated paragraph numbers elsewhere in a multilingual report do not
         // determine the lead boundary of the unit containing the returned span.
@@ -157,6 +178,16 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const kind=label.after?'paragraph':label.kind;
   if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  if(!bases.length&&kind==='point'){
+    const indented=rawResolutionPointUnits(text).units;
+    const anchors=indented.filter(unit=>unit.label===label.base&&pathKey(unit.path.slice(0,-1))===pathKey(parents));
+    if(anchors.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    const anchor=anchors[0],family=indented.filter(unit=>unit.parent===anchor.parent&&unit.group===anchor.group);
+    if(!anchor.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
+    if(placement.insertAfter!==anchor.end||placement.insertBefore!==anchor.end+1)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-indented-point-boundary');
+  }
   if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
   const before=suffix=>wording.language==='fr'?suffixOrder(suffix)<suffixOrder(label.suffix):suffix<label.suffix;
@@ -221,6 +252,27 @@ function verifyKnownPlacement({placement, wording, items, text, target = parseBe
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
+  // COM(2025)531 puts an instruction's semicolon in a separate Word row
+  // after its closing quotation. Even an otherwise unsupported point address
+  // cannot insert a sibling between that quotation and its terminator.
+  const following=proposal.paragraphs[placement.insertBefore],preceding=proposal.paragraphs[placement.insertAfter];
+  if(target.segments.at(-1)?.kind==='point'&&following?.text.trim()===';'
+    &&/[’'”"]\s*$/u.test(preceding?.text??'')&&preceding?.source?.container==='body'&&following.source?.container==='body'
+    &&preceding.source.containerPath===following.source.containerPath&&preceding.source.segment===following.source.segment
+    &&following.source.ordinal===preceding.source.ordinal+1)return fail('oracle-insertion-before-instruction-terminator');
+  if(target.segments.some((segment,index)=>segment.kind==='subparagraph'&&index<target.segments.length-1)){
+    const address=firstSubparagraphAddress(proposal,target),label=target.segments.at(-1);
+    if(!address?.bounds||label.kind!=='point'||!label.isNew||!label.base||!label.suffix)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+    const path=address.target.segments.slice(0,-1),all=flatten(proposal.units).filter(unit=>unit.scope==='proposal');
+    const family=all.filter(unit=>unit.kind==='point'&&pathKey(unit.path.slice(0,-1))===pathKey(path));
+    const anchors=family.filter(unit=>unit.label?.value===label.base);
+    if(anchors.length!==1||!anchors[0].complete)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    const anchor=anchors[0],after=proposal.paragraphs[anchor.extent.end],last=proposal.paragraphs[anchor.extent.end-1];
+    if(family.some(unit=>unit.label?.value===label.value))return fail('oracle-duplicate-insertion-label');
+    if(placement.insertBefore!==anchor.extent.end||placement.insertAfter!==anchor.extent.end-1||placement.insertBefore>address.bounds.end)return fail('oracle-insertion-boundary-mismatch');
+    if(!after?.complete||!last?.complete||after.source?.ordinal!==last.source?.ordinal+1||after.source?.containerPath!==last.source?.containerPath)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    return verified('oracle-subparagraph-point-boundary');
+  }
   const label = target.segments.at(-1), rank = suffixOrder(label.suffix);
   if (!label.isNew || !rank || label.number == null) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   let siblings, anchor, end;
