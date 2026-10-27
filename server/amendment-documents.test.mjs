@@ -624,7 +624,16 @@ test('Croatian target lines use inherited bold formatting and honor direct non-b
   const styles='<w:styles><w:style w:styleId="Parent"><w:rPr><w:b/></w:rPr></w:style><w:style w:styleId="Child"><w:basedOn w:val="Parent"/></w:style></w:styles>';
   const target='<w:p><w:pPr><w:pStyle w:val="Child"/></w:pPr>'+run('Uvodna izjava 3.a (nova)')+'</w:p>';
   const ordinary='<w:p><w:pPr><w:pStyle w:val="Child"/></w:pPr><w:r><w:rPr><w:b w:val="0"/></w:rPr><w:t>Ordinary metadata</w:t></w:r></w:p>';
-  const xml=body(p('<Committee>Odbor za ribarstvo</Committee>')+p('Amandman3')+target+ordinary+table(row(cell(p('')),cell(p('Published new recital.')))));
+  const xml=body(p('<Committee>Odbor za ribarstvo</Committee>')+p('Amandman3')+ordinary+target+table(row(cell(p('')),cell(p('Published new recital.')))));
   const result=extractAmendments(archive(xml,styles),{...options,listId:'A-10-2025-0150-AM-001-129',language:'hr'});
   assert.equal(result.amendments[0].targetLabel,'Uvodna izjava 3.a (nova)');
+});
+
+
+test('Croatian amendment 13 retains plain underlying-act metadata after its bold proposal target',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-croatian-unstyled.json',import.meta.url),'utf8'));
+  const cover=p('<Committee>Odbor za ribarstvo</Committee><Procedure>Prijedlog uredbe</Procedure>');
+  const xml=body(cover+p('Amandman13')+fixture.underlyingTargetParagraphsXml+table(row(cell(p('')),cell(p('Test comparison.')))));
+  const {amendments}=extractAmendments(archive(xml,fixture.stylesXml),fixture);
+  assert.equal(amendments[0].targetLabel,fixture.underlyingTargetLabel);
 });

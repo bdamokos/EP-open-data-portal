@@ -337,7 +337,11 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       const procedure=field(coverRaw,'Procedure').map(metadata);
       for(const block of group) {
         if(block.kind==='table')break;
-        if(block.kind==='paragraph'&&(/^NormalBold(?:\d+b?)?$/i.test(block.paragraphStyle||'')||language==='hr'&&block.bold&&!numberIn(block.raw,block.paragraphStyle,language))&&block.text&&!procedure.includes(block.text))targetParts.push(block.text);
+        if(block.kind==='paragraph'&&block.text&&!procedure.includes(block.text)&&!numberIn(block.raw,block.paragraphStyle,language)) {
+          // Croatian's unstyled template keeps the proposal address in bold,
+          // followed by plain underlying-act metadata before the comparison.
+          if(/^NormalBold(?:\d+b?)?$/i.test(block.paragraphStyle||'')||language==='hr'&&(block.bold||targetParts.length))targetParts.push(block.text);
+        }
       }
     }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
