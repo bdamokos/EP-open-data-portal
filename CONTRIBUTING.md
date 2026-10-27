@@ -39,6 +39,8 @@ For a response-semantic change that does not change the endpoint inventory diges
 
 Style components with the design tokens in `src/theme.css`, never raw colour values. Each token has a light and a dark value, and every view uses the same surfaces in both schemes; the political-group, vote and status colours are reserved for data. Keep the interface independent of European Parliament branding. `src/theme.test.mjs` checks token contrast and rejects raw colours, and the focus tests run in both schemes. Check visible changes in light and dark appearance.
 
+Use `:focus-visible` for focus indicators, including headings and readers that receive programmatic focus. Keep the shared styles in `src/focus.css`: controls use a ring and editable fields use a border highlight, with a transparent outline for forced-colour modes. Search fields strengthen their existing underline. Preserve autofocus, focus restoration and dialog focus management.
+
 Write interface text for readers: plain, brief and free of disclaimers, hedges and robotic phrasing. Before adding a sentence, ask whether a reader would miss it. Coding agents tend to add caveats and explanations to UI copy; report uncertainty, gaps and limits to the maintainer in full in the PR description, review replies or chat instead.
 
 - The site notice (`src/components/DataNotice.tsx`) states once that the site is independent, that its counts may be incomplete or out of date, and that readers should check the original. Do not repeat that inline.
