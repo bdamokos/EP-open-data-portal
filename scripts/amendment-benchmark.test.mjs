@@ -41,6 +41,23 @@ test('replace/delete oracle reads exact splice coordinates, tolerates only provi
   assert.equal(verifyPlacement({placement:{...placement,splice:{start:{paragraph:1,offset:500},end:{paragraph:1,offset:1}}},wording:amendment,items}).reason,'oracle-invalid-span');
   assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:'(not) A café sentence.'},items}).status,'failed');
 });
+test('oracle preserves internal punctuation when a comparison column flattens source paragraphs',()=>{
+  const rows=['7. Allocates funding as follows:','the first programme receives ten units;','the second programme receives five units.','the balance remains available;'];
+  const text=source(['The European Parliament,',...rows,'8. Requests a report.','ANNEX']);
+  const original=rows.join(' '),amendment={...wording('Paragraph 7',original,'Revised allocation.'),baseline:'motion-resolution'};
+  // Supply coordinates directly: this tests the independent oracle, not the placer.
+  for(const operation of ['replace','delete']) {
+    const placement={status:'placed',operation,span:{start:1,end:4}};
+    assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'verified');
+    assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:original.replace('units;','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:original.replace('units.','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement:{...placement,span:{start:1,end:3}},wording:amendment,text}).status,'failed');
+  }
+  const labels=[{value:'7'}];
+  assert.equal(oracleNormal(rows.join('\n'),labels),oracleNormal(original,labels));
+  assert.equal(oracleNormal(rows.join('\r\n'),labels),oracleNormal(original,labels));
+  assert.equal(oracleNormal(rows.join('\n'),labels),'Allocates funding as follows: the first programme receives ten units; the second programme receives five units. the balance remains available');
+});
 test('introductory-part addresses are checked against their own provision',()=>{
   const items=item(['Article 1','1. Lead text of the paragraph:','(a) first point;','2. Other paragraph lead:']);
   const amendment=wording('Article 1 – paragraph 1 – introductory part','Lead text of the paragraph:','New lead:');

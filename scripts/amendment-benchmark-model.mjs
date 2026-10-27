@@ -71,12 +71,14 @@ export function oracleNormal(value,labels=[]) {
   const escape=value=>String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const prefixes=[...new Set(labels.map(label=>label.value))].map(value=>'\\('+escape(value)+'\\)|'+escape(value)+'[.)]');
   const prefix=prefixes.length?new RegExp('^(?:'+prefixes.join('|')+')\\s*','u'):null;
+  // A comparison cell can flatten several source paragraphs. Only the end
+  // of the complete comparison has a terminator; internal punctuation stays.
   return value.normalize('NFC').replace(/\u00ad/g,'').replace(/[‘’‚‛ʻʼ]/g,"'").replace(/[“”„‟«»]/g,'"').replace(/[‐‑‒–—]/g,'-')
     .split(/\r?\n/).map(line=>{
       let text=line.trim().replace(/^["']\s*/, '');
       if(prefix)text=text.replace(prefix,'');
-      return text.replace(/[.;'"\s]+$/u,'').trim();
-    }).join(' ').replace(/\s+/gu,' ').trim();
+      return text;
+    }).join(' ').replace(/\s+/gu,' ').trim().replace(/[.;'"\s]+$/u,'');
 }
 const occurrences=(haystack,needle)=>{
   let count=0,offset=0;if(!needle)return 0;
