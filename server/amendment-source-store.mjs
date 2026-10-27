@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {readFile,readdir,rmdir,stat,unlink} from 'node:fs/promises';
 import path from 'node:path';
+import {statSync} from 'node:fs';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import {integerFromEnvironment} from './config.mjs';
@@ -124,6 +125,13 @@ class AmendmentSourceStore {
       .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&!(wanted.issued&&!row.issued&&(dated||Date.parse(row.retrieved_at)<Date.parse(wanted.issued))));
     // Prefer a row with the same published issue time over one without it.
     return rows.sort((a,b)=>Number(Boolean(b.issued&&wanted.issued))-Number(Boolean(a.issued&&wanted.issued))||b.retrieved_at.localeCompare(a.retrieved_at))[0] || null;
+  }
+  // Check only during target preparation. read() verifies the hash before use.
+  has(descriptor) {
+    if(!this.store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amendment_sources'").get())return false;
+    const row=this.match(descriptor);if(!row)return false;
+    try {const info=statSync(path.join(this.directory,row.sha256+'.docx'));return info.isFile()&&info.size===row.size;}
+    catch(error){if(error.code==='ENOENT')return false;throw error;}
   }
   // Publication knowledge is independent of the blob budget. Undated writes
   // recover the binding for these exact bytes; they never replace it.

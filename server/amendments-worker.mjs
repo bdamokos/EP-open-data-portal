@@ -12,6 +12,7 @@ import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParse
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
 import {amendmentSourceStore} from './amendment-source-store.mjs';
+import {amendmentListSettled} from './amendment-refresh-policy.mjs';
 import {extractAmendmentsOffThread,extractionTurn,endExtractionTurn} from './amendment-extraction-thread.mjs';
 import {performance} from 'node:perf_hooks';
 import { userAgent } from './user-agent.mjs';
@@ -102,10 +103,16 @@ function linkedListCandidates(work) {
 function saveVerifiedList(worker,generation,target,candidate,list,evidence,{parserUpgrade=false}={}) {
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
+  // Initial acquisition keeps the existing language selection. Subsequent
+  // metadata changes acquire new/revised editions one per leased task turn.
+  const descriptors=distributionEvidence.descriptors;
+  const changed=prior?.work.distributionEvidence?.state==='available'?descriptors.filter(file=>!prior.work.distributionEvidence.descriptors.some(old=>sameDocxDescriptor(file,old))):[];
+  const pending=[...new Map([...(prior?.work.pendingDistributions || []),...changed].filter(file=>descriptors.some(current=>sameDocxDescriptor(current,file))).map(file=>[JSON.stringify(file),file])).values()];
+  const lastConfirmedAt=distributionEvidence.state==='available'?evidence.fetchedAt:null;
   const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
-  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
+  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,pendingDistributions:pending,lastConfirmedAt,...(prior?.work.sourceRetentionRetryAt?{sourceRetentionRetryAt:prior.work.sourceRetentionRetryAt}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
 }
-function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true}={}) {
+function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sittingIds=[]}={}) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
   for(const candidate of linked.candidates.slice(0,AMENDMENT_LIMITS.listsPerTarget)) {
     let prior=worker.store.source(generation,sourceKey(candidate.id));
@@ -126,7 +133,12 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true}={})
     const failure=prior?.work.wordingRefreshFailure;
     const failedDescriptorMatches=failure&&(failure.descriptor==null&&freshness.descriptor==null||sameDocxDescriptor(failure.descriptor,freshness.descriptor));
     const retryDeferred=failedDescriptorMatches&&Date.parse(failure.retryAfter)>worker.clock();
-    const unchanged=freshness.status==='fresh'&&worker.clock()-Date.parse(prior?.work.extraction?.fetchedAt || prior?.fetchedAt)<7*DAY;
+    const settled=amendmentListSettled(prior?.work,{now:worker.clock(),sittingIds});
+    const sources=settled?amendmentSourceStore(worker.store):null;
+    const alternate=alternateAuthorDescriptor(prior?.work,prior?.work.extraction);
+    const retentionDeferred=Date.parse(prior?.work.sourceRetentionRetryAt)>worker.clock();
+    const bytesPresent=!settled||retentionDeferred||sources.has(freshness.descriptor)&&(!alternate||sources.has(alternate));
+    const unchanged=freshness.status==='fresh'&&bytesPresent&&!prior?.work.pendingDistributions?.length&&(settled||worker.clock()-Date.parse(prior?.work.extraction?.fetchedAt || prior?.fetchedAt)<7*DAY);
     if(discover&&currentDocxDescriptor(prior?.work)&&(!unchanged||alternateAuthorDescriptor(prior?.work,prior?.work.extraction)&&prior?.work.extraction?.authorNamesVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)&&!retryDeferred)enqueueAmendment(worker.store,generation,'amendment:extract:'+candidate.id,'amendment-extract',{listId:candidate.id,targetDocumentId:id},112,true);
     const date=prior?.work.document_date;
     if(discover&&validAmendmentDate(date)&&(!worker.store.source(generation,rosterKey(date))||hasNonLatinAuthors(prior?.work.extraction)&&worker.store.source(generation,rosterKey(date))?.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION))enqueueAmendment(worker.store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114,true);
@@ -544,7 +556,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   const relationshipsKnown=Object.hasOwn(saved.work,'inverse_foresees_change_of')&&saved.work.inverse_foresees_change_of!=null&&saved.work.amendmentLinksVersion===AMENDMENT_LINKS_VERSION;
   // Parser recovery has its own bounded list walk. Rebuild accepted rows from
   // saved evidence without starting a second report-wide discovery fan-out.
-  const linked=prepareLinkedLists(worker,generation,saved.work,saved.fetchedAt,{discover});
+  const linked=prepareLinkedLists(worker,generation,saved.work,saved.fetchedAt,{discover,sittingIds:[...amendmentSittings(saved.work),...discovered]});
   const currentListIds=linked.candidates.map(candidate=>candidate.id);
   const currentLists=new Set(currentListIds);
   target.linkedListCount=currentListIds.length;target.linkedListObservationCount=currentListIds.length+linked.unavailable;target.unresolvedListObservationCount=linked.unavailable;target.unresolvedListIds=linked.unresolved;
@@ -752,11 +764,14 @@ export async function amendmentTask(worker,task) {
       return;
     }
     const sources=amendmentSourceStore(store);
-    // Parser-only work, and a retry after this job's own download, read the
+    const target=store.source(generation,targetKey(body.targetDocumentId))?.work;
+    const targetRow=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,body.targetDocumentId);
+    const settled=amendmentListSettled(saved.work,{now:worker.clock(),sittingIds:[...amendmentSittings(target),...(targetRow?JSON.parse(targetRow.body).sittingIds || []:[])]});
+    // Settled lists, parser-only work and retries after this job's download read the
     // retained bytes of a still-current descriptor at any age. Their original
     // retrieval time remains the wording's retrieval time.
     const retrieve=async (descriptor,forceDownload=false)=>{
-      const retained=!forceDownload&&(parserUpgrade||body.sourceDownloaded)?await sources.read(descriptor,{listId:body.listId,signal}):null;
+      const retained=!forceDownload&&(settled||parserUpgrade||body.sourceDownloaded)?await sources.read(descriptor,{listId:body.listId,signal}):null;
       if(retained)return {...retained,retained:true};
       const defer=wait=>{
         store.assertWriter();
@@ -795,6 +810,18 @@ export async function amendmentTask(worker,task) {
       }
       return null;
     };
+    const pending=saved.work.pendingDistributions || [];
+    const extra=pending.find(descriptor=>!sameDocxDescriptor(descriptor,file));
+    if(extra) {
+      // Metadata-only editions need retention, not a second wording projection.
+      // Retry reuses bytes already committed by an interrupted task.
+      const retained=await sources.read(extra,{listId:body.listId,signal});
+      const downloaded=retained || await retrieve(extra);if(!downloaded)return;
+      if(!retained)await sources.save(extra,downloaded.buffer,downloaded.fetchedAt,{listId:body.listId,signal});
+      store.assertWriter();
+      store.putSource(generation,sourceKey(body.listId),'amendment-list',{...saved.work,pendingDistributions:pending.filter(descriptor=>!sameDocxDescriptor(descriptor,extra))},saved.fetchedAt);
+      return;
+    }
     const downloaded=await retrieve(file);
     if(!downloaded)return;
     signal.throwIfAborted();
@@ -822,7 +849,7 @@ export async function amendmentTask(worker,task) {
           authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:publication.sourceDescriptor,descriptor:otherPublication.sourceDescriptor,publicationBinding:otherPublication.publicationBinding,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
         }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
       }
-      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),...publication}};
+      const next={...saved.work,pendingDistributions:[],sourceRetentionRetryAt:sources.has(file)?null:new Date(worker.clock()+7*DAY).toISOString(),authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),...publication}};
       delete next.wordingRefreshFailure;
       store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});

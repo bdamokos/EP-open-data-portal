@@ -1,7 +1,7 @@
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, unlinkSync } from 'node:fs';
 import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -1210,4 +1210,95 @@ for(const mode of ['omitted','empty'])test('fresh '+mode+' metadata observes onc
     prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
     assert.equal(requests,2);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
   }
+});
+
+
+const freshnessDay=86400000;
+test('within the grace period an unchanged list still downloads weekly',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  context.advance(7*freshnessDay);
+  await context.reverify(descriptor,{date:documentDate});
+  const job=nextAmendmentTask(store,generation);assert.equal(job.kind,'amendment-extract');
+  let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx()};};
+  await worker.task(job);
+  assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.extraction.fetchedAt,context.at());
+});
+
+test('settled unchanged metadata confirms the source without downloading or changing wording retrieval dates',async t=>{
+  const context=await fixture(t),{store,generation,descriptor}=context;
+  context.advance(90*freshnessDay);
+  await context.reverify(descriptor,{date:documentDate});
+  const saved=store.source(generation,listKey);
+  assert.equal(extractionJob(store,generation).done,1);
+  assert.equal(saved.work.lastConfirmedAt,context.at());
+  assert.equal(saved.work.extraction.fetchedAt,oldRetrievedAt);
+  const record=amendmentsPage(store,{document:targetId}).items[0];
+  assert.equal(record.sourceFreshness.status,'fresh');assert.equal(record.wordingSource.fetchedAt,oldRetrievedAt);
+  assert.equal(Object.hasOwn(record.sourceFreshness,'lastConfirmedAt'),false);
+});
+
+for(const change of ['url','byteSize','issued','missing-bytes'])test('settled list downloads a '+change+' source and keeps fresh provenance',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  context.advance(90*freshnessDay);
+  const next={...descriptor};
+  if(change==='missing-bytes') {
+    const sources=amendmentSourceStore(store),row=sources.match(descriptor);unlinkSync(path.join(sources.directory,row.sha256+'.docx'));
+  } else if(change==='url')next.url=newUrl;
+  else if(change==='byteSize')next.byteSize+=1;
+  else next.issued=context.at();
+  await context.reverify(next,{date:documentDate});
+  const job=nextAmendmentTask(store,generation);assert.equal(job.kind,'amendment-extract');
+  let downloads=0;worker.downloadAmendmentDocx=async url=>{downloads++;assert.equal(url,next.url);return {buffer:amendmentDocx()};};
+  await worker.task(job);
+  assert.equal(downloads,1);const saved=store.source(generation,listKey);
+  assert.equal(saved.work.extraction.fetchedAt,context.at());assert.equal(saved.work.lastConfirmedAt,context.at());
+  assert.equal(amendmentsPage(store,{document:targetId}).items[0].sourceFreshness.status,'fresh');
+});
+
+test('a newly published language downloads once while the settled primary keeps its byte retrieval date',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor,target}=context;
+  context.advance(90*freshnessDay);
+  const french={...descriptor,url:oldUrl.replace('_en','_fr'),language:'fr'};
+  const expanded={...listDetail(descriptor),is_realized_by:[...realization(descriptor),...realization(french)]};
+  // Reproduce the normal document worker projection, which marks a declared distribution.
+  expanded.amendmentDistributionDeclared=true;
+  store.putSource(generation,targetKey,'document',{...target,inverse_foresees_change_of:[expanded]},context.at());
+  rebuildAmendmentTarget(worker,generation,targetId);
+  let downloads=0;worker.downloadAmendmentDocx=async url=>{downloads++;assert.equal(url,french.url);return {buffer:amendmentDocx()};};
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.pendingDistributions.length,0);
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.extraction.fetchedAt,oldRetrievedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);assert.equal(extractionJob(store,generation).done,1);
+  assert(amendmentSourceStore(store).has(french));
+});
+
+test('settled metadata confirmation and a pending byte repair survive writer handoff',async t=>{
+  const context=await fixture(t),{store,generation,descriptor}=context;
+  context.advance(90*freshnessDay);await context.reverify(descriptor,{date:documentDate});
+  const sources=amendmentSourceStore(store),row=sources.match(descriptor);unlinkSync(path.join(sources.directory,row.sha256+'.docx'));
+  rebuildAmendmentTarget(context.worker,generation,targetId);
+  store.release();
+  const other=new ActivityStore(path.dirname(store.filename),{clock:()=>store.clock()});t.after(()=>other.close());assert(other.acquire());
+  let downloads=0;const successor=new ActivityWorker(other,{runUpstream:unthrottledUpstream,clock:()=>other.clock(),downloadAmendmentDocx:async()=>{downloads++;return {buffer:amendmentDocx()};}});
+  await assert.rejects(context.worker.task(nextAmendmentTask(other,generation)),/writer lease was lost/);
+  await successor.task(nextAmendmentTask(other,generation));
+  assert.equal(downloads,1);assert.equal(other.source(generation,listKey).work.lastConfirmedAt,context.at());
+  assert.equal(extractionJob(other,generation).done,1);
+  rebuildAmendmentTarget(successor,generation,targetId);assert.equal(extractionJob(other,generation).done,1);
+});
+
+test('a full byte store defers repeated settled repairs instead of downloading on every rebuild',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  context.advance(90*freshnessDay);
+  const sources=amendmentSourceStore(store),row=sources.match(descriptor);unlinkSync(path.join(sources.directory,row.sha256+'.docx'));
+  t.mock.method(sources,'reserve',async()=>false);
+  await context.reverify(descriptor,{date:documentDate});
+  let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx()};};
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(downloads,1);assert.equal(extractionJob(store,generation).done,1);
+  rebuildAmendmentTarget(worker,generation,targetId);assert.equal(extractionJob(store,generation).done,1);
+  assert(Date.parse(store.source(generation,listKey).work.sourceRetentionRetryAt)>store.clock());
+  context.advance(7*freshnessDay);await context.reverify(descriptor,{date:documentDate});
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
 });
