@@ -6,6 +6,8 @@ export interface ProposalPathSegment {
   value: string
   number?: number | null
   suffix?: string
+  base?: string
+  negative?: boolean
   isNew?: boolean
   /** Repeated source labels are distinct, but cannot be uniquely addressed. */
   occurrence?: number

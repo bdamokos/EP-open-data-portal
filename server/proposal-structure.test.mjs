@@ -590,3 +590,15 @@ test('every supported math container validates operand names and cardinality wit
   const withNote=parseProposal(archive(body(p('Article 1')+'<w:p><w:r><w:t>Provision.</w:t><w:footnoteReference w:id="1"/></w:r></w:p>'),[['word/footnotes.xml',noteXml]]),{sourceUrl});
   assert.equal(withNote.notes[0].complete,false);assert.equal(proposalCandidates(withNote,'Article 1')[0].complete,false);assert(withNote.gaps.some(gap=>gap.code==='incomplete-note'));assert.equal(withNote.notes[0].objects[0].sourceUrl,sourceUrl);
 });
+
+test('target grammar preserves exact spaced suffixes, negative new points and own-text selectors',()=>{
+  const spaced=parseTargetLabel('Article 5 – paragraph 1 – point b a (new)','en');
+  assert.equal(spaced.complete,true);assert.deepEqual(Object.fromEntries(['value','base','suffix','number'].map(k=>[k,spaced.segments.at(-1)[k]])),{value:'ba',base:'b',suffix:'a',number:null});
+  const croatian=parseTargetLabel('Članak 2. – stavak 1. – točka 2. – podtočka ba (nova)','hr');
+  assert.equal(croatian.complete,true);assert.equal(croatian.segments.at(-1).base,'b');assert.equal(croatian.segments.at(-1).suffix,'a');
+  assert.equal(parseTargetLabel('Article 4 – title').segments.at(-1).kind,'title');
+  assert.equal(parseTargetLabel('Article 6 – paragraph 1 – introductory part').segments.at(-1).kind,'introductory-part');
+  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a (new)').segments.at(-1).negative,true);
+  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,false);
+  const finnish=parseTargetLabel('17 artikla – 1 kohta – -1 alakohta (uusi)','fi');assert.equal(finnish.complete,true);assert.equal(finnish.segments.at(-1).value,'-1');
+});

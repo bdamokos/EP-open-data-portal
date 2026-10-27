@@ -67,6 +67,12 @@ function grammar(language) {
 // Latin suffix. Such a cross-language mapping belongs to an explicit resolver.
 export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
+  // EP separates an inserted suffix from its alphabetic/Roman base; source
+  // point labels also publish compact forms such as Croatian "ba".
+  const spaced=text.match(/^([a-z]|[ivxlcdm]{1,8})\s+([a-z]{1,2})$/u);
+  if(spaced)return {value:spaced[1]+spaced[2],number:null,base:spaced[1],suffix:spaced[2]};
+  const letterSuffix=text.match(/^([a-z])([a-z])$/u);
+  if(letterSuffix&&!/^[ivxlcdm]+$/u.test(text))return {value:text,number:null,base:letterSuffix[1],suffix:letterSuffix[2]};
   if(language==='fr'&&/^(?:premier|1er)$/i.test(text))return {value:'1',number:1,suffix:''};
   const decimal=text.match(/^(\d+(?:\.\d+)*)\s*([\p{L}]+|[\p{L}]\s[\p{L}])?$/u);
   if(decimal){const suffix=(decimal[2]??'').replace(/\s/g,'').toLowerCase();
@@ -81,6 +87,7 @@ export function parseLabelSegment(label,language='en') {
   language=proposalLanguage(language);let text=fold(label),isNew=false;
   if(!qualifiers.has(language))qualifiers.set(language,new RegExp(`\\s*\\((?:${rows[language][5].split('|').map(escape).join('|')})\\)\\s*$`,'iu'));
   text=text.replace(qualifiers.get(language),()=>{isNew=true;return '';});
+  if(language==='en'&&/^(?:introductory part|title)$/iu.test(text))return {kind:/^title$/iu.test(text)?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
   for(const {kind,forward:forwardPattern,backward:backwardPattern} of grammar(language)) {
     const forward=text.match(forwardPattern);
     const backward=text.match(backwardPattern);
@@ -89,7 +96,9 @@ export function parseLabelSegment(label,language='en') {
     // Greek annex/title headings use Greek Ι/Χ glyphs in Roman numerals.
     // This is an ordinal grammar rule, never transliteration of a suffix.
     if(language==='el'&&['annex','title','chapter','section'].includes(kind)&&/^[IVXLCDMΙΧ]+\.?$/u.test(rawValue.trim())){const roman=rawValue.replaceAll('Ι','I').replaceAll('Χ','X');if(roman!==rawValue){sourceValue=rawValue;rawValue=roman;}}
-    const value=proposalNumber(rawValue,language);
+    const negative=isNew&&kind==='point'&&/^-[a-z]$|^-\d+$/u.test(rawValue);
+    const value=proposalNumber(negative?rawValue.slice(1):rawValue,language);
+    if(value&&negative){value.value='-'+value.value;value.negative=true;}
     if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^\d|^[IVXLCDM]+$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
   }
   return null;

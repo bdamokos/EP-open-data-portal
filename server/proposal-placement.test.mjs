@@ -206,6 +206,83 @@ test('an address without Annex excludes an annex item even when it lacks an anne
   assert.equal(resolveProposalPlacement([annex],{...options,targetLabel:'Article 1a – paragraph 1',originalText:'Uncontained annex item.'}).status,'unresolved');
 });
 
+// A-10-2026-0257 AM97, 107, 112, 137 and A-10-2026-0104's
+// instruction leads. Identical wording in other provisions is not a join.
+test('introductory part matches only the own lead of a provision',()=>{
+  const projection=source(['Article 3','3. The objectives are pursued through:','(a) First objective;','Closing continuation.','Article 6','The Programme shall support:','(a) Cooperation;','Article 7','The Programme shall support:','(a) Development;']);
+  for(const article of [6,7]){
+    const placed=resolve(projection,`Article ${article} – paragraph 1 – introductory part`,'The Programme shall support:');
+    assert.equal(placed.status,'placed');assert.equal(placed.evidence.at(-1).basis,'introductory-wording-match');assert.equal(placed.span.start,article===6?5:8);
+  }
+  const placed=resolve(projection,'Article 3 – paragraph 3 – introductory part','The objectives are pursued through:');assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:1,end:1});
+  for(const original of ['First objective;','Closing continuation.'])assert.equal(resolve(projection,'Article 3 – paragraph 3 – introductory part',original).status,'unresolved');
+  const repeated=source(['Article 1','1. Repeat. Repeat.','(a) Point.']);
+  assert.equal(resolve(repeated,'Article 1 – paragraph 1 – introductory part','Repeat.').status,'unresolved');
+});
+
+test('article title addresses its title child and never the article body or a chapter heading',()=>{
+  const projection=source(['CHAPTER VI','PROGRAMMING','Article 4','Learning mobility and volunteering opportunities','1. A body paragraph.'],['Titrechapitre','','Titrearticle','Titrearticle']);
+  const placed=resolve(projection,'Article 4 – title','Learning mobility and volunteering opportunities');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:3,end:3});
+  assert.equal(resolve(projection,'Article 4 – title','A body paragraph.').status,'unresolved');
+  assert.equal(resolve(projection,'Chapter VI – title','VI\tPROGRAMMING').status,'unresolved','A-10-2026-0257 AM146 does not identify an article title child');
+  assert.equal(resolve(source(['Article 4','1. A body paragraph.']),'Article 4 – title','A body paragraph.').status,'unresolved');
+});
+
+// A-10-2026-0257 AM165/168 and -0104 AM55/76–79/95/117.
+test('alphabetic and Roman suffix insertions follow the full existing predecessor subtree',()=>{
+  const projection=source(['Article 5','1. Lead:','(a) First;','(b) Second:','(i) Nested first;','(ii) Nested second;','(c) Third.'],['Titrearticle','','Point1','Point1','Point2','Point2','Point1']);
+  let placed=resolve(projection,'Article 5 – paragraph 1 – point b a (new)');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,5);assert.equal(placed.insertBefore,6);
+  placed=resolve(projection,'Article 5 – paragraph 1 – point b – point ii a (new)');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,6);
+  const suffixed=source(['Article 5','1. Lead:','(b) Original;','(ba) A;','(bc) C;','(c) Next.'],['Titrearticle','','Point1','Point1','Point1','Point1']);
+  assert.equal(resolve(suffixed,'Article 5 – paragraph 1 – point b b (new)').insertBefore,4);
+  assert.equal(resolve(suffixed,'Article 5 – paragraph 1 – point b a (new)').reason,'duplicate_target_label');
+  const reversed=source(['Article 5','1. Lead:','(b) Original;','(bc) C;','(ba) A;'],['Titrearticle','','Point1','Point1','Point1']);
+  assert.equal(resolve(reversed,'Article 5 – paragraph 1 – point b b (new)').reason,'source_structure_unavailable');
+});
+
+test('unsuffixed points need a predecessor; only the first Roman point can start below a childless point',()=>{
+  const projection=source(['Article 4','4. Lead:','(a) First;','(b) Last.']);
+  let placed=resolve(projection,'Article 4 – paragraph 4 – point c (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
+  assert.equal(resolve(projection,'Article 4 – paragraph 4 – point d (new)').reason,'relative_target_not_found');
+  placed=resolve(projection,'Article 4 – paragraph 4 – point a – point i (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert.equal(placed.evidence.at(-1).basis,'childless-parent-end');
+  assert.equal(resolve(projection,'Article 4 – paragraph 4 – point a – point ii (new)').status,'unresolved','AM115/116 cannot use an absent first Roman point as a baseline anchor');
+  assert.equal(resolve(projection,'Article 4 – paragraph 9 – point a – point i (new)').reason,'parent_target_not_found');
+});
+
+test('negative new points require an exact parent and a complete first-sibling boundary',()=>{
+  const projection=source(['Article 3','2. Lead:','(a) First;','(b) Second.']);
+  const placed=resolve(projection,'Article 3 – paragraph 2 – point -a (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,1);assert.equal(placed.insertBefore,2);assert.equal(placed.evidence.at(-1).basis,'first-sibling-start');
+  assert.equal(resolve(projection,'Article 3 – paragraph 2 – point -b (new)').status,'unresolved');
+  assert.equal(resolve(projection,'Article 3 – paragraph 9 – point -a (new)').status,'unresolved');
+  const incomplete=structuredClone(projection);incomplete.paragraphSources[1].complete=false;
+  assert.equal(resolve(incomplete,'Article 3 – paragraph 2 – point -a (new)').status,'unresolved');
+  const reversed=source(['Article 3','2. Lead:','(b) Second;','(a) First.']);
+  assert.equal(resolve(reversed,'Article 3 – paragraph 2 – point -a (new)').status,'unresolved');
+  const numbered=source(['Article 3','The act is amended:','(1) First;','(2) Second.'],['Titrearticle','','Point0','Point0']);
+  assert.equal(resolve(numbered,'Article 3 – paragraph 1 – point -1 (new)').insertBefore,2);
+});
+
+test('an omitted heading parent cannot choose between suffix anchors in different chapters',()=>{
+  const projection=source(['CHAPTER I','Article 1','1. First.','CHAPTER II','Article 1','1. Other.','Article 1a','1. Intermediate.'],['Titrechapitre','Titrearticle','','Titrechapitre','Titrearticle','','Titrearticle']);
+  assert.equal(resolve(projection,'Article 1 b (new)').reason,'multiple_published_targets');
+});
+
+test('an introductory part below an explicit subparagraph keeps that ordinal boundary',()=>{
+  const projection=source(['Article 8','5. Actions eligible for support include:','(a) Exchange of information.']);
+  const placed=resolve(projection,'Article 8 – paragraph 5 – subparagraph 1 – introductory part','Actions eligible for support include:');
+  assert.equal(placed.status,'placed');assert.equal(placed.span.start,1);
+  assert.equal(resolve(projection,'Article 8 – paragraph 5 – subparagraph 2 – introductory part','Actions eligible for support include:').status,'unresolved');
+});
+
+test('a new unsuffixed point follows all published suffixes of its predecessor',()=>{
+  const projection=source(['Article 4','4. Lead:','(a) First;','(b) Last original;','(ba) Last inserted predecessor.']);
+  const placed=resolve(projection,'Article 4 – paragraph 4 – point c (new)');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,5);
+});
+
 test('a resolved point with different wording never recovers through its ancestor',()=>{
   // A-10-2026-0267 AM15: shifted point numbering must be repaired before
   // the published address and independent placement oracle can agree.
