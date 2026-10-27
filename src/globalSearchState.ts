@@ -14,8 +14,8 @@ function queryFor(url:URL,state:Record<string,unknown>) {
   return new URLSearchParams(saved&&saved.length<=16000?saved:'');
 }
 function store(url:URL,state:Record<string,unknown>,query:URLSearchParams) {
-  for(const key of [...url.searchParams.keys()])if(globalKey(key))url.searchParams.delete(key);
   const closed=query.get('global-fts-closed')==='1';
+  for(const key of [...url.searchParams.keys()])if(globalKey(key)&&(closed||key==='global-fts-closed'||!query.has(key)))url.searchParams.delete(key);
   const saved=closed?query.toString():null;
   state[field]=saved;
   try{saved===null?window.sessionStorage.removeItem(sessionKey):window.sessionStorage.setItem(sessionKey,saved);}catch{/* History still remembers the query when storage is blocked. */}

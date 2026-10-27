@@ -207,7 +207,7 @@ test('choosing the verified joint text resets amendment/version/page and does no
 test('a closed exact joint-motion link survives activity and App canonicalization without opening a different reader',async t=>{
  const h=await harness(t,query({activity:JOINT,'ma-member':'1','ma-source':JOINT,'ma-owner':'fixture-'+JOINT,'ma-text':JOINT}));
  assert.equal(params().get('activity'),'motions:'+JOINT,'the exact linked activity is canonicalized with its category');
- assert.equal(params().get('ma-text'),JOINT);assert.equal(params().get('role'),'both');assert.equal(params().get('lang'),'en');
+ assert.equal(params().get('ma-text'),JOINT);assert.equal(params().get('role'),null);assert.equal(params().get('lang'),null);assert.equal(document.documentElement.lang,'en');
  assert.equal(h.container.querySelector('.motion-amendments__reference')?.textContent,JOINT);
  const textChoice=h.container.querySelector('select[aria-label="Motion text"]');if(textChoice)assert.equal(textChoice.value,JOINT);
  assert.equal(h.container.querySelector('.motion-amendments__disclosure')?.getAttribute('aria-expanded'),'false');
@@ -219,7 +219,7 @@ test('a closed exact joint-motion link survives activity and App canonicalizatio
 test('duplicate requested text remains invalid after App canonicalization instead of substituting a valid text',async t=>{
  const selection=new URLSearchParams(query({'ma-member':'1','ma-source':ORIGINAL,'ma-owner':'fixture-'+ORIGINAL}));selection.append('ma-text',ORIGINAL);selection.append('ma-text',JOINT);
  const h=await harness(t,selection.toString());
- assert.deepEqual(params().getAll('ma-text'),[ORIGINAL,JOINT]);assert.equal(params().get('role'),'both');assert.equal(params().get('lang'),'en');
+ assert.deepEqual(params().getAll('ma-text'),[ORIGINAL,JOINT]);assert.equal(params().get('role'),null);assert.equal(params().get('lang'),null);assert.equal(document.documentElement.lang,'en');
  assert.match(h.container.querySelector('.member-motion-reader__unavailable')?.textContent,/reader link is unavailable/i);
  assert.equal(h.container.querySelector('.motion-amendments'),null);
  assert.equal(h.requests.some(url=>url.pathname.startsWith('/api/motion-amendments/')||url.pathname.startsWith('/api/document-context/')),false);
@@ -265,7 +265,7 @@ test('exact amendment, list and wording language reach the shared context; adopt
  assert(transportVersion.length===0||transportVersion.length===1&&transportVersion[0]===String(API_VERSION),'only the admitted transport version may accompany the semantic query');
  semanticQuery.delete('v');
  assert.deepEqual(Object.fromEntries(semanticQuery),{lang:'hu',amendment:AMENDMENT,list:LIST,'wording-lang':'hu'});
- assert.equal(params().get('lang'),'en','source language is independent of the interface language');
+ assert.equal(params().get('lang'),null,'default English is implicit');assert.equal(document.documentElement.lang,'en','source language is independent of the interface language');
  assert.equal(h.container.querySelector('.document-context-reader [data-context-target="true"]')?.textContent,'1. Pontos magyar forrásszöveg.');
  const context=location.href;await h.click(button(h.container,'Profile'));await h.go(-1);assert.equal(location.href,context);
  assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');

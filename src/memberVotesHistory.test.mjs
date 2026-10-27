@@ -255,7 +255,7 @@ test('choosing Hungarian wording in one multilingual list opens and restores its
   h.container.querySelector('.member-votes').scrollTop=4237;
   h.container.querySelector('.explorer-profile-body').scrollTop=413;
   const assertHungarian=()=>{
-    assert.equal(location.href,context);assert.equal(params().get('lang'),'en','the interface language stays independent');
+    assert.equal(location.href,context);assert.equal(params().get('lang'),null,'default English is implicit');assert.equal(document.documentElement.lang,'en','the interface language stays independent');
     assert.equal(params().get('mv-wording-lang'),'hu');assert.equal(params().get('mv-amendment'),AMENDMENT);assert.equal(params().get('mv-list'),LIST);
     const highlighted=h.container.querySelector('.document-context-reader [data-context-target="true"]');
     assert(highlighted?.querySelector('.wording-diff'),'the exact Hungarian source is shown as an in-place diff');
