@@ -3,7 +3,6 @@
 .explorer-amendments * {box-sizing:border-box;}
 .explorer-amendment-section-heading {display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:24px 0 18px;}
 .explorer-amendment-section-heading h2 {margin:0;scroll-margin-top:24px;}
-.explorer-amendment-section-heading h2:focus {outline:none;}
 .explorer-amendment-controls,.explorer-amendment-finder {display:flex;flex-wrap:wrap;align-items:end;gap:16px;margin:18px 0 24px;}
 .explorer-amendment-controls label,.explorer-amendment-finder label {display:grid;gap:7px;font-size:15px;min-width:170px;flex:1;}
 .explorer-amendment-finder label:first-child {flex:1.3;}
@@ -36,8 +35,8 @@
 .explorer-amendment-authors small {font-size:13px;}
 .explorer-amendments details {margin:14px 0 0;font-size:15px;}
 .explorer-amendments summary {cursor:pointer;min-height:44px;padding:10px 0;font-weight:600;}
-.explorer-amendments summary:focus-visible,.explorer-amendments a:focus-visible,.explorer-amendments button:focus-visible,.explorer-amendments input:focus-visible,.explorer-amendments select:focus-visible {outline:3px solid var(--am-focus);outline-offset:4px;}
-.explorer-amendment-controls select:focus-visible,.explorer-amendment-finder input:focus-visible,.explorer-amendment-finder select:focus-visible,.explorer-profile-body .explorer-amendment-trail-link:focus-visible {outline:3px solid var(--focus);outline-offset:4px;}
+.explorer-amendments summary:focus-visible,.explorer-amendments a:focus-visible,.explorer-amendments button:focus-visible,.explorer-amendments select:focus-visible {outline:3px solid var(--am-focus);outline-offset:4px;}
+.explorer-amendment-controls select:focus-visible,.explorer-amendment-finder select:focus-visible,.explorer-profile-body .explorer-amendment-trail-link:focus-visible {outline:3px solid var(--focus);outline-offset:4px;}
 .explorer-amendment-texts {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;padding:18px 0;}
 .explorer-amendment-texts section {min-width:0;border-top:2px solid var(--am-line);padding-top:15px;}
 .explorer-amendment-texts section:nth-child(2) {border-top-color:var(--accent);}

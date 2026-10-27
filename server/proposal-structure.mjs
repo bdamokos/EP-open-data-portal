@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='5';
+export const PROPOSAL_PARSER_VERSION='6';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -352,6 +352,10 @@ export function parseProposal(input,options={}) {
 export function proposalCandidates(proposal,target,{language=proposal.language,scope='proposal'}={}) {
   const parsed=typeof target==='string'?parseTargetLabel(target,language):Array.isArray(target)?{complete:true,segments:target}:target;
   if(!parsed?.complete||!Array.isArray(parsed.segments))return [];
+  if(parsed.segments.at(-1)?.kind==='title'&&parsed.segments.at(-1).value===''){
+    const parents=proposalCandidates(proposal,parsed.segments.slice(0,-1),{language,scope});
+    return parents.filter(parent=>parent.kind==='article').flatMap(parent=>parent.children.filter(child=>child.kind==='title'&&child.scope===scope));
+  }
   let index=candidateIndexes.get(proposal);
   const canonical=segments=>segments.map(segment=>`${segment.kind}:${segment.value}`).join('/');
   if(!index){index=new Map();const pending=[...proposal.units];while(pending.length){const unit=pending.pop();pending.push(...unit.children);if(!unit.label)continue;

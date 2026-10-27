@@ -21,6 +21,20 @@ test('ambiguous names and partial-name occurrences stay plain',()=>{
 });
 test('answer-linked question authors remain eligible with their explicit role',()=>{
  assert.equal(coAuthorSegments('Maravillas Abadía Jover',[author(257043,'Maravillas ABADÍA JOVER',{role:'QUESTION_AUTHOR'})])[0].id,257043);
- assert.match(coAuthorProfileUrl('/browser/mep-speeches-poc/','hu',257043),/lang=hu&member=257043&module=profile/);
- assert.throws(()=>coAuthorProfileUrl('/','en',NaN));
+ assert.match(coAuthorProfileUrl('hu',257043),/lang=hu&member=257043&module=profile/);
+ assert.throws(()=>coAuthorProfileUrl('en',NaN));
+});
+
+test('profile references preserve the document origin and path, including authority-like paths',()=>{
+ for(const path of ['/','/index.html','/browser/mep-speeches-poc/','/browser/mep-speeches-poc/index.html','//attacker.example/','///attacker.example/','/\\attacker.example/','/x/..//attacker.example/','/%2fattacker.example/','/%5cattacker.example/']) {
+  const page=new URL(`https://explorer.example${path}?member=1&module=activities#document`);
+  const href=coAuthorProfileUrl('hu',257043),destination=new URL(href,page);
+  assert.equal(href,'?lang=hu&member=257043&module=profile');
+  assert.equal(destination.origin,page.origin,path);
+  assert.equal(destination.pathname,page.pathname,path);
+  assert.deepEqual([...destination.searchParams],[['lang','hu'],['member','257043'],['module','profile']]);
+  assert.equal(destination.hash,'');
+ }
+ assert.equal(new URL(coAuthorProfileUrl('en&member=1#x',2),'https://explorer.example/').searchParams.get('lang'),'en&member=1#x');
+ for(const id of [0,-1,1.5,Infinity,Number.MAX_SAFE_INTEGER+1,'257043'])assert.throws(()=>coAuthorProfileUrl('en',id),/Invalid MEP identifier/);
 });

@@ -95,6 +95,7 @@ function rememberPeople(store,generation,ids) {
 const timestamp=value=>typeof value==='number'?new Date(value).toISOString():value;
 export async function groupHistoryTask(worker,task) {
   const {store}=worker,{generation,body,kind}=task;
+  const repair=kind==='group-history-repair';
   if(kind==='group-history-discover') {
     // Missing/oldest observations lead each cycle, so cold acquisition progresses
     // rather than repeatedly using its allowance on the same current members.
@@ -108,7 +109,7 @@ export async function groupHistoryTask(worker,task) {
     });
     store.finishTask(task);return;
   }
-  const key=kind==='group-history-person'?'group-history:'+body.id:kind==='group-history-body'?'group-body:'+body.id:'group-history:catalogue';
+  const key=kind==='group-history-person'||repair?'group-history:'+body.id:kind==='group-history-body'?'group-body:'+body.id:'group-history:catalogue';
   try {
     if(kind==='group-history-catalogue') {
       const prior=store.source(generation,key);
@@ -136,13 +137,16 @@ export async function groupHistoryTask(worker,task) {
       store.putSource(generation,key,'group-body',{org:org.id,groupId:org.isVersionOf,code:body.code,url:record.url,retrievedAt:timestamp(record.fetchedAt)},timestamp(record.fetchedAt));
     }else {
       const prior=store.source(generation,key);
-      let record=await (worker.readCachedMepRecord||readCachedMepRecord)(body.id,{now:worker.clock(),signal:worker.controller.signal});
-      if(!record&&prior&&store.source(generation,'demographic:profile:'+body.id)&&worker.clock()-Date.parse(prior.fetchedAt)<TTL){store.finishTask(task);return;}
+      let record=repair?null:await (worker.readCachedMepRecord||readCachedMepRecord)(body.id,{now:worker.clock(),signal:worker.controller.signal});
+      // Ordinary discovery may still find the pre-repair raw profile cache.
+      if(record&&prior&&Date.parse(timestamp(record.fetchedAt))<Date.parse(prior.fetchedAt)){store.finishTask(task);return;}
+      if(!repair&&!record&&prior&&store.source(generation,'demographic:profile:'+body.id)&&worker.clock()-Date.parse(prior.fetchedAt)<TTL){store.finishTask(task);return;}
       if(!record) {
         const cycle=store.get('working');
         if(!cycle||cycle.generation!==generation)throw Error('Group history acquisition requires a working generation.');
-        if((cycle.groupHistoryRefetches||0)>=150){store.finishTask(task);return;}
-        store.updateCycle({groupHistoryRefetches:(cycle.groupHistoryRefetches||0)+1});
+        if(!repair&&(cycle.groupHistoryRefetches||0)>=150){store.finishTask(task);return;}
+        const counter=repair?'groupHistoryRepairRequests':'groupHistoryRefetches';
+        store.updateCycle({[counter]:(cycle[counter]||0)+1});
         record=await worker.request('/meps/'+body.id);
       }
       const person=record.payload?.data.find(row=>row.identifier===body.id);
@@ -158,6 +162,7 @@ export async function groupHistoryTask(worker,task) {
     if(worker.stopped||worker.controller.signal.aborted)throw error;
     const at=new Date(worker.clock()).toISOString();
     store.putSource(generation,key+':attempt','group-history-attempt',{generation,lastError:String(error.message).replace(/[\r\n]+/g,' ').slice(0,240),lastAttemptAt:at},at);
+    if(repair)throw error;
     store.finishTask(task);
   }
 }

@@ -5,13 +5,15 @@
 :is(.explorer,.explorer-insights,.parliament-header,.insight-inline-reader) button.explorer-search-icon,.explorer-search-icon {position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;min-width:40px;min-height:40px;height:40px;padding:9px;border:1px solid transparent;border-radius:4px;background:transparent;color:inherit;font:inherit;line-height:1;}
 :is(.explorer,.explorer-insights,.parliament-header,.insight-inline-reader) button.explorer-search-icon:hover:not(:disabled) {background:color-mix(in srgb,currentColor 7%,transparent);border-color:color-mix(in srgb,currentColor 20%,transparent);}
 .explorer-search-icon svg {width:21px;height:21px;flex:none;}
-.explorer-search-icon:focus-visible,.explorer-search-panel :is(input,select,button,a):focus-visible,.explorer-find-controls :is(input,button):focus-visible {outline:3px solid var(--focus);outline-offset:3px;}
+.explorer-search-icon:focus-visible,.explorer-search-panel :is(select,button,a):focus-visible,.explorer-find-controls button:focus-visible {outline:3px solid var(--focus);outline-offset:3px;}
 .explorer-search-icon:disabled {opacity:.4;cursor:default;}
 .explorer-search-dot {position:absolute;right:5px;top:5px;width:6px;height:6px;border-radius:50%;background:currentColor;}
 .explorer-search-panel {flex:1 0 100%;min-width:0;width:100%;padding:18px 20px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--radius);font:16px/1.5 var(--font-sans);}
 .explorer-search-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
 .explorer-search-heading h3 {margin:0;font-size:18px;line-height:1.3;}
 .explorer-search-input {display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--accent);}
+.explorer-search-input:has(input:focus-visible) {box-shadow:0 2px 0 var(--focus);}
+.explorer-search-panel .explorer-search-field input[type="search"]:focus-visible {box-shadow:none;outline:2px solid transparent;outline-offset:2px;}
 .explorer-search-field {flex:1;min-width:0;}
 .explorer-search-panel .explorer-search-field input {width:100%;min-width:0;padding:10px 0;min-height:44px;border:0;border-radius:0;background:transparent;color:inherit;font:18px/1.4 var(--font-sans);}
 .explorer-search-panel label {display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0;}

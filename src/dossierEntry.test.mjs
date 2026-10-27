@@ -64,6 +64,7 @@ test('agenda participant keeps profile action and a secondary dossier action; re
   const work=participant.querySelector('.dossier-work-links a');assert(work);const origin=location.href;h.container.querySelector('main').scrollTop=820;
   await h.click(work);assert(h.container.querySelector('[data-dossier-reference]'));await h.click(h.container.querySelector('.dossier-back'));await h.frames();
   assert.equal(location.href,origin);assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,'exact-agenda');
-  assert.equal([...h.container.querySelectorAll('button')].find(node=>node.textContent==='Read '+documentId).getAttribute('aria-expanded'),'true');assert(h.container.querySelector('.insight-inline-reader'));
+  const restoredRead=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Hide '+documentId);assert(restoredRead);assert.equal(restoredRead.getAttribute('aria-expanded'),'true');
+  assert.equal(document.getElementById(restoredRead.getAttribute('aria-controls')).querySelector('[data-reader-source]').getAttribute('data-reader-source'),documentId);
   assert.equal(h.container.querySelector('main').scrollTop,820);assert.equal(document.activeElement.textContent,'Work on this dossier');
 });

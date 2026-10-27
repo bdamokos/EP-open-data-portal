@@ -95,10 +95,10 @@ function matchUnit(proposal,unit,original) {
 // provision and require a unique wording match within the numbered
 // subparagraph's own paragraphs. A provision's own lead text is the first
 // subparagraph; an implicit paragraph has none. Points make numbering ambiguous.
-function subparagraphMatch(items,target,original) {
+function subparagraphMatch(items,target,original,candidatesFor) {
   const last=target.segments.at(-1);
   if(last?.kind!=='subparagraph'||last.isNew||last.suffix||!last.number||target.segments.length<2)return null;
-  const parents=items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,target.segments.slice(0,-1)).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const parents=candidatesFor(target.segments.slice(0,-1));
   if(!parents.length)return null;
   if(parents.length>1||parents[0].unit.pathConflict)return {reason:'multiple_published_targets'};
   const {itemIndex,proposal}=parents[0];let unit=parents[0].unit;
@@ -108,10 +108,6 @@ function subparagraphMatch(items,target,original) {
     unit=body[0];
   }
   if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
-  // A title row may be a mis-styled first subparagraph, so an implicit
-  // paragraph's ordinals are only trusted when its container has no title.
-  const container=flat(proposal.units).find(parent=>parent.children.includes(unit));
-  if(unit.implicit&&container?.children.some(child=>child.kind==='title'))return {reason:'source_structure_unavailable'};
   const children=unit.children,lead=unit.implicit||!unit.content.length?null:{start:unit.content[0],end:children[0]?.extent.start??unit.extent.end};
   if(children.some(child=>child.kind!=='subparagraph')&&(last.number>1||!lead))return {reason:'source_structure_unavailable'};
   const bounds=[...(lead?[lead]:[]),...children.map(child=>child.extent)][last.number-1];
@@ -120,6 +116,171 @@ function subparagraphMatch(items,target,original) {
   if(!match.span)return match;
   if(match.span.start<bounds.start||match.span.end>=bounds.end)return {reason:'conflicting_target_evidence'};
   return {itemIndex,unit,match};
+}
+
+// "Introductory part" addresses only a provision's own lead, as for
+// subparagraph 1. Points and later continuation paragraphs are outside it.
+function introductoryMatch(target,original,candidatesFor) {
+  if(target.segments.at(-2)?.kind==='subparagraph')return subparagraphMatch(null,{...target,segments:target.segments.slice(0,-1)},original,candidatesFor)??{reason:'target_not_found'};
+  const parents=candidatesFor(target.segments.slice(0,-1));
+  if(parents.length!==1||parents[0].unit.pathConflict)return {reason:'multiple_published_targets'};
+  const selected=parents[0];let unit=selected.unit;
+  if(unit.kind==='article'){
+    const body=unit.children.filter(child=>child.kind!=='title');
+    if(body.length!==1||!body[0].implicit)return {reason:'source_structure_unavailable'};
+    unit=body[0];
+  }
+  if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
+  const bounds=unit.implicit?unit.children[0]?.kind==='subparagraph'?unit.children[0].extent:null:unit.content.length?{start:unit.content[0],end:unit.children[0]?.extent.start??unit.extent.end}:null;
+  if(!bounds||bounds.end<=bounds.start)return {reason:'source_structure_unavailable'};
+  const match=matchUnit(selected.proposal,{...unit,extent:bounds},original);
+  return match.span?{...selected,unit,match}:match;
+}
+
+const labelBase=label=>label.base??(label.number!==null?String(label.number):label.suffix?label.value.slice(0,-label.suffix.length):label.value);
+const romanNumber=value=>{
+  if(!/^[ivxlcdm]+$/u.test(value))return null;
+  const digits={i:1,v:5,x:10,l:50,c:100,d:500,m:1000};
+  return [...value].reduce((sum,c,i)=>sum+(digits[c]<(digits[value[i+1]]??0)?-digits[c]:digits[c]),0);
+};
+function siblingOrder(siblings,label) {
+  const bases=[...siblings.map(unit=>labelBase(unit.label)),labelBase(label)];
+  const family=bases.every(base=>/^\d+$/u.test(base))?'number':bases.every(base=>/^[a-z]$/u.test(base))?'letter':bases.every(base=>romanNumber(base)!==null)?'roman':null;
+  const ordinal=base=>family==='number'?Number(base):family==='letter'?base.charCodeAt(0):romanNumber(base);
+  return family?unitLabel=>({number:ordinal(labelBase(unitLabel)),rank:suffixRank(unitLabel.suffix,label.suffix)}):null;
+}
+function completeBoundary(proposal,unit) {
+  return unit.complete&&!unparsedArticleHeading(proposal,unit)&&proposal.paragraphs.slice(unit.extent.start,unit.extent.end).every(p=>p.complete&&p.source&&p.source.complete!==false)&&!proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=unit.extent.start&&gap.paragraph<unit.extent.end);
+}
+function insertionPlacement(items,target,candidatesFor,eligible) {
+  const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix),preceding=target.segments.slice(0,-1);
+  if(!label.isNew||rank<0||(!label.suffix&&label.kind!=='point'))return {reason:'insertion_reference_unavailable'};
+  const parents=preceding.length?candidatesFor(preceding):null;
+  if(parents&&parents.length!==1)return {reason:'parent_target_not_found'};
+  const parent=parents?.[0];
+  if(parent?.unit.pathConflict)return {reason:'multiple_published_targets'};
+  const siblings=[];
+  for(const [itemIndex,item] of items.entries())for(const unit of eligible(item)?flat(item.proposal.units):[]){
+    if(unit.scope!=='proposal'||unit.kind!==label.kind||!unit.label)continue;
+    if(parent&&(itemIndex!==parent.itemIndex||parentKey(unit)!==JSON.stringify(parent.unit.path.map(({kind,value,occurrence})=>[kind,value,occurrence??null]))))continue;
+    siblings.push({itemIndex,unit});
+  }
+  // A new first Roman point can start a list under an existing childless point.
+  // Other missing predecessors cannot be inferred from the amendment sequence.
+  if(!siblings.length&&!label.suffix&&!label.negative&&label.value==='i'&&parent?.unit.kind==='point'&&!parent.unit.children.length){
+    if(!completeBoundary(parent.proposal,parent.unit))return {reason:'source_passage_incomplete'};
+    return {itemIndex:parent.itemIndex,insertBefore:parent.unit.extent.end,anchor:parent.unit,basis:'childless-parent-end'};
+  }
+  let anchors;
+  if(label.negative){
+    if(!parent||label.suffix||!['a','1'].includes(label.value.slice(1)))return {reason:'insertion_reference_unavailable'};
+    const first=siblings.slice().sort((a,b)=>a.unit.extent.start-b.unit.extent.start)[0];
+    if(!first||first.unit.label.value!==label.value.slice(1))return {reason:'relative_target_not_found'};
+    anchors=[first];
+  }else if(label.suffix){
+    anchors=siblings.filter(({unit})=>labelBase(unit.label)===labelBase(label)&&suffixRank(unit.label.suffix,label.suffix)>=0&&suffixRank(unit.label.suffix,label.suffix)<rank);
+    if(new Set(anchors.map(a=>a.itemIndex+'|'+parentKey(a.unit))).size>1)return {reason:'multiple_published_targets'};
+    const highest=Math.max(...anchors.map(({unit})=>suffixRank(unit.label.suffix,label.suffix)));
+    anchors=anchors.filter(({unit})=>suffixRank(unit.label.suffix,label.suffix)===highest);
+  }else{
+    if(!parent||!/^[a-z]$/u.test(label.value))return {reason:'insertion_reference_unavailable'};
+    const previous=String.fromCharCode(label.value.charCodeAt(0)-1);
+    anchors=siblings.filter(({unit})=>labelBase(unit.label)===previous);
+    const highest=Math.max(...anchors.map(({unit})=>suffixRank(unit.label.suffix,label.suffix)));
+    anchors=anchors.filter(({unit})=>suffixRank(unit.label.suffix,label.suffix)===highest);
+  }
+  if(!anchors.length)return {reason:'relative_target_not_found'};
+  if(anchors.length!==1||anchors[0].unit.pathConflict)return {reason:'multiple_published_targets'};
+  const anchor=anchors[0],proposal=items[anchor.itemIndex].proposal;
+  const ordered=siblings.filter(s=>s.itemIndex===anchor.itemIndex&&parentKey(s.unit)===parentKey(anchor.unit)).map(s=>s.unit).sort((a,b)=>a.extent.start-b.extent.start);
+  const positive=label.negative?{...label,value:label.value.slice(1),number:label.number}:label;
+  const order=siblingOrder(ordered,positive);
+  if(!order)return {reason:'source_structure_unavailable'};
+  for(let i=0;i<ordered.length;i++){
+    const unit=ordered[i],previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
+    if(unit.pathConflict||current.rank<0||previous&&(previous.extent.end>unit.extent.start||before.number>current.number||before.number===current.number&&before.rank>=current.rank))return {reason:'source_structure_unavailable'};
+  }
+  if(!completeBoundary(proposal,anchor.unit))return {reason:'source_passage_incomplete'};
+  if(label.negative){
+    if(!completeBoundary(proposal,parent.unit)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
+    return {itemIndex:anchor.itemIndex,insertBefore:anchor.unit.extent.start,anchor:anchor.unit,basis:'first-sibling-start'};
+  }
+  const insertBefore=anchor.unit.extent.end;
+  if(insertBefore<=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
+  return {itemIndex:anchor.itemIndex,insertBefore,anchor:anchor.unit,basis:'preceding-sibling-subtree'};
+}
+
+// A parser can lose a target's final levels while preserving its containing
+// provision. Wording is sufficient only when it selects complete source lines
+// inside the deepest unique ancestor and occurs once in the entire document.
+// Numbered subparagraphs keep their independent ordinal check above.
+const documentMatches=new WeakMap();
+function uniqueDocumentWording(proposal,original) {
+  let cached=documentMatches.get(proposal);
+  if(!cached){
+    const units=flat(proposal.units).filter(unit=>unit.label?.prefix&&['paragraph','point','recital'].includes(unit.kind));
+    const byParagraph=new Map();
+    for(const unit of units)for(const span of unit.spans)if(span.start===0){const labels=byParagraph.get(span.paragraph)??[];labels.push(unit.label);byParagraph.set(span.paragraph,labels);}
+    cached={labels:units.map(unit=>unit.label),mapped:proposalMatchingOffsets(proposal.paragraphs.map(p=>p.text).join('\n'),proposal.paragraphs.map(p=>byParagraph.get(p.index)??[]))};
+    documentMatches.set(proposal,cached);
+  }
+  const key=proposalMatchingOffsets(original,original.split(/\r?\n/).map(()=>cached.labels))?.normal;
+  if(!key||!cached.mapped)return false;
+  const text=cached.mapped.normal,word=char=>/[\p{L}\p{N}]/u.test(char??'');
+  let count=0,at=text.indexOf(key);
+  while(at>=0){
+    if(!(word(key[0])&&word(text[at-1]))&&!(word(key.at(-1))&&word(text[at+key.length])))if(++count>1)return false;
+    at=text.indexOf(key,at+1);
+  }
+  return count===1;
+}
+const wholeLines=(proposal,match)=>match.splice.start.offset===0&&match.splice.end.offset===proposal.paragraphs[match.splice.end.paragraph].text.length;
+// A missing parser level cannot override a provision that the source actually
+// names. Match labels from the owning proposal units, allowing extra parser
+// levels; quoted underlying-act labels are a separate address space.
+function contradictoryFallbackOwner(ancestor,omitted,match) {
+  const overlaps=span=>span.paragraph>=match.span.start&&span.paragraph<=match.span.end&&
+    span.end>(span.paragraph===match.span.start?match.splice.start.offset:0)&&
+    span.start<(span.paragraph===match.span.end?match.splice.end.offset:Infinity);
+  const contradicts=chain=>{
+    const proposalOwners=chain.filter(unit=>unit.scope==='proposal');
+    const instruction=[ancestor,...proposalOwners].findLast(unit=>unit.instruction)?.instruction;
+    const instructionLead=instruction?.raw.split(/:\s*[‘“„«"'”]/u,1)[0].replace(/\s+/gu,' ');
+    for(const kind of new Set(omitted.map(segment=>segment.kind))){
+      const wanted=omitted.filter(segment=>segment.kind===kind);
+      let observed=proposalOwners.filter(unit=>!unit.implicit&&unit.label?.kind===kind).map(unit=>unit.label);
+      if(observed.length){
+        for(let index=wanted.length-1;index>=0;index--){
+          const exact=observed.findLastIndex(label=>label.value===wanted[index].value);
+          if(exact>=0)observed=observed.slice(0,exact);
+          // A label matching an earlier omitted level leaves the later level
+          // silent. An extra enclosing parser level does not change its owner.
+          else if(observed.length&&!wanted.slice(0,index).some(segment=>segment.value===observed.at(-1).value))return true;
+        }
+      }else{
+        const named=(instruction?.underlyingTargets??[]).filter(segment=>segment.kind===kind&&instructionLead.includes(segment.raw)&&
+          (segment.number!==null||/^[\p{L}]$|^[IVXLCDMivxlcdm]+$/u.test(segment.value)||/[([]/u.test(segment.raw)));
+        if(named.length&&!named.some(segment=>segment.value===wanted.at(-1).value))return true;
+      }
+    }
+    return false;
+  };
+  const visit=(unit,chain)=>unit.spans.some(overlaps)&&contradicts(chain)||unit.children.some(child=>visit(child,[...chain,child]));
+  return visit(ancestor,[]);
+}
+
+function ancestorFallback(target,original,candidatesFor) {
+  if(['subparagraph','introductory-part','title'].includes(target.segments.at(-1).kind))return null;
+  for(let depth=target.segments.length-1;depth>0;depth--){
+    const parents=candidatesFor(target.segments.slice(0,depth));
+    if(!parents.length)continue;
+    if(parents.length!==1)return null;
+    const parent=parents[0],match=matchUnit(parent.proposal,parent.unit,original);
+    if(!match.span||!wholeLines(parent.proposal,match)||!uniqueDocumentWording(parent.proposal,original))return null;
+    if(contradictoryFallbackOwner(parent.unit,target.segments.slice(depth),match))return {reason:'conflicting_target_evidence'};
+    return {...parent,match};
+  }
+  return null;
 }
 
 /** All addresses are proposal-level. Inner quoted provisions cannot be candidates. */
@@ -138,53 +299,45 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
-  const candidates=items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,target).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  // An uncontained annex paragraph can share an act address. The item identity
+  // still establishes that an address without Annex cannot select it.
+  const eligible=item=>item.kind!=='annex'||target.segments.some(segment=>segment.kind==='annex');
+  const candidatesFor=address=>items.flatMap((item,itemIndex)=>!eligible(item)?[]:proposalCandidates(item.proposal,address).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const candidates=candidatesFor(target);
+  const placedMatch=(selected,basis)=>{
+    evidence.push({basis,anchor:selected.unit.id});
+    return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
+  };
   if(operation==='insert') {
     if(candidates.length)return unresolved('duplicate_target_label');
-    const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix);
-    if(!label.isNew||label.number===null||!label.suffix||rank<1)return unresolved('insertion_reference_unavailable');
-    const preceding=target.segments.slice(0,-1),parents=preceding.length?items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,preceding).map(unit=>({itemIndex,unit}))):null;
-    if(parents&&parents.length!==1)return unresolved('parent_target_not_found');
-    const anchors=[];
-    for(const [itemIndex,item] of items.entries())for(const unit of flat(item.proposal.units)){
-      if(unit.scope!=='proposal'||unit.kind!==label.kind||unit.label?.number!==label.number)continue;
-      const index=suffixRank(unit.label.suffix,label.suffix);if(index<0||index>=rank)continue;
-      if(parents&&(itemIndex!==parents[0].itemIndex||parentKey(unit)!==JSON.stringify(parents[0].unit.path.map(({kind,value,occurrence})=>[kind,value,occurrence??null]))))continue;
-      anchors.push({itemIndex,unit,index});
-    }
-    if(!anchors.length)return unresolved('relative_target_not_found');
-    if(new Set(anchors.map(a=>a.itemIndex+'|'+parentKey(a.unit))).size!==1)return unresolved('multiple_published_targets');
-    const highest=Math.max(...anchors.map(a=>a.index)),best=anchors.filter(a=>a.index===highest);
-    if(best.length!==1||best[0].unit.pathConflict)return unresolved('multiple_published_targets');
-    const anchor=best[0],proposal=items[anchor.itemIndex].proposal;
-    // A suffix boundary must follow physical siblings in increasing source order.
-    // Descendants and provisions under other parents do not establish this boundary.
-    const siblings=flat(proposal.units).filter(unit=>unit.scope==='proposal'&&unit.kind===label.kind&&parentKey(unit)===parentKey(anchor.unit)).sort((a,b)=>a.extent.start-b.extent.start);
-    for(let i=0;i<siblings.length;i++){
-      const current=siblings[i],previous=siblings[i-1];
-      const currentRank=suffixRank(current.label?.suffix,label.suffix),previousRank=previous?suffixRank(previous.label?.suffix,label.suffix):0;
-      if(current.pathConflict||current.label?.number===null||currentRank<0||previous&&(previous.extent.end>current.extent.start||previous.label.number>current.label.number||previous.label.number===current.label.number&&previousRank>=currentRank))return unresolved('source_structure_unavailable');
-    }
-    if(!anchor.unit.complete||proposal.paragraphs.slice(anchor.unit.extent.start,anchor.unit.extent.end).some(p=>!p.source||p.source.complete===false)||proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=anchor.unit.extent.start&&gap.paragraph<anchor.unit.extent.end))return unresolved('source_passage_incomplete');
-    if(unparsedArticleHeading(proposal,anchor.unit))return unresolved('source_structure_unavailable');
-    const insertBefore=anchor.unit.extent.end;
-    if(insertBefore<=anchor.unit.extent.start)return unresolved('source_passage_incomplete');
-    evidence.push({basis:'preceding-sibling-subtree',anchor:anchor.unit.id});
-    return {operation,status:'placed',itemIndex:anchor.itemIndex,insertAfter:insertBefore-1,insertBefore,evidence};
+    const insertion=insertionPlacement(items,target,candidatesFor,eligible);
+    if(insertion.reason)return unresolved(insertion.reason);
+    evidence.push({basis:insertion.basis,anchor:insertion.anchor.id});
+    return {operation,status:'placed',itemIndex:insertion.itemIndex,insertAfter:insertion.insertBefore-1,insertBefore:insertion.insertBefore,evidence};
+  }
+  if(target.segments.at(-1).kind==='introductory-part'){
+    const intro=introductoryMatch(target,originalText,candidatesFor);
+    return intro.reason?unresolved(intro.reason):placedMatch(intro,'introductory-wording-match');
   }
   if(!candidates.length) {
-    const sub=subparagraphMatch(items,target,originalText);
-    if(!sub)return unresolved('target_not_found');
+    const sub=subparagraphMatch(items,target,originalText,candidatesFor);
+    if(!sub){
+      const fallback=ancestorFallback(target,originalText,candidatesFor);
+      if(fallback?.reason)return unresolved(fallback.reason);
+      return fallback?placedMatch(fallback,'ancestor-unique-wording'):unresolved('target_not_found');
+    }
     if(sub.reason)return unresolved(sub.reason);
     evidence.push({basis:'subparagraph-wording-match',anchor:sub.unit.id});
     return {operation,status:'placed',itemIndex:sub.itemIndex,span:sub.match.span,splice:sub.match.splice,originalText:sub.match.originalText,evidence};
   }
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,originalText)}));
-  const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole));
+  const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
+  // A resolved address with different wording is a conflict, even when a
+  // unique passage occurs elsewhere in its ancestor. Repair numbering first.
   if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
-  if(candidates.length===1&&selected.unit.pathConflict)return unresolved('multiple_published_targets');
+  if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   evidence.push({basis:candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
 }

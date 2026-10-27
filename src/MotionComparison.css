@@ -21,7 +21,7 @@
 .explorer-diff-views{display:flex;flex-wrap:wrap;gap:6px;margin:20px 0 16px}
 .explorer-motion-comparison .explorer-diff-views button{flex:1 1 130px;min-height:44px;border:1px solid var(--line-strong);border-radius:5px;padding:10px 14px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .explorer-motion-comparison .explorer-diff-views button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-strong);border-color:var(--accent);box-shadow:none}
-.explorer-motion-comparison :is(button,select,input,a,summary):focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.explorer-motion-comparison :is(button,select,a,summary):focus-visible{outline:3px solid var(--focus);outline-offset:3px}
 .explorer-motion-comparison .explorer-diff-legend{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;line-height:1.6;margin:12px 0}
 .explorer-diff-legend>span{display:block}
 .explorer-diff-legend :is(ins,del){padding:2px 4px}
@@ -44,4 +44,4 @@
 .explorer-motion-compare{margin-top:12px}
 .explorer-motion-compare>summary{cursor:pointer;font-size:14px;font-weight:600;min-height:30px;width:fit-content}
 @media(max-width:680px){.explorer-diff-columns,.explorer-diff-documents{grid-template-columns:1fr;gap:16px}.explorer-diff-passage+.explorer-diff-passage{padding-top:12px;border-top:1px dashed var(--diff-border)}.explorer-motion-compare>summary{min-height:44px;display:flex;align-items:center}.explorer-diff-controls label{flex-basis:100%}}
-@media(forced-colors:active){.explorer-motion-comparison :is(ins,del){background:Canvas;color:CanvasText}.explorer-motion-comparison .explorer-diff-views button[aria-pressed="true"]{border:3px solid ButtonText;box-shadow:none}.explorer-motion-comparison :is(button,select,input,a,summary):focus-visible{outline-color:Highlight}}
+@media(forced-colors:active){.explorer-motion-comparison :is(ins,del){background:Canvas;color:CanvasText}.explorer-motion-comparison .explorer-diff-views button[aria-pressed="true"]{border:3px solid ButtonText;box-shadow:none}.explorer-motion-comparison :is(button,select,a,summary):focus-visible{outline-color:Highlight}}

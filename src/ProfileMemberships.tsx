@@ -1,5 +1,6 @@
 import type {MemberProfile,ProfileMembershipHistory} from './explorerTypes';
 import {Period,validDate} from './Period';
+import {profileMembershipPeriods} from './profileMembershipPeriods';
 
 const TERM_START='2024-07-16';
 import {selectLanguageText} from './language.mjs';
@@ -31,8 +32,8 @@ export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:M
     return current&&validDate(today)&&validDate(item.start)&&item.start>=since&&item.start<=today&&item.end==null
       &&!(temporal?.endDate!=null&&!(validDate(temporal.endDate)&&temporal.endDate>=today));
   };
-  const row=(item:HistoryItem)=>{
-    const name=itemName(item,lang),role=roleCode(item),period=Period({start:item.start,end:item.end,ongoing:ongoing(item),lang,date});
+  const row=({item,start,end,ongoing}:ReturnType<typeof profileMembershipPeriods>[number])=>{
+    const name=itemName(item,lang),role=roleCode(item),period=Period({start,end,ongoing,lang,date});
     const ordinaryAffiliation=role==='MEMBER'&&['national-parties','political-groups'].includes(item.section);
     return <li key={item.index}>
       <p><span lang={name.language}>{name.text}</span></p>
@@ -47,7 +48,7 @@ export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:M
             return <details key={section.title}>
         <summary>{section.title}</summary>
         {!history?.observationAvailable?<p>Membership information is unavailable.</p>:section.groups.map(([key,title])=>{
-          const groupItems=items.filter(item=>item.section===key);
+          const groupItems=profileMembershipPeriods(items.filter(item=>item.section===key),ongoing);
           return <section key={key}><h3>{title}</h3>{groupItems.length?<ol>{groupItems.map(row)}</ol>:<p>{history.observationComplete?'None listed.':'Membership information is incomplete.'}</p>}</section>;
         })}
         {(!history?.observationComplete||namesMissing)&&<p className="explorer-membership-gap">

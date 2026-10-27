@@ -7,12 +7,16 @@ import {contrast,paintedBackground,schemes,themeCss,tokenValue} from './test-sup
 const styles = await Promise.all([
   'References.css', 'ParliamentHeader.css', 'explorer.css', 'Insights.css',
   'SpeechCloud.css', 'ExplorerLayout.css', 'base.css', 'focus.css',
+  'TextSearch.css', 'Amendments.css', 'MemberVotes.css', 'MotionComparison.css',
+  'GroupVoices.css', 'DocumentContextReader.css',
 ].map(file => readFile(new URL(file, import.meta.url), 'utf8')));
 
-async function page(t, markup, scheme) {
+async function page(t, markup, scheme, focusVisible = true) {
   const window = new Window();
   t.after(() => window.happyDOM.close());
-  window.document.head.innerHTML = [themeCss(scheme), ...styles].map(css => `<style>${css}</style>`).join('');
+  // Happy DOM has no input modality. Disabling :focus-visible tests that ordinary
+  // focus alone does not draw an indicator; native modality is checked in browsers.
+  window.document.head.innerHTML = [themeCss(scheme), ...styles].map(css => `<style>${focusVisible?css:css.replaceAll(':focus-visible',':not(*)')}</style>`).join('');
   window.document.body.innerHTML = markup;
   return window;
 }
@@ -21,6 +25,13 @@ function focusContrast(window, element, scheme) {
   const style = window.getComputedStyle(element);
   assert.equal(element, window.document.activeElement);
   assert.equal(style.outlineStyle, 'solid');
+  if(element.matches('input:not([type]),input[type="text"],input[type="search"],input[type="date"],input[type="number"],textarea')) {
+    assert.equal(style.outlineColor,'transparent');
+    assert.equal(style.borderColor,tokenValue(scheme,'focus'));
+    assert(style.boxShadow.includes('inset'));
+    assert(contrast(style.borderColor,paintedBackground(window,element,scheme))>=3);
+    return;
+  }
   assert(parseFloat(style.outlineWidth) >= 3);
   const behind = paintedBackground(window, element.parentElement, scheme);
   assert(contrast(style.outlineColor, behind) >= 3,
@@ -87,7 +98,7 @@ for (const scheme of schemes) {
   });
 }
 
-test('page titles take focus without a visible outline while other focused headings keep one', async t => {
+test('page titles stay unoutlined and keyboard-focused section headings keep their indicator', async t => {
   for (const markup of [
     '<main class="explorer"><section class="explorer-profile"><div class="explorer-profile-header"><h1 tabindex="-1">Name</h1></div><h2 tabindex="-1">Speeches</h2></section></main>',
     '<main class="explorer"><section class="explorer-saved-view"><h1 tabindex="-1">Following</h1><h2 tabindex="-1">Saved items</h2></section></main>',
@@ -115,3 +126,33 @@ test('insight page titles stay unoutlined when the lazy insight layout loads aft
   heading.focus();
   assert.equal(window.getComputedStyle(heading).outlineStyle, 'solid');
 });
+
+for(const scheme of schemes) {
+  test(`ordinary focus does not outline section headings, readers or references (${scheme})`,async t=>{
+    const window=await page(t,`<main class="explorer explorer-insights">
+      <h2 tabindex="-1">Results</h2><div class="insight-inline-reader" tabindex="-1">Reader</div>
+      <section class="gv-contributions"><h2 tabindex="-1">Contributions</h2></section>
+      <div class="document-context-text"><p class="document-context-target" tabindex="-1">Passage</p></div>
+      <div class="document-context-amendment" tabindex="-1">Amendment</div>
+      <div class="legal-reference-scope" tabindex="-1"><button class="legal-ref">Citation</button>
+      <div class="legal-reference-card" tabindex="-1">Reference</div></div>
+    </main>`,scheme,false);
+    for(const target of window.document.querySelectorAll('[tabindex],button')) {
+      target.focus();
+      assert.equal(window.document.activeElement,target);
+      assert.notEqual(window.getComputedStyle(target).outlineStyle,'solid',target.outerHTML);
+    }
+  });
+
+  test(`editable fields use compact focus while checkbox and invalid states stay distinct (${scheme})`,async t=>{
+    const window=await page(t,`<main class="explorer explorer-insights"><section class="explorer-amendments member-votes">
+      <div class="explorer-amendment-finder"><input aria-label="Reference"><input type="search" aria-label="Find"></div>
+      <input type="text" aria-label="Text"><input type="date" aria-label="Date"><input type="number" aria-label="Count"><textarea aria-label="Note"></textarea>
+      <input type="checkbox" aria-label="Compare"><div class="insight-dossier-finder"><input aria-label="Invalid reference" aria-invalid="true"></div>
+    </section></main>`,scheme);
+    for(const field of window.document.querySelectorAll('input:not([type="checkbox"]):not([aria-invalid]),textarea'))focusContrast(window,field,scheme);
+    focusContrast(window,window.document.querySelector('[type="checkbox"]'),scheme);
+    const invalid=window.document.querySelector('[aria-invalid]');invalid.focus();
+    assert.equal(window.getComputedStyle(invalid).outlineColor,tokenValue(scheme,'danger'));
+  });
+}

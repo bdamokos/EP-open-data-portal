@@ -1,0 +1,341 @@
+{
+  "attribution": "European Commission / Publications Office; legal text © European Union",
+  "sourceUrl": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0001.01/DOC_1",
+  "retrievedAt": "2026-10-26T22:34:35.807Z",
+  "sourceSha256": "f4560910d9dc0dda9f926f4cce13bccb17f3bc99535350eae7bf90432abfa8f4",
+  "sourceParagraphRange": {
+    "start": 232,
+    "end": 253
+  },
+  "coverage": {
+    "complete": false
+  },
+  "structureStatus": "extracted",
+  "paragraphs": [
+    "Article 3",
+    "Amendments to Regulation (EU) 2019/1009",
+    "Regulation (EU) 2019/1009 is amended as follows:",
+    "(1)\tin Article 2, the following point (15a) is inserted:",
+    "‘(15a) ‘digital contact’ means any up-to-date and accessible online communication channel through which economic operators can be reached or engaged without the need to register or to download an application;’",
+    ";",
+    "(2)\tArticle 6 is amended as follows:",
+    "(a)\tparagraph 2 is amended as follows:",
+    "(i)\t the second subparagraph is replaced by the following:",
+    "‘Where compliance of an EU fertilising product with the applicable requirements laid down in this Regulation has been demonstrated by that conformity assessment procedure, manufacturers shall draw up an EU declaration of conformity, in electronic form, and affix the CE marking.’;",
+    "(ii)\tthe following subparagraph is added:",
+    "‘Manufacturers shall ensure that the EU fertilising product is accompanied by the internet address or data carrier through which the EU declaration of conformity can be accessed.’;",
+    "(b)\tin paragraph 3, the second subparagraph is replaced by the following:",
+    "‘On request, manufacturers shall make the EU declaration of conformity available to other economic operators in electronic form.’;",
+    "(c)\tin paragraph 6, first subparagraph, the first and second sentences are replaced by the following:",
+    "‘Manufacturers shall indicate on the packaging of the EU fertilising product their name, registered trade name or registered trademark as well as their postal address and digital contact or, where the EU fertilising product is supplied without packaging, in a document accompanying the EU fertilising product. The postal address and digital contact shall indicate a single point through which the manufacturer can be reached.’",
+    ";",
+    "(d)\tin paragraph 9, the first sentence is replaced by the following:",
+    "‘Manufacturers shall, further to a reasoned request from a competent national authority, provide it, in electronic form, with all the information and documentation necessary to demonstrate the conformity of the EU fertilising product with this Regulation, in a language which can be easily understood by that authority.’",
+    ";",
+    "(3)\tin Article 7(2), point (b) is replaced by the following:"
+  ],
+  "paragraphSources": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[235]",
+      "ordinal": 234,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[236]",
+      "ordinal": 235,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[237]",
+      "ordinal": 236,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[238]",
+      "ordinal": 237,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[239]",
+      "ordinal": 238,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[240]",
+      "ordinal": 239,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[241]",
+      "ordinal": 240,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[242]",
+      "ordinal": 241,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[243]",
+      "ordinal": 242,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[244]",
+      "ordinal": 243,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[245]",
+      "ordinal": 244,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[246]",
+      "ordinal": 245,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[247]",
+      "ordinal": 246,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[248]",
+      "ordinal": 247,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[249]",
+      "ordinal": 248,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[250]",
+      "ordinal": 249,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[251]",
+      "ordinal": 250,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[252]",
+      "ordinal": 251,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[253]",
+      "ordinal": 252,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[254]",
+      "ordinal": 253,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[255]",
+      "ordinal": 254,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    }
+  ],
+  "paragraphProperties": [
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "NormalCentered",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text3",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text3",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text3",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text3",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    }
+  ],
+  "amendment": {
+    "language": "en",
+    "targetLabel": "Article 3 – paragraph 1 – point 2 – point c",
+    "originalText": "‘Manufacturers shall, further to a reasoned request from a competent national authority, provide it, in electronic form, with all the information and documentation necessary to demonstrate the conformity of the EU fertilising product with this Regulation, in a language which can be easily understood by that authority.’",
+    "proposedText": "Changed source sentence."
+  }
+}
