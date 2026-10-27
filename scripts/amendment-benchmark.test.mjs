@@ -7,7 +7,7 @@ import {parseProposal} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {documentContextPlacement} from '../server/document-context-placement.mjs';
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
-import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal} from './amendment-benchmark-model.mjs';
+import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
 import {options,monday,evaluateReport,acquireReport,placeableDecision} from './amendment-benchmark.mjs';
 
@@ -249,4 +249,12 @@ test('shared endpoint orchestration preserves baseline guards and conflicting-ev
   assert.equal(documentContextPlacement({chosen:null,referenceTexts:['one','two']}).reason,'conflicting_target_evidence');
   assert.equal(documentContextPlacement({chosen,includeBody:false}),null);
   assert.equal(documentContextPlacement({amendmentRequested:false}),null);
+});
+
+test('all observed live projection versions must match checkout constants for baseline comparisons',()=>{
+ const code={documentContextVersion:6,proposalParserVersion:'5',documentExtractionVersion:9};
+ const make=(context=6,parser='5',extraction=9)=>[{acquisition:{contextVersions:[context],projectionVersions:[{proposalParsers:[parser],documentExtraction:extraction}]}}];
+ assert.equal(projectionCompatibility(make(),code).compatible,true);
+ for(const rows of [make(5),make(6,'4'),make(6,'5',8)])assert.equal(projectionCompatibility(rows,code).compatible,false);
+ assert.equal(projectionCompatibility([],code).compatible,false);
 });

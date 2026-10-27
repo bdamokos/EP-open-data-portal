@@ -14,7 +14,7 @@ import {DOCUMENT_CONTEXT_VERSION} from '../server/document-context.mjs';
 import {PROPOSAL_PARSER_VERSION} from '../server/proposal-structure.mjs';
 import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
-import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
+import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
 export function options(args) {
   const result={apiBase:process.env.AMENDMENT_BENCHMARK_API_BASE,weeks:8,documents:[],fetchMissing:false,cap:1500,delay:750,cache:process.env.AMENDMENT_BENCHMARK_CACHE_DIR||path.join(process.env.XDG_CACHE_HOME||path.join(os.homedir(),'.cache'),'ep-explorer/amendment-benchmark')};
@@ -221,8 +221,7 @@ export async function main(args=process.argv.slice(2)) {
   if(!resultRows.length)throw new Error('No indexed amendment decisions in the requested sample.');
   if(JSON.stringify(manifest)!==JSON.stringify(cache.manifest()))throw new Error('Evaluation read outside the fixed snapshot manifest.');
   if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
-  const liveContextVersions=[...new Set(resultRows.flatMap(row=>row.acquisition.contextVersions))].sort();
-  const compatibility={liveContextVersions,checkoutDocumentContextVersion:DOCUMENT_CONTEXT_VERSION,compatible:liveContextVersions.every(version=>version===DOCUMENT_CONTEXT_VERSION)};
+  const compatibility=projectionCompatibility(resultRows,code);
   const result={schemaVersion:2,snapshotId,sample,code,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,acquisition:{amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
   if(opts.baseline){result.comparison=compareBaseline(result,JSON.parse(await readFile(opts.baseline,'utf8')));for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
   const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');

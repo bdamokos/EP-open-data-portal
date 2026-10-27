@@ -225,6 +225,19 @@ export function metrics(rows) {
   return {total,counts,eligible,headline:ratio(counts.correct,eligible),raw:ratio(counts.correct,total),falsePlacements:counts['false-placement'],uniqueReasons:[...reasons.values()].map(r=>({...r,share:ratio(r.count,total)})).sort((a,b)=>b.count-a.count||a.reason.localeCompare(b.reason,'en')),votes:{total:votes.size,correct:correctVotes,share:ratio(correctVotes,votes.size)},taxonomy:[...groups.values()].map(group => ({...group,share:ratio(group.count,total),stratumShare:ratio(group.count,strata.get(JSON.stringify([group.documentType,group.language])))})).sort((a,b)=>b.count-a.count||JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))};
 }
 
+export function projectionCompatibility(rows,code) {
+  const distinct=values=>[...new Set(values)].sort();
+  const liveContextVersions=distinct(rows.flatMap(row=>row.acquisition.contextVersions));
+  const projections=rows.flatMap(row=>row.acquisition.projectionVersions||[]);
+  const liveProposalParserVersions=distinct(projections.flatMap(p=>p.proposalParsers).filter(v=>v!=null));
+  const liveDocumentExtractionVersions=distinct(projections.map(p=>p.documentExtraction).filter(v=>v!=null));
+  const mismatches=[];
+  for(const [kind,observed,expected] of [['document-context',liveContextVersions,code.documentContextVersion],['proposal-parser',liveProposalParserVersions,code.proposalParserVersion],['document-extractor',liveDocumentExtractionVersions,code.documentExtractionVersion]])
+    for(const version of observed)if(version!==expected)mismatches.push({kind,observed:version??null,expected});
+  if(!liveContextVersions.length)mismatches.push({kind:'document-context',observed:null,expected:code.documentContextVersion});
+  return {liveContextVersions,liveProposalParserVersions,liveDocumentExtractionVersions,checkoutDocumentContextVersion:code.documentContextVersion,checkoutProposalParserVersion:code.proposalParserVersion,checkoutDocumentExtractionVersion:code.documentExtractionVersion,mismatches,compatible:!mismatches.length};
+}
+
 export function compareBaseline(current, baseline) {
   // Refuse a changing census or input snapshot: a score difference would not
   // isolate checkout behaviour. Code identity deliberately does not participate.
@@ -232,7 +245,7 @@ export function compareBaseline(current, baseline) {
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
   for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark.mjs'])if(current.code?.files?.[file]!==baseline.code?.files?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
-  if(current.compatibility?.compatible===false||baseline.compatibility?.compatible===false)return {failed:true,refused:true,warnings,reason:'Live document-context versions differ from checkout; in-process source replay is required.',deltas:{},taxonomyDeltas:[],regressions:[]};
+  if(current.compatibility?.compatible===false||baseline.compatibility?.compatible===false)return {failed:true,refused:true,warnings,reason:'Live projection versions differ from checkout; in-process source replay is required.',deltas:{},taxonomyDeltas:[],regressions:[]};
   const now = new Map(current.rows.map(row=>[row.key,row]));
   const regressions = baseline.rows.filter(old => {
     const row = now.get(old.key);
