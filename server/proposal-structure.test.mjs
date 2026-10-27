@@ -652,3 +652,22 @@ test('COM(2025)982 and 983 centred titles do not consume subparagraph ordinals o
     }
   }
 });
+
+test('COM(2025)531 Text2 alphabetic replacement points remain siblings through c and d',()=>{
+  const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='alphabetic-text2');
+  const result=parseProposal(excerpt,excerpt),paragraph=flat(result.units).find(u=>u.kind==='paragraph'&&u.scope==='quoted'&&u.label.value==='4a');
+  assert(paragraph);assert.equal(paragraph.extent.start,excerpt.sourceParagraphIndices.indexOf(296));
+  assert.deepEqual(paragraph.children.filter(u=>u.kind==='point').map(u=>u.label.value),['a','b','c','d','e','f']);
+  assert(paragraph.children.filter(u=>u.kind==='point').every(u=>!u.children.some(c=>c.kind==='point')));
+});
+
+test('real Croatian plural insertion and deletion instructions close replacement scopes',()=>{
+  for(const [name,article,point,ordinal,operation] of [['croatian-delete','2','3',224,'delete'],['croatian-insert','3','7',282,'insert']]){
+    const excerpt=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name===name),result=parseProposal(excerpt,excerpt);
+    const candidates=proposalCandidates(result,`Članak ${article} – stavak 1 – točka ${point}`,{language:'hr'});
+    assert.equal(candidates.length,1,name);assert.equal(candidates[0].scope,'proposal');
+    assert.equal(candidates[0].extent.start,excerpt.sourceParagraphIndices.indexOf(ordinal));
+    assert.equal(candidates[0].instruction.operation,operation);
+    assert.equal(instructionOperation(excerpt.paragraphs[excerpt.sourceParagraphIndices.indexOf(ordinal)],'hr'),operation);
+  }
+});

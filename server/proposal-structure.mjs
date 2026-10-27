@@ -41,10 +41,13 @@ function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
   const point=line.match(/^\(?([\p{L}\d]+(?:\.\d+)*(?:\s+[\p{L}]{1,3})?)[)\]]\s*/u);
   if(point) {
     const value=proposalNumber(point[1],language);if(!value)return null;
-    const numeric=/^\d/.test(point[1]),styleLevel=style.match(stylePoint)?.[1]??(/^[ivxlcdm]+$/u.test(point[1])?style.match(/^Text(\d)/i)?.[1]:undefined);
+    const previous=activePoints.at(-1)?.unit.label?.value;
+    const alphabeticSibling=previous?.length===1&&point[1].length===1&&point[1].charCodeAt(0)===previous.charCodeAt(0)+1;
+    const sameTextStyle=style===activePoints.at(-1)?.style;
+    const numeric=/^\d/.test(point[1]),styleLevel=style.match(stylePoint)?.[1]??
+      (/^[ivxlcdm]+$/u.test(point[1])&&!(sameTextStyle&&alphabeticSibling)?style.match(/^Text(\d)/i)?.[1]:undefined);
     // A glyph such as c or i does not establish a deeper Roman list.
     const level=Number.isInteger(numbering?.level)?numbering.level:styleLevel!==undefined?Number(styleLevel):numeric?0:1;
-    const previous=activePoints.at(-1)?.unit.label?.value;
     const hierarchyAmbiguous=!numbering&&styleLevel===undefined&&/^[ivxlcdm]+$/u.test(point[1])&&!!previous&&
       !(previous.length===1&&point[1].length===1&&point[1].charCodeAt(0)===previous.charCodeAt(0)+1);
     return {kind:'point',...value,isNew:false,level,prefix:point[0],...(numbering?{numbering}:{}),...(hierarchyAmbiguous?{hierarchyAmbiguous:true}:{})};
@@ -249,7 +252,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       } else if(number?.kind==='point') {
         while(q.points.length&&q.points.at(-1).level>=number.level)q.points.pop();
         const parent=q.points.at(-1)?.unit??q.paragraph??q.container;
-        target=make(parent,'point',i,{segment:number,scope:'quoted',instructionPath:q.owner.path,underlyingPath:underlyingProvision(parent.underlyingPath??q.underlyingPath,number)});q.points.push({unit:target,level:number.level});
+        target=make(parent,'point',i,{segment:number,scope:'quoted',instructionPath:q.owner.path,underlyingPath:underlyingProvision(parent.underlyingPath??q.underlyingPath,number)});q.points.push({unit:target,level:number.level,style});
       } else if(number?.kind==='indent') {
         const parent=q.points.at(-1)?.unit??q.paragraph??q.container;
         target=make(parent,'indent',i,{segment:label('indent',String(parent.children.filter(child=>child.kind==='indent').length+1),language),scope:'quoted',instructionPath:q.owner.path,underlyingPath:parent.underlyingPath??q.underlyingPath});
@@ -313,7 +316,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       const numberedParent=implicit(i);
       while(points.length&&points.at(-1).level>=number.level)points.pop();
       const parent=points.at(-1)?.unit??numberedParent;
-      last=make(parent,'point',i,{segment:number,...(operation?{instruction:operation}:{})});points.push({unit:last,level:number.level});retain(last,i);inlineQuotation(last,i);continue;
+      last=make(parent,'point',i,{segment:number,...(operation?{instruction:operation}:{})});points.push({unit:last,level:number.level,style});retain(last,i);inlineQuotation(last,i);continue;
     }
     if(number?.kind==='indent') {
       const parent=points.at(-1)?.unit??implicit(i);
