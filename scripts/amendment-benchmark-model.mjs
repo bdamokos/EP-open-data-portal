@@ -33,10 +33,16 @@ const suffixOrder = suffix => {
   const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
   if (!suffix) return 0;
   if (latin.includes(suffix)) return latin.indexOf(suffix)+1;
+  const alphabet=/^[α-ω]+$/u.test(suffix)?'αβγδεζηθικλμνξοπρστυφχψω':/^[а-я]+$/u.test(suffix)?'абвгдежзийклмнопрстуфхцчшщъьюя':null;
+  if(alphabet)return [...suffix].reduce((value,c)=>value*alphabet.length+alphabet.indexOf(c)+1,0);
   if (!/^[a-z]{1,3}$/.test(suffix)) return null;
   return [...suffix].reduce((value,c) => value*26+c.charCodeAt(0)-96,0);
 };
-const ordinal = value => typeof value==='number'?value:typeof value==='string'&&/^[A-Z]+$/.test(value)?[...value].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0):null;
+const ordinal = value => {
+  if(typeof value==='number')return value;
+  const alphabet=typeof value==='string'&&/^[A-Z]+$/.test(value)?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':typeof value==='string'&&/^[А-Я]+$/u.test(value)?'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЬЮЯ':null;
+  return alphabet?[...value].reduce((n,c)=>n*alphabet.length+alphabet.indexOf(c)+1,0):null;
+};
 const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
@@ -149,13 +155,13 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
   const before=suffix=>wording.language==='fr'?suffixOrder(suffix)<suffixOrder(label.suffix):suffix<label.suffix;
-  const preceding=family.filter(unit=>unit.label===String(label.base)||!label.after&&unit.label.startsWith(String(label.base))&&/^[a-z]+$/u.test(unit.label.slice(String(label.base).length))&&before(unit.label.slice(String(label.base).length)));
+  const preceding=family.filter(unit=>unit.label===String(label.base)||!label.after&&unit.label.startsWith(String(label.base))&&/^[a-zα-ωа-я]+$/u.test(unit.label.slice(String(label.base).length))&&before(unit.label.slice(String(label.base).length)));
   const anchor=preceding.sort((a,b)=>a.start-b.start).at(-1);
   if(!anchor?.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
   if(!label.after&&family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
   // Independently reject a predecessor that appears after a later-numbered
   // sibling, even if the placement happened to use that raw extent.
-  const numeric=value=>/^(\d+|[A-Z]+)([a-z]*)$/u.exec(value);
+  const numeric=value=>/^(\d+|[A-ZА-Я]+)([a-zα-ωа-я]*)$/u.exec(value);
   const position=base=>/^\d+$/u.test(base)?Number(base):ordinal(base);
   const ordered=family.filter(unit=>numeric(unit.label));
   for(let i=1;i<ordered.length;i++) {
