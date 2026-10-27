@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='6';
+export const PROPOSAL_PARSER_VERSION='7';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -21,6 +21,7 @@ const key=segments=>segments.map(segment=>`${segment.kind}:${segment.value}${seg
 
 function heading(text,language,style) {
   const line=firstLine(cleanLead(text));
+  if(/Annexetitre/i.test(style)&&isBareLabel(line,'annex',language))return {kind:'annex',value:'',number:null,suffix:'',isNew:false,raw:line};
   if(/Titrearticle/i.test(style)&&isBareLabel(line,'article',language))return {kind:'article',value:'?',number:null,suffix:'',isNew:false,raw:line,unavailable:true};
   if(line.length>120&&!/Annexetitre|Titrearticle|Titrefamille|Titrechapitre|SectionTitle/i.test(style))return null;
   let parsed=parseLabelSegment(line,language);
@@ -40,7 +41,7 @@ function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
   const point=line.match(/^\(?([\p{L}\d]+(?:\.\d+)*(?:\s+[\p{L}]{1,3})?)[)\]]\s*/u);
   if(point) {
     const value=proposalNumber(point[1],language);if(!value)return null;
-    const numeric=/^\d/.test(point[1]),styleLevel=style.match(stylePoint)?.[1];
+    const numeric=/^\d/.test(point[1]),styleLevel=style.match(stylePoint)?.[1]??(/^[ivxlcdm]+$/u.test(point[1])?style.match(/^Text(\d)/i)?.[1]:undefined);
     // A glyph such as c or i does not establish a deeper Roman list.
     const level=Number.isInteger(numbering?.level)?numbering.level:styleLevel!==undefined?Number(styleLevel):numeric?0:1;
     const previous=activePoints.at(-1)?.unit.label?.value;
@@ -172,6 +173,20 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(!paragraph)paragraph=make(baseContainer(),'paragraph',at,{segment:label('paragraph','1',language),implicit:true});
     return paragraph;
   }
+  const articleTitle=(index,article)=>article?.kind==='article'&&
+    (/Titrearticle/i.test(paragraphs[index].properties?.styleId??'')||article.extent.start===index-1&&
+      (/NormalCentered/i.test(paragraphs[index].properties?.styleId??'')||content.paragraphFormats?.[index]?.align==='center'));
+  function continuation(points,index) {
+    if(/^[;,.]+$/u.test(paragraphs[index].text.trim()))return;
+    const indent=content.paragraphFormats?.[index]?.indent;
+    // Word's text indentation distinguishes a paragraph continuation from a
+    // continuation inside its final point. Keep unformatted text conservative.
+    if(Number.isFinite(indent))while(points.length){
+      const pointIndent=content.paragraphFormats?.[points.at(-1).unit.extent.start]?.indent;
+      if(!Number.isFinite(pointIndent)||indent>=pointIndent)break;
+      points.pop();
+    }
+  }
   function closeQuote(sourceBoundary=null){
     // A source instruction/annex heading immediately after a possible trailing
     // delimiter independently verifies that boundary. An earlier ambiguous
@@ -203,7 +218,10 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(['frontmatter','memorandum'].includes(area.kind)&&(/Rfrenceinterinstitutionnelle|Typedudocument|Statut/i.test(style)||/^\d{4}\/\d{4}\s*\((?:COD|CNS|APP)\)$/u.test(trim))){region('preamble',i,false);retain(make(area,'title',i),i);continue;}
     if(nonnormative.has(area.kind)&&area.kind!=='frontmatter') {retain(area,i);continue;}
     const pointLevel=style.match(stylePoint)?.[1];
-    if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)){quote.root.closingBoundaryBasis='instruction-style';closeQuote(i);}
+    if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)&&
+      leadingNumber(trim,language,style,p.properties?.numbering,points)&&instruction(lead,language)){
+      quote.root.closingBoundaryBasis='instruction-style';closeQuote(i);
+    }
     if(quote&&headed?.kind==='annex'&&/Annexetitre/i.test(style)&&!opening.test(trim)){quote.root.closingBoundaryBasis='source-heading';closeQuote(i);}
     if(!quote&&(/Formuledadoption/i.test(style)||sourceRegion==='enacting-formula'||/^(?:HAVE ADOPTED|HAS ADOPTED|HÄRIGENOM FÖRESKRIVS)/u.test(trim))) {
       region('body',i,true);retain(make(area,'enacting-formula',i),i);continue;
@@ -235,8 +253,11 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       } else if(number?.kind==='indent') {
         const parent=q.points.at(-1)?.unit??q.paragraph??q.container;
         target=make(parent,'indent',i,{segment:label('indent',String(parent.children.filter(child=>child.kind==='indent').length+1),language),scope:'quoted',instructionPath:q.owner.path,underlyingPath:parent.underlyingPath??q.underlyingPath});
-      } else if(/Titrearticle/i.test(style)&&q.container.kind==='article')target=make(q.container,'title',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:q.container.underlyingPath});
-      else target=make(q.points.at(-1)?.unit??q.paragraph??q.container,'subparagraph',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:(q.paragraph??q.container).underlyingPath??q.underlyingPath});
+      } else if(articleTitle(i,q.container))target=make(q.container,'title',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:q.container.underlyingPath});
+      else {
+        continuation(q.points,i);
+        target=make(q.points.at(-1)?.unit??q.paragraph??q.container,'subparagraph',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:(q.paragraph??q.container).underlyingPath??q.underlyingPath});
+      }
       retain(target,i);q.last=target;
       if(observedQuotation(text,q,i))closeQuote();
       continue;
@@ -279,7 +300,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       else last=make(area,'citation',i);
       retain(last,i);continue;
     }
-    if(/Titrearticle/i.test(style)&&container?.kind==='article'&&!paragraph){last=make(container,'title',i);retain(last,i);continue;}
+    if(articleTitle(i,container)&&!paragraph){last=make(container,'title',i);retain(last,i);continue;}
     const operation=instruction(lead,language);
     if(number?.kind==='paragraph'&&paragraph?.implicit&&(paragraph.instruction?.operation==='amend'||/^(?:Manual)?NumPar1$/i.test(style))){number.kind='point';number.level=0;}
     if(number?.kind==='point'&&number.level===0&&/^\d/.test(number.value)&&container?.kind==='article'&&(!paragraph||!paragraph.implicit)&&!operation)number.kind='paragraph';
@@ -298,6 +319,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       const parent=points.at(-1)?.unit??implicit(i);
       last=make(parent,'indent',i,{segment:label('indent',String(parent.children.filter(child=>child.kind==='indent').length+1),language)});retain(last,i);continue;
     }
+    continuation(points,i);
     const parent=points.at(-1)?.unit??implicit(i);
     if(operation&&!points.length&&!paragraph.instruction)paragraph.instruction=operation;
     last=make(parent,'subparagraph',i,{...(operation?{instruction:operation}:{})});retain(last,i);inlineQuotation(last,i);

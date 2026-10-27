@@ -602,3 +602,53 @@ test('target grammar preserves exact spaced suffixes, negative new points and ow
   assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,false);
   const finnish=parseTargetLabel('17 artikla – 1 kohta – -1 alakohta (uusi)','fi');assert.equal(finnish.complete,true);assert.equal(finnish.segments.at(-1).value,'-1');
 });
+
+test('COM(2025)531 keeps quoted points and Text3 Roman instructions in their own scopes',()=>{
+  const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='quotation');
+  const parsed=parseProposal(example,example),units=flat(parsed.units),base='Article 2 – paragraph 1 – point 2 – point a';
+  const [a]=proposalCandidates(parsed,base);
+  assert(a.complete);assert.deepEqual(a.children.filter(u=>u.kind==='point').map(u=>u.label.value),['i','ii','iii']);
+  const [second]=proposalCandidates(parsed,base+' – point ii');
+  assert(second.complete);assert.equal(second.extent.start,209-example.sourceParagraphRange.start);
+  assert.equal(second.extent.end,216-example.sourceParagraphRange.start);
+  assert.deepEqual(flat(second.children).filter(u=>u.kind==='point').map(u=>[u.label.value,u.scope]),[['a','quoted'],['b','quoted'],['c','quoted'],['d','quoted']]);
+  assert.equal(proposalCandidates(parsed,'Article 2 – paragraph 1 – point 2 – point b').length,1);
+  assert(!parsed.gaps.some(g=>['duplicate-label','unclosed-quotation','ambiguous-point-level'].includes(g.code)));
+  assert(units.filter(u=>u.kind==='point'&&u.scope==='proposal').every(u=>!u.pathConflict));
+});
+
+test('COM(2025)462 retains the published unnumbered annex and its numbered points',()=>{
+  const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='annex');
+  const parsed=parseProposal(example,example),units=flat(parsed.units),annex=units.find(u=>u.kind==='annex');
+  assert(annex);assert.equal(annex.label.raw,'ANNEX');assert.equal(annex.label.value,'');
+  assert.equal(units.filter(u=>u.kind==='recital').length,0);
+  assert.deepEqual(units.filter(u=>u.kind==='point'&&u.scope==='proposal').map(u=>u.label.value),['1','2','3']);
+  assert.equal(units.filter(u=>u.kind==='indent'&&u.path.some(p=>p.kind==='point'&&p.value==='1')).length,9);
+  assert.equal(proposalCandidates(parsed,'Annex I – paragraph 1 – point 1').length,0,'an unnumbered source annex does not acquire an invented Roman number');
+});
+
+test('COM(2025)549 dedents the second subparagraph of Article 13(2) out of point e',()=>{
+  const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name==='continuation');
+  const parsed=parseProposal(example,example),[paragraph]=proposalCandidates(parsed,'Article 13 – paragraph 2');
+  const [point]=proposalCandidates(parsed,'Article 13 – paragraph 2 – point e');
+  assert.equal(point.extent.end,333-example.sourceParagraphRange.start);
+  assert.equal(paragraph.children.at(-1).kind,'subparagraph');
+  assert.deepEqual(paragraph.children.at(-1).content,[333-example.sourceParagraphRange.start]);
+  assert.equal(paragraph.extent.end,334-example.sourceParagraphRange.start);
+});
+
+test('COM(2025)982 and 983 centred titles do not consume subparagraph ordinals or point labels',()=>{
+  for(const name of ['titles-regulation','titles-directive']){
+    const example=fixture('proposal-structure-real-excerpts.json').examples.find(e=>e.name===name),parsed=parseProposal(example,example);
+    for(const article of [1,2])assert.equal(proposalCandidates(parsed,`Article ${article} – title`).length,1,name+' '+article);
+    const [first]=proposalCandidates(parsed,'Article 1 – paragraph 1');
+    assert.equal(first.children[0].kind,'subparagraph');
+    assert(parsed.paragraphs[first.children[0].content[0]].text.startsWith('The application'));
+    if(name==='titles-directive'){
+      const points=first.children.filter(u=>u.kind==='point');
+      assert.deepEqual(points.map(u=>u.label.value),['a','b','c']);
+      assert.equal(points[0].children.length,1,'unnumbered Point1letter text remains a continuation of point a');
+      assert(parsed.paragraphs[points[1].content[0]].text.includes('Article 17(2)'));
+    }
+  }
+});
