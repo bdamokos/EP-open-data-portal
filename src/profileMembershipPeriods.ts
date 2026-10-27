@@ -42,6 +42,7 @@ export function profileMembershipPeriods(items:Item[],ongoing:(item:Item)=>boole
       &&local(prior.item.role)===local(item.role)&&local(prior.item.classification)===local(item.classification)
       &&validDate(prior.end)&&validDate(item.start)&&day(item.start)===day(prior.end)+1
       &&dated(item)&&prior.items.every(dated)
+      &&new Set([...prior.items,item].map(family).filter(Boolean)).size<=1
       &&(sameBody(prior.item,item)||samePartyAcrossTerms(prior.item,item)));
     const prior=candidates.length===1?candidates[0]:undefined;
     const conflict=prior&&items.some(other=>{

@@ -133,6 +133,12 @@ test('national-party display merges require exact metadata at a term boundary',a
   assert.equal(profileMembershipPeriods([old,current,{...current,index:3,membershipId:'membership/3',bodyId:'org/999',body:{...current.body,id:'org/999'}}],()=>false).length,3,'ambiguous successor observations stay separate');
   const earlier=make(4,'org/1234','2014-07-01','2019-07-01');
   assert.equal(profileMembershipPeriods([earlier,old,current],()=>false).length,1,'multiple term boundaries merge');
+  const conflictingChain=profileMembershipPeriods([
+    {...earlier,body:{...earlier.body,isVersionOf:'org/OLD'}},old,
+    {...current,body:{...current.body,isVersionOf:'org/NEW'}},
+  ],()=>false);
+  assert.equal(conflictingChain.length,2,'an unlinked middle term cannot bridge conflicting canonical identities');
+  assert.deepEqual(conflictingChain.map(period=>period.items.map(item=>item.bodyId)),[['org/1234','org/5211'],['org/6666']]);
   const oldMidterm={...old,start:'2020-03-01'};
   assert.equal(profileMembershipPeriods([oldMidterm,current],()=>false).length,1,'a membership can begin after its body’s term start');
 });
