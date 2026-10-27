@@ -38,7 +38,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   const xml=Buffer.from(input).toString('utf8'),dom=documentTree(xml),nodes=all(dom),sourceHash=hash(input);
   const consolidated=nodes.some(n=>has(n,'reference')&&/^0\d{4}[RLD]\d{4}\s*—/u.test(clean(text(n))));
   const prefix='legal-xhtml-v'+PUBLIC_LEGAL_XHTML_VERSION+':'+hash(JSON.stringify([sourceHash,language,sourceUrl,identity])).slice(0,24);
-  const objectSourceUrl=/^5\d{4}AG\d{4}\(01\)$/.test(identity?.celex||'')?`https://eur-lex.europa.eu/legal-content/${language.toUpperCase()}/TXT/?uri=CELEX:${encodeURIComponent(identity.celex)}`:sourceUrl;
+  const objectSourceUrl=/^(?:5\d{4}AG\d{4}\(01\)|0\d{4}[RLD]\d{4}-\d{8})$/.test(identity?.celex||'')?`https://eur-lex.europa.eu/legal-content/${language.toUpperCase()}/TXT/?uri=CELEX:${encodeURIComponent(identity.celex)}`:sourceUrl;
   const paragraphs=[],units=[],objects=[],notes=[],anchors=[],links=[],gaps=[];
   const parents=new WeakMap(),noteNodes=new Set(),noteMap=new Map();
   function unit(parent,kind,value=null,extra={}) {
