@@ -19,6 +19,8 @@ const agenda=(date,count=1)=>{
   return [{...meeting(date),was_scheduled_in:[part.id]},part,...items];
 };
 async function fixture(directory,{missingDay=false}={}) {
+  const readinessBody=JSON.stringify({currentMeps:1,servingGeneration:1,complete:false,rosterFetchedAt:asOf,lastSuccessfulRefresh:asOf});
+  await writeFile(path.join(directory,'index-status.json'),JSON.stringify({url:'https://benchmark.example/api/activity-index/status',retrievedAt:asOf,sha256:hash(readinessBody),body:readinessBody}));
   const entries=[...['2024','2025','2026'].map(year=>[sourceUrl('/meetings',{year,limit:50,offset:0}),year==='2026'?days.map(meeting):[],200]),
     ...days.map((date,index)=>[sourceUrl('/meetings/MTG-PL-'+date+'/foreseen-activities',{limit:50,offset:0}),agenda(date),missingDay&&index===1?404:200])];
   const sources=[];
@@ -81,7 +83,7 @@ test('actual CLI replays the production queue and caches across isolated process
   const directory=await mkdtemp(path.join(os.tmpdir(),'agenda-cli-test-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const input=path.join(directory,'inputs'),output=path.join(directory,'output');await mkdir(input);await fixture(input,{missingDay:true});
   const cli=fileURLToPath(new URL('./agenda-benchmark.mjs',import.meta.url));
-  const {stdout}=await execFileAsync(t,process.execPath,[cli,'--cache-dir',input,'--output-dir',output,'--iterations','1','--latency','zero','--index-rows','100']);
+  const {stdout}=await execFileAsync(t,process.execPath,[cli,'--cache-dir',input,'--output-dir',output,'--iterations','1','--latency','zero']);
   const result=JSON.parse(stdout),report=JSON.parse(await readFile(result.jsonPath));assert.equal(report.failed,false);assert.equal(report.runs.length,4);
   const cold=report.runs.find(run=>run.scenario==='empty-caches');assert.equal(cold.transportRequests,5);assert.equal(cold.coverage.agendaComplete,false);assert(cold.coverage.agendaError);assert.equal(cold.topics,1);
   assert(cold.spans.some(span=>span.stage==='index-status'));assert(cold.spans.some(span=>span.stage==='catalogue-year'));assert(cold.spans.some(span=>span.stage==='serialize'));
@@ -89,7 +91,7 @@ test('actual CLI replays the production queue and caches across isolated process
   assert.equal(report.runs.find(run=>run.scenario==='retained-sources').transportRequests,1,'negative ODP observations are not seeded as successful source records');
   assert.equal(new Set(report.runs.map(run=>run.semanticHash)).size,1);
   const badBaseline=path.join(directory,'bad-baseline.json');await writeFile(badBaseline,JSON.stringify({...report,semanticHash:'changed response'}));
-  await assert.rejects(execFileAsync(t,process.execPath,[cli,'--cache-dir',input,'--output-dir',output,'--iterations','1','--latency','zero','--index-rows','100','--baseline',badBaseline]),error=>{assert.equal(error.code,1);const result=JSON.parse(error.stdout);assert.equal(result.comparison.failed,true);assert(result.comparison.regressions.some(reason=>reason.includes('Agenda response changed')));return true;});
+  await assert.rejects(execFileAsync(t,process.execPath,[cli,'--cache-dir',input,'--output-dir',output,'--iterations','1','--latency','zero','--baseline',badBaseline]),error=>{assert.equal(error.code,1);const result=JSON.parse(error.stdout);assert.equal(result.comparison.failed,true);assert(result.comparison.regressions.some(reason=>reason.includes('Agenda response changed')));return true;});
   const manifest=JSON.parse(await readFile(path.join(input,'snapshot.json')));const missing=manifest.sources.pop();manifest.snapshotId=snapshotId(manifest);await writeFile(path.join(input,'snapshot.json'),JSON.stringify(manifest));
-  await assert.rejects(execFileAsync(t,process.execPath,[cli,'--cache-dir',input,'--output-dir',output,'--iterations','1','--latency','zero','--index-rows','0']),error=>{assert.match(error.stderr,/outside the frozen manifest/);assert(error.stderr.includes(missing.url));return true;});
+  await assert.rejects(execFileAsync(t,process.execPath,[cli,'--cache-dir',input,'--output-dir',output,'--iterations','1','--latency','zero']),error=>{assert.match(error.stderr,/outside the frozen manifest/);assert(error.stderr.includes(missing.url));return true;});
 });

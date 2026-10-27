@@ -4,6 +4,20 @@ import {setTimeout as sleep} from 'node:timers/promises';
 import {API,SCHEMA,hash,sourceUrl,snapshotId,allowedSource,monday} from './agenda-benchmark-model.mjs';
 import {userAgent} from '../server/user-agent.mjs';
 
+export async function captureIndexStatus(filename,apiBase,{fetcher=fetch}={}) {
+  const base=new URL(apiBase);
+  if(base.protocol!=='https:'||base.username||base.password||base.pathname!=='/'||base.search||base.hash)throw Error('Provide an anonymous HTTPS app origin.');
+  const url=new URL('/api/activity-index/status',base).href;
+  const response=await fetcher(url,{headers:{Accept:'application/json','User-Agent':userAgent('agenda benchmark readiness observation')},credentials:'omit',redirect:'error',signal:AbortSignal.timeout(25_000)});
+  if(!response.ok||!response.headers.get('content-type')?.includes('json'))throw Error('Anonymous app readiness unavailable: HTTP '+response.status);
+  let bytes=0;const parts=[];
+  for await(const chunk of response.body){bytes+=chunk.byteLength;if(bytes>1024*1024)throw Error('App readiness response exceeds 1 MiB.');parts.push(chunk);}
+  const body=Buffer.concat(parts).toString('utf8'),payload=JSON.parse(body);
+  if(!payload.currentMeps||!payload.servingGeneration)throw Error('Observed app index is not ready.');
+  const record={url,retrievedAt:new Date().toISOString(),sha256:hash(body),body};
+  await writeFile(filename,JSON.stringify(record,null,2)+'\n');return record;
+}
+
 // Acquisition has a fixed source plan, independent of the measured checkout.
 // Only public catalogue pages and the selected week's raw agenda pages are read.
 export async function capture(directory,{week='latest',sitting=null,language='en',cap=80,delay=750,fetcher=fetch,wait=sleep,now=()=>Date.now()}={}) {

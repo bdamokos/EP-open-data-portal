@@ -41,6 +41,14 @@ export async function loadSnapshot(directory) {
   return {snapshot,inputs};
 }
 
+export async function loadIndexStatus(filename) {
+  const bytes=await readFile(filename),record=JSON.parse(bytes),url=new URL(record.url);
+  if(url.protocol!=='https:'||url.username||url.password||url.hash||url.pathname!=='/api/activity-index/status'||!Number.isFinite(Date.parse(record.retrievedAt))||typeof record.body!=='string'||hash(record.body)!==record.sha256)throw Error('Invalid or changed public index-status observation.');
+  const payload=JSON.parse(record.body);
+  if(!Number.isSafeInteger(payload.currentMeps)||payload.currentMeps<=0||!Number.isSafeInteger(payload.servingGeneration)||payload.servingGeneration<=0)throw Error('Observed app index is not ready.');
+  return {...record,payload,observationHash:hash(bytes)};
+}
+
 // Retrieval timestamps differ when the same bytes pass through ODP again.
 // All identities, text, order, language, errors, gaps and freshness flags remain.
 export function semanticResponse(value) {
@@ -66,6 +74,7 @@ export function compareBaseline(report,baseline,{regressionPercent=10,regression
   if(JSON.stringify(report.protocol)!==JSON.stringify(baseline.protocol))return refuse('Benchmark protocol differs.');
   if(JSON.stringify(report.environment)!==JSON.stringify(baseline.environment))return refuse('Runtime or hardware differs.');
   if(report.harnessHash!==baseline.harnessHash)return refuse('Benchmark instrumentation changed; establish a new baseline.');
+  if(report.indexObservation?.observationHash!==baseline.indexObservation?.observationHash)return refuse('Observed app readiness differs.');
   const regressions=[],deltas={};
   if(report.semanticHash!==baseline.semanticHash)regressions.push('Agenda response changed: inspect identities, wording and coverage before accepting a new baseline.');
   for(const [scenario,metrics] of Object.entries(baseline.summary)) {
@@ -75,6 +84,15 @@ export function compareBaseline(report,baseline,{regressionPercent=10,regression
     deltas[scenario]={beforeMs:before,afterMs:after,deltaMs:delta,percent:before?delta/before*100:null};
     if(delta>regressionMs&&delta>before*regressionPercent/100)regressions.push('Slower median: '+scenario);
     if(current.transportRequests.max>metrics.transportRequests.max)regressions.push('More source requests: '+scenario);
+  }
+  for(const before of baseline.sessionCases||[]) {
+    const after=report.sessionCases?.find(row=>row.case===before.case);
+    if(!after){regressions.push('Missing session case: '+before.case);continue;}
+    if(after.failed||!after.retainedDataSame)regressions.push('Session content lost: '+before.case);
+    if(before.returnedWhileHeld&&!after.returnedWhileHeld)regressions.push('Cached response now blocks: '+before.case);
+    if(after.recheckRequests>before.recheckRequests)regressions.push('More session recheck requests: '+before.case);
+    if(before.topicsHash!==after.topicsHash||before.refreshedTopicsHash!==after.refreshedTopicsHash)regressions.push('Session agenda content differs: '+before.case);
+    if(before.initialSemanticHash!==after.initialSemanticHash)regressions.push('Session response metadata differs: '+before.case);
   }
   return {failed:regressions.length>0,refused:false,regressionPercent,regressionMs,regressions,deltas};
 }
