@@ -2,6 +2,7 @@ import {integerFromEnvironment} from './config.mjs';
 import {validAmendmentDate} from './amendments.mjs';
 
 export const AMENDMENT_SETTLE_GRACE_DAYS=60;
+export const amendmentMetadataCheckDays=()=>integerFromEnvironment('AMENDMENT_SETTLED_METADATA_DAYS',90,1,3650);
 export const amendmentGraceDays=()=>integerFromEnvironment('AMENDMENT_SETTLE_GRACE_DAYS',AMENDMENT_SETTLE_GRACE_DAYS,1,3650);
 // Unknown documentary dates keep the weekly policy. Exact linked sitting dates
 // extend the correction window; publication issue times never replace them.

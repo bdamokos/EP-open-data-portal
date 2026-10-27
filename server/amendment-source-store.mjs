@@ -128,10 +128,11 @@ class AmendmentSourceStore {
   }
   // Check only during target preparation. read() verifies the hash before use.
   has(descriptor) {
-    if(!this.store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amendment_sources'").get())return false;
-    const row=this.match(descriptor);if(!row)return false;
-    try {const info=statSync(path.join(this.directory,row.sha256+'.docx'));return info.isFile()&&info.size===row.size;}
-    catch(error){if(error.code==='ENOENT')return false;throw error;}
+    try {
+      if(!this.store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amendment_sources'").get())return false;
+      const row=this.match(descriptor);if(!row)return false;
+      const info=statSync(path.join(this.directory,row.sha256+'.docx'));return info.isFile()&&info.size===row.size;
+    }catch(error){if(error.code!=='ENOENT')this.storageFailure(error);return false;}
   }
   // Publication knowledge is independent of the blob budget. Undated writes
   // recover the binding for these exact bytes; they never replace it.
