@@ -2,7 +2,7 @@ import {useEffect} from 'react';
 import {updateExplorerQuery,useExplorerParam,type ExplorerParamStorage} from './explorerUrl';
 
 const field='explorerClosedGlobalSearch',sessionKey='explorer:closed-global-search';
-const globalKey=(key:string)=>/^global-fts-(search|text-lang|page|offset|read|kind|sort|closed)$/.test(key);
+const globalKey=(key:string)=>/^global-fts-(search|text-lang|page|offset|catalog-offset|from|to|read|kind|sort|closed)$/.test(key);
 function remembered(state:Record<string,unknown>):string|null {
   if(Object.hasOwn(state,field))return typeof state[field]==='string'?state[field]:null;
   try{return window.sessionStorage.getItem(sessionKey);}catch{return null;}

@@ -40,6 +40,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
+    if(route==='insights/search')return Response.json({offset:0,sections:[]});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
     if(route==='corpus/search')return Response.json({total:0,limit:20,offset:0,nextOffset:null,results:[],coverage:{complete:false}});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
@@ -80,10 +81,10 @@ test('global search stays remembered across top-level navigation while its share
   const h=await harness(t,'?view=outside&ov-person=257105&global-fts-search=deutsch&global-fts-text-lang=fr&global-fts-closed=1');
   await h.click(h.button('Following'));
   assert.equal(h.window.location.search,'?view=saved');
-  await h.click(h.container.querySelector('[aria-label="Search Parliament text"]'));
+  await h.click(h.container.querySelector('[aria-label="Search Parliament"]'));
   assert.equal(h.container.querySelector('.explorer-search-panel input').value,'deutsch');
   assert.equal(new URL(h.window.location.href).searchParams.get('global-fts-text-lang'),'fr');
-  await h.click(h.container.querySelector('[aria-label="Close text search"]'));
+  await h.click(h.container.querySelector('[aria-label="Close search"]'));
   assert.equal(h.window.location.search,'?view=saved');
 });
 

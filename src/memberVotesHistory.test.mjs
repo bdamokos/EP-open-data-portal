@@ -87,6 +87,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     if(url.pathname.startsWith('/api/qa-cache/'))return Response.json({id:url.pathname.split('/').at(-1)});
   if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
+    if(url.pathname==='/api/insights/search')return Response.json({offset:0,sections:[]});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:activities,selectedItems:[],indexedTotal:activities.length,nextOffset:null,cache:{complete:true}});
     if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
