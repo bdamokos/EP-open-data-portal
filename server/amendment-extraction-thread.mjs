@@ -14,7 +14,9 @@ const pending=new Map();
 function stopThread(target,error) {
   if(thread!==target)return;
   thread=null;clearTimeout(idleTimer);idleTimer=null;
-  for(const [id,entry] of pending){pending.delete(id);entry.reject(error);}
+  for(const [id,entry] of pending){
+    pending.delete(id);clearTimeout(entry.timer);entry.signal?.removeEventListener('abort',entry.abort);entry.reject(error);
+  }
   void target.terminate().catch(()=>{});
 }
 function startThread() {

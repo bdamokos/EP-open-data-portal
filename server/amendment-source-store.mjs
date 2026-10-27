@@ -46,26 +46,32 @@ class AmendmentSourceStore {
       CREATE INDEX IF NOT EXISTS amendment_sources_hash ON amendment_sources(sha256);`);
     this.schemaReady=true;
   }
-  // Runs once per process in the writer: imports the former base64 JSON cache
-  // and removes interrupted publications and blobs without an index row.
-  initialize({signal}={}) {
+  // Import once per process; revisit recent interrupted publications on later
+  // writer accesses after their publication grace period has elapsed.
+  async initialize({signal}={}) {
     this.ready??=(async()=>{
       this.store.assertWriter();this.schema();
       await this.migrateLegacy({signal});
-      let names=[];
-      try {names=await readdir(this.directory);}catch(error){if(error.code!=='ENOENT')throw error;}
-      const known=new Set(this.store.db.prepare('SELECT DISTINCT sha256 FROM amendment_sources').all().map(row=>row.sha256));
-      for(const name of names) {
-        const hash=name.match(BLOB)?.[1];
-        if(hash&&known.has(hash))continue;
-        if(!hash&&!TEMPORARY.test(name))continue;
-        // Writers in this process publish before indexing; skip recent files.
-        const info=await stat(path.join(this.directory,name)).catch(()=>null);
-        if(info?.isFile()&&this.store.clock()-info.mtimeMs>10*60_000)await unlink(path.join(this.directory,name)).catch(()=>{});
-      }
     })();
-    this.ready.catch(()=>{this.ready=null;});
-    return this.ready;
+    try {await this.ready;}catch(error){this.ready=null;throw error;}
+    if(this.store.clock() >= (this.sweepAfter ?? 0)) {
+      await this.sweepOrphans();
+      this.sweepAfter=this.store.clock()+10*60_000;
+    }
+  }
+  async sweepOrphans() {
+    this.store.assertWriter();
+    let names=[];
+    try {names=await readdir(this.directory);}catch(error){if(error.code!=='ENOENT')throw error;}
+    const known=new Set(this.store.db.prepare('SELECT DISTINCT sha256 FROM amendment_sources').all().map(row=>row.sha256));
+    for(const name of names) {
+      const hash=name.match(BLOB)?.[1];
+      if(hash&&known.has(hash))continue;
+      if(!hash&&!TEMPORARY.test(name))continue;
+      // Writers in this process publish before indexing; skip recent files.
+      const info=await stat(path.join(this.directory,name)).catch(()=>null);
+      if(info?.isFile()&&this.store.clock()-info.mtimeMs>10*60_000)await unlink(path.join(this.directory,name)).catch(()=>{});
+    }
   }
   async migrateLegacy({signal}={}) {
     let names;
@@ -74,14 +80,19 @@ class AmendmentSourceStore {
     for(const name of names) {
       signal?.throwIfAborted();
       const file=path.join(this.legacyDirectory,name);
-      try {
-        const record=JSON.parse(await readFile(file,'utf8'));
+      const contents=await readFile(file,'utf8');
+      let record;
+      try {record=JSON.parse(contents);}catch(error){if(!(error instanceof SyntaxError))throw error;}
+      let remove=true;
+      if(record&&typeof record==='object') {
         const buffer=typeof record.bytes==='string'?Buffer.from(record.bytes,'base64'):null;
         if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&Number.isFinite(Date.parse(record.fetchedAt))&&normalizedDocxDescriptor(record.descriptor)) {
-          if(await this.save(record.descriptor,buffer,record.fetchedAt,{signal,legacy:true}))imported++;
+          remove=await this.save(record.descriptor,buffer,record.fetchedAt,{signal,legacy:true});
+          if(remove)imported++;
         }
-      } catch(error){signal?.throwIfAborted();if(error.message==='Activity-index writer lease was lost.')throw error;}
-      await unlink(file).catch(()=>{});
+      }
+      signal?.throwIfAborted();this.store.assertWriter();
+      if(remove)await unlink(file);
       await yieldTurn();
     }
     await rmdir(this.legacyDirectory).catch(()=>{});
@@ -127,10 +138,15 @@ class AmendmentSourceStore {
     // URL remain as superseded evidence until the budget needs their space.
     const matching=()=>db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
       .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor));
-    // A legacy import never replaces evidence recorded by this store.
-    if(legacy&&matching().length)return false;
     const hash=sha256(buffer);
     this.store.assertWriter();
+    // A restart may encounter a record imported before its legacy file was
+    // removed. Delete that input only after verifying equivalent retained bytes.
+    if(legacy&&matching().length) {
+      if(!matching().some(row=>row.sha256===hash&&row.size===buffer.length))return false;
+      try {return sha256(await readFile(path.join(this.directory,hash+'.docx')))===hash;}
+      catch(error){if(error.code==='ENOENT')return false;throw error;}
+    }
     if(!db.prepare('SELECT 1 FROM amendment_sources WHERE sha256=? LIMIT 1').get(hash)) {
       if(!await this.reserve(buffer.length,{signal}))return false;
       await writeCacheFile(path.join(this.directory,hash+'.docx'),buffer,{signal});
@@ -170,7 +186,7 @@ class AmendmentSourceStore {
     const db=this.store.db,id=row=>[row.url,row.language,row.byte_size,row.issued].join('\n');
     const superseded=db.prepare(`SELECT a.* FROM amendment_sources a WHERE EXISTS(SELECT 1 FROM amendment_sources b WHERE b.url=a.url AND b.language=a.language
       AND (b.byte_size<>a.byte_size OR b.issued<>a.issued) AND b.retrieved_at>a.retrieved_at) ORDER BY a.retrieved_at`).all(),seen=new Set(superseded.map(id));
-    yield* superseded;
+    for(const row of superseded)if(!this.referenced(row))yield row;
     for(const row of db.prepare('SELECT * FROM amendment_sources ORDER BY retrieved_at').all())if(!seen.has(id(row))&&!this.referenced(row))yield row;
   }
   async reserve(bytes,{signal}={}) {

@@ -44,7 +44,7 @@ function amendmentDocx(proposed=oldProposed,author='Alex Common',number=1) {
 
 function realization(descriptor) {
   return [{language:'http://publications.europa.eu/resource/authority/language/'+(descriptor.language==='fr'?'FRA':'ENG'),
-    is_embodied_by:[{format:'authority/DOCX',...(descriptor.byteSize==null?{}:{byteSize:descriptor.byteSize}),is_exemplified_by:descriptor.url}]}];
+    is_embodied_by:[{format:'authority/DOCX',...(descriptor.byteSize==null?{}:{byteSize:descriptor.byteSize}),...(descriptor.issued?{issued:descriptor.issued}:{}),is_exemplified_by:descriptor.url}]}];
 }
 
 function listDetail(descriptor,date=documentDate) {
@@ -570,6 +570,45 @@ function downgrade(context,{proof=true}={}) {
   const report=store.source(generation,targetKey);
   store.putSource(generation,targetKey,'document',{...report.work,amendmentLinksVersion:'old'},report.fetchedAt);
 }
+
+for(const route of ['expanded','detail'])test('normal document ingestion retains issued and invalidates source reuse and verification fingerprints: '+route,async t=>{
+  const context=await fixture(t,{baseline:false}),{store,worker,generation,descriptor}=context;
+  let downloads=0;
+  worker.downloadAmendmentDocx=async url=>{assert.equal(url,descriptor.url);downloads++;return {buffer:amendmentDocx(downloads===1?oldProposed:freshProposed)};};
+  async function ingest(issued) {
+    const detail=listDetail({...descriptor,issued});
+    const observation=route==='expanded'?detail:{id:detail.id,is_realized_by:detail.is_realized_by};
+    const raw={...context.target,parliamentary_term:'org/ep-10',inverse_created_a_realization_of:[],inverse_foresees_change_of:[observation]};
+    worker.fetchRecord=async endpoint=>{
+      assert([targetKey,'/documents/'+listId].includes(endpoint));
+      return {fetchedAt:context.at(),payload:{data:[endpoint===targetKey?raw:detail]}};
+    };
+    const key='test:issued:'+issued;
+    store.enqueue(generation,key,'document',{endpoint:targetKey},180);
+    const row=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key);
+    await worker.task({...row,body:JSON.parse(row.body)});
+    const projected=store.source(generation,targetKey).work.inverse_foresees_change_of[0];
+    assert.equal(projected.is_realized_by[0].is_embodied_by[0].issued,issued);
+    if(route==='detail') {
+      const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-list-detail','An issue-only change must invalidate recent detail verification.');
+      await worker.task(task);
+    }
+    assert.equal(store.source(generation,listKey).work.distributionEvidence.descriptors[0].issued,issued);
+    return store.source(generation,listKey).work.relationshipEvidence.fingerprint;
+  }
+  const first=await ingest('2026-10-02T17:04:06+02:00');
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(downloads,1);
+  context.advance(1000);
+  const second=await ingest('2026-10-02T17:04:07+02:00');
+  assert.notEqual(first,second,'The published issue time participates in the relationship fingerprint.');
+  assert.equal(listWordingFreshness(store.source(generation,listKey).work,{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'pending');
+  const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');
+  await worker.task({...task,body:{...task.body,parserUpgrade:true}});
+  const extraction=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,2,'Parser work cannot reuse bytes from the older publication.');
+  assert.equal(extraction.sourceDescriptor.issued,'2026-10-02T17:04:07+02:00');
+  assert.equal(extraction.amendments[0].proposedText,freshProposed);
+});
 
 test('parser-only upgrades reuse matching retained bytes, preserve retrieval provenance and settle once',async t=>{
   const context=await fixture(t),{store,worker,generation}=context;

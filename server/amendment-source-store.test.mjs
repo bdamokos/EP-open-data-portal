@@ -88,6 +88,65 @@ test('the disk budget evicts superseded, then unreferenced versions, and never c
   assert.equal(await sources.save(extra,Buffer.alloc(AMENDMENT_SOURCE_LIMITS.maxFileBytes+1),at(6)),false);
 });
 
+test('superseded versions published by active, previous or working generations remain protected',async t=>{
+  const {store,sources,blobs}=fixture(t,{maxBytes:120});
+  store.set('previous',1);store.set('active',2);store.set('working',{generation:3});
+  const versions=[27,28,29,30].map(byteSize=>({...descriptor,byteSize}));
+  for(const [index,file] of versions.entries()) {
+    if(index)listSource(store,index,'L1',[file]);
+    assert(await sources.save(file,Buffer.alloc(30,index),`2026-10-${10+index}T08:00:00.000Z`,{listId:'L1'}));
+  }
+  const extra={...descriptor,url:url+'extra'};
+  listSource(store,3,'L2',[extra]);
+  assert(await sources.save(extra,Buffer.alloc(30,4),retrievedAt,{listId:'L2'}));
+  assert.equal(sources.has(versions[0]),false,'Only the unreferenced superseded version is eligible.');
+  for(const file of versions.slice(1))assert(await sources.read(file));
+  assert.equal(await sources.save({...extra,url:url+'overflow'},Buffer.alloc(30,5),retrievedAt),false);
+  assert.equal(readdirSync(blobs).length,4);
+});
+
+function legacyRecord(directory,buffer,{name='a',descriptor:file=descriptor}={}) {
+  const legacy=path.join(directory,'amendment-docx-v1');mkdirSync(legacy,{recursive:true});
+  const filename=path.join(legacy,name.repeat(64)+'.json');
+  writeFileSync(filename,JSON.stringify({version:1,descriptor:file,fetchedAt:retrievedAt,sha256:sha(buffer),bytes:buffer.toString('base64')}));
+  return filename;
+}
+
+test('a destination write failure preserves valid legacy input for a restarted writer',async t=>{
+  const {store,sources,directory,blobs,buffer}=fixture(t);
+  const file=legacyRecord(directory,buffer);
+  // A directory at the destination makes the atomic publication fail.
+  const destination=path.join(blobs,sha(buffer)+'.docx');mkdirSync(destination,{recursive:true});
+  await assert.rejects(sources.initialize(),error=>['EISDIR','ENOTDIR','EEXIST'].includes(error.code));
+  assert(existsSync(file));assert.deepEqual(rows(store),[]);
+  rmSync(destination,{recursive:true});store.release();
+  const successor=new ActivityStore(directory,{clock:()=>store.clock()});
+  try {
+    assert(successor.acquire());
+    assert.deepEqual((await amendmentSourceStore(successor).read(descriptor)).buffer,buffer);
+    assert.equal(existsSync(file),false);
+  }finally{successor.close();}
+});
+
+test('migration retains valid inputs refused by the budget and discards invalid records separately',async t=>{
+  const {store,sources,directory,buffer}=fixture(t,{maxBytes:1});
+  const file=legacyRecord(directory,buffer),invalid=path.join(path.dirname(file),'b'.repeat(64)+'.json');
+  writeFileSync(invalid,'{invalid');
+  await sources.initialize();assert(existsSync(file));assert.equal(existsSync(invalid),false);assert.deepEqual(rows(store),[]);
+  sources.maxBytes=100;await sources.migrateLegacy();
+  assert.equal(existsSync(file),false);assert.deepEqual((await sources.read(descriptor)).buffer,buffer);
+});
+
+test('a restarted migration removes only inputs with verified equivalent retained bytes',async t=>{
+  const {sources,directory,blobs,buffer}=fixture(t);
+  await sources.save(descriptor,buffer,retrievedAt);
+  const equivalent=legacyRecord(directory,buffer),different=legacyRecord(directory,Buffer.from('different valid source'),{name:'b'});
+  await sources.migrateLegacy();
+  assert.equal(existsSync(equivalent),false);assert(existsSync(different));
+  const missing=legacyRecord(directory,buffer);rmSync(path.join(blobs,sha(buffer)+'.docx'));
+  await sources.migrateLegacy();assert(existsSync(missing),'An index row alone does not prove retained bytes.');
+});
+
 test('the former base64 JSON cache is imported once into raw files and removed',async t=>{
   const {store,directory,buffer}=fixture(t);
   const legacy=path.join(directory,'amendment-docx-v1');mkdirSync(legacy);
@@ -123,4 +182,14 @@ test('cancelled retention publishes no file or row',async t=>{
   await sources.initialize();controller.abort();
   await assert.rejects(sources.save(descriptor,buffer,retrievedAt,{signal:controller.signal}),error=>error===controller.signal.reason);
   assert.equal(existsSync(blobs)&&readdirSync(blobs).length,existsSync(blobs)?0:false);assert.deepEqual(rows(store),[]);
+});
+
+test('recent orphan files are swept on a later writer access after the grace period',async t=>{
+  const {sources,blobs,buffer,store,advance}=fixture(t);
+  mkdirSync(blobs);
+  const orphan=path.join(blobs,sha(buffer)+'.docx');writeFileSync(orphan,buffer);
+  const created=new Date(store.clock());utimesSync(orphan,created,created);
+  await sources.initialize();assert(existsSync(orphan));
+  advance(11*60_000);await sources.read(descriptor);
+  assert.equal(existsSync(orphan),false);assert.equal(sources.usedBytes(),0);
 });

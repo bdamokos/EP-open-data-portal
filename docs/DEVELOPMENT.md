@@ -97,7 +97,7 @@ The application API uses flat routes under `/api/`, such as `/api/directory` and
 
 ## Motion amendment API
 
-`GET /api/motion-amendments/{id}` reads the accepted index for one exact term-10 `B-10-YYYY-NNNN` or `RC-10-YYYY-NNNN` identifier, allowing four to six final digits (`server/motion-amendments.mjs`, `src/MotionAmendmentsTypes.ts`). It never fetches upstream sources, queues work or writes data. The hidden amendment catalogue remains hidden.
+`GET /api/motion-amendments/{id}` (response schema 2) reads the accepted index for one exact term-10 `B-10-YYYY-NNNN` or `RC-10-YYYY-NNNN` identifier, allowing four to six final digits (`server/motion-amendments.mjs`, `src/MotionAmendmentsTypes.ts`). It never fetches upstream sources, queues work or writes data. The hidden amendment catalogue remains hidden.
 
 Query parameters are `member` (positive Open Data person ID), `scope=all|member` (default `all`), `lang` (default `en`), `offset` (default `0`, maximum `1000000`), `limit` (default `20`, maximum `50`) and optional `amendment` (an exact individual amendment ID belonging to the queried text). Member scope requires a valid member. Unsupported, invalid or repeated parameters return HTTP 400. All scope with a member annotates each checked aggregate and variant match without filtering out other proposers; member scope uses the same checked, dated author matching. `total` counts the selected indexed scope; `totals` also gives all indexed rows and member matches.
 

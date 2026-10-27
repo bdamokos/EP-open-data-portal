@@ -78,8 +78,9 @@ function linkedListCandidates(work) {
     if(expanded){
       // Metadata comes from the existing 12 MiB bounded API response; only its
       // fixed-size digest is retained, including all published DOCX descriptors.
+      const distribution=distributionEvidenceFor(expanded,null);
       candidate.observations.push({id:reference,identifier:expanded.identifier ?? null,type:expanded.work_type ?? null,documentDate:expanded.document_date ?? null,
-        distributionState:distributionEvidenceFor(expanded,null).state,files:documentFiles(expanded).filter(file=>file.format==='DOCX').map(({url,language,byteSize})=>({url,language,byteSize})),
+        distributionState:distribution.state,files:distribution.descriptors,
         targets:Object.hasOwn(expanded,'foresees_change_of')?array(expanded.foresees_change_of).map(ref=>canonicalEPReference(ref) || ref):null});
       if(verifiedList(expanded,target,id))candidate.expanded=expanded;else candidate.unverifiedExpanded=true;
     }

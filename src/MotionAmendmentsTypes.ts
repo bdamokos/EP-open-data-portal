@@ -85,7 +85,7 @@ export type MotionAmendmentsCoverage = {
   servingGeneration:number;workingGeneration:boolean;
 };
 export type MotionAmendmentsPage = {
-  schemaVersion:1;text:MotionAmendmentsText;
+  schemaVersion:2;text:MotionAmendmentsText;
   relations:{originalMotions:MotionAmendmentsRelatedText[];jointMotions:MotionAmendmentsRelatedText[];adoptedTexts:MotionAmendmentsAdoptedText[];
     adoptedCoverage:{status:'indexed'|'unavailable';complete:false;gaps:string[]};complete:false;limit:5};
   scope:{documentId:MotionAmendmentsDocumentId;memberId:string|null;results:MotionAmendmentsScope;requestedLanguage:string};
