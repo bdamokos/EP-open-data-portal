@@ -66,7 +66,7 @@ function validWordingLanguage(state:MotionAmendmentsState,documentId:string) {
     Boolean(list&&Number(list[1])>0&&Number(list[2])>=Number(list[1]));
 }
 function matchesPage(value:unknown,documentId:string,member:string,language:string,state:MotionAmendmentsState,requestedId:string|null):value is MotionAmendmentsPage {
-  if(!object(value)||value.schemaVersion!==1||!object(value.text)||value.text.id!==documentId||!object(value.scope)||
+  if(!object(value)||value.schemaVersion!==2||!object(value.text)||value.text.id!==documentId||!object(value.scope)||
     value.scope.documentId!==documentId||value.scope.memberId!==member||value.scope.results!==state.scope||value.scope.requestedLanguage!==language||
     value.offset!==state.offset||value.limit!==MOTION_AMENDMENTS_PAGE_SIZE||!nonnegative(value.total)||!Array.isArray(value.items)||
     value.items.length>MOTION_AMENDMENTS_PAGE_SIZE||!object(value.totals)||!nonnegative(value.totals.allIndexed)||

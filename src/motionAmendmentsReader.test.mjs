@@ -24,7 +24,7 @@ function amendment(number=13,extra={}) {
 }
 function page({items=[amendment()],document=documentId,scope='member',language='en',offset=0,total=items.length,
   selected=null,requestedId=selected?.id??null,selectionStatus=selected?'available':'not-requested',...extra}={}) {
-  return {schemaVersion:1,text:{id:document,reference:document,status:'indexed',kind:document.startsWith('RC-')?'joint':'original',
+  return {schemaVersion:2,text:{id:document,reference:document,status:'indexed',kind:document.startsWith('RC-')?'joint':'original',
     title:'A public motion title',titleLanguage:language,date:'2026-10-08',files:[],availableLanguages:[language],preferredFile:null,languageFallback:false,
     authors:[],memberAuthorship:{memberId,status:'not-recorded',relationships:[],sources:[]},sources:[source],generation:1,
     outcome:{status:'unavailable',totalsStatus:'unavailable',evidenceGaps:[]},
@@ -319,7 +319,7 @@ test('a failed read can be retried, and invalid target or payload version never 
   await h.respond({error:{message:'Temporary public source failure'}},{status:503});
   assert.match(h.container.textContent,/Amendment information could not be loaded/);
   await h.click('Try again');assert.equal(h.requests.length,2);
-  await h.respond({...page(),schemaVersion:2});
+  await h.respond({...page(),schemaVersion:3});
   assert.equal(h.container.querySelector('.motion-amendments__row'),null);
   await h.click('Try again');await h.respond(page());
   assert.equal(h.container.querySelectorAll('.motion-amendments__row').length,1);
@@ -938,9 +938,9 @@ test('failed and malformed reader responses settle readiness and retries become 
   assert.equal(pending(),'true');
   await h.respond({error:{message:'Fixture source unavailable'}},{status:503});assert.equal(pending(),null);
   await h.click('Try again');assert.equal(pending(),'true');
-  await h.respond({schemaVersion:1});assert.equal(pending(),null,'a malformed list is a settled error');
+  await h.respond({schemaVersion:2});assert.equal(pending(),null,'a malformed list is a settled error');
   await h.click('Try again');assert.equal(pending(),'true');await h.respond(page());assert.equal(pending(),null);
-  for(const [number,response,status] of [[98,{error:{message:'Fixture exact read unavailable'}},503],[99,{schemaVersion:1},200]]) {
+  for(const [number,response,status] of [[98,{error:{message:'Fixture exact read unavailable'}},503],[99,{schemaVersion:2},200]]) {
     await h.updateState({amendmentId:`${documentId}-AM-${number}`});assert.equal(pending(),'true');
     await h.respond(response,{status});assert.equal(pending(),null,'an exact failure is settled while the accepted list remains readable');
   }

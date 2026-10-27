@@ -7,6 +7,8 @@ import {amendmentOutcome,amendmentProposerDate,amendmentReference,canonicalEPRef
 import {amendmentAuthorMatch,amendmentById,amendmentGeneration,amendmentsPage} from './amendments-store.mjs';
 import {motionOutcome,motionReference,motionSourceKey} from './motion-outcomes.mjs';
 
+export const MOTION_AMENDMENTS_VERSION=2;
+
 const motionId=value=>/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(value || '');
 const API='https://data.europarl.europa.eu/api/v2';
 const RELATED_LIMIT=5;
@@ -207,7 +209,7 @@ function readMotionAmendmentsPage(store,query) {
   const selectedItem=selectedRow?contextualAmendment(selectedRow,member,language):null;
   const selection={requestedId:amendment,status:!amendment?'not-requested':selectedItem?'available':'unavailable',item:selectedItem,
     inRequestedScope:selectedItem?scope==='all'||selectedItem.memberMatch.matched:null,inPage:Boolean(selectedItem&&page.items.some(item=>item.id===selectedItem.id))};
-  return {schemaVersion:1,text,relations,scope:{documentId:document,memberId:member,results:scope,requestedLanguage:language},selection,
+  return {schemaVersion:MOTION_AMENDMENTS_VERSION,text,relations,scope:{documentId:document,memberId:member,results:scope,requestedLanguage:language},selection,
     items:page.items.map(row=>contextualAmendment(row,member,language)),total:page.total,totals:{allIndexed,memberMatched},offset,limit,
     coverage:{...coverage,indexStatus:indexed?'indexed':'not-indexed',resultState,backgroundPending:pending,backgroundPendingScope:'index',targetProcessing:'unknown',
       gaps:[...coverage.gaps,...(!source?['Verified motion metadata is not indexed for this text.']:[])]},

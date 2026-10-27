@@ -19,7 +19,7 @@ function fixturePage(url,wordingLanguage='en') {
   const variant=listId=>({listId,language:'de',targetLabel:'Paragraph 1',originalText:'Public original wording',proposedText:'Public proposed wording',authors:[],memberMatch:match,wording,sources:[source],wordingSource:source});
   const number=offset+13,item={...variant(documentId+'-AM-001-050'),id:documentId+'-AM-'+number,number,targetDocumentId:documentId,requestedLanguage:language,wholeAmendmentOutcome:'unavailable',decisions:[],splitParts:[],variants:[variant(documentId+'-AM-001-050'),variant(documentId+'-AM-013-050')]};
   const requested=url.searchParams.get('amendment'),selected=requested===item.id?item:null;
-  return {schemaVersion:1,text:{id:documentId},scope:{documentId,memberId:member,results:url.searchParams.get('scope'),requestedLanguage:language},offset,limit:20,total:45,items:[item],totals:{allIndexed:45,memberMatched:matched?45:0},
+  return {schemaVersion:2,text:{id:documentId},scope:{documentId,memberId:member,results:url.searchParams.get('scope'),requestedLanguage:language},offset,limit:20,total:45,items:[item],totals:{allIndexed:45,memberMatched:matched?45:0},
     selection:{requestedId:requested,status:requested?selected?'available':'unavailable':'not-requested',item:selected,inPage:Boolean(selected),inRequestedScope:Boolean(selected)},
     relations:{adoptedTexts:[]},coverage:{complete:false,resultState:'records'},snapshots:{amendments:1,text:1}};
 }

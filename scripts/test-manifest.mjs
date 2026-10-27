@@ -2,6 +2,7 @@ export const testDirectories = ['src', 'server', 'scripts'];
 
 // Subprocess startup and isolated cache/restart checks are kept in the slow profile.
 export const slow = [
+  {file: 'server/amendment-extraction-thread.test.mjs', reason: 'Spawns Node to check natural process exit after extraction cancellation.'},
   {file: 'server/directory-loading.test.mjs', reason: 'Spawns Node to check directory loading and restart behaviour.'},
   {file: 'server/text-cache.test.mjs', reason: 'Spawns Node to check retained text cache restarts.'},
   {file: 'server/directory-cache.test.mjs', reason: 'Spawns Node to check directory cache persistence.'},
