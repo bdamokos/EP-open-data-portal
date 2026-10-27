@@ -1,6 +1,6 @@
 import {waitForRequest} from './request-budget.mjs';
 
-export const PROFILE_MEMBERSHIPS_VERSION = 3;
+export const PROFILE_MEMBERSHIPS_VERSION = 4;
 export const reference = value => typeof value === 'string' ? value : typeof value?.id === 'string' ? value.id : '';
 const local = value => reference(value).replace(/^https:\/\/data\.europarl\.europa\.eu\//, '');
 export const validMembershipDay = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -69,13 +69,15 @@ export function createProfileMembershipReader({request}={}) {
     parentSignal?.throwIfAborted();
     const prioritized=history.items.slice().sort((a,b)=> Number(b.section==='national-parties'||b.section==='political-groups')-Number(a.section==='national-parties'||a.section==='political-groups') || Number(validMembershipDay(b.start))-Number(validMembershipDay(a.start)) || (validMembershipDay(a.start)&&validMembershipDay(b.start)?b.start.localeCompare(a.start):0) || a.index-b.index);
     const ids=[...new Set(prioritized.map(row=>row.bodyId).filter(Boolean))];
-    const selected=ids.filter(id=>/^org\/(?:[1-9]\d*|ep-[1-9]\d*)$/.test(local(id))).slice(0,16);
+    const selected=ids.filter(id=>/^org\/(?:[1-9]\d*|ep-[1-9]\d*)$/.test(local(id))).slice(0,100);
     const bodies=new Map();let cursor=0;
     await Promise.all(Array.from({length:Math.min(2,selected.length)},async()=>{
       while(cursor<selected.length&&!signal?.aborted) {
-        const id=selected[cursor++];
+        // The profile batch may already have retained older bodies beyond the
+        // single-read budget. Use their labels without starting extra requests.
+        const cachedOnly=cursor>=16,id=selected[cursor++];
         try {
-          const record=await waitForRequest(request('/corporate-bodies/'+local(id).slice(4),{},{signal,staleWhileRevalidate:true,force:rejectedBodies.has(id)}),signal);
+          const record=await waitForRequest(request('/corporate-bodies/'+local(id).slice(4),{},{signal,staleWhileRevalidate:true,cachedOnly,force:!cachedOnly&&rejectedBodies.has(id)}),signal);
           const body=record.payload?.data?.[0];
           // Numeric identifiers alone cannot validate a different published URI.
           if(record.payload?.data?.length!==1 || String(body?.identifier)!==local(id).slice(4) || local(body.id)!==local(id)) {reject(id);continue;}

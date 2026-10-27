@@ -43,6 +43,40 @@ test('a cold profile reads its bodies in one batch and later views read locally'
   assert.deepEqual(requests.filter(url=>url.startsWith('/api/v2/corporate-bodies/')).filter(url=>!url.endsWith('/9999')),[],'retained bodies are never read again');
 });
 
+test('the profile uses batch-retained delegation names beyond the 16-body network budget',async t=>{
+  const {readFile}=await import('node:fs/promises');
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/profile-membership-names.json',import.meta.url),'utf8'));
+  const dir=await mkdtemp(path.join(tmpdir(),'profile-delegation-names-'));
+  const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
+  t.after(async()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;await rm(dir,{recursive:true,force:true});});
+  const requests=[];
+  t.mock.method(globalThis,'fetch',async input=>{
+    const url=new URL(input);requests.push(url.pathname);
+    if(url.pathname==='/api/v2/meps/197679')return Response.json({data:[fixture.person]});
+    if(url.pathname==='/api/v2/meps/show-current')return Response.json({data:[]});
+    const ids=url.pathname.match(/^\/api\/v2\/corporate-bodies\/([\d,]+)$/)?.[1].split(',');
+    if(ids)return Response.json({data:fixture.bodies.filter(body=>ids.includes(body.identifier))});
+    assert.fail('Unexpected upstream read '+url.pathname);
+  });
+  const {odpProfileWithMemberships}=await import('./odp.mjs?delegation-names');
+  const profile=await odpProfileWithMemberships('197679');
+  assert.equal(profile.membershipHistory.items.length,26);
+  assert.equal(profile.membershipHistory.labelsComplete,true);
+  const delegations=profile.membershipHistory.items.filter(row=>row.section==='delegations');
+  assert.equal(delegations.length,6);
+  for(const row of delegations){
+    const expected=fixture.bodies.find(body=>body.id===row.bodyId);
+    assert.equal(row.body.prefLabel.en,expected.prefLabel.en);
+    assert.equal(row.body.classification,row.classification);
+    assert.match(row.body.source.retrievedFrom,/corporate-bodies\/.*,/);
+  }
+  const bodyReads=requests.filter(url=>url.startsWith('/api/v2/corporate-bodies/'));
+  assert.equal(bodyReads.length,1,'all names use the initial batch, with no extra upstream reads');
+  requests.length=0;
+  assert.equal((await odpProfileWithMemberships('197679')).membershipHistory.labelsComplete,true);
+  assert.deepEqual(requests,[],'a repeat profile uses the retained observations');
+});
+
 test('a batch never replaces a single read of the same body that is still in flight',async t=>{
   const dir=await mkdtemp(path.join(tmpdir(),'corporate-body-race-'));
   const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
