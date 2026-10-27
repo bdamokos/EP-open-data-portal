@@ -1,4 +1,5 @@
 import {wordingText} from './test-support/wordingText.mjs';
+import {closedGlobalSearch,checkClosedGlobalSearchHistory} from './test-support/closedGlobalSearchHistory.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,Fragment,act} from 'react';
@@ -90,6 +91,12 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
  const warmCache=async count=>{warmRoutes=Array.from({length:count},(_,index)=>'qa-motion-cache/'+index);await act(async()=>draw());for(let attempt=0;attempt<200;attempt++){if(container.querySelectorAll('[data-motion-cache-ready="true"]').length===count)return;await act(async()=>new Promise(resolve=>setTimeout(resolve,10)));}assert.fail('Finite cache fixtures did not settle');};
  return {window,container,requests,pushes,click,change,go,restore,warmCache,settle};
 }
+
+for(const blocked of [false,true])test('motion navigation preserves an older closed global search with '+(blocked?'blocked':'available')+' session storage',async t=>{
+ const h=await harness(t,query({})+'&'+closedGlobalSearch);
+ await checkClosedGlobalSearchHistory(t,h,()=>h.click(h.container.querySelector('.motion-amendments__disclosure')),blocked);
+ assert.equal(params().get('ma-view'),'amendments');
+});
 
 test('activity page/category are controlled App history and survive Profile, browser Back and direct Activities return',async t=>{
  const h=await harness(t,query({activity:'','activity-offset':'10','activity-category':'motions'})),length=history.length;

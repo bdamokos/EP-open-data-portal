@@ -690,7 +690,7 @@ export default function App() {
         if(next==='amendments')url.searchParams.delete('view');
         if(query.get('module')==='amendments')url.searchParams.set('module','speeches');
         for(const key of [...url.searchParams.keys()])if(key.startsWith('am-'))url.searchParams.delete(key);
-        history.replaceState(null,'',url);
+        history.replaceState(history.state,'',url);
       }
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);

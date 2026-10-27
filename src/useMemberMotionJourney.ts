@@ -67,7 +67,7 @@ export function useMemberMotionJourney(member:number|null,active:boolean,initial
       const surrounding=!pending.current&&ready()?capture():null;
       remember();
       pending.current={key:nextKey,position:positions.current.get(nextKey)||null,fallback:startsNewSource(value.query,nextQuery,binding)?[0,0]:surrounding||[0,0]};
-      history.pushState(null,'',url);
+      history.pushState(history.state,'',url);
     }
     setStored({memberId:value.member,query:nextQuery});
     window.dispatchEvent(new Event('explorer-query-change'));
