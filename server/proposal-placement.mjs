@@ -94,7 +94,8 @@ function matchUnit(proposal,unit,original) {
 // Subparagraphs carry no label in the proposal. Resolve the containing
 // provision and require a unique wording match within the numbered
 // subparagraph's own paragraphs. A provision's own lead text is the first
-// subparagraph; an implicit paragraph has none. Points make numbering ambiguous.
+// subparagraph; an implicit paragraph has none. Points belong to the preceding
+// subparagraph; only directly owned continuations start subsequent ones.
 function subparagraphMatch(items,target,original,candidatesFor) {
   const last=target.segments.at(-1);
   if(last?.kind!=='subparagraph'||last.isNew||last.suffix||!last.number||target.segments.length<2)return null;
@@ -109,8 +110,10 @@ function subparagraphMatch(items,target,original,candidatesFor) {
   }
   if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
   const children=unit.children,lead=unit.implicit||!unit.content.length?null:{start:unit.content[0],end:children[0]?.extent.start??unit.extent.end};
-  if(children.some(child=>child.kind!=='subparagraph')&&(last.number>1||!lead))return {reason:'source_structure_unavailable'};
-  const bounds=[...(lead?[lead]:[]),...children.map(child=>child.extent)][last.number-1];
+  const continuations=children.filter(child=>child.kind==='subparagraph');
+  if(children.some(child=>child.kind!=='subparagraph')&&!continuations.length&&!lead)return {reason:'source_structure_unavailable'};
+  const bounds=[...(lead?[lead]:[]),...continuations.map(child=>child.extent)][last.number-1];
+  if(!bounds&&children.some(child=>child.kind!=='subparagraph'))return {reason:'source_structure_unavailable'};
   if(!bounds||bounds.end<=bounds.start)return null;
   const match=matchUnit(proposal,unit,original);
   if(!match.span)return match;
