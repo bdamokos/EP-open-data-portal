@@ -10,23 +10,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Позоваване 21 a (ново)",
-        "proposedText": "–\tкато взе предвид становището на комисията по бюджетен контрол, прието на 4 септември 2025 г. и представено на Бюрото на Парламента, относно разпускането и окончателния финансов доклад за 2024 г. на политическата група „Идентичност и демокрация“,\n_________________"
+        "targetLabel": "Позоваване 21 a (ново)"
       },
       {
         "number": 2,
-        "targetLabel": "Съображение Б a (ново)",
-        "proposedText": "Ба.\tкато има предвид, че Съдът на Европейския съюз установи и потвърди в множество решения ясната връзка между зачитането на принципите на правовата държава и ефективното изпълнение на бюджета на ЕС в съответствие с принципите на добро финансово управление и защита на финансовите интереси на ЕС;"
+        "targetLabel": "Съображение Б a (ново)"
       },
       {
         "number": 3,
-        "targetLabel": "Съображение Б б (ново)",
-        "proposedText": "Бб.\tкато има предвид, че Регламентът относно обвързаността с условия оправомощава ЕС да приема своевременно пропорционални финансови мерки за защита на финансовите си интереси, когато нарушенията на принципите на правовата държава в дадена държава членка засягат или има сериозна опасност да засегнат доброто финансово управление на бюджета на ЕС; като има предвид, че Регламентът беше приет като част от пакета за многогодишната финансова рамка (МФР) за периода 2021—2027 г. след дълги и трудни преговори между съзаконодателите, по-специално поради опитите на някои държави членки да обвържат преговорите по МФР с преговорите относно механизма на обвързаност с условия за спазване на принципите на правовата държава; като има предвид, че  Регламентът относно обвързаността с условия е задължителен за всички държави членки от влизането му в сила на 1 януари 2021 г.;"
+        "targetLabel": "Съображение Б б (ново)"
       },
       {
         "number": 6,
-        "targetLabel": "Подзаглавие (ново) (след параграф 25)",
-        "proposedText": "Основни заплахи — пропуски по отношение на принципите на правовата държава"
+        "targetLabel": "Подзаглавие (ново) (след параграф 25)"
       }
     ]
   },
@@ -41,23 +37,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Visto 21 bis (nuevo)",
-        "proposedText": "–\tVista la opinión de la Comisión de Control Presupuestario, aprobada el 4 de septiembre de 2025 y presentada a la Mesa del Parlamento, sobre la disolución y el informe financiero final de 2024 del grupo político Identidad y Democracia,\n_________________"
+        "targetLabel": "Visto 21 bis (nuevo)"
       },
       {
         "number": 2,
-        "targetLabel": "Considerando B bis (nuevo)",
-        "proposedText": "B bis.\tConsiderando que el Tribunal de Justicia de la Unión Europea ha establecido y confirmado, en distintas sentencias, la clara relación entre el respeto del Estado de Derecho y la ejecución eficiente del presupuesto de la Unión, de conformidad con los principios de buena gestión financiera y de protección de los intereses financieros de la Unión;"
+        "targetLabel": "Considerando B bis (nuevo)"
       },
       {
         "number": 3,
-        "targetLabel": "Considerando B ter (nuevo)",
-        "proposedText": "B ter.\tConsiderando que el Reglamento sobre condicionalidad faculta a la Unión para adoptar, de forma oportuna, medidas financieras proporcionadas a fin de salvaguardar sus intereses financieros cuando las violaciones del Estado de Derecho en un Estado miembro afecten o amenacen con afectar gravemente a la buena gestión financiera del presupuesto de la Unión; que el Reglamento se adoptó como parte del paquete sobre el marco financiero plurianual (MFP) 2021-2027, tras largas y difíciles negociaciones entre los colegisladores, en particular debido a los intentos de algunos Estados miembros de vincular las negociaciones sobre el MFP con las negociaciones sobre el mecanismo de condicionalidad del Estado de Derecho; que el Reglamento sobre condicionalidad ha sido vinculante para todos los Estados miembros desde su entrada en vigor el 1 de enero de 2021;"
+        "targetLabel": "Considerando B ter (nuevo)"
       },
       {
         "number": 6,
-        "targetLabel": "Subtítulo (nuevo) (después del apartado 25)",
-        "proposedText": "Principales amenazas: deficiencias del Estado de Derecho"
+        "targetLabel": "Subtítulo (nuevo) (después del apartado 25)"
       }
     ]
   },
@@ -72,23 +64,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Právní východisko 21 a (nové)",
-        "proposedText": "–\ts ohledem na stanovisko Výboru pro rozpočtovou kontrolu přijaté dne 4. září 2025 a předložené předsednictvu Parlamentu o rozpuštění politické skupiny Identita a demokracie a závěrečné finanční zprávě za rok 2024,\n_________________"
+        "targetLabel": "Právní východisko 21 a (nové)"
       },
       {
         "number": 2,
-        "targetLabel": "Bod odůvodnění B a (nový)",
-        "proposedText": "Ba.\tvzhledem k tomu, že Soudní dvůr Evropské unie v různých rozsudcích stanovil a potvrdil jasný vztah mezi dodržováním zásad právního státu a účinným plněním rozpočtu EU v souladu se zásadami řádného finančního řízení a ochrany finančních zájmů EU;"
+        "targetLabel": "Bod odůvodnění B a (nový)"
       },
       {
         "number": 3,
-        "targetLabel": "Bod odůvodnění B b (nový)",
-        "proposedText": "Bb.\tvzhledem k tomu, že nařízení o podmíněnosti dává Unii možnost včas přijmout přiměřená finanční opatření na ochranu svých finančních zájmů, pokud porušení zásad právního státu v členském státě ovlivňuje řádné finanční řízení rozpočtu EU nebo existuje vážné riziko, že k tomu dojde; vzhledem k tomu, že toto nařízení bylo přijato jako součást balíčku předpisů spojených s víceletým finančním rámcem (VFR) na období 2021–2027, a to po dlouhých a obtížných jednáních mezi spolunormotvůrci, zejména kvůli snaze některých členských států propojit jednání o VFR s jednáními o mechanismu podmíněnosti dodržováním zásad právního státu; vzhledem k tomu, že od 1. ledna 2021, kdy nařízení o podmíněnosti vstoupilo v platnost, je závazné pro všechny členské státy;"
+        "targetLabel": "Bod odůvodnění B b (nový)"
       },
       {
         "number": 6,
-        "targetLabel": "Dílčí nadpis (nový) – za bod 25",
-        "proposedText": "Hlavní hrozby – nedostatky v oblasti právního státu"
+        "targetLabel": "Dílčí nadpis (nový) – za bod 25"
       }
     ]
   },
@@ -103,23 +91,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Henvisning 21 a (ny)",
-        "proposedText": "–\tder henviser til udtalelse fra Budgetkontroludvalget, der blev vedtaget den 4. september 2025 og forelagt Parlamentets Præsidium, om opløsningen af og den endelige finansielle rapport for 2024 om den politiske gruppe Identitet og Demokrati;\n_________________"
+        "targetLabel": "Henvisning 21 a (ny)"
       },
       {
         "number": 2,
-        "targetLabel": "Betragtning B a (ny)",
-        "proposedText": "Ba.\tder henviser til, at Den Europæiske Unions Domstol har fastslået og bekræftet den klare forbindelse mellem respekt for retsstatsprincippet og en effektiv gennemførelse af EU-budgettet i overensstemmelse med principperne om forsvarlig økonomisk forvaltning og beskyttelse af EU's finansielle interesser;"
+        "targetLabel": "Betragtning B a (ny)"
       },
       {
         "number": 3,
-        "targetLabel": "Betragtning B b (ny)",
-        "proposedText": "Bb.\tder henviser til, at forordningen om konditionalitet giver EU beføjelse til rettidigt at vedtage forholdsmæssige finansielle foranstaltninger for at beskytte sine finansielle interesser, hvis tilsidesættelser af retsstatsprincippet i en medlemsstat påvirker eller udgør en alvorlig risiko for at påvirke den forsvarlige økonomiske forvaltning af EU-budgettet; der henviser til, at forordningen blev vedtaget som en del af pakken om den flerårige finansielle ramme (FFR) for 2021-2027 efter lange og vanskelige forhandlinger mellem fælleslovgiverne, navnlig fordi visse medlemsstater forsøgte at knytte forhandlingerne om FFR til forhandlingerne om konditionalitetsmekanismen vedrørende retsstatsprincippet; der henviser til, at forordningen om konditionalitet har været bindende for alle medlemsstater, siden den trådte i kraft den 1. januar 2021;"
+        "targetLabel": "Betragtning B b (ny)"
       },
       {
         "number": 6,
-        "targetLabel": "Overskrift (ny) – efter afsnit 25",
-        "proposedText": "Vigtigste trusler – mangler på retsstatsområdet"
+        "targetLabel": "Overskrift (ny) – efter afsnit 25"
       }
     ]
   },
@@ -134,23 +118,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Bezugsvermerk 21 a (neu)",
-        "proposedText": "–\tunter Hinweis auf die Stellungnahme des Haushaltskontrollausschusses zur Auflösung der Fraktion Identität und Demokratie und zum endgültigen Finanzbericht 2024, die am 4. September 2025 angenommen und dem Präsidium des Parlaments vorgelegt wurde;\n_________________"
+        "targetLabel": "Bezugsvermerk 21 a (neu)"
       },
       {
         "number": 2,
-        "targetLabel": "Erwägung B a (neu)",
-        "proposedText": "Ba.\tin der Erwägung, dass der Gerichtshof der Europäischen Union in verschiedenen Urteilen den eindeutigen Zusammenhang zwischen der Achtung der Rechtsstaatlichkeit und der effizienten Ausführung des EU-Haushaltsplans im Einklang mit den Grundsätzen der Wirtschaftlichkeit der Haushaltsführung und dem Schutz der finanziellen Interessen der EU festgestellt und bestätigt hat;"
+        "targetLabel": "Erwägung B a (neu)"
       },
       {
         "number": 3,
-        "targetLabel": "Erwägung B b (neu)",
-        "proposedText": "Bb.\tin der Erwägung, dass die Konditionalitätsverordnung der EU die Befugnis verleiht, zeitnah verhältnismäßige finanzielle Maßnahmen zum Schutz ihrer finanziellen Interessen zu ergreifen, wenn Verstöße gegen die Rechtsstaatlichkeit in einem Mitgliedstaat die Wirtschaftlichkeit der Haushaltsführung der EU beeinträchtigen oder ernsthaft zu beeinträchtigen drohen; in der Erwägung, dass die Verordnung als Teil des Pakets zum Mehrjährigen Finanzrahmen (MFR) 2021-2027 verabschiedet wurde, wobei ihrer Verabschiedung lange und schwierige Verhandlungen zwischen den beiden gesetzgebenden Organen vorausgegangen waren, die insbesondere auf die Versuche einiger Mitgliedstaaten zurückzuführen waren, die Verhandlungen über den mehrjährigen Finanzrahmen mit den Verhandlungen über den Konditionalitätsmechanismus für die Rechtsstaatlichkeit zu verknüpfen; in der Erwägung, dass die Konditionalitätsverordnung seit ihrem Inkrafttreten am 1. Januar 2021 in allen Mitgliedstaaten verbindlich ist;"
+        "targetLabel": "Erwägung B b (neu)"
       },
       {
         "number": 6,
-        "targetLabel": "Zwischenüberschrift (neu) – nach Ziffer 25",
-        "proposedText": "Größte Bedrohungen – Mängel im Bereich der Rechtsstaatlichkeit"
+        "targetLabel": "Zwischenüberschrift (neu) – nach Ziffer 25"
       }
     ]
   },
@@ -165,23 +145,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Volitus 21 a (uus)",
-        "proposedText": "–\tvõttes arvesse eelarvekontrollikomisjoni 4. septembril 2025. aastal vastu võetud ja Euroopa Parlamendi juhatusele esitatud arvamust fraktsiooni Identiteet ja Demokraatia tegevuse lõpetamise ja 2024. aasta lõpliku finantsaruande kohta,\n_________________"
+        "targetLabel": "Volitus 21 a (uus)"
       },
       {
         "number": 2,
-        "targetLabel": "Põhjendus B a (uus)",
-        "proposedText": "Ba.\tarvestades, et Euroopa Liidu Kohus on mitmes otsuses kindlaks teinud ja kinnitanud selget seost õigusriigi põhimõtte austamise ja ELi eelarve tõhusa täitmise vahel kooskõlas usaldusväärse finantsjuhtimise ja ELi finantshuvide kaitse põhimõtetega;"
+        "targetLabel": "Põhjendus B a (uus)"
       },
       {
         "number": 3,
-        "targetLabel": "Põhjendus B b (uus)",
-        "proposedText": "Bb.\tarvestades, et tingimuslikkuse määrusega antakse ELile volitus võtta aegsasti oma finantshuvide kaitsmiseks proportsionaalseid finantsmeetmeid, kui õigusriigi põhimõtte rikkumine liikmesriigis mõjutab ELi eelarve usaldusväärset finantsjuhtimist või on tõsine oht, et see võib seda mõjutada; arvestades, et see määrus võeti vastu 2021.–2027. aasta mitmeaastase finantsraamistiku paketi osana pärast pikki ja keerulisi kaasseadusandjate vahelisi läbirääkimisi, mis olid tingitud eelkõige mõne liikmesriigi katsetest siduda mitmeaastase finantsraamistiku üle peetavad läbirääkimised õigusriigi tingimuslikkuse mehhanismi üle peetavate läbirääkimistega; arvestades, et tingimuslikkuse määrus on olnud kõigile liikmesriikidele siduv alates selle jõustumisest 1. jaanuaril 2021;"
+        "targetLabel": "Põhjendus B b (uus)"
       },
       {
         "number": 6,
-        "targetLabel": "Alapealkiri (uus) (pärast punkti 25)",
-        "proposedText": "Peamised ohud – puudused õigusriigi toimimises"
+        "targetLabel": "Alapealkiri (uus) (pärast punkti 25)"
       }
     ]
   },
@@ -196,23 +172,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Αιτιολογική αναφορά 21 α (νέα)",
-        "proposedText": "–\tέχοντας υπόψη τη γνωμοδότηση της Επιτροπής Ελέγχου του Προϋπολογισμού, που εγκρίθηκε στις 4 Σεπτεμβρίου 2025 και υποβλήθηκε στο Προεδρείο του Κοινοβουλίου, σχετικά με τη διάλυση και την τελική οικονομική έκθεση 2024 της πολιτικής ομάδας Ταυτότητα και Δημοκρατία,\n_________________"
+        "targetLabel": "Αιτιολογική αναφορά 21 α (νέα)"
       },
       {
         "number": 2,
-        "targetLabel": "Αιτιολογική σκέψη B α (νέα)",
-        "proposedText": "Β α.\tλαμβάνοντας υπόψη ότι το Δικαστήριο της Ευρωπαϊκής Ένωσης έχει διαπιστώσει και επιβεβαιώσει, σε διάφορες αποφάσεις του, τη σαφή σχέση μεταξύ του σεβασμού του κράτους δικαίου και της αποτελεσματικής εκτέλεσης του προϋπολογισμού της ΕΕ, σύμφωνα με τις αρχές της χρηστής δημοσιονομικής διαχείρισης και της προστασίας των οικονομικών συμφερόντων της ΕΕ·"
+        "targetLabel": "Αιτιολογική σκέψη B α (νέα)"
       },
       {
         "number": 3,
-        "targetLabel": "Αιτιολογική σκέψη B β (νέα)",
-        "proposedText": "Β β.\tλαμβάνοντας υπόψη ότι ο κανονισμός για την αιρεσιμότητα εξουσιοδοτεί την ΕΕ να θεσπίζει, εγκαίρως, αναλογικά οικονομικά μέτρα για τη διασφάλιση των οικονομικών συμφερόντων της όταν παραβιάσεις του κράτους δικαίου σε ένα κράτος μέλος επηρεάζουν ή απειλούν σοβαρά να επηρεάσουν τη χρηστή δημοσιονομική διαχείριση του προϋπολογισμού της ΕΕ· λαμβάνοντας υπόψη ότι ο εν λόγω κανονισμός εγκρίθηκε στο πλαίσιο της δέσμης μέτρων για το πολυετές δημοσιονομικό πλαίσιο (ΠΔΠ) 2021-2027, μετά από μακρές και δύσκολες διαπραγματεύσεις μεταξύ των συννομοθετών, ιδίως εξαιτίας των προσπαθειών ορισμένων κρατών μελών να συνδέσουν τις διαπραγματεύσεις για το ΠΔΠ με τις διαπραγματεύσεις για τον μηχανισμό αιρεσιμότητας για το κράτος δικαίου· λαμβάνοντας υπόψη ότι ο κανονισμός για την αιρεσιμότητα έχει δεσμευτικό χαρακτήρα για όλα τα κράτη μέλη από την έναρξη ισχύος του την 1η Ιανουαρίου 2021·"
+        "targetLabel": "Αιτιολογική σκέψη B β (νέα)"
       },
       {
         "number": 6,
-        "targetLabel": "Υπότιτλος (νέος) – μετά την παράγραφο 25",
-        "proposedText": "Κύριες απειλές – ελλείψεις στον τομέα του κράτους δικαίου"
+        "targetLabel": "Υπότιτλος (νέος) – μετά την παράγραφο 25"
       }
     ]
   },
@@ -227,23 +199,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Citation 21 a (new)",
-        "proposedText": "–\thaving regard to the opinion of the Committee on Budgetary Control, adopted on 4 September 2025 and submitted to Parliament’s Bureau, on the dissolution and final financial report 2024 of the political group Identity and Democracy;\n_________________"
+        "targetLabel": "Citation 21 a (new)"
       },
       {
         "number": 2,
-        "targetLabel": "Recital B a (new)",
-        "proposedText": "Ba.\twhereas the Court of Justice of the European Union has established and confirmed, in various rulings, the clear relationship between respect for the rule of law and the efficient implementation of the EU budget, in accordance with the principles of sound financial management and the protection of the EU’s financial interests;"
+        "targetLabel": "Recital B a (new)"
       },
       {
         "number": 3,
-        "targetLabel": "Recital B b (new)",
-        "proposedText": "Bb.\twhereas the Conditionality Regulation empowers the EU to adopt, in a timely manner, proportionate financial measures to safeguard its financial interests where breaches of the rule of law in a Member State affect, or seriously risk affecting, the sound financial management of the EU budget; whereas the regulation was adopted as part of the package on the 2021-2027 multiannual financial framework (MFF), following long and difficult negotiations between the co-legislators, notably because of attempts by some of the Member States to link the negotiations on the MFF with the negotiations on the rule of law conditionality mechanism; whereas the Conditionality Regulation has been binding for all Member States since its entry into force on 1 January 2021;"
+        "targetLabel": "Recital B b (new)"
       },
       {
         "number": 6,
-        "targetLabel": "Subheading (new) – after paragraph 25",
-        "proposedText": "Main threats – rule of law deficiencies"
+        "targetLabel": "Subheading (new) – after paragraph 25"
       }
     ]
   },
@@ -258,23 +226,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Visa 21 bis (nouveau)",
-        "proposedText": "–\tvu l’avis de la commission du contrôle budgétaire, adopté le 4 septembre 2025 et soumis au Bureau du Parlement, sur la dissolution et le rapport financier final 2024 du groupe politique Identité et démocratie,\n_________________"
+        "targetLabel": "Visa 21 bis (nouveau)"
       },
       {
         "number": 2,
-        "targetLabel": "Considérant B bis (nouveau)",
-        "proposedText": "B bis.\tconsidérant que la Cour de justice de l’Union européenne a établi et confirmé, dans différents arrêts, le lien clair entre le respect de l’état de droit et l’exécution efficace du budget de l’Union, conformément aux principes de bonne gestion financière et de protection des intérêts financiers de l’Union;"
+        "targetLabel": "Considérant B bis (nouveau)"
       },
       {
         "number": 3,
-        "targetLabel": "Considérant B ter (nouveau)",
-        "proposedText": "B ter.\tconsidérant que le règlement relatif à la conditionnalité habilite l’Union à adopter rapidement des mesures financières proportionnées pour protéger ses intérêts financiers lorsque des violations de l’état de droit dans un État membre portent atteinte ou risquent sérieusement de porter atteinte à la bonne gestion financière du budget de l’Union; que le règlement a été adopté dans le cadre du train de mesures sur le cadre financier pluriannuel (CFP) 2021-2027, à la suite de négociations longues et difficiles entre les colégislateurs, notamment à cause des tentatives de certains États membres visant à associer les négociations sur le CFP à celles sur le mécanisme de conditionnalité liée à l’état de droit; que le règlement relatif à la conditionnalité est contraignant pour tous les États membres depuis son entrée en vigueur le 1er janvier 2021;"
+        "targetLabel": "Considérant B ter (nouveau)"
       },
       {
         "number": 6,
-        "targetLabel": "Sous-titre (nouveau) – après le paragraphe 25",
-        "proposedText": "Principales menaces – déficiences de l’état de droit"
+        "targetLabel": "Sous-titre (nouveau) – après le paragraphe 25"
       }
     ]
   },
@@ -289,23 +253,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Lua 21 a (nua)",
-        "proposedText": "–\tag féachaint don tuairim ón gCoiste um Rialú Buiséadach don Bhiúró maidir leis an ngrúpa polaitiúil Féiniúlacht agus Daonlathas - Díscaoileadh agus tuarascáil airgeadais chríochnaitheach 2024 (CONT/10/03763)1c\n_________________\n1c Arna glacadh an 04 Meán Fómhair 2025."
+        "targetLabel": "Lua 21 a (nua)"
       },
       {
         "number": 2,
-        "targetLabel": "Aithris B a (nua)",
-        "proposedText": "B a.\tde bhrí gur shuigh agus dheimhnigh CBAE go bhfuil gaol soiléir ann idir urraim don smacht reachta agus cur chun feidhme éifeachtúil bhuiséad an Aontais, i gcomhréir le prionsabail na bainistíochta airgeadais fónta agus chosaint leasanna airgeadais an Aontais;"
+        "targetLabel": "Aithris B a (nua)"
       },
       {
         "number": 3,
-        "targetLabel": "Aithris B b (nua)",
-        "proposedText": "B b.\tde bhrí go dtugann an Rialachán maidir le Coinníollacht cumhacht don Aontas bearta airgeadais comhréireacha a ghlacadh, ar bhealach tráthúil, chun a leasanna airgeadais a chosaint i gcás ina ndéanfadh sáruithe ar an smacht reachta i mBallstát difear do bhainistíocht fhónta airgeadais bhuiséad an Aontais, nó ina bhfuil baol tromchúiseach ann go ndéanfaidís difear don bhainistíocht sin; de bhrí gur glacadh an rialachán mar chuid den phacáiste maidir le creat airgeadais ilbhliantúil (CAI) 2021-2027, tar éis caibidlíochtaí fada agus deacra idir na comhreachtóirí, go háirithe mar gheall ar iarrachtaí ag roinnt de na Ballstáit na caibidlíochtaí ar an CAI a nascadh leis na caibidlíochtaí maidir leis an sásra coinníollachta maidir leis an smacht reachta; de bhrí go bhfuil sé ceangailteach ar na Ballstáit uile ó tháinig sé i bhfeidhm an 1 Eanáir 2021;"
+        "targetLabel": "Aithris B b (nua)"
       },
       {
         "number": 6,
-        "targetLabel": "Mír 25 – fomhír 1 (nua)",
-        "proposedText": "Na príomhbhagairtí - easnaimh sa smacht reachta"
+        "targetLabel": "Mír 25 – fomhír 1 (nua)"
       }
     ]
   },
@@ -320,23 +280,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Pozivanje 21.a (novo)",
-        "proposedText": "–\tuzimajući u obzir mišljenje Odbora za proračunski nadzor o Klubu zastupnika Identitet i demokracija – raspuštanje i završno financijsko izvješće za 2024., koje je doneseno 4. rujna 2025. te podneseno Predsjedništvu Parlamenta,\n_________________"
+        "targetLabel": "Pozivanje 21.a (novo)"
       },
       {
         "number": 2,
-        "targetLabel": "Uvodna izjava Ba (nova)",
-        "proposedText": "Ba.\tbudući da je Sud Europske unije utvrdio i u različitim presudama potvrdio jasnu vezu između poštovanja vladavine prava i učinkovitog izvršenja proračuna EU-a, u skladu s načelima dobrog financijskog upravljanja i zaštite financijskih interesa EU-a;"
+        "targetLabel": "Uvodna izjava Ba (nova)"
       },
       {
         "number": 3,
-        "targetLabel": "Uvodna izjava Bb (nova)",
-        "proposedText": "Bb.\tbudući da se Uredbom o uvjetovanosti EU ovlašćuje za pravodobno donošenje razmjernih financijskih mjera za zaštitu svojih financijskih interesa ako povrede vladavine prava u državi članici utječu ili postoji ozbiljan rizik od toga da bi mogle utjecati na dobro financijsko upravljanje proračunom EU-a; budući da je ta uredba donesena kao dio paketa o višegodišnjem financijskom okviru (VFO) za razdoblje 2021. – 2027. nakon dugih i teških pregovora među suzakonodavcima, posebno zbog pokušaja nekih država članica da povežu pregovore o VFO-u s pregovorima o mehanizmu uvjetovanosti u pogledu vladavine prava; budući da je od svoga stupanja na snagu 1. siječnja 2021. Uredba o uvjetovanosti obvezujuća za sve države članice;"
+        "targetLabel": "Uvodna izjava Bb (nova)"
       },
       {
         "number": 6,
-        "targetLabel": "Podnaslov (novi) – nakon stavka 25.",
-        "proposedText": "Glavne prijetnje – nedostaci u području vladavine prava"
+        "targetLabel": "Podnaslov (novi) – nakon stavka 25."
       }
     ]
   },
@@ -351,23 +307,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Visto 21 bis (nuovo)",
-        "proposedText": "–\tvisto il parere della commissione per il controllo dei bilanci, approvato il 4 settembre 2025 e destinato all'Ufficio di presidenza del Parlamento, sullo scioglimento e la relazione finanziaria finale 2024 del gruppo politico Identità e democrazia;\n_________________"
+        "targetLabel": "Visto 21 bis (nuovo)"
       },
       {
         "number": 2,
-        "targetLabel": "Considerando B bis (nuovo)",
-        "proposedText": "B bis.\tconsiderando che in varie sentenze la Corte di giustizia dell'Unione europea ha stabilito e confermato l'esistenza di una chiara correlazione tra il rispetto dello Stato di diritto e l'esecuzione efficiente del bilancio dell'Unione, in conformità dei principi di sana gestione finanziaria e di tutela degli interessi finanziari dell'UE;"
+        "targetLabel": "Considerando B bis (nuovo)"
       },
       {
         "number": 3,
-        "targetLabel": "Considerando B ter (nuovo)",
-        "proposedText": "B ter.\tconsiderando che il regolamento sulla condizionalità conferisce all'UE il potere di adottare, in modo tempestivo, misure finanziarie proporzionate per salvaguardare i propri interessi finanziari qualora le violazioni dello Stato di diritto in uno Stato membro compromettano o rischino seriamente di compromettere la sana gestione finanziaria del bilancio dell'UE; che il regolamento è stato adottato nell'ambito del pacchetto sul quadro finanziario pluriennale (QFP) 2021-2027, a seguito di lunghi e difficili negoziati tra i colegislatori, in particolare a causa dei tentativi di alcuni Stati membri di collegare i negoziati sul QFP ai negoziati sul meccanismo di condizionalità dello Stato di diritto; che il regolamento sulla condizionalità è vincolante per tutti gli Stati membri da quando è entrato in vigore il 1º gennaio 2021;"
+        "targetLabel": "Considerando B ter (nuovo)"
       },
       {
         "number": 6,
-        "targetLabel": "Titolo (nuovo) – dopo il paragrafo 25",
-        "proposedText": "Principali minacce – Carenze riguardanti lo Stato di diritto"
+        "targetLabel": "Titolo (nuovo) – dopo il paragrafo 25"
       }
     ]
   },
@@ -382,23 +334,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "21.a norāde (jauna)",
-        "proposedText": "–\tņemot vērā Budžeta kontroles komitejas atzinumu, kas pieņemts 2025. gada 4. septembrī un iesniegts Parlamenta Prezidijam, par politiskās grupas “Identitāte un demokrātija” darbības izbeigšanu un 2024. gada galīgo finanšu ziņojumu;\n_________________"
+        "targetLabel": "21.a norāde (jauna)"
       },
       {
         "number": 2,
-        "targetLabel": "Ba apsvērums (jauns)",
-        "proposedText": "Ba.\ttā kā Eiropas Savienības Tiesa dažādos nolēmumos ir konstatējusi un apstiprinājusi skaidru saikni starp tiesiskuma ievērošanu un ES budžeta efektīvu izpildi saskaņā ar pareizas finanšu pārvaldības un ES finanšu interešu aizsardzības principiem;"
+        "targetLabel": "Ba apsvērums (jauns)"
       },
       {
         "number": 3,
-        "targetLabel": "Bb apsvērums (jauns)",
-        "proposedText": "Bb.\ttā kā Nosacītības regula pilnvaro ES savlaicīgi pieņemt samērīgus finanšu pasākumus Savienības finanšu interešu aizsardzībai, ja tiesiskuma pārkāpumi kādā dalībvalstī ietekmē vai var nopietni apdraudēt ES budžeta pareizu finanšu pārvaldību; tā kā regula tika pieņemta kā daļa no 2021.–2027. gada daudzgadu finanšu shēmas (DFS) paketes pēc ilgām un sarežģītām sarunām starp likumdevējiem, jo īpaši tāpēc, ka dažas dalībvalstis mēģināja sasaistīt sarunas par DFS ar sarunām par tiesiskuma nosacītības mehānismu; tā kā Nosacītības regula ir saistoša visām dalībvalstīm kopš tās stāšanās spēkā 2021. gada 1. janvārī;"
+        "targetLabel": "Bb apsvērums (jauns)"
       },
       {
         "number": 6,
-        "targetLabel": "Apakšvirsraksts (jauns) – pēc 25. punkta",
-        "proposedText": "Galvenie apdraudējumi – tiesiskuma nepilnības"
+        "targetLabel": "Apakšvirsraksts (jauns) – pēc 25. punkta"
       }
     ]
   },
@@ -413,23 +361,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "21 a nurodomoji dalis (nauja)",
-        "proposedText": "–\tatsižvelgdamas į 2025 m. rugsėjo 4 d. priimtą ir Parlamento biurui pateiktą Biudžeto kontrolės komiteto nuomonę dėl Identiteto ir demokratijos frakcijos panaikinimo ir 2024 m. galutinės finansinės ataskaitos,\n_________________"
+        "targetLabel": "21 a nurodomoji dalis (nauja)"
       },
       {
         "number": 2,
-        "targetLabel": "B a konstatuojamoji dalis (nauja)",
-        "proposedText": "Ba.\tkadangi Europos Sąjungos Teisingumo Teismas įvairiuose sprendimuose nustatė ir patvirtino aiškų santykį tarp teisinės valstybės principo laikymosi ir veiksmingo ES biudžeto vykdymo vadovaujantis patikimo finansų valdymo ir ES finansinių interesų apsaugos principais;"
+        "targetLabel": "B a konstatuojamoji dalis (nauja)"
       },
       {
         "number": 3,
-        "targetLabel": "B b konstatuojamoji dalis (nauja)",
-        "proposedText": "Bb.\tkadangi Sąlygų reglamentu ES suteikiami įgaliojimai laiku priimti proporcingas finansines priemones savo finansiniams interesams apsaugoti, kai teisinės valstybės principo pažeidimai valstybėje narėje daro poveikį patikimam ES biudžeto finansų valdymui arba kelia didelę tokio poveikio riziką; kadangi šis reglamentas buvo priimtas kaip 2021–2027 m. daugiametės finansinės programos (DFP) dokumentų rinkinio dalis po ilgų ir sudėtingų teisėkūros institucijų derybų, visų pirma dėl kai kurių valstybių narių bandymų derybas dėl DFP susieti su derybomis dėl teisinės valstybės sąlygų mechanizmo; kadangi Sąlygų reglamentas yra privalomas visoms valstybėms narėms nuo jo įsigaliojimo 2021 m. sausio 1 d.;"
+        "targetLabel": "B b konstatuojamoji dalis (nauja)"
       },
       {
         "number": 6,
-        "targetLabel": "Paantraštė (nauja) po 25 dalies",
-        "proposedText": "Pagrindinės grėsmės. Teisinės valstybės principo laikymosi trūkumai"
+        "targetLabel": "Paantraštė (nauja) po 25 dalies"
       }
     ]
   },
@@ -444,23 +388,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "21 a bevezető hivatkozás (új)",
-        "proposedText": "–\ttekintettel a Költségvetési Ellenőrző Bizottság 2025. szeptember 4-én elfogadott és a Parlament Elnökségének benyújtott véleményére az Identitás és Demokrácia képviselőcsoport feloszlatásáról és 2024. évi végleges pénzügyi jelentéséről;\n_________________"
+        "targetLabel": "21 a bevezető hivatkozás (új)"
       },
       {
         "number": 2,
-        "targetLabel": "B a preambulumbekezdés (új)",
-        "proposedText": "Ba.\tmivel az Európai Unió Bírósága számos ítéletében megállapította és megerősítette a jogállamiság tiszteletben tartása és az uniós költségvetés hatékony végrehajtása közötti egyértelmű kapcsolatot, összhangban a hatékony és eredményes pénzgazdálkodás és az EU pénzügyi érdekeinek védelme elveivel;"
+        "targetLabel": "B a preambulumbekezdés (új)"
       },
       {
         "number": 3,
-        "targetLabel": "B b preambulumbekezdés (új)",
-        "proposedText": "Bb.\tmivel a feltételrendszerről szóló rendelet felhatalmazza az EU-t arra, hogy pénzügyi érdekeinek védelme érdekében még időben arányos pénzügyi intézkedéseket fogadjon el, amennyiben a jogállamiság megsértése valamely tagállamban érinti az uniós költségvetés hatékony és eredményes pénzgazdálkodását, illetve ha ennek komoly kockázata áll fenn; mivel a rendeletet a 2021–2027-es időszakra vonatkozó többéves pénzügyi keretről szóló csomag részeként fogadták el, a társjogalkotók közötti hosszú és nehéz tárgyalásokat követően, amelyek különösen egyes tagállamok arra irányuló kísérleteinek tudhatók be, hogy a többéves pénzügyi keretről szóló tárgyalásokat függővé tegyék a jogállamisági feltételrendszerről folytatott tárgyalásoktól; mivel 2021. január 1-jei hatálybalépése óta a feltételrendszerről szóló rendelet minden tagállamra nézve kötelező;"
+        "targetLabel": "B b preambulumbekezdés (új)"
       },
       {
         "number": 6,
-        "targetLabel": "Alcím (új) a 25 bekezdés után",
-        "proposedText": "Fő fenyegetések – jogállamisági hiányosságok"
+        "targetLabel": "Alcím (új) a 25 bekezdés után"
       }
     ]
   },
@@ -475,23 +415,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Kunsiderazzjoni 21a (ġdida)",
-        "proposedText": "–\twara li kkunsidra l-opinjoni tal-Kumitat għall-Kontroll tal-Baġit, adottata fl-4 ta’ Settembru 2025 u ppreżentata lill-Bureau tal-Parlament, dwar ix-xoljiment u r-rapport finanzjarju finali 2024 tal-grupp politiku Identità u Demokrazija;\n_________________"
+        "targetLabel": "Kunsiderazzjoni 21a (ġdida)"
       },
       {
         "number": 2,
-        "targetLabel": "Premessa Ba (ġdida)",
-        "proposedText": "Ba.\tbilli l-Qorti tal-Ġustizzja tal-Unjoni Ewropea stabbiliet u kkonfermat, f’diversi deċiżjonijiet, ir-relazzjoni ċara bejn ir-rispett għall-istat tad-dritt u l-implimentazzjoni effiċjenti tal-baġit tal-UE, f’konformità mal-prinċipji ta’ ġestjoni finanzjarja tajba u l-protezzjoni tal-interessi finanzjarji tal-UE;"
+        "targetLabel": "Premessa Ba (ġdida)"
       },
       {
         "number": 3,
-        "targetLabel": "Premessa Bb (ġdida)",
-        "proposedText": "Bb.\tbilli r-Regolament dwar il-Kundizzjonalità jagħti s-setgħa lill-UE li tadotta, fil-ħin, miżuri finanzjarji proporzjonati biex tissalvagwardja l-interessi finanzjarji tagħha fejn il-ksur tal-istat tad-dritt fi Stat Membru jaffettwa, jew hemm riskju li jaffettwa serjament, il-ġestjoni finanzjarja tajba tal-baġit tal-UE; billi r-regolament ġie adottat bħala parti mill-pakkett dwar il-qafas finanzjarju pluriennali (QFP) 2021-2027, wara negozjati twal u diffiċli bejn il-koleġiżlaturi, b’mod partikolari minħabba tentattivi minn xi Stati Membri biex jorbtu n-negozjati dwar il-QFP man-negozjati dwar il-mekkaniżmu ta’ kundizzjonalità tal-istat tad-dritt; billi r-Regolament dwar il-Kundizzjonalità ilu vinkolanti għall-Istati Membri kollha mid-dħul fis-seħħ tiegħu fl-1 ta’ Jannar 2021;"
+        "targetLabel": "Premessa Bb (ġdida)"
       },
       {
         "number": 6,
-        "targetLabel": "Subintestatura (ġdida) – wara paragrafu 25",
-        "proposedText": "Theddid ewlieni – nuqqasijiet fl-istat tad-dritt"
+        "targetLabel": "Subintestatura (ġdida) – wara paragrafu 25"
       }
     ]
   },
@@ -506,23 +442,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Visum 21 bis (nieuw)",
-        "proposedText": "–\tgezien het advies van de Commissie begrotingscontrole, dat op 4 september 2025 is goedgekeurd en aan het Bureau van het Parlement is voorgelegd, over de ontbinding en het financieel eindverslag 2024 van de Fractie Identiteit en Democratie;\n_________________"
+        "targetLabel": "Visum 21 bis (nieuw)"
       },
       {
         "number": 2,
-        "targetLabel": "Overweging B bis (nieuw)",
-        "proposedText": "B bis.\toverwegende dat het Hof van Justitie van de Europese Unie in verschillende arresten heeft vastgesteld en bevestigd dat er een duidelijk verband bestaat tussen de eerbiediging van de rechtsstaat en de efficiënte uitvoering van de EU-begroting, in overeenstemming met de beginselen van goed financieel beheer en de bescherming van de financiële belangen van de EU;"
+        "targetLabel": "Overweging B bis (nieuw)"
       },
       {
         "number": 3,
-        "targetLabel": "Overweging B ter (nieuw)",
-        "proposedText": "B ter.\toverwegende dat de conditionaliteitsverordening de EU de mogelijkheid geeft om tijdig evenredige financiële maatregelen vast te stellen om haar financiële belangen te beschermen wanneer schendingen van de rechtsstaat in een lidstaat het goed financieel beheer van de EU-begroting aantasten of ernstig dreigen aan te tasten; overwegende dat de verordening werd aangenomen als onderdeel van het pakket voor het meerjarig financieel kader (MFK) 2021-2027, na lange en moeizame onderhandelingen tussen de medewetgevers, met name vanwege pogingen van sommige lidstaten om de onderhandelingen over het MFK te koppelen aan de onderhandelingen over het conditionaliteitsmechanisme voor de rechtsstaat; overwegende dat de conditionaliteitsverordening sinds de inwerkingtreding ervan op 1 januari 2021 voor alle lidstaten bindend is;"
+        "targetLabel": "Overweging B ter (nieuw)"
       },
       {
         "number": 6,
-        "targetLabel": "Kopje (nieuw) – na paragraaf 25",
-        "proposedText": "Voornaamste bedreigingen — tekortkomingen op het gebied van de rechtsstaat"
+        "targetLabel": "Kopje (nieuw) – na paragraaf 25"
       }
     ]
   },
@@ -537,23 +469,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Umocowanie 21 a (nowe)",
-        "proposedText": "–\tuwzględniając opinię Komisji Kontroli Budżetowej, przyjętą 4 września 2025 r. i przedłożoną Prezydium Parlamentu, w sprawie rozwiązania i końcowego sprawozdania finansowego grupy politycznej Tożsamość i Demokracja za 2024 r.,\n_________________"
+        "targetLabel": "Umocowanie 21 a (nowe)"
       },
       {
         "number": 2,
-        "targetLabel": "Motyw B a (nowy)",
-        "proposedText": "Ba.\tmając na uwadze, że Trybunał Sprawiedliwości Unii Europejskiej ustanowił i potwierdził, w różnych orzeczeniach, wyraźny związek między poszanowaniem praworządności a skutecznym wykonywaniem budżetu UE zgodnie z zasadami należytego zarządzania finansami i ochrony interesów finansowych UE;"
+        "targetLabel": "Motyw B a (nowy)"
       },
       {
         "number": 3,
-        "targetLabel": "Motyw B b (nowy)",
-        "proposedText": "Bb.\tmając na uwadze, że rozporządzenie w sprawie warunkowości upoważnia UE do szybkiego przyjęcia proporcjonalnych środków finansowych w celu zabezpieczenia jej interesów finansowych, jeżeli naruszenia zasad państwa prawnego w państwie członkowskim wpływają lub stwarzają poważne ryzyko wpływu na należyte zarządzanie finansami w ramach budżetu Unii; mając na uwadze, że rozporządzenie zostało przyjęte jako część pakietu dotyczącego wieloletnich ram finansowych (WRF) na lata 2021–2027 po długich i trudnych negocjacjach między współprawodawcami, w szczególności z powodu podejmowanych przez niektóre państwa członkowskie prób powiązania negocjacji w sprawie WRF z negocjacjami w sprawie mechanizmu warunkowości w zakresie praworządności; mając na uwadze, że rozporządzenie w sprawie warunkowości jest wiążące dla wszystkich państw członkowskich od momentu wejścia w życie w dniu 1 stycznia 2021 r.;"
+        "targetLabel": "Motyw B b (nowy)"
       },
       {
         "number": 6,
-        "targetLabel": "Śródtytuł (nowy) - po ustępie 25",
-        "proposedText": "Główne zagrożenia – braki w zakresie praworządności"
+        "targetLabel": "Śródtytuł (nowy) - po ustępie 25"
       }
     ]
   },
@@ -568,23 +496,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Citação 21-A (nova)",
-        "proposedText": "–\tTendo em conta o parecer da Comissão do Controlo Orçamental, adotado em 4 de setembro de 2025 e apresentado à Mesa do Parlamento, sobre a dissolução e o relatório financeiro final de 2024 do grupo político Identidade e Democracia;\n_________________"
+        "targetLabel": "Citação 21-A (nova)"
       },
       {
         "number": 2,
-        "targetLabel": "Considerando B-A (novo)",
-        "proposedText": "B-A.\tConsiderando que o Tribunal de Justiça da União Europeia estabeleceu e confirmou, em vários acórdãos, existir uma relação inequívoca entre o respeito do Estado de direito e a execução eficiente do orçamento da UE, em conformidade com os princípios da boa gestão financeira e da proteção dos interesses financeiros da UE;"
+        "targetLabel": "Considerando B-A (novo)"
       },
       {
         "number": 3,
-        "targetLabel": "Considerando B-B (novo)",
-        "proposedText": "B-B.\tConsiderando que o Regulamento Condicionalidade habilita a UE a adotar, em tempo oportuno, medidas financeiras proporcionadas para salvaguardar os seus interesses financeiros sempre que as violações do Estado de direito cometidas num Estado-Membro afetem ou sejam seriamente suscetíveis de afetar a boa gestão financeira do orçamento da UE; que o Regulamento foi adotado no âmbito do pacote relativo ao quadro financeiro plurianual (QFP) para 2021-2027, na sequência de longas e árduas negociações entre os colegisladores, mormente devido às tentativas de alguns Estados-Membros de associar as negociações sobre o QFP às negociações sobre o mecanismo de condicionalidade do Estado de direito; que, desde que entrou em vigor, em 1 de janeiro de 2021, o Regulamento Condicionalidade é vinculativo para todos os Estados-Membros;"
+        "targetLabel": "Considerando B-B (novo)"
       },
       {
         "number": 6,
-        "targetLabel": "Subtítulo (novo) – após o n.º 25",
-        "proposedText": "Principais ameaças — lacunas do Estado de direito"
+        "targetLabel": "Subtítulo (novo) – após o n.º 25"
       }
     ]
   },
@@ -599,23 +523,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Referirea 21 a (nouă)",
-        "proposedText": "–\tavând în vedere avizul Comisiei pentru control bugetar, adoptat la 4 septembrie 2025 și prezentat Biroului Parlamentului, referitor la dizolvarea grupului politic Identitate și democrație și raportul financiar final pe 2024 al acestuia,\n_________________"
+        "targetLabel": "Referirea 21 a (nouă)"
       },
       {
         "number": 2,
-        "targetLabel": "Considerentul Ba (nou)",
-        "proposedText": "Ba.\tîntrucât Curtea de Justiție a Uniunii Europene a statuat și a confirmat, în diferite hotărâri, relația clară dintre respectarea statului de drept și execuția eficientă a bugetului UE, în conformitate cu principiile bunei gestiuni financiare și protecției intereselor financiare ale UE;"
+        "targetLabel": "Considerentul Ba (nou)"
       },
       {
         "number": 3,
-        "targetLabel": "Considerentul Bb (nou)",
-        "proposedText": "Bb.\tîntrucât Regulamentul privind condiționalitatea îi permite UE să adopte, în timp util, măsuri financiare proporționale pentru a-și proteja interesele financiare în cazul în care încălcări ale statului de drept într-un stat membru afectează sau riscă să afecteze grav buna gestiune financiară a bugetului UE; întrucât regulamentul a fost adoptat ca parte a pachetului privind cadrul financiar multianual (CFM) 2021-2027, în urma unor negocieri îndelungate și dificile între colegiuitori, în special din cauza încercărilor unora dintre statele membre de a corela negocierile privind CFM cu negocierile legate de mecanismul de condiționalitate privind statul de drept; întrucât Regulamentul privind condiționalitatea a avut caracter obligatoriu pentru toate statele membre de la intrarea sa în vigoare la 1 ianuarie 2021;"
+        "targetLabel": "Considerentul Bb (nou)"
       },
       {
         "number": 6,
-        "targetLabel": "Subtitlu (nou) – după punctul 25",
-        "proposedText": "Principalele amenințări – deficiențe în ceea ce privește statul de drept"
+        "targetLabel": "Subtitlu (nou) – după punctul 25"
       }
     ]
   },
@@ -630,23 +550,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Citácia 21 a (nová)",
-        "proposedText": "–\tso zreteľom na stanovisko Výboru pre kontrolu rozpočtu prijaté 4. septembra 2025 a predložené Predsedníctvu Európskeho parlamentu k rozpusteniu a záverečnej finančnej správe politickej skupiny Identita a demokracia za rok 2024,\n_________________"
+        "targetLabel": "Citácia 21 a (nová)"
       },
       {
         "number": 2,
-        "targetLabel": "Odôvodnenie B a (nové)",
-        "proposedText": "Ba.\tkeďže Súdny dvor Európskej únie vo viacerých rozsudkoch konštatoval a potvrdil jasný vzťah medzi dodržiavaním zásad právneho štátu a efektívnym plnením rozpočtu EÚ v súlade so zásadami správneho finančného riadenia a ochrany finančných záujmov EÚ;"
+        "targetLabel": "Odôvodnenie B a (nové)"
       },
       {
         "number": 3,
-        "targetLabel": "Odôvodnenie B b (nové)",
-        "proposedText": "Bb.\tkeďže nariadenie o podmienenosti umožňuje EÚ včas prijímať primerané finančné opatrenia na ochranu jej finančných záujmov, ak porušenia zásad právneho štátu v členskom štáte ovplyvňujú správne finančné riadenie rozpočtu EÚ alebo ak existuje závažné riziko takéhoto ovplyvňovania; keďže toto nariadenie bolo prijaté ako súčasť balíka týkajúceho sa viacročného finančného rámca (VFR) na roky 2021 – 2027 po dlhých a náročných rokovaniach medzi spoluzákonodarcami, najmä z dôvodu pokusov niektorých členských štátov prepojiť rokovania o VFR s rokovaniami o mechanizme podmienenosti právnym štátom; keďže nariadenie o podmienenosti je od nadobudnutia účinnosti 1. januára 2021 záväzné pre všetky členské štáty;"
+        "targetLabel": "Odôvodnenie B b (nové)"
       },
       {
         "number": 6,
-        "targetLabel": "Podnadpis (nový) – za odsekom 25",
-        "proposedText": "Hlavné hrozby – nedostatky v oblasti právneho štátu"
+        "targetLabel": "Podnadpis (nový) – za odsekom 25"
       }
     ]
   },
@@ -661,23 +577,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Navedba sklicevanja 21 a (novo)",
-        "proposedText": "–\tob upoštevanju mnenja Odbora za proračunski nadzor, sprejetega 4. septembra 2025 in predloženega predsedstvu Parlamenta, o razpustitvi in končnem finančnem poročilu politične skupine Identiteta in demokracija za leto 2024;\n_________________"
+        "targetLabel": "Navedba sklicevanja 21 a (novo)"
       },
       {
         "number": 2,
-        "targetLabel": "Uvodna izjava B a (novo)",
-        "proposedText": "Ba.\tker je Sodišče Evropske unije v različnih sodbah vzpostavilo in potrdilo jasno povezavo med spoštovanjem pravne države in učinkovitim izvrševanjem proračuna EU v skladu z načeli dobrega finančnega poslovodenja in zaščite finančnih interesov EU;"
+        "targetLabel": "Uvodna izjava B a (novo)"
       },
       {
         "number": 3,
-        "targetLabel": "Uvodna izjava B b (novo)",
-        "proposedText": "Bb.\tker je v skladu z uredbo o pogojenosti EU pooblaščena, da pravočasno sprejme sorazmerne finančne ukrepe za zaščito svojih finančnih interesov, kadar kršitve načel pravne države v državi članici vplivajo na dobro finančno poslovodenje proračuna EU ali obstaja resno tveganje, da bodo vplivale nanj; ker je bila uredba sprejeta kot del svežnja o večletnem finančnem okviru za obdobje 2021–2027 po dolgih in težavnih pogajanjih med sozakonodajalcema, zlasti zaradi poskusov nekaterih držav članic, da bi pogajanja o večletnem finančnem okviru povezale s pogajanji o mehanizmu pogojevanja s pravno državo; ker je uredba o pogojenosti od začetka veljavnosti 1. januarja 2021 zavezujoča za vse države članice;"
+        "targetLabel": "Uvodna izjava B b (novo)"
       },
       {
         "number": 6,
-        "targetLabel": "Podnaslov (novo) – po odstavku 25",
-        "proposedText": "Glavne grožnje – pomanjkljivosti na področju pravne države"
+        "targetLabel": "Podnaslov (novo) – po odstavku 25"
       }
     ]
   },
@@ -692,23 +604,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Johdanto-osan 21 a viite (uusi)",
-        "proposedText": "–\tottaa huomioon 4. syyskuuta 2025 hyväksytyn ja parlamentin puhemiehistölle toimitetun talousarvion valvontavaliokunnan lausunnon Identiteetti ja demokratia -ryhmän purkamisesta ja vuoden 2024 lopullisesta rahoituskertomuksesta,\n_________________"
+        "targetLabel": "Johdanto-osan 21 a viite (uusi)"
       },
       {
         "number": 2,
-        "targetLabel": "Johdanto-osan B a kappale (uusi)",
-        "proposedText": "B a.\tottaa huomioon, että Euroopan unionin tuomioistuin on useissa päätöksissään todennut ja vahvistanut, että oikeusvaltioperiaatteen kunnioittamisen ja EU:n talousarvion tehokkaan toteuttamisen välillä on selkeä yhteys moitteettoman varainhoidon periaatteiden ja EU:n taloudellisten etujen suojaamisen mukaisesti;"
+        "targetLabel": "Johdanto-osan B a kappale (uusi)"
       },
       {
         "number": 3,
-        "targetLabel": "Johdanto-osan B b kappale (uusi)",
-        "proposedText": "B b.\tottaa huomioon, että ehdollisuusasetuksessa EU:lle annetaan valtuudet toteuttaa oikea-aikaisesti oikeasuhteisia taloudellisia toimenpiteitä taloudellisten etujensa suojaamiseksi, jos oikeusvaltioperiaatteen rikkominen jäsenvaltiossa vaikuttaa tai uhkaa vakavasti vaikuttaa EU:n talousarvion moitteettomaan varainhoitoon; ottaa huomioon, että ehdollisuusasetus hyväksyttiin osana vuosien 2021–2027 monivuotista rahoituskehystä koskevaa pakettia ja että neuvottelut lainsäätäjien välillä olivat pitkät ja vaikeat erityisesti siksi, että jotkin jäsenvaltiot pyrkivät yhdistämään monivuotista rahoituskehystä koskevat neuvottelut oikeusvaltioperiaatetta koskevasta ehdollisuusmekanismista käytäviin neuvotteluihin; ottaa huomioon, että ehdollisuusasetus tuli voimaan 1. tammikuuta 2021 ja se on siitä lähtien sitonut kaikkia jäsenvaltioita;"
+        "targetLabel": "Johdanto-osan B b kappale (uusi)"
       },
       {
         "number": 6,
-        "targetLabel": "Alaotsikko (uusi) – 25 kohdan jälkeen",
-        "proposedText": "Suurimmat uhat – oikeusvaltioperiaatteen puutteet"
+        "targetLabel": "Alaotsikko (uusi) – 25 kohdan jälkeen"
       }
     ]
   },
@@ -723,23 +631,19 @@
     "examples": [
       {
         "number": 1,
-        "targetLabel": "Beaktandeled 21a (nytt)",
-        "proposedText": "–\tmed beaktande av yttrandet från budgetkontrollutskottet som antogs den 4 september 2025 och överlämnades till parlamentets presidium om upplösningen av och den slutliga finansiella rapporten 2024 för den politiska gruppen Identitet och demokrati,\n_________________"
+        "targetLabel": "Beaktandeled 21a (nytt)"
       },
       {
         "number": 2,
-        "targetLabel": "Skäl Ba (nytt)",
-        "proposedText": "Ba.\tEuropeiska unionens domstol har i flera domar fastställt och bekräftat det klara sambandet mellan respekten för rättsstatsprincipen och ett effektivt genomförande av EU:s budget, i enlighet med principerna om sund ekonomisk förvaltning och skyddet av EU:s ekonomiska intressen."
+        "targetLabel": "Skäl Ba (nytt)"
       },
       {
         "number": 3,
-        "targetLabel": "Skäl Bb (nytt)",
-        "proposedText": "Bb.\tVillkorlighetsförordningen ger EU befogenhet att i god tid vidta proportionella finansiella åtgärder för att skydda sina ekonomiska intressen när överträdelser av rättsstatsprincipen i en medlemsstat påverkar, eller allvarligt riskerar att påverka, en sund ekonomisk förvaltning av EU:s budget. Förordningen antogs som en del av paketet om den fleråriga budgetramen 2021–2027, efter långa och svåra förhandlingar mellan medlagstiftarna, särskilt på grund av försök från vissa medlemsstater att koppla förhandlingarna om den fleråriga budgetramen till förhandlingarna om villkorlighetsmekanismen för rättsstatsprincipen. Villkorlighetsförordningen har varit bindande för alla medlemsstater sedan den trädde i kraft den 1 januari 2021."
+        "targetLabel": "Skäl Bb (nytt)"
       },
       {
         "number": 6,
-        "targetLabel": "Underrubrik (ny) – efter punkt 25",
-        "proposedText": "Huvudsakliga hot – brister inom ramen för rättsstatsprincipen"
+        "targetLabel": "Underrubrik (ny) – efter punkt 25"
       }
     ]
   }
