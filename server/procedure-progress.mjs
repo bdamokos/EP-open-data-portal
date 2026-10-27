@@ -1,9 +1,10 @@
 import {HttpError} from './http-utils.mjs';
 import {odpLanguage} from './odp.mjs';
-import {procedureReference} from './official-context.mjs';
+import {procedureReference,parseProcedureProgressPage} from './official-context.mjs';
+import {createHash} from 'node:crypto';
 import {eurLexUrl} from './legal-reference-text.mjs';
 
-export const PROCEDURE_PROGRESS_VERSION=1;
+export const PROCEDURE_PROGRESS_VERSION=2;
 export const PROGRESS_LIMITS=Object.freeze({events:300,eventRows:1201,documentRows:2401,freshMs:3600_000});
 const endpoint='https://publications.europa.eu/webapi/rdf/sparql';
 const cellar='http://publications.europa.eu/resource/cellar/';
@@ -143,7 +144,26 @@ export class ProcedureProgress {
     const url=new URL(endpoint);url.searchParams.set('query',progressSparql(query));url.searchParams.set('format','application/sparql-results+json');
     const parse=query.detail==='documents'?parseProgressDocuments:parseProgress;
     const source=await this.sources.get(url.href,{freshMs:PROGRESS_LIMITS.freshMs,validate:record=>parse(record.data,query)});
-    const parsed=parse(source.data,query);
-    return {view:'procedure-progress',version:PROCEDURE_PROGRESS_VERSION,reference:query.reference,language:query.language,detail:query.detail,...parsed,source:{name:'EU Publications Office',url:source.url,fetchedAt:source.fetchedAt,stale:Boolean(source.viewCache?.stale),refreshInProgress:Boolean(source.viewCache?.refreshInProgress),refreshError:source.viewCache?.refreshError||null}};
+    const parsed=parse(source.data,query),cellarSource=progressSource(source,'EU Publications Office');
+    const result={view:'procedure-progress',version:PROCEDURE_PROGRESS_VERSION,reference:query.reference,language:query.language,detail:query.detail,...parsed,basis:'cellar',status:null,source:cellarSource,sources:[cellarSource]};
+    // Never hide conflicting Cellar identities or replace its institutional
+    // timeline. OEIL fallback is an independently verified exact procedure.
+    if(query.detail==='documents'||parsed.state==='ambiguous'||parsed.events.length)return result;
+    const language=query.language==='fr'?'fr':'en',page='https://oeil.europarl.europa.eu/oeil/'+language+'/procedure-file?'+new URLSearchParams({reference:query.reference});
+    try {
+      const validate=record=>parseProcedureProgressPage(record.html,query.reference,language,{limit:PROGRESS_LIMITS.events});
+      const record=await this.sources.get(page,{freshMs:PROGRESS_LIMITS.freshMs,validate}),oeil=validate(record),oeilSource=progressSource(record,'European Parliament Legislative Observatory');
+      const events=oeil.events.map((event,sequence)=>({sequence,id:'oeil:'+createHash('sha256').update(JSON.stringify([query.reference,event.printedDate,event.label])).digest('hex'),date:event.date,dates:event.date?[event.date]:[],types:[],statuses:[],status:'recorded',institutions:[],works:[],label:event.label,labelLanguage:event.language,milestone:true,issues:event.issues}));
+      const coverage={...oeil.coverage,limited:oeil.coverage.limited||parsed.coverage.limited,invalidRows:oeil.coverage.invalidRows+parsed.coverage.invalidRows,incompleteEvents:oeil.coverage.incompleteEvents+parsed.coverage.incompleteEvents};
+      return {...result,state:oeil.status||events.length?'mapped':parsed.state,basis:'oeil',status:oeil.status,events,coverage,source:oeilSource,sources:[cellarSource,oeilSource],cellar:{state:parsed.state,dossier:parsed.dossier,coverage:parsed.coverage}};
+    }catch(error){
+      // Cancellation belongs to the caller; a failed fallback remains a gap,
+      // with the verified Cellar observation and its retrieval date intact.
+      if(error?.name==='AbortError'||error?.name==='TimeoutError'||error?.code==='request_cancelled')throw error;
+      return {...result,fallback:{status:'unavailable',url:page,language,error:error.message,retryAt:error.retryAt||null}};
+    }
   }
+}
+function progressSource(source,name) {
+  return {name,url:source.url,fetchedAt:source.fetchedAt,stale:Boolean(source.viewCache?.stale),refreshInProgress:Boolean(source.viewCache?.refreshInProgress),refreshError:source.viewCache?.refreshError||null};
 }

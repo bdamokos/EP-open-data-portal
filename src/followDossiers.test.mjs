@@ -50,6 +50,12 @@ test('progress compares exact identities and status/date codes, never labels; ca
   h.store.observeProgress(id,progress('2026-10-23T09:02:00Z',[event('b',undefined,'projected')]),h.expected());assert.equal(h.item().entries.length,3);
   const baseline=structuredClone(h.item().observations.progress);h.store.observeProgress(id,progress('2026-10-23T09:06:00Z',[],{state:'unmapped'}),h.expected());assert.deepEqual(h.item().observations.progress,baseline);
 });
+test('OEIL observation keys cannot replace a Cellar Following baseline or announce label edits as new events',()=>{
+  const h=setup();h.store.observeProgress(id,progress('2026-10-23T09:00:00Z',[event('cellar:a')]),h.expected());
+  const baseline=structuredClone(h.item().observations.progress);
+  h.store.observeProgress(id,progress('2026-10-23T09:01:00Z',[event('oeil:label-derived')],{basis:'oeil'}),h.expected());
+  assert.deepEqual(h.item().observations.progress,baseline);assert.equal(h.item().entries.length,0);assert(h.item().gaps.progress);
+});
 test('press catch-up is independent of OEIL failures, latest-five previews and old publication dates',()=>{
   const h=setup();h.store.observePress(id,press(10),h.expected());assert.equal(h.item().entries.length,0);
   const releases=Array.from({length:8},(_,i)=>({id:'release-'+i,linkedAt:11+i,publishedAt:'2020-01-01',title:'Press '+i,url:'https://www.europarl.europa.eu/news/en/press-room/example'}));

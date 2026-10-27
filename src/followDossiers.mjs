@@ -59,7 +59,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
       });return true;
     },
     observeProgress(id,data,expected) {return observation(id,expected,'progress',(item,old)=>{
-      if(data?.reference!==id||data.state!=='mapped'||data.coverage?.limited||data.coverage?.invalidRows||!freshSource(data.source)||!Array.isArray(data.events)||data.events.some(event=>event.issues?.some(issue=>['date','status','type'].includes(issue))))return null;
+      if(data?.reference!==id||data.basis==='oeil'||data.state!=='mapped'||data.coverage?.limited||data.coverage?.invalidRows||!freshSource(data.source)||!Array.isArray(data.events)||data.events.some(event=>event.issues?.some(issue=>['date','status','type'].includes(issue))))return null;
       const fetched=at(data.source.fetchedAt);if(old&&fetched<=old.at)return {ignore:true};
       const known={...old?.known},entries=[];
       for(const event of data.events) {

@@ -127,6 +127,40 @@ export function parseProcedurePage(html,reference,language='en') {
   const documents=[...new Set(all.filter(node=>node.tag==='a').map(node=>doceoDocument(String(node.attrs?.['@_href']||''))).filter(Boolean))];
   return {reference,title,language,subjects,summaries:[...summaries.values()],documents};
 }
+
+// OEIL's key-events table is separate from its document/summary tables. Read
+// only this explicitly labelled section after verifying the printed reference.
+export function parseProcedureProgressPage(html,reference,language='en',{limit=300}={}) {
+  procedureReference(reference);
+  const all=nodes(mainTree(html)),heading=all.find(node=>classHas(node,'es_title-h1'));
+  if(!heading||text(heading)!==reference)throw new HttpError(502,'procedure_identity','The source does not match this procedure.');
+  const printedLanguage=html.match(/<html\b[^>]*\blang=["'](en|fr)["']/i)?.[1];
+  language=printedLanguage||language;
+  const sections=all.filter(node=>node.tag==='div'&&classHas(node,'oeil-spy-section'));
+  const section=sections.find(node=>nodes(node).some(child=>child.tag==='h2'&&/^(Key events|[ÉE]v[ée]nements cl[ée]s)$/i.test(text(child))));
+  const basic=sections.find(node=>nodes(node).some(child=>child.tag==='h2'&&/^(Basic information|Informations de base)$/i.test(text(child))));
+  const statuses=new Set();
+  for(const node of basic?nodes(basic):[]) {
+    const children=(node.children||[]).filter(child=>child.tag!=='#text'),index=children.findIndex(child=>child.tag==='p'&&/^(Status|[ÉE]tat|Statut)$/i.test(text(child)));
+    if(index>=0&&children[index+1]?.tag==='p'&&text(children[index+1]))statuses.add(text(children[index+1]));
+  }
+  const tables=section?nodes(section).filter(node=>node.tag==='table'):[];
+  const table=tables.length===1?tables[0]:null,headers=table?nodes(table).filter(node=>node.tag==='th').map(text):[];
+  const readable=Boolean(table&&headers[0]==='Date'&&/^(Event|[ÉE]v[ée]nement)$/.test(headers[1]||''));
+  const rows=readable?nodes(table).filter(node=>node.tag==='tr'&&node.children.some(child=>child.tag==='td')):[];
+  const coverage={limited:rows.length>limit,invalidRows:statuses.size>1?1:0,incompleteEvents:0,timeline:readable?'available':'unavailable',status:statuses.size===1?'available':statuses.size?'ambiguous':'unavailable'};
+  const events=rows.slice(0,limit).map(row=>{
+    const cells=row.children.filter(node=>node.tag==='td'),printedDate=cells[0]?text(cells[0]):'',label=cells[1]?text(cells[1]):'';
+    const date=/^\d{2}\/\d{2}\/\d{4}$/.test(printedDate)?visibleDate(printedDate):null;
+    const issues=[...(!date?['date']:[]),...(!label||label.length>1200?['label']:[])];
+    if(cells.length!==4)coverage.invalidRows++;
+    if(issues.length)coverage.incompleteEvents++;
+    // The source supplies no event identifier or per-event status. Retain its
+    // printed date/label; a future date never establishes a completed action.
+    return {date,printedDate,label:label&&label.length<=1200?label:null,language,issues};
+  });
+  return {reference,language,status:statuses.size===1?{label:[...statuses][0],language}:null,events,coverage};
+}
 export function parseSummaryPage(html,reference) {
   const root=mainTree(html),all=nodes(root),subtitle=all.find(node=>classHas(node,'es_product-subtitle')),body=all.find(node=>classHas(node,'es_product-content'));
   if(!subtitle||!text(subtitle).startsWith(reference+' '))throw new HttpError(502,'summary_identity','The summary does not match this procedure.');

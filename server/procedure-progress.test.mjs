@@ -5,6 +5,7 @@ import {OfficialContextSources} from './official-context.mjs';
 import {ProcedureProgress,PROGRESS_LIMITS,procedureProgressQuery,progressSparql,parseProgress,parseProgressDocuments,readableDocumentUrl} from './procedure-progress.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {createInsights} from './insights.mjs';
+import {parseProcedureProgressPage} from './official-context.mjs';
 
 const dossier='http://publications.europa.eu/resource/cellar/9d07a799-630b-11f0-bf4e-01aa75ed71a1';
 const work='http://publications.europa.eu/resource/cellar/e0649735-a372-11eb-9585-01aa75ed71a1';
@@ -39,9 +40,75 @@ test('the actual insight dispatcher admits the independent finite route without 
   let calls=0;
   const service=createInsights(new Proxy({},{get(){throw new Error('Progress must not read the index');}}),{officialSources:{get:async(url,options)=>{calls++;assert.equal(new URL(url).hostname,'publications.europa.eu');assert.equal(options.freshMs,3600_000);return {url,fetchedAt:'2026-10-20T10:00:00Z',data:data([mapping,row()])};}}});
   const response=await service.query('procedure-progress',new URLSearchParams({reference:query.reference,lang:'en'}));
-  assert.equal(response.version,1);assert.equal(response.events.length,1);assert.equal(calls,1);
+  assert.equal(response.version,2);assert.equal(response.events.length,1);assert.equal(calls,1);
   for(const suffix of ['&reference=2025%2F0223(COD)','&detail=','&detail=all','&unknown=x'])await assert.rejects(service.query('procedure-progress',new URLSearchParams('reference=2025%2F0223(COD)'+suffix)),{status:400});
   assert.equal(calls,1,'invalid semantic queries never reach the source');
+});
+
+const rsp={reference:'2026/2937(RSP)',language:'en',detail:'events'};
+const oeilHtml=readFileSync(new URL('./fixtures/oeil-procedure-2026-2937-progress.html',import.meta.url),'utf8');
+test('exact public OEIL key events recover a non-legislative procedure without inventing a Cellar mapping',async()=>{
+  const calls=[],sources={get:async(url,options)=>{
+    calls.push(url);const record={url,fetchedAt:'2026-10-27T12:10:00Z',...(url.includes('/sparql')?{data:data([])}:{html:oeilHtml})};options.validate(record);return record;
+  }};
+  const result=await new ProcedureProgress(sources).query(rsp);
+  assert.equal(result.state,'mapped');assert.equal(result.dossier,null);assert.equal(result.basis,'oeil');
+  assert.equal(result.cellar.state,'unmapped');assert.equal(result.status.label,'Procedure completed');
+  assert.deepEqual(result.events.map(e=>[e.date,e.label]),[['2026-10-20','Debate in Parliament'],['2026-10-20','End of procedure in Parliament']]);
+  assert(result.events.every(e=>e.labelLanguage==='en'&&e.works.length===0));
+  assert.equal(result.sources.length,2);assert.equal(result.source.fetchedAt,'2026-10-27T12:10:00Z');
+  assert.equal(new URL(calls[1]).searchParams.get('reference'),rsp.reference);
+  const repeat=await new ProcedureProgress(sources).query({...rsp,language:'hu'});
+  assert.deepEqual(repeat.events.map(e=>e.id),result.events.map(e=>e.id));assert.equal(repeat.events[0].labelLanguage,'en');
+  await new ProcedureProgress(sources).query({...rsp,detail:'documents'});
+  assert.equal(calls.length,5,'documents remain an independent Cellar-only lazy read');
+});
+test('OEIL parser isolates the key-events table and retains missing, capped and future observations',()=>{
+  const parsed=parseProcedureProgressPage(oeilHtml,rsp.reference);
+  assert.equal(parsed.events.length,2);assert.equal(parsed.coverage.timeline,'available');
+  assert.throws(()=>parseProcedureProgressPage(oeilHtml,'2026/2937B(RSP)'),{code:'procedure_identity'});
+  const missing=parseProcedureProgressPage(oeilHtml.replaceAll('Key events','Other documents'),rsp.reference);
+  assert.equal(missing.events.length,0);assert.equal(missing.coverage.timeline,'unavailable');assert.equal(missing.status.label,'Procedure completed');
+  const malformed=parseProcedureProgressPage(oeilHtml.replace('20/10/2026','31/02/2026'),rsp.reference);
+  assert.equal(malformed.events[0].date,null);assert.deepEqual(malformed.events[0].issues,['date']);
+  assert.equal(malformed.coverage.incompleteEvents,1);
+  const capped=parseProcedureProgressPage(oeilHtml,rsp.reference,'en',{limit:1});assert.equal(capped.events.length,1);assert.equal(capped.coverage.limited,true);
+  const future=parseProcedureProgressPage(oeilHtml.replaceAll('20/10/2026','20/10/2099'),rsp.reference);assert.equal(future.events[0].date,'2099-10-20');
+  const french=readFileSync(new URL('./fixtures/oeil-procedure-2026-2937-progress-fr.html',import.meta.url),'utf8');
+  const fr=parseProcedureProgressPage(french,rsp.reference,'fr');assert.equal(fr.status.label,'Procédure terminée');assert.equal(fr.events[1].label,'Fin de la procédure au Parlement');assert.equal(fr.events[1].language,'fr');
+  assert.equal(parseProcedureProgressPage(oeilHtml,rsp.reference,'fr').language,'en','printed source language survives a website language fallback');
+  const conflict=parseProcedureProgressPage(oeilHtml.replace('<p class="text-danger">Procedure completed</p>','<p class="text-danger">Procedure completed</p></div><div><p>Status</p><p>Awaiting decision</p>'),rsp.reference);
+  assert.equal(conflict.status,null);assert.equal(conflict.coverage.status,'ambiguous');
+});
+test('OEIL cannot hide ambiguous Cellar identity, replace institutional events or substitute a different reference',async()=>{
+  for(const rows of [[mapping,{...mapping,dossier:u(work)}],[mapping,row()]]){
+    let calls=0;const result=await new ProcedureProgress({get:async url=>{calls++;assert(url.includes('/sparql'));return {url,fetchedAt:'2026-10-27T12:10:00Z',data:data(rows)};}}).query(query);
+    assert.equal(calls,1);assert.equal(result.basis,'cellar');
+  }
+  const result=await new ProcedureProgress({get:async(url,options)=>{
+    const record={url,fetchedAt:'2026-10-27T12:10:00Z',...(url.includes('/sparql')?{data:data([])}:{html:oeilHtml})};options.validate(record);return record;
+  }}).query({...rsp,reference:'2026/2937B(RSP)'});
+  assert.equal(result.state,'unmapped');assert.equal(result.fallback.status,'unavailable');assert.equal(result.events.length,0);
+});
+test('OEIL stale refresh settles to updated events and malformed refreshes preserve the last-good exact page',async()=>{
+  let now=Date.parse('2026-10-27T12:10:00Z'),html=oeilHtml;
+  const sources=new OfficialContextSources({directory:null,clock:()=>now,run:operation=>operation(),fetchSource:async url=>url.includes('/sparql')?Response.json(data([])):new Response(html,{headers:{'content-type':'text/html'}})});
+  const service=new ProcedureProgress(sources),initial=await service.query(rsp);
+  now+=PROGRESS_LIMITS.freshMs+1;html=oeilHtml.replace('Debate in Parliament','Debate concluded in Parliament');
+  const stale=await service.query(rsp);assert(stale.source.refreshInProgress);assert.equal(stale.events[0].label,initial.events[0].label);
+  await Promise.allSettled([...sources.cache.pending.values()]);
+  const settled=await service.query(rsp);assert.equal(settled.source.stale,false);assert.equal(settled.source.refreshInProgress,false);assert.match(settled.events[0].label,/concluded/);
+  now+=PROGRESS_LIMITS.freshMs+1;html=oeilHtml.replaceAll(rsp.reference,'2026/2937B(RSP)');
+  await service.query(rsp);await Promise.allSettled([...sources.cache.pending.values()]);
+  const failed=await service.query(rsp);assert(failed.source.refreshError);assert.deepEqual(failed.events,settled.events);assert.equal(failed.source.fetchedAt,settled.source.fetchedAt);
+});
+test('OEIL admission failures retain backoff and unavailable status without asserting zero activity',async()=>{
+  const result=await new ProcedureProgress({get:async url=>{
+    if(url.includes('/sparql'))return {url,fetchedAt:'2026-10-27T12:10:00Z',data:data([])};
+    throw Object.assign(new Error('Busy'),{code:'upstream_busy',retryAt:123456});
+  }}).query(rsp);
+  assert.equal(result.state,'unmapped');assert.equal(result.fallback.status,'unavailable');assert.equal(result.fallback.retryAt,123456);
+  assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/procedure-progress'),result).cdnCacheControl,'no-store');
 });
 test('duplicate institution and label rows remain one exact event; scheduled is never completed',()=>{
   const projected=row('0002',{date:l('2020-01-01'),status:u('http://publications.europa.eu/resource/authority/event-status/PROJECTED')});
