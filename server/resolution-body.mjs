@@ -110,7 +110,7 @@ export const resolutionSectionHeading=(value,language='en')=>resolutionHeading(v
 const sectionEnd=(value,language)=>resolutionSectionHeading(value,language)
   || sectionEnds[language]?.some(heading=>{
     const key=headingKey(value),end=headingKey(heading);
-    return key===end || key.startsWith(end)&&/^(?:\s+[IVXLCDM\d]+)?\s*[:.–—-]/iu.test(key.slice(end.length));
+    return key===end || key.startsWith(end)&&/^(?:\s+[IVXLCDM\d]+)?(?:\s*[:.–—-]|$)/iu.test(key.slice(end.length));
   })
   || language==='en'&&/^(?:JUSTIFICATION|INFORMATION ON ADOPTION(?:\s.*)?|FINAL VOTE BY ROLL CALL(?:\s.*)?)$/u.test(value);
 export function motionBodySelection(paragraphs,language) {

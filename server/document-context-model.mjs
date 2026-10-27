@@ -1,3 +1,4 @@
+import {relativeResolutionHeading} from './resolution-labels.mjs';
 import {comparisonHeading} from './amendment-baseline.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
@@ -323,7 +324,7 @@ function motionStructure(text, language) {
       close(index - 1, true);
       // Incomplete labels still prevent a complete duplicate from claiming identity.
       if (row.source.container === 'body') {
-        const match = /^([1-9]\d{0,5}\s*[a-z]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
+        const match = /^([1-9]\d{0,5}\s*[\p{Ll}]{0,3}|[\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
         if (match) incompleteLabels.add(match[1].replace(/\s/g, ''));
       }
       continue;
@@ -339,7 +340,7 @@ function motionStructure(text, language) {
     const heading = formats[index]?.heading;
     const recordedHeading = Number.isInteger(heading) && heading >= 1 && heading <= 6;
     let kind, label, level = 1;
-    let match = /^([1-9]\d{0,5}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
+    let match = /^([1-9]\d{0,5}\s*[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
     if (match) {kind = 'paragraph'; label = match[1].replace(/\s/g, ''); provisionsStarted = true;}
     else if ((match = /^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
     else if ((match = /^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
@@ -358,7 +359,7 @@ function motionStructure(text, language) {
       const next = rows[index + 1];
       const certain = resolutionSubheading(row.value, formats[index]) && next?.complete
         && next.source.container === 'body' && consecutive(row, next)
-        && /^[1-9]\d{0,5}\s*[a-z]{0,3}[.)]\s+/u.test(next.normal);
+        && /^[1-9]\d{0,5}\s*[\p{Ll}]{0,3}[.)]\s+/u.test(next.normal);
       if (certain) certainHeadings.add(index);
       else for (const unit of stack) if (unit.kind !== 'heading') uncertain.add(unit.start);
       close(index - 1);
@@ -394,8 +395,8 @@ export function placementReference(value, language = 'en', proposedText = '') {
   const first = typeof value === 'string' ? value.split(/[\r\n]/)[0] : '';
   let text = whitespace(first);
   // These are published resolution forms, separate from legislative paths.
-  const subheading = language === 'en' && /^Subheading \(new\)\s*(?:[–—-]\s*)?after paragraph (\d+)$/iu.exec(text);
-  if (subheading) return {kind: 'paragraph', label: subheading[1], base: subheading[1], suffix: '', after: true, isNew: true, parents: []};
+  const subheading = relativeResolutionHeading(text,language);
+  if (subheading) return subheading;
   if (language === 'en') text = text.replace(/^§\s*/u, 'Paragraph ').replace(/^Paragraph(?=\d)/iu, 'Paragraph ')
     .replace(/^Rectial\b/u, 'Recital').replace(/^Paragraph (\d+) \(([a-z]+)\) ([a-z]) (\(new\))$/u, 'Paragraph $1 – point $2 $3 $4');
   if (language === 'en') text = text.replace(/^(Paragraph\s+\d+\s*[a-z]{0,3})\s*,?\s+point\s+\(?([a-z]{1,4})\)?$/iu, '$1 – point $2');
@@ -421,7 +422,7 @@ export function placementReference(value, language = 'en', proposedText = '') {
     return {...segment, kind, label: segment.value};
   });
   const last = segments.at(-1);
-  if (!['paragraph', 'recital', 'point'].includes(last.kind) || segments.slice(0,-1).some(s => !['paragraph','point'].includes(s.kind))) return null;
+  if (!['paragraph', 'recital', 'point', 'citation'].includes(last.kind) || segments.slice(0,-1).some(s => !['paragraph','point'].includes(s.kind))) return null;
   const parents = segments.slice(0,-1).map(({kind,label}) => ({kind,label}));
   if (last.kind === 'point' && parents[0]?.kind !== 'paragraph') return null;
   return {kind: last.kind, label: last.value, base: last.base ?? (last.number != null ? String(last.number) : last.suffix ? last.value.slice(0,-last.suffix.length) : last.value), suffix: last.suffix, isNew: last.isNew,
@@ -494,8 +495,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     }
     const rank = suffix => {
       const latin = ['bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
-      if (options.language === 'fr' && (!suffix || latin.includes(suffix))) return suffix ? latin.indexOf(suffix) + 1 : 0;
-      return /^[a-z]{0,3}$/u.test(suffix) ? suffix : null;
+      if (!suffix || latin.includes(suffix)) return suffix ? latin.indexOf(suffix) + 1 : 0;
+      return /^[\p{Ll}]{0,3}$/u.test(suffix) ? suffix : null;
     };
     const siblings = units.filter(unit => unit.kind === ref.kind && parentMatches(unit, ref)
       && (unit.label === ref.base || !ref.after && unit.label.startsWith(ref.base) && rank(unit.label.slice(ref.base.length)) !== null && rank(unit.label.slice(ref.base.length)) < rank(ref.suffix)));

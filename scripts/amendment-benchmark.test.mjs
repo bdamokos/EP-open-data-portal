@@ -434,3 +434,17 @@ test('proposal oracle rejects an implicit paragraph extent swallowing a publishe
   assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
   assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
 });
+
+test('independent raw oracle recognizes the 24 public opening and annex vocabularies',async()=>{
+  const {rawResolutionUnits}=await import('./amendment-benchmark-resolution-oracle.mjs');
+  const {readFile}=await import('node:fs/promises');
+  const fixtures=JSON.parse(await readFile(new URL('../server/fixtures/resolution-end-headings.json',import.meta.url),'utf8'));
+  for(const row of fixtures) {
+    const paragraphs=[row.opening+',','– Source citation,','1. Source provision;',row.titledAnnex,'9. Annex provision;'];
+    const text={paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+    const raw=rawResolutionUnits(text,row.language);
+    assert(!raw.reason,row.language);assert.equal(raw.units.filter(u=>u.kind==='paragraph').length,1,row.language);
+    assert.equal(raw.units.find(u=>u.kind==='paragraph'&&u.label==='1').end,2,row.language);
+    assert.equal(raw.units.find(u=>u.kind==='paragraph'&&u.label==='1').complete,true,row.language);
+  }
+});

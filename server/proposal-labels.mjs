@@ -78,6 +78,7 @@ const selectors={
   sv:["inledningen", "rubriken"],
 };
 const subparagraphWords={"bg": "алинея", "es": "párrafo", "cs": "pododstavec", "da": "afsnit", "de": "Unterabsatz", "et": "lõik", "el": "εδάφιο", "en": "subparagraph", "fr": "alinéa", "ga": "fomhír", "hr": "podstavak", "it": "comma", "lv": "daļa", "lt": "pastraipa|pastraipos", "hu": "albekezdés", "mt": "subparagrafu", "nl": "alinea", "pl": "akapit", "pt": "parágrafo", "ro": "paragraful", "sk": "pododsek", "sl": "pododstavek", "fi": "alakohta", "sv": "stycke"};
+const citationWords={"bg": "Позоваване", "es": "Visto", "cs": "Právní východisko", "da": "Henvisning", "de": "Bezugsvermerk", "et": "Volitus", "el": "Αιτιολογική αναφορά", "en": "Citation", "fr": "Visa", "ga": "Lua", "hr": "Pozivanje", "it": "Visto", "lv": "norāde", "lt": "nurodomoji dalis", "hu": "bevezető hivatkozás", "mt": "Kunsiderazzjoni", "nl": "Visum", "pl": "Umocowanie", "pt": "Citação", "ro": "Referirea", "sk": "Citácia", "sl": "Navedba sklicevanja", "fi": "Johdanto-osan viite", "sv": "Beaktandeled"};
 const reverseOrder=new Set(['fi','hu','lt','lv']);
 const grammars=new Map();
 const qualifiers=new Map();
@@ -86,6 +87,7 @@ function grammar(language) {
   const row=rows[language],words=Object.fromEntries(kinds.map((kind,i)=>[kind,row[i]]));
   Object.assign(words,extra[language]??{chapter:chapterWords[language],section:sectionWords[language],title:titleWords[language]});
   words.subparagraph=subparagraphWords[language];
+  words.citation=citationWords[language];
   if(language==='sv')words.recommendation='rekommendation';
   if(language==='en'){words.subheading='subheading';words.citation='Citation';}
   const out=Object.entries(words).map(([kind,terms])=>{
@@ -101,6 +103,8 @@ export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
   // EP separates an inserted suffix from its alphabetic/Roman base; source
   // point labels also publish compact forms such as Croatian "ba".
+  const latinSuffix=text.match(/^([\p{Lu}]{1,3})\s*(bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)$/u);
+  if(latinSuffix)return {value:latinSuffix[1]+latinSuffix[2],number:null,base:latinSuffix[1],suffix:latinSuffix[2]};
   const spaced=text.match(/^([\p{Lu}]{1,3}|[a-z]{1,8})\s+([\p{Ll}]{1,2})$/u);
   if(spaced)return {value:spaced[1]+spaced[2],number:null,base:spaced[1],suffix:spaced[2]};
   const romanSuffix=text.match(/^([IVXLCDM]+)\s*([a-z]{1,2})$/u);
@@ -126,7 +130,8 @@ export function parseLabelSegment(label,language='en') {
   if(selector>=0)return {kind:selector===1?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
   // Finnish recital numbers occur inside the compound noun, e.g. the
   // published "Johdanto-osan Q a kappale (uusi)" (A-10-2026-0237 AM57).
-  if(language==='fi')text=text.replace(/^johdanto-osan (.+) kappale$/iu,'$1 johdanto-osan kappale');
+  if(language==='fi')text=text.replace(/^johdanto-osan (.+) kappale$/iu,'$1 johdanto-osan kappale')
+    .replace(/^johdanto-osan (.+) viite$/iu,'$1 Johdanto-osan viite');
   for(const {kind,forward:forwardPattern,backward:backwardPattern} of grammar(language)) {
     const forward=text.match(forwardPattern);
     const backward=text.match(backwardPattern);
@@ -135,7 +140,7 @@ export function parseLabelSegment(label,language='en') {
     // Greek annex/title headings use Greek Ι/Χ glyphs in Roman numerals.
     // This is an ordinal grammar rule, never transliteration of a suffix.
     if(language==='el'&&['annex','title','chapter','section'].includes(kind)&&/^[IVXLCDMΙΧ]+\.?$/u.test(rawValue.trim())){const roman=rawValue.replaceAll('Ι','I').replaceAll('Χ','X');if(roman!==rawValue){sourceValue=rawValue;rawValue=roman;}}
-    if(language==='pt'&&kind==='point')rawValue=rawValue.replace(/^([a-z])[‑–-]([A-Z])$/u,(_,base,suffix)=>base+' '+suffix.toLowerCase());
+    if(language==='pt'&&['point','recital'].includes(kind))rawValue=rawValue.replace(/^([a-z]|[\p{Lu}]{1,3})[‑–-]([A-Z])$/u,(_,base,suffix)=>base+' '+suffix.toLowerCase());
     rawValue=rawValue.trim().replace(/^[−‑–]/u,'-').replace(/\.$/u,'');
     const negative=/^-(?:[\p{L}]|\d+)(?:\s*[a-z])?$/u.test(rawValue);
     const value=proposalNumber(negative?rawValue.slice(1):rawValue,language);

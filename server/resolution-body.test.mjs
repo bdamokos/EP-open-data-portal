@@ -39,3 +39,23 @@ for(const example of JSON.parse(readFileSync(new URL('./fixtures/resolution-lang
     assert(!example.text.paragraphs[placed.insertBefore].startsWith('68'));
   });
 }
+
+test('published citation and relative subheading labels use their localized grammar',async()=>{
+  const {placementReference}=await import('./document-context-model.mjs');
+  const rows=JSON.parse(readFileSync(new URL('./fixtures/resolution-special-labels.json',import.meta.url)));
+  for(const row of rows) {
+    const citation=row.examples.find(a=>a.number===1),heading=row.examples.find(a=>a.number===6);
+    const ref=placementReference(citation.targetLabel,row.language,citation.proposedText);
+    assert.equal(ref?.kind,'citation',row.language+': '+citation.targetLabel);
+    assert.equal(ref.base,'21',row.language);assert.equal(ref.isNew,true,row.language);
+    const after=placementReference(heading.targetLabel,row.language,heading.proposedText);
+    if(row.language==='ga')assert.equal(after,null,'the published Irish subparagraph label is a separate source discrepancy');
+    else {assert.equal(after?.after,true,row.language+': '+heading.targetLabel);assert.equal(after.base,'25',row.language);}
+  }
+});
+
+test('published Hungarian and Romanian comparison-heading variants identify resolution text',async()=>{
+  const {comparisonHeading}=await import('./amendment-baseline.mjs');
+  const rows=JSON.parse(readFileSync(new URL('./fixtures/resolution-comparison-variants.json',import.meta.url)));
+  for(const row of rows)for(const label of [row.heading,row.reference])assert.equal(comparisonHeading(label,row.language).category,'motion-resolution',label);
+});

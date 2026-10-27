@@ -173,7 +173,7 @@ export const COMPARISON_HEADINGS=Object.freeze({
 export function comparisonHeading(raw,language) {
   const vocabulary=COMPARISON_HEADINGS[language];
   const category=Object.entries(vocabulary||{}).find(([,label])=>normalise(label)===normalise(raw))?.[0]
-    ?? (language==='ro'&&normalise(raw)==='propunere de rezoluție'?'motion-resolution':undefined);
+    ?? ((language==='ro'&&normalise(raw)==='propunere de rezoluție'||language==='hu'&&normalise(raw)==='állásfoglalási indítvány')?'motion-resolution':undefined);
   return {raw:raw??null,category:category==='amendment'?'other':category||'unknown'};
 }
 export const isAmendmentHeading=(raw,language)=>normalise(raw)!==''&&normalise(COMPARISON_HEADINGS[language]?.amendment)===normalise(raw);

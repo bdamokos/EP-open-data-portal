@@ -1,5 +1,68 @@
 // Independent raw-row boundaries for benchmark assertions. Do not import the
 // server motion segmenter: its extent errors are precisely what this checks.
+// Public opening/end phrases are independently matched here, without importing
+// the production body selector. See the attributed resolution fixtures.
+const openingPhrases={
+  bg:["Европейският парламент"],
+  es:["El Parlamento Europeo"],
+  cs:["Evropský parlament"],
+  da:["Europa-Parlamentet"],
+  de:["Das Europäische Parlament"],
+  et:["Euroopa Parlament"],
+  el:["Το Ευρωπαϊκό Κοινοβούλιο"],
+  en:["The European Parliament"],
+  fr:["Le Parlement européen"],
+  ga:["Tá Parlaimint na hEorpa", "Parlaimint na hEorpa"],
+  hr:["Europski parlament"],
+  it:["Il Parlamento europeo"],
+  lv:["Eiropas Parlaments"],
+  lt:["Europos Parlamentas"],
+  hu:["Az Európai Parlament"],
+  mt:["Il-Parlament Ewropew"],
+  nl:["Het Europees Parlement"],
+  pl:["Parlament Europejski"],
+  pt:["O Parlamento Europeu"],
+  ro:["Parlamentul European"],
+  sk:["Európsky parlament"],
+  sl:["Evropski parlament"],
+  fi:["Euroopan parlamentti, joka", "Euroopan parlamentti"],
+  sv:["Europaparlamentet utfärdar denna resolution", "Europaparlamentet fattar detta beslut", "Europaparlamentet"],
+};
+const endPhrases={
+  bg:["ПРИЛОЖЕНИЕ", "ИЗЛОЖЕНИЕ НА МОТИВИТЕ"],
+  es:["ANEXO", "EXPOSICIÓN DE MOTIVOS"],
+  cs:["PŘÍLOHA", "VYSVĚTLUJÍCÍ PROHLÁŠENÍ"],
+  da:["BILAG", "BEGRUNDELSE"],
+  de:["ANLAGE", "BEGRÜNDUNG"],
+  et:["LISA", "SELETUSKIRI"],
+  el:["ΠΑΡΑΡΤΗΜΑ", "ΑΙΤΙΟΛΟΓΙΚΗ ΕΚΘΕΣΗ"],
+  en:["ANNEX", "EXPLANATORY STATEMENT"],
+  fr:["ANNEXE", "EXPOSÉ DES MOTIFS"],
+  ga:["IARSCRÍBHINN", "RÁITEAS MÍNIÚCHÁIN"],
+  hr:["PRILOG", "OBRAZLOŽENJE"],
+  it:["ALLEGATO", "MOTIVAZIONE"],
+  lv:["PIELIKUMS", "PASKAIDROJUMS"],
+  lt:["PRIEDAS", "AIŠKINAMOJI DALIS"],
+  hu:["MELLÉKLET", "INDOKOLÁS"],
+  mt:["ANNESS", "NOTA SPJEGATTIVA"],
+  nl:["BIJLAGE", "TOELICHTING"],
+  pl:["ZAŁĄCZNIK", "UZASADNIENIE"],
+  pt:["ANEXO", "EXPOSIÇÃO DE MOTIVOS"],
+  ro:["ANEXĂ", "EXPUNERE DE MOTIVE"],
+  sk:["PRÍLOHA", "DÔVODOVÁ SPRÁVA"],
+  sl:["PRILOGA", "OBRAZLOŽITEV"],
+  fi:["LIITE", "PERUSTELUT"],
+  sv:["BILAGA", "MOTIVERING"],
+};
+const phraseKey=value=>value.normalize('NFC').replace(/\s+/gu,' ').trim().replace(/[,;:]$/u,'').toLocaleLowerCase('und');
+function localizedEnd(value,language) {
+  const key=phraseKey(value.split(/[\r\n]/u)[0]);
+  return endPhrases[language]?.some(phrase=>{
+    const end=phraseKey(phrase);if(!key.startsWith(end))return false;
+    const rest=key.slice(end.length);
+    return /^(?:\s+[ivxlcdm\d]+)?(?:\s*[:.–—-].*)?$/u.test(rest);
+  })??false;
+}
 const label=value=>{
   let match=/^(\d{1,6}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'paragraph',label:match[1].replace(/\s/g,'')};
@@ -23,11 +86,15 @@ const contiguous=(a,b)=>a?.complete===true&&b?.complete===true&&a.container==='b
 export function rawResolutionUnits(text,language) {
   const paragraphs=text?.paragraphs,sources=text?.paragraphSources;
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
-  // Insertions currently have English label grammar. For other languages an
-  // exact unique raw label may verify a span; duplicates remain unverified.
-  const openers=paragraphs.flatMap((p,i)=>/^\s*The European Parliament\s*,?\s*$/i.test(p)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
+  const openers=paragraphs.flatMap((p,i)=>{
+    if(sources[i]?.container!=='body'||sources[i]?.complete!==true)return [];
+    if(language==='en')return /^\s*The European Parliament\s*,?\s*$/i.test(p)?[i]:[];
+    if(!openingPhrases[language]?.some(phrase=>phraseKey(p)===phraseKey(phrase)))return [];
+    let next=i+1;while(next<paragraphs.length&&!paragraphs[next].trim())next++;
+    return /^[–—−\-•]\s*\S/u.test(paragraphs[next]?.trim()||'')||label(paragraphs[next]?.trim()||'')?[i]:[];
+  });
   if(language==='en'&&!openers.length)return {units:[],reason:'oracle-resolution-start-unverified'};
-  const start=language==='en'?openers[0]+1:0,events=[],openerRows=new Set(openers);
+  const start=openers.length?openers[0]+1:0,events=[],openerRows=new Set(openers);
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
@@ -38,11 +105,12 @@ export function rawResolutionUnits(text,language) {
       if(source?.complete!==true||source.container!=='body')continue;
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
-    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter)\b/iu.test(value)&&!/[.;!?]$/u.test(value);
+    const localEnd=localizedEnd(value,language);
+    const section=localEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter)\b/iu.test(value)&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {
       events.push({start:i,boundary:true});group++;parent=null;
-      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?)\b/iu.test(value))active=false;
+      if(localEnd||section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?)\b/iu.test(value))active=false;
       continue;
     }
     let ref=label(value);
