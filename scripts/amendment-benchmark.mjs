@@ -14,15 +14,19 @@ import {DOCUMENT_CONTEXT_VERSION} from '../server/document-context.mjs';
 import {PROPOSAL_PARSER_VERSION} from '../server/proposal-structure.mjs';
 import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
-import {checkoutProducers,baselineProducers} from './amendment-benchmark-producers.mjs';
+import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
+import {checkoutProducers} from './amendment-benchmark-producers.mjs';
+import {acquireLanguageVariants,languageVariantContext} from './amendment-benchmark-languages.mjs';
 import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
 export function options(args) {
   const result={apiBase:process.env.AMENDMENT_BENCHMARK_API_BASE,weeks:8,documents:[],fetchMissing:false,cap:1500,delay:750,cache:process.env.AMENDMENT_BENCHMARK_CACHE_DIR||path.join(process.env.XDG_CACHE_HOME||path.join(os.homedir(),'.cache'),'ep-explorer/amendment-benchmark')};
-  const values={'--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
+  const values={'--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
   for(let i=0;i<args.length;i++) {
     const arg=args[i];
     if(arg==='--placement-only'){result.placementOnly=true;continue;}
+    if(arg==='--language-variants'){result.languageVariants=true;continue;}
+    if(arg==='--acquire-only'){result.acquireOnly=true;continue;}
     if(arg==='--fetch'){result.fetchMissing=true;continue;}
     if(arg==='--help'){result.help=true;continue;}
     const key=values[arg];if(!key||!args[i+1]||args[i+1].startsWith('--'))throw new Error('Unknown or missing option: '+arg);
@@ -91,12 +95,13 @@ export const contextUrl=(apiBase,document,language,variant,row)=>{
 
 // Acquisition is a function of the frozen catalogue only. Never consult an
 // extraction, parser result or checkout baseline classification to choose URLs.
-export async function acquireReport(rows,sample,cache) {
+export async function acquireReport(rows,sample,cache,replay) {
   if(!rows.some(row=>decisionsInSample(row,sample).length))return new Map();
-  const contexts=new Map(),all=rows.flatMap(row=>variants(row).map(variant=>({row,variant})));
+  const contexts=new Map(),references=new Map(),all=rows.flatMap(row=>variants(row).map(variant=>({row,variant})));
   for(const url of [...new Set(all.map(({variant})=>variant.wordingSource?.url).filter(Boolean))].sort()) {
     if(!allowedInput(url,cache.apiBase))throw new Error('Unsupported indexed DOCX URL: '+url);
-    await cache.get(url);
+    const input=await cache.get(url);
+    if(replay&&input.ok)for(const language of [...new Set(all.filter(({variant})=>variant.wordingSource?.url===url).map(({variant})=>variant.language||'en'))])references.set(language,[...(references.get(language)||[]),...replay.references(input.body)]);
   }
   for(const language of [...new Set(all.map(({variant})=>variant.language||'en'))].sort()) {
     const alternatives=all.filter(({variant})=>(variant.language||'en')===language&&variant.listId);
@@ -104,58 +109,100 @@ export async function acquireReport(rows,sample,cache) {
     const representative=candidates.find(({variant})=>typeof variant.originalText==='string'&&typeof variant.proposedText==='string')||candidates[0]||alternatives[0];
     const plain=await cache.json(contextUrl(cache.apiBase,rows[0].targetDocumentId,language));
     const proposal=representative?await cache.json(contextUrl(cache.apiBase,rows[0].targetDocumentId,language,representative.variant,representative.row)):plain;
-    for(const saved of [plain,proposal])if(saved.value?.documentId!==rows[0].targetDocumentId)throw new Error('Context identity unavailable or inconsistent: '+saved.input.url);
+    for(const saved of [plain,proposal])if(saved.value&&saved.value.documentId!==rows[0].targetDocumentId)throw new Error('Context identity unavailable or inconsistent: '+saved.input.url);
     contexts.set(language,{plain,proposal});
   }
+  if(cache.languageVariants)contexts.languageVariants=await acquireLanguageVariants(rows.filter(row=>decisionsInSample(row,sample).length),contexts,cache);
+  if(replay){replay.observeFiles(rows[0].targetDocumentId,contexts);await replay.acquire(rows[0].targetDocumentId,[...new Set([...contexts.keys(),...[...(contexts.languageVariants?.values()||[])].map(saved=>saved.language)])],references);}
   return contexts;
 }
 
-export async function evaluateReport(rows,sample,cache) {
+export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
   const selected=rows.filter(row=>decisionsInSample(row,sample).length),extractions=new Map(),results=[];
   const contexts=await acquireReport(rows,sample,cache);
+  const extractionFor=async variant=>{
+    const url=variant.wordingSource?.url,language=variant.language||null,key=JSON.stringify([url,variant.listId,language]);
+    if(!extractions.has(key)) {
+      const input=await cache.get(url);let extraction=null,error=null;
+      if(input.ok)try{extraction=(runtime?.extractAmendments||extractAmendments)(input.body,{listId:variant.listId,targetDocumentId:rows[0].targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
+      extractions.set(key,{input,extraction,error});
+    }
+    return extractions.get(key);
+  };
+  if(replay)replay.observeFiles(rows[0].targetDocumentId,contexts);
+  const projected=new Map();
+  const work=replay&&selected.length?(await replay.request('/plenary-documents/'+rows[0].targetDocumentId)).payload.data[0]:null;
   for(const row of selected) {
-    const variant=variants(row)[0],language=variant?.language||null,decisions=decisionsInSample(row,sample);
+    const originalVariant=variants(row)[0];
+    const available=contexts.get(originalVariant?.language||'en')?.plain.value?.document?.selectedText?.availableTextLanguages||[];
+    let translated=available.includes(originalVariant?.language)?null:contexts.languageVariants?.get(originalVariant?.listId);
+    // A Commission amendment uses its proposal language, independently of the
+    // report body's publication languages. Acquisition remains extraction-free.
+    if(translated&&originalVariant.wordingSource?.url&&allowedInput(originalVariant.wordingSource.url,cache.apiBase)) {
+      const original=await extractionFor(originalVariant);
+      if(original.extraction?.amendments.find(amendment=>amendment.number===row.number)?.baseline==='commission-proposal')translated=null;
+    }
+    const variant=translated?{...originalVariant,language:translated.language,wordingSource:{...originalVariant.wordingSource,url:translated.wording.url}}:originalVariant;
+    const language=variant?.language||null,decisions=decisionsInSample(row,sample);
     const stages={S1:passed({decisionIds:decisions.map(d=>d.id)}),S2:blocked('wording-not-evaluated'),S3:blocked('target-not-evaluated'),S4:blocked('baseline-not-evaluated'),S5:{status:'unresolved',reason:'placement-not-evaluated'},S6:{status:'not-applicable',reason:'not-placed'}};
     if(!decisions.length||decisions.some(d=>!d.id||!d.source?.url||!d.source?.fetchedAt||!(d.amendmentIds||[]).some(id=>id===row.id||(row.officialIds||[]).includes('eli/dl/doc/'+id))))stages.S1=blocked('decision-linkage-unverified');
     const url=variant?.wordingSource?.url;let wording=null,gaps=[],fetched=null;
     if(!url||!variant.listId)stages.S2=blocked('wording-source-not-indexed');
     else if(!allowedInput(url,cache.apiBase))stages.S2=blocked('input-unsupported-public-url');
     else {
-      const key=JSON.stringify([url,variant.listId,language]);
-      if(!extractions.has(key)) {
-        const input=await cache.get(url);let extraction=null,error=null;
-        if(input.ok)try {extraction=extractAmendments(input.body,{listId:variant.listId,targetDocumentId:row.targetDocumentId,language,sourceUrl:url,fetchedAt:input.fetchedAt});}catch(cause){error=cause.message;}
-        extractions.set(key,{input,extraction,error});
-      }
-      const {input,extraction,error}=extractions.get(key);fetched=input;
+      const {input,extraction,error}=await extractionFor(variant);fetched=input;
       if(!input.ok)stages.S2=blocked([404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable'));
       else if(error)stages.S2=blocked('docx-parser-error');
       else {
         wording=extraction.amendments.find(a=>a.number===row.number);
-        gaps=wording?amendmentTextLosses(extraction,wording):extraction.gaps;
+        gaps=wording?(runtime?.amendmentTextLosses||amendmentTextLosses)(extraction,wording):extraction.gaps;
         if(!wording)stages.S2=blocked('docx-amendment-not-extracted');
         else if(gaps.length||typeof wording.originalText!=='string'||typeof wording.proposedText!=='string')stages.S2=blocked('wording-'+(gaps[0]?.code||'unavailable'));
         else if(!wording.originalText.trim()&&!wording.proposedText.trim())stages.S2=blocked('source-wording-empty');
-        else stages.S2=passed({parserVersion:AMENDMENT_EXTRACTION_VERSION,originalSha256:digest(wording.originalText),proposedSha256:digest(wording.proposedText)});
+        else stages.S2=passed({parserVersion:runtime?.AMENDMENT_EXTRACTION_VERSION||AMENDMENT_EXTRACTION_VERSION,originalSha256:digest(wording.originalText),proposedSha256:digest(wording.proposedText)});
       }
     }
     let target=null;
     if(wording) {
       target=parseBenchmarkTarget(wording);
       stages.S3=target.complete&&target.segments.length?passed({target}):{...blocked('target-label-unparsed'),target};
-      // Select only from the fixed, pre-acquired pair; never request new inputs
-      // because this checkout changed an extraction or baseline classification.
+      // Live projections are a recorded comparison. Evaluated inputs come only
+      // from the sealed upstream bytes through the measured checkout.
       const commission=wording.baseline==='commission-proposal';
-      const {input,value}=contexts.get(language||'en')[commission?'proposal':'plain'];
-      const items=value?.proposal?.items,text=value?.document?.selectedText;
-      const hints=(wording.documentReferences||[]).filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw));
-      const referenceConflict=commission&&value?.baseline?.celex&&hints.some(h=>h.celex!==value.baseline.celex||h.qualifier&&h.qualifier!=='final');
-      const matching=!referenceConflict&&language&&(commission?value?.baseline?.language===language&&items?.length:text?.textLanguage===language&&text?.paragraphs?.length);
-      stages.S4={...(matching?passed({kind:commission?'commission-proposal':'resolution',language,baselineStatus:value?.baseline?.status||text?.status}):blocked(referenceConflict?'proposal-reference-conflict':!input.ok?'input-'+(input.error||'unavailable'):!language||text?.textLanguage&&text.textLanguage!==language&&!commission?'acquisition-matching-language-unavailable':commission?'acquisition-proposal-projection-unavailable':'acquisition-document-projection-unavailable')),gaps:value?.baseline?.gaps||[],projectionObservation:{documentContextVersion:value?.version,documentStatus:text?.status??null,documentReason:text?.reason??null,proposalStatus:value?.baseline?.status??null},sourceUrl:input.url};
+      const pair=contexts.get(originalVariant?.language||'en');
+      const {input,value}=translated&&!commission?languageVariantContext(translated,pair.plain,runtime):pair[commission?'proposal':'plain'];
+      let items=value?.proposal?.items,text=value?.document?.selectedText,baseline=value?.baseline;
+      if(replay) {
+        const key=JSON.stringify([language,commission,commission?wording.documentReferences:[]]);
+        if(!projected.has(key)) {
+          if(commission) {
+            const explicit=[...new Set((wording.documentReferences||[]).filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>(runtime?.commissionReferences||commissionReferences)(r.raw).map(r=>r.celex)))];
+            projected.set(key,await replay.proposal({...(row.targetDocumentId.startsWith('A-')?{reportId:row.targetDocumentId}:{celex:explicit.length===1?explicit[0]:undefined}),language,documentReferences:wording.documentReferences||[]}));
+          } else projected.set(key,{text:await replay.text(work,language)});
+        }
+        ({items,text,baseline}=projected.get(key));
+      }
+      const hints=(wording.documentReferences||[]).filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>(runtime?.commissionReferences||commissionReferences)(r.raw));
+      const referenceConflict=commission&&baseline?.celex&&hints.some(h=>h.celex!==baseline.celex||h.qualifier&&h.qualifier!=='final');
+      const matching=!referenceConflict&&language&&(commission?baseline?.language===language&&items?.length:text?.textLanguage===language&&text?.paragraphs?.length);
+      let unavailableReason;
+      if(referenceConflict)unavailableReason='proposal-reference-conflict';
+      else if(!replay&&!input.ok)unavailableReason='input-'+(input.error||'unavailable');
+      else if(!language||!commission&&text?.textLanguage&&text.textLanguage!==language)unavailableReason='acquisition-matching-language-unavailable';
+      else if(!replay)unavailableReason=commission?'acquisition-proposal-projection-unavailable':'acquisition-document-projection-unavailable';
+      else if(commission)unavailableReason=baseline?.gaps?.includes('proposal-projection-unavailable')?'proposal-projection-unavailable':'acquisition-proposal-source-unavailable';
+      else unavailableReason=text?.sourceInput?.ok?'document-projection-unavailable':'acquisition-document-source-unavailable';
+      stages.S4={
+        ...(matching?passed({kind:commission?'commission-proposal':'resolution',language,baselineStatus:baseline?.status||text?.status}):blocked(unavailableReason)),
+        gaps:baseline?.gaps||text?.sourceMetadataGaps||[],
+        liveProjectionObservation:{documentContextVersion:value?.version,documentStatus:value?.document?.selectedText?.status??null,documentReason:value?.document?.selectedText?.reason??null,proposalStatus:value?.baseline?.status??null},
+        sourceUrl:replay?(commission?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
+        ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,fileDeclarationSource:text?.fileDeclarationSource??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
+      };
       if(stages.S2.status==='passed'&&matching) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
-        stages.S5=documentContextPlacement({chosen:opts,text,items:commission?items:null,referenceTexts:references,resolutionDocument:true});
+        stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,items:commission?items:null,referenceTexts:references,resolutionDocument:true});
         stages.S6=verifyPlacement({placement:stages.S5,wording,items:commission?items:null,text,target});
         // Keep coordinates and assertions, not a growing corpus of source text.
         // The exact text is recoverable from the hashed input for this report.
@@ -166,7 +213,7 @@ export async function evaluateReport(rows,sample,cache) {
     const provisional=decisions.length>0&&decisions.every(d=>!placeableDecision(d));
     const classified=provisional?{outcome:'not-placeable',reason:'provisional-agreement'}:classify(stages);
     const baseline=wording?.baseline||variant?.baseline;
-    results.push({key:row.id,id:row.id,documentId:row.targetDocumentId,documentType:row.targetDocumentId.startsWith('A-')?(baseline==='commission-proposal'?'legislative-report':baseline==='motion-resolution'?'A-resolution':'A-unresolved'):'B/RC-resolution',number:row.number,listId:variant?.listId||null,language,targetLabel:wording?.targetLabel||variant?.targetLabel||null,acquisition:{contextVersions:[...new Set([...contexts.values()].flatMap(pair=>[pair.plain.value?.version,pair.proposal.value?.version]))],projectionVersions:[...contexts].map(([language,pair])=>({language,documentExtraction:pair.plain.value?.document?.selectedText?.extractionVersion??null,proposalParsers:[...new Set((pair.proposal.value?.proposal?.items||[]).map(item=>item.proposal.parserVersion))]})),status:stages.S4.reason?.startsWith('acquisition-')?'unavailable':'available'},wordingSource:fetched?{url:fetched.url,resolvedSourceUrl:fetched.resolvedSourceUrl||fetched.url,fetchedAt:fetched.fetchedAt,sha256:fetched.sha256,status:fetched.status}:null,variantAlternatives:variants(row).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url||null})),notPlaceableVoteIds:[...new Set(decisions.filter(d=>!placeableDecision(d)).map(d=>d.id))].sort(),voteIds:[...new Set(decisions.filter(placeableDecision).map(d=>d.id))].sort(),patterns:targetPatterns(wording||variant,gaps),stages,...classified});
+    results.push({key:row.id,id:row.id,documentId:row.targetDocumentId,documentType:row.targetDocumentId.startsWith('A-')?(baseline==='commission-proposal'?'legislative-report':baseline==='motion-resolution'?'A-resolution':'A-unresolved'):'B/RC-resolution',number:row.number,listId:variant?.listId||null,language,targetLabel:wording?.targetLabel||variant?.targetLabel||null,acquisition:{contextVersions:[...new Set([...contexts.values()].flatMap(pair=>[pair.plain.value?.version,pair.proposal.value?.version]))],projectionVersions:[...contexts].map(([language,pair])=>({language,documentExtraction:pair.plain.value?.document?.selectedText?.extractionVersion??null,proposalParsers:[...new Set((pair.proposal.value?.proposal?.items||[]).map(item=>item.proposal.parserVersion))]})),status:stages.S4.reason?.startsWith('acquisition-')?'unavailable':'available'},wordingSource:fetched?{url:fetched.url,resolvedSourceUrl:fetched.resolvedSourceUrl||fetched.url,fetchedAt:fetched.fetchedAt,sha256:fetched.sha256,status:fetched.status}:null,variantAlternatives:[...variants(row).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url||null})),...(translated?[{listId:variant.listId,language,url:variant.wordingSource.url}]:[])],notPlaceableVoteIds:[...new Set(decisions.filter(d=>!placeableDecision(d)).map(d=>d.id))].sort(),voteIds:[...new Set(decisions.filter(placeableDecision).map(d=>d.id))].sort(),patterns:targetPatterns(wording||variant,gaps),stages,...classified});
   }
   return results;
 }
@@ -174,18 +221,24 @@ export async function evaluateReport(rows,sample,cache) {
 export function markdown(result) {
   const {metrics:m,sample}=result;
   const comparison=result.comparison?{...result.comparison,taxonomyDeltas:result.comparison.taxonomyDeltas.filter(row=>row.count!==0||row.share!==0)}:null;
-  return `# Amendment benchmark\n\nSample: ${JSON.stringify(sample)}\n\nScope: **${result.scope||'full-pipeline'}**.${result.scope==='placement-only-frozen-projections'?' Frozen API text/proposals; checkout placement outcomes only. Source extraction/projection changes are excluded.':''}\n\nCheckout: ${result.code.head}; extraction ${result.code.extractionVersion}.\n\nHeadline: **${percent(m.headline)}** (${m.counts.correct}/${m.eligible}); raw: ${percent(m.raw)} (${m.counts.correct}/${m.total}). False placements: **${m.falsePlacements}**.\n\nAmendment votes: ${percent(m.votes.share)} (${m.votes.correct}/${m.votes.total}); collective/split decisions count once and require every sampled linked amendment to be correct.\n\nUnfetched/failed URL inputs: ${result.acquisition.failures.length}; amendments without an indexed wording source: ${result.acquisition.amendmentsWithoutWordingSource}; requests this run: ${result.acquisition.requests}. Coverage is limited to the frozen public index, not a census of all EP amendments.\n\nLive context versions: ${result.compatibility.liveContextVersions.join(', ')}; checkout: ${result.compatibility.checkoutDocumentContextVersion}. Full-pipeline projection compatibility: ${result.compatibility.compatible}. Live proposal and document projections are acquisition inputs, not checkout extraction.\n\nNot-placeable provisional agreements: ${m.counts['not-placeable']} (excluded from the headline and vote denominator, retained in raw). Acquisition-unavailable: ${m.counts['acquisition-unavailable']} (retained in the headline denominator).\n\nUnique amendments by reason (one row each):\n\n| Reason | Count | Share | Examples |\n| --- | ---: | ---: | --- |\n${m.uniqueReasons.slice(0,20).map(r=>`| ${r.reason} | ${r.count} | ${percent(r.share)} | ${r.examples.join(', ')} |`).join('\n')}\n\nPatterns overlap; shares use all sampled amendments.\n\n| Document type | Language | Reason | Pattern | Count | Share | Examples |\n| --- | --- | --- | --- | ---: | ---: | --- |\n${m.taxonomy.slice(0,20).map(r=>`| ${r.documentType} | ${r.language||'unknown'} | ${r.reason} | ${r.pattern} | ${r.count} | ${percent(r.share)} | ${r.examples.join(', ')} |`).join('\n')}\n${result.comparison?'\nBaseline comparison:\n```json\n'+JSON.stringify(comparison,null,2)+'\n```\n':''}`;
+  return `# Amendment benchmark\n\nSample: ${JSON.stringify(sample)}\n\nScope: **${result.scope||'full-pipeline'}**.${result.scope==='placement-only-frozen-projections'?' Frozen API text/proposals; checkout placement outcomes only. Source extraction/projection changes are excluded.':''}\n\nCheckout: ${result.code.head}; extraction ${result.code.extractionVersion}.\n\nHeadline: **${percent(m.headline)}** (${m.counts.correct}/${m.eligible}); raw: ${percent(m.raw)} (${m.counts.correct}/${m.total}). False placements: **${m.falsePlacements}**.\n\nAmendment votes: ${percent(m.votes.share)} (${m.votes.correct}/${m.votes.total}); collective/split decisions count once and require every sampled linked amendment to be correct.\n\nUnfetched/failed URL inputs: ${result.acquisition.failures.length}; amendments without an indexed wording source: ${result.acquisition.amendmentsWithoutWordingSource}; requests this run: ${result.acquisition.requests}. Coverage is limited to the frozen public index, not a census of all EP amendments.\n\nLive context versions: ${result.compatibility.liveContextVersions.join(', ')}; checkout: ${result.compatibility.checkoutDocumentContextVersion}. Live/checkout version agreement: ${result.compatibility.compatible} (comparison only). Proposals and document text are rebuilt from cached upstream bytes with checkout code. Live-projection comparison: ${result.liveComparison?.metrics.counts.correct} correct; ${percent(result.liveComparison?.metrics.headline)}.\n\nNot-placeable provisional agreements: ${m.counts['not-placeable']} (excluded from the headline and vote denominator, retained in raw). Acquisition-unavailable: ${m.counts['acquisition-unavailable']} (retained in the headline denominator).\n\nUnique amendments by reason (one row each):\n\n| Reason | Count | Share | Examples |\n| --- | ---: | ---: | --- |\n${m.uniqueReasons.slice(0,20).map(r=>`| ${r.reason} | ${r.count} | ${percent(r.share)} | ${r.examples.join(', ')} |`).join('\n')}\n\nPatterns overlap; shares use all sampled amendments.\n\n| Document type | Language | Reason | Pattern | Count | Share | Examples |\n| --- | --- | --- | --- | ---: | ---: | --- |\n${m.taxonomy.slice(0,20).map(r=>`| ${r.documentType} | ${r.language||'unknown'} | ${r.reason} | ${r.pattern} | ${r.count} | ${percent(r.share)} | ${r.examples.join(', ')} |`).join('\n')}\n${result.comparison?'\nBaseline comparison:\n```json\n'+JSON.stringify(comparison,null,2)+'\n```\n':''}`;
 }
 
-async function checkoutIdentity(root) {
-  return {producerFingerprint:await checkoutProducers(root),head:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),dirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim().length>0,workingDiffHash:digest(execFileSync('git',['diff','HEAD'],{cwd:root})),extractionVersion:AMENDMENT_EXTRACTION_VERSION,documentContextVersion:DOCUMENT_CONTEXT_VERSION,proposalParserVersion:PROPOSAL_PARSER_VERSION,documentExtractionVersion:DOCX_EXTRACTION_VERSION,files:Object.fromEntries(await Promise.all(['server/amendment-documents.mjs','server/proposal-placement.mjs','server/proposal-structure.mjs','server/document-context-model.mjs','server/document-context.mjs','server/document-context-placement.mjs','server/document-text.mjs','scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-resolution-oracle.mjs'].map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
+async function checkoutIdentity(root,runtime) {
+  return {producerFingerprint:await checkoutProducers(root),head:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),dirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim().length>0,workingDiffHash:digest(execFileSync('git',['diff','HEAD'],{cwd:root})),extractionVersion:runtime?.AMENDMENT_EXTRACTION_VERSION||AMENDMENT_EXTRACTION_VERSION,documentContextVersion:runtime?.documentContextVersion||DOCUMENT_CONTEXT_VERSION,proposalParserVersion:runtime?.PROPOSAL_PARSER_VERSION||PROPOSAL_PARSER_VERSION,documentExtractionVersion:runtime?.documentExtractionVersion||DOCX_EXTRACTION_VERSION,files:Object.fromEntries(await Promise.all(['server/amendment-documents.mjs','server/proposal-placement.mjs','server/proposal-structure.mjs','server/document-context-model.mjs','server/document-context.mjs','server/document-context-placement.mjs','server/document-text.mjs','scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-resolution-oracle.mjs'].map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
+}
+
+async function harnessIdentity(root) {
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-languages.mjs','package-lock.json'];
+  return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
+  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
   if(!opts.apiBase)throw new Error('Provide --api-base or AMENDMENT_BENCHMARK_API_BASE; no deployment host is built in.');
-  const root=fileURLToPath(new URL('../',import.meta.url)),code=await checkoutIdentity(root);
+  const root=fileURLToPath(new URL('../',import.meta.url)),runtimeRoot=path.resolve(opts.runtimeRoot||root),runtime=await replayRuntime(runtimeRoot),code=await checkoutIdentity(runtimeRoot,runtime),harness=await harnessIdentity(root);
+  if(opts.placementOnly)process.stderr.write('NOTE: --placement-only is a compatibility alias for full cached-source replay; producer changes are evaluated.\n');
   const directory=await outsideRepository(path.resolve(opts.cache)),output=await outsideRepository(path.resolve(opts.output||path.join(directory,'output')));
   const lock=path.join(directory,'.benchmark-lock');
   try {await mkdir(lock);}catch(error){if(error.code==='EEXIST')throw new Error('Another benchmark owns this cache. If interrupted, verify it has stopped before removing '+lock);throw error;}
@@ -193,41 +246,47 @@ export async function main(args=process.argv.slice(2)) {
   try {
   const inputs=path.join(directory,'inputs');await mkdir(inputs,{recursive:true});
   const cache=new InputCache(inputs,opts);
+  cache.languageVariants=Boolean(opts.languageVariants);
   const snapshotPath=path.join(directory,'snapshot.json');let snapshot;
   try{snapshot=JSON.parse(await readFile(snapshotPath,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
-  if(!snapshot){snapshot={schemaVersion:2,apiBase:opts.apiBase,asOf:opts.asOf||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels'}).format(new Date())};await writeFile(snapshotPath,JSON.stringify(snapshot)+'\n');}
-  if(snapshot.schemaVersion!==2||snapshot.apiBase!==opts.apiBase)throw new Error('Snapshot API origin/schema mismatch; use a new cache directory.');
+  if(!snapshot){snapshot={schemaVersion:3,apiBase:opts.apiBase,asOf:opts.asOf||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels'}).format(new Date())};await writeFile(snapshotPath,JSON.stringify(snapshot)+'\n');}
+  if(snapshot.schemaVersion!==3||snapshot.apiBase!==opts.apiBase)throw new Error('Snapshot origin/schema mismatch; legacy live-projection snapshots need upstream acquisition in a new cache directory.');
+  if(snapshot.snapshotId)await cache.seal(snapshot.manifest);
   opts.asOf=opts.asOf||snapshot.asOf;
   spool=await mkdtemp(path.join(output,'spool-'));
   const index=await catalogue(cache,opts,spool);
-  const sample={term:10,asOf:opts.asOf,mode:opts.documents.length?'documents':opts.from?'date-window':'plenary-weeks',...(opts.documents.length?{documents:opts.documents}:opts.from?{from:opts.from,to:opts.to}:{requestedWeeks:opts.weeks,weeks:index.weeks}),decisionBasis:'indexed-plenary-decision-date',variantPolicy:'one exact variant per amendment: English, then language code, then list ID',indexGeneration:index.generation,indexedAmendments:index.indexed};
+  const sample={term:10,asOf:opts.asOf,mode:opts.documents.length?'documents':opts.from?'date-window':'plenary-weeks',...(opts.documents.length?{documents:opts.documents}:opts.from?{from:opts.from,to:opts.to}:{requestedWeeks:opts.weeks,weeks:index.weeks}),decisionBasis:'indexed-plenary-decision-date',variantPolicy:'one exact variant per amendment: English, then language code, then list ID',...(opts.languageVariants?{languageVariantInputs:'exact declared list translations and matching document DOCX'}:{}),indexGeneration:index.generation,indexedAmendments:index.indexed};
   const filenames=(await readdir(spool)).sort();
   // Complete and seal acquisition before invoking any checkout extraction or
   // placement. The evaluation phase cannot fill even a previously unseen URL.
-  for(const filename of filenames) {
+  for(const filename of snapshot.snapshotId?[]:filenames) {
     const rows=await readRows(path.join(spool,filename));
-    await acquireReport(rows,sample,cache);
+    await acquireReport(rows,sample,cache,sourceReplay(cache,runtime));
     process.stderr.write(`Acquired ${filename.replace('.jsonl','')}; ${cache.requests} requests\n`);
   }
   const manifest=cache.manifest(),snapshotId=digest(JSON.stringify({apiBase:opts.apiBase,sample,manifest}));
   if(snapshot.snapshotId&&snapshot.snapshotId!==snapshotId)throw new Error('Frozen snapshot manifest changed; acquisition must be independent of checkout output.');
   if(!snapshot.snapshotId){snapshot={...snapshot,sample,manifest,snapshotId};await writeFile(snapshotPath,JSON.stringify(snapshot,null,2)+'\n');}
-  cache.fetchMissing=false;
-  const resultRows=[];
+  if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:manifest.length,requests:cache.requests},null,2)+'\n');return;}
+  if(!cache.sealed)await cache.seal(manifest);
+  const resultRows=[],liveRows=[];
   for(const filename of filenames) {
     const rows=await readRows(path.join(spool,filename));
-    resultRows.push(...await evaluateReport(rows,sample,cache));
+    resultRows.push(...await evaluateReport(rows,sample,cache,{runtime,replay:sourceReplay(cache,runtime)}));
+    liveRows.push(...await evaluateReport(rows,sample,cache,{runtime}));
     process.stderr.write(`Evaluated ${filename.replace('.jsonl','')}: ${resultRows.length} sample rows\n`);
   }
   resultRows.sort((a,b)=>a.key.localeCompare(b.key,'en'));
+  liveRows.sort((a,b)=>a.key.localeCompare(b.key,'en'));
   if(!resultRows.length)throw new Error('No indexed amendment decisions in the requested sample.');
   if(JSON.stringify(manifest)!==JSON.stringify(cache.manifest()))throw new Error('Evaluation read outside the fixed snapshot manifest.');
-  if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
-  const compatibility=projectionCompatibility(resultRows,code);
-  const scope=opts.placementOnly?'placement-only-frozen-projections':'full-pipeline';
-  const result={schemaVersion:2,scope,snapshotId,sample,code,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,acquisition:{amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
-  if(opts.baseline){const baseline=JSON.parse(await readFile(opts.baseline,'utf8'));if(opts.placementOnly)await baselineProducers(baseline,root);result.comparison=compareBaseline(result,baseline,{placementOnly:opts.placementOnly});for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
-  const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,scope})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');
+  if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(runtimeRoot,runtime))||JSON.stringify(harness)!==JSON.stringify(await harnessIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
+  const compatibility={...projectionCompatibility(resultRows,code),projectionMode:'cached-source-replay'};
+  const scope='full-pipeline-cached-sources';
+  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId,sample,code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,acquisition:{amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
+  if(opts.baseline){const baseline=JSON.parse(await readFile(opts.baseline,'utf8'));result.comparison=compareBaseline(result,baseline,{placementOnly:opts.placementOnly});for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
+
+  const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,harness,scope})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');
   await writeFile(jsonPath,JSON.stringify(result,null,2)+'\n');await writeFile(mdPath,markdown(result));
   process.stdout.write(JSON.stringify({jsonPath,mdPath,scope,snapshotId,compatibility,sample,metrics:result.metrics,acquisition:result.acquisition,...(result.comparison?{comparison:result.comparison}:{})},null,2)+'\n');
   if(result.metrics.falsePlacements||result.comparison?.failed)process.exitCode=1;

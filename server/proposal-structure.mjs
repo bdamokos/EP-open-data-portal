@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='7';
+export const PROPOSAL_PARSER_VERSION='9';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;

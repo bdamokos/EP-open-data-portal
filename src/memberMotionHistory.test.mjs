@@ -1,4 +1,5 @@
 import {wordingText} from './test-support/wordingText.mjs';
+import {closedGlobalSearch,checkClosedGlobalSearchHistory} from './test-support/closedGlobalSearchHistory.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,Fragment,act} from 'react';
@@ -72,6 +73,7 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
   if(url.pathname==='/api/insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
   if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
   if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
+  if(url.pathname==='/api/insights/search')return Response.json({offset:0,sections:[]});
   if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
   if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
   unexpected.push(url.href);throw Error('Unexpected fixture request '+url.href);
@@ -90,6 +92,12 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
  const warmCache=async count=>{warmRoutes=Array.from({length:count},(_,index)=>'qa-motion-cache/'+index);await act(async()=>draw());for(let attempt=0;attempt<200;attempt++){if(container.querySelectorAll('[data-motion-cache-ready="true"]').length===count)return;await act(async()=>new Promise(resolve=>setTimeout(resolve,10)));}assert.fail('Finite cache fixtures did not settle');};
  return {window,container,requests,pushes,click,change,go,restore,warmCache,settle};
 }
+
+for(const blocked of [false,true])test('motion navigation preserves an older closed global search with '+(blocked?'blocked':'available')+' session storage',async t=>{
+ const h=await harness(t,query({})+'&'+closedGlobalSearch);
+ await checkClosedGlobalSearchHistory(t,h,()=>h.click(h.container.querySelector('.motion-amendments__disclosure')),blocked);
+ assert.equal(params().get('ma-view'),'amendments');
+});
 
 test('activity page/category are controlled App history and survive Profile, browser Back and direct Activities return',async t=>{
  const h=await harness(t,query({activity:'','activity-offset':'10','activity-category':'motions'})),length=history.length;
@@ -207,7 +215,7 @@ test('choosing the verified joint text resets amendment/version/page and does no
 test('a closed exact joint-motion link survives activity and App canonicalization without opening a different reader',async t=>{
  const h=await harness(t,query({activity:JOINT,'ma-member':'1','ma-source':JOINT,'ma-owner':'fixture-'+JOINT,'ma-text':JOINT}));
  assert.equal(params().get('activity'),'motions:'+JOINT,'the exact linked activity is canonicalized with its category');
- assert.equal(params().get('ma-text'),JOINT);assert.equal(params().get('role'),'both');assert.equal(params().get('lang'),'en');
+ assert.equal(params().get('ma-text'),JOINT);assert.equal(params().get('role'),null);assert.equal(params().get('lang'),null);assert.equal(document.documentElement.lang,'en');
  assert.equal(h.container.querySelector('.motion-amendments__reference')?.textContent,JOINT);
  const textChoice=h.container.querySelector('select[aria-label="Motion text"]');if(textChoice)assert.equal(textChoice.value,JOINT);
  assert.equal(h.container.querySelector('.motion-amendments__disclosure')?.getAttribute('aria-expanded'),'false');
@@ -219,7 +227,7 @@ test('a closed exact joint-motion link survives activity and App canonicalizatio
 test('duplicate requested text remains invalid after App canonicalization instead of substituting a valid text',async t=>{
  const selection=new URLSearchParams(query({'ma-member':'1','ma-source':ORIGINAL,'ma-owner':'fixture-'+ORIGINAL}));selection.append('ma-text',ORIGINAL);selection.append('ma-text',JOINT);
  const h=await harness(t,selection.toString());
- assert.deepEqual(params().getAll('ma-text'),[ORIGINAL,JOINT]);assert.equal(params().get('role'),'both');assert.equal(params().get('lang'),'en');
+ assert.deepEqual(params().getAll('ma-text'),[ORIGINAL,JOINT]);assert.equal(params().get('role'),null);assert.equal(params().get('lang'),null);assert.equal(document.documentElement.lang,'en');
  assert.match(h.container.querySelector('.member-motion-reader__unavailable')?.textContent,/reader link is unavailable/i);
  assert.equal(h.container.querySelector('.motion-amendments'),null);
  assert.equal(h.requests.some(url=>url.pathname.startsWith('/api/motion-amendments/')||url.pathname.startsWith('/api/document-context/')),false);
@@ -265,7 +273,7 @@ test('exact amendment, list and wording language reach the shared context; adopt
  assert(transportVersion.length===0||transportVersion.length===1&&transportVersion[0]===String(API_VERSION),'only the admitted transport version may accompany the semantic query');
  semanticQuery.delete('v');
  assert.deepEqual(Object.fromEntries(semanticQuery),{lang:'hu',amendment:AMENDMENT,list:LIST,'wording-lang':'hu'});
- assert.equal(params().get('lang'),'en','source language is independent of the interface language');
+ assert.equal(params().get('lang'),null,'default English is implicit');assert.equal(document.documentElement.lang,'en','source language is independent of the interface language');
  assert.equal(h.container.querySelector('.document-context-reader [data-context-target="true"]')?.textContent,'1. Pontos magyar forrásszöveg.');
  const context=location.href;await h.click(button(h.container,'Profile'));await h.go(-1);assert.equal(location.href,context);
  assert.equal(h.container.querySelector('.document-context-text')?.lang,'hu');

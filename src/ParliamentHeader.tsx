@@ -32,6 +32,6 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
     <ThemeToggle/>
-    <TextSearch prefix="global-fts" label="Search Parliament text" language={language} className="explorer-text-search-global" scopeNote="Speeches, parliamentary questions and answers."/>
+    <TextSearch global prefix="global-fts" label="Search Parliament" language={language} className="explorer-text-search-global"/>
   </header>;
 }

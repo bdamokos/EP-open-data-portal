@@ -8,7 +8,7 @@ import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {outsideSpeech,outsideAgenda,outsidePerson,outsideCapacity} from './outside-model.mjs';
-import {recordOutside,outsideDirectory,outsideSpeaker,outsideQuery,initializeOutsideAgendaUpgrade,outsideAgendaUpgradeDue} from './outside-store.mjs';
+import {recordOutside,outsideDirectory,outsideSpeaker,outsideQuery,outsideCoverage,initializeOutsideAgendaUpgrade,outsideAgendaUpgradeDue} from './outside-store.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/outside-speakers-20261016.json',import.meta.url),'utf8'));
 const conflict=JSON.parse(readFileSync(new URL('./fixtures/outside-agenda-conflict.json',import.meta.url),'utf8'));
@@ -333,4 +333,47 @@ test('an older failed Outside month stays unavailable beneath newer observations
   assert(evidence.latestObservedDate>'2025-01-31');
   assert.equal(periodAvailability({start:'2025-01-01',end:'2025-01-31'},evidence,0).observedCount,null);
   assert.equal(periodAvailability({start:'2025-01-01',end:'2025-01-31'},evidence,2).state,'partial');
+}));
+
+test('dated Outside gaps leave unrelated months observed while overall coverage stays partial',withStore((store,generation)=>{
+  seed(store,generation);store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
+  for(const date of ['2023-12-13','2025-01-15'])store.putSource(generation,'outside:gap:'+date,'outside-gap',{taskBody:{date}},saved.fetchedAt);
+  const coverage=outsideDirectory(store,{term:'10',language:'en'}).coverage;
+  assert.equal(coverage.complete,false);assert.equal(coverage.gaps,2);assert.equal(coverage.availability.limited,false);
+  assert.equal(periodAvailability({start:'2025-01-01',end:'2025-01-31'},coverage.availability,2).state,'partial');
+  assert.equal(periodAvailability({start:'2025-01-01',end:'2025-01-31'},coverage.availability,0).observedCount,null);
+  for(const count of [0,2])assert.equal(periodAvailability({start:'2025-02-01',end:'2025-02-28'},coverage.availability,count).state,'observed');
+}));
+
+test('pending and unresolved Outside records retain their own dates without limiting every month',withStore((store,generation)=>{
+  seed(store,generation);store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
+  store.enqueue(generation,'outside:roster:2025-01-15','outside-roster',{date:'2025-01-15'},102);
+  store.enqueue(generation,'outside:detail:test','outside-detail',{id:'MTG-PL-2025-02-10-OTH-42'},102);
+  const row=store.db.prepare('SELECT speech,person,body FROM outside_contributions WHERE generation=? LIMIT 1').get(generation),body=JSON.parse(row.body);
+  body.header.name=null;body.parentIds=[];
+  store.db.prepare('UPDATE outside_contributions SET date=?,body=? WHERE generation=? AND speech=? AND person=?').run('2025-03-11',JSON.stringify(body),generation,row.speech,row.person);
+  const coverage=outsideCoverage(store,generation,false,{term:'10'});
+  assert.equal(coverage.pending,2);assert.equal(coverage.unresolved,1);assert.equal(coverage.complete,false);
+  assert.equal(coverage.availability.limited,false);
+  for(const [start,end] of [['2025-01-01','2025-01-31'],['2025-02-01','2025-02-28'],['2025-03-01','2025-03-31']]) {
+    assert.equal(periodAvailability({start,end},coverage.availability,2).state,'partial');
+    assert.equal(periodAvailability({start,end},coverage.availability,0).observedCount,null);
+  }
+  assert.equal(periodAvailability({start:'2025-04-01',end:'2025-04-30'},coverage.availability,2).state,'observed');
+}));
+
+test('unknown, capped and truncated Outside coverage cannot imply unaffected months',withStore((store,generation)=>{
+  seed(store,generation);store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
+  const period={start:'2025-04-01',end:'2025-04-30'};
+  const state=truncated=>periodAvailability(period,outsideCoverage(store,generation,truncated,{term:'10'}).availability,2).state;
+  assert.equal(state(false),'observed');assert.equal(state(true),'partial');
+  store.enqueue(generation,'outside:unknown','outside-detail',{id:'unknown'},102);
+  assert.equal(state(false),'partial');
+  assert.equal(periodAvailability(period,outsideCoverage(store,generation,false,{term:'10'}).availability,0).observedCount,null);
+  store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
+  for(let i=0;i<501;i++)store.enqueue(generation,'outside:cap:'+i,'outside-detail',{id:'MTG-PL-2025-01-15-OTH-'+i},102);
+  assert.equal(state(false),'partial');
+  store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
+  for(let i=0;i<501;i++)store.putSource(generation,'outside:gap:cap:'+i,'outside-gap',{taskBody:{date:'2025-01-15'}},saved.fetchedAt);
+  assert.equal(state(false),'partial');
 }));

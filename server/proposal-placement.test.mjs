@@ -42,6 +42,15 @@ test('highest existing suffixed sibling wins, duplicates and absent parents with
   assert.equal(resolve(projection,'Article 7 a (new)').reason,'relative_target_not_found');
 });
 
+test('new paragraphs follow paragraph 1 before later numbered paragraphs after an unstyled article subtitle',()=>{
+  // Published shapes of A-10-2026-0069 AM34/35 and A-10-2026-0188 AM13/14.
+  for(const [article,title,count,suffixes] of [[3,'Suspension',2,['a','b']],[15,'Ownership of results',6,['a']],[17,'Committee Procedure',3,['a']]]){
+    const projection=source([`Article ${article}`,title,'1. First paragraph.','(a) Its child.','Continuation of paragraph one.',...Array.from({length:count-1},(_,i)=>`${i+2}. Later paragraph.`),`Article ${article+1}`],['Titrearticle','Normal','ManualNumPar1','Point1','Normal',...Array(count-1).fill('ManualNumPar1'),'Titrearticle']);
+    projection.paragraphFormats=projection.paragraphs.map((_,i)=>i===1?{align:'center',marks:[{kind:'bold',start:0,end:title.length}]}:{});
+    for(const suffix of suffixes){const placed=resolve(projection,`Article ${article} – paragraph 1 ${suffix} (new)`);assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,4);assert.equal(placed.insertBefore,5);}
+  }
+});
+
 test('partial sentence splices preserve exact source offsets and adjacent text',()=>{
   const paragraph='1. Keep this. A changed sentence. Keep that.';
   const placed=resolve(source(['Article 1',paragraph]),'Article 1 – paragraph 1','A changed sentence.','A better sentence.');

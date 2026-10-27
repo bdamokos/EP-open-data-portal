@@ -2,7 +2,7 @@
 // against COM(2025)87 DOCX in all 24 languages; amendment forms include the public
 // EP amendment excerpts in server/fixtures. See docs/PROPOSAL_STRUCTURE.md.
 const rows = {
-  bg:['Член','съображение','параграф','точка|буква','приложение','нова|нов'],
+  bg:['Член','съображение','параграф','точка|буква','приложение','нова|нов|ново'],
   cs:['Článek|Čl.','bod odůvodnění','odstavec|odst.','bod|písmeno|písm.','příloha','nový|nová|nové'],
   da:['Artikel','betragtning','stk.|stykke','nr.|litra|punkt','bilag','ny|nyt'],
   de:['Artikel','Erwägung|Erwägungsgrund','Absatz','Nummer|Buchstabe|Ziffer','Anhang','neu'],
@@ -19,7 +19,7 @@ const rows = {
   lt:['straipsnis|straipsnio','konstatuojamoji dalis','dalis|dalies','punktas|punkto|papunktis','priedas|priedo','naujas|nauja'],
   lv:['pants','apsvērums','daļa|punkts','punkts|apakšpunkts','pielikums','jauns|jauna'],
   mt:['Artikolu','premessa','paragrafu','punt','anness','ġdid|ġdida'],
-  nl:['Artikel','overweging','lid|alinea','punt|letter','bijlage|bĳlage','nieuw|nieuwe'],
+  nl:['Artikel','overweging','lid|alinea|paragraaf','punt|letter','bijlage|bĳlage','nieuw|nieuwe'],
   pl:['Artykuł|Art.','motyw','akapit|ustęp|ust.','punkt|pkt|litera|lit.','załącznik','nowy|nowa|nowe'],
   pt:['Artigo','considerando','número|n.º|parágrafo','ponto|alínea','anexo','novo|nova'],
   ro:['Articolul','considerentul|considerent','alineatul|alineat|paragraful','punctul|litera','anexa|anexă','nou|nouă'],
@@ -56,6 +56,8 @@ function grammar(language) {
   if(grammars.has(language))return grammars.get(language);
   const row=rows[language],words=Object.fromEntries(kinds.map((kind,i)=>[kind,row[i]]));
   Object.assign(words,extra[language]??{chapter:chapterWords[language],section:sectionWords[language],title:titleWords[language]});
+  if(language==='sv')words.recommendation='rekommendation';
+  if(language==='en'){words.subheading='subheading';words.citation='Citation';}
   const out=Object.entries(words).map(([kind,terms])=>{
     const pattern=terms.split('|').map(escape).join('|');
     return {kind,terms:terms.split('|'),pattern,forward:new RegExp(`^(?:${pattern})(?:\\s+${kind==='article'?'|(?=\\d)':''})(.+)$`,'iu'),backward:new RegExp(`^(.+?)\\s+(?:${pattern})$`,'iu')};
@@ -69,14 +71,16 @@ export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
   // EP separates an inserted suffix from its alphabetic/Roman base; source
   // point labels also publish compact forms such as Croatian "ba".
-  const spaced=text.match(/^([a-z]|[ivxlcdm]{1,8})\s+([a-z]{1,2})$/u);
+  const spaced=text.match(/^([\p{Lu}]{1,3}|[a-z]{1,8})\s+([\p{Ll}]{1,2})$/u);
   if(spaced)return {value:spaced[1]+spaced[2],number:null,base:spaced[1],suffix:spaced[2]};
+  const romanSuffix=text.match(/^([IVXLCDM]+)\s*([a-z]{1,2})$/u);
+  if(romanSuffix)return {value:romanSuffix[1]+romanSuffix[2],number:null,base:romanSuffix[1],suffix:romanSuffix[2]};
   const letterSuffix=text.match(/^([a-z])([a-z])$/u);
   if(letterSuffix&&!/^[ivxlcdm]+$/u.test(text))return {value:text,number:null,base:letterSuffix[1],suffix:letterSuffix[2]};
   if(language==='fr'&&/^(?:premier|1er)$/i.test(text))return {value:'1',number:1,suffix:''};
   const decimal=text.match(/^(\d+(?:\.\d+)*)\s*([\p{L}]+|[\p{L}]\s[\p{L}])?$/u);
   if(decimal){const suffix=(decimal[2]??'').replace(/\s/g,'').toLowerCase();
-    if(suffix.length>1&&!/^(?:bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies|aa|ab|ac)$/u.test(suffix))return null;
+    if(suffix.length>1&&!/^(?:bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies|aa|ab|ac|ba)$/u.test(suffix))return null;
     return {value:decimal[1]+suffix,number:decimal[1].includes('.')?null:Number(decimal[1]),suffix};}
   if(/^[IVXLCDM]+$/.test(text))return {value:text,number:null,suffix:''};
   if(/^(?:[\p{L}]{1,2}|[ivxlcdm]{1,8})$/u.test(text))return {value:text.toLowerCase(),number:null,suffix:''};
@@ -87,7 +91,11 @@ export function parseLabelSegment(label,language='en') {
   language=proposalLanguage(language);let text=fold(label),isNew=false;
   if(!qualifiers.has(language))qualifiers.set(language,new RegExp(`\\s*\\((?:${rows[language][5].split('|').map(escape).join('|')})\\)\\s*$`,'iu'));
   text=text.replace(qualifiers.get(language),()=>{isNew=true;return '';});
+  if(language==='el'&&/^εισαγωγικό μέρος$/iu.test(text))return {kind:'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
   if(language==='en'&&/^(?:introductory part|title)$/iu.test(text))return {kind:/^title$/iu.test(text)?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
+  // Finnish recital numbers occur inside the compound noun, e.g. the
+  // published "Johdanto-osan Q a kappale (uusi)" (A-10-2026-0237 AM57).
+  if(language==='fi')text=text.replace(/^johdanto-osan (.+) kappale$/iu,'$1 johdanto-osan kappale');
   for(const {kind,forward:forwardPattern,backward:backwardPattern} of grammar(language)) {
     const forward=text.match(forwardPattern);
     const backward=text.match(backwardPattern);
@@ -96,10 +104,14 @@ export function parseLabelSegment(label,language='en') {
     // Greek annex/title headings use Greek Ι/Χ glyphs in Roman numerals.
     // This is an ordinal grammar rule, never transliteration of a suffix.
     if(language==='el'&&['annex','title','chapter','section'].includes(kind)&&/^[IVXLCDMΙΧ]+\.?$/u.test(rawValue.trim())){const roman=rawValue.replaceAll('Ι','I').replaceAll('Χ','X');if(roman!==rawValue){sourceValue=rawValue;rawValue=roman;}}
-    const negative=isNew&&kind==='point'&&/^-[a-z]$|^-\d+$/u.test(rawValue);
+    if(language==='pt'&&kind==='point')rawValue=rawValue.replace(/^([a-z])[‑–-]([A-Z])$/u,(_,base,suffix)=>base+' '+suffix.toLowerCase());
+    rawValue=rawValue.trim().replace(/^[−‑–]/u,'-').replace(/\.$/u,'');
+    const negative=/^-(?:[\p{L}]|\d+)(?:\s*[a-z])?$/u.test(rawValue);
     const value=proposalNumber(negative?rawValue.slice(1):rawValue,language);
+    const capital=['recital','paragraph'].includes(kind)&&/^([\p{Lu}]{1,3})(?:\s*([\p{Ll}]{1,3}))?$/u.exec(negative?rawValue.slice(1):rawValue);
+    if(value&&capital){value.value=capital[1]+(capital[2]??'');value.suffix=capital[2]??'';if(capital[2])value.base=capital[1];}
     if(value&&negative){value.value='-'+value.value;value.negative=true;}
-    if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^\d|^[IVXLCDM]+$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
+    if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^(-?\d)|^[IVXLCDM]+[a-z]{0,2}$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
   }
   return null;
 }
