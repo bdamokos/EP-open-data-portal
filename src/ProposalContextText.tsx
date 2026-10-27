@@ -120,7 +120,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
     // A placed source span keeps its parsed provision number. When the amendment's
     // original column is exactly that span without the number, the number is shown
     // as source context and only the wording is compared; proposed text is never changed.
-    const anchor=inPlace&&proposal&&placement?.operation==='replace'&&placement.splice?.start.offset===0?units(proposal.units).find(unit=>unit.id===placement.evidence?.at(-1)?.anchor):undefined;
+    const anchor=inPlace&&proposal&&placement?.operation==='replace'&&placement.splice?.start.offset===0?units(proposal.units).find(unit=>placement.evidence?.some(e=>e.anchor===unit.id)):undefined;
     const sourcePrefix=anchor?.label?.prefix&&anchor.content[0]===placement?.splice?.start.paragraph&&original?.startsWith(anchor.label.prefix)?anchor.label.prefix:undefined;
     const collapse=(text:string|null|undefined)=>(text??'').replace(/\s+/gu,' ').trim();
     let labelLength=sourcePrefix&&original!==null&&wording?.originalText&&collapse(original.slice(sourcePrefix.length))===collapse(wording.originalText)?sourcePrefix.length:0;
@@ -152,8 +152,8 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
     <p className="document-context-language">Text language: {baseline.language.toUpperCase()}</p>
     <div className="document-context-tools"><FindInText target={reader} label={existing?'Find in existing act':council?'Find in Council position':'Find in proposal'}/></div>
     {placed?<div className="document-context-passage"><button type="button" onClick={showAmendment}>Go to amendment</button></div>:<p className="document-context-notice" role="status">{proposalPlacementReasons[placement?.reason||'']||'The amendment’s location could not be determined.'}</p>}
-    {baseline.status!=='available'&&<p className="document-context-notice">{council?'Partial text.':'Some proposal content is unavailable.'}</p>}
-    {baseline.items.some(item=>item.source.stale||item.source.refreshError)&&<p className="document-context-notice">{baseline.items.some(item=>item.source.refreshError)?'Couldn’t update the proposal. Showing saved text.':'Showing saved proposal text.'}</p>}
+    {baseline.status!=='available'&&<p className="document-context-notice">{council||existing?'Partial text.':'Some proposal content is unavailable.'}</p>}
+    {baseline.items.some(item=>item.source.stale||item.source.refreshError)&&<p className="document-context-notice">{existing?'Saved text':baseline.items.some(item=>item.source.refreshError)?'Couldn’t update the proposal. Showing saved text.':'Showing saved proposal text.'}</p>}
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];
       return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading">{item.kind==='act'?existing?'Existing act':council?'Council position':'Proposal':'Annexes'}{item.index>1?' · part '+item.index:''}</h4>

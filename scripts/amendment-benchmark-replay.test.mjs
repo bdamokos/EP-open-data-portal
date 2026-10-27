@@ -76,6 +76,10 @@ test('Council source replay freezes discovered XHTML and evaluates it without bo
   const offline=new InputCache(directory,{apiBase,fetcher:()=>{throw new Error('Network forbidden');}});await offline.seal(manifest);
   const rows=await evaluateReport([f.row],sample,offline,{runtime,replay:sourceReplay(offline,runtime)});
   assert.equal(rows[0].outcome,'correct',JSON.stringify(rows[0].stages));assert.equal(rows[0].stages.S4.kind,'council-position');assert.equal(rows[0].stages.S6.status,'verified');
+  const query=manifest.find(meta=>meta.url.includes('/sparql?')&&decodeURIComponent(meta.url).includes('POSIT'));
+  assert(query);offline.sealed.delete(JSON.stringify([query.url,query.request]));
+  const missing=await sourceReplay(offline,runtime).council({reportId:f.document,language:'en',documentReferences:[{field:'DocRef',raw:'17037/1/2025 – 2023/0226(COD)'}]});
+  assert.deepEqual(missing.baseline.gaps,['council-source-not-in-snapshot']);offline.assertHealthy();
 });
 test('offline replay improves proposal-parser outcomes on identical bytes despite empty outdated live projections',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));

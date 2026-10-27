@@ -1089,3 +1089,16 @@ test('existing-act context compares the inner replacement and keeps its amending
   assert(block.querySelector('.wording-diff__columns').textContent.includes('Existing act'));
   assert(h.container.querySelector('a[href*="CELEX:02023R0956-20251020"]'));assert(!h.container.textContent.includes('Commission proposal'));
 });
+
+test('an existing-act point keeps its source label when the amendment column omits it',async t=>{
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/existing-law-excerpts.json',import.meta.url),'utf8'))[0];
+  const {resolveExistingLawPlacement}=await import('../server/existing-law-placement.mjs');
+  const value=proposalContextResponse(report,amendment,list,4),proposal=parsePublicLegalXhtml(fixture.xhtml,{language:'en',sourceUrl:fixture.sourceUrl,identity:{work:fixture.workId,celex:fixture.celex}});
+  const originalText='slightly modifying the goods concerned to make those goods fall under CN codes which are not listed in Annex I, except where the modification alters their essential characteristics;';
+  const variant={...value.amendment.variants[0],baseline:'present-text',baselineSource:{category:'present-text',conflicted:false},documentDate:'2026-09-09',targetPath:{proposal:[{raw:'Article 1 – paragraph 1 – point 15 b (new)'}],underlying:[{document:'Regulation (EU) 2023/956',raw:'Article 27 – paragraph 2 – point a'}]},originalText,proposedText:'(15b) In Article 27(2), point a is replaced by the following:\n"Changed wording;"'};
+  value.baseline={...value.baseline,kind:'existing-act',baseCelex:fixture.baseCelex,consolidationDate:fixture.date,amendmentDate:variant.documentDate,workId:fixture.workId,celex:fixture.celex};value.proposal.items=[{kind:'act',index:1,proposal}];value.amendment.variants=[variant];value.placement=resolveExistingLawPlacement(value.proposal.items,variant,value.baseline);
+  assert.equal(value.placement.status,'placed');
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('[data-source-label]').textContent,'(a)');
+  await h.click([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side'));assert.equal(wordingText(block,'original'),originalText);assert.equal(wordingText(block,'proposed'),'Changed wording;');
+});
