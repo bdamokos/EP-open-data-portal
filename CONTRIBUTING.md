@@ -65,3 +65,28 @@ The benchmark re-extracts amendment wording and computes placement with checkout
 Keep a baseline JSON and replay the same snapshot/sample after changing code with `npm run bench:amendments -- --baseline /absolute/path/to/baseline.json`. The gate validates the full snapshot manifest, warns if the benchmark/oracle model changed, reports comparable metric/taxonomy deltas and every regressed amendment, and exits non-zero on any false placement, deterioration from `correct`, missing row or projection-version incompatibility.
 
 For placement PRs using the same frozen API text/proposals, add `--placement-only --baseline /absolute/path/to/baseline.json`. This explicitly limits the gate to checkout-computed placement outcomes and waives only the recorded document-context wrapper-version mismatch. It requires identical sample/manifest and unchanged source-producer modules, proposal identity/source selection, endpoint projection construction/return wiring, their local dependency closure and dependency lock. Only the endpoint wrapper-version literal and placement-consumer dependencies are excluded from that fingerprint. Other projection-version mismatches and producer changes still refuse comparison pending #278. Older clean baseline reports (including earlier fingerprint schemas) can recover the expanded producer hashes from their recorded Git revision, which must be available locally and match the report's producer hashes; dirty or unverifiable baselines are refused. Never compare different snapshots. Keep public-source results outside Git and CI artifacts.
+
+## Plenary agenda benchmark
+
+After `npm ci`, capture anonymous raw Open Data inputs once into a new directory outside Git:
+
+```sh
+npm run bench:agenda -- --fetch --cache-dir /tmp/agenda-inputs --week latest
+```
+
+Acquisition reads current-term `/meetings` catalogues (50 rows/page, at most ten pages/year), then at most two agenda pages for each of the selected week's one to five sittings. Use `--week YYYY-MM-DD` (Monday), `--sitting MTG-PL-YYYY-MM-DD`, or `--lang hu` when capturing a different sample. The default is the UI's English latest-week request. Every input keeps its exact URL, HTTP status, retrieval date, byte hash and observed header/body latency. Requests are sequential, at least 750 ms apart, with an 80-request cap (`--request-cap`, maximum 200), 12 MiB/response and 64 MiB total limits. Redirects, transient errors and incomplete catalogue acquisition abort without sealing a snapshot. HTTP 429/503 stop immediately; acquire a new snapshot after the source's pause. A later-page catalogue 204 is retained as a terminal observation, not a successful empty first page. Agenda 204/404 observations remain gaps under the existing reader's rules.
+
+Rerun the same snapshot offline, using `--baseline` for subsequent changes:
+
+```sh
+npm run bench:agenda -- --cache-dir /tmp/agenda-inputs --latency zero
+npm run bench:agenda -- --cache-dir /tmp/agenda-inputs --latency recorded --baseline /absolute/path/to/baseline.json
+```
+
+Each run defaults to five iterations of four states: empty source/view caches in a fresh process; a warm repeat in that process; fresh retained source records with no assembled view in another process; and a restart with the first process's assembled view. Replay uses the checkout's actual ODP admission queue, disk/memory source caches, calendar/legislation services and view cache. A missing replay URL aborts; it never goes online or becomes a source gap. Successful source records are seeded as fresh; negative observations retain the application's normal cache behaviour. All services use the snapshot's fixed selection clock. Temporary replay caches/indexes are removed after measurement.
+
+`recorded` replays the capture's header/body waits without network; `zero` removes those waits to expose local work. JSON/Markdown reports go to a sibling `-results` directory (or `--output-dir`). Elapsed time covers the service query and response serialization. Reports include median/p95 and individual runs, process/import/index setup times, CPU, heap/RSS, event-loop delay, inclusive parent/child spans, exact source calls/bytes and full coverage. Nested spans overlap; do not add their durations. Five samples are a baseline, not a tail-latency estimate.
+
+The benchmark uses an isolated ready synthetic index with 720 members, 25,000 document-source rows (`--index-rows 0..100000`), and no amendments or tasks; query-time SQLite is read-only. It measures the backend agenda list, excluding index collection, production database scale, OS-cache eviction, background load, HTTP/CDN, directory bootstrap, browser assets and rendering. Recorded latency is one source observation, not live-site acceptance. Add a browser/navigation measurement separately if these backend timings do not account for the reported delay.
+
+Comparison requires identical snapshots, protocol/iterations, runtime/hardware and instrumentation. Full ordered responses must match after removing only `fetchedAt` and `computedAt`; exact IDs, wording, languages, coverage, errors and freshness flags remain. Response differences, failed/incomplete runs and increased transport counts fail the gate. A median slowdown fails only when it exceeds both 10% and 20 ms; change the margins with `--max-regression-percent` and `--max-regression-ms`. Hold the checkout fixed while measuring; reports record its revision, dirty diff, source-tree and harness hashes. Keep raw inputs, reports and experiments outside Git and public CI artifacts.
