@@ -25,7 +25,7 @@ export function rawProposalReferences(buffer,runtime) {
 
 export function sourceReplay(cache,runtime) {
   const request=async endpoint=>{
-    const input=await cache.get(publicDocumentUrl(endpoint.split('/').at(-1)));
+    const input=await cache.get(publicDocumentUrl(endpoint.split('/').at(-1)),{accept:'application/ld+json'});
     if(!input.ok)return {payload:{data:[]},url:input.url,fetchedAt:Date.parse(input.fetchedAt),status:input.status};
     let payload;try{payload=JSON.parse(input.body.toString('utf8'));}catch{throw new Error('Invalid public document JSON: '+input.url);}
     const id=endpoint.split('/').at(-1),nodes=payload?.data;

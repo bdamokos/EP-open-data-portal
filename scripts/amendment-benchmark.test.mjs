@@ -331,8 +331,10 @@ test('cached-source CLI reports correct-to-false regression despite live wrapper
   const rawWork={id:'eli/dl/doc/'+document,identifier:document,work_type:'def/ep-document-types/RESOLUTION_MOTION',is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'http://publications.europa.eu/resource/authority/file-type/DOCX',is_exemplified_by:rawUrl}]}]};
   for(const [input,value] of [[rawUrl,rawBody],['https://data.europarl.europa.eu/api/v2/plenary-documents/'+document+'?format=application%2Fld%2Bjson',{data:[rawWork]}],[apiBase+'/api/amendments?'+query,{total:1,offset:0,limit:50,coverage:{servingGeneration:5},items:[indexed]}],[url,body],[contextUrl(apiBase,document,'en'),context],[contextUrl(apiBase,document,'en',indexed,indexed),context]]) {
     const bytes=Buffer.isBuffer(value)?value:Buffer.from(JSON.stringify(value));
-    await writeFile(path.join(inputs,digest(input)+'.body'),bytes);
-    await writeFile(path.join(inputs,digest(input)+'.json'),JSON.stringify({url:input,fetchedAt:'2026-10-27T00:00:00Z',status:200,ok:true,bytes:bytes.length,sha256:digest(bytes),error:null}));
+    const request=input.includes('/api/v2/plenary-documents/')?{accept:'application/ld+json'}:null;
+    const key=digest(request?JSON.stringify([input,request]):input);
+    await writeFile(path.join(inputs,key+'.body'),bytes);
+    await writeFile(path.join(inputs,key+'.json'),JSON.stringify({url:input,fetchedAt:'2026-10-27T00:00:00Z',status:200,ok:true,bytes:bytes.length,sha256:digest(bytes),error:null,...(request?{request}:{} )}));
   }
   await writeFile(path.join(directory,'snapshot.json'),JSON.stringify({schemaVersion:3,apiBase,asOf:'2026-10-27'}));
   const args=['scripts/amendment-benchmark.mjs','--api-base',apiBase,'--cache-dir',directory,'--document',document,'--placement-only'];
