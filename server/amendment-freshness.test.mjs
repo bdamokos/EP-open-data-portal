@@ -9,10 +9,11 @@ import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, listWordingFreshness } from './amendments.mjs';
 import { amendmentsPage, enqueueAmendment, nextAmendmentTask } from './amendments-store.mjs';
 import { amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, failAmendmentTask, prepareAmendments, rebuildAmendmentTarget, scheduleAmendments, AMENDMENT_PARSER_DOWNLOAD_PACE, amendmentParserDownloadsKey } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
+import { amendmentSourceStore } from './amendment-source-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 
 const targetId='A-10-2026-0254', listId=targetId+'-AM-001-001';
@@ -645,15 +646,16 @@ for(const stage of ['extract','metadata','failed-extract','missing-distribution'
   if(stage==='extract')assert.equal(store.source(generation,'amendment:list:'+job.body.listId).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
 });
 
-test('parser recovery downloads an expired or changed source and respects its bounded cold-download limit',async t=>{
-  for(const mode of ['expired','changed','cold-limit']) {
+test('parser recovery reuses retained bytes at any age and downloads only a changed or missing source within its cold-download limit',async t=>{
+  for(const mode of ['aged','changed','missing','cold-limit']) {
     const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);
-    if(mode==='expired')context.advance(8*86400000);
+    context.advance(mode==='changed'?0:400*86400000);
     if(mode==='changed') {
       const saved=store.source(generation,listKey);
       store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,url:newUrl}]}},saved.fetchedAt);
     }
-    if(mode==='cold-limit'){context.advance(8*86400000);store.set(amendmentParserDownloadsKey,Array.from({length:AMENDMENT_PARSER_DOWNLOAD_PACE.downloads},(_,i)=>({at:store.clock()-(AMENDMENT_PARSER_DOWNLOAD_PACE.downloads-1-i)*1000})));}
+    if(mode==='missing'||mode==='cold-limit')store.db.prepare('DELETE FROM amendment_sources').run();
+    if(mode==='cold-limit')store.set(amendmentParserDownloadsKey,Array.from({length:AMENDMENT_PARSER_DOWNLOAD_PACE.downloads},(_,i)=>({at:store.clock()-(AMENDMENT_PARSER_DOWNLOAD_PACE.downloads-1-i)*1000})));
     let downloads=0;worker.downloadAmendmentDocx=async url=>{assert.equal(url,mode==='changed'?newUrl:oldUrl);downloads++;return {buffer:amendmentDocx(freshProposed)};};
     prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));
     await worker.task(nextAmendmentTask(store,generation));
@@ -665,8 +667,63 @@ test('parser recovery downloads an expired or changed source and respects its bo
       assert.equal(nextAmendmentTask(store,generation),null);
       context.advance(slot-store.clock());await worker.task(nextAmendmentTask(store,generation));
     }
-    assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
+    const extraction=store.source(generation,listKey).work.extraction;
+    assert.equal(extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+    if(mode==='aged') {
+      // A year-old retrieval of the current descriptor still serves parser-only work.
+      assert.equal(downloads,0);assert.equal(extraction.fetchedAt,oldRetrievedAt);assert.equal(extraction.amendments[0].proposedText,oldProposed);
+    } else {assert.equal(downloads,1);assert.equal(extraction.fetchedAt,context.at());assert.equal(extraction.amendments[0].proposedText,freshProposed);}
   }
+});
+
+test('a changed published issue time at the same URL and size requires a download, while unrecorded issue times still match',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);context.advance(30*86400000);
+  const saved=store.source(generation,listKey);
+  const observe=issued=>store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued}]}},saved.fetchedAt);
+  let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
+  // The retained baseline recorded no issue time, so a newly published one matches.
+  observe('2026-10-02T17:04:06+02:00');
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(downloads,0);assert.equal(store.source(generation,listKey).work.extraction.fetchedAt,oldRetrievedAt);
+  // Record the issue time with the retained bytes, then republish under a new one.
+  const sources=store.db.prepare('SELECT * FROM amendment_sources').all();assert.equal(sources.length,1);
+  store.db.prepare("UPDATE amendment_sources SET issued='2026-10-02T17:04:06+02:00'").run();
+  assert.equal(listWordingFreshness({...store.source(generation,listKey).work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued:'2026-10-02T15:04:06Z'}]}},{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'fresh','The same instant in another notation is the same publication.');
+  downgrade(context);observe('2026-10-20T09:00:00+02:00');
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  const extraction=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,1);assert.equal(extraction.fetchedAt,context.at());assert.equal(extraction.amendments[0].proposedText,freshProposed);
+  assert.equal(extraction.sourceDescriptor.issued,'2026-10-20T09:00:00+02:00');
+  // Both publications are retained; the earlier one is now superseded.
+  assert.deepEqual(store.db.prepare('SELECT issued FROM amendment_sources ORDER BY retrieved_at').all().map(row=>row.issued),['2026-10-02T17:04:06+02:00','2026-10-20T09:00:00+02:00']);
+});
+
+test('parser-upgrade extraction reads retained bytes off the main thread and paces consecutive lists',async t=>{
+  const context=await fixture(t),{store,worker,generation}=context;downgrade(context);context.advance(90*86400000);
+  const calls=[];const extract=worker.extractAmendmentList;
+  worker.extractAmendmentList=async(...args)=>{calls.push(performance.now());return extract(...args);};
+  worker.downloadAmendmentDocx=async()=>{throw new Error('Retained bytes should be reused.');};
+  // A previous slice just ended and took 120 ms: the next one waits at least as long.
+  worker.amendmentExtractionPace={endedAt:performance.now(),lastMs:120};
+  const started=performance.now();
+  prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(calls.length,1);assert(calls[0]-started>=110,'The extraction slice yields to the event loop before parsing.');
+  assert.equal(store.source(generation,listKey).work.extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert(worker.amendmentExtractionPace.lastMs>0);
+});
+
+test('a successor writer re-extracts from bytes retained by its predecessor without downloading',async t=>{
+  const context=await fixture(t),{store,generation}=context;downgrade(context);context.advance(30*86400000);
+  store.release();
+  const other=new ActivityStore(path.dirname(store.filename),{clock:()=>store.clock()});t.after(()=>other.close());assert(other.acquire());
+  let downloads=0;
+  const successor=new ActivityWorker(other,{runUpstream:unthrottledUpstream,clock:()=>other.clock(),monotonic:()=>0,downloadAmendmentDocx:async()=>{downloads++;throw new Error('Retained bytes should be reused.');}});
+  prepareAmendmentParserUpgrade(successor,generation);
+  await successor.task(nextAmendmentTask(other,generation));await successor.task(nextAmendmentTask(other,generation));
+  const extraction=other.source(generation,listKey).work.extraction;
+  assert.equal(downloads,0);assert.equal(extraction.parserVersion,AMENDMENT_EXTRACTION_VERSION);assert.equal(extraction.fetchedAt,oldRetrievedAt);
+  // The former writer can no longer change the retained sources.
+  await assert.rejects(amendmentSourceStore(store).save({url:oldUrl,language:'en',byteSize:1},Buffer.from('x'),context.at()),/writer lease was lost/);
 });
 
 // Stale lists whose extraction jobs run through the real admission and source-queue path.

@@ -1,0 +1,189 @@
+import {createHash} from 'node:crypto';
+import {readFile,readdir,rmdir,stat,unlink} from 'node:fs/promises';
+import path from 'node:path';
+import {setImmediate as yieldTurn} from 'node:timers/promises';
+import {writeCacheFile} from './cache-publication.mjs';
+import {integerFromEnvironment} from './config.mjs';
+import {normalizedDocxDescriptor,sameDocxDescriptor} from './amendments.mjs';
+
+// Downloaded amendment-list DOCX bytes, retained outside index generations.
+// Raw files are content-addressed by SHA-256. The leased index writer records
+// each published distribution descriptor (URL, language, declared size and
+// issue time) with the hash and original retrieval time of the bytes it served.
+// A later parser version can re-read those bytes while the descriptor is still
+// current, independently of age. Only superseded or unreferenced versions are
+// evicted, and only to keep the directory inside its disk budget.
+export const AMENDMENT_SOURCE_LIMITS=Object.freeze({maxFileBytes:8*1024*1024,defaultMaxMiB:512});
+const HASH=/^[0-9a-f]{64}$/,BLOB=/^([0-9a-f]{64})\.docx$/,TEMPORARY=/^[0-9a-f]{64}\.docx\.[0-9a-f-]{36}\.tmp$/,LEGACY=/^[0-9a-f]{64}\.json$/;
+const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
+const stores=new WeakMap();
+
+export function amendmentSourceStore(store,{maxBytes}={}) {
+  let instance=stores.get(store);
+  if(!instance){instance=new AmendmentSourceStore(store,{maxBytes});stores.set(store,instance);}
+  return instance;
+}
+
+const key=descriptor=>{
+  const file=normalizedDocxDescriptor(descriptor);
+  return file&&{url:file.url,language:file.language ?? '',byteSize:file.byteSize ?? -1,issued:file.issued ?? ''};
+};
+const descriptorOf=row=>normalizedDocxDescriptor({url:row.url,language:row.language||null,byteSize:row.byte_size<0?null:row.byte_size,issued:row.issued||null});
+
+class AmendmentSourceStore {
+  constructor(store,{maxBytes}={}) {
+    this.store=store;this.directory=path.join(path.dirname(store.filename),'amendment-docx-v2');
+    this.legacyDirectory=path.join(path.dirname(store.filename),'amendment-docx-v1');
+    this.maxBytes=maxBytes ?? integerFromEnvironment('AMENDMENT_SOURCE_MAX_DISK_MIB',AMENDMENT_SOURCE_LIMITS.defaultMaxMiB,64,8192)*1024*1024;
+    this.ready=null;this.full=false;
+  }
+  schema() {
+    if(this.schemaReady)return;
+    // Empty strings and -1 stand for unpublished language, issue time and size,
+    // so the primary key also covers descriptors without them.
+    this.store.db.exec(`CREATE TABLE IF NOT EXISTS amendment_sources(url TEXT NOT NULL,language TEXT NOT NULL,byte_size INTEGER NOT NULL,issued TEXT NOT NULL,
+      sha256 TEXT NOT NULL,size INTEGER NOT NULL,retrieved_at TEXT NOT NULL,list_id TEXT,PRIMARY KEY(url,language,byte_size,issued)) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS amendment_sources_hash ON amendment_sources(sha256);`);
+    this.schemaReady=true;
+  }
+  // Runs once per process in the writer: imports the former base64 JSON cache
+  // and removes interrupted publications and blobs without an index row.
+  initialize({signal}={}) {
+    this.ready??=(async()=>{
+      this.store.assertWriter();this.schema();
+      await this.migrateLegacy({signal});
+      let names=[];
+      try {names=await readdir(this.directory);}catch(error){if(error.code!=='ENOENT')throw error;}
+      const known=new Set(this.store.db.prepare('SELECT DISTINCT sha256 FROM amendment_sources').all().map(row=>row.sha256));
+      for(const name of names) {
+        const hash=name.match(BLOB)?.[1];
+        if(hash&&known.has(hash))continue;
+        if(!hash&&!TEMPORARY.test(name))continue;
+        // Writers in this process publish before indexing; skip recent files.
+        const info=await stat(path.join(this.directory,name)).catch(()=>null);
+        if(info?.isFile()&&this.store.clock()-info.mtimeMs>10*60_000)await unlink(path.join(this.directory,name)).catch(()=>{});
+      }
+    })();
+    this.ready.catch(()=>{this.ready=null;});
+    return this.ready;
+  }
+  async migrateLegacy({signal}={}) {
+    let names;
+    try {names=(await readdir(this.legacyDirectory)).filter(name=>LEGACY.test(name));}catch(error){if(error.code==='ENOENT')return;throw error;}
+    let imported=0;
+    for(const name of names) {
+      signal?.throwIfAborted();
+      const file=path.join(this.legacyDirectory,name);
+      try {
+        const record=JSON.parse(await readFile(file,'utf8'));
+        const buffer=typeof record.bytes==='string'?Buffer.from(record.bytes,'base64'):null;
+        if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&Number.isFinite(Date.parse(record.fetchedAt))&&normalizedDocxDescriptor(record.descriptor)) {
+          if(await this.save(record.descriptor,buffer,record.fetchedAt,{signal,legacy:true}))imported++;
+        }
+      } catch(error){signal?.throwIfAborted();if(error.message==='Activity-index writer lease was lost.')throw error;}
+      await unlink(file).catch(()=>{});
+      await yieldTurn();
+    }
+    await rmdir(this.legacyDirectory).catch(()=>{});
+    if(names.length)console.info(`[amendment-sources] imported ${imported} of ${names.length} legacy DOCX cache records`);
+  }
+  // Index-only check for scheduling; it reads no file.
+  has(descriptor) {
+    this.schema();
+    return Boolean(this.match(descriptor));
+  }
+  match(descriptor) {
+    const wanted=key(descriptor);if(!wanted)return null;
+    const rows=this.store.db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
+      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor));
+    // Prefer a row with the same published issue time over one without it.
+    return rows.sort((a,b)=>Number(Boolean(b.issued&&wanted.issued))-Number(Boolean(a.issued&&wanted.issued))||b.retrieved_at.localeCompare(a.retrieved_at))[0] || null;
+  }
+  // Returns the exact retained bytes and their original retrieval time. A
+  // missing or damaged file removes its row so the caller can download again.
+  async read(descriptor,{listId=null,signal}={}) {
+    await this.initialize({signal});
+    const row=this.match(descriptor);if(!row)return null;
+    const file=path.join(this.directory,row.sha256+'.docx');
+    let buffer=null;
+    try {buffer=await readFile(file);}catch(error){signal?.throwIfAborted();if(error.code!=='ENOENT')throw error;}
+    signal?.throwIfAborted();
+    if(!buffer||buffer.length!==row.size||sha256(buffer)!==row.sha256) {
+      this.store.assertWriter();
+      this.store.db.prepare('DELETE FROM amendment_sources WHERE sha256=?').run(row.sha256);
+      await unlink(file).catch(()=>{});
+      return null;
+    }
+    if(listId&&row.list_id!==listId){this.store.assertWriter();this.store.db.prepare('UPDATE amendment_sources SET list_id=? WHERE url=? AND language=? AND byte_size=? AND issued=?').run(listId,row.url,row.language,row.byte_size,row.issued);}
+    return {buffer,fetchedAt:row.retrieved_at,sha256:row.sha256};
+  }
+  // Records bytes served for a current descriptor. Returns false when they
+  // cannot be retained; extraction can still use the in-memory bytes.
+  async save(descriptor,buffer,retrievedAt,{listId=null,signal,legacy=false}={}) {
+    if(!legacy)await this.initialize({signal});
+    const wanted=key(descriptor),db=this.store.db;
+    if(!wanted||!Buffer.isBuffer(buffer)||buffer.length>AMENDMENT_SOURCE_LIMITS.maxFileBytes||!Number.isFinite(Date.parse(retrievedAt)))return false;
+    // The same or a less specific descriptor is replaced; other versions of the
+    // URL remain as superseded evidence until the budget needs their space.
+    const matching=()=>db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
+      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor));
+    // A legacy import never replaces evidence recorded by this store.
+    if(legacy&&matching().length)return false;
+    const hash=sha256(buffer);
+    this.store.assertWriter();
+    if(!db.prepare('SELECT 1 FROM amendment_sources WHERE sha256=? LIMIT 1').get(hash)) {
+      if(!await this.reserve(buffer.length,{signal}))return false;
+      await writeCacheFile(path.join(this.directory,hash+'.docx'),buffer,{signal});
+    }
+    signal?.throwIfAborted();
+    const replaced=this.store.transaction(()=>{
+      this.store.assertWriter();
+      const rows=matching(),same=rows.find(row=>row.sha256===hash);
+      for(const row of rows)db.prepare('DELETE FROM amendment_sources WHERE url=? AND language=? AND byte_size=? AND issued=?').run(row.url,row.language,row.byte_size,row.issued);
+      // Repeated retrievals of identical bytes keep the latest retrieval time.
+      const at=same&&Date.parse(same.retrieved_at)>Date.parse(retrievedAt)?same.retrieved_at:retrievedAt;
+      db.prepare('INSERT INTO amendment_sources VALUES (?,?,?,?,?,?,?,?)').run(wanted.url,wanted.language,wanted.byteSize,wanted.issued,hash,buffer.length,at,listId ?? same?.list_id ?? null);
+      return rows.map(row=>row.sha256).filter(other=>other!==hash);
+    });
+    await this.release(replaced);
+    return true;
+  }
+  async release(hashes) {
+    for(const hash of new Set(hashes)) {
+      if(!HASH.test(hash)||this.store.db.prepare('SELECT 1 FROM amendment_sources WHERE sha256=? LIMIT 1').get(hash))continue;
+      await unlink(path.join(this.directory,hash+'.docx')).catch(()=>{});
+    }
+  }
+  usedBytes() {
+    return this.store.db.prepare('SELECT COALESCE(SUM(size),0) AS n FROM (SELECT MAX(size) AS size FROM amendment_sources GROUP BY sha256)').get().n;
+  }
+  // A version is superseded when a later retrieval exists for the same URL and
+  // language under a different descriptor. A version is unreferenced when no
+  // retained generation still publishes it for its list.
+  referenced(row) {
+    if(!row.list_id)return false;
+    const descriptor=descriptorOf(row),generations=[...new Set([this.store.get('active'),this.store.get('previous'),this.store.get('working')?.generation].filter(Number.isInteger))];
+    const statement=this.store.db.prepare("SELECT d.value FROM sources AS s,json_each(s.body,'$.distributionEvidence.descriptors') AS d WHERE s.generation=? AND s.key=? AND s.kind='amendment-list'");
+    return generations.some(generation=>statement.all(generation,'amendment:list:'+row.list_id).some(({value})=>sameDocxDescriptor(JSON.parse(value),descriptor)));
+  }
+  *evictable() {
+    const db=this.store.db,id=row=>[row.url,row.language,row.byte_size,row.issued].join('\n');
+    const superseded=db.prepare(`SELECT a.* FROM amendment_sources a WHERE EXISTS(SELECT 1 FROM amendment_sources b WHERE b.url=a.url AND b.language=a.language
+      AND (b.byte_size<>a.byte_size OR b.issued<>a.issued) AND b.retrieved_at>a.retrieved_at) ORDER BY a.retrieved_at`).all(),seen=new Set(superseded.map(id));
+    yield* superseded;
+    for(const row of db.prepare('SELECT * FROM amendment_sources ORDER BY retrieved_at').all())if(!seen.has(id(row))&&!this.referenced(row))yield row;
+  }
+  async reserve(bytes,{signal}={}) {
+    if(this.usedBytes()+bytes<=this.maxBytes){this.full=false;return true;}
+    // Index rows are small; reference checks run lazily, only while space is short.
+    for(const row of this.evictable()) {
+      signal?.throwIfAborted();this.store.assertWriter();
+      this.store.db.prepare('DELETE FROM amendment_sources WHERE url=? AND language=? AND byte_size=? AND issued=?').run(row.url,row.language,row.byte_size,row.issued);
+      await this.release([row.sha256]);
+      if(this.usedBytes()+bytes<=this.maxBytes){this.full=false;return true;}
+    }
+    if(!this.full)console.warn(`[amendment-sources] disk budget of ${Math.round(this.maxBytes/1048576)} MiB is held by current sources; new bytes are not retained`);
+    this.full=true;
+    return false;
+  }
+}

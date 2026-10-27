@@ -3,7 +3,7 @@ import https from 'node:https';
 import { createHash, randomUUID } from 'node:crypto';
 import { array, tail, documentFiles, projectDocument, AMENDMENT_LINKS_VERSION } from './activity-index-model.mjs';
 import { downloadDocxBuffer } from './document-text.mjs';
-import { extractAmendments, AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
+import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { createAmendmentAuthorResolver, votingAliases } from './amendment-authors.mjs';
 import {AMENDMENT_AUTHOR_NAMES_VERSION,memberNameFields,alternateAuthorDescriptor,authorNameVariants,resolveParallelAuthors,listAuthorResolver,hasNonLatinAuthors} from './amendment-author-names.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
@@ -11,7 +11,9 @@ import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUT
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
-import {retainedAmendmentSource,retainAmendmentSource} from './amendment-source-cache.mjs';
+import {amendmentSourceStore} from './amendment-source-store.mjs';
+import {extractAmendmentsOffThread,extractionTurn,endExtractionTurn} from './amendment-extraction-thread.mjs';
+import {performance} from 'node:perf_hooks';
 import { userAgent } from './user-agent.mjs';
 import {upstreamResponseError} from './odp.mjs';
 const DAY=86400000;
@@ -736,9 +738,13 @@ export async function amendmentTask(worker,task) {
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});
       return;
     }
+    const sources=amendmentSourceStore(store);
+    // Parser-only work, and a retry after this job's own download, read the
+    // retained bytes of a still-current descriptor at any age. Their original
+    // retrieval time remains the wording's retrieval time.
     const retrieve=async descriptor=>{
-      const retained=parserUpgrade||body.sourceDownloaded?await retainedAmendmentSource(store,descriptor,{signal}):null;
-      if(retained)return retained;
+      const retained=parserUpgrade||body.sourceDownloaded?await sources.read(descriptor,{listId:body.listId,signal}):null;
+      if(retained)return {...retained,retained:true};
       const defer=wait=>{
         store.assertWriter();
         store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=? WHERE generation=? AND key=?`).run(worker.clock()+wait,generation,task.key);
@@ -764,30 +770,42 @@ export async function amendmentTask(worker,task) {
     const downloaded=await retrieve(file);
     if(!downloaded)return;
     signal.throwIfAborted();
-    const fetchedAt=downloaded.fetchedAt,extraction=extractAmendments(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt});
-    if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
-    await retainAmendmentSource(store,file,downloaded.buffer,fetchedAt,{signal});
-    if(!parserUpgrade)for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
-    signal.throwIfAborted();
-    let authorNames=null;
-    const alternate=alternateAuthorDescriptor(saved.work,extraction);
-    if(alternate){
-      if(!body.sourceDownloaded)store.taskProgress(task,{...body,sourceDownloaded:true});
-      try {
-        const other=await retrieve(alternate);
-        if(!other)return;
-        signal.throwIfAborted();
-        const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
-        const parsed=extractAmendments(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt});
-        if(!Array.isArray(parsed.amendments)||parsed.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Alternate byline extraction exceeded its record budget.');
-        await retainAmendmentSource(store,alternate,other.buffer,retrievedAt,{signal});
-        authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:normalizedDocxDescriptor(file),descriptor:alternate,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
-      }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
-    }
-    const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),sourceDescriptor:normalizedDocxDescriptor(file)}};
-    delete next.wordingRefreshFailure;
-    store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
-    rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});
+    // Extraction is CPU work: parse off the main thread and run each list's
+    // merge and target rebuild as one paced slice between request bursts.
+    const pace=worker.amendmentExtractionPace ||= {};
+    await extractionTurn(pace,{signal});
+    const sliceStarted=performance.now();
+    try {
+      const fetchedAt=downloaded.fetchedAt,extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt},{signal});
+      signal.throwIfAborted();
+      if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
+      // Successfully parsed bytes are retained; unparseable bytes are downloaded again.
+      if(!downloaded.retained)await sources.save(file,downloaded.buffer,fetchedAt,{listId:body.listId,signal});
+      if(!parserUpgrade)for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
+      signal.throwIfAborted();
+      let authorNames=null;
+      const alternate=alternateAuthorDescriptor(saved.work,extraction);
+      if(alternate){
+        if(!body.sourceDownloaded)store.taskProgress(task,{...body,sourceDownloaded:true});
+        try {
+          const other=await retrieve(alternate);
+          if(!other)return;
+          signal.throwIfAborted();
+          const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
+          const parsed=await worker.extractAmendmentList(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt},{signal});
+          signal.throwIfAborted();
+          if(!Array.isArray(parsed.amendments)||parsed.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Alternate byline extraction exceeded its record budget.');
+          if(!other.retained)await sources.save(alternate,other.buffer,retrievedAt,{listId:body.listId,signal});
+          authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:normalizedDocxDescriptor(file),descriptor:alternate,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
+        }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
+      }
+      const next={...saved.work,authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language},saved.work.document_date),sourceDescriptor:normalizedDocxDescriptor(file)}};
+      delete next.wordingRefreshFailure;
+      store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
+      rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});
+    } finally {endExtractionTurn(pace,sliceStarted);}
+    // A capacity-deferred parser walk can admit the next list now.
+    if(parserUpgrade)store.db.prepare("UPDATE amendment_jobs SET retry_at=MIN(retry_at,?) WHERE generation=? AND kind='amendment-parser-upgrade' AND done=0").run(worker.clock(),generation);
   } else if(task.kind==='amendment-roster') {
     const params={'mandate-date':body.date,limit:1000,offset:body.offset};
     const record=await worker.request('/meps/show-current',params);
@@ -861,4 +879,4 @@ export function failAmendmentTask(worker,task,error) {
   }
   return true;
 }
-export const amendmentDownloads={downloadDocxBuffer,downloadVotingXml};
+export const amendmentDownloads={downloadDocxBuffer,downloadVotingXml,extractAmendmentList:extractAmendmentsOffThread};

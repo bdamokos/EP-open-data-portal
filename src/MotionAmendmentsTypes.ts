@@ -48,7 +48,7 @@ export type MotionAmendmentWording = {
   language:string|null;requestedLanguage:string;languageFallback:boolean|null;
   originalStatus:'available'|'withheld'|'unavailable';proposedStatus:'available'|'withheld'|'unavailable';
 };
-export type MotionAmendmentDistribution = {url:string;language:string|null;byteSize:number|null};
+export type MotionAmendmentDistribution = {url:string;language:string|null;byteSize:number|null;issued?:string};
 export type MotionAmendmentEvidence = {
   textParserVersion?:string|null;justification?:string|null;gaps?:unknown[];
   fieldSources?:Record<string,AmendmentSource|null>;
