@@ -100,7 +100,7 @@ test('detail gesture pins exact wording language and list; Back retains it and t
   let context=h.requests.filter(url=>url.pathname.includes('document-context')).at(-1);
   assert.equal(context.searchParams.get('amendment'),original+'-AM-33');assert.equal(context.searchParams.get('list'),original+'-AM-013-050');assert.equal(context.searchParams.get('wording-lang'),'fr');assert.equal(context.searchParams.get('lang'),'fr','wording pin wins over record and interface language');
   assert.equal(h.query().get('ma-wording-lang'),'fr');const pinned=new URLSearchParams(h.query()).toString();
-  await h.click('← Back');assert.equal(h.state().amendments.wordingLanguage,'fr');assert.equal(h.state().amendments.offset,20);
+  await h.click('← Back to amendments');assert.equal(h.state().amendments.wordingLanguage,'fr');assert.equal(h.state().amendments.offset,20);
   await h.click('Read motion');context=h.requests.filter(url=>url.pathname.includes('document-context')).at(-1);
   assert.equal(context.searchParams.get('amendment'),null);assert.equal(context.searchParams.get('list'),null);assert.equal(context.searchParams.get('wording-lang'),null);assert.equal(h.query().has('ma-wording-lang'),false);
   await h.restore('http://localhost/?'+pinned);assert.equal(h.state().amendments.wordingLanguage,'fr');assert.equal(h.state().amendments.variantListId,original+'-AM-013-050');
@@ -118,7 +118,7 @@ test('bad saved AM/list remain unavailable but exact motion/adopted headers reco
   const h=await harness(t,{url:url.href});assert(h.container.querySelector('.motion-amendments'));assert.match(h.container.textContent,/linked amendment is unavailable/);assert.equal(h.requests.length,0);
   await h.click('Read motion');assert.equal(h.state().amendments.amendmentId,joint+'-AM-13');assert.equal(h.state().amendments.variantListId,joint+'-AM-001-020');assert.match(h.container.textContent,/Public complete document body/);
   assert.equal(h.requests.at(-1).pathname,'/api/document-context/'+original);assert.equal(h.requests.at(-1).searchParams.has('amendment'),false);assert.equal(h.requests.at(-1).searchParams.has('list'),false);
-  await h.click('← Back');await h.click('Find the adopted text');assert(h.button(/Public adopted title/));assert.equal(h.query().has('ma-ta'),false,'a single related TA is never selected automatically');
+  await h.click('← Back to amendments');await h.click('Find the adopted text');assert(h.button(/Public adopted title/));assert.equal(h.query().has('ma-ta'),false,'a single related TA is never selected automatically');
   await h.click(/Public adopted title/);assert.equal(h.changes.at(-1).reason,'adopted-choice');assert.equal(h.state().selectedTA,ta);assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/document-context/')).at(-1).pathname,'/api/document-context/'+ta);assert.equal(h.requests.at(-1).pathname,'/api/commission-followups/'+ta);
 });
 

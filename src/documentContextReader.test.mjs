@@ -1,3 +1,4 @@
+import {wordingText} from './test-support/wordingText.mjs';
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
@@ -971,4 +972,21 @@ test('title-case opinion headings cannot provide the main report amendment seque
   const h=await harness(t,()=>fallbackResponse(doc));await h.render({request:fallbackRequest,language:'en'});
   assert.equal(h.container.querySelectorAll('[data-report-amendment]').length,0);assert.equal(h.scrolls.length,0);
   assert(h.container.textContent.includes('The amendment wording is unavailable.'));
+});
+
+test('failed and missing document bodies retain exact amendment wording, summary and Back',async t=>{
+  for(const body of ['error','unavailable','missing'])await t.test(body,async t=>{
+    const doc=body==='missing'?null:sourceDocument(report,[],{status:body});
+    const data=response(report,doc,{requestedLanguage:'fr',requestedWordingLanguage:'fr',amendment:{...amendmentSource,variants:[wordingVariant('fr')]},placement:{status:'unresolved',operation:null,reason:'baseline_unavailable',evidence:[]}});
+    const h=await harness(t,()=>data);let backs=0;
+    await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'fr',view:'document',backLabel:'Back to vote',summary:el('p',null,'Vote summary stays visible'),onBack:()=>backs++},language:'en'});
+    assert.match(h.container.textContent,/Vote summary stays visible/);
+    const block=h.container.querySelector('[data-amendment-block]');assert(block);
+    await h.click([...block.querySelectorAll('button')].find(button=>button.textContent==='Side by side'));
+    assert.deepEqual(['original','proposed'].map(side=>wordingText(block,side)),['Original wording.','Proposed wording.']);
+    assert.equal(block.querySelector('.wording-diff__passage').getAttribute('lang'),'fr');
+    assert.equal(h.container.querySelector('[data-context-target]'),null);
+    if(body==='error')assert(h.container.querySelector('[role="alert"] button'),'retry survives a failed extraction');
+    await h.click(h.container.querySelector('.document-context-back'));assert.equal(backs,1);
+  });
 });
