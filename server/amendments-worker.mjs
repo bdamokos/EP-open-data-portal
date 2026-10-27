@@ -99,15 +99,19 @@ function linkedListCandidates(work) {
   for(const candidate of candidates.values())candidate.fingerprint=createHash('sha256').update(JSON.stringify({target,reference:candidate.reference,observations:candidate.observations})).digest('hex');
   return {candidates:[...candidates.values()],unavailable};
 }
+function reportWordingEvidence(worker,generation,target,list,distributionEvidence) {
+  if(!target.startsWith('A-')||Number(list.itemNumberBegin)!==1||distributionEvidence.state==='available'||!verifiedList(list,target,idOf(list)))return null;
+  const report=worker.store.source(generation,targetKey(target));
+  // The published list remains the number identity. A report distribution is
+  // only a candidate source; extraction must verify its cover and main block.
+  return tail(report?.work.work_type)==='REPORT_PLENARY'&&canonicalEPReference(report.work.id)==='eli/dl/doc/'+target?
+    {reportId:target,distributionEvidence:distributionEvidenceFor(report.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:report.fetchedAt,language:null})}:null;
+}
 function saveVerifiedList(worker,generation,target,candidate,list,evidence,{parserUpgrade=false}={}) {
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
   const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
-  const report=worker.store.source(generation,targetKey(target));
-  // The published list remains the number identity. A report distribution is
-  // only a candidate source; extraction must verify its cover and main block.
-  const reportWording=target.startsWith('A-')&&Number(list.itemNumberBegin)===1&&verifiedList(list,target,candidate.id)&&tail(report?.work.work_type)==='REPORT_PLENARY'&&canonicalEPReference(report.work.id)==='eli/dl/doc/'+target&&distributionEvidence.state!=='available'?
-    {reportId:target,distributionEvidence:distributionEvidenceFor(report.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:report.fetchedAt,language:null})}:null;
+  const reportWording=reportWordingEvidence(worker,generation,target,list,distributionEvidence);
   worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(reportWording?{reportWording}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
 }
 function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true}={}) {
@@ -121,6 +125,17 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true}={})
     if(discover&&expandedObserved&&!detailVerified&&(prior?.work.targetDocumentId!==id || !proof || Date.parse(proof.fetchedAt)<=Date.parse(fetchedAt))) {
       saveVerifiedList(worker,generation,id,candidate,candidate.expanded,{basis:'expanded-target',url:'https://data.europarl.europa.eu/api/v2'+targetKey(id)+'?format=application%2Fld%2Bjson',fetchedAt});
       prior=worker.store.source(generation,sourceKey(candidate.id));
+    }
+    if(discover&&detailVerified) {
+      // The list's unchanged relationship proof does not freeze its parent
+      // report's independently observed distribution metadata.
+      const reportWording=reportWordingEvidence(worker,generation,id,prior.work,prior.work.distributionEvidence);
+      if(JSON.stringify(reportWording)!==JSON.stringify(prior.work.reportWording || null)) {
+        const next={...prior.work};delete next.reportWording;
+        if(reportWording)next.reportWording=reportWording;
+        worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',next,prior.fetchedAt);
+        prior=worker.store.source(generation,sourceKey(candidate.id));
+      }
     }
     if(!expandedVerified&&!detailVerified) {
       unresolved.push(candidate.id);
