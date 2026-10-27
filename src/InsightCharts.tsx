@@ -3,10 +3,8 @@ import type {SourceAvailability} from '../server/source-availability.mjs';
 import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import type {GroupContributions,InsightPerson} from './InsightTypes';
 
-export const groupLabel=(code:string)=>({PPE:'EPP','Verts/ALE':'Greens/EFA',NI:'Non-attached',TheLeft:'The Left',unavailable:'Unavailable'} as Record<string,string>)[code]||code;
-// Political group colours are theme tokens (src/theme.css); both label and identifier forms map to them.
-const groupTokens:Record<string,string>={PPE:'ppe','S&D':'sd',S_D:'sd',Renew:'renew',RENEW:'renew','Verts/ALE':'greens',VERTS_ALE:'greens',ECR:'ecr',PfE:'pfe',PFE:'pfe',ESN:'esn','The Left':'left',TheLeft:'left',THE_LEFT:'left',NI:'ni'};
-export const groupColor=(code:string)=>`var(--group-${groupTokens[code]||'unknown'})`;
+import {groupLabel,groupColor} from './groupLabels';
+export {groupLabel,groupTokens,groupColor} from './groupLabels';
 export function peopleGroups(people:InsightPerson[]) {
   const counts=new Map<string,number>();for(const person of people)counts.set(person.group||'Unknown',(counts.get(person.group||'Unknown')||0)+1);
   return [...counts].map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label));

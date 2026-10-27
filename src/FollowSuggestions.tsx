@@ -1,8 +1,9 @@
+import {MemberAffiliation} from './components/MemberAffiliation';
 import {useLayoutEffect,useRef,useState} from 'react';
 import {coverageStore,savedStore,useCoverage} from './SavedControls';
 import {Portrait} from './components/Portrait';
 
-export function FollowSuggestions(){
+export function FollowSuggestions({language='en'}:{language?:string}){
   const coverage=useCoverage(),suggestions=coverageStore.suggestions(),[error,setError]=useState('');
   const section=useRef<HTMLElement>(null),heading=useRef<HTMLHeadingElement>(null),focus=useRef<string[]|null>(null),[retainHeading,setRetainHeading]=useState(false);
   useLayoutEffect(()=>{
@@ -26,7 +27,7 @@ export function FollowSuggestions(){
         }catch(e){setError((e as Error).message);}
       };
       return <article key={member.id} className="explorer-suggestion-card">
-        <Portrait member={member}/><div><h3>{name}</h3>{reasons.map(({context,reason})=><p key={context}>{context}<br/>{reason}</p>)}
+        <Portrait member={member}/><div><h3>{name}</h3><MemberAffiliation group={member.groupCode} country={member.countryCode} language={language}/>{reasons.map(({context,reason})=><p key={context}>{context}<br/>{reason}</p>)}
         <div className="explorer-saved-actions"><button data-suggestion={member.id} aria-label={'Follow '+name} onClick={()=>act(true)}>Follow</button><button aria-label={'Dismiss suggestion for '+name} onClick={()=>act(false)}>Dismiss</button></div></div>
       </article>;
     })}</div>
