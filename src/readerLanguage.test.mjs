@@ -168,8 +168,8 @@ test('procedure title, summary, subjects and each EuroVoc label restore source l
   for(const [index,language] of languages.entries())await t.test(language,async t=>{
     const actual=languages[(index+1)%languages.length],h=await harness(t,route=>route==='insights/procedure-context'?procedureData(actual):undefined),chosen=[];
     await h.render(el(h.ProcedureContext,{reference:'2026/0001(COD)',language,showTitle:true,onTopic:topic=>chosen.push(topic.id)}),language);
-    for(const selector of ['h2','.insight-official-summary','.insight-procedure-context details li'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),actual,selector);
-    for(const selector of ['h3','.insight-procedure-context details summary','.insight-summary-footer button','.insight-summary-footer a'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),'en',selector);
+    for(const selector of ['h2','.insight-official-summary','.insight-subject-classification li'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),actual,selector);
+    for(const selector of ['h3','.insight-subject-classification h4','.insight-summary-footer button','.insight-summary-footer a'])assert.equal(effectiveLanguage(h.container.querySelector(selector)),'en',selector);
     assert.equal(effectiveLanguage(h.container.querySelector('time')),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.insight-summary-footer small span')),language);
     const topics=[...h.container.querySelectorAll('.insight-official-topics button')];assert.deepEqual(topics.map(effectiveLanguage),['fr','hu','mul','']);

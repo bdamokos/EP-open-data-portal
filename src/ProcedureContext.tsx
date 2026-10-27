@@ -37,7 +37,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
     {showTitle&&!data.summary&&<p className="insight-secondary">Summary unavailable.</p>}
     {press}
     {data.topics.length>0&&<div className="insight-official-topics"><h4>Topics <small>EuroVoc</small></h4><div>{data.topics.map(topic=>onTopic?<button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button>:<SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
-    {data.subjects.length>0&&<details><summary>Subject classification</summary><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}>{subject.label} <small>{subject.code}</small></li>)}</ul></details>}
+    {data.subjects.length>0&&<section className="insight-subject-classification" aria-label="Subject classification"><h4>Subject classification</h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><span>{subject.label}</span> <small>{subject.code}</small></li>)}</ul></section>}
     {!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer">Open procedure file ↗</a>}
   </section>;
 }

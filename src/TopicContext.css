@@ -1,6 +1,12 @@
-.insight-procedure-context {margin:28px 0;padding:24px 0;border-block:1px solid var(--line);min-width:0;}
+.insight-procedure-context {margin:16px 0;padding:16px 0;border-block:1px solid var(--line);min-width:0;}
 .insight-procedure-context header {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
 .insight-procedure-context h3 {margin:0;}
+.insight-subject-classification {margin-top:16px;max-width:80ch;}
+.insight-subject-classification h4 {margin:0 0 6px;font-size:15px;}
+.insight-subject-classification ul {list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 20px;}
+.insight-subject-classification li {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;min-width:0;font-size:15px;line-height:1.5;}
+.insight-subject-classification li span {overflow-wrap:anywhere;}
+.insight-subject-classification small {color:var(--ink-muted);font-size:13px;white-space:nowrap;}
 .procedure-progress {padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid var(--line);min-width:0;container-type:inline-size;}
 .procedure-progress header {gap:8px 20px;}
 .procedure-progress-muted {color:var(--ink-muted);font-size:14px;line-height:1.6;}
