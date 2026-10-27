@@ -52,7 +52,7 @@ function publicPolicy(seconds, browserSeconds = 0) {
 export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   if (!['GET', 'HEAD'].includes(request.method) || request.headers?.authorization || !approvedPath(url.pathname) || transientState(payload)) return noStore;
   if(url.pathname==='/api/insights/procedure-progress') {
-    if(!['mapped','unmapped'].includes(payload?.state)||!payload?.coverage||payload.coverage.limited||payload.coverage.invalidRows||payload.coverage.incompleteEvents)return noStore;
+    if(!['mapped','unmapped'].includes(payload?.state)||!payload?.coverage||payload.coverage.limited||payload.coverage.invalidRows||payload.coverage.incompleteEvents||payload.coverage.timeline==='unavailable')return noStore;
     return publicPolicy(5*60);
   }
   // Feeds are read daily. Nothing is cached before following starts.
