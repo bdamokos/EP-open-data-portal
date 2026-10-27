@@ -39,7 +39,7 @@ test('real OJ XHTML preserves paragraph, point, title, recital and annex boundar
   const items=[{kind:'act',index:1,proposal:p}],place=targetLabel=>resolveProposalPlacement(items,{targetLabel,language:'en',originalText:'',proposedText:'New text'});
   const insertion=place('Annex II – point 2 a (new)');assert.equal(insertion.status,'placed');assert.equal(p.paragraphs[insertion.insertAfter].text,'(2) Production of a\u00a0known insecticidal substance');
   const title=proposalCandidates(p,parseTargetLabel('Article 30 – title','en'))[0];assert.equal(p.paragraphs[title.extent.start].text,'Code of conduct');
-  const quote=p.units.find(u=>u.label?.value==='37');const nested=quote.children.flatMap(function visit(u){return [u,...u.children.flatMap(visit)];}).filter(u=>u.scope==='quoted');assert(nested.length>0);assert(nested.every(u=>u.instructionPath));
+  const quote=p.units.flatMap(function visit(u){return [u,...u.children.flatMap(visit)];}).find(u=>u.kind==='article'&&u.label?.value==='37');const nested=quote.children.flatMap(function visit(u){return [u,...u.children.flatMap(visit)];}).filter(u=>u.scope==='quoted');assert(nested.length>0);assert(nested.every(u=>u.instructionPath));
 });
 test('unsupported objects and tables withhold affected passages without suppressing another complete provision',()=>{
   const xml=fixture.xhtml.replace('standard licence agreements;','standard <img src="formula.tif"/> licence agreements;');
@@ -60,4 +60,11 @@ test('Council baseline production uses cached Cellar metadata/content and exact 
   const p=parsePublicLegalXhtml(source.items[0].buffer,options),chosen={baseline:'council-position',baselineSource:{category:'council-position',conflicted:false},language:'en',targetLabelLanguage:'en',targetLabel:'Article 30 – paragraph 3 – point b',originalText:p.paragraphs[candidates(p)[0].extent.start].text,proposedText:'Changed'};
   assert.equal(documentContextPlacement({chosen,items:[{kind:'act',index:1,proposal:p}]}).status,'placed');
   assert.equal(documentContextPlacement({chosen:{...chosen,baselineSource:{category:'council-position',conflicted:true}},items:[{kind:'act',index:1,proposal:p}]}).reason,'conflicting_baselines');
+});
+test('a malformed XHTML refresh retains the last valid legal text with an explicit stale gap',async()=>{
+  let now=Date.parse('2026-10-27T12:00:00Z'),invalid=false;
+  const sources=new OfficialContextSources({directory:null,clock:()=>now,fetchSource:async()=>new Response(invalid?'<html><body><p>Challenge page</p></body></html>':fixture.xhtml,{headers:{'content-type':'application/xhtml+xml'}})});
+  const documents=new CellarDocuments({sources,directory:null,clock:()=>now,freshMs:0}),item=resolveCouncilTree(metadata,identity).items[0],options={...item,celex:fixture.celex,language:item.languageUri};
+  const accepted=await documents.content(options);now++;invalid=true;
+  const retained=await documents.content(options);assert.equal(retained.source.sha256,accepted.source.sha256);assert(retained.buffer.equals(accepted.buffer));assert.equal(retained.source.stale,true);assert.equal(retained.source.refreshError,'cellar_content');
 });

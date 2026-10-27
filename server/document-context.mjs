@@ -167,7 +167,7 @@ export class DocumentContext {
       try {
         for(const item of source?.items||[]) {
           requestSignal()?.throwIfAborted();
-          const parsed=(councilKind?parsePublicLegalXhtml:parseProposal)(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId}});
+          const parsed=(councilKind?parsePublicLegalXhtml:parseProposal)(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(councilKind?{celex:source.celex}:{})}});
           items.push({kind:item.kind,index:item.index,proposal:parsed});
           baseline.items.push({kind:item.kind,index:item.index,source:item.source});
         }

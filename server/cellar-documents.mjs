@@ -10,7 +10,8 @@ import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {userAgent} from './user-agent.mjs';
 import {getSharedOfficialContextSources} from './official-context.mjs';
-import {legalXhtmlXml} from './public-legal-xhtml.mjs';
+import {parsePublicLegalXhtml} from './public-legal-xhtml.mjs';
+import {languageCode} from './ep-links.mjs';
 
 export const CELLAR_DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 export const CELLAR_LIMITS=Object.freeze({metadataBytes:3*1024*1024,itemBytes:8*1024*1024,bundleBytes:24*1024*1024,items:32,redirects:3,diskBytes:256*1024*1024,memoryBytes:24*1024*1024,freshMs:7*86400_000,metadataFreshMs:6*3600_000});
@@ -137,7 +138,7 @@ export class CellarDocuments {
         const result=format==='XHTML'?await this.structuredQueue.run(acquire,{signal:owner}):await acquire();
         if(result.status===304&&!old)throw failure('cellar_validator','CELLAR returned a validator without saved content.');
         const buffer=result.status===304?old.buffer:result.buffer;
-        try{if(format==='DOCX')docxParts(buffer);else {const xml=legalXhtmlXml(buffer.toString('utf8'));if(/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true||!/<(?:\w+:)?html[\s>]/.test(xml))throw new Error();}}catch{throw failure(format==='DOCX'?'cellar_docx':'cellar_content','The source is not a supported legal document.');}
+        try{if(format==='DOCX')docxParts(buffer);else parsePublicLegalXhtml(buffer,{language:languageCode(language),sourceUrl:url});}catch{throw failure(format==='DOCX'?'cellar_docx':'cellar_content','The source is not a supported legal document.');}
         const now=new Date(this.clock()).toISOString(),source={schemaVersion:1,key,identity,url,resolvedSourceUrl:result.url,celex,language,itemId,expressionId,manifestationId,format,sha256:hash(buffer),etag:result.etag??(result.status===304?old?.source.etag:null)??null,lastModified:result.lastModified??(result.status===304?old?.source.lastModified:null)??null,fetchedAt:result.status===304?old.source.fetchedAt:now,checkedAt:now,stale:false,refreshError:null};
         const record=await this.save(key,{source,buffer});this.failures.delete(key);return record;
       }catch(error) {

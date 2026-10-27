@@ -124,7 +124,7 @@ export function sourceReplay(cache,runtime) {
       const source=await readCouncil(options);cache.assertHealthy();
       const items=[];
       try {
-        for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId}})});
+        for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,celex:source.celex}})});
         if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new Error('proposal-response-budget');
       }catch {return {baseline:{...source,items:[],status:'unavailable',gaps:[...source.gaps,'proposal-projection-unavailable']},items:[]};}
       return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items};

@@ -37,13 +37,14 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   language=proposalLanguage(language);
   const xml=Buffer.from(input).toString('utf8'),dom=documentTree(xml),nodes=all(dom),sourceHash=hash(input);
   const prefix='legal-xhtml-v'+PUBLIC_LEGAL_XHTML_VERSION+':'+hash(JSON.stringify([sourceHash,language,sourceUrl,identity])).slice(0,24);
+  const objectSourceUrl=/^5\d{4}AG\d{4}\(01\)$/.test(identity?.celex||'')?`https://eur-lex.europa.eu/legal-content/${language.toUpperCase()}/TXT/?uri=CELEX:${encodeURIComponent(identity.celex)}`:sourceUrl;
   const paragraphs=[],units=[],objects=[],notes=[],anchors=[],links=[],gaps=[];
   const parents=new WeakMap(),noteNodes=new Set(),noteMap=new Map();
   function unit(parent,kind,value=null,extra={}) {
     const segment=value===null?null:{kind,...(proposalNumber(value,language)||{value,number:null,suffix:''}),isNew:false,...extra.label};
     const siblings=parent?.children||units,duplicates=segment?siblings.filter(u=>u.kind===kind&&u.label?.value===segment.value):[];
     const path=[...(parent?.path||[]),...(segment?[segment]:[])];
-    const result={id:prefix+'/'+kind+'@'+paragraphs.length+':'+(siblings.length+1),kind,path,scope:parent?.scope||'proposal',...(parent?.scope==='quoted'?{instructionPath:parent.instructionPath,underlyingPath:parent.underlyingPath}:{}),normative:true,extent:{start:paragraphs.length,end:paragraphs.length},content:[],spans:[],children:[],complete:true,pathConflict:duplicates.length>0,...extra};
+    const result={id:prefix+'/'+kind+'@'+paragraphs.length+':'+(siblings.length+1),kind,path,scope:parent?.scope||'proposal',...(parent?.scope==='quoted'?{instructionPath:parent.instructionPath,underlyingPath:parent.underlyingPath}:{}),normative:parent?.normative??true,extent:{start:paragraphs.length,end:paragraphs.length},content:[],spans:[],children:[],complete:true,pathConflict:duplicates.length>0,...extra};
     if(segment)result.label=segment;
     for(const other of duplicates)other.pathConflict=true;
     siblings.push(result);if(parent)parents.set(result,parent);return result;
@@ -52,7 +53,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     if(node.name==='#text'){state.text+=node.value;return;}
     if(node.name==='br'){state.text+='\n';return;}
     if(['img','object','svg','math','iframe'].includes(node.name)) {
-      state.objects.push({kind:node.name==='math'?'math':'drawing',status:'unresolved',complete:false,offset:state.text.length,path:node.path,sourcePart:'xhtml',sourceUrl});state.text+='\uFFFC';return;
+      state.objects.push({kind:node.name==='math'?'math':'drawing',status:'unresolved',complete:false,offset:state.text.length,path:node.path,sourcePart:'xhtml',sourceUrl:objectSourceUrl});state.text+='\uFFFC';return;
     }
     const href=node.attrs.href;
     if(node.name==='a'&&href?.startsWith('#ntr')) {
@@ -118,9 +119,15 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   function walk(node,parent,{inArticle=false}={}) {
     if(node.name==='#text'||noteNodes.has(node))return;
     const id=node.attrs.id||'';
-    const named=/^(art|rct|anx)_([\p{L}\d]+)$/u.exec(id);
+    if(has(node,'eli-main-title')||/^pbl_\d+$/.test(id)) {
+      const owner=unit(parent,has(node,'eli-main-title')?'frontmatter':'preamble',null,{normative:false});
+      for(const child of node.children)walk(child,owner);return;
+    }
+    const heading=/^(?:cpt_([\p{L}\d]+)|(?:cpt_[\p{L}\d]+\.)?sct_([\p{L}\d]+))$/u.exec(id);
+    if(heading){const owner=unit(parent,heading[1]?'chapter':'section',heading[1]||heading[2]);for(const child of node.children)walk(child,owner);return;}
+    const named=/^(art|rct|anx|cit)_([\p{L}\d]+)$/u.exec(id);
     if(named) {
-      const kind={art:'article',rct:'recital',anx:'annex'}[named[1]],owner=unit(parent,kind,named[2]);
+      const kind={art:'article',rct:'recital',anx:'annex',cit:'citation'}[named[1]],owner=unit(parent,kind,named[2],{normative:['article','annex'].includes(kind)});
       for(const child of node.children)walk(child,owner,{inArticle:kind==='article'});
       return;
     }
@@ -153,7 +160,11 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     if(node.name==='table') {
       // Genuine grids keep their text local and incomplete; they are not list points.
       const owner=unit(parent,'table');owner.table={sourcePath:node.path,paragraphs:[],rows:[],complete:false};
-      for(const p of all(node).filter(n=>n.name==='p')){paragraph(owner,p);paragraphs.at(-1).complete=false;paragraphs.at(-1).source.complete=false;owner.table.paragraphs.push(paragraphs.length-1);}
+      const rows=node.children.flatMap(n=>['tbody','thead','tfoot'].includes(n.name)?n.children:n.name==='tr'?[n]:[]).filter(n=>n.name==='tr');
+      for(const row of rows){const cells=[];for(const cell of row.children.filter(n=>['td','th'].includes(n.name))){
+        const indices=[];for(const p of all(cell).filter(n=>n.name==='p'&&!noteNodes.has(n))){paragraph(owner,p);const at=paragraphs.length-1;paragraphs[at].complete=false;paragraphs[at].source.complete=false;paragraphs[at].source.container='table-cell';paragraphs[at].source.containerPath=cell.path;indices.push(at);owner.table.paragraphs.push(at);}
+        cells.push({sourcePath:cell.path,paragraphs:indices,colSpan:/^[1-9]\d?$/.test(cell.attrs.colspan||'')?Number(cell.attrs.colspan):1,verticalMerge:null,complete:false});
+      }owner.table.rows.push({cells});}
       gaps.push({code:'unsupported-xhtml-table',paragraph:owner.extent.start,sourcePath:node.path,message:'This legal table is retained without verified cell structure.'});return;
     }
     if(node.name==='p') {
@@ -170,5 +181,5 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   function finish(owner,conflict=false){owner.pathConflict ||= conflict;const children=owner.children.map(child=>finish(child,owner.pathConflict));owner.complete=!owner.pathConflict&&owner.table?.complete!==false&&owner.content.every(i=>paragraphs[i].complete)&&children.every(Boolean);return owner.complete;}
   units.forEach(u=>finish(u));
   if(coverage?.complete===false)gaps.push({code:'excerpted-source',message:'Selected public source excerpts.'});
-  return {parserVersion:'xhtml-'+PUBLIC_LEGAL_XHTML_VERSION,sourceHash,sourceUrl,identity,language,item:'act',sourceKind:'xhtml',numberingMode:'source',paragraphs,units,objects,notes,anchors,links,gaps,complete:!gaps.length,contentComplete:paragraphs.every(p=>p.complete),structureComplete:!gaps.length};
+  return {parserVersion:'xhtml-'+PUBLIC_LEGAL_XHTML_VERSION,sourceHash,sourceUrl,identity,language,item:'act',sourceKind:'xhtml',numberingMode:'source',paragraphs,units,objects,notes,anchors,links,gaps,complete:units.every(u=>u.complete)&&!gaps.length,contentComplete:paragraphs.every(p=>p.complete)&&notes.every(n=>n.complete),structureComplete:!gaps.length};
 }
