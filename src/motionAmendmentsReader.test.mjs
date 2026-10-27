@@ -984,3 +984,11 @@ test('indexed amendment decisions omit unknown methods while reusing recognised 
   for(const row of rows)assert.doesNotMatch(row.textContent,/Voting method unavailable/);
   assert.match(rows[2].textContent,/Electronic vote \(names not recorded\)/);
 });
+
+test('motion proposers get country only and cannot join by name',async t=>{
+ const h=await readerHarness(t,{members:[{id:101,firstName:'Checked',lastName:'member',countryCode:'HU',groupCode:'PPE'}]});
+ await h.click(/^Amendments/);await h.respond(page({items:[amendment(13,{authors:[{personId:'101',name:'Checked member'},{personId:'999',name:'Checked member'}]})]}));
+ await h.click(/^Amendment 13/);
+ const tags=h.container.querySelectorAll('.motion-amendments__proposers .member-affiliation');
+ assert.equal(tags.length,1);assert.equal(tags[0].textContent,'HUHungary');assert.equal(tags[0].querySelector('i'),null);
+});

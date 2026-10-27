@@ -1,3 +1,4 @@
+import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import {VoteSubjectTitle} from './VoteSubjectTitle';
 import {AttendanceLine,AttendanceDetail} from './MemberAttendance';
 import type {MemberAttendanceResponse} from './MemberAttendanceTypes';
@@ -84,7 +85,7 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
       </select></label>}
       {selected&&<>
         {typeof selected.targetLabel==='string'&&selected.targetLabel&&<><p className="member-votes-target-label" lang={targetLanguage||''}>{selected.targetLabel}</p></>}
-        {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&'Text language: '+languageLabel(textLanguage)}{authors.length>0&&<>{readable&&textLanguage?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/></span>)}</>}</p>}
+        {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&'Text language: '+languageLabel(textLanguage)}{authors.length>0&&<>{readable&&textLanguage?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/><RecordMemberAffiliation id={author.personId} language={language}/></span>)}</>}</p>}
         {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>

@@ -1038,3 +1038,11 @@ for(const empty of [{titles:{},title:null,titleLanguage:null},{titles:{en:'  '},
  for(const lookup of lookups)assert.equal(new URL(lookup,'http://localhost').searchParams.get('url'),reportResponse().sourceUrl);
  const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Exact English report title');assert.equal(title.lang,'en');
 });
+
+test('wording proposers get exact-ID country without current political group',async t=>{
+ const h=await mountWording(t,{members:[{id:42,firstName:'Exact',lastName:'Proposer',countryCode:'HU',groupCode:'PPE'}],variants:[wordingVariant({authors:[{personId:'42',name:'Exact proposer'},{personId:'99',name:'Exact proposer'}]})]});
+ const rows=h.container.querySelectorAll('.member-votes-wording .member-votes-muted>span');
+ assert.equal(rows[0].querySelector('.member-affiliation').textContent,'HUHungary');
+ assert.equal(rows[0].querySelector('.member-affiliation i'),null);
+ assert.equal(rows[1].querySelector('.member-affiliation'),null);
+});
