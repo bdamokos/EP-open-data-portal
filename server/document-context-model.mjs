@@ -1,4 +1,5 @@
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
+import {resolutionPointPlacement} from './resolution-points.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -442,6 +443,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
   const ref = english(options.language) ? placementReference(options.targetLabel) : null;
+  const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
+  if (pointPlacement) return pointPlacement;
   const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label &&
     (reference.kind !== 'point' || units.find(parent => parent.start === unit.parent)?.label === reference.paragraph));
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
