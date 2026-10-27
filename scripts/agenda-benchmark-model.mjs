@@ -93,6 +93,7 @@ export function compareBaseline(report,baseline,{regressionPercent=10,regression
     if(after.recheckRequests>before.recheckRequests)regressions.push('More session recheck requests: '+before.case);
     if(before.topicsHash!==after.topicsHash||before.refreshedTopicsHash!==after.refreshedTopicsHash)regressions.push('Session agenda content differs: '+before.case);
     if(before.initialSemanticHash!==after.initialSemanticHash)regressions.push('Session response metadata differs: '+before.case);
+    if(!before.nextResponse||!after.nextResponse||responseHash(before.nextResponse)!==responseHash(after.nextResponse))regressions.push('Refreshed session response differs: '+before.case);
   }
   return {failed:regressions.length>0,refused:false,regressionPercent,regressionMs,regressions,deltas};
 }

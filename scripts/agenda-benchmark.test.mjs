@@ -50,6 +50,10 @@ test('baseline refuses incompatible inputs, instrumentation and environments and
   assert.equal(compareBaseline({...report,summary:summarize([{...run,transportRequests:6}])},report).failed,true);
   assert.equal(compareBaseline({...report,summary:summarize([{...run,elapsedMs:140}])},report).failed,true);
   assert.equal(compareBaseline({...report,summary:summarize([{...run,elapsedMs:115}])},report).failed,false,'absolute and relative noise margins both apply');
+  const session={case:'past-aged-view',returnedWhileHeld:true,recheckRequests:0,topicsHash:'same',refreshedTopicsHash:'same',initialSemanticHash:'same',nextResponse:{topics:[],coverage:{agendaComplete:true,agendaError:null}}};
+  const withSession={...report,sessionCases:[session]},lostCoverage=structuredClone(withSession);
+  lostCoverage.sessionCases[0].nextResponse.coverage={agendaComplete:false,agendaError:'Source unavailable'};
+  assert(compareBaseline(lostCoverage,withSession).regressions.includes('Refreshed session response differs: past-aged-view'));
 });
 test('sealed inputs reject body and manifest changes',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'agenda-input-test-'));t.after(()=>rm(directory,{recursive:true,force:true}));
