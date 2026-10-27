@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='6';
+export const PROPOSAL_PARSER_VERSION='8';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -279,7 +279,13 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       else last=make(area,'citation',i);
       retain(last,i);continue;
     }
-    if(/Titrearticle/i.test(style)&&container?.kind==='article'&&!paragraph){last=make(container,'title',i);retain(last,i);continue;}
+    // Some Commission DOCX files use Normal for the centred, fully bold
+    // subtitle immediately after an article heading.
+    // Retain it as a title so it cannot create an implicit paragraph that turns
+    // the following explicit paragraphs into a definition list.
+    const format=content.paragraphFormats?.[i],start=text.indexOf(trim);
+    const articleSubtitle=last===container&&!number&&format?.align==='center'&&format.marks?.some(mark=>mark.kind==='bold'&&mark.start<=start&&mark.end>=start+trim.length);
+    if(container?.kind==='article'&&!paragraph&&(/Titrearticle/i.test(style)||articleSubtitle)){last=make(container,'title',i);retain(last,i);continue;}
     const operation=instruction(lead,language);
     if(number?.kind==='paragraph'&&paragraph?.implicit&&(paragraph.instruction?.operation==='amend'||/^(?:Manual)?NumPar1$/i.test(style))){number.kind='point';number.level=0;}
     if(number?.kind==='point'&&number.level===0&&/^\d/.test(number.value)&&container?.kind==='article'&&(!paragraph||!paragraph.implicit)&&!operation)number.kind='paragraph';

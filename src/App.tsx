@@ -602,12 +602,12 @@ export default function App() {
     if(!view&&member)for(const [key,value] of memberVotesJourneyParams(votes.journey))ownParams.set(key,value);
     u.search = new URLSearchParams({
       ...Object.fromEntries(ownParams),
-      lang,
+      ...(lang!=='en'?{lang}:{}),
       ...(!view && member ? { member: String(member), module: tab } : {}),
       ...(!view && committee ? { committee } : {}),
       ...(!view && country ? { country } : {}),
       ...(!view && group ? { group } : {}),
-      role,
+      ...(!view&&role!=='both'?{role}:{}),
       ...(view ? { view } : {}),
       ...(!view && member && speechLink ? { speech: speechLink } : {}),
       ...(!view && member && activityLink ? { activity: activityLink } : {}),
@@ -618,7 +618,7 @@ export default function App() {
     // valid selection merely because App rewrote its own navigation fields.
     if(!view&&member)for(const [key,value] of motions.query)if(key.startsWith('ma-'))u.searchParams.append(key,value);
     const step=memberStep.current;memberStep.current=false;
-    if (u.href !== location.href) step ? history.pushState(null, "", u) : history.replaceState(history.state, "", u);
+    if (u.href !== location.href) step ? history.pushState(history.state, "", u) : history.replaceState(history.state, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
   }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
@@ -667,7 +667,7 @@ export default function App() {
     url.searchParams.delete('country');
     for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am|gv|mv|ma|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
     next?url.searchParams.set('view',next):url.searchParams.delete('view');
-    history.pushState(null,'',url);setView(next);
+    history.pushState(history.state,'',url);setView(next);
   }
   useEffect(()=>{
     const restore=()=>{
@@ -690,7 +690,7 @@ export default function App() {
         if(next==='amendments')url.searchParams.delete('view');
         if(query.get('module')==='amendments')url.searchParams.set('module','speeches');
         for(const key of [...url.searchParams.keys()])if(key.startsWith('am-'))url.searchParams.delete(key);
-        history.replaceState(null,'',url);
+        history.replaceState(history.state,'',url);
       }
     };
     window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);

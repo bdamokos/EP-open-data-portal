@@ -47,8 +47,8 @@ export async function acquireLanguageVariants(rows,contexts,cache) {
   return result;
 }
 
-export function languageVariantContext(saved,plain) {
+export function languageVariantContext(saved,plain,runtime) {
   if(!saved?.body.ok)return plain;
-  const content=docxContent(saved.body.body);
-  return {input:saved.body,value:{...plain.value,document:{...plain.value.document,selectedText:{...content,...documentNotes(content),status:'available',textLanguage:saved.language,availableTextLanguages:[...new Set(saved.files.map(file=>file.language))],sourceUrl:saved.body.url,fetchedAt:saved.body.fetchedAt}}}};
+  const content=(runtime?.docxContent||docxContent)(saved.body.body);
+  return {input:saved.body,value:{...plain.value,document:{...plain.value.document,selectedText:{...content,...(runtime?.documentNotes||documentNotes)(content),status:'available',textLanguage:saved.language,availableTextLanguages:[...new Set(saved.files.map(file=>file.language))],sourceUrl:saved.body.url,fetchedAt:saved.body.fetchedAt}}}};
 }

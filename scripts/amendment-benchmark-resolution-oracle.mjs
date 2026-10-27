@@ -3,9 +3,9 @@
 const label=value=>{
   let match=/^(\d{1,6}\s*[a-zα-ωа-я]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'paragraph',label:match[1].replace(/\s/g,'')};
-  match=/^([A-ZА-Я]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value);
+  match=/^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'recital',label:match[1]};
-  match=/^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value);
+  match=/^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value);
   return match?{kind:'point',label:match[1]||match[2]}:null;
 };
 function wholeBold(value,format) {

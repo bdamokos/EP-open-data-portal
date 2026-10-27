@@ -16,7 +16,7 @@ const target = parseTargetLabel('Article 1 – paragraph 1 – point 4 – point
 const candidates = proposalCandidates(proposal, target);
 ```
 
-`parseProposal` also accepts a string or a document projection with `paragraphs: string[]`, optional `paragraphSources`, `paragraphProperties`, `documentObjects`, `tables`, notes and links. Plain text cannot establish original object or table completeness and produces `source-structure-unavailable`. Excerpts should supply `coverage: {complete: false}`. Use the DOCX buffer for complete extraction.
+`parseProposal` also accepts a string or a document projection with `paragraphs: string[]`, optional `paragraphSources`, `paragraphProperties`, `paragraphFormats`, `documentObjects`, `tables`, notes and links. Plain text cannot establish original object or table completeness and produces `source-structure-unavailable`. Excerpts should supply `coverage: {complete: false}`. Use the DOCX buffer for complete extraction.
 
 ## Tree and source positions
 
@@ -41,9 +41,11 @@ Proposal extraction uses the shared `docxContent` numbering resolver through `pr
 
 DOCX paragraph properties retain the concrete and abstract list IDs, level and number format. These levels, or explicit point styles, establish point depth. Roman-compatible letters alone never establish a deeper list: alphabetic `(a)` through `(e)` remain siblings. An unstyled Roman item with uncertain depth retains an `ambiguous-point-level` gap and a conflicting path. Compact decimal article headings such as `Article2` retain a separate article boundary.
 
+A centred, fully bold subtitle immediately after an article heading remains an article title even when its Word style is Normal. It does not create an implicit paragraph or turn the following explicitly numbered paragraphs into list points. Unnumbered definition introductions retain their numbered points.
+
 Literal duplicate labels under the same parent remain separate units with `pathConflict: true` and distinct occurrence IDs. `proposalCandidates` returns **all** exact candidates, ignoring the internal occurrence suffix; it never chooses by wording or invents a number alias. A caller may compare the amendment's original wording against exactly those candidates and record a unique normalised match. Otherwise the target stays unresolved. Labels repeated under different parents are independent.
 
-`parseTargetLabel(label, language)` returns `{raw, language, segments, complete, unparsed, underlyingLabel}`. Its second line is retained separately as the underlying-act label. Unsupported fragments keep `complete: false`. Greek uppercase heading vocabulary and Greek Ι/Χ glyphs used for Roman heading ordinals have explicit grammar rules; `sourceValue` retains the original glyph spelling. A source article heading without a number remains unlabelled with a gap. The 24 language grammars preserve observed EP discrepancies: omitted paragraph levels, Portuguese `Article I`, Dutch annex `1`, and the Slovak annex point `1` are not silently rewritten to another path. `unitLabel(unit, language)` formats one segment for display; it does not translate source wording.
+`parseTargetLabel(label, language)` returns `{raw, language, segments, complete, unparsed, underlyingLabel}`. Its second line is retained separately as the underlying-act label. Unsupported fragments keep `complete: false`. Observed EP forms include spaced multiletter point suffixes, suffixed Roman annexes, negative labels with terminal dots, Finnish split recital nouns, Dutch `Paragraaf`, Portuguese `k‑A` point suffixes and the Greek introductory-part selector. Scripts remain distinct. Greek uppercase heading vocabulary and Greek Ι/Χ glyphs used for Roman heading ordinals have explicit grammar rules; `sourceValue` retains the original glyph spelling. A source article heading without a number remains unlabelled with a gap. The 24 language grammars preserve observed EP discrepancies: omitted paragraph levels, Portuguese `Article I`, Dutch annex `1`, and the Slovak annex point `1` are not silently rewritten to another path. `unitLabel(unit, language)` formats one segment for display; it does not translate source wording.
 
 ## Mathematics and other objects
 

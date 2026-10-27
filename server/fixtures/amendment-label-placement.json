@@ -1,0 +1,1609 @@
+{
+  "examples": [
+    {
+      "id": "A-10-2026-0164-AM-5",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0164/A-10-2026-0164_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0164/A-10-2026-0164_en.docx",
+        "fetchedAt": "2026-10-27T16:13:16.761Z",
+        "sha256": "052dd5e663a26dd5e81c0da93a09882e627aa78ed69e489333c18546cf360c53"
+      },
+      "sourceParagraphs": [
+        23,
+        24,
+        25,
+        26
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "–\thaving regard to the Commission communication of 4 November 2025 entitled ‘2025 Communication on EU enlargement policy’ (COM(2025)0690), accompanied by the Commission staff working document of 4 November 2025 entitled ‘Republic of Moldova 2025 Report’ (SWD(2025)0758),",
+          "–\thaving regard to Regulation (EU) 2025/535 of the European Parliament and of the Council of 18 March 2025 establishing the Reform and Growth Facility for the Republic of Moldova,",
+          "–\thaving regard to the Reform Agenda under the Republic of Moldova’s (hereinafter ‘Moldova’) Growth Plan for the years 2025-2027,"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[26]",
+            "ordinal": 28,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[27]",
+            "ordinal": 29,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[28]",
+            "ordinal": 30,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[29]",
+            "ordinal": 31,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36,
+            "marks": [
+              {
+                "start": 123,
+                "end": 136,
+                "kind": "underline"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Citation 1 a (new)",
+        "originalText": "",
+        "proposedText": "–\thaving regard to the EU’s Negotiating Framework for the accession negotiations with Moldova, approved by the Council on 21 June 2024 and presented at the first Intergovernmental Conference on the accession of Moldova to the EU on 25 June 2024,",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 1,
+        "insertBefore": 2
+      }
+    },
+    {
+      "id": "A-10-2026-0085-AM-26",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_en.docx",
+        "fetchedAt": "2026-10-27T16:13:15.902Z",
+        "sha256": "67134ea230a4388770ad5a02ff5171499f260a83314bf1bfa92a6035fdddf0f9"
+      },
+      "sourceParagraphs": [
+        55,
+        696,
+        697,
+        698,
+        699,
+        700,
+        701
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "247.\tCalls on the Commission, in particular, to:",
+          "(i)\tensure that any future decisions concerning sale and sale and lease back operations concerning buildings are done on basis of thorough impact assessments, that more than one offer should be received and that evaluation committees must be independent from the authorising officers;",
+          "(ii)\tdesign the future phases of the large-scale review of the Commission’s organisations and operations in a transparent way and ensure that relevant organisations representing the Commission staff and other relevant actors are fully involved in the process;",
+          "(iii)\tprovide the discharge authority with all relevant information and documentation concerning the 2023 sale of 23 of its buildings, including a detailed account of all procedural steps taken such as the valuation methodology used and the assessment of competing bids, in full transparency and in due respect of the ongoing EPPO investigation;",
+          "(iv)\tcommission an external study by independent experts under the auspices of the Chief Confidential Counsellor analysing the functioning or malfunctioning of the formal harassment procedure and proposing means to make it more effective;",
+          "(v)\tprovide the discharge authority with a comprehensive overview, for the period 2021–2025, of whistleblowing cases raised by staff members, including the number of cases, the reporting channels used (including the respective hierarchy, Secretary-General and OLAF), the follow-up actions taken in each case, and the employment status of the reporting persons;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[56]",
+            "ordinal": 58,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[717]",
+            "ordinal": 719,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[718]",
+            "ordinal": 720,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[719]",
+            "ordinal": 721,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[720]",
+            "ordinal": 722,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[721]",
+            "ordinal": 723,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[722]",
+            "ordinal": 724,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Paragraph 247 – point iii a (new)",
+        "originalText": "",
+        "proposedText": "(iii a)\tprioritise occupational health and safety, including psychosocial risks (stress, burnout, harassment); it must officially recognize psychosocial risks as occupational hazards and adopt a Parliament-wide prevention plan with measurable objectives; it must implement risk assessments covering telework, business trips, and tight deadlines, as well as confidential reporting channels, training for managers, and regular social dialogue; it insists on the enforcement of the right to disconnect;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 4,
+        "insertBefore": 5
+      }
+    },
+    {
+      "id": "A-10-2026-0087-AM-30",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_en.docx",
+        "fetchedAt": "2026-10-27T16:14:32.653Z",
+        "sha256": "3df9d0a74969baa90d67b2a2f33756a97d603d2b63b77ee260429aca59a5bbd5"
+      },
+      "sourceParagraphs": [
+        128,
+        1746,
+        1747,
+        1748,
+        1749,
+        1750,
+        1751
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "101.\tFurthermore, calls on Cedefop, the ELA, the ETF, EU-OSHA and Eurofound to:",
+          "(i)\tsignificantly strengthen their monitoring and performance-measurement systems by fully embedding SMART objectives and robust, outcome-oriented key performance indicators, addressing data gaps and aligning metrics with operational priorities to enhance cost-effectiveness and stakeholder accountability;",
+          "(ii)\t adopt structured and coherent monitoring approaches, ensuring data completeness and comparability across reporting cycles, establishing consistent national-level indicators where relevant, and improving target-setting practices, while strengthening inter-agency cooperation to avoid duplication and reinforce evidence-based policy support;",
+          "(iii)\tintensify efforts toward a structured shared-services model covering HR, legal, ICT, administrative, and technical support to increase synergy, reduce administrative burdens, ensure sustainable workloads, and free up staff for core operational tasks; acknowledges that this will require a careful strategy as the agencies are located in different regions, namely the cities of Thessaloniki, Bratislava, Turin, Bilbao and Dublin respectively;",
+          "Agencies in the area of Health and food safety",
+          "102.\tNotes with concern that the issue regarding the EMA’s former premises in London persists, posing significant financial and operational challenges; is aware that despite the EMA's relocation due to Brexit, it remains financially responsible for these premises, a situation exacerbated by the subtenant's precarious financial position following the bankruptcy of WeWork's parent company in November 2023; takes note that the maximum exposure, including council tax liability payable by the EMA in the case of the premises being vacant for the remainder of the lease, amounts to EUR 543 million;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[131]",
+            "ordinal": 133,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1735]",
+            "ordinal": 1954,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1736]",
+            "ordinal": 1955,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1737]",
+            "ordinal": 1956,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1738]",
+            "ordinal": 1957,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1739]",
+            "ordinal": 1958,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1740]",
+            "ordinal": 1959,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36,
+            "marks": [
+              {
+                "start": 0,
+                "end": 46,
+                "kind": "bold"
+              },
+              {
+                "start": 0,
+                "end": 46,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Paragraph 101 – point iii a (new)",
+        "originalText": "",
+        "proposedText": "(iii a)\tUrges Cedefop to adopt a replacement decision that fully implements the judgment of the Court of Justice of the European Union of 12 March 2026, in compliance with the Staff Regulations, relevant internal procedures and rules, and with the rights of a staff member applying for a renewal of their contract; stresses the urgent need to avoid further proceedings and additional financial costs for the Agency; calls on Cedefop to put forward an action plan that would include: (i) how the procedure for the decision following the situation as it stood in 2017 will be implemented including a time line; (ii) how Cedefop intends to make sure that the rules of the Staff Regulations, internal procedures, and all the rights of a staff member are followed; (iii) what kind of compensation will be paid and for what reasons; (iv) what kind of changes Cedefop has implemented or plans to improve the procedures when hiring or prolonging staff; (v) to outline all kind of costs incurred during the whole legal dispute since 2017 and to report back to the discharge authority on the progress of the implementation by the beginning of September;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 4,
+        "insertBefore": 5
+      }
+    },
+    {
+      "id": "A-10-2026-0085-AM-39",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_en.docx",
+        "fetchedAt": "2026-10-27T16:13:15.902Z",
+        "sha256": "67134ea230a4388770ad5a02ff5171499f260a83314bf1bfa92a6035fdddf0f9"
+      },
+      "sourceParagraphs": [
+        55,
+        493,
+        494,
+        495,
+        496,
+        497,
+        498,
+        499,
+        500,
+        501,
+        502
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "120.\tFurthermore, calls on the Commission to:",
+          "(i)\tcontinue to address the systemic issue of non-detection of errors at Member State level in cohesion policy spending with the effective implementation of the action plan, aimed at increasing detection capacity at Member State and Commission level;",
+          "(ii)\tfurther strengthen guidance, coordination and monitoring in order to ensure greater legal certainty and more effective reuse of reflows across Member States;",
+          "(iii)\twork closely with Member States, in particular those facing structural or capacity constraints, to provide technical assistance, administrative simplification and sufficient flexibility in implementation in order to ensure the full and effective absorption of cohesion funds;",
+          "(iv)\tdevelop a methodology to measure the overall financial impact of EPPO and OLAF investigations, including amounts recovered following national court decisions in criminal proceedings, and to obtain regular information from Member States on asset recovery and the share returned to the Union budget as recommended by the Court;",
+          "(v)\tlink recommendations from the Rule of Law Report to the implementation of concrete measures by the Member State concerned to have a stronger impact and contribute to protecting the Union’s financial interests, and refers in this regard to the recommendations made in Parliament’s resolution of 18 June 2025 on the Commission’s 2024 Rule of Law Report;",
+          "(vi)\tstep up its monitoring of the horizontal and thematic enabling conditions in all Member States to identify potential threats to the protection of the Union Budget and ensure enhanced transparency and stakeholder participation in the application of this tool;",
+          "(vii)\tclosely align the rule of law report with the Conditionality Regulation and report in more detail on the breaches of the principles of the rule of law that can be used as input to trigger the Conditionality Regulation;",
+          "(viii)\texercise its right of initiative and propose measures to close any existing loopholes in the Union's legislative framework that could enable governments to transfer funds suspended in accordance with the Rule of Law Conditionality Regulation or on account of non-fulfilment of horizontal enabling conditions, and ensure that any future funding instruments contain adequate safeguards against circumvention;",
+          "(ix)\turgently reassess and address the deterioration of the rule of law and risks to the Union budget in Hungary and take all necessary actions in accordance with the Conditionality Regulation and other available tools, including full suspension of Union funds;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[56]",
+            "ordinal": 58,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[514]",
+            "ordinal": 516,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[515]",
+            "ordinal": 517,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[516]",
+            "ordinal": 518,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[517]",
+            "ordinal": 519,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[518]",
+            "ordinal": 520,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[519]",
+            "ordinal": 521,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[520]",
+            "ordinal": 522,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[521]",
+            "ordinal": 523,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[522]",
+            "ordinal": 524,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[523]",
+            "ordinal": 525,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 29,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          },
+          {
+            "indent": 5.32,
+            "hanging": 2.95
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Paragraph 120 – point vii a (new)",
+        "originalText": "",
+        "proposedText": "(vii a)\tnot to use the Conditionality Regulation as a tool of undue interference and pressure on Member States, nor to invoke the rule of law in a biased and political manner, which in fact leads to the erosion of that principle;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 8,
+        "insertBefore": 9
+      }
+    },
+    {
+      "id": "A-10-2026-0087-AM-42",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_en.docx",
+        "fetchedAt": "2026-10-27T16:14:32.653Z",
+        "sha256": "3df9d0a74969baa90d67b2a2f33756a97d603d2b63b77ee260429aca59a5bbd5"
+      },
+      "sourceParagraphs": [
+        128,
+        1834,
+        1835,
+        1836,
+        1837,
+        1838,
+        1839
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "148.\tFurthermore, calls on the following agencies:",
+          "(i)\tthe BEREC Office to report to the Discharge Authority on the timely completion and follow-up of the Commission’s overdue five-year evaluation;",
+          "(ii)\tENISA to inform the Discharge Authority of progress in implementing corrective actions on procurement planning, conference management, and research and development procedure documentation;",
+          "(iii)\tthe EIT to update the Discharge Authority on the implementation of OLAF’s recommendations and strengthened control mechanisms to avoid recurrence in the future; to continue strengthening its cybersecurity governance in full compliance with Regulation (EU, Euratom) 2023/2841, to further enhance internal cyber-resilience capabilities;",
+          "149.\tCalls on the Commission:",
+          "(i)\tto identify systemic problems in all agencies with regards to the procurement of IT services, to explore whether new procurement calls are always necessary to ensure continuity of business, to explore whether to introduce specific, more flexible rules with regards to IT procurement, to provide support and oversight for the agencies in this regard;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[131]",
+            "ordinal": 133,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1823]",
+            "ordinal": 2042,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1824]",
+            "ordinal": 2043,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1825]",
+            "ordinal": 2044,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1826]",
+            "ordinal": 2045,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1827]",
+            "ordinal": 2046,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[1828]",
+            "ordinal": 2047,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 652,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Paragraph 148 – point iii a (new)",
+        "originalText": "",
+        "proposedText": "(iii a)\tthe CdT to continue to improve the accessibility of documents in all the languages of the Union in order to ensure equal access for all Union citizens;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 4,
+        "insertBefore": 5
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-119",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_el.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_el.docx",
+        "fetchedAt": "2026-10-27T16:13:24.564Z",
+        "sha256": "281eaf5018039cc73567d6ccbc52283666a65e3c8177eb14c9189b2d7859a77a"
+      },
+      "sourceParagraphs": [
+        42,
+        206,
+        207,
+        208
+      ],
+      "text": {
+        "paragraphs": [
+          "Το Ευρωπαϊκό Κοινοβούλιο,",
+          "34.\tτροποποιεί τα σχόλια του προϋπολογισμού κατά περίπτωση·",
+          "Δοκιμαστικά σχέδια και προπαρασκευαστικές ενέργειες (ΔΣ-ΠΕ)",
+          "35.\tυπογραμμίζει τη σημασία των δοκιμαστικών σχεδίων και των προπαρασκευαστικών ενεργειών (ΔΣ-ΠΕ) ως μέσων για τον προσδιορισμό πολιτικών προτεραιοτήτων και την εφαρμογή νέων πρωτοβουλιών που έχουν το δυναμικό να μετεξελιχθούν σε μόνιμες δραστηριότητες και προγράμματα της Ένωσης· εγκρίνει, μετά από προσεκτική ανάλυση όλων των προτάσεων που υποβλήθηκαν και λαμβάνοντας πλήρως υπόψη την αξιολόγηση της Επιτροπής όσον αφορά τη συμμόρφωσή τους με τις νομικές απαιτήσεις και τη δυνατότητα εκτέλεσής τους, μια ισορροπημένη δέσμη ΔΣ και ΠΕ που αντικατοπτρίζει τις πολιτικές προτεραιότητες του Κοινοβουλίου· καλεί την Επιτροπή να υλοποιεί τα ΔΣ και τις ΠΕ χωρίς χρονοτριβή και να παρέχει ενημέρωση σχετικά με τις επιδόσεις και τα αποτελέσματα που επιτυγχάνονται επιτόπου·"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[43]",
+            "ordinal": 48,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[207]",
+            "ordinal": 212,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[208]",
+            "ordinal": 213,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[209]",
+            "ordinal": 214,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 24,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36,
+            "marks": [
+              {
+                "start": 0,
+                "end": 59,
+                "kind": "bold"
+              },
+              {
+                "start": 0,
+                "end": 59,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "el"
+      },
+      "wording": {
+        "language": "el",
+        "targetLabel": "Παράγραφος 34 α (νέα)",
+        "originalText": "",
+        "proposedText": "34α.\tσημειώνει τα πορίσματα και τις προτάσεις της Ευρωπαίας Διαμεσολαβήτριας για βελτίωση όσον αφορά τη διαχείριση και τη διατήρηση γραπτών μηνυμάτων από την Επιτροπή1a· τονίζει ότι ο αποτελεσματικός έλεγχος του προϋπολογισμού της Ένωσης απαιτεί αξιόπιστη καταγραφή της διαδικασίας λήψης αποφάσεων της Επιτροπής· καλεί την Επιτροπή, συμπεριλαμβανομένης της Προέδρου, των μελών της και των ιδιαίτερων γραφείων τους, να σταματήσει να διαγράφει αυτόματα μηνύματα σχετικά με τις δραστηριότητες της Επιτροπής, εκτός εάν έχει πρώτα αποθηκευτεί με ασφάλεια πλήρες και ευανάγνωστο αντίγραφο στο επίσημο αποθετήριο αρχείων· επιμένει ότι αυτό ισχύει ανεξάρτητα από τη συσκευή, τον λογαριασμό ή την υπηρεσία ανταλλαγής μηνυμάτων που χρησιμοποιείται· ζητεί τα μηνύματα που καλύπτονται από αιτήματα πρόσβασης του κοινού να διατηρούνται καθ’ όλη τη διάρκεια της διεκπεραίωσης των εν λόγω αιτημάτων και κάθε επακόλουθης επανεξέτασης, ανεξάρτητα από τα εσωτερικά κριτήρια καταχώρισης· υπογραμμίζει ότι η διατήρηση δεν συνεπάγεται αυτόματη δημοσιοποίηση και ότι εξακολουθούν να ισχύουν εγγυήσεις εμπιστευτικότητας και προστασίας των δεδομένων·\n_________________\n1a \tΕυρωπαίος Διαμεσολαβητής, Σύσταση της 3ης Ιουνίου 2026 στην υπόθεση 2482/2025/NH, συμπεριλαμβανομένων των συνοδευτικών προτάσεων βελτίωσης: https://www.ombudsman.europa.eu/en/recommendation/en/226853",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 1,
+        "insertBefore": 2
+      }
+    },
+    {
+      "id": "A-10-2026-0080-AM-11",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_en.docx",
+        "fetchedAt": "2026-10-27T16:13:14.998Z",
+        "sha256": "8f60c15c53e2bedcae6ed6fef1603bc3086bb1b120411374f0a835378e08ac8a"
+      },
+      "sourceParagraphs": [
+        23,
+        99,
+        100,
+        101
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "31.\tStresses that information on the EPPO’s ongoing investigations should be forwarded to the Commission where the conditions laid down in Article 103 of the EPPO Regulation so permit; notes, however, that according to the 2024 PIF Report, from the start of the implementation of the RRF until 27 May 2025, the Commission received only 75 notifications from the EPPO, of which 64 concerned ongoing cases, while 279 investigations related to the RRF existed at the end of 2024, with an estimated total financial damage of EUR 2.7 billion; observes that this prevents a full understanding of the state of play of the implementation of the RRF; calls for improved, timely and structured information sharing that fully respects the EPPO’s independence, in particular for high-risk programmes such as the RRF;",
+          "32.\tAcknowledges that EPPO investigations can only be launched if information has reached the prosecutors; expects the Member States to comply with their legal obligations and to report all relevant cases to the EPPO; notes with concern that some Member States have been declaring criminal offences affecting the financial interests of the EU as national cases instead of acknowledging the competences of the EPPO; expresses its concern that these conflicts of competence can have a possible negative impact on investigations, including the loss of evidence or the belated collection of evidence; observes that, in spite of the EPPO’s competences being clearly outlined in Article 22(1) and (2) and in Article 23 of the EPPO Regulation, questions of competence between the national authorities and the European Delegated Prosecutors come up frequently, including several in 2024; underlines that, as things stand, these cases should be handled in compliance with the EPPO Regulation, which states that they should be referred to the national judicial authority with the competence to decide cases of conflict of competences between national prosecutors, under the condition that its decision can be subject to a preliminary ruling of the Court of Justice, as provided for by Article 25(6) of the EPPO Regulation, drawing on Article 267 TFEU, which provides that the Court of Justice has jurisdiction to give a preliminary ruling on the interpretation of the provision on conflicts of competence between the EPPO and national authorities; reiterates that the current situation lacks legal clarity since, in many Member States, the national authority’s decision on the conflict of competence cannot be the subject of a preliminary ruling of the Court of Justice; calls on the Commission to collect and assess information regarding cases of conflicts of competence, with a view to obtaining the relevant data and to addressing the matter during the revision of the EPPO Regulation;",
+          "Recoveries and reporting"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[26]",
+            "ordinal": 28,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[102]",
+            "ordinal": 104,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[103]",
+            "ordinal": 105,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[104]",
+            "ordinal": 106,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 11,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 24,
+                "kind": "bold"
+              },
+              {
+                "start": 0,
+                "end": 24,
+                "kind": "italic"
+              }
+            ]
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Subheading (new) after paragraph 31",
+        "originalText": "",
+        "proposedText": "Additional threats – misuse of EU funds",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 1,
+        "insertBefore": 2
+      }
+    },
+    {
+      "id": "A-10-2026-0189-AM-6",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0189/A-10-2026-0189_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0189/A-10-2026-0189_en.docx",
+        "fetchedAt": "2026-10-27T16:14:34.375Z",
+        "sha256": "8a580851b5cd9f12f0643760a9b54c73ae1dac9fa66b557973351b0695a87780"
+      },
+      "sourceParagraphs": [
+        23,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "1.\tRecommends that the Council, the Commission and the Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy:",
+          "(a)\tintensify the EU’s strategic focus, presence and visibility in and dialogue and cooperation with East Asia, including through diplomatic engagement, security cooperation, people-to-people contacts and economic partnerships, with the aim of avoiding bloc-based confrontation dynamics and contributing to peace, regional stability, security, prosperity and sustainable development, underpinned by the promotion of democracy, multilateralism, the rule of law, human rights, a rules-based trading system, territorial integrity and international law; in this context, cooperate with Japan on its updated Free and Open Indo-Pacific concept; enhance cooperation, coordination and dialogue with East Asian like-minded partners, making full use of their regional knowledge and experience in order to ensure a more effective, coherent and context-sensitive approach to peace, security and stability in East Asia;",
+          "(b)\tstrengthen strategic foresight and contingency planning between the EU and its East Asian partners to develop a shared assessment of regional security risks and coordinate deterrence measures to safeguard and contribute to peace and stability in the region and proactively discourage unilateral attempts to alter the regional status quo by force or coercion;",
+          "(c)\twelcome the significant diplomatic progress made by the Governments of Japan and the Republic of Korea in forging a forward-looking, resilient partnership as such enhanced cooperation between Japan and the RoK is vital for maintaining a rules-based international order and ensuring stability across the Indo-Pacific region;",
+          "(d)\tstrengthen the EU’s strategic autonomy and economic security through trade and investment diversification, secure and predictable supply chains, open markets and trade flows, and closer cooperation with like-minded partners in East Asia, while ensuring mutual benefits and local value creation, and upholding the EU’s commitment to fair and sustainable trade;",
+          "(e)\tdeepen cooperation with like-minded partners in the region, particularly Japan, the RoK and Taiwan, as well as ASEAN countries, to address common challenges in areas such as economic coercion, arbitrary export control measures, including export restrictions on dual-use items targeting Japan, non-market policies and practices, democratic resilience, ecological transition, cybersecurity, hybrid threats including foreign information manipulation and interference, protection of critical infrastructures, including submarine cables and port and logistics hubs, maritime and space security, non-proliferation, and emerging defence technologies, including advanced drone technology, while strengthening synergies with key partners and regional organisations in full respect for the UN Charter; explore and implement joint initiatives to strengthen the parties’ respective strategic autonomies and reduce dependency on China; highlight the importance of Japan’s, the RoK’s and Taiwan’s robust institutions and vibrant democracies within the broader regional context, providing a crucial counterbalance in the region;",
+          "(f)\tmaintain, in coordination with like-minded partners, open channels of dialogue and principled engagement with other global actors in East Asia in order to address shared global challenges;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[24]",
+            "ordinal": 26,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[94]",
+            "ordinal": 96,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[95]",
+            "ordinal": 97,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[96]",
+            "ordinal": 98,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[97]",
+            "ordinal": 99,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[98]",
+            "ordinal": 100,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[99]",
+            "ordinal": 101,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[100]",
+            "ordinal": 102,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36,
+            "marks": [
+              {
+                "start": 290,
+                "end": 291,
+                "kind": "bold"
+              },
+              {
+                "start": 290,
+                "end": 291,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36,
+            "marks": [
+              {
+                "start": 103,
+                "end": 104,
+                "kind": "bold"
+              },
+              {
+                "start": 103,
+                "end": 104,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 4.72,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Paragraph 1 (d) a (new)",
+        "originalText": "",
+        "proposedText": "(da).\treverse the recent weakening of Directive (EU) 2024/1760 on corporate sustainability due diligence1a so that its scope and enforceability are strengthened again, in particular in view of the persistent exploitation of migrant workers in South-East Asian supply chains; ensure that reinforced binding due diligence obligations for companies placing products on the EU market cover the entire value chain, including recruitment and subcontracting practices, and provide for effective enforcement, sanctions, civil liability and access to remedy, so as to combat forced labour and social dumping;\n_____________________\n1a Directive (EU) 2024/1760 of the European Parliament and of the Council of 13 June 2024 on corporate sustainability due diligence and amending Directive (EU) 2019/1937 and Regulation (EU) 2023/2859 (OJ L, 2024/1760, 5.7.2024, ELI: http://data.europa.eu/eli/dir/2024/1760/oj).",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 5,
+        "insertBefore": 6
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-36",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_en.docx",
+        "fetchedAt": "2026-10-27T16:13:25.444Z",
+        "sha256": "07ec316a400a08e5479cdadf00e24ac9ba5f091213d2ac63041b42b4f4a5c134"
+      },
+      "sourceParagraphs": [
+        41,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "15.\tRestores the Council cuts of EUR 523 143 000 and increases by EUR 275 100 000 in commitment appropriations above the DB (excluding pilot projects and preparatory actions) and by EUR 798 243 000 compared to the Council position in order to reinforce the following programs above DB as follows:",
+          "(a)\tSupport to Turkish Cypriot Community by EUR 3 500 000;",
+          "i.\tbudget line 05 04 01 – Financial support for encouraging the economic development of the Turkish Cypriot community by EUR 3 500 000;",
+          "(b)\tThe Union Civil Protection Mechanism by EUR 80 000 000;",
+          "i.\tbudget line 06 05 01 – Union Civil Protection Mechanism by EUR 80 000 000;",
+          "(c)\tThe EU4Health Programme by EUR 50 000 000;",
+          "i.\tbudget line 06 06 01 – EU4Health Programme by EUR 50 000 000;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[42]",
+            "ordinal": 47,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[110]",
+            "ordinal": 115,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[111]",
+            "ordinal": 116,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[112]",
+            "ordinal": 117,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[113]",
+            "ordinal": 118,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[114]",
+            "ordinal": 119,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[115]",
+            "ordinal": 120,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[116]",
+            "ordinal": 121,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 1.77
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          },
+          {
+            "indent": 4.72,
+            "hanging": 1.77
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          },
+          {
+            "indent": 4.72,
+            "hanging": 1.77
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Paragraph 15 – point b a (new)",
+        "originalText": "",
+        "proposedText": "(ba)\tCalls for dedicated and reinforced funding to rapidly scale up the rescEU firefighting fleet through the procurement, maintenance, and strategic deployment of firefighting aircraft such as Canadair and helicopters; insists that operational priority be given to Southern Europe’s island and peninsular regions, which stand on the frontlines of catastrophic mega-fires and the climate crisis;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 5,
+        "insertBefore": 6
+      }
+    },
+    {
+      "id": "B-10-2026-0424-AM-103",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_fr.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_fr.docx",
+        "fetchedAt": "2026-10-27T16:13:30.643Z",
+        "sha256": "aa8b8abcd8469765aacfebbb5f2522a247de52afe389d6019280e4e0c3c5bb57"
+      },
+      "sourceParagraphs": [
+        16,
+        72,
+        73,
+        74
+      ],
+      "text": {
+        "paragraphs": [
+          "Le Parlement européen,",
+          "14.\tprie instamment la Commission de veiller à ce qu’aucun fonds de l’Union ne parvienne, directement ou indirectement, à des entités, partenaires, contractants, sous-traitants, bénéficiaires effectifs, bénéficiaires finaux ou destinataires finaux liés à des réseaux figurant sur la liste de l’Union des organisations terroristes, ni ne leur profite;",
+          "15.\tdemande à la Commission de fournir une vue d’ensemble complète de tous les cas d’octroi de fonds de l’Union à des personnes et entités soupçonnées d’avoir des liens avec les Frères musulmans ou l’islam politique;",
+          "16.\tdemande que cette vue d’ensemble précise les montants reçus, les programmes et actions concernés, les justifications avancées pour l’octroi de ces financements, les rôles exercés dans les projets et les défaillances en matière de contrôle, de traçabilité ou d’évaluation des risques ayant conduit à l’octroi de ces fonds; demande en outre à la Commission de mettre à la disposition du Parlement toutes les conventions de subvention en question;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[18]",
+            "ordinal": 20,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 10,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[74]",
+            "ordinal": 76,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 10,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[75]",
+            "ordinal": 77,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 10,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[76]",
+            "ordinal": 78,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 10,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "indent": 2.36,
+            "hanging": 2.36,
+            "marks": [
+              {
+                "start": 0,
+                "end": 21,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "fr"
+      },
+      "wording": {
+        "language": "fr",
+        "targetLabel": "Paragraphe 14 bis (nouveau)",
+        "originalText": "",
+        "proposedText": "14 bis.\tsouligne que les évaluations des organisations recevant ou demandant un financement public devraient s’appuyer sur des critères concrets et mesurables, y compris le respect des principes démocratiques, des libertés et droits fondamentaux, de l’égalité devant la loi, du rejet de la violence et du respect des cadres juridiques applicables, plutôt que sur des catégories ou des hypothèses générales fondées sur le contexte idéologique, religieux ou culturel;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 1,
+        "insertBefore": 2
+      }
+    },
+    {
+      "id": "B-10-2026-0423-AM-2",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe/B-10-2026-0423/B-10-2026-0423_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe/B-10-2026-0423/B-10-2026-0423_en.docx",
+        "fetchedAt": "2026-10-27T16:13:28.904Z",
+        "sha256": "b59805bb0c9d9f693f7c609b2d62c68a7f6fa939f678952edb16046538df2b1a"
+      },
+      "sourceParagraphs": [
+        17,
+        54,
+        55,
+        56
+      ],
+      "text": {
+        "paragraphs": [
+          "The European Parliament,",
+          "6.\tCalls for strengthened and more harmonised integrity standards across the EU covering conflicts of interest, gifts, hospitality, asset and interest declarations, and sponsored travel for all elected officials and senior office-holders, as well as checks and enforcement against violations;",
+          "7.\tCalls for stricter and more harmonised rules on revolving doors, including adequate cooling-off periods, clear rules and transparency requirements regarding secondary paid activities carried out by Members of Parliament, and clearer rules on lobbying and the representation of private interests related to previous public functions;",
+          "8.\tStresses the crucial role of research into sector-specific corruption; calls on the Commission and the Member States to ensure sufficient funding for this research and to use its conclusions and recommendations; calls on the Commission to reintroduce the measurement of corruption perceptions concerning the EU institutions into the Eurobarometer;"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[18]",
+            "ordinal": 20,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[55]",
+            "ordinal": 57,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[56]",
+            "ordinal": 58,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[57]",
+            "ordinal": 59,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 9,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 23,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "en"
+      },
+      "wording": {
+        "language": "en",
+        "targetLabel": "Recital 6 b (new)",
+        "originalText": "",
+        "proposedText": "6b.\tExpresses concern regarding scandals and allegations of improper use of EU funds by non-governmental organisations, in particular reports that the Commission awarded grants to non-governmental organisations that then carried out lobbying activities targeting Parliament, which constitutes an undue influence on the EU decision-making process;",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "insertAfter": 1,
+        "insertBefore": 2
+      }
+    },
+    {
+      "id": "A-10-2026-0272-AM-118",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_el.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_el.docx",
+        "fetchedAt": "2026-10-27T16:13:24.564Z",
+        "sha256": "281eaf5018039cc73567d6ccbc52283666a65e3c8177eb14c9189b2d7859a77a"
+      },
+      "sourceParagraphs": [
+        42,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191
+      ],
+      "text": {
+        "paragraphs": [
+          "Το Ευρωπαϊκό Κοινοβούλιο,",
+          "27.\tαυξάνει κατά 139 000 000 EUR τις πιστώσεις ανάληψης υποχρεώσεων πάνω από το ΣΠ και κατά 137 990 000 EUR σε σύγκριση με τη θέση του Συμβουλίου, προκειμένου να ενισχυθούν τα ακόλουθα προγράμματα πάνω από το ΣΠ ως εξής:",
+          "α)\tNDICI-Global Europe κατά 99 000 000 EUR·",
+          "i.\tγραμμή του προϋπολογισμού 14 02 01 10 — Νότια Γειτονία κατά 60 000 000 EUR·",
+          "ii.\tγραμμή του προϋπολογισμού 14 02 01 11 — Ανατολική Γειτονία κατά 30 000 000 EUR·",
+          "iii.\tγραμμή του προϋπολογισμού 14 02 01 13 — Διευκόλυνση μεταρρυθμίσεων και ανάπτυξης για τη Δημοκρατία της Μολδαβίας κατά 4 000 000 EUR·",
+          "iv.\tγραμμή του προϋπολογισμού 14 02 02 20 — Οργανώσεις της κοινωνίας των πολιτών κατά 5 000 000 EUR·",
+          "β)\tανθρωπιστική βοήθεια κατά 40 000 000 EUR·",
+          "i.\tγραμμή του προϋπολογισμού 14 03 01 — Ανθρωπιστική βοήθεια κατά 40 000 000 EUR·",
+          "28.\tδημιουργεί αποθεματικό στις ακόλουθες γραμμές του προϋπολογισμού, χωρίς αντίκτυπο στο σύνολο των πιστώσεων·"
+        ],
+        "paragraphSources": [
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[43]",
+            "ordinal": 48,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[184]",
+            "ordinal": 189,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[185]",
+            "ordinal": 190,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[186]",
+            "ordinal": 191,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[187]",
+            "ordinal": 192,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[188]",
+            "ordinal": 193,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[189]",
+            "ordinal": 194,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[190]",
+            "ordinal": 195,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[191]",
+            "ordinal": 196,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          },
+          {
+            "path": "/w:document[1]/w:body[1]/w:p[192]",
+            "ordinal": 197,
+            "container": "body",
+            "containerPath": "/w:document[1]/w:body[1]",
+            "segment": 20,
+            "complete": true
+          }
+        ],
+        "paragraphFormats": [
+          {
+            "marks": [
+              {
+                "start": 0,
+                "end": 24,
+                "kind": "italic"
+              }
+            ]
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          },
+          {
+            "indent": 4.72,
+            "hanging": 1.77
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.5
+          },
+          {
+            "indent": 4.72,
+            "hanging": 1.77
+          },
+          {
+            "indent": 8.25,
+            "hanging": 1.49
+          },
+          {
+            "indent": 2.36,
+            "hanging": 2.36
+          }
+        ],
+        "structureStatus": "extracted",
+        "textLanguage": "el"
+      },
+      "wording": {
+        "language": "el",
+        "targetLabel": "Παράγραφος 27 – εισαγωγικό μέρος",
+        "originalText": "27.\tαυξάνει κατά 139 000 000 EUR τις πιστώσεις ανάληψης υποχρεώσεων πάνω από το ΣΠ και κατά 137 990 000 EUR σε σύγκριση με τη θέση του Συμβουλίου, προκειμένου να ενισχυθούν τα ακόλουθα προγράμματα πάνω από το ΣΠ ως εξής:",
+        "proposedText": "27.\tαπορρίπτει τις συνολικές αυξήσεις πάνω από το σχέδιο προϋπολογισμού για τον ΜΓΑΔΣ-Παγκόσμια Ευρώπη, τη διευκόλυνση μεταρρυθμίσεων και ανάπτυξης για τη Μολδαβία και τις οργανώσεις της κοινωνίας των πολιτών· επιμένει ότι κάθε δαπάνη στο πλαίσιο του τομέα 6 πρέπει να περιορίζεται στα σαφώς καθορισμένα συμφέροντα των κρατών μελών και να υπόκειται σε μετρήσιμα αποτελέσματα, πλήρη διαφάνεια, ελέγχους για την καταπολέμηση της απάτης και εκτελεστές ρήτρες αναστολής  ζητεί η μη ανθρωπιστική βοήθεια προς τρίτες χώρες να εξαρτάται από την αποτελεσματική συνεργασία για την επανεισδοχή, τις επιστροφές και την πρόληψη της παράνομης μετανάστευσης· ζητεί η ανθρωπιστική βοήθεια να επικεντρώνεται κυρίως κοντά στις περιοχές προέλευσης και να εξακολουθεί να παρέχεται βάσει αναγκών· απορρίπτει τη χρήση του ΜΓΑΔΣ-Παγκόσμια Ευρώπη, της ανθρωπιστικής βοήθειας ή οποιασδήποτε άλλης γραμμής του προϋπολογισμού του τομέα 6 για τη συμπλήρωση ή την παράκαμψη των πιστώσεων και των προϋποθέσεων που ισχύουν για το μέσο διευκόλυνσης για την Ουκρανία ή το δάνειο στήριξης για την Ουκρανία·",
+        "baseline": "motion-resolution"
+      },
+      "expected": {
+        "span": {
+          "start": 1,
+          "end": 1
+        }
+      }
+    }
+  ]
+}
