@@ -242,13 +242,15 @@ export function resolveDocumentTarget(text, {originalText, targetLabel, referenc
 // markers. Only a whole cell is a marker; prose containing these words is text.
 export const DELETION_MARKERS = Object.freeze([
   'deleted', 'supprimé', 'supprimée', 'entfällt', 'gestrichen', 'suprimido',
-  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'udgår',
+  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'schrappen', 'udgår',
   'utgår', 'poistetaan', 'διαγράφεται', 'törölve', 'eliminat', 'eliminată',
   'заличава се', 'vypouští se', 'vypúšťa sa', 'črtano', 'briše se',
   'skreśla się', 'svītrots', 'išbraukta', 'välja jäetud', 'imħassar', 'scriosta',
 ]);
 const deletionMarkers = new Set(DELETION_MARKERS);
-export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase());
+// Published FI/LT/HR cells also use a terminal full stop. Do not strip other
+// punctuation, quotes or words: only an entire instruction cell is deletion.
+export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase().replace(/\.$/u,'').trimEnd());
 export function amendmentOperation({originalText, proposedText} = {}) {
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
   if (whitespace(originalText)) return !whitespace(proposedText) || isDeletionMarker(proposedText) ? 'delete' : 'replace';

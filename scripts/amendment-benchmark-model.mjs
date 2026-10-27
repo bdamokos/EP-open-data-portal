@@ -1,6 +1,7 @@
 import {parseTargetLabel} from '../server/proposal-structure.mjs';
 import {placementReference} from '../server/document-context-model.mjs';
 import {rawResolutionUnits} from './amendment-benchmark-resolution-oracle.mjs';
+import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -179,6 +180,9 @@ function verifyResolutionInsertion(text,wording,target,placement) {
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
+  const expected = expectedOperation(wording);
+  if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
+  if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
     let source, labels = [];
@@ -297,7 +301,7 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
-  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
   const replay=current.projectionMode==='cached-source-replay'&&['cached-source-replay','live-projection-comparison'].includes(baseline.projectionMode);
   const scope=replay?'full-pipeline-cached-sources':placementOnly?'placement-only-frozen-projections':'full-pipeline';
   const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});
