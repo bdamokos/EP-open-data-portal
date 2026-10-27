@@ -3,7 +3,7 @@ import {sourcePageUrl} from './SourceLink';
 import {API_ROOT} from './api';
 import {PersonName,usePersonName} from './PersonName';
 import {useData} from './data';
-import {useExplorerParam} from './explorerUrl';
+import {useTextSearchParam,useGlobalSearchMemory} from './globalSearchState';
 import {findTextOffsets,parseTextReadKey,searchSnippetParts,searchRangeParts,textReadKey} from './textSearchModel.mjs';
 import './TextSearch.css';
 import {ParliamentSearchResults} from './ParliamentSearchResults';
@@ -47,18 +47,20 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
 }
 
 export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false}:TextSearchProps) {
-  const [query,setQuery]=useExplorerParam<string>(prefix+'-search','');
-  const [textLanguage,setTextLanguage]=useExplorerParam<string>(prefix+'-text-lang','');
-  const [page,setPage]=useExplorerParam<number>(prefix+'-page',0);
-  const [exactOffset,setExactOffset]=useExplorerParam<number>(prefix+'-offset',-1);
+  useGlobalSearchMemory(prefix);
+  const [query,setQuery]=useTextSearchParam<string>(prefix+'-search','');
+  const [textLanguage,setTextLanguage]=useTextSearchParam<string>(prefix+'-text-lang','');
+  const [page,setPage]=useTextSearchParam<number>(prefix+'-page',0);
+  const [exactOffset,setExactOffset]=useTextSearchParam<number>(prefix+'-offset',-1);
   const offset=exactOffset<0?page*20:exactOffset;
-  const [read,setRead]=useExplorerParam<string>(prefix+'-read','');
-  const [field,setField]=useExplorerParam<string>(prefix+'-kind','');
-  const [,setCatalogOffset]=useExplorerParam<number>('global-fts-catalog-offset',0);
-  const [searchFrom,setSearchFrom]=useExplorerParam<string>('global-fts-from','');
-  const [searchTo,setSearchTo]=useExplorerParam<string>('global-fts-to','');
-  const [sort,setSort]=useExplorerParam<string>(prefix+'-sort','relevance',['relevance','newest']);
-  const [closed,setClosed]=useExplorerParam<string>(prefix+'-closed','',['','1']);
+  const [read,setRead]=useTextSearchParam<string>(prefix+'-read','');
+  const [field,setField]=useTextSearchParam<string>(prefix+'-kind','');
+  const [,setCatalogOffset]=useTextSearchParam<number>('global-fts-catalog-offset',0);
+  const [searchFrom,setSearchFrom]=useTextSearchParam<string>('global-fts-from','');
+  const [searchTo,setSearchTo]=useTextSearchParam<string>('global-fts-to','');
+  const [sort,setSort]=useTextSearchParam<string>(prefix+'-sort','relevance',['relevance','newest']);
+  const [closed,setClosed]=useTextSearchParam<string>(prefix+'-closed','',['','1']);
+
   const [open,setOpen]=useState(closed!=='1'&&Boolean(query||read)),[draft,setDraft]=useState(query),[attempt,setAttempt]=useState(0);
   const [state,setState]=useState<{key:string;data:Response|null;loading:boolean;error:string|null}>({key:'',data:null,loading:false,error:null});
   const [variants,setVariants]=useState<Record<string,string>>({});
@@ -109,9 +111,10 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   },[request,activeRequest,attempt]);
   const data=showText&&state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading),error=showText&&state.key===request?state.error:null;
   const selected=!showText||disabledReason||scopeChanging?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
-  function close(){setOpen(false);setClosed(query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
+  function close(){setOpen(false);setClosed(prefix==='global-fts'||query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   function reset(){setPage(0);setExactOffset(-1);if(global)setCatalogOffset(0);setRead('');}
   function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);reset();setVariants({});if(next===query)setAttempt(v=>v+1);}
+
   return <div lang="en" className={'explorer-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
     <button ref={toggle} type="button" className="explorer-search-icon" aria-label={label} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>{if(open)close();else{setClosed('');setOpen(true);}}}><Magnifier/>{query&&!open&&<span className="explorer-search-dot"/>}</button>
     {open&&<section className="explorer-search-panel" id={panel} aria-label={label}>

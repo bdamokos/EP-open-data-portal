@@ -1,6 +1,6 @@
 import {Suspense,useState} from 'react';
 import {useData} from './data';
-import {useExplorerParam} from './explorerUrl';
+import {useTextSearchParam} from './globalSearchState';
 import {publicUrl} from './publicUrl';
 import {lazyView} from './lazyView';
 const InsightQuestionReader=lazyView(()=>import('./InsightReaders').then(module=>({default:module.InsightQuestionReader})));
@@ -16,7 +16,7 @@ function resultUrl(result:Result,language:string) {
   return publicUrl('?'+params);
 }
 export function ParliamentSearchResults({query,type,language,from,to}:{query:string;type:string;language:string;from?:string;to?:string}) {
-  const [offset,setOffset]=useExplorerParam<number>('global-fts-catalog-offset',0);
+  const [offset,setOffset]=useTextSearchParam<number>('global-fts-catalog-offset',0);
   const [reading,setReading]=useState<string|null>(null);
   const params=new URLSearchParams({q:query,type,lang:language,offset:String(offset)});if(from)params.set('from',from);if(to)params.set('to',to);
   const {data,error,loading,retry}=useData<Response>('insights/search?'+params);
