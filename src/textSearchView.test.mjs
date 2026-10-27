@@ -63,6 +63,31 @@ test('a finished local backfill keeps the search scoped to available texts',asyn
   assert.match(view.container.textContent,/No matches in available text\./,'a complete local backfill is not an authoritative empty result');
 });
 
+test('global search surfaces MEPs, exact plenary links and question titles and filters each source',async t=>{
+  const section=(type,results)=>({type,results,total:results.length,nextOffset:null,truncated:false,coverage:{available:true,complete:type==='mep'}});
+  const view=await setup(t,{query:'global-fts-search=energy',respond:({url})=>{
+    if(url.pathname.endsWith('/insights/search'))return Response.json({offset:Number(url.searchParams.get('offset')),sections:[
+      section('mep',[{id:'42',type:'mep',title:'Energy Example',titleLanguage:null,date:null}]),
+      section('topic',[{id:'MTG-PL-2026-10-07-OJ-ITM-D-63',sittingId:'MTG-PL-2026-10-07',type:'topic',title:'Clean energy',titleLanguage:'en',date:'2026-10-07'}]),
+      section('question',[{id:'E-10-2026-000001',type:'question',title:'Energy costs',titleLanguage:'en',date:'2026-10-01',sourceUrl:'https://www.europarl.europa.eu/doceo/document/E-10-2026-000001_EN.html'}]),
+    ].filter(section=>url.searchParams.get('type')==='all'||url.searchParams.get('type')===section.type)});
+  }});
+  await view.render({global:true,prefix:'global-fts'});
+  assert.match(view.container.textContent,/Energy Example/);assert.match(view.container.textContent,/Clean energy/);assert.match(view.container.textContent,/Energy costs/);
+  const topic=[...view.container.querySelectorAll('a')].find(a=>a.textContent==='Clean energy');
+  const target=new URL(topic.href);assert.equal(target.searchParams.get('agenda-topic'),'MTG-PL-2026-10-07-OJ-ITM-D-63');assert.equal(target.searchParams.get('agenda-period'),'sitting:MTG-PL-2026-10-07');
+  const fields=()=>[...view.container.querySelectorAll('.explorer-search-facets label')];
+  const type=fields().find(label=>label.textContent.startsWith('Result type')).querySelector('select');
+  const before=view.searches().length;
+  await view.select('select', 'mep');
+  assert.equal(type.value,'mep');assert.equal(view.searches().length,before,'MEP selection never starts a corpus query');
+  assert.equal(view.calls.filter(call=>call.url.pathname.endsWith('/insights/search')).at(-1).url.searchParams.get('type'),'mep');
+  assert.equal(view.container.querySelector('.explorer-search-text-heading'),null);
+  await view.select('select','topic');assert.match(view.container.textContent,/Clean energy/);assert.doesNotMatch(view.container.textContent,/Energy Example/);
+  await view.select('select','question');assert.equal(view.searches().at(-1).body.kinds[0],'question');assert.match(view.container.textContent,/Read question and answers/);
+  await view.select('select','speech');assert.equal(view.container.querySelector('.explorer-catalog-results'),null);assert.deepEqual(view.searches().at(-1).body.kinds,['speech']);
+});
+
 test('search coverage stays partial independently of unavailable corpus status',async t=>{
   const view=await setup(t,{query:'fixture-fts-search=energy',respond:({url})=>{
     if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
