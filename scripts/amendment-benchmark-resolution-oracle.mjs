@@ -3,9 +3,9 @@
 const label=value=>{
   let match=/^(\d{1,6}\s*[a-z]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'paragraph',label:match[1].replace(/\s/g,'')};
-  match=/^(\p{Lu}{1,3}\p{Ll}{0,3})[.)]\s+/u.exec(value);
+  match=/^([\p{Lu}]{1,3}[\p{Ll}]{0,3})[.)]\s+/u.exec(value);
   if(match)return {kind:'recital',label:match[1]};
-  match=/^(?:\((\p{Ll}{1,4})\)|(\p{Ll}{1,4})\))\s+/u.exec(value);
+  match=/^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value);
   return match?{kind:'point',label:match[1]||match[2]}:null;
 };
 function wholeBold(value,format) {
@@ -25,16 +25,17 @@ export function rawResolutionUnits(text,language) {
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
   // Insertions currently have English label grammar. For other languages an
   // exact unique raw label may verify a span; duplicates remain unverified.
-  const openers=paragraphs.flatMap((p,i)=>/^\s*The European Parliament\s*,?\s*$/i.test(p)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
-  if(language==='en'&&!openers.length)return {units:[],reason:'oracle-resolution-start-unverified'};
+  const grammar=language==='en'?{opening:/^\s*The European Parliament\s*,?\s*$/iu,heading:/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u}:language==='ro'?{opening:/^\s*Parlamentul European\s*,?\s*$/u,heading:/^(?:\d+[.)]\s*)?PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN$/u}:null;
+  const openers=paragraphs.flatMap((p,i)=>(grammar?.opening||/^\s*The European Parliament\s*,?\s*$/iu).test(p)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
+  if(grammar&&!openers.length)return {units:[],reason:'oracle-resolution-start-unverified'};
   // A report can reproduce other resolutions/decisions in its annexes. Select
   // the published motion heading independently of the placer's section hint.
   // Require a whole-row bold heading, excluding plain TOC entries and page suffixes.
-  const headings=paragraphs.flatMap((p,i)=>/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u.test(p.trim())&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
-  const scoped=language==='en'&&headings.length===1;
+  const headings=paragraphs.flatMap((p,i)=>grammar?.heading.test(p.trim())&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
+  const scoped=Boolean(grammar)&&headings.length===1;
   const opening=scoped?openers.find(i=>i>headings[0]):openers[0];
-  const start=language==='en'?opening+1:0,events=[],openerRows=new Set(openers);
-  if(language==='en'&&!Number.isInteger(opening))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const start=grammar?opening+1:0,events=[],openerRows=new Set(openers);
+  if(grammar&&!Number.isInteger(opening))return {units:[],reason:'oracle-resolution-start-unverified'};
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
@@ -45,11 +46,11 @@ export function rawResolutionUnits(text,language) {
       if(source?.complete!==true||source.container!=='body')continue;
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
-    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter)\b/iu.test(value)&&!/[.;!?]$/u.test(value);
+    const section=/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)\b/iu.test(value)&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {
       events.push({start:i,boundary:true});group++;parent=null;
-      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?)\b/iu.test(value)){if(scoped)break;active=false;}
+      if(section&&/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|anexă|expunere de motive|aviz)\b/iu.test(value)){if(scoped)break;active=false;}
       continue;
     }
     let ref=label(value);

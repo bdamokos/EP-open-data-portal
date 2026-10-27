@@ -60,3 +60,11 @@ test('raw resolution assertions select the report motion independently and prese
     assert.equal(verifyPlacement({text,wording,placement:replace(0)}).status,'verified',language);
   }
 });
+
+test('a Romanian report motion excludes repeated annex and opinion numbering',()=>{
+  const paragraphs=['PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN','Parlamentul European,','1. Main motion.','2. Next.','ANEXĂ','1. Annex decision.','2. End.'];
+  const text={paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({ordinal,complete:true,container:'body',containerPath:'body',segment:0})),paragraphFormats:paragraphs.map((s,i)=>i===0?{marks:[{kind:'bold',start:0,end:s.length}]}:{})};
+  const wording={...amendment('Punctul 1 a (nou)'),language:'ro',baseline:'motion-resolution'};
+  assert.equal(verifyPlacement({text,wording,placement:insert(3)}).status,'verified');
+  assert.equal(verifyPlacement({text,wording,placement:insert(6)}).status,'failed');
+});

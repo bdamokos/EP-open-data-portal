@@ -610,6 +610,6 @@ test('target grammar preserves exact spaced suffixes, negative new points and ow
   assert.equal(parseTargetLabel('Article 4 – title').segments.at(-1).kind,'title');
   assert.equal(parseTargetLabel('Article 6 – paragraph 1 – introductory part').segments.at(-1).kind,'introductory-part');
   assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a (new)').segments.at(-1).negative,true);
-  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,false);
+  assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,true);
   const finnish=parseTargetLabel('17 artikla – 1 kohta – -1 alakohta (uusi)','fi');assert.equal(finnish.complete,true);assert.equal(finnish.segments.at(-1).value,'-1');
 });
