@@ -23,7 +23,7 @@ export function liveAgendaHref(data:LiveState,id?:string) {
 function AgendaLink({data,id,children}:{data:LiveState;id?:string;children:ReactNode}) {
   return <a href={liveAgendaHref(data,id)} onClick={event=>{
     if(event.button!==0||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
-    event.preventDefault();history.pushState(null,'',liveAgendaHref(data,id));window.dispatchEvent(new PopStateEvent('popstate'));
+    event.preventDefault();history.pushState(history.state,'',liveAgendaHref(data,id));window.dispatchEvent(new PopStateEvent('popstate'));
   }}>{children}</a>;
 }
 
