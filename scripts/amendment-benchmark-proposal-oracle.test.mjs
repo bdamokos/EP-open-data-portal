@@ -68,3 +68,12 @@ test('a Romanian report motion excludes repeated annex and opinion numbering',()
   assert.equal(verifyPlacement({text,wording,placement:insert(3)}).status,'verified');
   assert.equal(verifyPlacement({text,wording,placement:insert(6)}).status,'failed');
 });
+
+test('raw address recovery cannot replace an unavailable object comparison with coordinate-only verification',()=>{
+  const p=proposal([['Article 1','Titrearticle'],['1. Source sentence.','ManualNumPar1'],['Article 2','Titrearticle']]);
+  const placement={...replace(1),itemIndex:0,splice:{start:{paragraph:1,offset:0},end:{paragraph:1,offset:p.paragraphs[1].text.length}}};
+  const wording=amendment('Article 1 – paragraph 1 – subparagraph 1','\uFFFC');
+  const result=verifyPlacement({placement,wording,items:[{proposal:p}]});
+  assert.equal(result.status,'unverified');
+  assert.equal(result.reason,'oracle-object-comparison-unavailable');
+});

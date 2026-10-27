@@ -178,7 +178,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 export function verifyPlacement(input) {
   const result=verifyKnownPlacement(input);
   const proposal=input.items?.[input.placement.itemIndex]?.proposal;
-  if(result.status!=='unverified'||!proposal)return result;
+  if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable'].includes(result.reason))return result;
   const raw=rawProposalAssertion({proposal,wording:input.wording,placement:input.placement});
   return raw.status==='unverified'?result:raw;
 }
