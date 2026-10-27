@@ -63,6 +63,49 @@ test('a finished local backfill keeps the search scoped to available texts',asyn
   assert.match(view.container.textContent,/No matches in available text\./,'a complete local backfill is not an authoritative empty result');
 });
 
+test('global search surfaces MEPs, exact plenary links and question titles and filters each source',async t=>{
+  const section=(type,results)=>({type,results,total:results.length,nextOffset:null,truncated:false,coverage:{available:true,complete:type==='mep'}});
+  const view=await setup(t,{query:'global-fts-search=energy',respond:({url})=>{
+    if(url.pathname.endsWith('/insights/search'))return Response.json({offset:Number(url.searchParams.get('offset')),sections:[
+      section('mep',[{id:'42',type:'mep',title:'Energy Example',titleLanguage:null,date:null}]),
+      section('topic',[{id:'MTG-PL-2026-10-07-OJ-ITM-D-63',sittingId:'MTG-PL-2026-10-07',type:'topic',title:'Clean energy',titleLanguage:'en',date:'2026-10-07'}]),
+      section('question',[{id:'E-10-2026-000001',type:'question',title:'Energy costs',titleLanguage:'en',date:'2026-10-01',sourceUrl:'https://www.europarl.europa.eu/doceo/document/E-10-2026-000001_EN.html'}]),
+    ].filter(section=>url.searchParams.get('type')==='all'||url.searchParams.get('type')===section.type)});
+  }});
+  await view.render({global:true,prefix:'global-fts'});
+  assert.match(view.container.textContent,/Energy Example/);assert.match(view.container.textContent,/Clean energy/);assert.match(view.container.textContent,/Energy costs/);
+  const topic=[...view.container.querySelectorAll('a')].find(a=>a.textContent==='Clean energy');
+  const target=new URL(topic.href);assert.equal(target.searchParams.get('agenda-topic'),'MTG-PL-2026-10-07-OJ-ITM-D-63');assert.equal(target.searchParams.get('agenda-period'),'sitting:MTG-PL-2026-10-07');
+  const fields=()=>[...view.container.querySelectorAll('.explorer-search-facets label')];
+  const type=fields().find(label=>label.textContent.startsWith('Result type')).querySelector('select');
+  const before=view.searches().length;
+  await view.select('select', 'mep');
+  assert.equal(type.value,'mep');assert.equal(view.searches().length,before,'MEP selection never starts a corpus query');
+  assert.equal(view.calls.filter(call=>call.url.pathname.endsWith('/insights/search')).at(-1).url.searchParams.get('type'),'mep');
+  assert.equal(view.container.querySelector('.explorer-search-text-heading'),null);
+  await view.select('select','topic');assert.match(view.container.textContent,/Clean energy/);assert.doesNotMatch(view.container.textContent,/Energy Example/);
+  await view.select('select','question');assert.equal(view.searches().at(-1).body.kinds[0],'question');assert.match(view.container.textContent,/Read question and answers/);
+  await view.select('select','speech');assert.equal(view.container.querySelector('.explorer-catalog-results'),null);assert.deepEqual(view.searches().at(-1).body.kinds,['speech']);
+});
+
+test('global result filters, dates and title paging survive close and remount without entering dormant URLs',async t=>{
+  const view=await setup(t,{query:'global-fts-search=energy&global-fts-kind=question&global-fts-from=2026-01-01&global-fts-to=2026-10-07&global-fts-catalog-offset=10',respond:({url})=>url.pathname.endsWith('/insights/search')?Response.json({offset:Number(url.searchParams.get('offset')),sections:[]}):undefined});
+  const props={global:true,prefix:'global-fts'};
+  await view.render({...props,key:'first'});
+  await view.click('Close search');await view.flushFrames();
+  assert.equal([...new URL(view.window.location.href).searchParams.keys()].some(key=>key.startsWith('global-fts-')),false);
+  const calls=view.calls.length;
+  await view.render({...props,key:'second'});
+  assert.equal(view.container.querySelector('.explorer-search-panel'),null);assert.equal(view.calls.length,calls,'closed searches remain dormant');
+  await view.click('Search fixture speeches');
+  assert.equal(view.find('select').value,'question');
+  assert.deepEqual([...view.container.querySelectorAll('input[type="date"]')].map(input=>input.value),['2026-01-01','2026-10-07']);
+  const params=new URL(view.window.location.href).searchParams;
+  assert.equal(params.get('global-fts-catalog-offset'),'10');
+  assert.equal(params.get('global-fts-from'),'2026-01-01');assert.equal(params.get('global-fts-to'),'2026-10-07');
+  assert.equal(view.searches().at(-1).body.from,'2026-01-01');assert.equal(view.searches().at(-1).body.to,'2026-10-07');
+});
+
 test('search coverage stays partial independently of unavailable corpus status',async t=>{
   const view=await setup(t,{query:'fixture-fts-search=energy',respond:({url})=>{
     if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
@@ -218,20 +261,73 @@ test('Back reopens a closed reader-only link without changing the search query',
   assert.equal(view.searches().length,0);
 });
 
-test('an explicitly closed global search stays collapsed across navigation remounts while retaining its query',async t=>{
+test('closing global search removes its URL state and remembers its query across remounts',async t=>{
   const view=await setup(t,{query:'global-fts-search=energy&global-fts-text-lang=en'});
   await view.render({prefix:'global-fts',key:'first-header'});
   assert.equal(view.searches().length,1);
   await view.click('Close text search');await view.flushFrames();
-  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-closed'),'1');
+  assert.equal([...new URL(view.window.location.href).searchParams.keys()].some(key=>key.startsWith('global-fts-')),false);
   await view.render({prefix:'global-fts',key:'second-header'});
   assert.equal(view.container.querySelector('.explorer-search-panel'),null);
   assert.equal(view.searches().length,1,'a header remount must not silently reopen or rerun a closed global query');
-  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-search'),'energy');
+  assert.equal(view.window.location.search,'');
   await view.click('Search fixture speeches');
   assert(view.container.querySelector('.explorer-search-panel'));
   assert.equal(view.searches().length,2);
   assert.equal(new URL(view.window.location.href).searchParams.has('global-fts-closed'),false);
+  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-search'),'energy');
+  assert.equal(view.find('select').value,'en');
+});
+
+test('legacy closed search links become clean speaker links without running a search',async t=>{
+  const view=await setup(t,{query:'view=outside&ov-person=257105&global-fts-search=deutsch&global-fts-text-lang=en&global-fts-closed=1'});
+  await view.render({prefix:'global-fts'});
+  assert.equal(view.searches().length,0);
+  assert.equal(view.window.location.search,'?view=outside&ov-person=257105');
+  await view.click('Search fixture speeches');
+  assert.equal(view.find('input').value,'deutsch');
+  assert.equal(view.searches().at(-1).body.language,'en');
+  assert.equal(new URL(view.window.location.href).searchParams.get('ov-person'),'257105');
+});
+
+test('Back and Forward restore open and closed global search entries with their own queries',async t=>{
+  const view=await setup(t,{query:'global-fts-search=first&global-fts-text-lang=fr&global-fts-sort=newest'});
+  await view.render({prefix:'global-fts'});
+  const step=direction=>act(async()=>{const popped=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history[direction]();await popped;});
+  await view.click('Close text search');
+  await view.click('Search fixture speeches');
+  await view.input('input[type="search"]','second');await view.submit();
+  await view.click('Close text search');
+  await step('back');assert.equal(view.find('input').value,'second');
+  await step('back');assert.equal(view.find('input').value,'first');
+  await step('back');assert.equal(view.container.querySelector('input'),null);
+  await view.click('Search fixture speeches');
+  assert.equal(view.find('input').value,'first');assert.equal(view.find('select').value,'fr');
+  assert.equal(view.searches().at(-1).body.sort,'newest');
+  await step('back');assert.equal(view.container.querySelector('input'),null);
+  await step('forward');assert.equal(view.find('input').value,'first');
+});
+
+test('closed global searches survive a session reload but do not enter a fresh shared link',async t=>{
+  const view=await setup(t,{query:'global-fts-search=energy&global-fts-text-lang=fr'});
+  await view.render({prefix:'global-fts'});await view.click('Close text search');
+  const closedState=view.window.history.state;
+  await act(async()=>view.root.render(null));
+  view.window.history.replaceState(null,'','?view=outside');
+  await view.render({prefix:'global-fts'});
+  assert.equal(view.container.querySelector('input'),null);
+  await view.click('Search fixture speeches');assert.equal(view.find('input').value,'energy');
+  await act(async()=>view.root.render(null));
+  view.window.sessionStorage.clear();view.window.history.replaceState(null,'','?view=outside');
+  await view.render({prefix:'global-fts'});
+  await view.click('Search fixture speeches');assert.equal(view.find('input').value,'');
+  await act(async()=>view.root.render(null));
+  view.window.history.replaceState(closedState,'','?view=outside');
+  t.mock.method(view.window.sessionStorage,'getItem',()=>{throw Error('Storage blocked');});
+  t.mock.method(view.window.sessionStorage,'setItem',()=>{throw Error('Storage blocked');});
+  t.mock.method(view.window.sessionStorage,'removeItem',()=>{throw Error('Storage blocked');});
+  await view.render({prefix:'global-fts'});await view.click('Search fixture speeches');
+  assert.equal(view.find('input').value,'energy');
 });
 
 test('changing entity scope clears the old page and reader before requesting the new entity',async t=>{

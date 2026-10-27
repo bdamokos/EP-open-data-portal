@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
+import {sourceAvailability} from '../server/source-availability.mjs';
 
 const source={url:'https://example.test/public-fixture',fetchedAt:'2026-10-16T12:00:00Z'};
 const coverage={complete:false,pending:0,unresolved:0,gaps:1,truncated:false,initialized:true,generation:1,updatedAt:source.fetchedAt,tasks:[],source:'Public test fixture'};
@@ -91,6 +92,28 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
 const sourceIds=container=>[...new Set([...container.querySelectorAll('[data-ov-speech]')].map(node=>node.dataset.ovSpeech))].sort();
 const contributionIds=detail=>detail.contributions.map(c=>c.id).sort();
 
+test('monthly bars and month options localize dated gaps and preserve the overall notice',async t=>{
+  const dates=['2026-01-12','2026-01-13','2026-02-12','2026-03-12','2026-04-12','2026-06-12','2026-07-12','2026-08-12'];
+  const detail=speaker('42','Monthly guest',dates.map((date,i)=>speech(date,String(i),[item(date,1)])));
+  detail.coverage={...coverage,window:{start:'2024-07-16',end:'2026-09-30'},availability:sourceAvailability({
+    sourceKey:'outside-speeches',start:'2024-07-16',end:'2026-09-30',latestObservedDate:'2026-08-12',
+    gaps:[{start:'2023-12-13',end:'2023-12-13'},{start:'2026-04-01',end:'2026-04-30'}],
+  })};
+  const {container,select,click}=await harness(t,[detail],'?view=outside&ov-person=42');
+  const bars=[...container.querySelectorAll('.ov-monthly button')];
+  assert.deepEqual(bars.map(b=>b.querySelector('[data-availability]').dataset.availability),['observed','observed','observed','partial','observed','observed','observed','partial','unavailable']);
+  assert.equal(bars[0].getAttribute('aria-label'),'Jan 2026: 2 agenda items');
+  assert.equal(bars[3].getAttribute('aria-label'),'Apr 2026: 1 · Partial agenda item');
+  assert.equal(bars[4].getAttribute('aria-label'),'May 2026: 0 agenda items');
+  assert.equal(bars[8].getAttribute('aria-label'),'Sep 2026: Agenda items unavailable');
+  assert.deepEqual([...select('Month').options].slice(1).map(o=>o.textContent),bars.map(b=>b.getAttribute('aria-label')));
+  assert.equal(container.querySelectorAll('.ov-monthly .availability-partial').length,2);
+  assert.match(container.querySelector('.availability-note').textContent,/Partial coverage/);
+  assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
+  await act(async()=>bars[3].click());
+  assert.deepEqual(sourceIds(container),detail.contributions.filter(c=>c.date.startsWith('2026-04')).map(c=>c.id));
+});
+
 test('resolved agenda membership shows one debate and retains the original API links in evidence',async t=>{
   const wrong=item('2026-04-28',11),right=item('2026-04-28',12);
   const detail=speaker('238669','Tony Murphy',[speech('2026-04-28','01',[right]),speech('2026-04-28','02',[right])]);
@@ -100,10 +123,29 @@ test('resolved agenda membership shows one debate and retains the original API l
   await act(async()=>container.querySelector('.ov-appearance-cards button').click());
   const drawer=container.querySelector('.ov-drawer');
   assert.equal(drawer.querySelectorAll('.ov-item').length,1);assert.equal(drawer.querySelectorAll('.ov-contribution').length,2);
-  assert.equal(drawer.querySelector('h3').textContent,'12. Discharge 2024 (joint debate)');
+  assert.equal(drawer.querySelector('h3').textContent,'Discharge 2024 (joint debate)');
   assert(!drawer.textContent.includes('Special event'));
   assert.equal(drawer.querySelectorAll('a[href$="CRE-10-2026-04-28-ITM-012_EN.html"]').length,2);
   assert.equal(drawer.querySelector('.ov-evidence'),null,'API identifiers are not shown');
+});
+
+test('agenda numbering is omitted across outside titles while source titles and languages remain intact',async t=>{
+  const day='2026-04-28',detail=speaker('42','Guest',[speech(day,'01',[item(day,'12-1')]),speech(day,'02',[item(day,13)])]);
+  detail.agendas[0].titles=detail.contributions[0].titles={hu:'12.1. Mentesítés 2024',en:'12.1. Discharge 2024'};
+  detail.agendas[1].titles=detail.contributions[1].titles={fr:'2024 priorités'};
+  const original=structuredClone(detail);
+  const {container,click,render}=await harness(t,[detail],'?view=outside&ov-person=42');
+  const titles=()=>[...container.querySelectorAll('.ov-appearance-cards strong,.ov-dossier strong')].map(n=>[n.textContent,n.lang]);
+  assert.deepEqual(titles(),[['Discharge 2024','en'],['2024 priorités','fr']]);
+  await render('hu');
+  assert.deepEqual(titles(),[['Mentesítés 2024','hu'],['2024 priorités','fr']]);
+  await click('Appearances');
+  assert.equal(container.querySelector('.ov-appearance summary span').textContent,'Mentesítés 2024 · 2024 priorités');
+  await click('Subjects & dossiers');
+  assert.deepEqual(titles(),[['Mentesítés 2024','hu'],['2024 priorités','fr']]);
+  await act(async()=>container.querySelector('.ov-dossier button').click());
+  assert.deepEqual([...container.querySelectorAll('.ov-drawer .ov-item h3')].map(n=>[n.textContent,n.lang]),[['Mentesítés 2024','hu'],['2024 priorités','fr']]);
+  assert.deepEqual(detail,original);
 });
 
 test('numbered transcript subitems retain their exact Debate link',async t=>{
@@ -122,6 +164,44 @@ test('only populated capacity buttons appear and stale empty-group links show al
   assert.equal(container.querySelector('.ov-groups button[aria-pressed=true]').textContent,'All speakers');
   assert.equal(container.querySelector('.ov-results strong').textContent,'1');
   await click('Other speakers');assert.equal(container.querySelector('.ov-results strong').textContent,'1');
+});
+
+test('timeline legends follow the displayed markers through filters and empty results',async t=>{
+  const debate=speaker('42','Debate guest',[speech('2026-01-07','01',[item('2026-01-07',1)])]);
+  const specialId=item('2026-04-07',2),lawId=item('2026-09-07',3);
+  const special=speaker('43','Special guest',[speech('2026-04-07','01',[specialId])],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
+  const law=speaker('44','Legislative guest',[speech('2026-09-07','01',[lawId])],{[lawId]:{legislative:true}});
+  const {container,change,navigate}=await harness(t,[debate,special,law]);
+  const legend=()=>[...container.querySelectorAll('.ov-legend>span')].map(n=>n.textContent);
+  assert.deepEqual(legend(),['■ Contributions','◇ Special event','L Legislative file']);
+  await change('Event','special');
+  assert.deepEqual(legend(),['◇ Special event']);
+  assert.equal(container.querySelectorAll('.ov-mark').length,1);
+  await change('Event','debate');
+  assert.deepEqual(legend(),['■ Contributions','L Legislative file']);
+  await navigate('?view=outside&ov-q=Debate');
+  assert.deepEqual(legend(),['■ Contributions']);
+  await navigate('?view=outside&ov-q=Legislative');
+  assert.deepEqual(legend(),['L Legislative file']);
+  await navigate('?view=outside&ov-q=Missing');
+  assert.equal(container.querySelector('.ov-legend'),null);
+  assert.equal(container.querySelectorAll('.ov-mark').length,0);
+  await navigate('?view=outside&ov-repeat=1');
+  assert.equal(container.querySelector('.ov-legend'),null);
+});
+
+test('clustered days only show legends for the resulting marker symbols',async t=>{
+  const debateId=item('2026-10-07',1),specialId=item('2026-10-08',2);
+  const detail=speaker('42','Mixed guest',[
+    speech('2026-10-07','01',[debateId]),speech('2026-10-08','02',[specialId]),
+  ],{[specialId]:{kind:'PLENARY_ACTIVITY'}});
+  const {container,change}=await harness(t,[detail]);
+  assert.equal(container.querySelectorAll('.ov-mark').length,1);
+  assert(container.querySelector('.ov-mark.ov-special'));
+  assert.equal(container.querySelector('.ov-legend').textContent,'◇ Special event');
+  await change('Event','debate');
+  assert.equal(container.querySelector('.ov-legend').textContent,'■ Contributions');
+  assert(container.querySelector('.ov-mark:not(.ov-special)'));
 });
 
 test('historical URL filters cannot broaden directory, speaker or day-panel requests',async t=>{
