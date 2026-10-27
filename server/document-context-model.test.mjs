@@ -648,3 +648,79 @@ test('conflicting comparison sources never enter motion placement or legacy unkn
     for(const baseline of ['commission-proposal','council-position','present-text','other'])assert.equal(placement(text,{...options,baseline,baselineSource}).reason,'baseline_unavailable');
   }
 });
+
+// Public discharge reports A-10-2026-0050 (two decisions), 0085 (split
+// contents), and 0199 (a decision reproduced in an annex) supply these shapes.
+const resolutionSection = ['3. MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION', 'on discharge', '(2025/2154(DEC))',
+  'The European Parliament,', '– having regard to its decision,', '1. Resolution wording;', '2. Final resolution provision;'];
+const decisionSection = ['1. PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION', 'on discharge', '(2025/2154(DEC))',
+  'The European Parliament,', '– having regard to the budget,', '1. Decision wording;', '2. Final decision provision;'];
+const publishedResolution = {baseline:'motion-resolution', baselineSource:{conflicted:false,
+  headings:[{left:{raw:'Motion for a resolution',category:'motion-resolution'}}]}, language:'en', targetLabel:'Paragraph 1',
+  originalText:'Resolution wording;', proposedText:'Amended resolution wording;'};
+
+test('a single opening retains its resolution placement', () => {
+  const text=document(['The European Parliament,', '– having regard to the budget,', '1. Resolution wording;', '2. Final provision;', 'ANNEX']);
+  assert.deepEqual(placement(text,publishedResolution).span,{start:2,end:2});
+});
+
+test('two or three openings select the explicitly addressed resolution, never a numbered decision', () => {
+  for(const decisions of [decisionSection,[...decisionSection,...decisionSection.map(value=>value.replace(/^1\. PROPOSAL/,'2. PROPOSAL'))]]) {
+    const text=document([...decisions,...resolutionSection,'ANNEX']);
+    const result=placement(text,publishedResolution);
+    assert.equal(result.status,'placed');assert.deepEqual(result.span,{start:decisions.length+5,end:decisions.length+5});
+    assert.equal(placement(text,{...publishedResolution,originalText:'Decision wording;'}).reason,'conflicting_target_evidence');
+    assert.equal(placement(text,{...publishedResolution,targetLabel:'Unsupported reference',originalText:'Decision wording;'}).status,'unresolved');
+  }
+});
+
+test('contents page numbers and split contents headings cannot select the report body', () => {
+  const contents=['CONTENTS','3. MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION\t7',
+    '3.\tMOTION FOR A EUROPEAN PARLIAMENT RESOLUTION','on discharge\t7'];
+  const text=document([...contents,...decisionSection,...resolutionSection,'ANNEX']);
+  assert.deepEqual(placement(text,publishedResolution).span,{start:contents.length+decisionSection.length+5,end:contents.length+decisionSection.length+5});
+});
+
+test('multiple openings need the published resolution label, with conflicting section labels withheld', () => {
+  const text=document([...decisionSection,...resolutionSection,'ANNEX']);
+  const {baselineSource,...withoutHeading}=publishedResolution;
+  assert.equal(placement(text,withoutHeading).reason,'baseline_unavailable');
+  assert.equal(placement(text,{...withoutHeading,documentReferences:[{field:'DocAmend',raw:'Motion for a resolution'}]}).status,'placed');
+  assert.equal(placement(text,{...publishedResolution,documentReferences:[{field:'DocAmend',raw:'Proposal for a decision'}]}).reason,'baseline_unavailable');
+});
+
+test('several body resolution headings or openings within one section remain ambiguous', () => {
+  for(const paragraphs of [
+    [...resolutionSection,...resolutionSection,'ANNEX'],
+    [...resolutionSection,'The European Parliament,','1. Other wording;','ANNEX'],
+    [...decisionSection,'The European Parliament,','1. Other wording;'],
+  ]) assert.equal(placement(document(paragraphs),publishedResolution).reason,'baseline_unavailable');
+});
+
+test('an annex reproduction and following decision sections cannot supply resolution units', () => {
+  for(const end of ['ANNEX: ACTIVITIES','4. PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION']) {
+    const text=document([...resolutionSection,end,'The European Parliament,','1. Decision wording;','9. Annex provision;']);
+    assert(!segmentMotionUnits(text,'en').some(unit=>unit.label==='9'));
+    assert.equal(placement(text,{...publishedResolution,targetLabel:'Paragraph 9',originalText:'Annex provision;'}).reason,'target_not_found');
+    assert.equal(placement(text,{...publishedResolution,targetLabel:'Paragraph 2 a (new)',originalText:'',proposedText:'Inserted provision;'}).insertAfter,6);
+  }
+});
+
+test('a table or incomplete heading cannot establish the selected section', () => {
+  for(const source of [{container:'table-cell'}, {complete:false}]) {
+    const text=document([...decisionSection,...resolutionSection,'ANNEX'],{sources:{[decisionSection.length]:source}});
+    assert.equal(placement(text,publishedResolution).status,'unresolved');
+  }
+});
+
+test('an omitted blank title row does not prevent selecting the section, but provision gaps still withhold wording', () => {
+  const text=document([...decisionSection,...resolutionSection,'ANNEX']);
+  for(let index=decisionSection.length+2;index<text.paragraphs.length;index++) {
+    text.paragraphSources[index].ordinal++;text.paragraphSources[index].segment=1;
+  }
+  assert.equal(placement(text,publishedResolution).status,'placed');
+  text.paragraphs.splice(decisionSection.length+6,0,'continues here;');
+  // A separate broken extent must never gain completeness from heading selection.
+  const broken=document(text.paragraphs,{sources:{[decisionSection.length+6]:{segment:2}}});
+  assert.equal(placement(broken,{...publishedResolution,originalText:'Resolution wording; continues here;'}).reason,'source_passage_incomplete');
+});

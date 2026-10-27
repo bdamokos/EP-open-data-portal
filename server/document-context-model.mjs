@@ -1,4 +1,4 @@
-import {motionBodyStart} from './motion-diff.mjs';
+import {motionBodySelection,resolutionSectionHeading} from './resolution-body.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -283,10 +283,15 @@ const headingLike = value => value.length > 0 && value.length < 180 && /\p{L}/u.
   && (value === value.toUpperCase() || /^\p{Lu}/u.test(value)
     && (!/\p{P}$/u.test(value) || /:$/u.test(value) || value.split(/\s+/u).length <= 3));
 function motionStructure(text, language) {
-  const paragraphs = text?.paragraphs || [], start = motionBodyStart(paragraphs, language), rows = sourceStructure(text);
+  const paragraphs = text?.paragraphs || [], selection = motionBodySelection(paragraphs, language), {start} = selection, rows = sourceStructure(text);
   const formats = Array.isArray(text?.paragraphFormats) && text.paragraphFormats.length === paragraphs.length ? text.paragraphFormats : [];
   const units = [], stack = [], invalid = new Set(), uncertain = new Set(), incompleteLabels = new Set();
   if (start < 0 || !rows || rows[start].source.container !== 'body' || !rows[start].complete) return {units, invalid, uncertain, incompleteLabels, start, end: -1, endAvailable: false};
+  // Blank Word title rows may be omitted (A-10-2026-0199). Selecting a
+  // section does not join wording across those gaps; provision extents below
+  // still require complete consecutive source rows.
+  if (selection.heading != null && !rows.slice(selection.heading, start + 1).every(row => row.complete && row.source.container === 'body'))
+    return {units, invalid, uncertain, incompleteLabels, start: -1, end: -1, endAvailable: false};
   let citation = 0, provisionsStarted = false, end = paragraphs.length - 1, endAvailable = false;
   const close = (at, broken = false) => {
     while (stack.length) {const unit = stack.pop(); unit.end = at; if (broken) invalid.add(unit.start);}
@@ -297,7 +302,7 @@ function motionStructure(text, language) {
     // Word soft breaks separate a section label from its title inside one
     // paragraph. Inspect that physical line before whitespace normalization.
     const firstLine = headingNormal(whitespace(row.value.split(/[\r\n]/u)[0]));
-    if (row.source.container === 'body' && resolutionEndPatterns[language]?.test(firstLine)) {
+    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || language === 'en' && resolutionSectionHeading(value))) {
       end = index - 1; endAvailable = row.complete; close(end, !row.complete); break;
     }
     if (row.source.container === 'body' && annexPrefixes[language]?.test(firstLine) && !/[.;!?]$/u.test(firstLine)) {
@@ -343,7 +348,7 @@ function motionStructure(text, language) {
     if (invalid.has(parent.start)) invalid.add(unit.start);
     if (uncertain.has(parent.start)) uncertain.add(unit.start);
   }
-  return {units, invalid, uncertain, incompleteLabels, start, end, endAvailable};
+  return {units, invalid, uncertain, incompleteLabels, start, end, endAvailable, selection};
 }
 
 /** Inclusive extents from complete, contiguous body rows; source breaks end scope.
@@ -387,6 +392,18 @@ export function resolveAmendmentPlacement(text, options = {}) {
   if (!rows) return unresolved('source_structure_unavailable');
   const structure = motionStructure(text, options.language), {units} = structure;
   if (!units.length) return unresolved('baseline_unavailable');
+  if (structure.selection?.multipleOpenings) {
+    // The report identity alone cannot distinguish decisions that restart at 1.
+    // Require the amendment's published section label; wording is checked only
+    // against units in that section below, never against another decision.
+    const label = value => whitespace(value || '').toLowerCase() === 'motion for a resolution';
+    const references = options.documentReferences || [];
+    const sectionLabels = references.filter(reference => reference.field === 'DocAmend');
+    const headings = options.baselineSource?.headings || [];
+    if (sectionLabels.some(reference => !label(reference.raw)) || !(sectionLabels.some(reference => label(reference.raw))
+      || headings.length && headings.every(heading => label(heading.left?.raw)))) return unresolved('baseline_unavailable');
+    evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
+  }
   const ref = english(options.language) ? placementReference(options.targetLabel) : null;
   const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label &&
     (reference.kind !== 'point' || units.find(parent => parent.start === unit.parent)?.label === reference.paragraph));

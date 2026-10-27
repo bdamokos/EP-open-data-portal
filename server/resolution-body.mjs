@@ -38,7 +38,12 @@ export function bodyCompleteness(text,start) {
       || (text.notes || []).some(note=>note.text.includes('\uFFFC')),
   };
 }
-export function motionBodyStart(paragraphs,language) {
+// Exact English body labels, including the numbered discharge sections. Contents
+// entries with trailing page numbers are not body headings.
+export const resolutionSectionHeading=value=>/^(?:\d+\.\s*)?(?:MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION|PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION)$/u.test(normalize(value));
+const resolutionHeading=value=>/^(?:\d+\.\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u.test(value);
+const sectionEnd=value=>resolutionSectionHeading(value) || /^(?:ANNEX(?:\s+[IVXLCDM\d]+)?(?:\s*[:.–—-].*)?|EXPLANATORY STATEMENT|JUSTIFICATION|INFORMATION ON ADOPTION(?:\s.*)?|FINAL VOTE BY ROLL CALL(?:\s.*)?)$/u.test(value);
+export function motionBodySelection(paragraphs,language) {
   const opening=openings[language];
   // Some translations use the same Parliament heading on the cover and in the body.
   // Require a following citation/recital/operative item and one unambiguous boundary.
@@ -48,5 +53,19 @@ export function motionBodyStart(paragraphs,language) {
     let next=i+1;while(next<normalized.length&&!normalized[next])next++;
     if(/^(?:[–—−\-•]\s*\S|(?:\d+|\p{Lu}{1,3})[.)]\s+\S)/u.test(normalized[next] || ''))starts.push(i);
   }
-  return starts.length===1?starts[0]:-1;
+  if(language==='en') {
+    const sections=[];let hasHeading=false;
+    for(let heading=0;heading<normalized.length;heading++)if(resolutionHeading(normalized[heading])) {
+      hasHeading=true;
+      let end=heading+1;while(end<normalized.length&&!sectionEnd(normalized[end]))end++;
+      const candidates=starts.filter(start=>start>heading&&start<end);
+      // A split contents entry may be an exact heading, but has no opening
+      // before the next section. Several openings in one section stay ambiguous.
+      if(candidates.length)sections.push({heading,start:candidates.length===1?candidates[0]:-1});
+    }
+    if(sections.length)return sections.length===1?{...sections[0],multipleOpenings:starts.length>1}:{start:-1};
+    if(hasHeading)return {start:-1};
+  }
+  return {start:starts.length===1?starts[0]:-1};
 }
+export const motionBodyStart=(paragraphs,language)=>motionBodySelection(paragraphs,language).start;
