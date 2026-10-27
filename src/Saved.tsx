@@ -75,7 +75,9 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   const membersById=useMemo(()=>new Map(members?.map(member=>[String(member.id),member])),[members]);
   const checkDossierUpdates=useDossierChecks();
   const dossiers=useDossiers(),dossierChecking=useDossierChecking();
-  const membershipCheck=useMembershipCheck(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
+  const membershipCheck=useMembershipCheck(),membership=useMembership(),groups=useGroups(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
+  const cards=[...items,...dossiers.items].map(item=>({item,hasNew:itemHasNew(item,now)||item.kind==='mep'&&(membershipEntries(membership,item.id,now).fresh.length>0||groupEntries(groups,item.id,now).fresh.length>0)}))
+    .sort((a,b)=>Number(b.hasNew)-Number(a.hasNew));
   const key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
   useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
@@ -100,7 +102,6 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     <Status scope={`saved-check:${context}:${attempt}`} message={!dossiers.items.length&&completion?.items===items?completion.message:null} pending={checking||dossierChecking}/>
     <button onClick={onBack}>← Back</button>
     <div className="explorer-saved-heading"><h1>Following</h1><button onClick={()=>{if(items.length)check();void checkDossierUpdates();}} disabled={!items.length&&!dossiers.items.length} aria-disabled={checking||dossierChecking||undefined} style={checking||dossierChecking?{opacity:.45,cursor:'default'}:undefined}>{checking||dossierChecking?'Checking…':'Check for updates'}</button></div>
-    <FollowSuggestions language={language}/>
     {!saved.persistent&&<p>Browser storage is unavailable. Follows last only for this tab.</p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error">Changes since {new Date(saved.unsavedSince||Date.now()).toLocaleTimeString()} could not be saved in this browser and will be lost on reload. <button onClick={()=>store.retryStorage()}>Retry saving</button></p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}
@@ -114,6 +115,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {!dossiers.persistent&&dossiers.items.length>0&&<p>Dossier follows last only for this tab.</p>}
     {dossiers.storageError&&<p role="alert">Dossier changes couldn't be saved in this browser. <button onClick={()=>dossierStore.retryStorage()}>Retry saving</button></p>}
     {!items.length&&!dossiers.items.length&&<p>Follow a MEP or dossier, or save a question to see updates here.</p>}
-    <div className="explorer-saved-items">{items.map(item=><FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={item.kind==='question'?saved.questionCheckState:saved.checkState} check={check}/>)}{dossiers.items.map(item=><DossierCard key={item.id+':'+item.savedAt} item={item} language={language} now={now}/>)}</div>
+    <div className="explorer-saved-items">{cards.map(({item})=>item.kind==='dossier'?<DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/>:<FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={item.kind==='question'?saved.questionCheckState:saved.checkState} check={check}/>)}</div>
+    <FollowSuggestions language={language}/>
   </section>;
 }
