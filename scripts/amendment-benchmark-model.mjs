@@ -230,6 +230,14 @@ export function verifyPlacement({placement, wording, items, text, target = parse
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
+  // COM(2025)531 puts an instruction's semicolon in a separate Word row
+  // after its closing quotation. Even an otherwise unsupported point address
+  // cannot insert a sibling between that quotation and its terminator.
+  const following=proposal.paragraphs[placement.insertBefore],preceding=proposal.paragraphs[placement.insertAfter];
+  if(target.segments.at(-1)?.kind==='point'&&following?.text.trim()===';'
+    &&/[’'”"]\s*$/u.test(preceding?.text??'')&&preceding?.source?.container==='body'&&following.source?.container==='body'
+    &&preceding.source.containerPath===following.source.containerPath&&preceding.source.segment===following.source.segment
+    &&following.source.ordinal===preceding.source.ordinal+1)return fail('oracle-insertion-before-instruction-terminator');
   if(target.segments.some((segment,index)=>segment.kind==='subparagraph'&&index<target.segments.length-1)){
     const address=firstSubparagraphAddress(proposal,target),label=target.segments.at(-1);
     if(!address?.bounds||label.kind!=='point'||!label.isNew||!label.base||!label.suffix)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
