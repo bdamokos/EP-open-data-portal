@@ -366,6 +366,26 @@ test('whole-cell localized deletion markers do not turn ordinary prose into a de
   assert.equal(amendmentOperation({originalText:'Source text',proposedText:'The word deleted occurs in this sentence.'}),'replace');
   assert.equal(amendmentOperation({originalText:null,proposedText:'New'}),null);
 });
+test('published deletion cells in all 24 languages allow a terminal full stop only', async () => {
+  const {readFile}=await import('node:fs/promises');
+  const {examples}=JSON.parse(await readFile(new URL('./fixtures/amendment-operation-excerpts.json',import.meta.url),'utf8'));
+  assert.equal(examples.length,24);
+  for(const {language,deletion,insertion} of examples) {
+    assert.equal(amendmentOperation(deletion),'delete',language);
+    const marker=deletion.proposedText.replace(/\.$/u,'');
+    for(const proposedText of [marker,marker+'.','\n\t'+marker.toUpperCase()+'\u00a0. \n']) {
+      assert.equal(amendmentOperation({...deletion,proposedText}),'delete',language+': '+proposedText);
+      assert.equal(amendmentOperation({originalText:'',proposedText}),null,'a deletion instruction alone supplies no new wording');
+    }
+    for(const proposedText of [marker+' in ordinary prose.', 'Text '+marker+'.',marker+';',marker+'...', '“'+marker+'”']) {
+      assert.equal(amendmentOperation({...deletion,proposedText}),'replace',language+': '+proposedText);
+    }
+    // The localized '(new)' belongs to the address; the published original
+    // cell is empty. A new underlying provision can still be deleted.
+    assert.equal(amendmentOperation({...insertion,proposedText:'New wording.'}),'insert',language);
+    assert.equal(amendmentOperation({...deletion,targetLabel:insertion.targetLabel}),'delete',language);
+  }
+});
 test('CBAM amendment 7 is deletion despite a nested new provision; proposal baseline is unavailable', async () => {
   const {readFile}=await import('node:fs/promises');
   const fixtures=JSON.parse(await readFile(new URL('./fixtures/amendment-docx-excerpts-20261016.json',import.meta.url),'utf8'));
