@@ -743,8 +743,8 @@ export async function amendmentTask(worker,task) {
     // Parser-only work, and a retry after this job's own download, read the
     // retained bytes of a still-current descriptor at any age. Their original
     // retrieval time remains the wording's retrieval time.
-    const retrieve=async descriptor=>{
-      const retained=parserUpgrade||body.sourceDownloaded?await sources.read(descriptor,{listId:body.listId,signal}):null;
+    const retrieve=async (descriptor,previousDescriptor)=>{
+      const retained=parserUpgrade||body.sourceDownloaded?await sources.read(descriptor,{listId:body.listId,previousDescriptor,signal}):null;
       if(retained)return {...retained,retained:true};
       const defer=wait=>{
         store.assertWriter();
@@ -768,7 +768,7 @@ export async function amendmentTask(worker,task) {
       if(paced>0)return defer(paced);
       return {...downloaded,fetchedAt:new Date(worker.clock()).toISOString()};
     };
-    const downloaded=await retrieve(file);
+    const downloaded=await retrieve(file,saved.work.extraction?.sourceDescriptor);
     if(!downloaded)return;
     signal.throwIfAborted();
     // Extraction is CPU work: parse off the main thread and run each list's
@@ -780,8 +780,9 @@ export async function amendmentTask(worker,task) {
       const fetchedAt=downloaded.fetchedAt,extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:file.language,sourceUrl:file.url,fetchedAt},{signal});
       signal.throwIfAborted();
       if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
-      // Successfully parsed bytes are retained; unparseable bytes are downloaded again.
-      if(!downloaded.retained)await sources.save(file,downloaded.buffer,fetchedAt,{listId:body.listId,signal});
+      // Bind a known issue time after successful legacy reuse. An observation
+      // without one must not erase a retained row's existing publication binding.
+      if(!downloaded.retained||file.issued)await sources.save(file,downloaded.buffer,fetchedAt,{listId:body.listId,signal});
       if(!parserUpgrade)for(const date of [...new Set(extraction.amendments.map(amendment=>amendment.date).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date || '')))].slice(0,20))if(!store.source(generation,rosterKey(date)))enqueueAmendment(store,generation,rosterKey(date),'amendment-roster',{date,offset:0,members:[],sources:[]},114);
       signal.throwIfAborted();
       let authorNames=null;
@@ -789,14 +790,14 @@ export async function amendmentTask(worker,task) {
       if(alternate){
         if(!body.sourceDownloaded)store.taskProgress(task,{...body,sourceDownloaded:true});
         try {
-          const other=await retrieve(alternate);
+          const other=await retrieve(alternate,saved.work.authorNames?.descriptor);
           if(!other)return;
           signal.throwIfAborted();
           const retrievedAt=other.fetchedAt,source={url:alternate.url,fetchedAt:retrievedAt,language:alternate.language,contentHash:createHash('sha256').update(other.buffer).digest('hex')};
           const parsed=await worker.extractAmendmentList(other.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:alternate.language,sourceUrl:alternate.url,fetchedAt:retrievedAt},{signal});
           signal.throwIfAborted();
           if(!Array.isArray(parsed.amendments)||parsed.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Alternate byline extraction exceeded its record budget.');
-          if(!other.retained)await sources.save(alternate,other.buffer,retrievedAt,{listId:body.listId,signal});
+          if(!other.retained||alternate.issued)await sources.save(alternate,other.buffer,retrievedAt,{listId:body.listId,signal});
           authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:normalizedDocxDescriptor(file),descriptor:alternate,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
         }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
       }

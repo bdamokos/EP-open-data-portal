@@ -36,6 +36,17 @@ test('retained raw bytes serve the exact current descriptor at any age and keep 
   assert.equal(rows(store).length,1);
 });
 
+test('an unissued row cannot bridge known issue changes, while matching issued bytes remain reusable',async t=>{
+  const {sources,buffer}=fixture(t),{issued:_issued,...legacy}=descriptor;
+  await sources.save(legacy,buffer,retrievedAt);
+  assert(await sources.read(descriptor),'First use remains compatible with legacy bytes.');
+  const next={...descriptor,issued:'2026-10-20T09:00:00+02:00'};
+  assert.equal(await sources.read(next,{previousDescriptor:descriptor}),null);
+  assert(await sources.read({...descriptor,issued:'2026-10-16T15:04:06Z'},{previousDescriptor:descriptor}),'Equivalent instants do not change publication.');
+  await sources.save(next,buffer,retrievedAt);
+  assert(await sources.read(next,{previousDescriptor:descriptor}),'An already retained matching publication needs no new download.');
+});
+
 test('damaged or missing bytes are forgotten so the caller downloads again',async t=>{
   const {store,sources,blobs,buffer}=fixture(t);
   await sources.save(descriptor,buffer,retrievedAt);

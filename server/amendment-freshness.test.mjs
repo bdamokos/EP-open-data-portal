@@ -715,26 +715,36 @@ test('parser recovery reuses retained bytes at any age and downloads only a chan
   }
 });
 
-test('a changed published issue time at the same URL and size requires a download, while unrecorded issue times still match',async t=>{
+for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse records its first issue time and later republication requires a download; '+mode,async t=>{
   const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);context.advance(30*86400000);
-  const saved=store.source(generation,listKey);
-  const observe=issued=>store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued}]}},saved.fetchedAt);
+  const observe=issued=>{
+    const saved=store.source(generation,listKey);
+    store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued}]}},saved.fetchedAt);
+  };
   let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
   // The retained baseline recorded no issue time, so a newly published one matches.
   observe('2026-10-02T17:04:06+02:00');
   prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
   assert.equal(downloads,0);assert.equal(store.source(generation,listKey).work.extraction.fetchedAt,oldRetrievedAt);
-  // Record the issue time with the retained bytes, then republish under a new one.
+  // Successful legacy reuse must bind T1 without changing the bytes' retrieval time.
   const sources=store.db.prepare('SELECT * FROM amendment_sources').all();assert.equal(sources.length,1);
-  store.db.prepare("UPDATE amendment_sources SET issued='2026-10-02T17:04:06+02:00'").run();
-  assert.equal(listWordingFreshness({...store.source(generation,listKey).work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued:'2026-10-02T15:04:06Z'}]}},{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'fresh','The same instant in another notation is the same publication.');
+  assert.equal(sources[0].issued,'2026-10-02T17:04:06+02:00');assert.equal(sources[0].retrieved_at,oldRetrievedAt);
+  const saved=store.source(generation,listKey);
+  assert.equal(listWordingFreshness({...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued:'2026-10-02T15:04:06Z'}]}},{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'fresh','The same instant in another notation is the same publication.');
+  // Older writers left the row unissued even though extraction recorded T1.
+  if(mode==='older-writer')store.db.prepare("UPDATE amendment_sources SET issued=''").run();
+  if(mode==='missing-issue') {
+    downgrade(context);observe(undefined);
+    prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
+    assert.equal(downloads,0);assert.equal(store.db.prepare('SELECT issued FROM amendment_sources').get().issued,'2026-10-02T17:04:06+02:00','Missing issue metadata cannot erase a known publication binding.');
+  }
   downgrade(context);observe('2026-10-20T09:00:00+02:00');
   prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
   const extraction=store.source(generation,listKey).work.extraction;
   assert.equal(downloads,1);assert.equal(extraction.fetchedAt,context.at());assert.equal(extraction.amendments[0].proposedText,freshProposed);
   assert.equal(extraction.sourceDescriptor.issued,'2026-10-20T09:00:00+02:00');
-  // Both publications are retained; the earlier one is now superseded.
-  assert.deepEqual(store.db.prepare('SELECT issued FROM amendment_sources ORDER BY retrieved_at').all().map(row=>row.issued),['2026-10-02T17:04:06+02:00','2026-10-20T09:00:00+02:00']);
+  assert.equal(listWordingFreshness(store.source(generation,listKey).work,{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'fresh');
+  assert.deepEqual(store.db.prepare('SELECT issued FROM amendment_sources ORDER BY retrieved_at').all().map(row=>row.issued),mode==='older-writer'?['2026-10-20T09:00:00+02:00']:['2026-10-02T17:04:06+02:00','2026-10-20T09:00:00+02:00']);
 });
 
 test('parser-upgrade extraction reads retained bytes off the main thread and paces consecutive lists',async t=>{

@@ -112,9 +112,13 @@ class AmendmentSourceStore {
   }
   // Returns the exact retained bytes and their original retrieval time. A
   // missing or damaged file removes its row so the caller can download again.
-  async read(descriptor,{listId=null,signal}={}) {
+  async read(descriptor,{listId=null,previousDescriptor=null,signal}={}) {
     await this.initialize({signal});
     const row=this.match(descriptor);if(!row)return null;
+    // Older writers could record an issue time in extraction while leaving the
+    // retained row unissued. That row cannot bridge a known publication change.
+    const current=normalizedDocxDescriptor(descriptor),previous=normalizedDocxDescriptor(previousDescriptor);
+    if(!row.issued&&current?.issued&&previous?.issued&&Date.parse(current.issued)!==Date.parse(previous.issued))return null;
     const file=path.join(this.directory,row.sha256+'.docx');
     let buffer=null;
     try {buffer=await readFile(file);}catch(error){signal?.throwIfAborted();if(error.code!=='ENOENT')throw error;}
