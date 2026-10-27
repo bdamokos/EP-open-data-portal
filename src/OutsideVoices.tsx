@@ -20,7 +20,10 @@ const groups:Record<string,string>={commission:'Commission',council:'Council pre
 const date=(s:string,language:string)=>new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(s+'T12:00:00Z'));
 const month=(s:string,language:string)=>new Intl.DateTimeFormat(language,{month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(s.slice(0,7)+'-01T12:00:00Z'));
 const time=(s:string|null,language:string)=>s&&Number.isFinite(Date.parse(s))?new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Europe/Brussels'}).format(new Date(s)):null;
-const title=(s:{titles:Record<string,string>},language:string)=>selectLanguageText(s.titles,language,'Contribution');
+const title=(s:{titles:Record<string,string>},language:string)=>{
+  const selected=selectLanguageText(s.titles,language,'Contribution');
+  return {...selected,text:selected.text.replace(/^\s*\d+(?:\.\d+)*\.\s+(?=\S)/u,'')};
+};
 // A transformed tag records a translation chain, but this response supplies no target-language metadata.
 const roleLanguage=(tag:string|null|undefined)=>tag&&!/-t-/i.test(tag)?tag:'';
 function Titles({contributions,language}:{contributions:OutsideContribution[];language:string}) {
