@@ -1,3 +1,8 @@
-.explorer :is(h1,h2,h3,h4,h5,h6)[tabindex="-1"]:focus {outline:3px solid var(--focus);outline-offset:4px;}
+/* Let the browser distinguish keyboard focus from pointer-driven focus moves. */
+:where(.explorer,.explorer-insights,.parliament-header,.insight-inline-reader) :is(button,a,input,select,summary,textarea):focus-visible {outline:3px solid var(--focus);outline-offset:3px;}
+.explorer :is(h1,h2,h3,h4,h5,h6)[tabindex="-1"]:focus-visible {outline:3px solid var(--focus);outline-offset:4px;}
+/* Editable fields show focus at their border; the transparent outline survives forced colours. */
+:is(.explorer,.explorer-insights,.parliament-header,.insight-inline-reader) :is(input:not([type]),input[type="text"],input[type="search"],input[type="date"],input[type="number"],textarea):focus-visible {border-color:var(--focus);box-shadow:inset 0 0 0 1px var(--focus);outline:2px solid transparent;outline-offset:2px;}
+:is(.explorer,.explorer-insights) input[aria-invalid="true"]:focus-visible {border-color:var(--danger);box-shadow:inset 0 0 0 1px var(--danger);outline:2px solid var(--danger);outline-offset:1px;}
 /* Opening a page or member moves focus to its title for screen readers; it should not look highlighted. */
 :is(.explorer,.explorer-insights) h1[tabindex="-1"]:focus {outline:none;}

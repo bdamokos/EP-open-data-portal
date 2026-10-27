@@ -1,12 +1,12 @@
-.legal-reference-scope {--focus-outline-color:var(--focus);position:relative;}
+.legal-reference-scope {position:relative;}
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-ref {display:inline;min-height:0;padding:0;margin:0;border:0;border-bottom:1.5px dotted currentColor;background:none;color:inherit;font:inherit;line-height:inherit;text-align:inherit;cursor:pointer;overflow-wrap:anywhere;}
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-ref:hover,:is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-ref[aria-expanded="true"] {background:color-mix(in srgb,currentColor 12%,transparent);border-bottom-style:solid;}
-button.legal-ref:is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:2px;}
+button.legal-ref:focus-visible {outline:3px solid var(--focus);outline-offset:2px;}
 .legal-note-mark {font-size:.7em;line-height:0;margin-left:1px;}
 .legal-note-mark a {text-decoration:none;padding:0 2px;}
-.legal-reference-card {--focus-outline-color:var(--focus);position:absolute;z-index:20;max-height:min(70vh,560px);overflow:auto;padding:16px 40px 14px 16px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:var(--radius-sm);font-size:15px;line-height:1.45;text-align:left;}
-.legal-reference-scope .legal-reference-card:is(:focus,:focus-visible),.legal-reference-scope :is(a,button,input,select,summary,[tabindex]):is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:3px;}
-.legal-reference-scope:is(:focus,:focus-visible),.legal-reference-question:is(:focus,:focus-visible) {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:4px;}
+.legal-reference-card {position:absolute;z-index:20;max-height:min(70vh,560px);overflow:auto;padding:16px 40px 14px 16px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:var(--radius-sm);font-size:15px;line-height:1.45;text-align:left;}
+.legal-reference-scope .legal-reference-card:focus-visible,.legal-reference-scope :is(a,button,select,summary,[tabindex]):focus-visible {outline:3px solid var(--focus);outline-offset:3px;}
+.legal-reference-scope:focus-visible,.legal-reference-question:focus-visible {outline:3px solid var(--focus);outline-offset:4px;}
 .legal-reference-card p {margin:0 0 8px;}
 .legal-reference-kind {font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);}
 .legal-reference-title {font-weight:bold;}

@@ -6,9 +6,6 @@
 .explorer-insights button:hover:not(:disabled) {background:color-mix(in srgb,var(--ink) 6%,transparent);}
 .explorer-insights button:disabled {opacity:.45;cursor:default;}
 .explorer-insights button[aria-pressed=true],.explorer-insights button[aria-current=page] {color:var(--accent-strong);background:var(--accent-soft);border-color:var(--accent);}
-.explorer-insights button:focus-visible,.explorer-insights a:focus-visible,.explorer-insights input:focus-visible,.explorer-insights select:focus-visible,.explorer-insights summary:focus-visible {outline:3px solid var(--focus-outline-color,var(--focus));outline-offset:4px;}
-/* These shared components have dark surfaces in the insight views. */
-.explorer-insights .explorer-video,.explorer-insights .explorer-video .explorer-notice,.explorer-insights .explorer-cloud {--focus-outline-color:var(--focus);}
 .explorer-insights a {color:inherit;text-underline-offset:4px;}
 .explorer-insights :is(h1,h2) {font-family:var(--font-serif);}
 .explorer-insights h1 {font-size:clamp(32px,4vw,58px);line-height:1.06;letter-spacing:-.025em;margin:12px 0 18px;}
@@ -125,7 +122,7 @@
 .insight-trend svg {display:block;width:100%;height:auto;overflow:visible;}
 .insight-trend svg text {font:14px var(--font-sans);fill:var(--ink-muted);}
 .insight-trend svg g[tabindex] {outline:none;}
-.insight-trend svg g[tabindex]:focus circle:last-child {stroke:var(--ink);stroke-width:2;}
+.insight-trend svg g[tabindex]:focus-visible circle:last-child {stroke:var(--ink);stroke-width:2;}
 .insight-donut {margin:0;min-width:0;}
 .insight-donut figcaption {font-size:18px;font-weight:700;margin-bottom:12px;}
 .insight-donut-body {display:flex;align-items:center;gap:12px;}
@@ -133,7 +130,7 @@
 .insight-donut-total {font:700 27px var(--font-sans);fill:var(--ink);}
 .insight-donut-caption {font:14px var(--font-sans);fill:var(--ink-muted);}
 .insight-donut-segment {cursor:pointer;outline:none;transition:stroke-width .12s;}
-.insight-donut-segment:focus {stroke-width:34;}
+.insight-donut-segment:focus-visible {stroke-width:34;}
 .insight-donut ul {list-style:none;margin:0;padding:0;flex:1;min-width:0;}
 .explorer-insights .insight-donut li button {display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;align-items:center;gap:8px;width:100%;border:0;font-size:14px;min-height:30px;padding:4px 0;border-radius:0;}
 .explorer-insights .insight-donut li button:disabled {opacity:1;color:inherit;cursor:default;}
@@ -282,7 +279,7 @@
 .insight-participation-trend ol {display:flex;justify-content:space-between;list-style:none;padding:0;gap:12px;}
 .insight-participation-trend li {display:flex;flex-direction:column;font-size:14px;text-align:center;}
 @media(max-width:600px){.insight-participation-table-header,.insight-participation-row {grid-template-columns:minmax(0,1fr) 45px 45px 56px;gap:7px;}.insight-participation-table-header {font-size:11px;}.insight-participation-row>span:not(:first-child){font-size:18px;}.insight-participation-row>span:first-child {grid-template-columns:18px minmax(0,1fr);gap:3px 6px;}.insight-participation-row strong {font-size:15px;}.insight-participation-trend {padding:14px;}}
-.insight-country-map{margin:24px 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);max-width:800px}.insight-country-map svg{display:block;width:100%;max-height:500px}.insight-country-map path{cursor:pointer;transition:fill .15s}.insight-country-map path:focus{outline:none;stroke:var(--ink);stroke-width:3}.insight-country-select{display:flex;gap:12px;align-items:center}.insight-country-select select{max-width:210px;min-height:44px}.insight-map-caption{min-height:30px}.insight-map-credit{fill:var(--ink-muted);font-size:13px}.insight-small-countries{display:flex;gap:10px;flex-wrap:wrap}.insight-small-countries button{min-height:44px}.insight-country-summary{margin:22px 0;padding:20px 0;border-block:1px solid var(--line)}.insight-country-summary h2{margin:0 0 8px}.insight-country-highlights{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.explorer-insights .insight-country-highlights button{display:grid;text-align:left;gap:7px;min-width:160px;min-height:90px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);padding:13px}.insight-country-highlights button span{color:var(--accent-strong)}.insight-wordcloud .is-distinctive,.insight-topics .is-distinctive{color:var(--accent);border-bottom:2px solid var(--accent)}.insight-country-summary details{font-size:14px;color:var(--ink-muted)}.insight-country-summary details p{max-width:850px;line-height:1.6}@media(max-width:600px){.insight-country-map{padding:12px}.insight-country-map .insight-section-heading{display:grid;gap:12px}.insight-country-highlights button{min-width:135px;flex:1}}
+.insight-country-map{margin:24px 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);max-width:800px}.insight-country-map svg{display:block;width:100%;max-height:500px}.insight-country-map path{cursor:pointer;transition:fill .15s}.insight-country-map path:focus-visible{outline:none;stroke:var(--ink);stroke-width:3}.insight-country-select{display:flex;gap:12px;align-items:center}.insight-country-select select{max-width:210px;min-height:44px}.insight-map-caption{min-height:30px}.insight-map-credit{fill:var(--ink-muted);font-size:13px}.insight-small-countries{display:flex;gap:10px;flex-wrap:wrap}.insight-small-countries button{min-height:44px}.insight-country-summary{margin:22px 0;padding:20px 0;border-block:1px solid var(--line)}.insight-country-summary h2{margin:0 0 8px}.insight-country-highlights{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.explorer-insights .insight-country-highlights button{display:grid;text-align:left;gap:7px;min-width:160px;min-height:90px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);padding:13px}.insight-country-highlights button span{color:var(--accent-strong)}.insight-wordcloud .is-distinctive,.insight-topics .is-distinctive{color:var(--accent);border-bottom:2px solid var(--accent)}.insight-country-summary details{font-size:14px;color:var(--ink-muted)}.insight-country-summary details p{max-width:850px;line-height:1.6}@media(max-width:600px){.insight-country-map{padding:12px}.insight-country-map .insight-section-heading{display:grid;gap:12px}.insight-country-highlights button{min-width:135px;flex:1}}
 .insight-country-select select{background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:8px;font:inherit}
 .insight-map-scale{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink-muted);max-width:260px;margin:0 0 16px}.insight-map-scale i{flex:1;height:10px;border-radius:3px;background:linear-gradient(90deg,var(--map-low),var(--map-high))}
 .insight-wordcloud button{max-width:100%;overflow-wrap:anywhere;white-space:normal}

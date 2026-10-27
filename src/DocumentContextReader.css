@@ -21,7 +21,7 @@
 .document-context-text [data-report-amendment="true"]{scroll-margin-block-start:1rem}
 @media(max-width:600px){.document-context-text [data-report-amendment="true"]{scroll-margin-block-start:7rem}}
 .document-context-text p.document-context-target{border-left:3px solid var(--context-blue);padding:.6rem .85rem;background:var(--surface-2);scroll-margin:4rem}
-.document-context-text p.document-context-target:focus{outline:2px solid var(--context-blue);outline-offset:3px}
+.document-context-text p.document-context-target:focus-visible{outline:2px solid var(--context-blue);outline-offset:3px}
 .document-context-object{display:inline;font-size:.8em;white-space:normal;margin:0 .2em}
 .document-context-source{border-top:1px solid var(--context-border);padding-top:.85rem;margin-top:1.5rem;font-size:.85rem}
 .document-context-choices{padding:0;list-style:none;max-width:76ch;margin:1rem 0}
@@ -41,7 +41,7 @@
 
 .document-context-amendment{border:1px solid var(--context-border);border-left:3px solid var(--context-blue);border-radius:3px;background:var(--surface-2);padding:1rem;margin:1.25rem 0;scroll-margin:4rem;min-width:0}
 .document-context-amendment h4{font-size:.9rem;line-height:1.5;margin:0 0 .75rem;color:var(--ink)}
-.document-context-amendment:focus{outline:2px solid var(--context-blue);outline-offset:3px}
+.document-context-amendment:focus-visible{outline:2px solid var(--context-blue);outline-offset:3px}
 .document-context-amendment .wording-diff__passage{font-family:inherit;font-size:inherit;line-height:inherit;white-space:pre-wrap}
 @media(max-width:600px){.document-context-amendment{padding:.7rem}}
 

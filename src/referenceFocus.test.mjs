@@ -144,19 +144,29 @@ test('closing a referenced question from collapsed Notes returns to a visible lo
 });
 
 test('reference scope, citations, reader destinations, cards and player controls use the focus token in both schemes',async t=>{
-  const files=['References.css','ParliamentHeader.css','explorer.css','Insights.css','ExplorerLayout.css','TextSearch.css','base.css'];
+  const files=['References.css','ParliamentHeader.css','explorer.css','Insights.css','ExplorerLayout.css','TextSearch.css','base.css','focus.css'];
   const styles=await Promise.all(files.map(file=>readFile(new URL(file,import.meta.url),'utf8')));
   for(const scheme of schemes)for(const shell of ['explorer','explorer-insights'])for(const nested of [false,true])for(const mode of ['focus','focus-visible'])await t.test(`${scheme} ${shell}${nested?' nested':''} ${mode}`,async t=>{
     const window=new Window();t.after(()=>window.happyDOM.close());
-    // Removing focus-visible selectors also exercises the independent :focus
-    // cascade; Happy DOM does not model native keyboard/pointer modality.
+    // Happy DOM cannot model native modality. Disabling :focus-visible checks
+    // that ordinary focus alone does not add the keyboard indicator.
     window.document.head.innerHTML=[themeCss(scheme),...styles].map(style=>`<style>${mode==='focus'?style.replaceAll(':focus-visible',':not(*)'):style}</style>`).join('');
     window.document.body.innerHTML=`<main class="${shell}"><section class="explorer-saved-view"><div class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1" role="group" aria-label="Document text and references"><button class="legal-ref">Original citation</button><div class="legal-reference-question" tabindex="-1" role="region" aria-label="Referenced question"><button class="legal-reference-text-button">Close referenced question</button>${nested?'<div class="insight-inline-reader"><div class="legal-reference-scope" tabindex="-1" role="group" aria-label="Nested document text and references"><button class="legal-ref">Nested citation</button>':''}<div class="legal-reference-card" tabindex="-1"><button class="legal-reference-close">Close</button><div class="legal-reference-actions"><button>Read question</button><button aria-expanded="true">Summary</button><a href="#source">Source</a></div><details><summary>Notes</summary></details><a href="#footnote">Footnote</a><input aria-label="Find"><select aria-label="Language"><option>EN</option></select><button class="legal-ref">Card citation</button></div>${nested?'</div></div>':''}</div><div class="explorer-video"><button id="player-control">Player action</button></div></div></div></section></main>`;
-    const focus=tokenValue(scheme,'focus'),playerControl=window.document.querySelector('#player-control');
+    const focus=tokenValue(scheme,'focus');
     for(const control of window.document.querySelectorAll('.legal-reference-scope,.legal-reference-question,.legal-reference-card,button,a,input,select,summary')){
-      if(control===playerControl&&mode==='focus')continue;
       control.focus();const style=window.getComputedStyle(control);
-      assert.equal(window.document.activeElement,control);assert.equal(style.outlineStyle,'solid');assert.equal(style.outlineColor,focus,control.outerHTML);assert(parseFloat(style.outlineWidth)>=3);
+      assert.equal(window.document.activeElement,control);
+      if(mode==='focus') {
+        assert.notEqual(style.outlineStyle,'solid',control.outerHTML);
+        continue;
+      }
+      if(control.matches('input')) {
+        assert.equal(style.outlineColor,'transparent');
+        assert.equal(style.borderColor,focus);
+        assert(contrast(style.borderColor,paintedBackground(window,control,scheme))>=3);
+        continue;
+      }
+      assert.equal(style.outlineStyle,'solid');assert.equal(style.outlineColor,focus,control.outerHTML);assert(parseFloat(style.outlineWidth)>=3);
       const behind=paintedBackground(window,control.parentElement,scheme);
       assert(contrast(style.outlineColor,behind)>=3,`${control.outerHTML}: ${style.outlineColor} on ${behind}`);
     }
