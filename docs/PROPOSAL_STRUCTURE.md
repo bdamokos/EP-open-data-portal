@@ -16,7 +16,7 @@ const target = parseTargetLabel('Article 1 – paragraph 1 – point 4 – point
 const candidates = proposalCandidates(proposal, target);
 ```
 
-`parseProposal` also accepts a string or a document projection with `paragraphs: string[]`, optional `paragraphSources`, `paragraphProperties`, `documentObjects`, `tables`, notes and links. Plain text cannot establish original object or table completeness and produces `source-structure-unavailable`. Excerpts should supply `coverage: {complete: false}`. Use the DOCX buffer for complete extraction.
+`parseProposal` also accepts a string or a document projection with `paragraphs: string[]`, optional `paragraphSources`, `paragraphProperties`, `paragraphFormats`, `documentObjects`, `tables`, notes and links. Plain text cannot establish original object or table completeness and produces `source-structure-unavailable`. Excerpts should supply `coverage: {complete: false}`. Use the DOCX buffer for complete extraction.
 
 ## Tree and source positions
 
@@ -40,6 +40,8 @@ Results use a bounded process-local LRU keyed by exact input hash, parser versio
 Proposal extraction uses the shared `docxContent` numbering resolver through `proposalNumberingLabels`, which adds level and format metadata for proposal hierarchy. Concrete numbering instances sharing an abstract list continue that list unless an explicit `startOverride` or overridden level start restarts it. Formatting-only overrides continue the list. `lvlRestart` uses its one-based trigger from the abstract definition; zero prevents restarts, and an omitted or invalid trigger uses the preceding level. Independent abstract lists remain separate. This recovers the CBAM annex's published `(1), (2), (3)` sequence and makes amendment 8's `Annex I / paragraph 1 / point 2 / point a` address unique.
 
 DOCX paragraph properties retain the concrete and abstract list IDs, level and number format. These levels, or explicit point styles, establish point depth. Roman-compatible letters alone never establish a deeper list: alphabetic `(a)` through `(e)` remain siblings. An unstyled Roman item with uncertain depth retains an `ambiguous-point-level` gap and a conflicting path. Compact decimal article headings such as `Article2` retain a separate article boundary.
+
+A centred, fully bold subtitle immediately after an article heading remains an article title even when its Word style is Normal. It does not create an implicit paragraph or turn the following explicitly numbered paragraphs into list points. Unnumbered definition introductions retain their numbered points.
 
 Literal duplicate labels under the same parent remain separate units with `pathConflict: true` and distinct occurrence IDs. `proposalCandidates` returns **all** exact candidates, ignoring the internal occurrence suffix; it never chooses by wording or invents a number alias. A caller may compare the amendment's original wording against exactly those candidates and record a unique normalised match. Otherwise the target stays unresolved. Labels repeated under different parents are independent.
 

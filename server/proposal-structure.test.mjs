@@ -169,6 +169,17 @@ test('definition lists and manually dotted amending instructions remain points b
   const units=flat(amended.units);assert.deepEqual(units.filter(unit=>unit.scope==='proposal'&&unit.kind==='point').map(unit=>unit.label.value),['1','2']);assert.equal(units.filter(unit=>unit.kind==='quotation').length,2);assert(!amended.gaps.length);
 });
 
+test('centred bold Normal subtitles keep explicit article paragraphs separate',()=>{
+  const subtitle=text=>`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+  const parsed=parseProposal(archive(body(p('Article 3','Titrearticle')+subtitle('Suspension')+
+    p('1. The Commission may suspend the application:','ManualNumPar1')+p('(a) First circumstance.','Point1')+
+    p('(b) Second circumstance.','Point1')+p('That implementing act shall apply provisionally.')+
+    p('2. The Commission shall notify the Parliament.','ManualNumPar1')+p('Article 4','Titrearticle'))));
+  const units=flat(parsed.units),one=proposalCandidates(parsed,'Article 3 – paragraph 1')[0],two=proposalCandidates(parsed,'Article 3 – paragraph 2')[0];
+  assert(one);assert(two);assert(!one.implicit);assert.equal(one.extent.start,2);assert.equal(one.extent.end,6);assert.equal(two.extent.start,6);
+  assert(units.some(unit=>unit.kind==='title'&&unit.content.includes(1)));assert.equal(parsed.complete,true);
+});
+
 test('inline quotation slices, article suffixes, indents and stable paths retain original punctuation',()=>{
   const text='(a) paragraph 1 is replaced by the following: ‘1. Quoted text.’;';
   const buffer=archive(body(p('Article 1')+p(text,'Point1')+p('Article 1a')+p('1. Another paragraph.')+p('— first indent')+p('Article 2')));
