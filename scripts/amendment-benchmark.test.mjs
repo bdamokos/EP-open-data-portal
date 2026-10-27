@@ -249,7 +249,8 @@ test('shared endpoint orchestration preserves baseline guards and conflicting-ev
   const chosen={...wording('Paragraph 1','First paragraph.'),baseline:'present-text',targetLabelLanguage:'en'};
   assert.equal(documentContextPlacement({chosen}).reason,'amends_existing_law');
   assert.equal(documentContextPlacement({chosen:{...chosen,baseline:'council-position'}}).reason,'council_position_unavailable');
-  assert.equal(documentContextPlacement({chosen,referenceTexts:['one','two']}).reason,'conflicting_target_evidence');
+  assert.equal(documentContextPlacement({chosen,referenceTexts:['Paragraph 1','Paragraph 2']}).reason,'conflicting_target_evidence');
+  assert.notEqual(documentContextPlacement({chosen:{...chosen,baseline:'motion-resolution'},referenceTexts:['Compromise amendment','Joint statement']}).reason,'conflicting_target_evidence','unparsed references are provenance, not location evidence');
   assert.equal(documentContextPlacement({chosen:null,referenceTexts:['one','two']}).reason,'conflicting_target_evidence');
   assert.equal(documentContextPlacement({chosen,includeBody:false}),null);
   assert.equal(documentContextPlacement({amendmentRequested:false}),null);

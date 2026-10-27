@@ -1,4 +1,4 @@
-import {resolveAmendmentPlacement,amendmentOperation} from './document-context-model.mjs';
+import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
 import {resolveProposalPlacement} from './proposal-placement.mjs';
 
 /** Pure final placement selection shared by the endpoint and offline consumers.
@@ -11,9 +11,11 @@ export function documentContextPlacement({chosen,text,items,referenceTexts=[],re
   const proposalKind=chosen.baseline==='commission-proposal'&&chosen.baselineSource?.category==='commission-proposal'&&chosen.baselineSource.conflicted===false;
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
     ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':'proposal_baseline_unavailable');
+  // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
+  const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
-    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:referenceTexts[0],resolutionDocument});
-  if(referenceTexts.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
+    :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:comparable[0],resolutionDocument});
+  if(comparable.length>1){placement={...placement,status:'unresolved',reason:'conflicting_target_evidence'};delete placement.span;delete placement.insertAfter;delete placement.insertBefore;}
   return placement;
 }
