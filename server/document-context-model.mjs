@@ -1,3 +1,5 @@
+import {comparisonHeading} from './amendment-baseline.mjs';
+import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
@@ -308,7 +310,7 @@ function motionStructure(text, language) {
     // Word soft breaks separate a section label from its title inside one
     // paragraph. Inspect that physical line before whitespace normalization.
     const firstLine = headingNormal(whitespace(row.value.split(/[\r\n]/u)[0]));
-    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || language === 'en' && resolutionSectionHeading(value))) {
+    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || resolutionSectionHeading(value, language))) {
       end = index - 1; endAvailable = row.complete; close(end, !row.complete); break;
     }
     if (row.source.container === 'body' && annexPrefixes[language]?.test(firstLine) && !/[.;!?]$/u.test(firstLine)) {
@@ -387,7 +389,17 @@ export function segmentMotionUnits(text, language) {
 
 // Only the first (proposal-level) target line selects a provision. Underlying-act
 // lines are deliberately excluded, including their '(new)' annotations.
-export function placementReference(value) {
+export function placementReference(value, language = 'en') {
+  if (language !== 'en' && !/^\s*§/u.test(value || '')) {
+    let target;try {target = parseTargetLabel(value, language);} catch {return null;}
+    if (!target.complete) return null;
+    const [parent, child] = target.segments;
+    if (target.segments.length === 1 && ['paragraph','point'].includes(parent.kind) && parent.number > 0 && parent.number <= 999999)
+      return {kind:'paragraph', label:parent.value, paragraph:parent.value, base:String(parent.number), suffix:parent.suffix};
+    if (target.segments.length === 2 && parent.kind === 'paragraph' && child.kind === 'point' && parent.number > 0)
+      return {kind:'point', label:child.value, paragraph:parent.value, base:String(parent.number), suffix:parent.suffix};
+    return null;
+  }
   const first = typeof value === 'string' ? value.split(/[\r\n]/)[0] : '';
   const text = whitespace(first).replace(/\s*\(\s*new\s*\)\s*$/i, '').replace(/\.$/, '');
   let match = /^(?:paragraph\s+|§\s*)([1-9]\d{0,5})\s*([a-z]{0,3})(?:\s*[,–—-]?\s*point\s+\(?([a-z]{1,4})\)?)?$/i.exec(text);
@@ -433,7 +445,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // The report identity alone cannot distinguish decisions that restart at 1.
     // Require the amendment's published section label; wording is checked only
     // against units in that section below, never against another decision.
-    const label = value => whitespace(value || '').toLowerCase() === 'motion for a resolution';
+    const label = value => comparisonHeading(value, options.language).category === 'motion-resolution';
     const references = options.documentReferences || [];
     const sectionLabels = references.filter(reference => reference.field === 'DocAmend');
     const headings = options.baselineSource?.headings || [];
@@ -441,7 +453,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       || headings.length && headings.every(heading => label(heading.left?.raw)))) return unresolved('baseline_unavailable');
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
-  const ref = english(options.language) ? placementReference(options.targetLabel) : null;
+  const ref = placementReference(options.targetLabel, options.language);
   const matching = reference => units.filter(unit => unit.kind === reference.kind && unit.label === reference.label &&
     (reference.kind !== 'point' || units.find(parent => parent.start === unit.parent)?.label === reference.paragraph));
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));

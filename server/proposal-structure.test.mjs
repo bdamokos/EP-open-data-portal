@@ -613,3 +613,28 @@ test('target grammar preserves exact spaced suffixes, negative new points and ow
   assert.equal(parseTargetLabel('Article 3 – paragraph 2 – point -a').complete,false);
   const finnish=parseTargetLabel('17 artikla – 1 kohta – -1 alakohta (uusi)','fi');assert.equal(finnish.complete,true);assert.equal(finnish.segments.at(-1).value,'-1');
 });
+
+test('all 24 bare title and introductory selectors retain their own-text scope',()=>{
+  const rows=fixture('proposal-selector-labels.json');assert.equal(rows.length,24);
+  for(const row of rows) {
+    for(const amendment of row.amendments) {
+      // This published Hungarian list has a template descriptor on its first
+      // line. This grammar test exercises its actual second-line provision.
+      const label=amendment.targetLabel.split('\n').at(-1);
+      const target=parseTargetLabel(label,row.language);
+      assert(target.complete,`${row.language}: ${label}: ${target.unparsed}`);
+      assert.equal(target.segments.at(-1).kind,amendment.number===15?'title':'introductory-part',`${row.language}: ${label}`);
+      if(amendment.number===12)assert.equal(target.segments.at(-2).kind,row.language==='fi'?'point':'subparagraph',`${row.language}: ${label}`);
+      assert.equal(target.raw,label);
+    }
+  }
+});
+
+test('Hungarian and Latvian negative new points round-trip their terminal ordinal dot',()=>{
+  for(const language of ['hu','lv'])for(const value of ['-a','-1']) {
+    const label=unitLabel({kind:'point',value,isNew:true},language),target=parseTargetLabel(label,language);
+    assert.equal(target.complete,true,label);assert.equal(target.segments[0].value,value,label);
+    assert.equal(target.segments[0].negative,true,label);assert.equal(target.segments[0].isNew,true,label);
+    assert.equal(parseTargetLabel(label.replace(/\([^)]*\)$/u,''),language).complete,false,label);
+  }
+});

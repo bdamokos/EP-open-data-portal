@@ -19,7 +19,7 @@ const rows = {
   lt:['straipsnis|straipsnio','konstatuojamoji dalis','dalis|dalies','punktas|punkto|papunktis','priedas|priedo','naujas|nauja'],
   lv:['pants','apsvērums','daļa|punkts','punkts|apakšpunkts','pielikums','jauns|jauna'],
   mt:['Artikolu','premessa','paragrafu','punt','anness','ġdid|ġdida'],
-  nl:['Artikel','overweging','lid|alinea','punt|letter','bijlage|bĳlage','nieuw|nieuwe'],
+  nl:['Artikel','overweging','lid|alinea|paragraaf','punt|letter','bijlage|bĳlage','nieuw|nieuwe'],
   pl:['Artykuł|Art.','motyw','akapit|ustęp|ust.','punkt|pkt|litera|lit.','załącznik','nowy|nowa|nowe'],
   pt:['Artigo','considerando','número|n.º|parágrafo','ponto|alínea','anexo','novo|nova'],
   ro:['Articolul','considerentul|considerent','alineatul|alineat|paragraful','punctul|litera','anexa|anexă','nou|nouă'],
@@ -49,6 +49,35 @@ const extra={
 const chapterWords={bg:'глава',cs:'kapitola',da:'kapitel',es:'capítulo',et:'peatükk',hr:'poglavlje',it:'capo',lt:'skyrius',lv:'nodaļa',mt:'kapitolu',nl:'hoofdstuk',pl:'rozdział',pt:'capítulo',ro:'capitolul',sk:'kapitola',sl:'poglavje',sv:'kapitel'};
 const sectionWords={bg:'раздел',cs:'oddíl',da:'afdeling',es:'sección',et:'jagu',hr:'odjeljak',it:'sezione',lt:'skirsnis',lv:'iedaļa',mt:'taqsima',nl:'afdeling',pl:'sekcja',pt:'secção',ro:'secțiunea',sk:'oddiel',sl:'oddelek',sv:'avsnitt'};
 const titleWords={bg:'дял',cs:'hlava',da:'afsnit',es:'título',et:'jaotis',hr:'glava',it:'titolo',lt:'antraštinė dalis',lv:'sadaļa',mt:'titolu',nl:'titel',pl:'tytuł',pt:'título',ro:'titlul',sk:'hlava',sl:'naslov',sv:'avdelning'};
+// Bare selectors and subparagraph terms from the same public EP list in all
+// languages; fixtures/proposal-selector-labels.json retains the exact labels.
+const selectors={
+  bg:["уводна част", "заглавие"],
+  es:["parte introductoria", "título"],
+  cs:["návětí", "název"],
+  da:["indledning", "overskrift"],
+  de:["Einleitung", "Überschrift"],
+  et:["sissejuhatav osa", "pealkiri"],
+  el:["εισαγωγικό μέρος", "τίτλος"],
+  en:["introductory part", "title"],
+  fr:["partie introductive", "titre"],
+  ga:["an chuid réamhráiteach", "teideal"],
+  hr:["uvodni dio", "naslov"],
+  it:["parte introduttiva", "titolo"],
+  lv:["ievaddaļa", "virsraksts"],
+  lt:["įžanginė dalis", "pavadinimas"],
+  hu:["bevezető rész", "cím"],
+  mt:["parti introduttorja", "titolu"],
+  nl:["inleidende formule", "titel"],
+  pl:["wprowadzenie", "nagłówek"],
+  pt:["parte introdutória", "título"],
+  ro:["partea introductivă", "titlu"],
+  sk:["úvodná časť", "nadpis"],
+  sl:["uvodni del", "naslov"],
+  fi:["johdantokappale", "otsikko"],
+  sv:["inledningen", "rubriken"],
+};
+const subparagraphWords={"bg": "алинея", "es": "párrafo", "cs": "pododstavec", "da": "afsnit", "de": "Unterabsatz", "et": "lõik", "el": "εδάφιο", "en": "subparagraph", "fr": "alinéa", "ga": "fomhír", "hr": "podstavak", "it": "comma", "lv": "daļa", "lt": "pastraipa|pastraipos", "hu": "albekezdés", "mt": "subparagrafu", "nl": "alinea", "pl": "akapit", "pt": "parágrafo", "ro": "paragraful", "sk": "pododsek", "sl": "pododstavek", "fi": "alakohta", "sv": "stycke"};
 const reverseOrder=new Set(['fi','hu','lt','lv']);
 const grammars=new Map();
 const qualifiers=new Map();
@@ -56,6 +85,7 @@ function grammar(language) {
   if(grammars.has(language))return grammars.get(language);
   const row=rows[language],words=Object.fromEntries(kinds.map((kind,i)=>[kind,row[i]]));
   Object.assign(words,extra[language]??{chapter:chapterWords[language],section:sectionWords[language],title:titleWords[language]});
+  words.subparagraph=subparagraphWords[language];
   const out=Object.entries(words).map(([kind,terms])=>{
     const pattern=terms.split('|').map(escape).join('|');
     return {kind,terms:terms.split('|'),pattern,forward:new RegExp(`^(?:${pattern})(?:\\s+${kind==='article'?'|(?=\\d)':''})(.+)$`,'iu'),backward:new RegExp(`^(.+?)\\s+(?:${pattern})$`,'iu')};
@@ -87,7 +117,8 @@ export function parseLabelSegment(label,language='en') {
   language=proposalLanguage(language);let text=fold(label),isNew=false;
   if(!qualifiers.has(language))qualifiers.set(language,new RegExp(`\\s*\\((?:${rows[language][5].split('|').map(escape).join('|')})\\)\\s*$`,'iu'));
   text=text.replace(qualifiers.get(language),()=>{isNew=true;return '';});
-  if(language==='en'&&/^(?:introductory part|title)$/iu.test(text))return {kind:/^title$/iu.test(text)?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
+  const selector=selectors[language].findIndex(term=>fold(term).toLocaleLowerCase(language)===text.toLocaleLowerCase(language));
+  if(selector>=0)return {kind:selector===1?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
   for(const {kind,forward:forwardPattern,backward:backwardPattern} of grammar(language)) {
     const forward=text.match(forwardPattern);
     const backward=text.match(backwardPattern);
@@ -96,7 +127,7 @@ export function parseLabelSegment(label,language='en') {
     // Greek annex/title headings use Greek Ι/Χ glyphs in Roman numerals.
     // This is an ordinal grammar rule, never transliteration of a suffix.
     if(language==='el'&&['annex','title','chapter','section'].includes(kind)&&/^[IVXLCDMΙΧ]+\.?$/u.test(rawValue.trim())){const roman=rawValue.replaceAll('Ι','I').replaceAll('Χ','X');if(roman!==rawValue){sourceValue=rawValue;rawValue=roman;}}
-    const negative=isNew&&kind==='point'&&/^-[a-z]$|^-\d+$/u.test(rawValue);
+    const negative=isNew&&kind==='point'&&/^-(?:[a-z]|\d+)\.?$/u.test(rawValue);
     const value=proposalNumber(negative?rawValue.slice(1):rawValue,language);
     if(value&&negative){value.value='-'+value.value;value.negative=true;}
     if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^\d|^[IVXLCDM]+$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
@@ -118,6 +149,11 @@ export function parseTargetLabel(label,language='en') {
     let parsed=parseLabelSegment(part,language);
     if(!parsed&&language==='nl'&&segments.at(-1)?.kind==='point'&&/^[a-z]$/u.test(part.trim()))parsed={kind:'point',...proposalNumber(part.trim(),language),isNew:false,raw:part};
     if(parsed) {
+      // Shared nouns are disambiguated only by their explicit parent level.
+      if(['paragraph','title'].includes(parsed.kind)&&segments.at(-1)?.kind==='paragraph') {
+        const entry=grammar(language).find(entry=>entry.kind==='subparagraph');
+        if(entry?.forward.test(fold(part))||entry?.backward.test(fold(part)))parsed={...parsed,kind:'subparagraph'};
+      }
       // EP's Polish and Latvian forms use the same noun at two levels.
       if(parsed.kind==='paragraph'&&((language==='pl'&&segments.at(-1)?.kind==='paragraph'&&/ustęp|ust\./iu.test(part))||(language==='lv'&&/punkts/iu.test(part)&&['paragraph','annex'].includes(segments.at(-1)?.kind))))parsed={...parsed,kind:'point'};
       segments.push(parsed);
@@ -127,7 +163,7 @@ export function parseTargetLabel(label,language='en') {
       const words=fold(part).split(' ');let at=0;
       while(at<words.length) {
         let found=null,width=0;
-        for(let n=Math.min(6,words.length-at);n>=2;n--){found=parseLabelSegment(words.slice(at,at+n).join(' '),language);if(found){width=n;break;}}
+        for(let n=Math.min(6,words.length-at);n>=1;n--){found=parseLabelSegment(words.slice(at,at+n).join(' '),language);if(found){width=n;break;}}
         if(!found){unparsed.push(words.slice(at).join(' '));break;}
         segments.push(found);at+=width;
       }
