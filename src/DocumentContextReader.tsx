@@ -128,7 +128,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   }:undefined;
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''}</h4>
-    {wording&&<WordingDiff original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={inPlace?renderOriginal:undefined}/>}
+    {wording&&<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={inPlace?renderOriginal:undefined}/>}
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;
@@ -150,6 +150,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {state.loading&&!data&&<p role="status">Loading document…</p>}
     {loadError&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':extractionError?'Document text could not be loaded.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
     {!state.loading&&!loadError&&!document&&<p>Document unavailable here.</p>}
+    {wording&&!hasText&&<div className="document-context-text">{amendmentBlock(false)}</div>}
     {document&&<>
       {actual&&<p className="document-context-language">{actual!==language?<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>:<>Text language: {languageName(actual)}</>}</p>}
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}

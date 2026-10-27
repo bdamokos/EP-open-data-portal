@@ -2,7 +2,7 @@ import { array, tail, procedureIds, documentFiles } from './activity-index-model
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 3;
+export const AMENDMENTS_VERSION = 4;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -27,17 +27,22 @@ export function amendmentProposerDate(record,{documentDate=record?.documentDate,
   if(record?.proposerRetained)return null;
   return documented?{date:documented,basis:documentBasis}:listed?{date:listed,basis:'amendment-list-metadata'}:null;
 }
+// `issued` is the manifestation's published issue time, kept as published.
+// Older observations did not record it, so it is compared only when both
+// descriptors have one.
 export function normalizedDocxDescriptor(file) {
   if(typeof file?.url!=='string'||!file.url)return null;
-  return {url:file.url,language:typeof file.language==='string'?file.language:null,byteSize:file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null};
+  const issued=typeof file.issued==='string'&&Number.isFinite(Date.parse(file.issued))?file.issued:null;
+  return {url:file.url,language:typeof file.language==='string'?file.language:null,byteSize:file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null,...(issued?{issued}:{})};
 }
 export function sameDocxDescriptor(a,b) {
   const left=normalizedDocxDescriptor(a),right=normalizedDocxDescriptor(b);
-  return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize);
+  return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize&&
+    (!left.issued||!right.issued||Date.parse(left.issued)===Date.parse(right.issued)));
 }
 export function distributionEvidenceFor(work,source) {
   const descriptors=array(work?.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).flatMap(manifestation=>
-    documentFiles({is_realized_by:[{...expression,is_embodied_by:[manifestation]}]}).filter(file=>file.format==='DOCX').map(file=>normalizedDocxDescriptor({...file,byteSize:manifestation?.byteSize})))).filter(Boolean);
+    documentFiles({is_realized_by:[{...expression,is_embodied_by:[manifestation]}]}).filter(file=>file.format==='DOCX').map(file=>normalizedDocxDescriptor({...file,byteSize:manifestation?.byteSize,issued:manifestation?.issued})))).filter(Boolean);
   const available=typeof work?.amendmentDistributionDeclared==='boolean'?work.amendmentDistributionDeclared:Object.hasOwn(work || {},'is_realized_by')&&work.is_realized_by!=null;
   return {version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:descriptors.length?'available':available?'empty':'unavailable',descriptors,source:source || null};
 }
@@ -65,14 +70,21 @@ export function checkedAggregateAttribution(record) {
   const decisionLabel=record.targetLabelLanguage==='en'&&(record.decisions || []).some(decision=>decision.reference===record.targetLabel&&
     (!record.targetLabelSource||(decision.source&&decision.source.url===record.targetLabelSource.url&&decision.source.fetchedAt===record.targetLabelSource.fetchedAt)));
   return {...record,baseline:'unknown',baselineSource:null,documentReferences:[],targetPath:null,listId:null,authors:[],committeeProposer:null,onBehalfOf:null,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,
-    originalText:null,proposedText:null,language:null,justification:null,textParserVersion:null,textIntegrity:'unavailable',wordingSource:null,metadataSource:null,proposerSource:null,sourceFreshness:null,
+    originalText:null,proposedText:null,originalFormatting:[],proposedFormatting:[],language:null,justification:null,textParserVersion:null,textIntegrity:'unavailable',wordingSource:null,metadataSource:null,proposerSource:null,sourceFreshness:null,
     targetLabel:decisionLabel?record.targetLabel:null,targetLabelLanguage:decisionLabel?'en':null,targetLabelSource:decisionLabel?record.targetLabelSource ?? null:null,
     wordingRetained:false,proposerRetained:false,recordRetained:false,fieldSources:{}};
 }
-const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','comparison-grid','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+const textLossCodes=new Set(['comparison-header','comparison-columns','comparison-structure','comparison-grid','structural-revision','symbol-text-loss','non-text-content','vertical-text-loss','vertical-formatting-loss','inline-content-loss','nested-table','text-unavailable','numbering-warning','wording-too-large']);
+export function validAmendmentFormatting(amendment) {
+  return !['original','proposed'].some(side=>{
+    const marks=amendment?.[side+'Formatting'],text=amendment?.[side+'Text'];
+    return marks!=null&&(!Array.isArray(marks)||marks.some((mark,index)=>!['superscript','subscript'].includes(mark?.kind)||!Number.isInteger(mark.start)||!Number.isInteger(mark.end)||mark.start<0||mark.end<=mark.start||typeof text!=='string'||mark.end>text.length||index>0&&mark.start<marks[index-1].end));
+  });
+}
 export function amendmentTextLosses(extraction,amendment) {
   const oversized=['originalText','proposedText'].some(field=>typeof amendment?.[field]==='string'&&amendment[field].length>AMENDMENT_LIMITS.text);
-  return [...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
+  const invalidFormatting=!validAmendmentFormatting(amendment);
+  return [...(invalidFormatting?[{code:'vertical-formatting-loss',number:amendment.number,message:'Vertical formatting cannot be tied to exact wording offsets; its wording is withheld.'}]:[]),...array(extraction?.gaps),...array(amendment?.gaps),...(oversized?[{code:'wording-too-large',number:amendment.number,message:'Amendment wording exceeds the 60,000-character column limit; both columns are unavailable.'}]:[])].filter(gap=>textLossCodes.has(gap?.code) &&
     (gap.number!=null?String(gap.number)===String(amendment.number):gap.code==='numbering-warning'||gap.scope==='document'));
 }
 export function canonicalEPReference(value) {

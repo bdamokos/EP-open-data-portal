@@ -387,7 +387,7 @@ export function segmentMotionUnits(text, language) {
 
 // Only the first (proposal-level) target line selects a provision. Underlying-act
 // lines are deliberately excluded, including their '(new)' annotations.
-function placementReference(value) {
+export function placementReference(value) {
   const first = typeof value === 'string' ? value.split(/[\r\n]/)[0] : '';
   const text = whitespace(first).replace(/\s*\(\s*new\s*\)\s*$/i, '').replace(/\.$/, '');
   let match = /^(?:paragraph\s+|§\s*)([1-9]\d{0,5})\s*([a-z]{0,3})(?:\s*[,–—-]?\s*point\s+\(?([a-z]{1,4})\)?)?$/i.exec(text);

@@ -1,3 +1,4 @@
+import {selectLanguageText} from './language.mjs';
 import type {MemberVote} from './MemberVotesTypes';
 import {memberVoteOutcome,memberVotePosition,memberVoteTotals} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
@@ -21,3 +22,10 @@ export function Position({vote,memberName,compact=false}:{vote:PositionVote;memb
   return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}><span className="member-votes-position-label">{memberName}{compact&&['For','Against','Abstained'].includes(label)?' voted':''}{compact?' ':''}</span><strong>{label}</strong></span>;
 }
 
+
+export function VotePartDescriptions({vote,language}:{vote:Pick<MemberVote,'parts'>;language:string}) {
+  return <>{vote.parts.map(part=>{
+    const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
+    return text.text?<section className="member-votes-part" key={part.componentId}><h3>Published description{part.number!==null?' of part '+part.number:''}</h3><p lang={text.language}>{text.text}</p></section>:null;
+  })}</>;
+}

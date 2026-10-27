@@ -1,5 +1,5 @@
 import {voteMethodLabel} from './voteMethod.mjs';
-import type {ReactNode} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import type {MemberVotesResponse,MemberVote} from './MemberVotesTypes';
 import {memberVotesRoute,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
@@ -10,14 +10,22 @@ import './ActivityVote.css';
 
 type IndexedResult={outcome?:string|null;method?:string|null;totals?:{for?:number|null;against?:number|null;abstaining?:number|null}|null};
 
+export type ActivityVoteSnapshot={route:string;data:MemberVotesResponse|null;error:string|null};
+
 /** Only exact indexed decision identities connect activity results to named ballots. */
-export function ActivityVote({decisionId,memberId,memberName,language,children,indexed}:{decisionId?:string|null;memberId?:string|number;memberName?:string;language:string;children?:ReactNode;indexed?:IndexedResult}) {
+export function ActivityVote({decisionId,memberId,memberName,language,children,indexed,context=false,snapshot,onSnapshot}:{decisionId?:string|null;memberId?:string|number;memberName?:string;language:string;children?:ReactNode;indexed?:IndexedResult;context?:boolean;snapshot?:ActivityVoteSnapshot;onSnapshot?:(snapshot:ActivityVoteSnapshot)=>void}) {
   const match=typeof decisionId==='string'?decisionId.match(/^(?:https?:\/\/data\.europarl\.europa\.eu\/)?(?:eli\/dl\/event\/)?(MTG-PL-\d{4}-\d{2}-\d{2})-DEC-(\d+)$/):null;
   const id=match?match[1]+'-DEC-'+match[2]:null;
   const state={sittingId:match?.[1]??null,decisionId:id,positions:'all' as const,alignment:'all' as const,offset:0};
   let route:string|null=null;
   try {if(id&&memberId)route=memberVotesRoute(memberId,state,language);}catch {/* Invalid identities never start a read. */}
-  const response=useData<MemberVotesResponse>(route);
+  const [refresh,setRefresh]=useState(false);
+  const carried=context&&!refresh&&snapshot?.route===route?snapshot:null;
+  const read=useData<MemberVotesResponse>(carried?null:route);
+  const response=carried?{...carried,loading:false,retry:()=>setRefresh(true)}:read;
+  useEffect(()=>{
+    if(route&&!response.loading)onSnapshot?.({route,data:response.data,error:response.error});
+  },[route,response.data,response.error,response.loading,onSnapshot]);
   const data=route&&response.data&&validateMemberVotesResponse(response.data,{memberId:String(memberId),state})?response.data:null;
   // A failed revalidation cannot keep a previously observed named ballot authoritative.
   const observed=!response.error&&data?.selected.status==='found'?data.selected.item:null;
@@ -43,6 +51,12 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
   if(!route)return <>{children}</>;
   const record=vote?votingRecordUrl(vote):null;
   const method=vote?.ballotStatus==='not-conducted'?'Not put to a vote':vote?voteMethodLabel(vote.method):null;
+  if(context)return <div className="activity-vote">{vote?<><p className="member-votes-eyebrow">{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</p>
+      {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>Vote records disagree</p><div aria-label="Saved activity result">{children}</div></div>}
+      <div className="member-votes-strip"><Position vote={vote} memberName={memberName||'Selected MEP'}/><Result vote={vote} showPartialTotals/></div></>:children}
+      {response.loading&&!vote&&<p role="status">Loading vote…</p>}
+      {!response.loading&&!vote&&<p className="member-votes-muted">Position unavailable <button type="button" onClick={response.retry}>Retry vote details</button></p>}
+    </div>;
   const requesters=vote?.rollCallRequesters.map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text)||[];
   return <div className="activity-vote" lang="en">
     {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>{sourceConflict?'Vote sources disagree.':'The voting record has changed since this activity was saved.'}</p><div aria-label="Saved activity result">{children}</div></div>}

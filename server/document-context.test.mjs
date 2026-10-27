@@ -332,7 +332,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,10);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,11);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -564,4 +564,12 @@ test('unparsed vote descriptions stay in provenance without overriding a compara
     assert.equal(result.placement.status,references.includes('Paragraph 20')?'unresolved':'placed');
     assert.deepEqual(result.target.evidence.referenceDecisions.map(d=>d.reference),references);
   }
+});
+
+test('indexed wording ranges remain tied to their exact selected source columns',async()=>{
+  const originalFormatting=[{start:2,end:3,kind:'subscript'}],proposedFormatting=[{start:2,end:3,kind:'superscript'}];
+  const reader=service({findAmendment:()=>({...indexed,originalText:'CO2',proposedText:'CO2',originalFormatting,proposedFormatting})});
+  const result=await reader.query(query({amendmentId,listId,includeBody:false}),{store:{}});
+  assert.deepEqual(result.amendment.variants[0].originalFormatting,originalFormatting);
+  assert.deepEqual(result.amendment.variants[0].proposedFormatting,proposedFormatting);
 });
