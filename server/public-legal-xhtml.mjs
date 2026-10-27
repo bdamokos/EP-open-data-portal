@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {proposalNumber,proposalLanguage} from './proposal-labels.mjs';
 
-export const PUBLIC_LEGAL_XHTML_VERSION='1';
+export const PUBLIC_LEGAL_XHTML_VERSION='2';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const uniqueLinks=links=>[...new Set(links.map(link=>link.url))];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
@@ -119,6 +119,10 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
   function walk(node,parent,{inArticle=false}={}) {
     if(node.name==='#text'||noteNodes.has(node))return;
     const id=node.attrs.id||'';
+    if(has(node,'oj-final')||node.name==='div'&&has(node,'oj-signatory')) {
+      const signature=has(node,'oj-signatory'),owner=unit(parent,signature?'signature':'body',null,{normative:!signature});
+      for(const child of node.children)walk(child,owner);return;
+    }
     if(has(node,'eli-main-title')||/^pbl_\d+$/.test(id)) {
       const owner=unit(parent,has(node,'eli-main-title')?'frontmatter':'preamble',null,{normative:false});
       for(const child of node.children)walk(child,owner);return;

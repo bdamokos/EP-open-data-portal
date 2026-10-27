@@ -46,6 +46,13 @@ test('unsupported objects and tables withhold affected passages without suppress
   const p=parsePublicLegalXhtml(xml,options),bad=proposalCandidates(p,parseTargetLabel('Article 30 – paragraph 4 – point b','en'))[0];assert.equal(bad.complete,false);assert(candidates(p)[0].complete);assert(p.objects.some(o=>o.status==='unresolved'));
   assert.throws(()=>parsePublicLegalXhtml('<!DOCTYPE html [<!ENTITY x "bad">]>'+fixture.xhtml,options));
 });
+test('the real OJ closing clause, execution text and signatories stay between the final article and annexes',()=>{
+  const p=parsePublicLegalXhtml(fixture.xhtml,options),flat=units=>units.flatMap(u=>[u,...flat(u.children)]),all=flat(p.units);
+  const article=all.find(u=>u.kind==='article'&&u.label.value==='38'),closing=all.find(u=>u.kind==='body'),annex=all.find(u=>u.kind==='annex'&&u.label.value==='II');
+  assert.equal(article.extent.end,closing.extent.start);assert.equal(closing.extent.end,annex.extent.start);assert.equal(closing.normative,true);
+  assert.deepEqual(p.paragraphs.slice(closing.extent.start,closing.extent.end).map(row=>row.text),['This Regulation shall be binding in its entirety and directly applicable in all Member States.','Done at …,','For the European Parliament','The President','For the Council','The President']);
+  assert.equal(closing.children.filter(u=>u.kind==='signature').length,2);assert(closing.children.every(u=>u.normative===false));assert(closing.complete);
+});
 test('explicit note references and external links retain displayed-text offsets',()=>{
   const p=parsePublicLegalXhtml('<html><body><div id="rct_1"><p>Body <a href="#ntr1">(1)</a> with <a href="https://example.org/act">a link</a>.</p></div><p class="oj-note"><a id="ntr1">(1)</a> Note text.</p></body></html>',options);
   assert.equal(p.notes[0].text,'Note text.');assert.equal(p.paragraphs[0].text,'Body with a link.');assert.equal(p.anchors[0].offset,5);const link=p.links[0];assert.equal(p.paragraphs[0].text.slice(link.start,link.end),'a link');
