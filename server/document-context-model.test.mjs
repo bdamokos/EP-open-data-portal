@@ -868,7 +868,7 @@ test('parsed same-language vote conflicts remain withheld as in A-10-2026-0042-A
   assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 20'}).reason,'conflicting_target_evidence');
 });
 
-test('whole-cell Finnish and Lithuanian deletion instructions retain their published full stop', async()=>{
+test('published whole-cell deletion instructions retain their punctuation and wording', async()=>{
   const {readFile}=await import('node:fs/promises');
   const cases=JSON.parse(await readFile(new URL('./fixtures/amendment-deletion-punctuation.json',import.meta.url),'utf8'));
   for(const row of cases) {

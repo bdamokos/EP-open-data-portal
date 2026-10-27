@@ -20,5 +20,16 @@
     "number": 5,
     "targetLabel": "13 konstatuojamoji dalis",
     "proposedText": "Išbraukta."
+  },
+  {
+    "id": "A-10-2025-0150-AM-001-129",
+    "language": "nl",
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+    "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+    "fetchedAt": "2026-10-27T20:18:22.771658+00:00",
+    "sha256": "c3dae014db7eb08f0cb520b304425e5b64892bcfb12d484a64eb1dde7b2a3809",
+    "number": 5,
+    "targetLabel": "Overweging 13",
+    "proposedText": "Schrappen"
   }
 ]

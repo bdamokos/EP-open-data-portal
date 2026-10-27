@@ -101,18 +101,19 @@ const sectionEnds={
   fi:["LIITE", "PERUSTELUT"],
   sv:["BILAGA", "MOTIVERING"],
 };
-const headingKey=value=>normalize(String(value).split(/[\r\n]/u)[0]).replace(/^\d+\.\s*/u,'').replace(/,$/u,'').toLocaleLowerCase('und');
-const resolutionHeading=(value,language)=>headingKey(value)===headingKey(sectionHeadings[language]?.[0]??'')
-  || language==='ga'&&headingKey(value)===headingKey('TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA');
-export const resolutionSectionHeading=(value,language='en')=>resolutionHeading(value,language)
-  || Boolean(sectionHeadings[language]?.some(heading=>headingKey(value)===headingKey(heading)))
-  || language==='ga'&&headingKey(value)===headingKey('TOGRA LE hAGHAIDH CINNEADH Ó PHARLAIMINT NA hEORPA');
-const sectionEnd=(value,language)=>resolutionSectionHeading(value,language)
-  || sectionEnds[language]?.some(heading=>{
-    const key=headingKey(value),end=headingKey(heading);
-    return key===end || key.startsWith(end)&&/^(?:\s+[IVXLCDM\d]+)?(?:\s*[:.–—-]|$)/iu.test(key.slice(end.length));
-  })
-  || language==='en'&&/^(?:JUSTIFICATION|INFORMATION ON ADOPTION(?:\s.*)?|FINAL VOTE BY ROLL CALL(?:\s.*)?)$/u.test(value);
+const headingKey=value=>normalize(String(value).split(/[\r\n]/u)[0]).replace(/^\d+\.\s*/u,'').replace(/,$/u,'').toLowerCase();
+const headingKeys=Object.fromEntries(Object.entries(sectionHeadings).map(([language,headings])=>[language,new Set(headings.map(headingKey))]));
+const resolutionKeys=Object.fromEntries(Object.entries(sectionHeadings).map(([language,headings])=>[language,new Set([headingKey(headings[0])])]));
+resolutionKeys.ga.add(headingKey('TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA'));
+headingKeys.ga.add(headingKey('TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA'));
+headingKeys.ga.add(headingKey('TOGRA LE hAGHAIDH CINNEADH Ó PHARLAIMINT NA hEORPA'));
+const endKeys=Object.fromEntries(Object.entries(sectionEnds).map(([language,ends])=>[language,ends.map(headingKey)]));
+export const resolutionSectionHeading=(value,language='en')=>headingKeys[language]?.has(headingKey(value))??false;
+const sectionEnd=(value,language)=>{
+  const key=headingKey(value);
+  return headingKeys[language]?.has(key)||endKeys[language]?.some(end=>key===end||key.startsWith(end)&&/^(?:\s+[IVXLCDM\d]+)?(?:\s*[:.–—-]|$)/iu.test(key.slice(end.length)))
+    ||language==='en'&&/^(?:JUSTIFICATION|INFORMATION ON ADOPTION(?:\s.*)?|FINAL VOTE BY ROLL CALL(?:\s.*)?)$/u.test(normalize(value));
+};
 export function motionBodySelection(paragraphs,language) {
   const opening=openings[language];
   // Some translations use the same Parliament heading on the cover and in the body.
@@ -125,7 +126,7 @@ export function motionBodySelection(paragraphs,language) {
   }
   if(sectionHeadings[language]) {
     const sections=[];let hasHeading=false;
-    for(let heading=0;heading<normalized.length;heading++)if(resolutionHeading(paragraphs[heading],language)) {
+    for(let heading=0;heading<normalized.length;heading++)if(resolutionKeys[language]?.has(headingKey(paragraphs[heading]))) {
       hasHeading=true;
       let end=heading+1;while(end<normalized.length&&!sectionEnd(paragraphs[end],language))end++;
       const candidates=starts.filter(start=>start>heading&&start<end);

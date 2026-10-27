@@ -243,7 +243,7 @@ export function resolveDocumentTarget(text, {originalText, targetLabel, referenc
 // markers. Only a whole cell is a marker; prose containing these words is text.
 export const DELETION_MARKERS = Object.freeze([
   'deleted', 'supprimé', 'supprimée', 'entfällt', 'gestrichen', 'suprimido',
-  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'udgår',
+  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'schrappen', 'udgår',
   'utgår', 'poistetaan', 'διαγράφεται', 'törölve', 'eliminat', 'eliminată',
   'заличава се', 'vypouští se', 'vypúšťa sa', 'črtano', 'briše se',
   'skreśla się', 'svītrots', 'išbraukta', 'välja jäetud', 'imħassar', 'scriosta',

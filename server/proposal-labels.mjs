@@ -77,6 +77,7 @@ const selectors={
   fi:["johdantokappale", "otsikko"],
   sv:["inledningen", "rubriken"],
 };
+const selectorKeys=Object.fromEntries(Object.entries(selectors).map(([language,terms])=>[language,terms.map(term=>fold(term).toLocaleLowerCase(language))]));
 const subparagraphWords={"bg": "алинея", "es": "párrafo", "cs": "pododstavec", "da": "afsnit", "de": "Unterabsatz", "et": "lõik", "el": "εδάφιο", "en": "subparagraph", "fr": "alinéa", "ga": "fomhír", "hr": "podstavak", "it": "comma", "lv": "daļa", "lt": "pastraipa|pastraipos", "hu": "albekezdés", "mt": "subparagrafu", "nl": "alinea", "pl": "akapit", "pt": "parágrafo", "ro": "paragraful", "sk": "pododsek", "sl": "pododstavek", "fi": "alakohta", "sv": "stycke"};
 const citationWords={"bg": "Позоваване", "es": "Visto", "cs": "Právní východisko", "da": "Henvisning", "de": "Bezugsvermerk", "et": "Volitus", "el": "Αιτιολογική αναφορά", "en": "Citation", "fr": "Visa", "ga": "Lua", "hr": "Pozivanje", "it": "Visto", "lv": "norāde", "lt": "nurodomoji dalis", "hu": "bevezető hivatkozás", "mt": "Kunsiderazzjoni", "nl": "Visum", "pl": "Umocowanie", "pt": "Citação", "ro": "Referirea", "sk": "Citácia", "sl": "Navedba sklicevanja", "fi": "Johdanto-osan viite", "sv": "Beaktandeled"};
 const reverseOrder=new Set(['fi','hu','lt','lv']);
@@ -126,7 +127,8 @@ export function parseLabelSegment(label,language='en') {
   if(!qualifiers.has(language))qualifiers.set(language,new RegExp(`\\s*\\((?:${rows[language][5].split('|').map(escape).join('|')})\\)\\s*$`,'iu'));
   text=text.replace(qualifiers.get(language),()=>{isNew=true;return '';});
   if(language==='el'&&/^εισαγωγικό μέρος$/iu.test(text))return {kind:'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
-  const selector=selectors[language].findIndex(term=>fold(term).toLocaleLowerCase(language)===text.toLocaleLowerCase(language));
+  const selector=language==='en'?(/^title$/iu.test(text)?1:/^introductory part$/iu.test(text)?0:-1)
+    :selectorKeys[language].indexOf(text.toLocaleLowerCase(language));
   if(selector>=0)return {kind:selector===1?'title':'introductory-part',value:'',number:null,suffix:'',isNew,raw:label};
   // Finnish recital numbers occur inside the compound noun, e.g. the
   // published "Johdanto-osan Q a kappale (uusi)" (A-10-2026-0237 AM57).
