@@ -1,6 +1,7 @@
 import {useEffect,useId,useState} from 'react';
 import {useInsightData} from './InsightData';
 import {humanDate} from './InsightCharts';
+import {progressSourceState} from './insightRefresh.mjs';
 
 type Term={id:string;code:string;label:string|null;language:string|null};
 type ProgressEvent={id:string;sequence?:number;date:string|null;dates:string[];types:Term[];statuses:Term[];status:'recorded'|'projected'|'cancelled'|'unknown';institutions:Term[];works:string[];label:string|null;labelLanguage:string|null;milestone:boolean;issues:string[]};
@@ -39,17 +40,18 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
   const hasMilestones=events.some(event=>event.milestone||event.status==='projected');
   const hasOtherEvents=hasMilestones&&events.some(event=>!event.milestone&&event.status!=='projected');
   const visible=events.filter(event=>(institution==='all'||event.institutions.some(term=>term.id===institution))&&(allEvents||!hasMilestones||event.milestone||event.status==='projected')).sort(dated);
-  const savedFailure=Boolean(data&&(state.error||data.source.refreshError));
+  const freshness=progressSourceState(data),docFreshness=progressSourceState(documents.data);
+  const savedFailure=Boolean(data&&(state.error||freshness.failed));
   const available=Boolean(data?.state==='mapped'&&(events.length||data.status));
-  const retryAt=state.retryAt||data?.fallback?.retryAt||0;
+  const retryAt=Math.max(state.retryAt||0,freshness.retryAt),docRetryAt=Math.max(documents.retryAt||0,docFreshness.retryAt);
   const [retryClock,setRetryClock]=useState(0);
   useEffect(()=>{
-    const future=[retryAt,documents.retryAt||0].filter(at=>at>Date.now());
+    const future=[retryAt,docRetryAt].filter(at=>at>Date.now());
     if(!future.length)return;
     const at=Math.min(...future);
     const timer=setTimeout(()=>setRetryClock(value=>value+1),Math.min(at-Date.now()+1,2_147_483_647));
     return()=>clearTimeout(timer);
-  },[retryAt,documents.retryAt,retryClock]);
+  },[retryAt,docRetryAt,retryClock]);
   const retryDisabled=state.loading||retryAt>Date.now();
   const title=/\((COD|CNS)\)$/.test(reference)?'Legislative progress':'Procedure progress';
   const docData=documents.data?.reference===reference?documents.data:null;
@@ -57,8 +59,8 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
     <header><h3 id={headingId}>{title}</h3>
       {available&&data?.status&&<span className="procedure-progress-stage" lang={data.status.language}>{data.status.label}</span>}
       {!available&&<span className="procedure-progress-muted" role="status">{state.loading?'Checking…':'Unavailable'}</span>}
-      {available&&(state.loading||savedFailure||data?.source.stale)&&<span className="procedure-progress-muted" role="status">{state.loading?'Checking…':savedFailure?'Update unavailable':'Saved progress'}</span>}
-      {(!available||savedFailure||data?.source.stale)&&!state.loading&&<button type="button" onClick={state.retry} disabled={retryDisabled}>{retryAt>Date.now()?'Try later':'Check again'}</button>}
+      {available&&(state.loading||savedFailure||freshness.stale)&&<span className="procedure-progress-muted" role="status">{state.loading?'Checking…':savedFailure?'Update unavailable':'Saved progress'}</span>}
+      {(!available||savedFailure||freshness.stale)&&!state.loading&&<button type="button" onClick={state.retry} disabled={retryDisabled}>{retryAt>Date.now()?'Try later':'Check again'}</button>}
     </header>
     {data&&<>
       {data.state==='mapped'&&<>
@@ -76,11 +78,11 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
             <ol className="procedure-progress-timeline">{visible.map(event=><li key={event.id} className={event.status==='projected'?'procedure-progress-scheduled':undefined}>
               <EventDate event={event} language={language}/><div><Status event={event} today={today}/><h4><EventName event={event}/></h4>{event.institutions.length>0&&<p className="procedure-progress-muted">{event.institutions.map((term,index)=><span key={term.id} lang={term.language||'en'}>{index>0?' · ':''}{institutionLabel(term)}</span>)}</p>}
                 {event.issues.length>0&&<p className="procedure-progress-muted">Partial details</p>}
-                {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docData.source.stale||docData.source.refreshError)&&!documents.loading&&(documents.retryAt||0)<=Date.now())documents.retry();}}}><summary>Documents</summary>
+                {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docFreshness.stale||docFreshness.failed)&&!documents.loading&&docRetryAt<=Date.now())documents.retry();}}}><summary>Documents</summary>
                   {documents.loading&&!docData&&<p role="status">Loading document links…</p>}
-                  {documents.error&&!docData&&<p role="status">Document links unavailable. <button type="button" onClick={documents.retry} disabled={(documents.retryAt||0)>Date.now()}>Try again</button></p>}
+                  {documents.error&&!docData&&<p role="status">Document links unavailable. <button type="button" onClick={documents.retry} disabled={docRetryAt>Date.now()}>Try again</button></p>}
                   {docData&&<>
-                    {(documents.loading||documents.error||docData.source.refreshError||docData.source.stale)&&<p className="procedure-progress-muted" role="status">{documents.loading?'Checking for updates…':documents.error||docData.source.refreshError?'Couldn’t check for updates.':'Not checked recently.'} <button type="button" onClick={documents.retry} disabled={documents.loading||(documents.retryAt||0)>Date.now()}>Check again</button></p>}
+                    {(documents.loading||documents.error||docFreshness.failed||docFreshness.stale)&&<p className="procedure-progress-muted" role="status">{documents.loading?'Checking for updates…':documents.error||docFreshness.failed?'Couldn’t check for updates.':'Not checked recently.'} <button type="button" onClick={documents.retry} disabled={documents.loading||docRetryAt>Date.now()}>Check again</button></p>}
                     {partial(docData.coverage)&&<p className="procedure-progress-muted">Some document details unavailable.</p>}
                     {docData.state==='mapped'&&docData.dossier===data.dossier?<>{docData.documents.filter(document=>document.event===event.id&&event.works.includes(document.work)&&document.url).length>0?<ul>{docData.documents.filter(document=>document.event===event.id&&event.works.includes(document.work)&&document.url).map(document=><li key={document.work}><a href={document.url!} target="_blank" rel="noreferrer" lang={document.titleLanguage||'en'}>{document.title||document.celex[0]||'Read Council document'} ↗</a>{document.titleLanguage&&document.titleLanguage!==language&&<small className="procedure-progress-muted"> · Showing {document.titleLanguage.toUpperCase()}</small>}</li>)}</ul>:<p className="procedure-progress-muted">No document link.</p>}{docData.documents.some(document=>document.event===event.id&&event.works.includes(document.work)&&!document.url)&&<p className="procedure-progress-muted">Some document links unavailable.</p>}</>:<p className="procedure-progress-muted">Document links unavailable.</p>}
                   </>}

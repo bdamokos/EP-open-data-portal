@@ -4,7 +4,7 @@ import {procedureReference,parseProcedureProgressPage} from './official-context.
 import {createHash} from 'node:crypto';
 import {eurLexUrl} from './legal-reference-text.mjs';
 
-export const PROCEDURE_PROGRESS_VERSION=2;
+export const PROCEDURE_PROGRESS_VERSION=3;
 export const PROGRESS_LIMITS=Object.freeze({events:300,eventRows:1201,documentRows:2401,freshMs:3600_000});
 const endpoint='https://publications.europa.eu/webapi/rdf/sparql';
 const cellar='http://publications.europa.eu/resource/cellar/';

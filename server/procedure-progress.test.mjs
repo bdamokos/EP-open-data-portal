@@ -40,7 +40,7 @@ test('the actual insight dispatcher admits the independent finite route without 
   let calls=0;
   const service=createInsights(new Proxy({},{get(){throw new Error('Progress must not read the index');}}),{officialSources:{get:async(url,options)=>{calls++;assert.equal(new URL(url).hostname,'publications.europa.eu');assert.equal(options.freshMs,3600_000);return {url,fetchedAt:'2026-10-20T10:00:00Z',data:data([mapping,row()])};}}});
   const response=await service.query('procedure-progress',new URLSearchParams({reference:query.reference,lang:'en'}));
-  assert.equal(response.version,2);assert.equal(response.events.length,1);assert.equal(calls,1);
+  assert.equal(response.version,3);assert.equal(response.events.length,1);assert.equal(calls,1);
   for(const suffix of ['&reference=2025%2F0223(COD)','&detail=','&detail=all','&unknown=x'])await assert.rejects(service.query('procedure-progress',new URLSearchParams('reference=2025%2F0223(COD)'+suffix)),{status:400});
   assert.equal(calls,1,'invalid semantic queries never reach the source');
 });
@@ -109,6 +109,30 @@ test('OEIL admission failures retain backoff and unavailable status without asse
   }}).query(rsp);
   assert.equal(result.state,'unmapped');assert.equal(result.fallback.status,'unavailable');assert.equal(result.fallback.retryAt,123456);
   assert.equal(apiCachePolicy({method:'GET',headers:{}},new URL('https://example.test/api/insights/procedure-progress'),result).cdnCacheControl,'no-store');
+});
+test('OEIL examines every status pair in one container and requires verified supported language',()=>{
+  const conflicting=oeilHtml.replace('<p class="text-danger">Procedure completed</p>','<p class="text-danger">Procedure completed</p><p>Status</p><p>Awaiting decision</p>');
+  assert.notEqual(conflicting,oeilHtml);
+  const parsed=parseProcedureProgressPage(conflicting,rsp.reference);
+  assert.equal(parsed.status,null);assert.equal(parsed.coverage.status,'ambiguous');assert.equal(parsed.coverage.invalidRows,1);assert.equal(parsed.events.length,2);
+  for(const language of ['', ' lang="de"']) {
+    const unsupported=oeilHtml.replace(' lang="en"',language);assert.notEqual(unsupported,oeilHtml);
+    assert.throws(()=>parseProcedureProgressPage(unsupported,rsp.reference,'fr'),{code:'procedure_language'});
+  }
+});
+test('structurally degraded or unverified-language OEIL replacements preserve the good cached observation',async()=>{
+  const unusable=oeilHtml.replace('<p class="text-danger">Procedure completed</p>','').replaceAll('Key events','Other documents');
+  assert.throws(()=>parseProcedureProgressPage(unusable,rsp.reference),{code:'procedure_progress_shape'});
+  for(const replacement of [unusable,oeilHtml.replace(' lang="en"',''),oeilHtml.replace(' lang="en"',' lang="de"')]) {
+    let now=Date.parse('2026-10-27T12:10:00Z'),html=oeilHtml;
+    const sources=new OfficialContextSources({directory:null,clock:()=>now,run:operation=>operation(),fetchSource:async url=>url.includes('/sparql')?Response.json(data([])):new Response(html,{headers:{'content-type':'text/html'}})});
+    const service=new ProcedureProgress(sources),saved=await service.query(rsp);
+    now+=PROGRESS_LIMITS.freshMs+1;html=replacement;
+    await service.query(rsp);await Promise.allSettled([...sources.cache.pending.values()]);
+    const retained=await service.query(rsp);
+    assert.deepEqual(retained.events,saved.events);assert.deepEqual(retained.status,saved.status);assert.equal(retained.source.fetchedAt,saved.source.fetchedAt);
+    assert.equal(retained.source.stale,true);assert(retained.source.refreshError);assert.equal(retained.source.refreshInProgress,false);
+  }
 });
 test('duplicate institution and label rows remain one exact event; scheduled is never completed',()=>{
   const projected=row('0002',{date:l('2020-01-01'),status:u('http://publications.europa.eu/resource/authority/event-status/PROJECTED')});

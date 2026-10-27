@@ -134,19 +134,23 @@ export function parseProcedureProgressPage(html,reference,language='en',{limit=3
   procedureReference(reference);
   const all=nodes(mainTree(html)),heading=all.find(node=>classHas(node,'es_title-h1'));
   if(!heading||text(heading)!==reference)throw new HttpError(502,'procedure_identity','The source does not match this procedure.');
-  const printedLanguage=html.match(/<html\b[^>]*\blang=["'](en|fr)["']/i)?.[1];
-  language=printedLanguage||language;
+  const printedLanguage=html.match(/<html\b[^>]*\slang\s*=\s*["'](en|fr)["']/i)?.[1]?.toLowerCase();
+  if(!printedLanguage)throw new HttpError(502,'procedure_language','The procedure source language could not be verified.');
+  language=printedLanguage;
   const sections=all.filter(node=>node.tag==='div'&&classHas(node,'oeil-spy-section'));
   const section=sections.find(node=>nodes(node).some(child=>child.tag==='h2'&&/^(Key events|[ÉE]v[ée]nements cl[ée]s)$/i.test(text(child))));
   const basic=sections.find(node=>nodes(node).some(child=>child.tag==='h2'&&/^(Basic information|Informations de base)$/i.test(text(child))));
   const statuses=new Set();
   for(const node of basic?nodes(basic):[]) {
-    const children=(node.children||[]).filter(child=>child.tag!=='#text'),index=children.findIndex(child=>child.tag==='p'&&/^(Status|[ÉE]tat|Statut)$/i.test(text(child)));
-    if(index>=0&&children[index+1]?.tag==='p'&&text(children[index+1]))statuses.add(text(children[index+1]));
+    const children=(node.children||[]).filter(child=>child.tag!=='#text');
+    for(let index=0;index<children.length;index++)if(children[index].tag==='p'&&/^(Status|[ÉE]tat|Statut)$/i.test(text(children[index]))) {
+      if(children[index+1]?.tag==='p'&&text(children[index+1]))statuses.add(text(children[index+1]));
+    }
   }
   const tables=section?nodes(section).filter(node=>node.tag==='table'):[];
   const table=tables.length===1?tables[0]:null,headers=table?nodes(table).filter(node=>node.tag==='th').map(text):[];
   const readable=Boolean(table&&headers[0]==='Date'&&/^(Event|[ÉE]v[ée]nement)$/.test(headers[1]||''));
+  if(!readable&&!statuses.size)throw new HttpError(502,'procedure_progress_shape','The procedure status and timeline could not be read.');
   const rows=readable?nodes(table).filter(node=>node.tag==='tr'&&node.children.some(child=>child.tag==='td')):[];
   const coverage={limited:rows.length>limit,invalidRows:statuses.size>1?1:0,incompleteEvents:0,timeline:readable?'available':'unavailable',status:statuses.size===1?'available':statuses.size?'ambiguous':'unavailable'};
   const events=rows.slice(0,limit).map(row=>{
