@@ -159,8 +159,49 @@ test('implicit paragraphs number subparagraphs from their first child',()=>{
   placed=resolve(projection,'Article 1 – subparagraph 2','Second subparagraph.');assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
   assert.equal(resolve(projection,'Article 1 – subparagraph 1','Second subparagraph.').reason,'conflicting_target_evidence');
   const titled=source(['Article 1','1. First subparagraph.','Second subparagraph.'],['Titrearticle','Titrearticle']);
-  const variants=['1.First subparagraph.','”1.First subparagraph.','a] First subparagraph.','lxxxviii) First subparagraph.','I. First subparagraph.','II ) First subparagraph.','ii . First subparagraph.','aa ] First subparagraph.','II\t) First subparagraph.','II\u00a0) First subparagraph.','II','aa','point aa','Programme objectives'].map(lead=>source(['Article 1',lead,'Second subparagraph.'],['Titrearticle','Titrearticle']));
-  for(const projection of [titled,...variants])for(const label of ['Article 1 – paragraph 1 – subparagraph 1','Article 1 – subparagraph 1'])assert.equal(resolve(projection,label,'Second subparagraph.').reason,'source_structure_unavailable',label);
+  // A title-like first row can shift the apparent ordinal. Unique wording
+  // in the wrong numbered subparagraph still cannot establish placement.
+  assert.equal(resolve(titled,'Article 1 – paragraph 1 – subparagraph 2','Second subparagraph.').reason,'target_not_found');
+  const withTitle=source(['Article 1','Programme objectives','First subparagraph.','Second subparagraph.'],['Titrearticle','Titrearticle']);
+  assert.equal(resolve(withTitle,'Article 1 – subparagraph 1','Second subparagraph.').reason,'conflicting_target_evidence');
+  assert.equal(resolve(withTitle,'Article 1 – subparagraph 2','Second subparagraph.').status,'placed');
   const numbered=source(['Article 1','1. Lead.','2. Next.']);
   assert.equal(resolve(numbered,'Article 1 – subparagraph 1','Lead.').reason,'source_structure_unavailable');
+});
+
+// Reduced structures from A-10-2026-0104 (quotation scope), -0267
+// (shifted points), -0266 (unnumbered paragraphs) and -0257 AM142.
+test('missing parser levels fall back to the deepest unique ancestor and whole source lines',()=>{
+  const cases=[
+    [source(['Article 1','The act is amended:','(b) Verified source line.'],['Titrearticle','','Point0']),'Article 1 – paragraph 1 – point a','Verified source line.',2],
+    [source(['Article 1','First unnumbered paragraph.','Second unnumbered paragraph.']),'Article 1 – paragraph 2','Second unnumbered paragraph.',2],
+    [source(['Article 13','2. Intro:','(d) Verified point.']),'Article 13 – paragraph 2 – subparagraph 1 – point d','Verified point.',2],
+    [source(['Article 1','The act is amended:','(1) Article 9 is replaced by the following:','‘Article 9','1. Early quotation.’;','(a) A unique later line.','(2) Other instruction.'],['Titrearticle','','Point0','Titrearticle','','Point1','Point0']),'Article 1 – paragraph 1 – point 1 – point z','A unique later line.',5],
+  ];
+  for(const [projection,label,original,start] of cases){const placed=resolve(projection,label,original);assert.equal(placed.status,'placed',label);assert.equal(placed.span.start,start);assert.equal(placed.splice.start.offset,0);assert.equal(placed.evidence.at(-1).basis,'ancestor-unique-wording');}
+  const projection=source(['Article 1','First source line.','Second source line.','Article 2','Second source line.']);
+  assert.equal(resolve(projection,'Article 1 – paragraph 2','Second source line.').status,'unresolved','wording elsewhere in the document is not unique');
+  assert.equal(resolve(projection,'Article 1 – paragraph 2','First source').status,'unresolved','a partial line cannot repair an address');
+  const duplicateParent=source(['Article 1','First source line.','Article 1','Other source line.']);
+  assert.equal(resolve(duplicateParent,'Article 1 – paragraph 2','First source line.').status,'unresolved','a duplicated ancestor cannot establish a path');
+});
+
+test('duplicate targets and single descendants inheriting conflict require document-wide unique wording',()=>{
+  const projection=source(['Article 1','The act is amended:','(1) First instruction.','(a) Keep first. Unique sentence.','(1) Second instruction.','(b) Keep second. Other sentence.'],['Titrearticle','','Point0','Point1','Point0','Point1']);
+  let placed=resolve(projection,'Article 1 – paragraph 1 – point 1','Unique sentence.');
+  assert.equal(placed.status,'placed');assert.equal(placed.span.start,3);assert.equal(placed.evidence.at(-1).basis,'unique-duplicate-wording-match');
+  placed=resolve(projection,'Article 1 – paragraph 1 – point 1 – point a','Unique sentence.');
+  assert.equal(placed.status,'placed');assert.equal(placed.span.start,3);
+  const repeated=source([...projection.paragraphs,'Article 2','1. Unique sentence.'],[...projection.paragraphProperties.map(p=>p.styleId),'Titrearticle']);
+  assert.equal(resolve(repeated,'Article 1 – paragraph 1 – point 1','Unique sentence.').status,'unresolved');
+  assert.equal(resolve(repeated,'Article 1 – paragraph 1 – point 1 – point a','Unique sentence.').reason,'multiple_published_targets');
+});
+
+test('an address without Annex excludes an annex item even when it lacks an annex container',()=>{
+  const act=item(source(['Article 1','1. Existing.','Article 2','1. Next.']));
+  const annex={kind:'annex',index:1,proposal:parseProposal(source(['Article 1a','1. Uncontained annex item.']),{item:'annex'})};
+  const options={targetLabel:'Article 1 a (new)',originalText:'',proposedText:'Inserted.',language:'en'};
+  const placed=resolveProposalPlacement([annex,act],options);
+  assert.equal(placed.status,'placed');assert.equal(placed.itemIndex,1);assert.equal(placed.insertBefore,2);
+  assert.equal(resolveProposalPlacement([annex],{...options,targetLabel:'Article 1a – paragraph 1',originalText:'Uncontained annex item.'}).status,'unresolved');
 });

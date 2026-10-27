@@ -95,10 +95,10 @@ function matchUnit(proposal,unit,original) {
 // provision and require a unique wording match within the numbered
 // subparagraph's own paragraphs. A provision's own lead text is the first
 // subparagraph; an implicit paragraph has none. Points make numbering ambiguous.
-function subparagraphMatch(items,target,original) {
+function subparagraphMatch(items,target,original,candidatesFor) {
   const last=target.segments.at(-1);
   if(last?.kind!=='subparagraph'||last.isNew||last.suffix||!last.number||target.segments.length<2)return null;
-  const parents=items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,target.segments.slice(0,-1)).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const parents=candidatesFor(target.segments.slice(0,-1));
   if(!parents.length)return null;
   if(parents.length>1||parents[0].unit.pathConflict)return {reason:'multiple_published_targets'};
   const {itemIndex,proposal}=parents[0];let unit=parents[0].unit;
@@ -108,10 +108,6 @@ function subparagraphMatch(items,target,original) {
     unit=body[0];
   }
   if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
-  // A title row may be a mis-styled first subparagraph, so an implicit
-  // paragraph's ordinals are only trusted when its container has no title.
-  const container=flat(proposal.units).find(parent=>parent.children.includes(unit));
-  if(unit.implicit&&container?.children.some(child=>child.kind==='title'))return {reason:'source_structure_unavailable'};
   const children=unit.children,lead=unit.implicit||!unit.content.length?null:{start:unit.content[0],end:children[0]?.extent.start??unit.extent.end};
   if(children.some(child=>child.kind!=='subparagraph')&&(last.number>1||!lead))return {reason:'source_structure_unavailable'};
   const bounds=[...(lead?[lead]:[]),...children.map(child=>child.extent)][last.number-1];
@@ -120,6 +116,44 @@ function subparagraphMatch(items,target,original) {
   if(!match.span)return match;
   if(match.span.start<bounds.start||match.span.end>=bounds.end)return {reason:'conflicting_target_evidence'};
   return {itemIndex,unit,match};
+}
+
+// A parser can lose a target's final levels while preserving its containing
+// provision. Wording is sufficient only when it selects complete source lines
+// inside the deepest unique ancestor and occurs once in the entire document.
+// Numbered subparagraphs keep their independent ordinal check above.
+const documentMatches=new WeakMap();
+function uniqueDocumentWording(proposal,original) {
+  let cached=documentMatches.get(proposal);
+  if(!cached){
+    const units=flat(proposal.units).filter(unit=>unit.label?.prefix&&['paragraph','point','recital'].includes(unit.kind));
+    const byParagraph=new Map();
+    for(const unit of units)for(const span of unit.spans)if(span.start===0){const labels=byParagraph.get(span.paragraph)??[];labels.push(unit.label);byParagraph.set(span.paragraph,labels);}
+    cached={labels:units.map(unit=>unit.label),mapped:proposalMatchingOffsets(proposal.paragraphs.map(p=>p.text).join('\n'),proposal.paragraphs.map(p=>byParagraph.get(p.index)??[]))};
+    documentMatches.set(proposal,cached);
+  }
+  const key=proposalMatchingOffsets(original,original.split(/\r?\n/).map(()=>cached.labels))?.normal;
+  if(!key||!cached.mapped)return false;
+  const text=cached.mapped.normal,word=char=>/[\p{L}\p{N}]/u.test(char??'');
+  let count=0,at=text.indexOf(key);
+  while(at>=0){
+    if(!(word(key[0])&&word(text[at-1]))&&!(word(key.at(-1))&&word(text[at+key.length])))if(++count>1)return false;
+    at=text.indexOf(key,at+1);
+  }
+  return count===1;
+}
+const wholeLines=(proposal,match)=>match.splice.start.offset===0&&match.splice.end.offset===proposal.paragraphs[match.splice.end.paragraph].text.length;
+function ancestorFallback(target,original,candidatesFor) {
+  if(target.segments.at(-1).kind==='subparagraph')return null;
+  for(let depth=target.segments.length-1;depth>0;depth--){
+    const parents=candidatesFor(target.segments.slice(0,depth));
+    if(!parents.length)continue;
+    if(parents.length!==1)return null;
+    const parent=parents[0],match=matchUnit(parent.proposal,parent.unit,original);
+    if(!match.span||!wholeLines(parent.proposal,match)||!uniqueDocumentWording(parent.proposal,original))return null;
+    return {...parent,match};
+  }
+  return null;
 }
 
 /** All addresses are proposal-level. Inner quoted provisions cannot be candidates. */
@@ -138,15 +172,23 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
-  const candidates=items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,target).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  // An uncontained annex paragraph can share an act address. The item identity
+  // still establishes that an address without Annex cannot select it.
+  const eligible=item=>item.kind!=='annex'||target.segments.some(segment=>segment.kind==='annex');
+  const candidatesFor=address=>items.flatMap((item,itemIndex)=>!eligible(item)?[]:proposalCandidates(item.proposal,address).map(unit=>({itemIndex,unit,proposal:item.proposal})));
+  const candidates=candidatesFor(target);
+  const placedMatch=(selected,basis)=>{
+    evidence.push({basis,anchor:selected.unit.id});
+    return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
+  };
   if(operation==='insert') {
     if(candidates.length)return unresolved('duplicate_target_label');
     const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix);
     if(!label.isNew||label.number===null||!label.suffix||rank<1)return unresolved('insertion_reference_unavailable');
-    const preceding=target.segments.slice(0,-1),parents=preceding.length?items.flatMap((item,itemIndex)=>proposalCandidates(item.proposal,preceding).map(unit=>({itemIndex,unit}))):null;
+    const preceding=target.segments.slice(0,-1),parents=preceding.length?candidatesFor(preceding):null;
     if(parents&&parents.length!==1)return unresolved('parent_target_not_found');
     const anchors=[];
-    for(const [itemIndex,item] of items.entries())for(const unit of flat(item.proposal.units)){
+    for(const [itemIndex,item] of items.entries())for(const unit of eligible(item)?flat(item.proposal.units):[]){
       if(unit.scope!=='proposal'||unit.kind!==label.kind||unit.label?.number!==label.number)continue;
       const index=suffixRank(unit.label.suffix,label.suffix);if(index<0||index>=rank)continue;
       if(parents&&(itemIndex!==parents[0].itemIndex||parentKey(unit)!==JSON.stringify(parents[0].unit.path.map(({kind,value,occurrence})=>[kind,value,occurrence??null]))))continue;
@@ -173,18 +215,22 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:anchor.itemIndex,insertAfter:insertBefore-1,insertBefore,evidence};
   }
   if(!candidates.length) {
-    const sub=subparagraphMatch(items,target,originalText);
-    if(!sub)return unresolved('target_not_found');
+    const sub=subparagraphMatch(items,target,originalText,candidatesFor);
+    if(!sub){const fallback=ancestorFallback(target,originalText,candidatesFor);return fallback?placedMatch(fallback,'ancestor-unique-wording'):unresolved('target_not_found');}
     if(sub.reason)return unresolved(sub.reason);
     evidence.push({basis:'subparagraph-wording-match',anchor:sub.unit.id});
     return {operation,status:'placed',itemIndex:sub.itemIndex,span:sub.match.span,splice:sub.match.splice,originalText:sub.match.originalText,evidence};
   }
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,originalText)}));
-  const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole));
+  const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
+  if(!matching.length&&matches.every(candidate=>candidate.match.reason==='conflicting_target_evidence')){
+    const fallback=ancestorFallback(target,originalText,candidatesFor);
+    if(fallback)return placedMatch(fallback,'ancestor-unique-wording');
+  }
   if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
-  if(candidates.length===1&&selected.unit.pathConflict)return unresolved('multiple_published_targets');
+  if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
   evidence.push({basis:candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
 }
