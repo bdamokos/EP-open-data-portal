@@ -24,6 +24,8 @@ export function options(args) {
   const values={'--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
   for(let i=0;i<args.length;i++) {
     const arg=args[i];
+    if(arg==='--languages'){result.languages=true;continue;}
+    if(arg==='--record-language-baseline'){result.recordBaseline=true;continue;}
     if(arg==='--placement-only'){result.placementOnly=true;continue;}
     if(arg==='--language-variants'){result.languageVariants=true;continue;}
     if(arg==='--acquire-only'){result.acquireOnly=true;continue;}
@@ -235,7 +237,8 @@ async function harnessIdentity(root) {
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
+  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT] [--languages] [--record-language-baseline]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot.\n');return;}
+  if(opts.languages){const {languageMain}=await import('./amendment-language-benchmark.mjs');return languageMain(opts);}
   if(!opts.apiBase)throw new Error('Provide --api-base or AMENDMENT_BENCHMARK_API_BASE; no deployment host is built in.');
   const root=fileURLToPath(new URL('../',import.meta.url)),runtimeRoot=path.resolve(opts.runtimeRoot||root),runtime=await replayRuntime(runtimeRoot),code=await checkoutIdentity(runtimeRoot,runtime),harness=await harnessIdentity(root);
   if(opts.placementOnly)process.stderr.write('NOTE: --placement-only is a compatibility alias for full cached-source replay; producer changes are evaluated.\n');

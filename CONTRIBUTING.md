@@ -70,6 +70,22 @@ Replay the same snapshot/sample with `npm run bench:amendments -- --baseline /ab
 
 For each snapshot, keep an append-only `ratchet.md` and `baseline-current.json` in its output directory. Begin with a clean main baseline. During migration, a baseline drawn from its recorded live-projection comparison must be labelled `live-projection-comparison`; its delta includes enabling source replay. After merges, the next stream or orchestrator measures the new main on that same snapshot, appends its revision, result file, correct/eligible counts, headline and false placements, and advances `baseline-current.json`. Never replace prior rows or baseline files. PRs may not regress any previously correct amendment and must have zero false placements. Keep snapshots, results and verification evidence outside Git and public CI artifacts.
 
+### Language parity
+
+`--languages` evaluates every sampled list/number in all 24 languages, including missing editions and extraction failures. The fixed sample covers legislative and non-legislative reports, discharge reports, B/RC motions and second reading. It uses anonymous public metadata, declared distributions and Commission source files; every replay rebuilds wording and projections in-process. Python 3 is required for the independent ZIP/XML reader.
+
+Use a new directory for acquisition, then record the first ratchet row from a clean checkout of current `origin/main`:
+
+```sh
+npm run bench:amendments -- --languages --fetch --acquire-only --cache-dir /absolute/path/languages-YYYYMMDD
+npm run bench:amendments -- --languages --cache-dir /absolute/path/languages-YYYYMMDD --runtime-root /absolute/path/clean-main --record-language-baseline
+npm run bench:amendments -- --languages --cache-dir /absolute/path/languages-YYYYMMDD
+```
+
+The last command automatically compares with the latest row in that snapshot's append-only `ratchet.jsonl`; `--baseline PATH.json` selects an explicit report. Any loss of a previously correct language observation, missing row or false placement fails. `--record-language-baseline` appends a clean measured revision only after comparison passes. Keep this ledger separate from the identity benchmark and use the same sealed snapshot throughout a comparison.
+
+Reports give planned and published denominators, correct, placed-unverified, withheld reasons and false placements for each language. Parity pairs use the exact list ID and amendment number; outcome parity and independently verified semantic locations are counted separately. Insertion parity compares the existing predecessor boundary across published suffix/alphabet conventions; JSON separates withholding from weaker oracle coverage behind English. Shared withholding counts as outcome parity. Raw published comparison cells establish expected operations; literal source headings and XML paths establish supported section, recital and sibling-boundary checks independently of production labels and proposal trees. Complex quoted provisions, automatic numbering and unsupported boundaries remain unverified. These scores cover the sample, not all multilingual publications. Keep sources, reports and manual verification evidence outside Git and CI artifacts.
+
 ## Plenary agenda benchmark
 
 After `npm ci`, capture anonymous raw Open Data inputs once into a new directory outside Git:
