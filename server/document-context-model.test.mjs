@@ -724,3 +724,42 @@ test('an omitted blank title row does not prevent selecting the section, but pro
   const broken=document(text.paragraphs,{sources:{[decisionSection.length+6]:{segment:2}}});
   assert.equal(placement(broken,{...publishedResolution,originalText:'Resolution wording; continues here;'}).reason,'source_passage_incomplete');
 });
+
+test('0085 EDF subheading closes paragraph 216 before amendment 57 inserts paragraph 216a', () => {
+  const title='European Development Funds (EDF)';
+  for(const italic of [false,true]) {
+    const text=document([...decisionSection,...resolutionSection.slice(0,5),'216. Existing provision;',title,'217. Following provision;','ANNEX']);
+    const start=decisionSection.length+5;
+    text.paragraphFormats=text.paragraphs.map((value,index)=>index===start+1?{marks:[{kind:'bold',start:0,end:value.length},
+      ...(italic?[{kind:'italic',start:0,end:value.length}]:[])]}:{});
+    const before=structuredClone(text);
+    assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='216').end,start);
+    const result=placement(text,{originalText:'',proposedText:'New provision;',targetLabel:'Paragraph 216 a (new)',referenceText:'After § 216',baselineSource:publishedResolution.baselineSource});
+    assert.equal(result.status,'placed');assert.equal(result.insertAfter,start);assert.equal(result.insertBefore,start+1);
+    assert.deepEqual(placement(text,{originalText:'216. Existing provision;',proposedText:'Changed;',targetLabel:'Paragraph 216',baselineSource:publishedResolution.baselineSource}).span,{start,end:start});
+    assert.equal(placement(text,{originalText:title,proposedText:'Changed;'}).status,'unresolved');
+    assert.deepEqual(text,before);
+  }
+});
+
+test('0199 closing separators stay after amendments 72/73 inserting paragraphs 132a/132b', () => {
+  const text=document([...decisionSection,...resolutionSection.slice(0,5),'132. Existing provision;','°','°\t°','133. Final instruction.','EXPLANATORY STATEMENT']);
+  const start=decisionSection.length+5;
+  text.paragraphFormats=text.paragraphs.map((_,index)=>index===start+1||index===start+2?{align:'center'}:{});
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='132').end,start);
+  for(const suffix of ['a','b']) {
+    const result=placement(text,{originalText:'',proposedText:'New provision;',targetLabel:`Paragraph 132 ${suffix} (new)`,referenceText:'After § 132',baselineSource:publishedResolution.baselineSource});
+    assert.equal(result.status,'placed');assert.equal(result.insertAfter,start);assert.equal(result.insertBefore,start+1);
+  }
+  assert.deepEqual(placement(text,{originalText:'132. Existing provision;',proposedText:'Changed;',targetLabel:'Paragraph 132',baselineSource:publishedResolution.baselineSource}).span,{start,end:start});
+  assert.deepEqual(placement(text,{originalText:'133. Final instruction.',proposedText:'Changed;',targetLabel:'Paragraph 133',baselineSource:publishedResolution.baselineSource}).span,{start:start+3,end:start+3});
+});
+
+test('bold numbered rows and punctuated continuation prose retain their provision roles', () => {
+  const text=document([...decisionSection,...resolutionSection.slice(0,5),'19. Main provision:','(a) first point;','Further work is necessary;','20. Next provision;','ANNEX']);
+  const start=decisionSection.length+5;
+  text.paragraphFormats=text.paragraphs.map(value=>({marks:[{kind:'bold',start:0,end:value.length}]}));
+  const result=placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',baselineSource:publishedResolution.baselineSource});
+  assert.equal(result.status,'placed');assert.equal(result.insertAfter,start+2);
+  assert.equal(segmentMotionUnits(text,'en').find(unit=>unit.label==='a').parent,start);
+});

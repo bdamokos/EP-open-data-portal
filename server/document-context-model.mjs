@@ -282,6 +282,12 @@ const annexPrefixes = Object.fromEntries(Object.entries(resolutionEndLabels).map
 const headingLike = value => value.length > 0 && value.length < 180 && /\p{L}/u.test(value)
   && (value === value.toUpperCase() || /^\p{Lu}/u.test(value)
     && (!/\p{P}$/u.test(value) || /:$/u.test(value) || value.split(/\s+/u).length <= 3));
+// A-10-2026-0085's EDF title is wholly bold but ends in ')'; 0199 uses
+// standalone degree-sign rows before its final instruction. These source-backed
+// boundaries close the preceding provision without making its extent uncertain.
+const structuralRow = (row, format) => row.normal === '°' || row.normal === '° °'
+  || row.normal.length < 180 && /^\p{Lu}/u.test(row.normal) && !/[.;!?]$/u.test(row.normal)
+    && format?.marks?.some(mark => mark.kind === 'bold' && mark.start === 0 && mark.end === row.value.length);
 function motionStructure(text, language) {
   const paragraphs = text?.paragraphs || [], selection = motionBodySelection(paragraphs, language), {start} = selection, rows = sourceStructure(text);
   const formats = Array.isArray(text?.paragraphFormats) && text.paragraphFormats.length === paragraphs.length ? text.paragraphFormats : [];
@@ -328,6 +334,12 @@ function motionStructure(text, language) {
     else if ((match = /^([A-Z]{1,3}[a-z]{0,3})[.)]\s+/u.exec(value))) {kind = 'recital'; label = match[1]; provisionsStarted = true;}
     else if ((match = /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\))\s+/u.exec(value)) && stack.some(unit => unit.kind === 'paragraph')) {kind = 'point'; label = match[1] || match[2]; level = 2;}
     else if (!provisionsStarted && /^[–—−\-•]\s*\S/u.test(value)) {kind = 'citation'; label = String(++citation);}
+    // Fill only the absorption gaps. The existing policy for recognised
+    // headings is handled separately (and can evolve in the stacked change).
+    else if (selection.multipleOpenings && !recordedHeading && !headingLike(value) && structuralRow(row, formats[index])) {
+      close(index - 1);
+      kind = 'heading'; label = value; level = 0;
+    }
     else if (recordedHeading || !/^[–—−\-•]\s*\S/u.test(value) && headingLike(value)) {
       // Recorded outline headings also close scope when their text resembles prose.
       // A heading ends any list immediately. Later numbering cannot prove that
