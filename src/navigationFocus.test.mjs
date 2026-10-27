@@ -41,6 +41,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
+    if(route==='corpus/search')return Response.json({total:0,limit:20,offset:0,nextOffset:null,results:[],coverage:{complete:false}});
     if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
     if(route?.startsWith('speech/'))return Response.json({id:speechId,xml:null,speakers:[],availableTextLanguages:['en'],textLanguage:'en'});
     if(brokenGroup&&route==='insights/group-voices'&&url.searchParams.get('group')==='ECR')return Response.json({people:[null],months:[],window:{},contributions:[],coverage:{initialized:true}});
@@ -61,6 +62,30 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   const finish=(data,status=200)=>act(async()=>{assert(pending.length,'Missing pending page');pending.shift().resolve(Response.json(data,{status}));});
   return {window,container,pending,portraitRequests,button,click,finish,releaseView:async()=>{await act(async()=>{releaseModule();await loadModule('/src/'+delayedFile);});await viewReady(container);}};
 }
+
+for(const [query,expected] of [
+  ['',''],
+  ['?lang=en&role=both',''],
+  ['?lang=hu&role=member','?lang=hu&role=member'],
+  ['?lang=hu&role=substitute&view=outside','?lang=hu&view=outside'],
+  ['?global-fts-text-lang=en&global-fts-search=deutsch&lang=en&role=both&view=outside&global-fts-closed=1&ov-person=257105','?view=outside&ov-person=257105'],
+])test('App omits defaults and irrelevant URL state for '+(query||'the default view'),async t=>{
+  const h=await harness(t,query);
+  const actualParams=new URLSearchParams(h.window.location.search),expectedParams=new URLSearchParams(expected);
+  actualParams.sort();expectedParams.sort();assert.equal(actualParams.toString(),expectedParams.toString());
+  assert.equal(h.window.document.documentElement.lang,new URLSearchParams(query).get('lang')||'en');
+});
+
+test('global search stays remembered across top-level navigation while its share URL stays clean',async t=>{
+  const h=await harness(t,'?view=outside&ov-person=257105&global-fts-search=deutsch&global-fts-text-lang=fr&global-fts-closed=1');
+  await h.click(h.button('Following'));
+  assert.equal(h.window.location.search,'?view=saved');
+  await h.click(h.container.querySelector('[aria-label="Search Parliament text"]'));
+  assert.equal(h.container.querySelector('.explorer-search-panel input').value,'deutsch');
+  assert.equal(new URL(h.window.location.href).searchParams.get('global-fts-text-lang'),'fr');
+  await h.click(h.container.querySelector('[aria-label="Close text search"]'));
+  assert.equal(h.window.location.search,'?view=saved');
+});
 
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
   const h=await harness(t,'',false,false,false,true);

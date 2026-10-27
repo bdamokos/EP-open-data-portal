@@ -218,20 +218,73 @@ test('Back reopens a closed reader-only link without changing the search query',
   assert.equal(view.searches().length,0);
 });
 
-test('an explicitly closed global search stays collapsed across navigation remounts while retaining its query',async t=>{
+test('closing global search removes its URL state and remembers its query across remounts',async t=>{
   const view=await setup(t,{query:'global-fts-search=energy&global-fts-text-lang=en'});
   await view.render({prefix:'global-fts',key:'first-header'});
   assert.equal(view.searches().length,1);
   await view.click('Close text search');await view.flushFrames();
-  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-closed'),'1');
+  assert.equal([...new URL(view.window.location.href).searchParams.keys()].some(key=>key.startsWith('global-fts-')),false);
   await view.render({prefix:'global-fts',key:'second-header'});
   assert.equal(view.container.querySelector('.explorer-search-panel'),null);
   assert.equal(view.searches().length,1,'a header remount must not silently reopen or rerun a closed global query');
-  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-search'),'energy');
+  assert.equal(view.window.location.search,'');
   await view.click('Search fixture speeches');
   assert(view.container.querySelector('.explorer-search-panel'));
   assert.equal(view.searches().length,2);
   assert.equal(new URL(view.window.location.href).searchParams.has('global-fts-closed'),false);
+  assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-search'),'energy');
+  assert.equal(view.find('select').value,'en');
+});
+
+test('legacy closed search links become clean speaker links without running a search',async t=>{
+  const view=await setup(t,{query:'view=outside&ov-person=257105&global-fts-search=deutsch&global-fts-text-lang=en&global-fts-closed=1'});
+  await view.render({prefix:'global-fts'});
+  assert.equal(view.searches().length,0);
+  assert.equal(view.window.location.search,'?view=outside&ov-person=257105');
+  await view.click('Search fixture speeches');
+  assert.equal(view.find('input').value,'deutsch');
+  assert.equal(view.searches().at(-1).body.language,'en');
+  assert.equal(new URL(view.window.location.href).searchParams.get('ov-person'),'257105');
+});
+
+test('Back and Forward restore open and closed global search entries with their own queries',async t=>{
+  const view=await setup(t,{query:'global-fts-search=first&global-fts-text-lang=fr&global-fts-sort=newest'});
+  await view.render({prefix:'global-fts'});
+  const step=direction=>act(async()=>{const popped=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history[direction]();await popped;});
+  await view.click('Close text search');
+  await view.click('Search fixture speeches');
+  await view.input('input[type="search"]','second');await view.submit();
+  await view.click('Close text search');
+  await step('back');assert.equal(view.find('input').value,'second');
+  await step('back');assert.equal(view.find('input').value,'first');
+  await step('back');assert.equal(view.container.querySelector('input'),null);
+  await view.click('Search fixture speeches');
+  assert.equal(view.find('input').value,'first');assert.equal(view.find('select').value,'fr');
+  assert.equal(view.searches().at(-1).body.sort,'newest');
+  await step('back');assert.equal(view.container.querySelector('input'),null);
+  await step('forward');assert.equal(view.find('input').value,'first');
+});
+
+test('closed global searches survive a session reload but do not enter a fresh shared link',async t=>{
+  const view=await setup(t,{query:'global-fts-search=energy&global-fts-text-lang=fr'});
+  await view.render({prefix:'global-fts'});await view.click('Close text search');
+  const closedState=view.window.history.state;
+  await act(async()=>view.root.render(null));
+  view.window.history.replaceState(null,'','?view=outside');
+  await view.render({prefix:'global-fts'});
+  assert.equal(view.container.querySelector('input'),null);
+  await view.click('Search fixture speeches');assert.equal(view.find('input').value,'energy');
+  await act(async()=>view.root.render(null));
+  view.window.sessionStorage.clear();view.window.history.replaceState(null,'','?view=outside');
+  await view.render({prefix:'global-fts'});
+  await view.click('Search fixture speeches');assert.equal(view.find('input').value,'');
+  await act(async()=>view.root.render(null));
+  view.window.history.replaceState(closedState,'','?view=outside');
+  t.mock.method(view.window.sessionStorage,'getItem',()=>{throw Error('Storage blocked');});
+  t.mock.method(view.window.sessionStorage,'setItem',()=>{throw Error('Storage blocked');});
+  t.mock.method(view.window.sessionStorage,'removeItem',()=>{throw Error('Storage blocked');});
+  await view.render({prefix:'global-fts'});await view.click('Search fixture speeches');
+  assert.equal(view.find('input').value,'energy');
 });
 
 test('changing entity scope clears the old page and reader before requesting the new entity',async t=>{
