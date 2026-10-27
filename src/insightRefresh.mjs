@@ -14,7 +14,12 @@ export const progressCacheMaxAge=(data,route,maxAge)=>{
 };
 const usable=data=>data?.state==='mapped'&&Boolean(data.status||data.events?.length||data.documents?.length);
 function retainProgress(previous,next) {
-  if(!previous||previous.reference!==next.reference||previous.language!==next.language||previous.detail!==next.detail||!usable(previous)||usable(next)||!progressSourceState(next).failed)return next;
+  if(!previous||previous.reference!==next.reference||previous.language!==next.language||previous.detail!==next.detail||!usable(previous)||usable(next))return next;
+  // Only the failed OEIL fallback can justify retaining its saved content.
+  // A valid empty OEIL result, an ambiguous Cellar mapping or a different
+  // dossier is a newer observation even if another source has failed.
+  const oldMapping=previous.cellar,newMapping=next.cellar||next;
+  if(previous.basis!=='oeil'||next.basis!=='cellar'||next.state==='ambiguous'||next.fallback?.status!=='unavailable'||!previous.source?.url||next.fallback.url!==previous.source.url||!oldMapping||oldMapping.state!==newMapping.state||oldMapping.dossier!==newMapping.dossier)return next;
   // Display the saved observation with its original retrieval date. The new
   // source failure must remain visible even when its HTTP envelope was valid.
   const source={...previous.source,stale:true,refreshInProgress:false,refreshError:next.fallback?.error||'Progress update unavailable.'};

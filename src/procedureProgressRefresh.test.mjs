@@ -6,8 +6,9 @@ import {freshLoader} from './test-support/viteRunner.mjs';
 import {PROGRESS_REFRESH_DELAYS,PROGRESS_REFRESH_DEADLINE} from './insightRefresh.mjs';
 
 const reference='2026/2937(RSP)';
+const oeilUrl='https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2026%2F2937%28RSP%29';
 const event=(extra={})=>({id:'oeil:exact-event',date:'2026-10-20',dates:['2026-10-20'],types:[],statuses:[],status:'recorded',institutions:[],works:[],label:'End of procedure in Parliament',labelLanguage:'en',milestone:true,issues:[],...extra});
-const progress=(extra={})=>({reference,language:'en',state:'mapped',dossier:null,status:{label:'Procedure completed',language:'en'},events:[event()],coverage:{limited:false,invalidRows:0,incompleteEvents:0},source:{fetchedAt:'2026-10-27T12:00:00Z',stale:false,refreshInProgress:false,refreshError:null},...extra});
+const progress=(extra={})=>({reference,language:'en',detail:'events',basis:'oeil',cellar:{state:'unmapped',dossier:null},state:'mapped',dossier:null,status:{label:'Procedure completed',language:'en'},events:[event()],coverage:{limited:false,invalidRows:0,incompleteEvents:0},source:{url:oeilUrl,fetchedAt:'2026-10-27T12:00:00Z',stale:false,refreshInProgress:false,refreshError:null},...extra});
 const pending=()=>progress({source:{fetchedAt:'2026-10-26T12:00:00Z',stale:true,refreshInProgress:true,refreshError:null}});
 
 async function harness(t) {
@@ -100,7 +101,7 @@ test('a degraded successful retry preserves the selected saved timeline and its 
   await h.render();await h.finish(saved);await h.click('Show timeline');
   await h.click('Check again');
   const retryAt=Date.now()+120_000;
-  await h.finish(progress({state:'unmapped',status:null,events:[],fallback:{status:'unavailable',error:'Busy',retryAt}}));
+  await h.finish(progress({basis:'cellar',cellar:undefined,state:'unmapped',status:null,events:[],fallback:{status:'unavailable',url:oeilUrl,error:'Busy',retryAt}}));
   assert.match(h.container.textContent,/Procedure completed/);assert.match(h.container.textContent,/End of procedure in Parliament/);
   assert.equal(h.container.querySelectorAll('.procedure-progress-timeline>li').length,1);
   assert.match(h.container.textContent,/Update unavailable/);
@@ -128,4 +129,19 @@ test('fallback admission backoff settles a pending Cellar refresh without pollin
   assert.equal([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try later')?.disabled,true);
   assert.equal(h.requests.length,1);
   assert.equal(h.timers.filter(timer=>PROGRESS_REFRESH_DELAYS.includes(timer.delay)).length,0,'no source poll is scheduled during fallback admission backoff');
+});
+
+test('a cached primary-source retry deadline disables retry without discarding progress',async t=>{
+  const h=await harness(t),retryAt=Date.now()+120_000;
+  await h.render();await h.finish(progress({source:{...progress().source,stale:true,refreshError:'Source limited',retryAt}}));
+  assert.match(h.container.textContent,/Procedure completed/);assert.match(h.container.textContent,/Update unavailable/);
+  assert.equal([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try later')?.disabled,true);
+  assert.equal(h.requests.length,1);
+});
+
+test('a valid empty OEIL observation clears saved completion even when Cellar has failed',async t=>{
+  const h=await harness(t);await h.render();await h.finish(progress({source:{...progress().source,stale:true}}));
+  await h.click('Check again');
+  await h.finish(progress({state:'unmapped',status:null,events:[],coverage:{limited:false,invalidRows:0,incompleteEvents:0,timeline:'available'},sources:[{url:'https://publications.europa.eu/webapi/rdf/sparql',stale:true,refreshError:'Cellar failed'},progress().source]}));
+  assert.doesNotMatch(h.container.textContent,/Procedure completed|End of procedure/);assert.match(h.container.textContent,/Unavailable/);
 });

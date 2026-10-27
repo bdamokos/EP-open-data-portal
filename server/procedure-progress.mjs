@@ -4,7 +4,7 @@ import {procedureReference,parseProcedureProgressPage} from './official-context.
 import {createHash} from 'node:crypto';
 import {eurLexUrl} from './legal-reference-text.mjs';
 
-export const PROCEDURE_PROGRESS_VERSION=3;
+export const PROCEDURE_PROGRESS_VERSION=4;
 export const PROGRESS_LIMITS=Object.freeze({events:300,eventRows:1201,documentRows:2401,freshMs:3600_000});
 const endpoint='https://publications.europa.eu/webapi/rdf/sparql';
 const cellar='http://publications.europa.eu/resource/cellar/';
@@ -143,7 +143,7 @@ export class ProcedureProgress {
   async query(query) {
     const url=new URL(endpoint);url.searchParams.set('query',progressSparql(query));url.searchParams.set('format','application/sparql-results+json');
     const parse=query.detail==='documents'?parseProgressDocuments:parseProgress;
-    const source=await this.sources.get(url.href,{freshMs:PROGRESS_LIMITS.freshMs,validate:record=>parse(record.data,query)});
+    const source=await this.sources.get(url.href,{freshMs:PROGRESS_LIMITS.freshMs,includeRetryAt:true,validate:record=>parse(record.data,query)});
     const parsed=parse(source.data,query),cellarSource=progressSource(source,'EU Publications Office');
     const result={view:'procedure-progress',version:PROCEDURE_PROGRESS_VERSION,reference:query.reference,language:query.language,detail:query.detail,...parsed,basis:'cellar',status:null,source:cellarSource,sources:[cellarSource]};
     // Never hide conflicting Cellar identities or replace its institutional
@@ -152,7 +152,7 @@ export class ProcedureProgress {
     const language=query.language==='fr'?'fr':'en',page='https://oeil.europarl.europa.eu/oeil/'+language+'/procedure-file?'+new URLSearchParams({reference:query.reference});
     try {
       const validate=record=>parseProcedureProgressPage(record.html,query.reference,language,{limit:PROGRESS_LIMITS.events});
-      const record=await this.sources.get(page,{freshMs:PROGRESS_LIMITS.freshMs,validate}),oeil=validate(record),oeilSource=progressSource(record,'European Parliament Legislative Observatory');
+      const record=await this.sources.get(page,{freshMs:PROGRESS_LIMITS.freshMs,cacheScope:'procedure-progress',includeRetryAt:true,validate}),oeil=validate(record),oeilSource=progressSource(record,'European Parliament Legislative Observatory');
       const events=oeil.events.map((event,sequence)=>({sequence,id:'oeil:'+createHash('sha256').update(JSON.stringify([query.reference,event.printedDate,event.label])).digest('hex'),date:event.date,dates:event.date?[event.date]:[],types:[],statuses:[],status:'recorded',institutions:[],works:[],label:event.label,labelLanguage:event.language,milestone:true,issues:event.issues}));
       const coverage={...oeil.coverage,limited:oeil.coverage.limited||parsed.coverage.limited,invalidRows:oeil.coverage.invalidRows+parsed.coverage.invalidRows,incompleteEvents:oeil.coverage.incompleteEvents+parsed.coverage.incompleteEvents};
       return {...result,state:oeil.status||events.length?'mapped':parsed.state,basis:'oeil',status:oeil.status,events,coverage,source:oeilSource,sources:[cellarSource,oeilSource],cellar:{state:parsed.state,dossier:parsed.dossier,coverage:parsed.coverage}};
@@ -165,5 +165,8 @@ export class ProcedureProgress {
   }
 }
 function progressSource(source,name) {
-  return {name,url:source.url,fetchedAt:source.fetchedAt,stale:Boolean(source.viewCache?.stale),refreshInProgress:Boolean(source.viewCache?.refreshInProgress),refreshError:source.viewCache?.refreshError||null};
+  const refreshInProgress=Boolean(source.viewCache?.refreshInProgress);
+  // Once a retry is admitted, follow its result rather than settling on the
+  // previous attempt's error. The saved observation keeps its retrieval date.
+  return {name,url:source.url,fetchedAt:source.fetchedAt,stale:Boolean(source.viewCache?.stale),refreshInProgress,refreshError:refreshInProgress?null:source.viewCache?.refreshError||null,retryAt:refreshInProgress?null:source.viewCache?.retryAt||null};
 }

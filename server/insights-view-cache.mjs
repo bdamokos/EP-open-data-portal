@@ -47,10 +47,10 @@ export class InsightViewCache {
   }
   refresh(key,load) {
     if(this.pending.has(key))return this.pending.get(key);
-    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message,retryAt:Number.isFinite(error.retryAt)?error.retryAt:null});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,promise);return promise;
   }
-  async get(value,load,{freshMs=this.freshMs,validate}={}) {
+  async get(value,load,{freshMs=this.freshMs,validate,includeRetryAt=false}={}) {
     const key=this.key(value);let old=await this.stored(key);
     requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
@@ -62,9 +62,10 @@ export class InsightViewCache {
     const failure=this.failures.get(key);
     if(old) {
       const stale=this.clock()-old.at>(old.value?.coverage?.catalogue&&calendarNeedsRefresh(old.value.coverage.catalogue)?Math.min(freshMs,60_000):freshMs);
-      if(stale&&(!failure||this.clock()-failure.at>60_000))void this.refresh(key,checkedLoad).catch(()=>{});
-      return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null}};
+      const retryAt=failure?Math.max(failure.at+60_000,failure.retryAt||0):null;
+      if(stale&&(!failure||this.clock()>retryAt))void this.refresh(key,checkedLoad).catch(()=>{});
+      return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null,...(includeRetryAt?{retryAt}: {})}};
     }
-    const record=await waitForRequest(this.refresh(key,checkedLoad));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null}};
+    const record=await waitForRequest(this.refresh(key,checkedLoad));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null,...(includeRetryAt?{retryAt:null}: {})}};
   }
 }
