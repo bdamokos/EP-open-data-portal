@@ -227,7 +227,7 @@ test('COM(2025)531 quotation ownership contradicts a skipped point c but permits
 test('ancestor recovery uses explicit instruction references only when the owning label is silent',()=>{
   const projection=reference=>source(['Article 1','The act is amended:','(1) '+reference,'‘Unique replacement text.’;','(2) Next instruction.'],['Titrearticle','','Point0','','Point0']);
   const target='Article 1 – paragraph 1 – point 1 – point c',original='Unique replacement text.';
-  assert.equal(resolve(projection('point (d) is replaced by the following:'),target,original).reason,'conflicting_target_evidence');
+  for(const instruction of ['point (d) is replaced by the following:','point\u00a0(d)  is replaced by the following:'])assert.equal(resolve(projection(instruction),target,original).reason,'conflicting_target_evidence');
   for(const instruction of ['point (c) is replaced by the following:','the following text is replaced by the following:']){
     const placed=resolve(projection(instruction),target,original);assert.equal(placed.status,'placed',instruction);assert.equal(placed.evidence.at(-1).basis,'ancestor-unique-wording');
   }

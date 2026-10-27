@@ -153,7 +153,7 @@ function contradictoryFallbackOwner(ancestor,omitted,match) {
   const contradicts=chain=>{
     const proposalOwners=chain.filter(unit=>unit.scope==='proposal');
     const instruction=[ancestor,...proposalOwners].findLast(unit=>unit.instruction)?.instruction;
-    const instructionLead=instruction?.raw.split(/:\s*[‘“„«"'”]/u,1)[0];
+    const instructionLead=instruction?.raw.split(/:\s*[‘“„«"'”]/u,1)[0].replace(/\s+/gu,' ');
     for(const kind of new Set(omitted.map(segment=>segment.kind))){
       const wanted=omitted.filter(segment=>segment.kind===kind);
       let observed=proposalOwners.filter(unit=>!unit.implicit&&unit.label?.kind===kind).map(unit=>unit.label);
