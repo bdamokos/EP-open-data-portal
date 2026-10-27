@@ -364,3 +364,14 @@ test('failed contributor refresh retains only failed-debate speech evidence with
   const kept=retainDossierContributors(before,failed);assert.deepEqual(kept.participants,[{...oldSpeaker,roles:[]}]);assert.equal(kept.participantCoverage.retained,true);
   for(const changed of [{generation:before.generation+1},{memberId:'124984'},{procedure:{...before.procedure,reference:'2026/2925(RSP)'}},{pagination:{...failed.pagination,targetOffset:2}}])assert.deepEqual(retainDossierContributors(before,{...failed,...changed}).participants,[]);
 });
+
+test('dossier participants and selected person use country only, with exact ID joins',async t=>{
+ const h=await harness(t),{PersonNamesProvider}=await h.load('/src/PersonName.tsx');
+ const members=[{id:257727,firstName:'Named',lastName:'member',countryCode:'HU',groupCode:'PPE'},
+ {id:99,firstName:'Other',lastName:'member',countryCode:'IT',groupCode:'Renew'}];
+ await h.render(createElement(PersonNamesProvider,{members},createElement(h.module.DossierActivity,{reference})));
+ const chip=h.container.querySelector('.dossier-person-chip .member-affiliation');assert.equal(chip.textContent,'HUHungary');assert.equal(chip.querySelector('i'),null);
+ const participants=h.container.querySelectorAll('.dossier-participants>ul>li');
+ assert.equal(participants[0].querySelector('.member-affiliation').textContent,'HUHungary');
+ assert.equal(participants[1].querySelector('.member-affiliation'),null,'a matching name cannot supply country');
+});

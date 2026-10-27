@@ -40,15 +40,46 @@ test('exact identities and classifications resolve labels without combining equa
   }
 });
 
-test('metadata work is capped at 16 unique bodies, two concurrent reads, affiliations before recent roles',async()=>{
+test('network work is capped at 16 unique bodies, two concurrent reads, affiliations before recent roles',async()=>{
   const seen=[];let running=0,maximum=0;
   const rows=[...Array.from({length:20},(_,i)=>row(String(i+1),'2020-01-01','2021-01-01',{membershipClassification:'def/ep-entities/WORKING_GROUP'})),row('5177'),row('5154')];
-  const value=await read(async endpoint=>{
+  const value=await read(async (endpoint,_params,options)=>{
+    if(options.cachedOnly)throw Error('Not retained');
     const id=endpoint.split('/').at(-1);seen.push(id);maximum=Math.max(maximum,++running);await new Promise(resolve=>setTimeout(resolve,1));running--;
     return response({...body(id),classification:rows.find(row=>row.organization==='org/'+id).membershipClassification});
   })(history(rows));
   assert.equal(seen.length,16);assert.equal(maximum,2);assert.deepEqual(new Set(seen.slice(0,2)),new Set(['5177','5154']));
   assert.equal(value.items.length,22);assert.equal(value.labelsComplete,false);assert(value.items.some(item=>!item.body));
+});
+
+test('retained names beyond the network budget keep exact validation, freshness and provenance',async()=>{
+  const delegation='def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY';
+  const rows=[...Array.from({length:16},(_,i)=>row(String(i+1),'2024-07-16',null,{membershipClassification:'def/ep-entities/WORKING_GROUP'})),
+    ...['5144','5145','5142','5150','5151'].map(id=>row(id,'2019-07-02','2024-07-15',{membershipClassification:delegation}))];
+  const requests=[];
+  const value=await read(async(endpoint,_params,options)=>{
+    const id=endpoint.split('/').at(-1);requests.push({id,...options});
+    if(!options.cachedOnly)throw Error('Unavailable');
+    if(id==='5151')throw Error('Not retained');
+    const record=response({...body(id),classification:delegation,prefLabel:{en:'Delegation '+id}});
+    if(id==='5145')record.payload.data[0].id='org/999';
+    if(id==='5142')record.payload.data[0].classification=classification;
+    return {...record,stale:id==='5150',retrievedFrom:'https://data.europarl.europa.eu/api/v2/corporate-bodies/5144,5145,5142,5150'};
+  })(history(rows));
+  assert.equal(requests.filter(row=>!row.cachedOnly).length,16);
+  assert(requests.slice(16).every(row=>row.cachedOnly&&row.force===false));
+  const resolved=id=>value.items.find(row=>row.bodyId==='org/'+id).body;
+  assert.equal(resolved('5144').prefLabel.en,'Delegation 5144');
+  assert.equal(resolved('5144').source.retrievedFrom,'https://data.europarl.europa.eu/api/v2/corporate-bodies/5144,5145,5142,5150');
+  assert.equal(resolved('5145'),null);assert.equal(resolved('5142'),null);assert.equal(resolved('5151'),null);
+  assert.equal(resolved('5150').source.stale,true);assert.equal(value.labelsComplete,false);
+  assert.equal(policy(value),'no-store');
+});
+
+test('retained metadata scans stop at 100 unique bodies',async()=>{
+  let calls=0,network=0;
+  const value=await read(async(_endpoint,_params,options)=>{calls++;if(!options.cachedOnly)network++;throw Error('Not retained');})(history(Array.from({length:110},(_,i)=>row(String(i+1)))));
+  assert.equal(calls,100);assert.equal(network,16);assert.equal(value.items.length,110);assert.equal(value.labelsComplete,false);
 });
 
 test('one optional deadline preserves successful labels and current committee rows; parent cancellation propagates',async()=>{
@@ -97,7 +128,7 @@ test('lookup priority includes recent open offices before older bounded bodies w
   const old=Array.from({length:20},(_,i)=>row(String(i+1),'2010-01-01','2014-01-01',{membershipClassification:'def/ep-entities/WORKING_GROUP'}));
   const offices=['6630','6634','ep-10','6631'].map(id=>row(id,'2024-07-16',null,{membershipClassification:id==='ep-10'?'def/ep-entities/EU_INSTITUTION':'def/ep-entities/GOVERNING_BODY',role:'def/ep-roles/PRESIDENT'}));
   const input=history([...old,...offices,row('5177')]);const seen=[];
-  await read(async endpoint=>{seen.push(endpoint.split('/').at(-1));throw Error('Unavailable');})(input);
+  await read(async (endpoint,_params,options)=>{if(!options.cachedOnly)seen.push(endpoint.split('/').at(-1));throw Error('Unavailable');})(input);
   assert.deepEqual(seen.slice(0,5),['5177','6630','6634','ep-10','6631']);assert.equal(seen.length,16);
   assert.deepEqual(input.items.slice(-4).map(item=>item.bodyId),offices.map(row=>row.organization));
 });

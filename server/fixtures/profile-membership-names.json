@@ -1,0 +1,516 @@
+{
+  "source": "https://data.europarl.europa.eu/api/v2/meps/197679?format=application%2Fld%2Bjson",
+  "bodySource": "https://data.europarl.europa.eu/api/v2/corporate-bodies/5106,5123,5144,5145,5153,5211,6290,6291,6293,6299,6307,6308,6311,6314,6566,6629,6666,7018,7885,7886,7889,7893,7897,7901,7905?format=application%2Fld%2Bjson",
+  "retrievedAt": "2026-10-27",
+  "projection": "Membership identity, role, classification and dates; body identity, classification and English labels. Other public fields and languages omitted.",
+  "person": {
+    "identifier": "197679",
+    "givenName": "Isabel",
+    "familyName": "Benjumea Benjumea",
+    "hasMembership": [
+      {
+        "id": "membership/197679-f-164250",
+        "memberDuring": {
+          "id": "time-period/20200121-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-01-21"
+        },
+        "organization": "org/6314",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-180339",
+        "memberDuring": {
+          "id": "time-period/20250331",
+          "type": "PeriodOfTime",
+          "startDate": "2025-03-31"
+        },
+        "organization": "org/7885",
+        "role": "def/ep-roles/CHAIR_VICE",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-179057",
+        "memberDuring": {
+          "id": "time-period/20250131",
+          "type": "PeriodOfTime",
+          "startDate": "2025-01-31"
+        },
+        "organization": "org/7905",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-180223",
+        "memberDuring": {
+          "id": "time-period/20250312",
+          "type": "PeriodOfTime",
+          "startDate": "2025-03-12"
+        },
+        "organization": "org/7893",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-159946",
+        "memberDuring": {
+          "id": "time-period/20190702-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2019-07-02"
+        },
+        "organization": "org/5145",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY"
+      },
+      {
+        "id": "membership/197679-f-164019",
+        "memberDuring": {
+          "id": "time-period/20200130-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-01-30"
+        },
+        "organization": "org/6311",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-162695",
+        "memberDuring": {
+          "id": "time-period/20200217-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-02-17"
+        },
+        "organization": "org/6291",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-163902",
+        "memberDuring": {
+          "id": "time-period/20200907-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-09-07"
+        },
+        "organization": "org/6307",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-154556",
+        "memberDuring": {
+          "id": "time-period/20190702-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2019-07-02"
+        },
+        "organization": "org/5211",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/NATIONAL_POLITICAL_GROUP"
+      },
+      {
+        "id": "membership/197679-f-179838",
+        "memberDuring": {
+          "id": "time-period/20250204-20250330",
+          "type": "PeriodOfTime",
+          "endDate": "2025-03-30",
+          "startDate": "2025-02-04"
+        },
+        "organization": "org/7885",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-158649",
+        "memberDuring": {
+          "id": "time-period/20190702-20210428",
+          "type": "PeriodOfTime",
+          "endDate": "2021-04-28",
+          "startDate": "2019-07-02"
+        },
+        "organization": "org/5106",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY"
+      },
+      {
+        "id": "membership/197679-f-163247",
+        "memberDuring": {
+          "id": "time-period/20200306-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-03-06"
+        },
+        "organization": "org/6299",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-162544",
+        "memberDuring": {
+          "id": "time-period/20200206-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-02-06"
+        },
+        "organization": "org/6290",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-178431",
+        "memberDuring": {
+          "id": "time-period/20250123",
+          "type": "PeriodOfTime",
+          "startDate": "2025-01-23"
+        },
+        "organization": "org/7901",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-179618",
+        "memberDuring": {
+          "id": "time-period/20250219",
+          "type": "PeriodOfTime",
+          "startDate": "2025-02-19"
+        },
+        "organization": "org/7886",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-178871",
+        "memberDuring": {
+          "id": "time-period/20250131",
+          "type": "PeriodOfTime",
+          "startDate": "2025-01-31"
+        },
+        "organization": "org/7897",
+        "role": "def/ep-roles/CHAIR_CO",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-160792",
+        "memberDuring": {
+          "id": "time-period/20200106-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-01-06"
+        },
+        "organization": "org/5144",
+        "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+        "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY"
+      },
+      {
+        "id": "membership/197679-f-155680",
+        "memberDuring": {
+          "id": "time-period/20190702-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2019-07-02"
+        },
+        "organization": "org/5153",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP"
+      },
+      {
+        "id": "membership/197679-f-178579",
+        "memberDuring": {
+          "id": "time-period/20250129",
+          "type": "PeriodOfTime",
+          "startDate": "2025-01-29"
+        },
+        "organization": "org/7889",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-171897",
+        "memberDuring": {
+          "id": "time-period/20240716",
+          "type": "PeriodOfTime",
+          "startDate": "2024-07-16"
+        },
+        "organization": "org/6666",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/NATIONAL_POLITICAL_GROUP"
+      },
+      {
+        "id": "membership/197679-f-159232",
+        "memberDuring": {
+          "id": "time-period/20190702-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2019-07-02"
+        },
+        "organization": "org/5123",
+        "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+        "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY"
+      },
+      {
+        "id": "membership/197679-f-162819",
+        "memberDuring": {
+          "id": "time-period/20191215-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2019-12-15"
+        },
+        "organization": "org/6293",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-172485",
+        "memberDuring": {
+          "id": "time-period/20240716",
+          "type": "PeriodOfTime",
+          "startDate": "2024-07-16"
+        },
+        "organization": "org/7018",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/EU_POLITICAL_GROUP"
+      },
+      {
+        "id": "membership/197679-f-164342",
+        "memberDuring": {
+          "id": "time-period/20200122-20240715",
+          "type": "PeriodOfTime",
+          "endDate": "2024-07-15",
+          "startDate": "2020-01-22"
+        },
+        "organization": "org/6308",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/WORKING_GROUP"
+      },
+      {
+        "id": "membership/197679-f-180393",
+        "memberDuring": {
+          "id": "time-period/20250519",
+          "type": "PeriodOfTime",
+          "startDate": "2025-05-19"
+        },
+        "organization": "org/6566",
+        "role": "def/ep-roles/MEMBER_SUBSTITUTE",
+        "membershipClassification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY"
+      },
+      {
+        "id": "membership/197679-f-176452",
+        "memberDuring": {
+          "id": "time-period/20240919",
+          "type": "PeriodOfTime",
+          "startDate": "2024-09-19"
+        },
+        "organization": "org/6629",
+        "role": "def/ep-roles/MEMBER",
+        "membershipClassification": "def/ep-entities/DELEGATION_JOINT_COMMITTEE"
+      }
+    ]
+  },
+  "bodies": [
+    {
+      "id": "org/5106",
+      "identifier": "5106",
+      "classification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+      "prefLabel": {
+        "en": "Delegation to the EU-Ukraine Parliamentary Association Committee"
+      }
+    },
+    {
+      "id": "org/5123",
+      "identifier": "5123",
+      "classification": "def/ep-entities/DELEGATION_PARLIAMENTARY",
+      "prefLabel": {
+        "en": "Delegation for relations with Japan"
+      }
+    },
+    {
+      "id": "org/5144",
+      "identifier": "5144",
+      "classification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY",
+      "prefLabel": {
+        "en": "Delegation to the Euro-Latin American Parliamentary Assembly"
+      }
+    },
+    {
+      "id": "org/5145",
+      "identifier": "5145",
+      "classification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY",
+      "prefLabel": {
+        "en": "Delegation to the Euronest Parliamentary Assembly"
+      }
+    },
+    {
+      "id": "org/5153",
+      "identifier": "5153",
+      "classification": "def/ep-entities/EU_POLITICAL_GROUP",
+      "prefLabel": {
+        "en": "Group of the European People's Party (Christian Democrats)"
+      }
+    },
+    {
+      "id": "org/5211",
+      "identifier": "5211",
+      "classification": "def/ep-entities/NATIONAL_POLITICAL_GROUP",
+      "prefLabel": {
+        "en": "Partido Popular"
+      }
+    },
+    {
+      "id": "org/6290",
+      "identifier": "6290",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Artificial Intelligence and Digital"
+      }
+    },
+    {
+      "id": "org/6291",
+      "identifier": "6291",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Biodiversity, Hunting and Countryside"
+      }
+    },
+    {
+      "id": "org/6293",
+      "identifier": "6293",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Children’s Rights"
+      }
+    },
+    {
+      "id": "org/6299",
+      "identifier": "6299",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on European Cultural Heritage, Ways of Saint James and other European Cultural Routes"
+      }
+    },
+    {
+      "id": "org/6307",
+      "identifier": "6307",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Small and Medium-Sized Enterprises (SMEs)"
+      }
+    },
+    {
+      "id": "org/6308",
+      "identifier": "6308",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on the Social Economy"
+      }
+    },
+    {
+      "id": "org/6311",
+      "identifier": "6311",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Urban Matters"
+      }
+    },
+    {
+      "id": "org/6314",
+      "identifier": "6314",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Wine, Spirits and Foodstuffs"
+      }
+    },
+    {
+      "id": "org/6566",
+      "identifier": "6566",
+      "classification": "def/ep-entities/DELEGATION_PARLIAMENTARY_ASSEMBLY",
+      "prefLabel": {
+        "en": "Delegation to the Euro-Latin American Parliamentary Assembly"
+      }
+    },
+    {
+      "id": "org/6666",
+      "identifier": "6666",
+      "classification": "def/ep-entities/NATIONAL_POLITICAL_GROUP",
+      "prefLabel": {
+        "en": "Partido Popular"
+      }
+    },
+    {
+      "id": "org/7018",
+      "identifier": "7018",
+      "classification": "def/ep-entities/EU_POLITICAL_GROUP",
+      "prefLabel": {
+        "en": "Group of the European People's Party (Christian Democrats)"
+      }
+    },
+    {
+      "id": "org/7885",
+      "identifier": "7885",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Biodiversity, Hunting and Countryside"
+      }
+    },
+    {
+      "id": "org/7886",
+      "identifier": "7886",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Children’s Rights"
+      }
+    },
+    {
+      "id": "org/7889",
+      "identifier": "7889",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on European Cultural Heritage, Ways of Saint James and other European Cultural Routes"
+      }
+    },
+    {
+      "id": "org/7893",
+      "identifier": "7893",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Small and Medium-Sized Enterprises (SMEs)"
+      }
+    },
+    {
+      "id": "org/7897",
+      "identifier": "7897",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Attracting Investment to Ensure a Competitive and Sustainable European Union"
+      }
+    },
+    {
+      "id": "org/7901",
+      "identifier": "7901",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Wine, Quality Foodstuffs and Spirits"
+      }
+    },
+    {
+      "id": "org/7905",
+      "identifier": "7905",
+      "classification": "def/ep-entities/WORKING_GROUP",
+      "prefLabel": {
+        "en": "Intergroup on Sustainable Livestock"
+      }
+    },
+    {
+      "id": "org/6629",
+      "identifier": "6629",
+      "classification": "def/ep-entities/DELEGATION_JOINT_COMMITTEE",
+      "prefLabel": {
+        "en": "Delegation to the EU-UK Parliamentary Partnership Assembly"
+      }
+    }
+  ]
+}

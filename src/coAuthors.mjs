@@ -30,7 +30,7 @@ export function coAuthorSegments(text, authors = []) {
   if (cursor < original.length) parts.push({ text:original.slice(cursor),id:null });
   return parts.length ? parts : [{ text:original,id:null }];
 }
-export function coAuthorProfileUrl(path, language, id) {
+export function coAuthorProfileUrl(language, id) {
   if (!Number.isSafeInteger(id) || id<=0) throw new Error('Invalid MEP identifier.');
-  return `${path}?${new URLSearchParams({lang:language,member:String(id),module:'profile'})}`;
+  return `?${new URLSearchParams({lang:language,member:String(id),module:'profile'})}`;
 }

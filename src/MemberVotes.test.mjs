@@ -1039,6 +1039,14 @@ for(const empty of [{titles:{},title:null,titleLanguage:null},{titles:{en:'  '},
  const title=h.container.querySelector('.member-votes-detail-subject');assert.equal(title.textContent,'Exact English report title');assert.equal(title.lang,'en');
 });
 
+test('wording proposers get exact-ID country without current political group',async t=>{
+ const h=await mountWording(t,{members:[{id:42,firstName:'Exact',lastName:'Proposer',countryCode:'HU',groupCode:'PPE'}],variants:[wordingVariant({authors:[{personId:'42',name:'Exact proposer'},{personId:'99',name:'Exact proposer'}]})]});
+ const rows=h.container.querySelectorAll('.member-votes-wording .member-votes-muted>span');
+ assert.equal(rows[0].querySelector('.member-affiliation').textContent,'HUHungary');
+ assert.equal(rows[0].querySelector('.member-affiliation i'),null);
+ assert.equal(rows[1].querySelector('.member-affiliation'),null);
+});
+
 test('Votes wording preserves vertical spans and shows a formatting-only edit in both modes',async t=>{
   const variant=wordingVariant({originalText:'CO2 note4',proposedText:'CO2 note4',originalFormatting:[{start:2,end:3,kind:'subscript'}],proposedFormatting:[{start:2,end:3,kind:'subscript'},{start:8,end:9,kind:'superscript'}]});
   const h=await mountWording(t,{variants:[variant]});
