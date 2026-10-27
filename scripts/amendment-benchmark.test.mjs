@@ -265,7 +265,7 @@ test('all observed live projection versions must match checkout constants for ba
 
 
 test('placement-only mode compares rows across wrapper versions, fails false placements, and refuses producer/projection changes',()=>{
-  const wrap=rows=>({sample:{},snapshotId:'frozen',inputs:[{url:'unused',sha256:'hash'}],code:{producerFingerprint:{schemaVersion:1,sha256:'same',files:{producer:'same'}}},compatibility:{compatible:false,mismatches:[{kind:'document-context',observed:5,expected:6}]},rows,metrics:metrics(rows)});
+  const wrap=rows=>({sample:{},snapshotId:'frozen',inputs:[{url:'unused',sha256:'hash'}],code:{producerFingerprint:{schemaVersion:2,sha256:'same',files:{producer:'same'}}},compatibility:{compatible:false,mismatches:[{kind:'document-context',observed:5,expected:6}]},rows,metrics:metrics(rows)});
   const baseline=wrap([row('am-1')]),candidate=wrap([row('am-1','false-placement')]);
   candidate.compatibility.mismatches[0].expected=7;
   assert.equal(compareBaseline(candidate,baseline).refused,true);
@@ -287,7 +287,7 @@ test('producer fingerprints include transitive extraction helpers and locked dep
   const files={'server/amendment-documents.mjs':"import './docx-numbering.mjs';",'server/docx-numbering.mjs':'numbering-v1','package-lock.json':'lock-v1'};
   const read=async file=>Buffer.from(files[file]||'');
   const before=await producerFingerprint(read);
-  assert(!Object.hasOwn(before.files,'server/document-context.mjs'));assert(!Object.hasOwn(before.files,'server/proposal-placement.mjs'));
+  assert(Object.hasOwn(before.files,'server/document-context.mjs'));assert(!Object.hasOwn(before.files,'server/proposal-placement.mjs'));
   files['server/docx-numbering.mjs']='changed-without-version-bump';
   assert.notEqual((await producerFingerprint(read)).sha256,before.sha256);
   files['server/docx-numbering.mjs']='numbering-v1';files['package-lock.json']='lock-v2';
@@ -358,4 +358,29 @@ test('raw extent oracle includes continuation rows, stops at section headings an
   const span={status:'placed',operation:'replace',span:{start:1,end:2}};
   const text=source(['The European Parliament,','1. Opening paragraph;','SECTION II','2. Another section.']);
   assert.equal(verifyPlacement({placement:span,wording:replace,text}).reason,'oracle-address-span-mismatch');
+});
+
+test('producer guard refuses empty-projection wrapper probe and source-selection changes, allowing version/consumer-only changes',async()=>{
+  const root=fileURLToPath(new URL('../',import.meta.url));
+  const read=file=>readFile(path.join(root,file));
+  const before=await producerFingerprint(read);
+  for(const file of ['server/document-context.mjs','server/proposal-baseline.mjs','server/commission-proposal-identity.mjs','server/cellar-documents.mjs'])assert(Object.hasOwn(before.files,file),file);
+  assert(!Object.hasOwn(before.files,'server/proposal-matching.mjs'));
+  const edited=transform=>producerFingerprint(async file=>transform(file,(await read(file)).toString()));
+  const version=await edited((file,text)=>file==='server/document-context.mjs'?text.replace(/DOCUMENT_CONTEXT_VERSION=\d+/,'DOCUMENT_CONTEXT_VERSION=7'):text);
+  assert.deepEqual(version,before,'only the wrapper version literal is waived');
+  const empty=await edited((file,text)=>{
+    if(file!=='server/document-context.mjs')return text;
+    const changed=text.replace('baseline,proposal,documentId:query.id','baseline,proposal:{items:[]},documentId:query.id').replace(/DOCUMENT_CONTEXT_VERSION=\d+/,'DOCUMENT_CONTEXT_VERSION=7');
+    assert.notEqual(changed,text);assert(changed.includes('proposal:{items:[]}'));return changed;
+  });
+  const wrap=fingerprint=>({sample:{},snapshotId:'same-inputs',inputs:[],code:{producerFingerprint:fingerprint},compatibility:{compatible:false,mismatches:[{kind:'document-context',observed:5,expected:7}]},rows:[row('unchanged')],metrics:metrics([row('unchanged')])});
+  const refused=compareBaseline(wrap(empty),wrap(before),{placementOnly:true});
+  assert.equal(refused.refused,true);assert.equal(refused.failed,true);assert.match(refused.reason,/producers changed/);
+  for(const changedFile of ['server/proposal-baseline.mjs','server/commission-proposal-identity.mjs','server/cellar-documents.mjs']) {
+    const selected=await edited((file,text)=>file===changedFile?text+'\n// changed producer\n':text);
+    assert.equal(compareBaseline(wrap(selected),wrap(before),{placementOnly:true}).refused,true,changedFile);
+  }
+  for(const consumer of ['server/proposal-matching.mjs','server/document-context-model.mjs','server/document-context-placement.mjs'])
+    assert.deepEqual(await edited((file,text)=>file===consumer?text+'\n// changed consumer\n':text),before,consumer);
 });

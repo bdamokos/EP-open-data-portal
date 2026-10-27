@@ -243,7 +243,7 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});
   if(placementOnly) {
     const before=baseline.code?.producerFingerprint,after=current.code?.producerFingerprint;
-    if(!before?.sha256||!after?.sha256||before.schemaVersion!==1||after.schemaVersion!==1||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison is unavailable pending #278.');
+    if(!before?.sha256||!after?.sha256||before.schemaVersion!==2||after.schemaVersion!==2||JSON.stringify(before)!==JSON.stringify(after))return refuse('Source-extraction/projection producers changed or their fingerprints are missing; placement-only comparison is unavailable pending #278.');
     for(const report of [baseline,current]) {
       const compatibility=report.compatibility;
       if(typeof compatibility?.compatible!=='boolean'||!Array.isArray(compatibility.mismatches)||!compatibility.compatible&&!compatibility.mismatches.length||compatibility.mismatches.some(m=>m.kind!=='document-context'||!Number.isInteger(m.observed)||m.observed<1||!Number.isInteger(m.expected)||m.expected<1))return refuse('Placement-only mode waives only a recorded document-context wrapper-version mismatch.');
