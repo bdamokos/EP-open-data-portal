@@ -26,21 +26,32 @@ export function rawProposalReferences(buffer,runtime) {
   return [...text(tree).matchAll(/<(DocRef|DocAmend\d?)>([\s\S]*?)<\/\1>/g)].map(([,field,raw])=>({field,raw}));
 }
 
-// Acquisition reads source headings and dates directly, before any amendment
-// extraction or placement. All observed date/act pairs compete equally.
+// Acquisition reads source headings, block boundaries and dates directly,
+// before amendment extraction or placement. A version citation belongs only
+// to its own block; a prospective citation must not trigger a current-law read.
 export function rawExistingLawReferences(buffer,runtime) {
   let xml;try{xml=runtime.docxParts(buffer).get('word/document.xml');}catch{return [];}
   const rows=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);
   const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.filter(v=>'#text' in v).map(v=>String(v['#text'])):Array.isArray(value)?text(value):[])).join('');
   const paragraphs=[];
   const walk=nodes=>{for(const node of nodes)for(const [key,value] of Object.entries(node))if(key==='w:p')paragraphs.push(text(value));else if(Array.isArray(value))walk(value);};walk(rows);
-  const raw=paragraphs.join('\n'),dates=[...new Set([...raw.matchAll(/<Date>[^<]*?(\d{1,2})[./](\d{1,2})[./](\d{4})/g)].map(m=>`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`))];
-  const pairs=[];
-  for(let i=0;i<paragraphs.length-1;i++){
-    const document=paragraphs[i].replace(/<[^>]+>/g,'').trim(),target=paragraphs[i+1].replace(/<[^>]+>/g,'').trim();
-    if(runtime.actCelex?.(document)&&target)pairs.push({document,raw:target});
+  const dates=raw=>[...new Set([...raw.matchAll(/<Date>[^<]*?(\d{1,2})[./](\d{1,2})[./](\d{4})/g)].map(m=>`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`))];
+  const cover=[],groups=[];let group=null;
+  for(const p of paragraphs){if(p.includes('<Amend>')||/^(?:Amendment|Poprawka)\s*\d/u.test(p.trim())){group=[];groups.push(group);}if(group)group.push(p);else cover.push(p);}
+  const result=[];
+  for(const group of groups){
+    // Read the comparison heading directly from the public columns. Inner-law
+    // references also occur in Commission-proposal comparisons; those are not
+    // existing-law acquisition requests.
+    if(!group.some(p=>['Present text','Tekst obowiązujący'].includes(p.trim())))continue;
+    const raw=group.join('\n'),ownDates=dates(raw),observedDates=ownDates.length?ownDates:dates(cover.join('\n'));
+    const citations=[...new Set([...raw.matchAll(/0(?:19|20)\d{2}[RLD]\d{4}-\d{8}\b/g)].map(m=>m[0]))];
+    for(let i=0;i<group.length-1;i++){
+      const document=group[i].replace(/<[^>]+>/g,'').trim(),target=group[i+1].replace(/<[^>]+>/g,'').trim(),celex=runtime.actCelex?.(document);
+      if(celex&&target)for(const documentDate of observedDates)result.push({documentDate,targetPath:{underlying:[{document,raw:target}]},documentReferences:citations.filter(id=>'3'+id.slice(1,10)===celex).map(raw=>({field:'Consolidation',raw}))});
+    }
   }
-  return pairs.flatMap(inner=>dates.map(documentDate=>({documentDate,targetPath:{underlying:[inner]}})));
+  return result;
 }
 
 export function sourceReplay(cache,runtime) {

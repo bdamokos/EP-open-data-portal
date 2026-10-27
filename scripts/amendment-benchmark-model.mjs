@@ -97,7 +97,8 @@ const occurrences=(haystack,needle)=>{
 function locationOracle({proposal,text,target,wording,placement,labels}) {
   const span=placement.span;
   const source=proposal?proposal.paragraphs.map(p=>p.text).join('\n'):text.paragraphs.join('\n');
-  const count=occurrences(oracleNormal(source,labels),oracleNormal(wording.originalText,labels));
+  const key=wording.baseline==='present-text'?existingLawOracleNormal:oracleNormal;
+  const count=occurrences(key(source,labels),key(wording.originalText,labels));
   // An introductory part is the provision's own lead before its first child;
   // without children the lead cannot be established independently.
   const introductory=target.complete&&target.segments.at(-1)?.kind==='introductory-part';
