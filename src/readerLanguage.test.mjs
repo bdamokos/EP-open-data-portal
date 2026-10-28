@@ -136,7 +136,7 @@ test('reader controls stay English while EN/HU/FR source passages and language c
         assert.equal(effectiveLanguage(h.container.querySelector('h3')),'','speaker names have no guessed language');
         assert.deepEqual([...h.container.querySelectorAll('.insight-secondary span')].map(effectiveLanguage),['',language]);
         assert.equal(effectiveLanguage(h.container.querySelector('.insight-machine-label')),'en');
-        assert.equal(effectiveLanguage(h.container.querySelector('.insight-source-document')),'en');
+        assert.equal(h.container.querySelector('.insight-source-document'),null);
       }
       const next=language==='fr'?'hu':'fr';
       await h.change(h.container.querySelector('.insight-reader-heading select'),next);assert.equal(effectiveLanguage(body()),next);
