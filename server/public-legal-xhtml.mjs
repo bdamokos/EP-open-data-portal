@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {proposalNumber,proposalLanguage} from './proposal-labels.mjs';
 
-export const PUBLIC_LEGAL_XHTML_VERSION='3';
+export const PUBLIC_LEGAL_XHTML_VERSION='4';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const uniqueLinks=links=>[...new Set(links.map(link=>link.url))];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
@@ -128,7 +128,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     if(node.name==='#text'||noteNodes.has(node))return;
     if(has(node,'modref')||has(node,'arrow'))return;
     const id=node.attrs.id||'';
-    if(has(node,'oj-final')||node.name==='div'&&has(node,'oj-signatory')) {
+    if(has(node,'oj-final')||/^fnp_\d+$/u.test(id)||node.name==='div'&&has(node,'oj-signatory')) {
       const signature=has(node,'oj-signatory'),owner=unit(parent,signature?'signature':'body',null,{normative:!signature});
       for(const child of node.children)walk(child,owner);return;
     }

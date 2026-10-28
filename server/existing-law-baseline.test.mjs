@@ -47,6 +47,11 @@ test('consolidation markup retains numbered paragraphs, grid points and subseque
   const msr=projection(fixtures[1]),para=proposalCandidates(msr,parseTargetLabel('Article 1 – paragraph 5 a','en'))[0];assert.match(msr.paragraphs[para.extent.start].text,/^5a\./);
   const ets=projection(fixtures[3]),paragraph=proposalCandidates(ets,parseTargetLabel('Article 10a – paragraph 1','en'))[0];assert(paragraph.children.filter(u=>u.kind==='subparagraph').length>=5);
 });
+test('the consolidated CBAM binding clause stays outside the final article',()=>{
+  const p=projection(cbam),closing=p.units.find(unit=>unit.kind==='body');assert(closing);assert.equal(closing.normative,true);
+  assert.deepEqual(p.paragraphs.slice(closing.extent.start,closing.extent.end).map(p=>p.text),['This Regulation shall be binding in its entirety and directly applicable in all Member States.']);
+  const article=proposalCandidates(p,parseTargetLabel('Article 30','en'))[0];assert(article.extent.end<=closing.extent.start);assert(closing.complete);
+});
 test('existing-law placements require exact wording, preserve the published wrapper and reject wrong versions',()=>{
   const p=projection(cbam),target='Article 5 – paragraph 1',unit=proposalCandidates(p,parseTargetLabel(target,'en'))[0],originalText=p.paragraphs[unit.extent.start].text;
   const proposedText='(3b) in Article 5, paragraph 1 is replaced by the following:\n"1. Replacement wording." ;';
