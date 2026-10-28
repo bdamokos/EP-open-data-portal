@@ -5,10 +5,10 @@ import {Window} from 'happy-dom';
 import {contrast,paintedBackground,schemes,themeCss,tokenValue} from './test-support/themeStyles.mjs';
 
 const styles = await Promise.all([
-  'References.css', 'ParliamentHeader.css', 'explorer.css', 'Insights.css',
+  'References.css', 'Controls.css', 'ParliamentHeader.css', 'explorer.css', 'Insights.css',
   'SpeechCloud.css', 'ExplorerLayout.css', 'base.css', 'focus.css',
   'TextSearch.css', 'Amendments.css', 'MemberVotes.css', 'MotionComparison.css',
-  'GroupVoices.css', 'DocumentContextReader.css',
+  'GroupVoices.css', 'OutsideVoices.css', 'DocumentContextReader.css',
 ].map(file => readFile(new URL(file, import.meta.url), 'utf8')));
 
 async function page(t, markup, scheme, focusVisible = true) {
@@ -52,6 +52,34 @@ for (const scheme of schemes) {
       assert.notEqual(style.fontWeight, window.getComputedStyle(other).fontWeight, 'the current page is not marked by colour alone');
     });
   }
+
+  test(`section navigation retains its non-colour selection and focus after view styles load (${scheme})`, async t => {
+    for (const group of ['explorer-tabs', 'insight-mode-nav', 'insight-question-dimensions', 'gv-tabs', 'ov-tabs']) {
+      const window = await page(t, `<main class="explorer-insights"><section class="gv ov">
+        <nav class="${group}"><button aria-pressed="true">Current section</button><button>Other section</button></nav>
+      </section></main>`, scheme);
+      const [current, other] = window.document.querySelectorAll('button');
+      focusContrast(window, current, scheme);
+      const style = window.getComputedStyle(current);
+      assert(contrast(style.color, paintedBackground(window, current, scheme)) >= 4.5, group);
+      assert.notEqual(style.fontWeight, window.getComputedStyle(other).fontWeight, group);
+      assert(style.boxShadow.includes('inset'), `${group}: the selected section keeps its underline`);
+    }
+  });
+
+  test(`presentation switches retain readable selections, keyboard focus and touch targets (${scheme})`, async t => {
+    for (const group of ['insight-chart-switch', 'member-votes-filter']) {
+      const window = await page(t, `<main class="explorer-insights"><section class="member-votes">
+        <div class="${group}" role="group" aria-label="Presentation"><button aria-pressed="true">Current view</button><button>Other view</button></div>
+      </section></main>`, scheme);
+      for (const button of window.document.querySelectorAll('button')) {
+        focusContrast(window, button, scheme);
+        const style = window.getComputedStyle(button);
+        assert(contrast(style.color, paintedBackground(window, button, scheme)) >= 4.5, group);
+        assert(parseFloat(style.minHeight) >= 44, group);
+      }
+    }
+  });
 
   for (const panel of ['explorer-profile-body', 'explorer-saved-view']) {
     test(`all reader control types have contrasting focus on ${panel} (${scheme})`, async t => {

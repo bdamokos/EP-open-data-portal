@@ -1,8 +1,5 @@
-.explorer-motion-status{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;margin:6px 0;padding:3px 9px;border:1px solid var(--line-strong);border-radius:20px;color:var(--ink-muted);background:var(--surface-2);font-size:14px;font-weight:600;line-height:1.3;white-space:normal}
 .explorer-motion-status>span{font-size:18px;line-height:1}
 .explorer-motion-statuses{display:flex;flex-wrap:wrap;gap:0 8px}
-.explorer-motion-status[data-outcome=adopted]{color:var(--positive);border-color:var(--positive);background:var(--positive-soft)}
-.explorer-motion-status[data-outcome=rejected]{color:var(--danger);border-color:var(--danger);background:var(--danger-soft)}
 .explorer-motion-outcome{padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:16px;font-size:16px}
 .explorer-motion-outcome h3{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:18px;margin:0 0 4px}
 .explorer-motion-reference{font-size:14px;font-weight:400;color:var(--ink-muted);overflow-wrap:anywhere}
