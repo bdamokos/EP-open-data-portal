@@ -66,7 +66,8 @@ export function auditIndex(db,now) {
         refreshGaps:gaps,gapRecords,savedSourceGaps:sourceGaps,
         adoptedTexts:has(db,'sources')?db.prepare(`SELECT COUNT(*) AS retained,
           COALESCE(SUM(json_type(body,'$.adopts') IS NOT NULL AND json_type(body,'$.adopts')<>'null'),0) AS withAdoptionObservation,
-          COALESCE(SUM(json_type(body,'$.adopts') IS NULL OR json_type(body,'$.adopts')='null'),0) AS withoutAdoptionObservation
+          COALESCE(SUM(json_type(body,'$.adopts') IS NULL OR json_type(body,'$.adopts')='null'),0) AS withoutAdoptionObservation,
+          COALESCE(SUM(COALESCE(json_extract(body,'$.adoptionProjectionVersion'),0)<>1),0) AS legacyProjection
           FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*'`).get(generation):null,
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
         mutableDocuments:has(db,'mutable_documents')?db.prepare('SELECT COUNT(*) AS count,SUM(next_check<=?) AS due FROM mutable_documents WHERE generation=?').get(now,generation):null};

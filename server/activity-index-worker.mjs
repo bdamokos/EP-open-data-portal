@@ -27,7 +27,7 @@ import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -92,7 +92,7 @@ export class ActivityWorker {
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
     this.recoveryMode=recoveryMode;
   }
-  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
+  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
@@ -260,7 +260,7 @@ export class ActivityWorker {
         if(body.endpoint!='/committee-documents' && !/^[A-Z]+-10-/.test(id))continue;
         const endpoint=body.endpoint+'/'+id, old=this.store.source(generation,endpoint);
         this.store.markSeen(generation,endpoint);
-        if(!old)this.store.enqueue(generation,endpoint,'document',{endpoint},101);
+        if(!old||body.endpoint==='/adopted-texts'&&old.work.adoptionProjectionVersion!==adoptedTextProjectionVersion)this.store.enqueue(generation,endpoint,'document',{endpoint},101,body.endpoint==='/adopted-texts');
       }
       this.store.taskProgress(task,{...body,offset:body.offset+nodes.length,lastPage:signatures,availabilityCheck});
     } else if(task.kind==='speeches' && body.recoveryId) {
@@ -346,14 +346,13 @@ export class ActivityWorker {
       if(!work)throw new Error('EP document detail was empty.');
       if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(work), proc=new Map();
+      if(adopted)projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
       for(const id of procedureIds(work)) {
         const endpoint='/procedures/'+id, existing=this.store.source(generation,endpoint);
         if(existing)proc.set(id,existing);
         if(tail(work.work_type)==='REPORT_PLENARY')this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
       }
-      // Adopted works establish text relationships, never an individual MEP
-      // activity. A missing date must not discard their exact adoption link.
-      const {rows}=adopted?{rows:[]}:documentRows(projected,body.endpoint,r.fetchedAt,proc);
+      const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
       this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
       scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);
@@ -642,7 +641,7 @@ export class ActivityWorker {
       // must publish through a working generation, even between daily cycles.
       const recover=this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,active,this.clock());
       const cycle=this.coreDue()||recover?this.store.beginCycle():null,generation=cycle?.generation || active;
-      if(cycle)scheduleAdoptedTexts(this,cycle);
+      if(cycle){scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);}
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
@@ -727,6 +726,7 @@ export class ActivityWorker {
               // Keep this snapshot open for the next bounded admission batch;
               // don't copy the entire index again for every 25 recovered gaps.
               if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))break;
+              if(adoptedTextRepairDue(this.store,generation))break;
               if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);
             }
           }

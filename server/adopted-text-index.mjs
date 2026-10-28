@@ -2,6 +2,7 @@ import {array,tail} from './activity-index-model.mjs';
 
 // Internal queue-admission revision, not a public response schema version.
 const discoveryRevision=1;
+export const adoptedTextProjectionVersion=1;
 const markerKey='adoptedTextDiscovery';
 const yearOf=now=>new Date(now).getUTCFullYear();
 const currentMarker=marker=>marker?.version===discoveryRevision&&Number.isInteger(marker.throughYear)&&marker.throughYear>=2024;
@@ -44,4 +45,36 @@ export function adoptedTextRecord(endpoint,records) {
   const matches=records.filter(work=>work?.identifier===id||reference(work?.id)===identity);
   if(matches.length!==1)throw new Error('Invalid or conflicting exact adopted-text records.');
   return validateAdoptedText(endpoint,matches[0]);
+}
+
+const legacyWhere=`source.generation=? AND source.kind='document' AND source.key GLOB '/adopted-texts/TA-10-*'
+  AND COALESCE(json_extract(source.body,'$.adoptionProjectionVersion'),0)<>${adoptedTextProjectionVersion}
+  AND NOT EXISTS(SELECT 1 FROM refresh_gaps gap WHERE gap.generation=source.generation AND gap.key=source.key)
+  AND NOT EXISTS(SELECT 1 FROM tasks task WHERE task.generation=source.generation AND task.key=source.key AND (task.done IS NULL OR task.done<>1))
+  AND NOT EXISTS(SELECT 1 FROM amendment_jobs task WHERE task.generation=source.generation AND task.key=source.key AND task.done<>1)`;
+function repairCandidates(store,generation,limit) {
+  if(!store.db.prepare('SELECT 1 FROM sources source WHERE '+legacyWhere+' LIMIT 1').get(generation))return [];
+  const checkpoint=store.source(generation,'amendment:continuations')?.work;
+  const reserved=new Set([...(checkpoint?.tasks||[]),...(checkpoint?.discovery||[])].map(task=>task.key));
+  const selected=[];
+  for(const row of store.db.prepare('SELECT source.key FROM sources source WHERE '+legacyWhere+' ORDER BY source.key').iterate(generation)) {
+    if(reserved.has(row.key))continue;
+    selected.push(row.key);if(selected.length>=limit)break;
+  }
+  return selected;
+}
+export const adoptedTextRepairDue=(store,generation)=>repairCandidates(store,generation,1).length>0;
+
+// A legacy writer can complete known detail jobs while dropping adopts. Repair
+// those projections once through the normal queue, including after rollback.
+// A current projection may legitimately omit adopts and is never reopened here.
+export function scheduleAdoptedTextRepairs(worker,cycle) {
+  const {store}=worker;
+  return store.transaction(()=>{
+    store.assertWriter();
+    if(store.get('working')?.generation!==cycle.generation)throw new Error('Adopted-text repair requires a working generation.');
+    const keys=repairCandidates(store,cycle.generation,100);
+    for(const key of keys)store.enqueue(cycle.generation,key,'document',{endpoint:key},101,true);
+    return keys.length;
+  });
 }

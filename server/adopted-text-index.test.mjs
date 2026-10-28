@@ -6,7 +6,7 @@ import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument} from './activity-index-model.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText,adoptedTextRecord} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText,adoptedTextRecord,adoptedTextRepairDue,scheduleAdoptedTextRepairs} from './adopted-text-index.mjs';
 import {recordTaskGap} from './refresh-policy.mjs';
 import {motionAmendmentsPage,motionAmendmentsQuery} from './motion-amendments.mjs';
 
@@ -59,6 +59,7 @@ test('detail ingestion retains exact adoption links for the existing indexed mot
   store.putSource(cycle.generation,'/plenary-documents/'+target,'document',{id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:'2026-10-19'},stamp);
   worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[{id:'eli/dl/doc/another',type:'Work'},adopted({document_date:null})]}});
   await worker.task({generation:cycle.generation,key:endpoint,kind:'document',body:{endpoint}});
+  worker.finalize(cycle.generation);assert.equal(store.get('active'),cycle.generation);
   const read=motionAmendmentsPage(store,motionAmendmentsQuery(target,new URLSearchParams('lang=en')));
   assert.equal(read.relations.adoptedTexts[0].id,id);
   assert.equal(read.relations.adoptedTexts[0].relationship.to,target);
@@ -83,4 +84,44 @@ test('adopted-text update feeds retain their custom interval and refresh final-l
   store.enqueue(cycle.generation,task.key,task.kind,task.body,105);await worker.task(task);
   assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint).done,0);
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM refresh_gaps WHERE kind='coverage'").get().n,0,'custom feeds do not acquire a fixed-month gap');
+});
+
+test('legacy adoption projections are repaired once; a new upstream omission is retained without an endless retry',async t=>{
+  const {store,worker,cycle}=setup(t),old=adopted({is_realized_by:'bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ').map(language=>({language,is_embodied_by:[{format:'DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/test/'+language+'.docx'}]}))});delete old.adopts;
+  store.set('adoptedTextDiscovery',{version:1,throughYear:2026});
+  store.putSource(cycle.generation,endpoint,'document',projectDocument(old),stamp);
+  assert.equal(adoptedTextRepairDue(store,cycle.generation),true);
+  assert.equal(scheduleAdoptedTextRepairs(worker,cycle),1);
+  // An in-flight retry owns this key and keeps its saved attempt and deadline.
+  store.db.prepare('UPDATE tasks SET attempts=3,retry_at=? WHERE generation=? AND key=?').run(at+60_000,cycle.generation,endpoint);
+  assert.equal(scheduleAdoptedTextRepairs(worker,cycle),0);
+  assert.equal(store.db.prepare('SELECT attempts,retry_at FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint).attempts,3);
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[old]}});
+  await worker.task({generation:cycle.generation,key:endpoint,kind:'document',body:{endpoint}});
+  const saved=store.source(cycle.generation,endpoint).work;
+  assert.equal(saved.adoptionProjectionVersion,1);assert.equal(Object.hasOwn(saved,'adopts'),false);
+  assert.equal(adoptedTextRepairDue(store,cycle.generation),false);assert.equal(scheduleAdoptedTextRepairs(worker,cycle),0);
+  assert.equal(projectDocument(saved).adoptionProjectionVersion,1);
+  worker.finalize(cycle.generation);
+  // A later legacy writer can complete compatible jobs but discard new fields.
+  const rollback=store.beginCycle();store.putSource(rollback.generation,endpoint,'document',projectDocument(old),stamp);store.publish(rollback.generation);
+  store.set('groupHistoryRepairVersion',1);worker.repairOnStartup=true;
+  assert.equal(worker.coreDue(),true,'startup detects the lost projection despite a current discovery marker');
+});
+
+test('legacy repair uses bounded batches and publishes them in one new generation',async t=>{
+  const {store,worker,cycle}=setup(t);
+  store.set('adoptedTextDiscovery',{version:1,throughYear:2026});store.set('groupHistoryRepairVersion',1);store.setMembers([{id:'101',name:'Member'}]);
+  for(let i=1;i<=101;i++) {
+    const next='TA-10-2026-'+String(i).padStart(4,'0'),work=adopted({id:'eli/dl/doc/'+next,identifier:next});delete work.adopts;
+    store.putSource(cycle.generation,'/adopted-texts/'+next,'document',work,stamp);
+  }
+  store.publish(cycle.generation);worker.repairOnStartup=true;
+  worker.fetchRecord=async ep=>({fetchedAt:stamp,payload:{data:[adopted({id:'eli/dl/doc/'+ep.split('/').at(-1),identifier:ep.split('/').at(-1)})]}});
+  const task=worker.task.bind(worker);worker.task=async next=>next.key.startsWith('/adopted-texts/')?task(next):store.finishTask(next);
+  store.release();await worker.runIteration();
+  assert.equal(store.get('active'),cycle.generation);const working=store.get('working').generation;
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=1").get(working).n,100);
+  await worker.runIteration();assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=1").get(working).n,101);
 });
