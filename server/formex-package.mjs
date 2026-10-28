@@ -84,7 +84,7 @@ export function readFormexPackage(bytes,{source,coverage}={}) {
   if(!source||!['url','workId','expressionId','manifestationId','itemId','celex','language','retrievedAt'].every(k=>typeof source[k]==='string'&&source[k].length&&source[k].length<1000)||!Number.isFinite(Date.parse(source.retrievedAt))||!/^[a-z]{2}$/.test(source.language))fail('source-binding');
   let url;try{url=new URL(source.url);}catch{fail('source-binding');}
   if(url.protocol!=='https:'||url.hostname!=='publications.europa.eu'||url.port||url.username||url.password||url.search||url.hash||!/^\/resource\/cellar\/[\da-f-]{36}\.\d{4}\.\d{2}\/[^/]+$/.test(url.pathname)||source.itemId!==source.url||source.manifestationId!==source.url.slice(0,source.url.lastIndexOf('/'))||source.expressionId!==source.manifestationId.slice(0,-3)||source.workId!==source.expressionId.slice(0,-5))fail('source-binding');
-  const entries=archive(bytes),budget={elements:0},trees=new Map(),gaps=[],edges=[],parts=[],blocks=[],notes=[],objects=[],links=[],containers=[];
+  const entries=archive(bytes),budget={elements:0,blocks:0},trees=new Map(),gaps=[],edges=[],parts=[],blocks=[],notes=[],objects=[],links=[],containers=[];
   const gap=(code,source,extra={})=>gaps.push({code,source,...extra});
   const tree=name=>{
     if(!entries.has(name))return null;
@@ -154,7 +154,8 @@ export function readFormexPackage(bytes,{source,coverage}={}) {
   const represented=new Set([manifest.source.part,...parts.map(p=>p.name),...edges.filter(e=>e.status==='present').map(e=>e.target)]);
   for(const name of entries.keys())if(!represented.has(name))gap('unreferenced-package-entry',{part:name,path:'/'});
 
-  const addBlock=block=>{if(blocks.length>=FORMEX_PACKAGE_LIMITS.blocks)fail('block-budget');block.ordinal=blocks.length;blocks.push(block);return block;};
+  const edgeBySource=new Map(edges.map(e=>[e.source.part+':'+e.source.path,e]));
+  const addBlock=block=>{if(++budget.blocks>FORMEX_PACKAGE_LIMITS.blocks)fail('block-budget');block.ordinal=blocks.length;blocks.push(block);return block;};
   function project(part) {
     let noteOrdinal=0;
     function inline(nodes) {
@@ -178,6 +179,7 @@ export function readFormexPackage(bytes,{source,coverage}={}) {
           for(const child of node.children) {
             if(!child.tag&&!child.text.trim())continue;
             const content=child.tag==='P'?inline(child.children):inline([child]);
+            if(++budget.blocks>FORMEX_PACKAGE_LIMITS.blocks)fail('block-budget');
             n.blocks.push({source:child.source??node.source,...content});n.complete&&=content.complete;
           }
           out.anchors.push({offset:start,note:n.id,source:node.source});if(!n.complete)bad('incomplete-note',node);return;
@@ -188,7 +190,7 @@ export function readFormexPackage(bytes,{source,coverage}={}) {
           out.quotes.push({offset:start,element:node.tag,attributes:node.attributes,source:node.source});append(String.fromCodePoint(n),formats);return;
         }
         if(node.tag==='INCL.ELEMENT') {
-          const e=edges.find(e=>e.source.part===node.source.part&&e.source.path===node.source.path);
+          const e=edgeBySource.get(node.source.part+':'+node.source.path);
           if(node.attributes.TYPE==='FORMEX.DOC') {
             out.objects.push({kind:'included-document',status:partMap.has(e?.target)?'linked':'unresolved',offset:start,source:node.source,target:e?.target??null});out.text+='\uFFFC';
             if(!partMap.has(e?.target))bad('unresolved-inclusion',node);return;

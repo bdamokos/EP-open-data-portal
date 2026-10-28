@@ -111,3 +111,10 @@ test('identity and language bindings are retained without guessing, unknown stru
   const r=read(ngt,items);assert.ok(r.gaps.some(g=>g.code==='unsupported-structure'));assert.ok(!r.blocks.some(b=>b.text.includes('not flattened')));
   assert.ok(JSON.stringify(r.parts[0].tree).includes('not flattened'));
 });
+
+test('note blocks share the aggregate projection budget',()=>{
+  const items=entries(ngt),index=items.findIndex(([n])=>n.endsWith('000101.fmx.xml'));
+  const notes='<NOTE><P>Retained note</P></NOTE>'.repeat(FORMEX_PACKAGE_LIMITS.blocks);
+  items[index][1]=items[index][1].replace('</ACT>','<P>'+notes+'</P></ACT>');
+  assert.throws(()=>read(ngt,items),{code:'block-budget'});
+});
