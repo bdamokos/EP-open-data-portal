@@ -1,0 +1,93 @@
+{
+  "excerpt": "Exact Parliament opening rows and their next two source paragraphs; source indices retained.",
+  "documents": [
+    {
+      "id": "A-10-2026-0080",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_ga.docx",
+      "fetchedAt": "2026-10-27T20:19:56.127193+00:00",
+      "sha256": "5f784ba3364a71a9646425cc7cfbd50cbd8ddcfc45ac58572de6fc072dd6becf",
+      "rows": [
+        {
+          "index": 0,
+          "opening": "Parlaimint na hEorpa",
+          "following": [
+            "2024-2029",
+            "￼"
+          ]
+        },
+        {
+          "index": 23,
+          "opening": "Tá Parlaimint na hEorpa,",
+          "following": [
+            "–\tag féachaint d’Airteagail 310(6) agus 325(5) den Chonradh ar Fheidhmiú an Aontais Eorpaigh (CFAE),",
+            "–\tag féachaint do thuarascáil ón gCoimisiún an 25 Iúil 2025 dar teideal ‘An 36ú Tuarascáil Bhliantúil maidir le cosaint leasanna airgeadais an Aontais Eorpaigh agus maidir leis an gcomhrac in aghaidh na calaoise - 2024’ (COM(2025)0426) (Tuarascáil CLA 2024),"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "RC-10-2026-0201",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRc/RC-10-2026-0201/RC-10-2026-0201_ga.docx",
+      "fetchedAt": "2026-10-27T20:24:33.224905+00:00",
+      "sha256": "31fb9b579d86bf0fb9f16adbb05f455b4cf5cd3d4cd88d572b33c38299c1cae1",
+      "rows": [
+        {
+          "index": 0,
+          "opening": "Parlaimint na hEorpa",
+          "following": [
+            "2024-2029",
+            "￼"
+          ]
+        },
+        {
+          "index": 33,
+          "opening": "Tá Parlaimint na hEorpa,",
+          "following": [
+            "–\tag féachaint do na rúin uaithi roimhe seo maidir leis an Úcráin agus leis an Rúis,",
+            "–\tag féachaint do Chairt na Náisiún Aontaithe,"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "A-10-2026-0050",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0050/A-10-2026-0050_ga.docx",
+      "fetchedAt": "2026-10-27T20:22:14.806539+00:00",
+      "sha256": "c98bc5298c7edb8e2001f443b1d407e59c477051333adfc5e7c7fa6fc0e33262",
+      "rows": [
+        {
+          "index": 0,
+          "opening": "Parlaimint na hEorpa",
+          "following": [
+            "2024-2029",
+            "￼"
+          ]
+        },
+        {
+          "index": 24,
+          "opening": "Tá Parlaimint na hEorpa,",
+          "following": [
+            "–\tag féachaint do chuntais bhliantúla chríochnaitheacha Oifig an Ionchúisitheora Phoiblí Eorpaigh don bhliain airgeadais 2024,",
+            "–\tag féachaint do thuarascáil bhliantúil na Cúirte Iniúchóirí maidir le Gníomhaireachtaí an Aontais Eorpaigh don bhliain airgeadais 2024, agus freisin do na freagraí ó na gníomhaireachtaí,"
+          ]
+        },
+        {
+          "index": 43,
+          "opening": "Tá Parlaimint na hEorpa,",
+          "following": [
+            "–\tag féachaint do chuntais bhliantúla chríochnaitheacha Oifig an Ionchúisitheora Phoiblí Eorpaigh don bhliain airgeadais 2024,",
+            "–\tag féachaint do thuarascáil bhliantúil na Cúirte Iniúchóirí maidir le gníomhaireachtaí AE don bhliain airgeadais 2024, agus freisin do na freagraí ó na gníomhaireachtaí,"
+          ]
+        },
+        {
+          "index": 61,
+          "opening": "Tá Parlaimint na hEorpa,",
+          "following": [
+            "–\tag féachaint don chinneadh uaithi maidir le hurscaoileadh i leith chur chun feidhme bhuiséad Oifig an Ionchúisitheora Phoiblí Eorpaigh don bhliain airgeadais 2024,",
+            "–\tag féachaint do Riail 102 agus d’Iarscríbhinn V dá Rialacha Nós Imeachta,"
+          ]
+        }
+      ]
+    }
+  ]
+}
