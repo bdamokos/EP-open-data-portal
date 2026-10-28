@@ -4,6 +4,7 @@ import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
 import {oracleAddress,oracleFold,oracleOpening,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
+import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
 export const rawDocument=buffer=>JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./amendment-language-raw.py',import.meta.url)),String(buffer.length)],{input:buffer,maxBuffer:32*1024*1024,timeout:30_000}).toString());
 // This deliberately does not import production labels, normalizers, segmenters
@@ -32,7 +33,8 @@ export function rawExpected(block,language) {
   const headers=block.tables?.[0]?.before||[],at=headers.findIndex(h=>proposals.has(sectionKey(h)));
   if(at>=0&&headers[at+1])block={...block,section:headers[at],targetLabel:headers[at+1],underlyingSection:headers[at+2]||null,underlyingTargetLabel:headers[at+3]||null};
   const key=sectionKey(block.section);
-  return {...block,language,sectionKind:resolutions.has(key)?'resolution':proposals.has(key)?'commission-proposal':null,operation:block.gap?null:expectedOperation(block)};
+  return {...block,language,sectionKind:resolutions.has(key)?'resolution':proposals.has(key)?'commission-proposal':null,
+    operation:block.gap?null:expectedOperation({...block,language}),scope:block.gap?null:expectedLanguageScope({...block,language})};
 }
 // Language-neutral numeric token extraction is only accepted for simple source
 // headings. Parent paths, selectors and quoted acts require a separate gold row.
@@ -73,6 +75,9 @@ function proposalRecitals(raw) {
 const unknown=reason=>({status:'unverified',reason});
 const failed=(reason,details={})=>({status:'failed',reason,...details});
 export function verifyLanguagePlacement({expected,placement,text,items,rawText,rawItems}) {
+  if(placement.status==='not-applicable'&&(!expected?.operation||expected.gap))return unknown(expected?.gap||'raw-operation-unavailable');
+  const scope=verifyLanguageScope(placement,expected?.scope);
+  if(scope)return scope;
   if(placement.status!=='placed')return {status:'not-applicable',reason:'not-placed'};
   if(!expected?.operation)return unknown(expected?.gap||'raw-operation-unavailable');
   if(placement.operation!==expected.operation)return failed('raw-operation-mismatch',{expectedOperation:expected.operation,actualOperation:placement.operation});
