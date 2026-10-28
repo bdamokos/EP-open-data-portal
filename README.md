@@ -14,9 +14,13 @@ Find MEPs by country, political group or committee. Explore their speeches, writ
 
 Explore written questions by topic, time and author country. Dive into speech word clouds, then open the speeches behind the words with your selected terms highlighted.
 
+![Explore question topics and the MEPs raising them](https://github.com/user-attachments/assets/1dded612-0458-423f-8963-b3aa5a73c9b8)
+
 ### Hear the voices in the room
 
 Outside voices brings Commissioners and other non-MEP speakers into view. Explore their plenary appearances, read what they said and follow links to the legislative dossiers they discuss.
+
+![Explore outside speakers and their plenary appearances](https://github.com/user-attachments/assets/fbc4cf8a-dbf2-40c1-a303-c83deaa1f189)
 
 ### Follow the decisions
 
