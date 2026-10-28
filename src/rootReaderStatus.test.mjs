@@ -109,7 +109,7 @@ test('inline full-text results replace the list, combine with exact chair record
   await act(async()=>{Object.getOwnPropertyDescriptor(h.window.HTMLInputElement.prototype,'value').set.call(searchField,'uncommitted draft');searchField.dispatchEvent(new h.window.InputEvent('input',{bubbles:true,inputType:'insertText',data:'uncommitted draft'}));});
   const searches=h.searches.length;
   cloudSource.focus();await h.click(cloudSource);
-  await act(async()=>{await new Promise(resolve=>h.window.setTimeout(resolve,350));});
+  await h.tick(1000);
   assert.equal(new URLSearchParams(location.search).has('mep-speech-fts-search'),false,'cloud navigation cancels the uncommitted draft');
   assert.equal(h.container.querySelector('.explorer-text-search-inline input').value,'');
   assert.equal(h.searches.length,searches,'the cancelled debounce cannot restart search');
