@@ -67,12 +67,14 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   assert.match(find('.insight-speech-position').textContent,/Contributor 1 · 09:00 Brussels · Written statement/);
   next.focus();await act(async()=>next.click());
   assert.equal(counter(),'Speech 2 of 3');assert.equal(document.activeElement,next);
-  assert.equal(find('.insight-speech-panel .insight-source-document').href,'https://example.test/test-speech-2');assert(!disabled(previous));assert(!disabled(next));
+  assert.equal(find('.insight-speech-panel [data-reader-source]').dataset.readerSource,'test-speech-2');
+  assert.equal(container.querySelector('.insight-speech-panel .insight-source-document'),null);assert(!disabled(previous));assert(!disabled(next));
   await act(async()=>next.click());assert.equal(counter(),'Speech 3 of 3');assert(disabled(next));assert.equal(document.activeElement,next);
   await act(async()=>next.click());assert.equal(counter(),'Speech 3 of 3');
   assert(disabled(bottom.querySelector('[aria-label="Next speech"]')));
   await act(async()=>previous.click());assert.equal(counter(),'Speech 2 of 3');
-  assert.equal(find('.insight-speech-panel .insight-source-document').href,'https://example.test/test-speech-2');
+  assert.equal(find('.insight-speech-panel [data-reader-source]').dataset.readerSource,'test-speech-2');
+  assert.equal(container.querySelector('.insight-speech-panel .insight-source-document'),null);
   let scrollOptions;
   pager.scrollIntoView=options=>{scrollOptions=options;};
   const bottomPrevious=bottom.querySelector('[aria-label="Previous speech"]');

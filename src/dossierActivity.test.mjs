@@ -97,7 +97,7 @@ test('full dossier keeps exact participant roles; document role dates do not bec
   assert.equal(new URL([...h.container.querySelectorAll('a')].find(node=>node.textContent==='Work on this dossier').href).searchParams.get('dossier-person'),'257727');
 });
 
-test('multiple exact references require a choice and resolver preserves gaps without a COD guess',async t=>{
+test('multiple exact references require a choice and resolver labels gaps without a COD guess',async t=>{
   const h=await harness(t,undefined,url=>url.pathname.endsWith('dossier-references')?Response.json({items:[page('roles').procedure],coverage:{status:'partial',gaps:[{id:'2025-0233',code:'unavailable',message:'Exact procedure source unavailable.'}]}}):null);
   await h.render(createElement(h.module.DossierWorkLinks,{person:'257727',references:[{id:'2025-0176',reference},{id:'2025-0233',reference:'2025/0233(INI)'}]}));
   assert.match(h.container.querySelector('summary').textContent,/choose a procedure/);assert.equal(h.container.querySelector('details').open,false);assert.equal(h.container.querySelectorAll('a').length,2);
@@ -106,7 +106,7 @@ test('multiple exact references require a choice and resolver preserves gaps wit
   anchor.dispatchEvent(new h.window.MouseEvent('click',{bubbles:true,cancelable:true,ctrlKey:true}));assert.equal(prevented,false,'modifier click retains the normal href');assert.equal(location.href,before);
   await h.render(createElement(h.module.ActivityDossierLinks,{person:257727,procedureIds:['2025-0176','2025-0233','2025-0407','2025-0999','invalid']}));
   const resolver=h.calls.find(url=>url.pathname.endsWith('dossier-references'));assert.equal(resolver.searchParams.get('procedures'),'2025-0176,2025-0233,2025-0407');
-  assert.equal(h.container.querySelectorAll('a').length,1);assert.match(h.container.textContent,/Exact procedure source unavailable/);assert.match(h.container.textContent,/First 3 of 4 procedures shown\./);
+  assert.equal(h.container.querySelectorAll('a').length,1);assert.match(h.container.textContent,/Some dossier references unavailable/);assert.match(h.container.textContent,/First 3 of 4 procedures shown\./);
   assert(!h.container.innerHTML.includes('2025%2F0233%28COD%29'));
 });
 
@@ -133,7 +133,7 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
   await h.render(createElement(h.module.DossierActivity,{reference}));
   assert.match(h.container.textContent,/Records unavailable/);assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0);assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1,'an unavailable AM cannot suppress its standalone vote');
-  await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.textContent,/Exact target read failed/);
+  await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Partial coverage/);
   failed=false;await h.click('Retry amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
   assert.equal([...h.container.querySelectorAll('button')].filter(node=>node.textContent==='Load more amendments').length,0,'retrying an earlier target cannot reopen the completed continuation');
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
@@ -161,7 +161,7 @@ test('complete target reads still label incomplete broader amendment discovery',
   const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
   assert(coverage,'discovery gaps keep a coverage label');
   assert.match(coverage.querySelector('p').textContent,/Some amendment sources unavailable/);
-  assert.deepEqual([...coverage.querySelectorAll('details li')].map(node=>node.textContent),['Discovery limit reached.']);
+  assert.equal(coverage.querySelector('details'),null);
 });
 
 test('a discovery capacity limit alone is partial coverage, not unavailable sources',async t=>{
@@ -173,15 +173,16 @@ test('a discovery capacity limit alone is partial coverage, not unavailable sour
   assert.match(h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage p').textContent,/Amendments · Partial coverage$/);
 });
 
-test('coverage attributes each amendment gap to its exact requested target',async t=>{
+test('coverage retains a short partial label when a later amendment target fails',async t=>{
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
     const first=url.searchParams.get('target-offset')==='0';
     return Response.json(page('amendments','257727',first?[amendment]:[],{checkedTarget:first?'A-10-2026-0010':'A-10-2026-0011',pagination:{offset:0,targetOffset:first?0:1,limit:25,next:first?{offset:0,targetOffset:1}:null},coverage:{status:first?'complete':'unavailable',gaps:first?[]:['Exact target read failed.'],sources:[source]}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more amendments');
-  const coverage=[...h.container.querySelectorAll('[aria-label="Amendments coverage"] .dossier-coverage>details>ul>li')];
-  assert.deepEqual(coverage.map(node=>node.textContent),['A-10-2026-0011 · Exact target read failed.']);
+  const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
+  assert.match(coverage.textContent,/Amendments · Partial coverage/);
+  assert.equal(coverage.querySelector('details'),null);
 });
 
 test('a mismatched section/person response fails locally while valid sections remain readable',async t=>{
@@ -337,7 +338,7 @@ test('failed same-cursor contributor retry retains established speech evidence u
   });
   await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
   assert.match(h.container.textContent,/Gabriele Bischoff/);await h.click('Retry people');
-  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/A linked debate is unavailable/);assert.doesNotMatch(h.container.textContent,/Earlier records retained/);
+  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/People · Partial coverage/);assert.doesNotMatch(h.container.textContent,/Earlier records retained/);
   await h.click('Retry people');assert(!h.container.querySelector('.dossier-participants'));
 });
 
