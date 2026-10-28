@@ -1,0 +1,466 @@
+{
+  "proposal": {
+    "source": {
+      "itemId": "http://publications.europa.eu/resource/cellar/99475c26-81f4-11f1-bf5e-01aa75ed71a1.0001.01/DOC_1",
+      "url": "https://publications.europa.eu/resource/cellar/99475c26-81f4-11f1-bf5e-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "f2ef2e3616985ed9077bc60d9688c058597637aa0f800d78d7f1039805fa7fba",
+      "fetchedAt": "2026-10-27T17:04:42.904Z",
+      "language": "en",
+      "celex": "52026PC0619"
+    },
+    "coverage": {
+      "complete": false
+    },
+    "structureStatus": "extracted",
+    "paragraphs": [
+      "Article 1",
+      "Amendments to Directive 2003/87/EC",
+      "Directive 2003/87/EC is amended as follows:",
+      "(1)\tin Article 10a, the following paragraphs 2a and 2b are inserted after paragraph 2:",
+      "‘2a. By way of derogation from paragraph 2, third subparagraph, point (d), of this Article, the maximum annual reduction rate to be applied for the update of the benchmark values for heat and fuel benchmarks for the period from 2027 to 2030 shall be reduced to a percentage rate value that makes full use of the additional amount referred to in Article 10a(5a) and ensures that no reduction pursuant to Article 10a(5) applies.",
+      "Concerning the update of the benchmark values for heat and fuel benchmarks for the year 2027, the maximum annual reduction rate to be applied shall be reduced to a percentage rate value that makes use of 40 % of the  adjustment pursuant to the first subparagraph and ensures that no reduction pursuant to Article 10a(5) applies.",
+      "2b. Paragraph 2a shall not apply to free allocations for installations carrying out economic activities covered by NACE codes 0610, 0620, 1920 and 4950 set out in Annex I to Regulation (EC) No 1893/2006 of the European Parliament and the Council*.",
+      "______",
+      "* Regulation (EC) No 1893/2006 of the European Parliament and of the Council of 20 December 2006 establishing the statistical classification of economic activities NACE Revision 2 and amending Council Regulation (EEC) No 3037/90 as well as certain EC Regulations on specific statistical domains (OJ L 393, 30.12.2006, p. 1, ELI: http://data.europa.eu/eli/reg/2006/1893/oj).’",
+      "Article 2"
+    ],
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[68]",
+        "ordinal": 67,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[69]",
+        "ordinal": 68,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[70]",
+        "ordinal": 69,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[71]",
+        "ordinal": 70,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[72]",
+        "ordinal": 71,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[73]",
+        "ordinal": 72,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[74]",
+        "ordinal": 73,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[75]",
+        "ordinal": 74,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[76]",
+        "ordinal": 75,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[77]",
+        "ordinal": 76,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point0",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "paragraphFormats": [
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 34,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify",
+        "indent": 3.54,
+        "hanging": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      }
+    ]
+  },
+  "amendments": [
+    {
+      "number": 14,
+      "targetLabel": "Article 1 – paragraph 1 – point 1\nDirective 2003/87/EC — Article 10a – paragraph 2b b (new)",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 1",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 1"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Directive 2003/87/EC",
+            "raw": "Article 10a – paragraph 2b b (new)",
+            "labels": [
+              {
+                "raw": "Article 10a"
+              },
+              {
+                "raw": "paragraph 2b b (new)"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-014-015/A-10-2026-0276-AM-014-015_en.docx",
+        "fetchedAt": "2026-10-27T00:47:21.177Z"
+      },
+      "originalText": "",
+      "proposedText": "2bb. By way of derogation from paragraph 1, third and fifth subparagraphs, the 20 % reduction of free allocation pursuant to those subparagraphs shall not take into account the update of the heat and fuel benchmark values pursuant to paragraph 2a",
+      "language": "en",
+      "baseline": "commission-proposal",
+      "baselineSource": {
+        "category": "commission-proposal",
+        "headings": [
+          {
+            "left": {
+              "raw": "Text proposed by the Commission",
+              "category": "commission-proposal"
+            },
+            "right": {
+              "raw": "Amendment",
+              "category": "other"
+            }
+          }
+        ],
+        "conflicted": false,
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-014-015/A-10-2026-0276-AM-014-015_en.docx",
+        "fetchedAt": "2026-10-27T00:47:21.177Z"
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-014-015/A-10-2026-0276-AM-014-015_en.docx",
+        "fetchedAt": "2026-10-27T00:47:21.177Z",
+        "date": "2026-10-20",
+        "dateBasis": "individual-amendment-document",
+        "language": "en",
+        "format": "DOCX",
+        "sha256": "5194741440569197abc249b8b1ee70be2f7849ef683aba1ec8aaabef20867859"
+      }
+    },
+    {
+      "number": 15,
+      "targetLabel": "Article 1 – paragraph 1 – point 1\nDirective 2003/87/EC — Article 10a – paragraph 2b a (new)",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 1",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 1"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Directive 2003/87/EC",
+            "raw": "Article 10a – paragraph 2b a (new)",
+            "labels": [
+              {
+                "raw": "Article 10a"
+              },
+              {
+                "raw": "paragraph 2b a (new)"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-014-015/A-10-2026-0276-AM-014-015_en.docx",
+        "fetchedAt": "2026-10-27T00:47:21.177Z"
+      },
+      "originalText": "",
+      "proposedText": "2ba.\tFor the purposes of the adjustments to the heat and fuel benchmark values provided for in this paragraph, a total of 22 million allowances shall be transferred from the market stability reserve established by Decision (EU) 2015/1814 and made available for free allocation for the period from 2026 to 2030. That quantity shall be additional to, and shall not replace or be deducted from, any other quantities of allowances made available for those adjustments and shall be used in full for that purpose",
+      "language": "en",
+      "baseline": "commission-proposal",
+      "baselineSource": {
+        "category": "commission-proposal",
+        "headings": [
+          {
+            "left": {
+              "raw": "Text proposed by the Commission",
+              "category": "commission-proposal"
+            },
+            "right": {
+              "raw": "Amendment",
+              "category": "other"
+            }
+          }
+        ],
+        "conflicted": false,
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-014-015/A-10-2026-0276-AM-014-015_en.docx",
+        "fetchedAt": "2026-10-27T00:47:21.177Z"
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-014-015/A-10-2026-0276-AM-014-015_en.docx",
+        "fetchedAt": "2026-10-27T00:47:21.177Z",
+        "date": "2026-10-20",
+        "dateBasis": "individual-amendment-document",
+        "language": "en",
+        "format": "DOCX",
+        "sha256": "5194741440569197abc249b8b1ee70be2f7849ef683aba1ec8aaabef20867859"
+      }
+    },
+    {
+      "number": 18,
+      "targetLabel": "Article 1 – paragraph 1 – point 1\nDirective 2003/87/EC — Article 10a – paragraph 2a a (new)",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 1",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 1"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Directive 2003/87/EC",
+            "raw": "Article 10a – paragraph 2a a (new)",
+            "labels": [
+              {
+                "raw": "Article 10a"
+              },
+              {
+                "raw": "paragraph 2a a (new)"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-017-018/A-10-2026-0276-AM-017-018_en.docx",
+        "fetchedAt": "2026-10-27T00:47:24.185Z"
+      },
+      "originalText": "",
+      "proposedText": "2aa.\tBy way of derogation from the obligation to surrender allowances pursuant to Article 12(3), point (a), installations producing ceramic products by firing, in particular roofing tiles, bricks, refractory bricks, tiles, stoneware or porcelain, covered by Annex I, shall be exempt from the obligation to surrender allowances for the period from 2026 to 2030. For the year 2027, they shall be allocated additional free allowances corresponding to the number of allowances surrendered in respect of their verified emissions for the year 2026. The additional allowances allocated pursuant to this paragraph shall be deducted from the quantity of allowances that would otherwise be auctioned pursuant to Article 10(1).",
+      "language": "en",
+      "baseline": "commission-proposal",
+      "baselineSource": {
+        "category": "commission-proposal",
+        "headings": [
+          {
+            "left": {
+              "raw": "Text proposed by the Commission",
+              "category": "commission-proposal"
+            },
+            "right": {
+              "raw": "Amendment",
+              "category": "other"
+            }
+          }
+        ],
+        "conflicted": false,
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-017-018/A-10-2026-0276-AM-017-018_en.docx",
+        "fetchedAt": "2026-10-27T00:47:24.185Z"
+      },
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0276-AM-017-018/A-10-2026-0276-AM-017-018_en.docx",
+        "fetchedAt": "2026-10-27T00:47:24.185Z",
+        "date": "2026-10-20",
+        "dateBasis": "individual-amendment-document",
+        "language": "en",
+        "format": "DOCX",
+        "sha256": "dbd20f7caa08d13523a42b2dba5c27673858fd7044f0e9d921f8ab16109e8200"
+      }
+    }
+  ],
+  "numberingGuide": {
+    "url": "https://style-guide.europa.eu/o/opportal-service/isg?resource=en/3.3.2-additions-and-numbering.html",
+    "retrievedAt": "2026-10-28T16:28:25.327523+00:00",
+    "purpose": "Public official drafting guide only; not a runtime parliamentary observation",
+    "status": 200,
+    "resolvedUrl": "https://style-guide.europa.eu/o/opportal-service/isg?resource=en/3.3.2-additions-and-numbering.html",
+    "contentType": "text/html",
+    "bytes": 6812,
+    "sha256": "f2f72003a12d39df6faa14f35a8d45f5a826dcee7f773140ca51f0d48e11b792"
+  },
+  "nativeBoundary": {
+    "owner": "/w:document[1]/w:body[1]/w:p[71]",
+    "predecessor": [
+      "/w:document[1]/w:body[1]/w:p[72]",
+      "/w:document[1]/w:body[1]/w:p[73]"
+    ],
+    "following": "/w:document[1]/w:body[1]/w:p[74]",
+    "quoteEnd": "/w:document[1]/w:body[1]/w:p[76]"
+  }
+}
