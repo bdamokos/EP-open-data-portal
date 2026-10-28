@@ -101,7 +101,8 @@ class AmendmentSourceStore {
       let remove=true;
       if(record&&typeof record==='object') {
         const buffer=typeof record.bytes==='string'?Buffer.from(record.bytes,'base64'):null;
-        if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&Number.isFinite(Date.parse(record.fetchedAt))&&normalizedDocxDescriptor(record.descriptor)) {
+        const descriptor=normalizedDocxDescriptor(record.descriptor);
+        if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&descriptor&&docxRetrievedAfterIssue(record.fetchedAt,descriptor.issued)) {
           remove=await this.save(record.descriptor,buffer,record.fetchedAt,{signal,legacy:true});
           if(remove)imported++;
           else complete=false;

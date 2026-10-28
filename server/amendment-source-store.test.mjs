@@ -211,8 +211,19 @@ test('migration import and re-import after eviction preserve retrieval-time chec
   await sources.migrateLegacy();assert.equal(existsSync(input),false);
   assert.equal(rows(store).find(row=>row.url===url).issued,'');
   const conflict=legacyRecord(directory,buffer,{descriptor:{...descriptor,issued:'2026-10-25T09:00:00+02:00'}});
-  await sources.migrateLegacy();assert(existsSync(conflict));
+  await sources.migrateLegacy();assert.equal(existsSync(conflict),false);
   assert.equal(await sources.read({...descriptor,issued:'2026-10-25T09:00:00+02:00'}),null);
+});
+
+test('permanently pre-publication legacy bytes are removed without scheduling another migration',async t=>{
+  const {sources,directory,buffer,advance}=fixture(t);
+  const input=legacyRecord(directory,buffer,{descriptor:{...descriptor,issued:'2026-10-25T09:00:00+02:00'}});
+  const migration=t.mock.method(sources,'migrateLegacy');
+  assert.equal(await sources.initialize(),true);
+  assert.equal(existsSync(input),false);assert.equal(existsSync(sources.legacyDirectory),false);
+  assert.equal(await sources.ready,true);assert.equal(sources.retryAt,undefined);
+  advance(60_001);assert.equal(await sources.read(descriptor),null);
+  assert.equal(migration.mock.calls.length,1);
 });
 
 test('a destination write failure preserves valid legacy input for a restarted writer',async t=>{
