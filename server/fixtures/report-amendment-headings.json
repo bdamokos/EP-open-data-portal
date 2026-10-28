@@ -1,5 +1,5 @@
 {
-  "description": "Sparse, attributed native Word heading excerpts; complete report and list identities and all 129 published heading numbers. Wording is omitted. Ordinals count every native body paragraph, including table cells. Opinion excerpts are negative controls, not main-report amendments.",
+  "description": "Sparse native Word heading excerpts with exact report/list identities and all 129 heading positions. The common visible heading is stored once with its native ordinal sequence; amendmentOverrides preserves deviations, including Portuguese's hidden number 37. Wording is omitted. Ordinals count every native body paragraph, including table cells. Opinion excerpts are negative controls, not main-report amendments.",
   "editions": [
     {
       "language": "bg",
