@@ -303,6 +303,17 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   let target;try{target=parseTargetLabel(paths?.[0]?.raw??targetLabel,language);}catch{return unresolved('reference_language_unsupported');}
   if(!target.complete||!target.segments.length)return unresolved('target_reference_unavailable');
   evidence.push({basis:'proposal-target-path',label:target.raw});
+  // Italian EP addresses name the printed instruction directly below an
+  // unnumbered article lead ("Articolo 1 – punto 2"). The parser's implicit
+  // paragraph is an internal container, not an additional published label.
+  if(target.segments[0]?.kind==='article'&&target.segments[1]?.kind==='point'){
+    const articles=items.flatMap(item=>item.kind==='annex'?[]:proposalCandidates(item.proposal,target.segments.slice(0,1)));
+    const body=articles.length===1?articles[0].children.filter(child=>child.kind!=='title'):[];
+    if(body.length===1&&body[0].kind==='paragraph'&&body[0].implicit&&!body[0].pathConflict){
+      target={...target,segments:[target.segments[0],body[0].label,...target.segments.slice(1)]};
+      evidence.push({basis:'implicit-paragraph',anchor:body[0].id});
+    }
+  }
   // The first printed subparagraph comprises a provision's lead and its
   // directly nested points. The parser need not invent an unlabelled container
   // for that address; its next outdented subparagraph supplies the boundary.
