@@ -39,12 +39,17 @@ function publishedContainer(proposal,root,language) {
   // The unnumbered amending article has one lead paragraph and a printed
   // instruction list. Styled paragraphs inside its quotations are not outer
   // paragraphs. Establish this from the published lead and first instruction.
-  amendingList=!paragraph(content[0])&&content[0]?.text.trimEnd().endsWith(':')&&oracleInstruction(content[1]?.text||'',language)?.value==='1';
+  const annexList=kind==='annex'&&oracleInstruction(content[0]?.text||'',language)?.value==='1';
+  amendingList=annexList||!paragraph(content[0])&&content[0]?.text.trimEnd().endsWith(':')&&oracleInstruction(content[1]?.text||'',language)?.value==='1';
   if(amendingList){
     // Follow the printed consecutive outer list. A quoted paragraph numbered
     // 11 (LT's definition of a catch certificate) cannot end instruction 1.
     let next=1;
-    for(const row of content){const instruction=oracleInstruction(row.text,language);if(instruction?.level===0&&instruction.value===String(next)){numberedInstructions.add(row.index);next++;}}
+    const form=row=>/^\s*(\(\d+\)|\d+[.)])\s/u.exec(row.text)?.[1].replace(/\d+/u,'#');
+    for(const row of content){
+      if(annexList&&form(row)!==form(content[0]))continue;
+      const instruction=oracleInstruction(row.text,language);if(instruction?.level===0&&instruction.value===String(next)){numberedInstructions.add(row.index);next++;}
+    }
   }
   let title=null;
   const first=content[0],second=content[1];
@@ -55,7 +60,10 @@ function publishedContainer(proposal,root,language) {
   const explicit=amendingList?[]:content.filter(row=>paragraph(row));
   if(!explicit.length) {
     const plain=content.filter(row=>row.index>=start&&!pointOf(row)&&!/^['‘’"“”]/u.test(row.text.trim()));
-    const starts=content.some(row=>pointOf(row))?[plain[0]]:plain;
+    const firstPoint=content.find(row=>pointOf(row));
+    // A bare annex can begin with its first instruction, without an
+    // unnumbered lead. Its internal paragraph starts at that instruction.
+    const starts=firstPoint?[plain.find(row=>row.index<firstPoint.index)??(kind==='annex'?firstPoint:undefined)]:plain;
     for(const [i,row] of starts.entries())if(row)nodes.push({kind:'paragraph',value:String(i+1),start:row.index,end:starts[i+1]?.index??boundary.index,parent:null,implicit:true});
   }
   for(const row of content.filter(row=>row.index>=start)) {

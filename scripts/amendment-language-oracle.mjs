@@ -9,7 +9,7 @@ export const rawDocument=buffer=>JSON.parse(execFileSync('python3',[fileURLToPat
 // This deliberately does not import production labels, normalizers, segmenters
 // or proposal trees. Unsupported addresses remain explicitly unverified.
 export const rawNormal=oracleFold;
-const strip=value=>String(value).split(/\r?\n/u).map(line=>rawNormal(line).replace(/^["']\s*/u,'').replace(/^(?:\([\p{L}\d]{1,6}\)\s*|\d+[\p{L}]{0,3}[.)]\s*|[\p{Lu}]{1,3}[.)]\s+)/u,'').replace(/[.;"'\s]+$/u,'').trim()).join(' ').replace(/\s+/gu,' ').trim();
+const strip=value=>String(value).split(/\r?\n/u).map(line=>rawNormal(line).replace(/^["']\s*/u,'').replace(/^(?:\([\p{L}\d]{1,6}\)\s*|\d+[\p{L}]{0,3}[.)]\s*|(?:[\p{Lu}]{1,3}|\p{Ll})[.)]\s+)/u,'').replace(/[.;"'\s]+$/u,'').trim()).join(' ').replace(/\s+/gu,' ').trim();
 
 const ref=value=>{
   let m=/^(\d+[\p{Ll}]{0,3})[.)]\s*/u.exec(value);

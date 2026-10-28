@@ -150,7 +150,7 @@ const instructionVerbs={
  es:'se modifica|se sustituye|se sustituyen|se inserta|se insertan|se añade|se añaden|se suprime',
  et:'muudetakse|asendatakse|lisatakse|jäetakse välja',fi:'muutetaan|korvataan|lisätään|poistetaan|kumotaan',
  fr:'est modifié|sont modifiés|est remplacé|sont remplacés|est inséré|sont insérés|sont ajoutés|est ajouté|est supprimé|sont insérées|sont remplacées|sont ajoutées',
- ga:'leasaítear|cuirtear|scriostar|ionadaítear',hr:'mijenja se|zamjenjuje se|zamjenjuju se|umeće se|umeću se|dodaje se|dodaju se|briše se',
+ ga:'leasaítear|cuirtear|cuirfear|scriostar|ionadaítear',hr:'mijenja se|zamjenjuje se|zamjenjuju se|umeće se|umeću se|dodaje se|dodaju se|briše se',
  hu:'módosul|helyébe|egészül ki|el kell hagyni|kiegészül',it:'è così modificato|è sostituit|sono sostituit|è inserit|sono inserit|sono aggiunt|è aggiunt|è soppres',
  lt:'keičiamas|keičiama|pakeičiam|įterpiam|pridedam|išbraukiam|papildomas|papildoma',lv:'groza šādi|aizstāj|iekļauj|pievieno|svītro',
  mt:'emendat|sostitwit|jiddaħħal|jiddaħħlu|jiżdied|jiżdiedu|jitħassar|tiddaħħal',nl:'wordt als volgt gewijzigd|wordt vervangen|worden vervangen|wordt ingevoegd|worden ingevoegd|worden toegevoegd|wordt toegevoegd|wordt geschrapt|vervangen door|alinea toegevoegd|lid toegevoegd|punten toegevoegd|artikelen ingevoegd|afdelingen ingevoegd|afdeling II ingevoegd|lid 2 geschrapt',
