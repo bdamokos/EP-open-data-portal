@@ -20,7 +20,15 @@ export function useMemberVotesJourney(member:number|null,active:boolean,initial:
     const url=new URL(location.href);
     for(const key of [...url.searchParams.keys()])if(key.startsWith('mv-'))url.searchParams.delete(key);
     for(const [key,val] of memberVotesJourneyParams(updated))url.searchParams.set(key,val);
-    if(mode==='push'&&url.href!==location.href){remember();pending.current=positions.current.get(memberVotesScrollKey(updated))||[0,0,0,0];}
+    if(mode==='push'&&url.href!==location.href){
+      remember();
+      // Expanding a subject does not change the pane or its position. New
+      // destinations reset only the inner pane, preserving the mobile page.
+      if(memberVotesScrollKey(updated)!==memberVotesScrollKey(value.journey)){
+        const scroll=captureMemberJourneyScroll(document);scroll[3]=0;
+        pending.current=positions.current.get(memberVotesScrollKey(updated))||scroll;
+      }
+    }
     if(url.href!==location.href)mode==='replace'?history.replaceState(history.state,'',url):history.pushState(history.state,'',url);
     setStored(updated);
     window.dispatchEvent(new Event('explorer-query-change'));
