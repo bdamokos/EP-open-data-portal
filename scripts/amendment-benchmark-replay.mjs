@@ -192,7 +192,7 @@ export function sourceReplay(cache,runtime) {
         for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parseProposal(item.buffer,{language:options.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId}})});
         if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new Error('proposal-response-budget');
       }catch {return {baseline:{...source,items:[],status:'unavailable',gaps:[...source.gaps,'proposal-projection-unavailable']},items:[]};}
-      return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items};
+      return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items,nativeProposalInputs:source.items.map(item=>item.buffer)};
     },
     async council(options) {
       if(!readCouncil)return {baseline:{status:'unresolved',language:options.language,gaps:['council-position-unavailable']},items:[]};
