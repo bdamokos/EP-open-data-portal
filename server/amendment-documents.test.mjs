@@ -75,7 +75,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'16');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -349,7 +349,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'16');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -455,7 +455,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'16');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -620,6 +620,21 @@ test('unknown vertical properties withhold wording with the narrower formatting 
   assert.equal(a.originalText,null);assert.deepEqual(a.originalFormatting,[]);assert(a.gaps.some(gap=>gap.code==='vertical-formatting-loss'));
 });
 
+
+test('FR/HU/RO published document classes remain metadata before the real committee target',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-document-class.json',import.meta.url),'utf8'));
+  for(const doc of fixture.documents) {
+    const {amendments}=extractAmendments(archive(doc.documentXml,doc.stylesXml),doc);
+    assert.deepEqual(amendments.map(a=>a.number),[1,13]);
+    for(const expected of doc.expected) {
+      const actual=amendments.find(a=>a.number===expected.number);
+      assert.equal(actual.targetLabel,expected.targetLabel,doc.language+' AM'+expected.number);
+      assert.deepEqual(actual.documentReferences.filter(r=>r.field==='DocumentClass'),[{field:'DocumentClass',raw:expected.documentClass,sourceRaw:expected.documentClass,scope:'amendment'}]);
+      assert.equal(actual.language,doc.language);assert.equal(actual.sources[0].url,doc.sourceUrl);
+      assert(actual.originalText!==null&&actual.proposedText!==null);
+    }
+  }
+});
 
 test('Croatian A-10-2025-0150 amendments 3 and 4 retain distinct unstyled boundaries and bold targets',()=>{
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-croatian-unstyled.json',import.meta.url),'utf8'));

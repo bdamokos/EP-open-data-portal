@@ -4,7 +4,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='16';
+export const AMENDMENT_EXTRACTION_VERSION='17';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -280,6 +280,10 @@ function documentBlocks(parts,warnings,language) {
 }
 const field=(raw,tag)=>[...raw.matchAll(new RegExp('<'+tag+'>([\\s\\S]*?)</'+tag+'>','g'))].map(m=>clean(m[1]));
 const metadata=value=>clean(value).replace(/^\{[^{}]*\}/,'').trim();
+// Published committee-list class lines are metadata, not legal addresses.
+const DOCUMENT_CLASSES={fr:'Proposition de règlement',hu:'Rendeletre irányuló javaslat',ro:'Propunere de regulament'};
+const classKey=value=>clean(value).normalize('NFC').replace(/\s+/gu,' ').toLowerCase();
+const documentClass=(text,language)=>DOCUMENT_CLASSES[language]&&classKey(text)===classKey(DOCUMENT_CLASSES[language]);
 function documentDate(raw) {
   const dates=new Set();
   for(const source of field(raw,'Date'))for(const match of source.matchAll(/(?:\{)?(\d{1,2})[./](\d{1,2})[./](\d{4})(?:\})?/g)) {
@@ -359,14 +363,16 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const targetParts=field(raw,'Article');
     for(let i=2;i<=4;i++)for(const article of field(raw,'Article'+i))targetParts.push([field(raw,'DocAmend'+i)[0],article].filter(Boolean).join(' — '));
     if(!targetParts.length&&committee) {
-      const procedure=field(coverRaw,'Procedure').map(metadata);
+      const procedure=field(coverRaw,'Procedure').map(metadata);let classRecorded=false;
       for(const block of group) {
         if(block.kind==='table')break;
-        if(block.kind==='paragraph'&&block.text&&!procedure.includes(block.text)&&!numberIn(block.raw,block.paragraphStyle,language)) {
-          // Croatian's unstyled template keeps the proposal address in bold,
-          // followed by plain underlying-act metadata before the comparison.
-          if(/^NormalBold(?:\d+b?)?$/i.test(block.paragraphStyle||'')||language==='hr'&&(block.bold||targetParts.length))targetParts.push(block.text);
+        if(block.kind!=='paragraph'||!block.text||numberIn(block.raw,block.paragraphStyle,language))continue;
+        const targetStyle=/^NormalBold(?:\d+b?)?$/i.test(block.paragraphStyle||'')||language==='hr'&&block.bold;
+        if(!targetParts.length&&targetStyle&&documentClass(block.text,language)) {
+          documentReferences.push({field:'DocumentClass',raw:metadata(block.text),sourceRaw:block.raw,scope:'amendment'});
+          classRecorded=true;continue;
         }
+        if(!procedure.includes(block.text)&&(targetStyle||(classRecorded||language==='hr')&&targetParts.length))targetParts.push(block.text);
       }
     }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;
