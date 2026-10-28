@@ -9,7 +9,9 @@ export async function replayRuntime(root) {
   const [amendments,text,baseline,cellar,official,structure,placement,context,docx,model,order,amendmentModel,identity]=await Promise.all([
     load('amendment-documents'),load('document-text'),load('proposal-baseline'),load('cellar-documents'),load('official-context'),load('proposal-structure'),load('document-context-placement'),load('document-context'),load('docx-source-structure'),load('activity-index-model'),load('language-order'),load('amendments'),load('commission-proposal-identity'),
   ]);
-  return {...amendments,...text,...baseline,...cellar,...official,...structure,...placement,...model,...order,...amendmentModel,...identity,
+  const council=await load('council-position-baseline').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
+  const xhtml=await load('public-legal-xhtml').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
+  return {...amendments,...text,...baseline,...cellar,...official,...structure,...placement,...model,...order,...amendmentModel,...identity,...council,...xhtml,
     documentContextVersion:context.DOCUMENT_CONTEXT_VERSION,documentExtractionVersion:docx.DOCX_EXTRACTION_VERSION};
 }
 export const publicDocumentUrl=id=>'https://data.europarl.europa.eu/api/v2/plenary-documents/'+id+'?format=application%2Fld%2Bjson';
@@ -56,6 +58,7 @@ export function sourceReplay(cache,runtime) {
   },run:operation=>operation()});
   const documents=new runtime.CellarDocuments({sources,directory:null,clock});
   const readProposal=runtime.createProposalBaseline({documents,request});
+  const readCouncil=runtime.createCouncilPositionBaseline?.({documents,request});
   return {
     request,
     observeFiles(id,contexts) {
@@ -80,6 +83,7 @@ export function sourceReplay(cache,runtime) {
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
         if(chosen)await cache.get(chosen.url);
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
+        if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
         const hints=[...new Map((references.get(language)||[]).map(ref=>[JSON.stringify(ref),ref])).values()];
         for(const ref of hints) {
           const celexes=[...new Set(runtime.commissionReferences(ref.raw).map(r=>r.celex))];
@@ -111,6 +115,16 @@ export function sourceReplay(cache,runtime) {
       const items=[];
       try {
         for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parseProposal(item.buffer,{language:options.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId}})});
+        if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new Error('proposal-response-budget');
+      }catch {return {baseline:{...source,items:[],status:'unavailable',gaps:[...source.gaps,'proposal-projection-unavailable']},items:[]};}
+      return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items};
+    },
+    async council(options) {
+      if(!readCouncil)return {baseline:{status:'unresolved',language:options.language,gaps:['council-position-unavailable']},items:[]};
+      const source=await readCouncil(options);cache.assertHealthy();
+      const items=[];
+      try {
+        for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,celex:source.celex}})});
         if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new Error('proposal-response-budget');
       }catch {return {baseline:{...source,items:[],status:'unavailable',gaps:[...source.gaps,'proposal-projection-unavailable']},items:[]};}
       return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items};

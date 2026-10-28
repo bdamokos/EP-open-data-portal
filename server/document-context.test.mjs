@@ -19,6 +19,15 @@ const service=(extra={})=>new DocumentContext({request:async()=>record(work),rea
 const source={url:'https://data.europarl.europa.eu/distribution/doc/list_en.docx',fetchedAt:new Date(at).toISOString(),language:'en'};
 const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'AO. Original wording',proposedText:'AO. Proposed wording',targetLabel:'Recital AO',authors:[],wordingSource:source};
 
+test('the context endpoint projects exact Council XHTML and keeps report wording evidence independent',async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/council-position-excerpts.json',import.meta.url),'utf8'));
+  const selected={...indexed,baseline:'council-position',baselineSource:{category:'council-position',conflicted:false},targetLabelLanguage:'en',targetLabel:'Article 30 – title',originalText:'Code of conduct',proposedText:'Binding code of conduct'};
+  let reads=0;
+  const reader=service({findAmendment:()=>selected,readCouncil:async options=>{reads++;assert.equal(options.reportId,id);assert.equal(options.language,'en');return {status:'available',celex:fixture.celex,workId:'http://publications.europa.eu/resource/cellar/94b1ab29-4450-11f1-8095-01aa75ed71a1',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:fixture.sourceUrl.replace('https:','http:'),buffer:Buffer.from(fixture.xhtml),source:{url:fixture.sourceUrl,sha256:fixture.sourceSha256,fetchedAt:fixture.retrievedAt,stale:false}}]};}});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+  assert.equal(reads,1);assert.equal(result.baseline.kind,'council-position');assert.equal(result.proposal.items[0].proposal.sourceKind,'xhtml');assert.equal(result.placement.status,'placed');assert.equal(result.placement.originalText,'Code of conduct');assert.equal(result.document.selectedText,undefined);assert.equal(result.target.evidence.amendmentId,amendmentId);
+});
+
 test('the real cold document reader preserves local failures and allows an immediate context retry',async()=>{
   for(const failure of [Object.assign(new HttpError(503,'upstream_busy','The document reader is busy.'),{retryAfter:1}),requestTimeout()]) {
     const url=`https://data.europarl.europa.eu/distribution/doc/context-local-${failure.code}-${Date.now()}.docx`;
@@ -358,7 +367,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,20);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,21);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });

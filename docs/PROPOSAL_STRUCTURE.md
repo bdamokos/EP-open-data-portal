@@ -18,6 +18,8 @@ const candidates = proposalCandidates(proposal, target);
 
 `parseProposal` also accepts a string or a document projection with `paragraphs: string[]`, optional `paragraphSources`, `paragraphProperties`, `paragraphFormats`, `documentObjects`, `tables`, notes and links. Plain text cannot establish original object or table completeness and produces `source-structure-unavailable`. Excerpts should supply `coverage: {complete: false}`. Use the DOCX buffer for complete extraction.
 
+`server/public-legal-xhtml.mjs` adapts Publications Office OJ XHTML to the same unit contract for Council positions. Its separate `xhtml-` parser version and `sourceKind: 'xhtml'` retain the actual format. Explicit ELI subdivision IDs establish chapters, sections, articles, paragraphs, recitals and annexes; two-cell label layouts and inline enumerations establish list points without fabricating Word styles. Quoted list scopes stay below their owning instruction. Notes and links retain displayed-text offsets. Unsupported grids and objects make only their affected passages incomplete. The standard static XHTML DTD declaration is discarded without loading it; entity declarations are rejected. The adapter never selects source identity or legal versions.
+
 ## Tree and source positions
 
 The result contains `parserVersion`, `sourceHash`, exact source context, `paragraphs`, ordered `units`, notes, links, objects and explicit `gaps`. `src/proposalTypes.ts` describes the frontend projection.
