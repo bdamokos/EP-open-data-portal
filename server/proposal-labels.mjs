@@ -123,6 +123,9 @@ export function proposalNumber(raw,language='en') {
   const letterSuffix=text.match(/^([a-z])([a-z])$/u);
   if(letterSuffix&&!/^[ivxlcdm]+$/u.test(text))return {value:text,number:null,base:letterSuffix[1],suffix:letterSuffix[2]};
   if(language==='fr'&&/^(?:premier|1er)$/i.test(text))return {value:'1',number:1,suffix:''};
+  // DGT English Style Guide, Annex 3: the sixteenth point in each decade
+  // uses στ, e.g. ιστ (16), κστ (26). These are whole Greek serial labels.
+  if(language==='el'&&/^[ικλμνξοπ]στ$/u.test(text))return {value:text,number:null,suffix:''};
   const decimal=text.match(/^(\d+(?:\.\d+)*)\s*([\p{L}]+|[\p{L}]\s[\p{L}])?$/u);
   if(decimal){const suffix=(decimal[2]??'').replace(/\s/g,'').toLowerCase();
     if(suffix.length>1&&!legacyDecimalSuffix.test(suffix))return null;
