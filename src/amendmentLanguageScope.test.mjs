@@ -53,7 +53,7 @@ test('official whole-cell notes retain selected language and exact field provena
     const scope=amendmentLanguageScope(chosen);
     assert.deepEqual(scope,{status:'not-applicable',language:example.language,field:example.noteField,note:example.note},example.language);
     assert.equal(amendmentOperation(chosen),null,example.language);
-    for(const placement of [resolveAmendmentPlacement(null,chosen),resolveProposalPlacement([],chosen),documentContextPlacement({chosen})]) {
+    for(const placement of [resolveAmendmentPlacement(null,chosen),resolveProposalPlacement([],chosen),resolveExistingLawPlacement([],chosen,null),documentContextPlacement({chosen})]) {
       assert.equal(placement.status,'not-applicable',example.language);
       assert.equal(placement.operation,null,example.language);
       assert.equal(placement.reason,'language_version_unaffected',example.language);
