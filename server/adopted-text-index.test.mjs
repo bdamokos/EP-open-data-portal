@@ -161,3 +161,22 @@ for(const owner of ['amendment','deferred'])test('feed, mutable and gap admissio
   const after=owner==='amendment'?store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(cycle.generation,endpoint):store.source(cycle.generation,'amendment:continuations').work.tasks[0];
   assert.equal(after.attempts,3);assert.equal(after.retry_at,saved.retry_at);assert.equal(JSON.parse(after.body).offset,750);
 });
+
+for(const owner of ['amendment','deferred'])test('100 '+owner+'-owned adopted retries do not starve unrelated mutable updates',t=>{
+  const {store,worker,cycle}=setup(t),deferred=[];
+  const mutable=store.db.prepare('INSERT INTO mutable_documents VALUES (?,?,?)');
+  const optional=store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)');
+  for(let i=1;i<=100;i++) {
+    const key='/adopted-texts/TA-10-2026-'+String(i).padStart(4,'0');
+    const task={generation:cycle.generation,key,kind:'document',body:JSON.stringify({endpoint:key,offset:750}),priority:101,done:0,attempts:3,retry_at:at+3_600_000,error:'Saved source failure'};
+    mutable.run(cycle.generation,key,at-2);
+    if(owner==='amendment')optional.run(task.generation,key,task.kind,task.body,task.priority,task.done,task.attempts,task.retry_at,task.error);
+    else deferred.push(task);
+  }
+  if(owner==='deferred')store.putSource(cycle.generation,'amendment:continuations','amendment-continuations',{tasks:deferred,discovery:[],completed:[]},stamp);
+  const question='/parliamentary-questions/E-10-2026-000001';mutable.run(cycle.generation,question,at-1);
+  scheduleMutable(worker,cycle.generation);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE generation=?').get(cycle.generation).n,1);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(cycle.generation,question).done,0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM mutable_documents WHERE generation=? AND next_check=?').get(cycle.generation,at-2).n,100,'owned retries retain their due state and ownership');
+});

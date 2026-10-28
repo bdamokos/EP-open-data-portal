@@ -91,9 +91,12 @@ export function refreshPolicySchema(store) {
 
 export function scheduleMutable(worker,generation) {
   const store=worker.store,now=worker.clock();
-  let adoptedDeferred;
-  for(const {key} of store.db.prepare('SELECT key FROM mutable_documents mutable WHERE generation=? AND next_check<=? AND NOT EXISTS (SELECT 1 FROM refresh_gaps gap WHERE gap.generation=mutable.generation AND gap.key=mutable.key) ORDER BY next_check,key LIMIT ?').all(generation,now,MUTABLE_LIMIT)) {
+  let adoptedDeferred;const eligible=[];
+  for(const {key} of store.db.prepare('SELECT key FROM mutable_documents mutable WHERE generation=? AND next_check<=? AND NOT EXISTS (SELECT 1 FROM refresh_gaps gap WHERE gap.generation=mutable.generation AND gap.key=mutable.key) ORDER BY next_check,key').iterate(generation,now)) {
     if(key.startsWith('/adopted-texts/')&&adoptedTextOwnedElsewhere(store,generation,key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
+    eligible.push(key);if(eligible.length>=MUTABLE_LIMIT)break;
+  }
+  for(const key of eligible) {
     store.enqueue(generation,key,'document',{endpoint:key},84,true);
     store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);
   }
