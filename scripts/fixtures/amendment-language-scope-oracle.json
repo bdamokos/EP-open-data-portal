@@ -1,0 +1,694 @@
+{
+  "description": "Independent complete-cell source semantics. Literal cells retain printed labels and punctuation. Irish has no attested marker. English uses a downloaded and visually checked official PDF; the other languages use native Word XML.",
+  "unattestedLanguages": [
+    "ga"
+  ],
+  "examples": [
+    {
+      "language": "bg",
+      "cell": "(Не се отнася до българския текст.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_bg.docx",
+        "sha256": "825270f8f7493525a8d31edb5bd1527e7b05722ca96db6ce6fcfdc5999119760",
+        "retrievedAt": "2026-10-27T20:16:46.385453+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[81]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 81,
+      "field": "proposedText"
+    },
+    {
+      "language": "cs",
+      "cell": "(Netýká se českého znění.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_cs.docx",
+        "sha256": "5a7235236a26bd8ed6cb5814e134c3e1ff036baf7d5e7708dff4adc57e616604",
+        "retrievedAt": "2026-10-27T20:16:52.387326+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 46,
+      "field": "proposedText"
+    },
+    {
+      "language": "da",
+      "cell": "(Vedrører ikke den danske tekst)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_da.docx",
+        "sha256": "07ec9f2e360dfd1b3b1dba9b7e5cd91544116177aa27f8f65d5b0beb8f9a67ef",
+        "retrievedAt": "2026-10-27T20:16:58.393720+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 46,
+      "field": "proposedText"
+    },
+    {
+      "language": "de",
+      "cell": "(Betrifft nicht die deutsche Fassung.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_de.docx",
+        "sha256": "bf58bccb7d530cfae3a67774725095a91a549bbace4c2641e5ea7f302ba58005",
+        "retrievedAt": "2026-10-27T20:17:04.389389+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[75]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 75,
+      "field": "proposedText"
+    },
+    {
+      "language": "el",
+      "cell": "(Δεν αφορά το ελληνικό κείμενο.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_el.docx",
+        "sha256": "7029d380b3a847c3dc309eec4558186eb88890efa3be6bdb2efbf0df1e9bdf64",
+        "retrievedAt": "2026-10-27T20:17:10.449830+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 46,
+      "field": "proposedText"
+    },
+    {
+      "language": "en",
+      "cell": "(Does not affect the English version.)",
+      "source": {
+        "url": "https://www.europarl.europa.eu/meetdocs/2014_2019/plmrep/COMMITTEES/IMCO/AM/2021/09-27/1235637EN.pdf",
+        "sha256": "ceb1f420edcf85b6e6b0f77bb7b5cee1e0a42f36501880df9899681b9a293d04",
+        "retrievedAt": "2026-10-28T09:51:48.501331+00:00",
+        "pages": [
+          11
+        ]
+      },
+      "documentId": "IMCO-AM-PE695.157v01-00",
+      "number": 386,
+      "field": "proposedText"
+    },
+    {
+      "language": "es",
+      "cell": "(No afecta a la versión española).",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_es.docx",
+        "sha256": "ba66ec5c940c0e6755348f17fdaae7f6f1377a9ce4de92d41943f5dbdd5a8056",
+        "retrievedAt": "2026-10-27T20:17:16.490331+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[14]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 14,
+      "field": "proposedText"
+    },
+    {
+      "language": "et",
+      "cell": "(Ei puuduta eestikeelset versiooni.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_et.docx",
+        "sha256": "4a9838cab1c5c9407fd0e56e442b02423bb08f49fc7a33390edc0777e6b2ac53",
+        "retrievedAt": "2026-10-27T20:17:22.476804+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[45]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 45,
+      "field": "proposedText"
+    },
+    {
+      "language": "fi",
+      "cell": "(Tarkistus ei vaikuta suomenkieliseen versioon.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fi.docx",
+        "sha256": "ed5029e5881c9d447647b7886529fd15c644c1e117532cb040c067f5b3d40f03",
+        "retrievedAt": "2026-10-27T20:17:28.594947+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[26]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 26,
+      "field": "proposedText"
+    },
+    {
+      "language": "fr",
+      "cell": "(Ne concerne pas la version française.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fr.docx",
+        "sha256": "a55ed913f41aa9742e3a5a50c66ac73e9005ec53827827b481b80edd4a773ba4",
+        "retrievedAt": "2026-10-27T20:17:34.609154+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[81]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 81,
+      "field": "proposedText"
+    },
+    {
+      "language": "hr",
+      "cell": "(Ne odnosi se na hrvatsku verziju.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hr.docx",
+        "sha256": "bd81cac3d32ed82fafacbb64419adb1b676ee6d3f897994e9f7be149de16a76a",
+        "retrievedAt": "2026-10-27T20:17:46.571569+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 46,
+      "field": "proposedText"
+    },
+    {
+      "language": "hu",
+      "cell": "(A magyar változatot nem érinti.)",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_hu.docx",
+        "sha256": "f70d19e1e5d6277dc81e10bb95fd4ca2fbc39236823d1a93ca2e321c03fc6ce4",
+        "retrievedAt": "2026-10-28T09:18:45Z",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[36]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2026-0039",
+      "number": 33,
+      "field": "proposedText"
+    },
+    {
+      "language": "it",
+      "cell": "(Non concerne la versione italiana)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_it.docx",
+        "sha256": "cd1611006e0335416603273ad391061441a55bfd4b313ad99e8d21233f819853",
+        "retrievedAt": "2026-10-27T20:17:58.625123+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 47,
+      "field": "proposedText"
+    },
+    {
+      "language": "lt",
+      "cell": "(Tekstas lietuvių kalba nekeičiamas.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lt.docx",
+        "sha256": "1f22c729d60d3c3e53b8890a890f9637c26792051868ba554cd825644cf305fc",
+        "retrievedAt": "2026-10-27T20:18:04.671798+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[26]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 26,
+      "field": "proposedText"
+    },
+    {
+      "language": "lv",
+      "cell": "1.\t(Neattiecas uz tekstu latviešu valodā.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[26]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 26,
+      "field": "proposedText"
+    },
+    {
+      "language": "mt",
+      "cell": "(Ma taffettwax il-verżjoni Maltija.)",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_mt.docx",
+        "sha256": "329815a914961f201726372832f3f14ebf36032b92fb929d25557bd468eb884d",
+        "retrievedAt": "2026-10-28T09:18:50Z",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[25]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2026-0039",
+      "number": 22,
+      "field": "proposedText"
+    },
+    {
+      "language": "nl",
+      "cell": "(Niet van toepassing op de Nederlandse versie)",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_nl.docx",
+        "sha256": "2ff54fbe239518529d53a290187b39b1550ed8022c32d88716eee8d28305b95e",
+        "retrievedAt": "2026-10-28T09:18:51Z",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[25]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2026-0039",
+      "number": 22,
+      "field": "proposedText"
+    },
+    {
+      "language": "pl",
+      "cell": "(Nie dotyczy polskiej wersji językowej)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pl.docx",
+        "sha256": "95c772b1dfe81dd1eee506f5d67cb91564a3239615fb1c216d0e6b45d8835434",
+        "retrievedAt": "2026-10-27T20:18:28.851081+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 47,
+      "field": "proposedText"
+    },
+    {
+      "language": "pt",
+      "cell": "(Não se aplica à versão portuguesa.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pt.docx",
+        "sha256": "18039d55c56e9947a602ac08349eb3e3911fa288f9964e2e9b83213513a23e01",
+        "retrievedAt": "2026-10-27T20:18:34.877103+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 47,
+      "field": "proposedText"
+    },
+    {
+      "language": "ro",
+      "cell": "(Nu privește versiunea în limba română.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ro.docx",
+        "sha256": "ea2fb6c5b28108f286cc0922eff0a7b8dcb9bdedcdf72382ac023d37e05c68d4",
+        "retrievedAt": "2026-10-27T20:18:40.805242+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 47,
+      "field": "proposedText"
+    },
+    {
+      "language": "sk",
+      "cell": "(Netýka sa slovenskej verzie.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sk.docx",
+        "sha256": "857ca4771cf9b9507ce1bb47b4da6c9aad4b83379b255e9f01d50934bb7e2f9c",
+        "retrievedAt": "2026-10-27T20:18:46.879279+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[81]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 81,
+      "field": "proposedText"
+    },
+    {
+      "language": "sl",
+      "cell": "(Ne zadeva slovenske različice.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sl.docx",
+        "sha256": "a2cbcc06499a771e7d3079440eb422f9b2b4b89552e4130a986c0686830aa2b7",
+        "retrievedAt": "2026-10-27T20:18:52.883616+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 47,
+      "field": "proposedText"
+    },
+    {
+      "language": "sv",
+      "cell": "(Berör inte den svenska versionen.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sv.docx",
+        "sha256": "884551ec8ad605477c1cc936118c343e69fcb29c8772740ac6a253b35a7d95e0",
+        "retrievedAt": "2026-10-27T20:18:58.925491+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[21]/w:tr[3]/w:tc[2]"
+        ]
+      },
+      "documentId": "A-10-2025-0150",
+      "number": 21,
+      "field": "proposedText"
+    }
+  ],
+  "forms": [
+    {
+      "language": "bg",
+      "cell": "(Не се отнася до българския текст.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_bg.docx",
+        "sha256": "825270f8f7493525a8d31edb5bd1527e7b05722ca96db6ce6fcfdc5999119760",
+        "retrievedAt": "2026-10-27T20:16:46.385453+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[81]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "cs",
+      "cell": "(Netýká se českého znění.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_cs.docx",
+        "sha256": "5a7235236a26bd8ed6cb5814e134c3e1ff036baf7d5e7708dff4adc57e616604",
+        "retrievedAt": "2026-10-27T20:16:52.387326+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "cs",
+      "cell": "–\t(Netýká se českého znění.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_cs.docx",
+        "sha256": "5a7235236a26bd8ed6cb5814e134c3e1ff036baf7d5e7708dff4adc57e616604",
+        "retrievedAt": "2026-10-27T20:16:52.387326+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[134]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "da",
+      "cell": "(Vedrører ikke den danske tekst)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_da.docx",
+        "sha256": "07ec9f2e360dfd1b3b1dba9b7e5cd91544116177aa27f8f65d5b0beb8f9a67ef",
+        "retrievedAt": "2026-10-27T20:16:58.393720+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "de",
+      "cell": "(Betrifft nicht die deutsche Fassung.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_de.docx",
+        "sha256": "bf58bccb7d530cfae3a67774725095a91a549bbace4c2641e5ea7f302ba58005",
+        "retrievedAt": "2026-10-27T20:17:04.389389+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[75]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "el",
+      "cell": "(Δεν αφορά το ελληνικό κείμενο.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_el.docx",
+        "sha256": "7029d380b3a847c3dc309eec4558186eb88890efa3be6bdb2efbf0df1e9bdf64",
+        "retrievedAt": "2026-10-27T20:17:10.449830+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "en",
+      "cell": "(Does not affect the English version.)",
+      "source": {
+        "url": "https://www.europarl.europa.eu/meetdocs/2014_2019/plmrep/COMMITTEES/IMCO/AM/2021/09-27/1235637EN.pdf",
+        "sha256": "ceb1f420edcf85b6e6b0f77bb7b5cee1e0a42f36501880df9899681b9a293d04",
+        "retrievedAt": "2026-10-28T09:51:48.501331+00:00",
+        "pages": [
+          11
+        ]
+      },
+      "documentId": "IMCO-AM-PE695.157v01-00",
+      "number": 386,
+      "field": "proposedText"
+    },
+    {
+      "language": "es",
+      "cell": "(No afecta a la versión española).",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_es.docx",
+        "sha256": "ba66ec5c940c0e6755348f17fdaae7f6f1377a9ce4de92d41943f5dbdd5a8056",
+        "retrievedAt": "2026-10-27T20:17:16.490331+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[14]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "et",
+      "cell": "(Ei puuduta eestikeelset versiooni.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_et.docx",
+        "sha256": "4a9838cab1c5c9407fd0e56e442b02423bb08f49fc7a33390edc0777e6b2ac53",
+        "retrievedAt": "2026-10-27T20:17:22.476804+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[45]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "fi",
+      "cell": "(Tarkistus ei vaikuta suomenkieliseen versioon.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fi.docx",
+        "sha256": "ed5029e5881c9d447647b7886529fd15c644c1e117532cb040c067f5b3d40f03",
+        "retrievedAt": "2026-10-27T20:17:28.594947+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[26]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "fr",
+      "cell": "(Ne concerne pas la version française.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fr.docx",
+        "sha256": "a55ed913f41aa9742e3a5a50c66ac73e9005ec53827827b481b80edd4a773ba4",
+        "retrievedAt": "2026-10-27T20:17:34.609154+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[81]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "hr",
+      "cell": "(Ne odnosi se na hrvatsku verziju.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hr.docx",
+        "sha256": "bd81cac3d32ed82fafacbb64419adb1b676ee6d3f897994e9f7be149de16a76a",
+        "retrievedAt": "2026-10-27T20:17:46.571569+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[46]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "hu",
+      "cell": "(A magyar változatot nem érinti.)",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_hu.docx",
+        "sha256": "f70d19e1e5d6277dc81e10bb95fd4ca2fbc39236823d1a93ca2e321c03fc6ce4",
+        "retrievedAt": "2026-10-28T09:18:45Z",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[36]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "it",
+      "cell": "(Non concerne la versione italiana)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_it.docx",
+        "sha256": "cd1611006e0335416603273ad391061441a55bfd4b313ad99e8d21233f819853",
+        "retrievedAt": "2026-10-27T20:17:58.625123+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "lt",
+      "cell": "(Tekstas lietuvių kalba nekeičiamas.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lt.docx",
+        "sha256": "1f22c729d60d3c3e53b8890a890f9637c26792051868ba554cd825644cf305fc",
+        "retrievedAt": "2026-10-27T20:18:04.671798+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[26]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "lv",
+      "cell": "1.\t(Neattiecas uz tekstu latviešu valodā.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[26]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "lv",
+      "cell": "3.\t(Neattiecas uz tekstu latviešu valodā.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "lv",
+      "cell": "5.\t(Neattiecas uz tekstu latviešu valodā.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[78]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "lv",
+      "cell": "–\t(Neattiecas uz tekstu latviešu valodā.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[133]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "mt",
+      "cell": "(Ma taffettwax il-verżjoni Maltija.)",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_mt.docx",
+        "sha256": "329815a914961f201726372832f3f14ebf36032b92fb929d25557bd468eb884d",
+        "retrievedAt": "2026-10-28T09:18:50Z",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[25]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "nl",
+      "cell": "(Niet van toepassing op de Nederlandse versie)",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_nl.docx",
+        "sha256": "2ff54fbe239518529d53a290187b39b1550ed8022c32d88716eee8d28305b95e",
+        "retrievedAt": "2026-10-28T09:18:51Z",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[25]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "pl",
+      "cell": "(Nie dotyczy polskiej wersji językowej)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pl.docx",
+        "sha256": "95c772b1dfe81dd1eee506f5d67cb91564a3239615fb1c216d0e6b45d8835434",
+        "retrievedAt": "2026-10-27T20:18:28.851081+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "pl",
+      "cell": "–\t(Nie dotyczy polskiej wersji językowej)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pl.docx",
+        "sha256": "95c772b1dfe81dd1eee506f5d67cb91564a3239615fb1c216d0e6b45d8835434",
+        "retrievedAt": "2026-10-27T20:18:28.851081+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[134]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "pt",
+      "cell": "(Não se aplica à versão portuguesa.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pt.docx",
+        "sha256": "18039d55c56e9947a602ac08349eb3e3911fa288f9964e2e9b83213513a23e01",
+        "retrievedAt": "2026-10-27T20:18:34.877103+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "ro",
+      "cell": "(Nu privește versiunea în limba română.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ro.docx",
+        "sha256": "ea2fb6c5b28108f286cc0922eff0a7b8dcb9bdedcdf72382ac023d37e05c68d4",
+        "retrievedAt": "2026-10-27T20:18:40.805242+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "sk",
+      "cell": "(Netýka sa slovenskej verzie.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sk.docx",
+        "sha256": "857ca4771cf9b9507ce1bb47b4da6c9aad4b83379b255e9f01d50934bb7e2f9c",
+        "retrievedAt": "2026-10-27T20:18:46.879279+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[81]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "sl",
+      "cell": "(Ne zadeva slovenske različice.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sl.docx",
+        "sha256": "a2cbcc06499a771e7d3079440eb422f9b2b4b89552e4130a986c0686830aa2b7",
+        "retrievedAt": "2026-10-27T20:18:52.883616+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[47]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    },
+    {
+      "language": "sv",
+      "cell": "(Berör inte den svenska versionen.)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sv.docx",
+        "sha256": "884551ec8ad605477c1cc936118c343e69fcb29c8772740ac6a253b35a7d95e0",
+        "retrievedAt": "2026-10-27T20:18:58.925491+00:00",
+        "paths": [
+          "/w:document[1]/w:body[1]/w:tbl[21]/w:tr[3]/w:tc[2]"
+        ]
+      }
+    }
+  ]
+}

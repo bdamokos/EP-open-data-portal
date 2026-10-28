@@ -21,7 +21,7 @@ const words={
   nl:['gewijzigd','vervangen','ingevoegd|toegevoegd','geschrapt'],
   pl:['zmienia','zastępuje|otrzymuje.*brzmienie','dodaje','skreśla|uchyla'],
   pt:['alterad','substituíd|passa a ter.*reda[cç][aã]o','aditad|inserid|acrescentad','suprimid'],
-  ro:['modifică','înlocuiește','introduce|adaugă','elimină'],
+  ro:['modifică','înlocuiește|înlocuit','introduce|adaugă|adăugat','elimină'],
   sk:['mení','nahrádza','vkladá|dopĺňa','vypúšťa'],
   sl:['spremeni','nadomesti','vstavi|doda','črta'],
   sv:['ändras','ersätts|ersättas','införs|införas|läggs|läggas','utgår|stryks'],

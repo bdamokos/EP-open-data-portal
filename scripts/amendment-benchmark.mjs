@@ -20,13 +20,16 @@ export {monday} from './amendment-benchmark-sample.mjs';
 import {sourceDiagnostics} from './amendment-benchmark-source-diagnostics.mjs';
 import {checkoutProducers} from './amendment-benchmark-producers.mjs';
 import {acquireLanguageVariants,languageVariantContext} from './amendment-benchmark-languages.mjs';
+import {expectedLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
 export function options(args) {
   const result={apiBase:process.env.AMENDMENT_BENCHMARK_API_BASE,weeks:8,decisionWeeks:[],excludeSnapshots:[],documents:[],fetchMissing:false,cap:1500,delay:750,cache:process.env.AMENDMENT_BENCHMARK_CACHE_DIR||path.join(process.env.XDG_CACHE_HOME||path.join(os.homedir(),'.cache'),'ep-explorer/amendment-benchmark')};
-  const values={'--source-negotiation-cache':'negotiationCache','--decision-week':'decisionWeeks','--exclude-snapshot':'excludeSnapshots','--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
+  const values={'--oracle-calibration':'oracleCalibration','--source-negotiation-cache':'negotiationCache','--decision-week':'decisionWeeks','--exclude-snapshot':'excludeSnapshots','--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
   for(let i=0;i<args.length;i++) {
     const arg=args[i];
+    if(arg==='--languages'){result.languages=true;continue;}
+    if(arg==='--record-language-baseline'){result.recordBaseline=true;continue;}
     if(arg==='--diagnose-sources'){result.diagnoseSources=true;continue;}
     if(arg==='--placement-only'){result.placementOnly=true;continue;}
     if(arg==='--language-variants'){result.languageVariants=true;continue;}
@@ -36,6 +39,8 @@ export function options(args) {
     const key=values[arg];if(!key||!args[i+1]||args[i+1].startsWith('--'))throw new Error('Unknown or missing option: '+arg);
     const value=args[++i];if(Array.isArray(result[key]))result[key].push(value);else result[key]=value;
   }
+  if(result.oracleCalibration&&!result.languages)throw new Error('--oracle-calibration requires --languages.');
+  if(result.recordBaseline&&!result.languages)throw new Error('--record-language-baseline requires --languages.');
   result.maxRetryAfter=Number(result.maxRetryAfter??60000);
   if(!Number.isSafeInteger(result.maxRetryAfter)||result.maxRetryAfter<0||result.maxRetryAfter>60000)throw new Error('Retry-After cap must be between 0 and 60000 ms.');
   if(result.negotiationCache&&!result.diagnoseSources)throw new Error('--source-negotiation-cache requires --diagnose-sources');
@@ -203,7 +208,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
         sourceUrl:replay?(structured?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
         ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,fileDeclarationSource:text?.fileDeclarationSource??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
       };
-      if(stages.S2.status==='passed'&&matching) {
+      if(stages.S2.status==='passed'&&(matching||expectedLanguageScope(wording))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
         stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
@@ -229,17 +234,18 @@ export function markdown(result) {
 }
 
 async function checkoutIdentity(root,runtime) {
-  return {producerFingerprint:await checkoutProducers(root),head:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),dirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim().length>0,workingDiffHash:digest(execFileSync('git',['diff','HEAD'],{cwd:root})),extractionVersion:runtime?.AMENDMENT_EXTRACTION_VERSION||AMENDMENT_EXTRACTION_VERSION,documentContextVersion:runtime?.documentContextVersion||DOCUMENT_CONTEXT_VERSION,proposalParserVersion:runtime?.PROPOSAL_PARSER_VERSION||PROPOSAL_PARSER_VERSION,documentExtractionVersion:runtime?.documentExtractionVersion||DOCX_EXTRACTION_VERSION,files:Object.fromEntries(await Promise.all(['server/amendment-documents.mjs','server/proposal-placement.mjs','server/proposal-structure.mjs','server/document-context-model.mjs','server/document-context.mjs','server/document-context-placement.mjs','server/document-text.mjs','scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-resolution-oracle.mjs'].map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
+  return {producerFingerprint:await checkoutProducers(root),head:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),dirty:execFileSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'}).trim().length>0,workingDiffHash:digest(execFileSync('git',['diff','HEAD'],{cwd:root})),extractionVersion:runtime?.AMENDMENT_EXTRACTION_VERSION||AMENDMENT_EXTRACTION_VERSION,documentContextVersion:runtime?.documentContextVersion||DOCUMENT_CONTEXT_VERSION,proposalParserVersion:runtime?.PROPOSAL_PARSER_VERSION||PROPOSAL_PARSER_VERSION,documentExtractionVersion:runtime?.documentExtractionVersion||DOCX_EXTRACTION_VERSION,files:Object.fromEntries(await Promise.all(['server/amendment-documents.mjs','server/proposal-placement.mjs','server/proposal-structure.mjs','server/document-context-model.mjs','server/document-context.mjs','server/document-context-placement.mjs','server/document-text.mjs','scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs'].map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-languages.mjs','package-lock.json','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','package-lock.json'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--decision-week YYYY-MM-DD (repeatable) | --weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--exclude-snapshot PATH/snapshot.json (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT] [--diagnose-sources [--source-negotiation-cache NEW_PATH]]\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot. --diagnose-sources inspects frozen inputs; --source-negotiation-cache explicitly permits paced public representation checks in a separate cache, without changing scores.\n');return;}
+  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch] [--decision-week YYYY-MM-DD (repeatable) | --weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--exclude-snapshot PATH/snapshot.json (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT] [--languages] [--record-language-baseline] [--oracle-calibration PATH.json] [--diagnose-sources [--source-negotiation-cache NEW_PATH]]\nOracle calibration binds each changed language assertion to a before/after digest and checked official-source evidence; it never waives false placements or correct-row losses. Keep calibration JSON outside Git and obtain independent review before recording a new baseline.\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot. --diagnose-sources inspects frozen inputs; --source-negotiation-cache explicitly permits paced public representation checks in a separate cache, without changing scores.\n');return;}
+  if(opts.languages){const {languageMain}=await import('./amendment-language-benchmark.mjs');return languageMain(opts);}
   if(!opts.apiBase)throw new Error('Provide --api-base or AMENDMENT_BENCHMARK_API_BASE; no deployment host is built in.');
   const root=fileURLToPath(new URL('../',import.meta.url)),runtimeRoot=path.resolve(opts.runtimeRoot||root),runtime=await replayRuntime(runtimeRoot),code=await checkoutIdentity(runtimeRoot,runtime),harness=await harnessIdentity(root);
   if(opts.placementOnly)process.stderr.write('NOTE: --placement-only is a compatibility alias for full cached-source replay; producer changes are evaluated.\n');

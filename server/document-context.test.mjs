@@ -367,7 +367,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,27);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,29);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -607,4 +607,17 @@ test('indexed wording ranges remain tied to their exact selected source columns'
   const result=await reader.query(query({amendmentId,listId,includeBody:false}),{store:{}});
   assert.deepEqual(result.amendment.variants[0].originalFormatting,originalFormatting);
   assert.deepEqual(result.amendment.variants[0].proposedFormatting,proposedFormatting);
+});
+
+test('a selected unaffected language edition has no placement, replacement target or legal-baseline acquisition',async()=>{
+  const note='(Ne concerne pas la version française.)';
+  const selected={...indexed,language:'fr',targetLabelLanguage:'fr',originalText:'C. Texte existant.',proposedText:note,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false}};
+  const reader=service({findAmendment:()=>selected,readText:async()=>({...summary,textLanguage:'fr',paragraphs:['C. Texte existant.']}),readProposal:async()=>assert.fail('An unaffected edition needs no legal baseline')});
+  const result=await reader.query(query({language:'fr',amendmentId,listId,wordingLanguage:'fr'}),{store:{}});
+  assert.equal(result.placement.status,'not-applicable');assert.equal(result.placement.operation,null);
+  assert.equal(result.target.status,'unavailable');assert.equal(result.target.reason,'language-version-unaffected');
+  assert.deepEqual(result.target.paragraphs,[]);assert.equal(result.baseline,null);assert.equal(result.proposal,null);
+  assert.equal(result.amendment.variants[0].proposedText,note);
+  assert.equal(result.target.evidence.wordingLanguage,'fr');
+  assert.deepEqual(result.document.selectedText.paragraphs,['C. Texte existant.']);
 });
