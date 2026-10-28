@@ -4,7 +4,7 @@ import {retryAfterSeconds} from './upstream-queue.mjs';
 // retain request query strings, document/person IDs, response bodies or cookies.
 export function odpRouteFamily(input) {
   const parts=new URL(input).pathname.replace(/^\/api\/v2\/?/,'').split('/').filter(Boolean);
-  const roots=new Set(['meps','speeches','meetings','procedures','plenary-documents','committee-documents','parliamentary-questions','external-documents','corporate-bodies']);
+  const roots=new Set(['meps','speeches','meetings','procedures','documents','adopted-texts','plenary-documents','plenary-session-documents','committee-documents','parliamentary-questions','external-documents','corporate-bodies']);
   if(!roots.has(parts[0]))return '/other';
   if(parts.length===1)return '/'+parts[0];
   if(parts[1]==='feed'||parts[1]==='show-current')return '/'+parts[0]+'/'+parts[1];

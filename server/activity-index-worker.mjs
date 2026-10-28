@@ -633,7 +633,10 @@ export class ActivityWorker {
         this.store.transaction(()=>{this.store.assertWriter();amendmentsCopy(this.store.db,active,active);groupVoicesCopy(this.store.db,active,active);});
         this.checkpointContinuations(active);
       }
-      const cycle=this.coreDue()?this.store.beginCycle():null,generation=cycle?.generation || active;
+      // Core recovery changes items and their frozen Following summaries. It
+      // must publish through a working generation, even between daily cycles.
+      const recover=this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,active,this.clock());
+      const cycle=this.coreDue()||recover?this.store.beginCycle():null,generation=cycle?.generation || active;
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
@@ -714,7 +717,12 @@ export class ActivityWorker {
           // Publish a finished core generation before spending budget on optional metadata.
           if(!coreTask&&cycle&&this.store.get('working')){
             const counts=this.store.taskCounts(generation);
-            if(counts.total===counts.completed){if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);}
+            if(counts.total===counts.completed){
+              // Keep this snapshot open for the next bounded admission batch;
+              // don't copy the entire index again for every 25 recovered gaps.
+              if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))break;
+              if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);
+            }
           }
           const task=coreTask||nextGroupVoiceTask(this.store,generation);
           if(!task)break;

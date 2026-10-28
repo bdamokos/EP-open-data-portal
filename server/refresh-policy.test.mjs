@@ -50,6 +50,48 @@ test('backfill recovers due gaps between daily cycles without resetting future r
   assert.equal(store.get('slowGapAdmissions'),null,'temporary backfill does not consume the normal daily cap');
 });
 
+test('idle backfill publishes recovered questions and Following marks in a new frozen generation',async t=>{
+  const {store,generation,worker,clock}=setup(t);
+  store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);
+  const key='/parliamentary-questions/E-10-2026-000001';
+  store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'document',JSON.stringify({endpoint:key}),84,'EP API returned 500',5,new Date(clock()-8*DAY).toISOString(),clock()-1,null);
+  worker.recoveryMode='backfill';
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/E-10-2026-000001',creator:['person/42']})]}});
+  const runTask=worker.task.bind(worker);
+  // Leave the actual recovered document and publication paths intact while
+  // settling unrelated discovery jobs without upstream fixture traffic.
+  worker.task=async task=>task.key===key?runTask(task):store.finishTask(task);
+  assert.equal(worker.coreDue(),false);store.release();await worker.runIteration();
+  const active=store.get('active');assert.notEqual(active,generation);assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=? AND source_id=?').get(generation,'E-10-2026-000001').n,0,'old serving rows stay frozen');
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=? AND source_id=?').get(active,'E-10-2026-000001').n,1);
+  assert.equal(store.db.prepare("SELECT mark FROM item_marks WHERE mep='42' AND source_id='E-10-2026-000001'").get()?.mark,active);
+  assert.equal(store.db.prepare("SELECT activity_count FROM follow_summary WHERE generation=? AND mep='42'").get(active)?.activity_count,1);
+  assert.equal(store.db.prepare("SELECT activity_count FROM follow_summary WHERE generation=? AND mep='42'").get(generation)?.activity_count,0);
+});
+
+test('multiple admission batches share one working generation and publish only after due recovery is admitted',async t=>{
+  const {store,generation,worker,clock}=setup(t);
+  store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);
+  for(let i=1;i<=28;i++) {
+    const key='/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0');
+    store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'document',JSON.stringify({endpoint:key}),84,'EP API returned 500',5,new Date(clock()-8*DAY).toISOString(),clock()-1,null);
+  }
+  worker.recoveryMode='backfill';
+  worker.fetchRecord=async endpoint=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({identifier:endpoint.split('/').at(-1),id:'eli/dl/doc/'+endpoint.split('/').at(-1),creator:['person/42']})]}});
+  const runTask=worker.task.bind(worker);
+  worker.task=async task=>task.key.startsWith('/parliamentary-questions/')?runTask(task):store.finishTask(task);
+  store.release();await worker.runIteration();
+  assert.equal(store.get('active'),generation);const working=store.get('working').generation;
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,25);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,0);
+  await worker.runIteration();
+  assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,28);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,28);
+  assert.equal(store.db.prepare("SELECT activity_count FROM follow_summary WHERE generation=? AND mep='42'").get(working).activity_count,28);
+});
+
 test('mutable policy counts distinct observed official file languages and answer languages',()=>{
   const unanswered=projectDocument(document());
   assert.equal(documentRefreshState(unanswered).mutable,true);
