@@ -135,13 +135,28 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const alignmentFocus=useRef<MemberVotesState['alignment']|null>(null);
   const listScroll=useRef(0),detailScroll=useRef(0),headingRef=useRef<HTMLDivElement>(null);
   const restoredPane=useRef<HTMLDivElement|null>(null);
+  const focusedSelection=useRef<string|null>(null);
   const listHeadingRef=useRef<HTMLHeadingElement>(null);
   const lastSelection=useRef<{decisionId:string;groupId:string|null}|null>(null),returnFocus=useRef(false);
   const snapshotRefresh=useRef<{route:string;started:boolean;baseline:MemberVotesResponse|null}|null>(null);
   const route=useMemo(()=>{try{return memberVotesRoute(memberId,state,language);}catch{return null;}},[memberId,state.week,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
   const request=useData<MemberVotesResponse>(route) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state}));
-  const data=valid?request.data:null,groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
+  const scope=JSON.stringify([memberId,language,state.week,state.sittingId,state.positions,state.alignment,state.offset,state.snapshotId]);
+  const retained=useRef<{scope:string;data:MemberVotesResponse}|null>(null);
+  useLayoutEffect(()=>{
+    if(request.error||request.data&&!valid)retained.current=null;
+    else if(valid&&request.data)retained.current={scope,data:request.data};
+  },[valid,request.data,request.error,scope]);
+  // A decision read changes only selection. Keep this exact page mounted while
+  // it resolves; never carry records across member, language, filter or snapshot.
+  const previous=request.loading&&retained.current?.scope===scope?retained.current.data:null;
+  const previousSelection=previous?.items.find(item=>item.id===state.decisionId)??(previous?.selected.item?.id===state.decisionId?previous.selected.item:null);
+  const candidate=previous?{...previous,selected:state.decisionId?
+    previousSelection?{status:'found' as const,item:previousSelection}:{status:'unavailable' as const,item:null}:
+    {status:'not-requested' as const,item:null}}:null;
+  const data=valid?request.data:candidate&&validateMemberVotesResponse(candidate,{memberId,state})?candidate:null;
+  const groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
   const attendanceScope=JSON.stringify([memberId,language,state.sittingId?['sitting',state.sittingId]:['week',state.week]]);
   const [lastAttendance,setLastAttendance]=useState<{scope:string;route:string;sittingIds:string[]}|null>(null);
   const attendanceReady=Boolean(data&&!request.loading&&!request.error&&state.snapshotId===data.snapshotId);
@@ -198,7 +213,13 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     (row||group||listHeadingRef.current)?.focus({preventScroll:true});
     returnFocus.current=false;
   },[data,groups,selected,state.decisionId,state.context,request.loading,request.error]);
-  useEffect(()=>{if(state.decisionId&&!state.context)headingRef.current?.querySelector<HTMLElement>('h2')?.focus({preventScroll:true});},[data,state.decisionId,state.context]);
+  useEffect(()=>{
+    if(!state.decisionId||state.context){focusedSelection.current=null;return;}
+    const key=JSON.stringify([memberId,state.decisionId]);
+    if(focusedSelection.current===key)return;
+    const heading=headingRef.current?.querySelector<HTMLElement>('h2');
+    if(heading){heading.focus({preventScroll:true});focusedSelection.current=key;}
+  },[data,memberId,state.decisionId,state.context]);
   useLayoutEffect(()=>{
     if(alignmentFocus.current===null||request.loading||!data)return;
     // A filter request briefly removes the list; restore its initiating control.
@@ -235,7 +256,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
       </div>
       <div ref={detailRef} className="member-votes-pane" hidden={!state.decisionId||Boolean(state.context)} onScroll={event=>{detailScroll.current=event.currentTarget.scrollTop;}}>
         <button className="member-votes-back" type="button" onClick={()=>change({decisionId:null,context:null})}>← Back to votes</button>
-        <div ref={headingRef}>{selected?<Detail vote={selected} data={data} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})} explanationsActive={!state.context}/>:state.decisionId?<div className="member-votes-empty"><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></div>:null}</div>
+        <div ref={headingRef}>{selected?<Detail vote={selected} data={data} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})} explanationsActive={!state.context}/>:state.decisionId?<div className="member-votes-empty">{request.loading?<p role="status">Loading selected vote…</p>:<><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></>}</div>:null}</div>
       </div>
       {state.context&&(contextAllowed?renderContext({...state.context,onBack:()=>change({context:null}),backLabel:'Back to vote',summary:<ContextVote vote={selected!} memberName={memberName} language={language}/>}):<div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}>← Back to vote</button><p>The requested document is unavailable for this vote.</p></div>)}
     </>}
