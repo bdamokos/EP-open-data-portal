@@ -6,6 +6,33 @@ The unfinished amendment catalogue is hidden by `publicAmendmentsEnabled` in `sr
 
 The server binds to loopback by default and has no accounts. A reverse proxy must overwrite forwarded headers before `TRUST_PROXY=true` is enabled. Site routing, access controls, host configuration and credentials belong outside this repository.
 
+## Run locally
+
+Use the Node.js version in `.nvmrc` (Node.js 26) and npm. The minimum is Node.js 22.16 or 24+; earlier releases and Node.js 23 bundle SQLite without FTS5.
+
+```sh
+npm ci
+npm run build
+npm start
+```
+
+Open <http://127.0.0.1:8790/>. For question and legislative history, enable a local activity index:
+
+```sh
+mkdir -p var/cache var/index
+ODP_CACHE_DIR="$PWD/var/cache" ACTIVITY_INDEX_DIR="$PWD/var/index" ACTIVITY_INDEX_ENABLED=true npm start
+```
+
+The indexer starts with bounded requests and retains its progress. Initial coverage is partial and is shown in the interface. Do not run two processes against the same index directory. Cache and index data stay outside Git. `.env.example` lists the available settings; load environment variables through your shell or service manager.
+
+Boolean settings accept `1`, `true`, `yes`, `on` and `0`, `false`, `no`, `off` (case-insensitive); other nonempty values fail with the setting name. Worker flags are checked when accessed or started; directory and bounded job settings are read when their service is first created. Relative paths resolve from the working directory. `JSON_RESPONSE_LIMIT_BYTES` caps supported JSON responses (default 5242880 bytes).
+
+For full-text search, add `CORPUS_ENABLED=true CORPUS_DIR="$PWD/var/corpus"`. A background worker stores speech texts and question/answer texts in `corpus-v1.sqlite`, searchable through `/api/corpus/search` and joined read-only to the activity index; `/api/corpus/status` reports coverage. It pauses at `CORPUS_MAX_DISK_MIB`. See [Public data sources](PUBLIC_DATA.md#full-text-corpus).
+
+When `ODP_CACHE_DIR` is set, portraits are also cached on disk in its `portraits-v1` subdirectory. Use one cache writer per directory and keep the cache mount when replacing a container.
+
+For frontend development, run `npm run dev:api` and `npm run dev` in separate terminals. Following is browser-local and persists across visits to the same origin.
+
 ## HTTP caching
 
 Anonymous, stateless API reads use a six-hour CDN lifetime; activity and speech lists use one hour. Dossier press-release lists use 15 minutes once following has started, every feed read succeeded and the procedure file was read fresh. Positive speech/document reading responses dated at least 14 days ago use 24 hours, except unanswered questions, whose answer links can still change. Answer age comes from the selected answer, not its parent question; unknown dates keep six hours. Browsers revalidate API responses. Partial index and corpus coverage remains an explicit snapshot, with source retrieval dates preserved; background retries do not by themselves invalidate saved observations. Source refresh schedules are independent and unchanged: CDN lifetimes describe when a shared cache checks this server, not the maximum age of upstream data.
