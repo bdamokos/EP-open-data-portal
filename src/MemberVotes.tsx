@@ -149,7 +149,8 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const request=useData<MemberVotesResponse>(route) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state:requestedState}));
   const candidateData=valid?request.data:null;
-  const findingLatest=chooseLatest&&!search.complete&&(!candidateData||candidateData.pagination.recordedTotal===0);
+  const unavailableEarlier=chooseLatest&&!search.complete&&requestedWeek!=='latest'&&candidateData?.coverage.status==='unavailable';
+  const findingLatest=chooseLatest&&!search.complete&&(!candidateData||candidateData.pagination.recordedTotal===0||unavailableEarlier);
   const data=findingLatest?null:candidateData,groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
   const attendanceScope=JSON.stringify([memberId,language,state.sittingId?['sitting',state.sittingId]:['week',state.week]]);
   const [lastAttendance,setLastAttendance]=useState<{scope:string;route:string;sittingIds:string[]}|null>(null);
@@ -180,10 +181,10 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   },[route,request.retry]);
   useEffect(()=>{
     if(!candidateData||request.loading)return;
-    if(chooseLatest&&!search.complete&&candidateData.pagination.recordedTotal===0){
-      if(calendarRequest.loading)return;
+    if(chooseLatest&&!search.complete&&(candidateData.pagination.recordedTotal===0||unavailableEarlier)){
+      if(!unavailableEarlier&&calendarRequest.loading)return;
       const calendar=!calendarRequest.error&&validateVotePeriods(calendarRequest.data)?calendarRequest.data:null;
-      const previous=calendar?.coverage.status!=='unavailable'?calendar?.weeks.find(week=>candidateData.period.week&&week.week<candidateData.period.week):null;
+      const previous=!unavailableEarlier&&calendar?.coverage.status!=='unavailable'?calendar?.weeks.find(week=>candidateData.period.week&&week.week<candidateData.period.week):null;
       if(previous){setLatestSearch({scope:searchScope,week:previous.week,complete:false});return;}
       // With no match, keep the latest plenary available for manual browsing.
       // Earlier snapshots may have expired or been evicted during the search.
@@ -194,7 +195,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     if(refresh){if(!refresh.started||request.data===refresh.baseline)return;snapshotRefresh.current=null;}
     const current=stateRef.current,week=!current.sittingId&&candidateData.period.week?candidateData.period.week:current.week;
     if(current.snapshotId!==candidateData.snapshotId||current.week!==week)onStateChange({...current,week,snapshotId:candidateData.snapshotId},{replace:true});
-  },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,requestedWeek,memberId,language,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
+  },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,requestedWeek,memberId,language,unavailableEarlier,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
   useLayoutEffect(()=>{
     const pane=state.context?null:state.decisionId?detailRef.current:listRef.current;
     // The journey owner may restore this node after a tab remount. A refreshed

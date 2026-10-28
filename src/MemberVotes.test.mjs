@@ -894,6 +894,23 @@ test('an unavailable latest vote period stops the search without claiming no pos
   assert.equal(h.calls.some(url=>url.includes('member-votes/')&&stateFrom(url).week===olderWeek),false);
 });
 
+test('an unavailable earlier candidate returns to the latest week with a fresh snapshot',async t=>{
+  let latestReads=0;
+  const refreshed='b'.repeat(64);
+  const h=await mount(t,{calendar:searchCalendar,handler:url=>{
+    const state=stateFrom(url),older=state.week===olderWeek;
+    if(state.week==='latest')latestReads++;
+    const value=searchResponse(url,{olderRecorded:false,coverage:older?{status:'unavailable',collectionComplete:false}:{}});
+    value.snapshotId=state.snapshotId??(latestReads>1?refreshed:SNAPSHOT);
+    return Response.json(value);
+  }});
+  assert.equal(h.state.week,WEEK);assert.equal(h.state.snapshotId,refreshed);
+  assert.equal(latestReads,2);
+  assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert.doesNotMatch(h.container.textContent,/Voting records unavailable|Finding latest recorded votes/);
+  assert(h.changes.every(change=>change.state.week===WEEK),'never pin the unavailable earlier candidate');
+});
+
 for(const memberStatus of ['listed-excused','listed-present','not-listed'])test('a week without member positions hides results and keeps '+memberStatus+' attendance',async t=>{
   const unrecorded=vote(1,{actualPosition:{status:'no-record',position:null},alignment:'unclassified',scope:{kind:'whole-text',basis:'exact-component-reference'}});
   const calendar={version:2,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]},{week:'2026-03-16',sittings:[{sittingId:'MTG-PL-2026-03-18',date:'2026-03-18'}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
