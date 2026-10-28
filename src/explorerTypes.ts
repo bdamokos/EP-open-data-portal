@@ -202,6 +202,11 @@ export interface PublicationDocument {
     availableTextLanguages: string[];
     translationType: 'original' | 'unspecified' | null;
     sourceFormat: 'DOCX' | null;
+    adoptedTextXml?: {
+      documentId: string; language: string; preference: 'held';
+      status: 'unavailable' | 'declared' | 'ambiguous'; reason: string; gaps: string[];
+      sources: {url:string; language:string; expressionId:string|null; manifestationId:string|null; byteSize:number|null; issued:string|null; mediaType:string|null}[];
+    };
     sourceUrl: string | null;
     fetchedAt: string | null;
     stale: boolean;
