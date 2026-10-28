@@ -1,7 +1,6 @@
 import {availabilitySummary,type SourceAvailability} from '../server/source-availability.mjs';
 import './AvailabilityNote.css';
 
-const sourceNames:Record<string,string>={PLENARY_DEBATE_SPEECH:'Oral contributions',PLENARY_DEBATE_WRITTEN_STATEMENT:'Written statements',QUESTION_WRITTEN:'Written questions',QUESTION_WRITTEN_PRIORITY:'Priority questions',QUESTION_ORAL:'Oral questions','oral-speeches':'Oral speeches','outside-speeches':'Outside speakers','speech-metadata':'Speech records','speech-text':'Speech text','procedure-debates':'Dossier debates','procedure-votes':'Dossier votes','procedure-committee':'Committee events'};
 const date=(value:string,language:string)=>new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(value.slice(0,10)+'T12:00Z'));
 export function PartialValue({partial}:{partial?:boolean}) {return partial?<small className="availability-partial" lang="en">Partial</small>:null;}
 export function AvailabilityNote({sources,label='record',language='en',end,partial=false}:{sources?:SourceAvailability|SourceAvailability[]|null;label?:string;language?:string;end?:string|null;partial?:boolean}) {
@@ -14,9 +13,5 @@ export function AvailabilityNote({sources,label='record',language='en',end,parti
   const qualifier=hasGap||limited?'Partial coverage':latest&&end&&end>latest?'Later dates unavailable':frontierPeriod?'Partial':null;
   return <div className="availability-note" lang="en">
     <p>{latest?<>Latest {label}: <time lang={language} dateTime={latest}>{date(latest,language)}</time>{qualifier?<> · {qualifier}</>:null}</>:selectedObserved?<>Partial coverage</>:selectedChecked?(hasGap||partial||summary.sources.some(source=>source.limited)?'Partial coverage':'No matching records.'):partial?'Partial coverage':'Unavailable.'}</p>
-    <details><summary>Coverage</summary><ul>{summary.sources.map((source,index)=><li key={source.sourceKey+':'+index}>
-      <strong>{sourceNames[source.sourceKey]||source.sourceKey.replaceAll('-',' ')}</strong>{source.stage==='text'&&source.language?<> · <span lang={language}>{new Intl.DisplayNames([language],{type:'language'}).of(source.language)||source.language}</span> text</>:null}
-      <span>{source.latestObservedDate?<>Latest record: <time lang={language} dateTime={source.latestObservedDate}>{date(source.latestObservedDate,language)}</time>.</>:'Date unavailable.'}{source.gaps.length?' Some records could not be checked.':source.limited?' Some records are outside this view.':''}</span>
-                </li>)}</ul></details>
   </div>;
 }

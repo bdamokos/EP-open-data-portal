@@ -83,7 +83,7 @@ function ConnectedText({id,language}:{id:string;language:string}) {
   const paragraphs=transcriptParagraphs(body?.xml??null).paragraphs;
   return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
     {state.loading&&!body&&<p lang="en" role="status">Loading contribution…</p>}{state.error&&<p lang="en">{state.error} <button onClick={state.retry}>Retry</button></p>}
-    {body&&<><p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}{body.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>}{state.data?.websiteUrl&&<a lang="en" href={state.data?.websiteUrl} target="_blank" rel="noreferrer">Parliament’s transcript ↗</a>}</>}
+    {body&&<><p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}{body.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>}</>}
   </div>;
 }
 function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {
