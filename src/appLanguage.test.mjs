@@ -160,7 +160,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
     assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),'en');assert.match(detail.querySelector('.explorer-text-meta').textContent,/Parliament machine translation/);
     assert.equal(effectiveLanguage(exactText(detail,'small','Showing saved transcript.')),'en');
-    const source=detail.querySelector('.explorer-source-link a');assert.equal(source.href,speeches[0].websiteUrl);assert.equal(effectiveLanguage(source),'en');
+    assert.equal(detail.querySelector('.explorer-source-link a'),null);
     assert.equal(effectiveLanguage(detail.querySelector('button[aria-label="Find in speech"]')),'en');
     await h.click(rows[1].querySelector('button'));
     const unknown=rows[1].querySelector('.explorer-transcript');assert.equal(effectiveLanguage(unknown.querySelector('p')),'');assert.equal(unknown.textContent,'Unspecified source transcript.');

@@ -187,7 +187,7 @@ test('member cloud opens the chosen transcript while names and chair roles retai
   });
 });
 
-test('selected root speech announces an error once, retries successfully, and preserves transcript source and player controls',async t=>{
+test('selected root speech announces an error once, retries successfully, and preserves transcript and player controls',async t=>{
   const h=await harness(t,{items:[speechItem]}),toggle=h.container.querySelector('.explorer-speech-toggle');toggle.focus();await h.click(toggle);
   const reader=h.container.querySelector('.explorer-speech-detail'),source=speechItem.websiteUrl;
   const video=reader.querySelector('.explorer-speech-transcript-heading .explorer-video-toggle');assert(video);
@@ -195,12 +195,12 @@ test('selected root speech announces an error once, retries successfully, and pr
   await h.finish(`speech/${speechId}?lang=en`,{error:{message:'Speech fixture temporarily unavailable.'}},503);await h.wait();
   assert.equal(status(reader).textContent,'','the existing error alert is not repeated through the status region');
   assert.equal(reader.querySelectorAll('[role="alert"]').length,1);assert.match(reader.querySelector('[role="alert"]').textContent,/Speech fixture temporarily unavailable\./);
-  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
+  assert.equal([...reader.querySelectorAll('a[href]')].some(link=>link.href===source),false);assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
   assert.equal(document.activeElement,toggle);
   await h.click([...reader.querySelectorAll('button')].find(button=>button.textContent==='Try again'));
   await h.finish(`speech/${speechId}?lang=en`,{id:speechId,xml:'<speech>'+paragraphs.map(text=>'<p>'+text+'</p>').join('')+'</speech>',textLanguage:'en',translationType:'original'});await h.wait();
   assert.equal(status(reader).textContent,'Transcript loaded.');assert.equal(reader.querySelector('[role="alert"]'),null);assertOrdinaryText(reader);
-  assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===source));assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
+  assert.equal([...reader.querySelectorAll('a[href]')].some(link=>link.href===source),false);assert([...reader.querySelectorAll('button')].some(button=>button.textContent==='Video'));
 });
 
 test('retained transcript renders before metadata and survives a failed metadata load without replacing the text',async t=>{
