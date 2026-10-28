@@ -37,3 +37,10 @@ export function validateAdoptedText(endpoint,work) {
   if(terms.some(term=>reference(term)!=='org/ep-10'))throw new Error('Invalid adopted-text parliamentary term.');
   return work;
 }
+
+export function adoptedTextRecord(endpoint,records) {
+  const id=endpoint.slice('/adopted-texts/'.length),identity='eli/dl/doc/'+id;
+  const matches=records.filter(work=>work?.identifier===id||reference(work?.id)===identity);
+  if(matches.length!==1)throw new Error('Invalid or conflicting exact adopted-text records.');
+  return validateAdoptedText(endpoint,matches[0]);
+}

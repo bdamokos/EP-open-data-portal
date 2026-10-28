@@ -27,7 +27,7 @@ import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -341,9 +341,9 @@ export class ActivityWorker {
       }
       this.store.finishTask(task);
     } else if(task.kind==='document') {
-      const r=await this.request(body.endpoint);const work=r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
+      const r=await this.request(body.endpoint),adopted=body.endpoint.startsWith('/adopted-texts/');
+      const work=adopted?adoptedTextRecord(body.endpoint,r.payload.data):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
-      if(body.endpoint.startsWith('/adopted-texts/'))validateAdoptedText(body.endpoint,work);
       if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(work), proc=new Map();
       for(const id of procedureIds(work)) {
@@ -351,7 +351,9 @@ export class ActivityWorker {
         if(existing)proc.set(id,existing);
         if(tail(work.work_type)==='REPORT_PLENARY')this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
       }
-      const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
+      // Adopted works establish text relationships, never an individual MEP
+      // activity. A missing date must not discard their exact adoption link.
+      const {rows}=adopted?{rows:[]}:documentRows(projected,body.endpoint,r.fetchedAt,proc);
       this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
       scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);

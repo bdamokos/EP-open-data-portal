@@ -6,7 +6,7 @@ import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument} from './activity-index-model.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText,adoptedTextRecord} from './adopted-text-index.mjs';
 import {recordTaskGap} from './refresh-policy.mjs';
 import {motionAmendmentsPage,motionAmendmentsQuery} from './motion-amendments.mjs';
 
@@ -57,16 +57,18 @@ test('one missing adopted-text detail does not block the next exact record or lo
 test('detail ingestion retains exact adoption links for the existing indexed motion reader',async t=>{
   const {store,worker,cycle}=setup(t);
   store.putSource(cycle.generation,'/plenary-documents/'+target,'document',{id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:'2026-10-19'},stamp);
-  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[adopted()]}});
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[{id:'eli/dl/doc/another',type:'Work'},adopted({document_date:null})]}});
   await worker.task({generation:cycle.generation,key:endpoint,kind:'document',body:{endpoint}});
   const read=motionAmendmentsPage(store,motionAmendmentsQuery(target,new URLSearchParams('lang=en')));
   assert.equal(read.relations.adoptedTexts[0].id,id);
   assert.equal(read.relations.adoptedTexts[0].relationship.to,target);
+  assert.equal(read.relations.adoptedTexts[0].date,null);
   assert.deepEqual(store.source(cycle.generation,endpoint).work.adopts,['eli/dl/doc/'+target]);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(cycle.generation).n,0,'adoption does not invent individual authorship');
   for(const value of [null,[],['eli/dl/doc/'+target]])assert.deepEqual(projectDocument(adopted({adopts:value})).adopts,value);
   const unknown=adopted();delete unknown.adopts;assert.equal(Object.hasOwn(projectDocument(unknown),'adopts'),false);
   for(const change of [{identifier:'TA-9-2023-0001'},{id:'https://example.org/'+id},{work_type:'def/ep-document-types/REPORT_PLENARY'},{parliamentary_term:'org/ep-9'}])assert.throws(()=>validateAdoptedText(endpoint,adopted(change)),/Invalid/);
+  assert.throws(()=>adoptedTextRecord(endpoint,[adopted(),adopted({adopts:[]})]),/conflicting/);
 });
 
 test('adopted-text update feeds retain their custom interval and refresh final-language metadata',async t=>{
