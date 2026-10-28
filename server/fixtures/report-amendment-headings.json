@@ -1488,5 +1488,59 @@
       "amendmentHeading": "Ändringsförslag\t\t{number}",
       "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
     }
+  ],
+  "opinionBoundaryVariants": [
+    {
+      "language": "bg",
+      "documentId": "A-10-2026-0085",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_bg.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_bg.docx",
+        "fetchedAt": "2026-10-27T20:24:39.869Z",
+        "sha256": "e466cc08bbc8b6c428c6147f329e8905ad451b60eb2861f4db9c2b860d887128"
+      },
+      "part": "word/document.xml",
+      "ordinal": 903,
+      "text": "СТАНОВИЩЕ НА КОМИСЯТА ПО РАЗВИТИЕ"
+    },
+    {
+      "language": "sv",
+      "documentId": "A-10-2026-0087",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_sv.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_sv.docx",
+        "fetchedAt": "2026-10-27T20:25:36.382Z",
+        "sha256": "995db725cb8e5a0dee287b220af2b3fd48597c2f7bef8dd33093728b67e81486"
+      },
+      "part": "word/document.xml",
+      "ordinal": 2518,
+      "text": "YTTRANDE FRÅN FISKERIUTSKOTTET"
+    },
+    {
+      "language": "hr",
+      "documentId": "A-10-2026-0085",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_hr.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_hr.docx",
+        "fetchedAt": "2026-10-27T20:24:50.841Z",
+        "sha256": "8ae0fa7d8623a942db7924a619bcedacd073083d82e2c841fb9296a263cbb023"
+      },
+      "part": "word/document.xml",
+      "ordinal": 1506,
+      "text": "MIŠLJENJE ODBOR ZA GRAĐANSKE SLOBODE, PRAVOSUĐE I UNUTARNJE POSLOVE"
+    },
+    {
+      "language": "mt",
+      "documentId": "A-10-2026-0085",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_mt.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_mt.docx",
+        "fetchedAt": "2026-10-27T20:24:56.169Z",
+        "sha256": "a26a90c3d55d71b46541da367ae91fde09f5853efb70ab63ed1fd825111c2b62"
+      },
+      "part": "word/document.xml",
+      "ordinal": 1063,
+      "text": "OPINION TAL-KUMITAT GĦALL-AMBJENT, IL-KLIMA U S-SIKUREZZA TAL-IKEL"
+    }
   ]
 }

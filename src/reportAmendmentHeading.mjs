@@ -31,8 +31,16 @@ const headingsByLanguage={
   sl:['OSNUTEK ZAKONODAJNE RESOLUCIJE EVROPSKEGA PARLAMENTA','Predlog spremembe','OBRAZLOŽITEV','PRILOGA: IZJAVA O PRISPEVKIH','POSTOPEK V PRISTOJNEM ODBORU',/^MNENJE ODBORA .+$/iu],
   sv:['FÖRSLAG TILL EUROPAPARLAMENTETS LAGSTIFTNINGSRESOLUTION','Ändringsförslag','MOTIVERING','BILAGA: FÖRKLARING OM SYNPUNKTER','ÄRENDETS GÅNG I DET ANSVARIGA UTSKOTTET',/^YTTRANDE FRÅN UTSKOTTET .+$/iu],
 };
+// Keep the published variants literal, including their spelling, rather than
+// relaxing the grammar or inferring an opinion from a committee name alone.
+const additionalOpinionHeadings={
+  bg:['СТАНОВИЩЕ НА КОМИСЯТА ПО РАЗВИТИЕ'],
+  hr:['MIŠLJENJE ODBOR ZA GRAĐANSKE SLOBODE, PRAVOSUĐE I UNUTARNJE POSLOVE'],
+  mt:['OPINION TAL-KUMITAT GĦALL-AMBJENT, IL-KLIMA U S-SIKUREZZA TAL-IKEL'],
+  sv:['YTTRANDE FRÅN FISKERIUTSKOTTET'],
+};
 const vocabulary=Object.fromEntries(Object.entries(headingsByLanguage).map(([language,[start,amendment,statement,annex,procedure,opinion]])=>
-  [language,{start:start.toLowerCase(),amendment:amendment.toLowerCase(),ends:[statement,annex,procedure].map(value=>value.toLowerCase()),opinion}]));
+  [language,{start:start.toLowerCase(),amendment:amendment.toLowerCase(),ends:[statement,annex,procedure,...additionalOpinionHeadings[language]||[]].map(value=>value.toLowerCase()),opinion}]));
 const englishStart=/^(?:DRAFT )?EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION$/iu;
 const englishEnd=/^(?:EXPLANATORY STATEMENT|OPINION OF THE COMMITTEE(?: .*)?|PROCEDURE(?: [–—-].*)?|MINORITY POSITION|INFORMATION ON ADOPTION(?: .*)?)$/iu;
 

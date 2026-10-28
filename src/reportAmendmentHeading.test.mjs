@@ -6,7 +6,7 @@ import {docxContent} from '../server/document-text.mjs';
 import {reportAmendmentHeading} from './reportAmendmentHeading.mjs';
 
 const report='A-10-2026-0257',list=report+'-AM-001-002';
-const {editions}=JSON.parse(readFileSync(new URL('../server/fixtures/report-amendment-headings.json',import.meta.url)));
+const {editions,opinionBoundaryVariants}=JSON.parse(readFileSync(new URL('../server/fixtures/report-amendment-headings.json',import.meta.url)));
 function excerpt(edition) {
   const rows=[edition.opening,...edition.amendmentOrdinals.map((ordinal,i)=>[ordinal,edition.amendmentOverrides?.[i+1]??edition.amendmentHeading.replace('{number}',String(i+1))]),...edition.ends];
   return {textLanguage:edition.language,structureStatus:'extracted',paragraphs:rows.map(row=>row[1]),
@@ -56,6 +56,16 @@ for(const edition of editions)test(`published ${edition.language} opinion number
     source.paragraphSources[boundary]={container,complete};
     assert.equal(anchor(source,edition),main&&edition.language!=='pt'?2:null);
   }
+});
+
+for(const variant of opinionBoundaryVariants)test(`published ${variant.language} opinion heading variant closes the complete main range`,()=>{
+  const edition=editions.find(f=>f.language===variant.language),text=excerpt(edition);
+  text.paragraphs=[...text.paragraphs.slice(0,130),variant.text,...edition.opinion.amendments.map(row=>row[1])];
+  text.paragraphSources=text.paragraphs.map(()=>({container:'body',complete:true}));
+  assert.equal(anchor(text,edition),2,'the opinion restart must be outside the main range');
+  text.paragraphs=[edition.opening[1],variant.text,...edition.opinion.amendments.map(row=>row[1])];
+  text.paragraphSources=text.paragraphs.map(()=>({container:'body',complete:true}));
+  assert.equal(anchor(text,edition),null,'opinion numbering cannot replace a missing main sequence');
 });
 function docx(xml) {
   const name=Buffer.from('word/document.xml'),body=Buffer.from(xml),compressed=deflateRawSync(body);
