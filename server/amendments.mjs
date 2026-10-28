@@ -40,6 +40,10 @@ export function sameDocxDescriptor(a,b) {
   return Boolean(left&&right&&left.url===right.url&&left.language===right.language&&left.byteSize===right.byteSize&&
     (!left.issued||!right.issued||Date.parse(left.issued)===Date.parse(right.issued)));
 }
+export function docxRetrievedAfterIssue(retrievedAt,issued) {
+  const retrieved=Date.parse(retrievedAt);
+  return Number.isFinite(retrieved)&&(!issued||retrieved>=Date.parse(issued));
+}
 export function distributionEvidenceFor(work,source) {
   const descriptors=array(work?.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).flatMap(manifestation=>
     documentFiles({is_realized_by:[{...expression,is_embodied_by:[manifestation]}]}).filter(file=>file.format==='DOCX').map(file=>normalizedDocxDescriptor({...file,byteSize:manifestation?.byteSize,issued:manifestation?.issued})))).filter(Boolean);
@@ -57,7 +61,8 @@ export function listWordingFreshness(list,{parserVersion}={}) {
   const descriptor=currentDocxDescriptor(list),proof=list?.extraction?.sourceDescriptor,sourceDescriptor=proof&&Object.hasOwn(proof,'byteSize')?normalizedDocxDescriptor(proof):null,failure=list?.wordingRefreshFailure;
   const distributionState=list?.distributionEvidence?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION?list.distributionEvidence.state:'unknown';
   const failed=failure&&(sameDocxDescriptor(descriptor,failure.descriptor)||(!descriptor&&!failure.descriptor));
-  const status=failed?'failed':!descriptor||!sourceDescriptor||list?.extraction?.parserVersion!==parserVersion?'unverified':sameDocxDescriptor(descriptor,sourceDescriptor)?'fresh':'pending';
+  const currentBytes=!descriptor?.issued||docxRetrievedAfterIssue(list?.extraction?.fetchedAt,descriptor.issued);
+  const status=failed?'failed':!descriptor||!sourceDescriptor||list?.extraction?.parserVersion!==parserVersion?'unverified':sameDocxDescriptor(descriptor,sourceDescriptor)&&currentBytes?'fresh':'pending';
   return {version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,status,distributionState,descriptor,sourceDescriptor,...(failed?{failedAt:failure.failedAt,retryAfter:failure.retryAfter,error:failure.error}:{})};
 }
 export function resolvedAmendmentAuthorId(author) {

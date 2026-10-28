@@ -18,7 +18,6 @@ function fixture(t,{maxBytes}={}) {
   return {store,directory,sources:amendmentSourceStore(store,{maxBytes}),blobs:path.join(directory,'amendment-docx-v2'),advance:ms=>{now+=ms;assert(store.acquire());},buffer:Buffer.from('PK retained official source bytes')};
 }
 const rows=store=>store.db.prepare('SELECT url,language,byte_size,issued,sha256,size,retrieved_at,list_id FROM amendment_sources ORDER BY retrieved_at,url').all();
-const bindings=store=>store.db.prepare('SELECT * FROM amendment_source_bindings ORDER BY url,language,byte_size,sha256').all();
 const listSource=(store,generation,listId,descriptors)=>store.putSource(generation,'amendment:list:'+listId,'amendment-list',{distributionEvidence:{version:2,state:'available',descriptors}},retrievedAt);
 
 test('retained raw bytes serve the exact current descriptor at any age and keep their retrieval time',async t=>{
@@ -38,27 +37,29 @@ test('retained raw bytes serve the exact current descriptor at any age and keep 
   assert.equal(rows(store).length,1);
 });
 
-test('an unissued row cannot bridge known issue changes, while matching issued bytes remain reusable',async t=>{
-  const {sources,buffer}=fixture(t),{issued:_issued,...legacy}=descriptor;
-  await sources.save(legacy,buffer,retrievedAt);
-  assert(await sources.read(descriptor),'First use remains compatible with legacy bytes.');
+test('dated and undated bytes require retrieval at or after the current publication',async t=>{
+  const {store,sources,buffer}=fixture(t),{issued:_issued,...undated}=descriptor;
+  await sources.save(undated,buffer,retrievedAt);
+  assert(await sources.read(descriptor));
   const next={...descriptor,issued:'2026-10-20T09:00:00+02:00'};
   assert.equal(await sources.read(next),null);
-  assert(await sources.read({...descriptor,issued:'2026-10-16T15:04:06Z'}),'Equivalent instants do not change publication.');
-  await sources.save(next,buffer,retrievedAt);
-  assert(await sources.read(next),'An already retained matching publication needs no new download.');
+  assert.equal(await sources.save(next,buffer,retrievedAt),false);
+  const equal={...descriptor,issued:retrievedAt};
+  assert(await sources.read(equal));assert(await sources.save(equal,buffer,retrievedAt));
+  // Rows written by the previous implementation could already bind older bytes.
+  store.db.prepare('UPDATE amendment_sources SET retrieved_at=?').run('2026-10-16T14:00:00Z');
+  assert.equal(await sources.read(equal),null);assert.equal(sources.has(equal),false);
+  assert.equal(await sources.save(equal,buffer,'2026-10-16T14:00:00Z'),false);
+  assert(await sources.save(equal,buffer,retrievedAt));
+  assert.equal((await sources.read(equal)).fetchedAt,retrievedAt);
 });
 
-test('an unissued retrieval cannot be promoted to a later publication, including through save',async t=>{
-  const {store,sources,buffer}=fixture(t),{issued:_issued,...undated}=descriptor;
-  const retrievedAt='2026-10-20T00:00:00Z',later={...descriptor,issued:'2026-10-25T00:00:00Z'};
-  await sources.save(undated,buffer,retrievedAt);
-  assert.equal(await sources.read(later),null);
-  let changed=false;
-  assert.equal(await sources.save(later,buffer,retrievedAt,{downloaded:false,onPublicationChange:()=>{changed=true;}}),false);
-  assert.equal(changed,true);assert.deepEqual(bindings(store),[]);assert.equal(rows(store)[0].issued,'');
-  const initial={...descriptor,issued:retrievedAt};
-  assert(await sources.read(initial));assert.equal(await sources.save(initial,buffer,retrievedAt,{downloaded:false}),true);
+test('invalid retrieval times never qualify for retained reuse',async t=>{
+  const {store,sources,buffer}=fixture(t);
+  assert.equal(await sources.save(descriptor,buffer,'invalid'),false);
+  await sources.save(descriptor,buffer,retrievedAt);
+  store.db.prepare('UPDATE amendment_sources SET retrieved_at=?').run('invalid');
+  assert.equal(await sources.read(descriptor),null);
 });
 
 test('an orphan-maintenance failure logs once, leaves retained reads available and retries later',async t=>{
@@ -71,71 +72,57 @@ test('an orphan-maintenance failure logs once, leaves retained reads available a
   failure.mock.restore();advance(60_001);assert.equal(await sources.initialize(),true);
 });
 
-test('download and retained-save paths never downgrade publication bindings on undated identical bytes',async t=>{
-  const {store,sources,buffer}=fixture(t),{issued:_issued,...undated}=descriptor;
-  await sources.save(undated,buffer,retrievedAt);
-  await sources.save(descriptor,buffer,retrievedAt,{downloaded:false});
-  const original=bindings(store);
-  for(const downloaded of [true,false]) {
-    await sources.save(undated,buffer,'2026-10-24T08:00:00.000Z',{downloaded});
-    assert.deepEqual(bindings(store),original);assert.deepEqual(rows(store).map(row=>row.issued),[descriptor.issued]);
-  }
-  await sources.read(undated,{listId:'L2'});
-  assert.deepEqual(bindings(store),original,'List-ID updates do not change publication evidence.');
-  const next={...descriptor,issued:'2026-10-25T09:00:00+02:00'};
-  assert.equal(await sources.save(next,buffer,retrievedAt,{downloaded:false}),false);
-  assert.deepEqual(bindings(store),original);assert.equal(await sources.read(next),null);
-  // An actual dated download may establish T2 even when its bytes equal T1.
-  await sources.save(next,buffer,'2026-10-25T08:00:00.000Z',{downloaded:true});
-  await sources.save(undated,buffer,'2026-10-26T08:00:00.000Z');
-  assert.equal(bindings(store)[0].issued,next.issued);
-  assert.deepEqual(new Set(rows(store).map(row=>row.issued)),new Set([descriptor.issued,next.issued]));
-});
-
-test('undated different bytes retain descriptor history without acquiring the earlier byte binding',async t=>{
-  const {store,sources,buffer}=fixture(t),{issued:_issued,...undated}=descriptor,other=Buffer.alloc(buffer.length,1);
+for(const identical of [true,false])test('undated refresh keeps its observed descriptor and original retrieval time; identical='+identical,async t=>{
+  const {store,sources,buffer}=fixture(t),{issued:_issued,...undated}=descriptor,other=identical?buffer:Buffer.alloc(buffer.length,1);
   await sources.save(descriptor,buffer,retrievedAt);
-  const original=bindings(store);await sources.save(undated,other,'2026-10-24T08:00:00.000Z');
-  assert.deepEqual(bindings(store),original);
-  assert.equal(sources.boundDescriptor(undated,sha(other)).issued,undefined);
-  assert.equal(sources.boundDescriptor(undated,sha(buffer)).issued,descriptor.issued);
-  assert.equal(await sources.read({...descriptor,issued:'2026-10-25T09:00:00+02:00'}),null,'A descriptor with publication history never reopens first-use legacy compatibility.');
+  const later='2026-10-24T08:00:00.000Z';await sources.save(undated,other,later);
+  assert.deepEqual(rows(store).map(row=>row.issued),[descriptor.issued,'']);
+  assert.deepEqual(await sources.read(undated,{listId:'L2'}),{buffer:other,fetchedAt:later,sha256:sha(other)});
+  assert.equal(rows(store)[1].list_id,'L2');
+  const before={...descriptor,issued:'2026-10-23T09:00:00+02:00'},after={...descriptor,issued:'2026-10-25T09:00:00+02:00'};
+  assert.deepEqual(await sources.read(before),{buffer:other,fetchedAt:later,sha256:sha(other)},'Later undated retrievals qualify without publication history.');
+  assert.equal(await sources.read(after),null);assert.equal(await sources.save(after,other,later),false);
+  assert(await sources.save(before,other,later));
+  assert.equal((await sources.read(before)).fetchedAt,later,'Re-saving retained bytes never advances retrieval.');
 });
 
-for(const cleanup of ['eviction','missing','damaged'])test('publication history survives '+cleanup+' and an undated re-save',async t=>{
+for(const cleanup of ['eviction','missing','damaged'])test('retrieval-time guard survives '+cleanup+' and an undated re-save',async t=>{
   const {store,sources,blobs,buffer}=fixture(t,{maxBytes:64}),{issued:_issued,...undated}=descriptor;
-  await sources.save(descriptor,buffer,retrievedAt);const original=bindings(store);
+  await sources.save(descriptor,buffer,retrievedAt);
   if(cleanup==='eviction')await sources.save({...undated,url:url+'other'},Buffer.alloc(64,1),retrievedAt);
   else {
     if(cleanup==='missing')rmSync(path.join(blobs,sha(buffer)+'.docx'));
     else writeFileSync(path.join(blobs,sha(buffer)+'.docx'),Buffer.alloc(buffer.length,1));
     assert.equal(await sources.read(descriptor),null);
   }
-  assert.equal(rows(store).some(row=>row.url===url),false);assert.deepEqual(bindings(store),original);
-  await sources.save(undated,buffer,'2026-10-24T08:00:00.000Z');
-  assert.equal(rows(store).find(row=>row.url===url).issued,descriptor.issued);assert.deepEqual(bindings(store),original);
+  assert.equal(rows(store).some(row=>row.url===url),false);
+  const later='2026-10-24T08:00:00.000Z';await sources.save(undated,buffer,later);
+  assert.equal(rows(store).find(row=>row.url===url).issued,'');
   assert.equal(await sources.read({...descriptor,issued:'2026-10-25T09:00:00+02:00'}),null);
+  assert.equal((await sources.read(descriptor)).fetchedAt,later);
 });
 
-test('startup backfills existing dated rows and preserves history across writer restarts',async t=>{
-  const {store,sources,directory,buffer}=fixture(t),{issued:_issued,...undated}=descriptor;
+test('startup removes obsolete bindings and applies the time guard to existing rows across restarts',async t=>{
+  const {store,sources,directory,buffer}=fixture(t);
   await sources.save(descriptor,buffer,retrievedAt);
-  store.db.exec('DROP TABLE amendment_source_bindings');store.release();
+  store.db.exec(`CREATE TABLE amendment_source_bindings(url TEXT,issued TEXT); INSERT INTO amendment_source_bindings VALUES ('obsolete','obsolete');`);
+  store.db.prepare('UPDATE amendment_sources SET retrieved_at=?').run('2026-10-16T14:00:00Z');store.release();
   const successor=new ActivityStore(directory,{clock:()=>store.clock()});
   try {
     assert(successor.acquire());const next=amendmentSourceStore(successor);await next.initialize();
-    assert.equal(bindings(successor)[0].issued,descriptor.issued);
-    await next.save(undated,buffer,'2026-10-24T08:00:00.000Z');
-    assert.equal(rows(successor)[0].issued,descriptor.issued);
+    assert.equal(successor.db.prepare("SELECT 1 FROM sqlite_master WHERE name='amendment_source_bindings'").get(),undefined);
+    assert.equal(await next.read(descriptor),null);
+    assert(await next.save(descriptor,buffer,retrievedAt));
+    assert.equal((await next.read(descriptor)).fetchedAt,retrievedAt);
   }finally{successor.close();}
 });
 
-test('a dated download refused by the blob budget still prevents later undated writes from resetting history',async t=>{
+test('a budget refusal leaves later reuse governed by the actual retrieval time',async t=>{
   const {store,sources,buffer}=fixture(t,{maxBytes:1}),{issued:_issued,...undated}=descriptor;
-  assert.equal(await sources.save(descriptor,buffer,retrievedAt),false);
-  assert.equal(bindings(store)[0].issued,descriptor.issued);assert.deepEqual(rows(store),[]);
+  assert.equal(await sources.save(descriptor,buffer,retrievedAt),false);assert.deepEqual(rows(store),[]);
   sources.maxBytes=1024;await sources.save(undated,buffer,'2026-10-24T08:00:00.000Z');
-  assert.equal(rows(store)[0].issued,descriptor.issued);
+  assert.equal(rows(store)[0].issued,'');
+  assert(await sources.read({...descriptor,issued:'2026-10-23T09:00:00+02:00'}));
   assert.equal(await sources.read({...descriptor,issued:'2026-10-25T09:00:00+02:00'}),null);
 });
 
@@ -156,6 +143,7 @@ test('identical bytes share one file; a new retrieval replaces the same descript
   // Re-downloading identical bytes records the later retrieval.
   const later='2026-10-18T08:00:00.000Z';await sources.save(descriptor,buffer,later);
   assert.equal((await sources.read(descriptor)).fetchedAt,later);
+  assert.equal((await sources.read(french)).fetchedAt,retrievedAt,'A shared hash does not advance another descriptor’s retrieval time.');
   // A different publication of the same URL is kept beside the earlier one.
   const revised=Buffer.from('PK revised official source bytes!!'),next={...descriptor,byteSize:revised.length,issued:'2026-10-20T09:00:00+02:00'};
   await sources.save(next,revised,'2026-10-21T08:00:00.000Z');
@@ -197,7 +185,7 @@ test('superseded versions published by active, previous or working generations r
   const versions=[27,28,29,30].map(byteSize=>({...descriptor,byteSize}));
   for(const [index,file] of versions.entries()) {
     if(index)listSource(store,index,'L1',[file]);
-    assert(await sources.save(file,Buffer.alloc(30,index),`2026-10-${10+index}T08:00:00.000Z`,{listId:'L1'}));
+    assert(await sources.save(file,Buffer.alloc(30,index),`2026-10-${17+index}T08:00:00.000Z`,{listId:'L1'}));
   }
   const extra={...descriptor,url:url+'extra'};
   listSource(store,3,'L2',[extra]);
@@ -215,16 +203,27 @@ function legacyRecord(directory,buffer,{name='a',descriptor:file=descriptor}={})
   return filename;
 }
 
-test('migration import and re-import after eviction preserve existing publication evidence',async t=>{
+test('migration import and re-import after eviction preserve retrieval-time checks',async t=>{
   const {store,sources,directory,buffer}=fixture(t,{maxBytes:64}),{issued:_issued,...undated}=descriptor;
-  await sources.save(descriptor,buffer,retrievedAt);const original=bindings(store);
+  await sources.save(descriptor,buffer,retrievedAt);
   await sources.save({...undated,url:url+'other'},Buffer.alloc(64,1),retrievedAt);
   const input=legacyRecord(directory,buffer,{descriptor:undated});
   await sources.migrateLegacy();assert.equal(existsSync(input),false);
-  assert.equal(rows(store).find(row=>row.url===url).issued,descriptor.issued);assert.deepEqual(bindings(store),original);
+  assert.equal(rows(store).find(row=>row.url===url).issued,'');
   const conflict=legacyRecord(directory,buffer,{descriptor:{...descriptor,issued:'2026-10-25T09:00:00+02:00'}});
-  await sources.migrateLegacy();assert(existsSync(conflict));assert.deepEqual(bindings(store),original);
+  await sources.migrateLegacy();assert.equal(existsSync(conflict),false);
   assert.equal(await sources.read({...descriptor,issued:'2026-10-25T09:00:00+02:00'}),null);
+});
+
+test('permanently pre-publication legacy bytes are removed without scheduling another migration',async t=>{
+  const {sources,directory,buffer,advance}=fixture(t);
+  const input=legacyRecord(directory,buffer,{descriptor:{...descriptor,issued:'2026-10-25T09:00:00+02:00'}});
+  const migration=t.mock.method(sources,'migrateLegacy');
+  assert.equal(await sources.initialize(),true);
+  assert.equal(existsSync(input),false);assert.equal(existsSync(sources.legacyDirectory),false);
+  assert.equal(await sources.ready,true);assert.equal(sources.retryAt,undefined);
+  advance(60_001);assert.equal(await sources.read(descriptor),null);
+  assert.equal(migration.mock.calls.length,1);
 });
 
 test('a destination write failure preserves valid legacy input for a restarted writer',async t=>{
@@ -296,7 +295,7 @@ test('cancelled retention publishes no file or row',async t=>{
   const {store,sources,blobs,buffer}=fixture(t),controller=new AbortController();
   await sources.initialize();controller.abort();
   await assert.rejects(sources.save(descriptor,buffer,retrievedAt,{signal:controller.signal}),error=>error===controller.signal.reason);
-  assert.equal(existsSync(blobs)&&readdirSync(blobs).length,existsSync(blobs)?0:false);assert.deepEqual(rows(store),[]);assert.deepEqual(bindings(store),[]);
+  assert.equal(existsSync(blobs)&&readdirSync(blobs).length,existsSync(blobs)?0:false);assert.deepEqual(rows(store),[]);
 });
 
 test('recent orphan files are swept on a later writer access after the grace period',async t=>{
