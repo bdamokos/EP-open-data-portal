@@ -52,6 +52,24 @@ test('NGT preserves four annex identities, exact labels, nested notes, quotation
   assert.equal(r.notes.every(n=>n.complete),true);
 });
 
+test('numeric XML references preserve native text, labels, offsets and package links',()=>{
+  for(const c of [ngt,fixture.cases[2]])for(const hexadecimal of [false,true]) {
+    const original=read(c);let textReferences=0,fileReferences=0;
+    const reference=character=>'&#'+(hexadecimal?'x'+character.codePointAt(0).toString(16):character.codePointAt(0))+';';
+    const encoded=entries(c).map(([name,xml])=>[name,xml
+      .replaceAll('\u00a0',character=>{textReferences++;return reference(character);})
+      .replace(/(\b(?:FILE|FILEREF)=")([^"]+)(")/g,(_,prefix,value,suffix)=>{fileReferences++;return prefix+reference(value[0])+value.slice(1)+suffix;})]);
+    assert.ok(textReferences>0);assert.ok(fileReferences>0);
+    const result=read(c,encoded);
+    for(const field of ['manifest','edges','blocks','containers','notes','links','objects','gaps','fidelityGaps'])assert.deepEqual(result[field],original[field],field);
+    assert.deepEqual(result.parts.map(p=>p.tree),original.parts.map(p=>p.tree));
+    assert.equal(result.packageComplete,original.packageComplete);
+  }
+  const items=entries(ngt),index=items.findIndex(([name])=>name.endsWith('000101.fmx.xml'));
+  items[index][1]=items[index][1].replace('</ACT>','<P>&amp;#160; &amp;#xA0; &amp;lt;</P></ACT>');
+  assert.ok(read(ngt,items).blocks.some(b=>b.text==='&#160; &#xA0; &lt;'));
+});
+
 test('recursive Annex VII stays linked beneath its native Annex II quotation',()=>{
   const r=read(fixture.cases[2]);
   const include=r.blocks.flatMap(b=>b.objects).find(o=>o.kind==='included-document');assert.ok(include);
@@ -99,7 +117,9 @@ test('XML declarations, external entities, depth and unsafe inclusion references
   function changed(transform){const items=entries(ngt),index=items.findIndex(([n])=>n.endsWith('000101.fmx.xml'));items[index][1]=transform(items[index][1]);return items;}
   assert.throws(()=>read(ngt,changed(xml=>'<!DOCTYPE ACT [<!ENTITY x SYSTEM "file:///etc/passwd">]>'+xml)),{code:'unsafe-xml'});
   assert.throws(()=>read(ngt,changed(xml=>xml.replace('</ACT>','<P>&unknown;</P></ACT>'))),{code:'unsafe-xml'});
+  assert.throws(()=>read(ngt,changed(xml=>xml.replace('</ACT>','<P>&#xD800;</P></ACT>'))),{code:'xml-character'});
   assert.throws(()=>read(ngt,changed(xml=>xml.replace('</ACT>','<P><INCL.ELEMENT TYPE="FORMEX.DOC" FILEREF="../outside.xml"/></P></ACT>'))),{code:'unsafe-part-reference'});
+  assert.throws(()=>read(ngt,changed(xml=>xml.replace('</ACT>','<P><INCL.ELEMENT TYPE="FORMEX.DOC" FILEREF="&#46;&#46;/outside.xml"/></P></ACT>'))),{code:'unsafe-part-reference'});
   assert.throws(()=>read(ngt,changed(xml=>xml.replace('</ACT>','<P>'+('<P>'.repeat(65))+'x'+('</P>'.repeat(65))+'</P></ACT>'))),{code:'xml-depth'});
 });
 
@@ -110,6 +130,7 @@ test('identity and language bindings are retained without guessing, unknown stru
   items[index][1]=items[index][1].replace('</ACT>','<P><ALIEN>not flattened</ALIEN></P></ACT>');
   const r=read(ngt,items);assert.ok(r.gaps.some(g=>g.code==='unsupported-structure'));assert.ok(!r.blocks.some(b=>b.text.includes('not flattened')));
   assert.ok(JSON.stringify(r.parts[0].tree).includes('not flattened'));
+  assert.doesNotThrow(()=>r.blocks.flatMap(b=>b.instructions).find(instruction=>instruction.attributes.ACTION==='DELETED'));
 });
 
 test('note blocks share the aggregate projection budget',()=>{

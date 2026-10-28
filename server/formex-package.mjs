@@ -3,7 +3,7 @@ import {inflateRawSync,crc32} from 'node:zlib';
 import path from 'node:path';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
-export const FORMEX_PARSER_REVISION=1;
+export const FORMEX_PARSER_REVISION=2;
 export const FORMEX_PACKAGE_LIMITS=Object.freeze({archive:8*1024*1024,entries:256,entry:8*1024*1024,inflated:24*1024*1024,elements:100000,depth:64,parts:64,blocks:30000});
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fail=code=>{throw Object.assign(new Error('Unsupported Formex package: '+code),{code});};
@@ -51,7 +51,9 @@ function xmlTree(bytes,part,budget) {
     if(![9,10,13].includes(n)&&!(n>=32&&n<=0xd7ff||n>=0xe000&&n<=0xfffd||n>=0x10000&&n<=0x10ffff))fail('xml-character');
   }
   if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\uFFFE\uFFFF]/u.test(xml))fail('xml-character');
-  let rows;try{rows=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,parseAttributeValue:false,trimValues:false,maxNestedTags:FORMEX_PACKAGE_LIMITS.depth}).parse(xml);}catch{fail('xml-depth');}
+  // The allowlist above still rejects non-XML named entities. This option also
+  // decodes numeric references in text and attributes before graph resolution.
+  let rows;try{rows=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,parseAttributeValue:false,trimValues:false,htmlEntities:true,maxNestedTags:FORMEX_PACKAGE_LIMITS.depth}).parse(xml);}catch{fail('xml-depth');}
   function build(rows,parent='',depth=0) {
     const counts=new Map();
     return rows.filter(row=>Object.keys(row)[0]!=='?xml'&&!(Object.hasOwn(row,'#text')&&String(row['#text'])==='')).map(row=>{
@@ -230,13 +232,13 @@ export function readFormexPackage(bytes,{source,coverage}={}) {
         if(pending.some(n=>n.tag||n.text.trim())) {
           const content=inline(pending),block=addBlock({source:{...node.source,segment:segment++},container:id,element:node.tag,...content});
           row.content.push(block.ordinal);row.complete&&=content.complete;
-          
+
           for(const link of block.links)links.push({...link,block:block.ordinal});
         }
         pending=[];
       }
       if(!STRUCTURE.has(node.tag)) {
-        const content={text:'\uFFFC',marks:[],anchors:[],objects:[{kind:'unsupported',status:'unresolved',offset:0,source:node.source}],links:[],quotes:[],complete:false};
+        const content={text:'\uFFFC',marks:[],anchors:[],objects:[{kind:'unsupported',status:'unresolved',offset:0,source:node.source}],links:[],quotes:[],instructions:[],complete:false};
         const block=addBlock({source:{...node.source,segment:0},container:id,element:node.tag,...content});row.content.push(block.ordinal);
       }else for(const child of node.children) {
         if(!child.tag||INLINE.has(child.tag))pending.push(child);
