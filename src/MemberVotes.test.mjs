@@ -874,8 +874,16 @@ test('an invalid calendar leaves the latest empty week usable instead of an endl
 });
 
 test('a member with no positions in any available week returns to the latest plenary',async t=>{
-  const h=await mount(t,{calendar:searchCalendar,handler:url=>Response.json(searchResponse(url,{olderRecorded:false}))});
-  assert.equal(h.state.week,WEEK);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  let latestReads=0;
+  const refreshed='b'.repeat(64);
+  const h=await mount(t,{calendar:searchCalendar,handler:url=>{
+    const state=stateFrom(url),value=searchResponse(url,{olderRecorded:false});
+    if(state.week==='latest')latestReads++;
+    value.snapshotId=state.snapshotId??(latestReads>1?refreshed:SNAPSHOT);
+    return Response.json(value);
+  }});
+  assert.equal(latestReads,2,'refresh the initial snapshot after scanning older weeks');
+  assert.equal(h.state.week,WEEK);assert.equal(h.state.snapshotId,refreshed);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
   assert(h.calls.some(url=>url.includes('member-votes/')&&stateFrom(url).week===olderWeek));
   assert(h.calls.filter(url=>url.includes('member-votes/')).length<=4,'the search terminates after the available calendar');
 });

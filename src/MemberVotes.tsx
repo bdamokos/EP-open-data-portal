@@ -184,16 +184,18 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     if(chooseLatest&&!search.complete&&candidateData.pagination.recordedTotal===0){
       if(calendarRequest.loading)return;
       const calendar=!calendarRequest.error&&validateVotePeriods(calendarRequest.data)?calendarRequest.data:null;
-      const previous=calendar?.weeks.find(week=>candidateData.period.week&&week.week<candidateData.period.week);
+      const previous=calendar?.coverage.status!=='unavailable'?calendar?.weeks.find(week=>candidateData.period.week&&week.week<candidateData.period.week):null;
       if(previous){setLatestSearch({scope:searchScope,week:previous.week,complete:false});return;}
       // With no match, keep the latest plenary available for manual browsing.
+      // Earlier snapshots may have expired or been evicted during the search.
+      if(requestedWeek!=='latest')snapshotRefresh.current={route:memberVotesRoute(memberId,stateRef.current,language),started:false,baseline:null};
       setLatestSearch({scope:searchScope,week:'latest',complete:true});return;
     }
     const refresh=snapshotRefresh.current;
     if(refresh){if(!refresh.started||request.data===refresh.baseline)return;snapshotRefresh.current=null;}
     const current=stateRef.current,week=!current.sittingId&&candidateData.period.week?candidateData.period.week:current.week;
     if(current.snapshotId!==candidateData.snapshotId||current.week!==week)onStateChange({...current,week,snapshotId:candidateData.snapshotId},{replace:true});
-  },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
+  },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,requestedWeek,memberId,language,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
   useLayoutEffect(()=>{
     const pane=state.context?null:state.decisionId?detailRef.current:listRef.current;
     // The journey owner may restore this node after a tab remount. A refreshed
