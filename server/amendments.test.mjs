@@ -2240,3 +2240,64 @@ test('invalid vertical offsets withhold both columns and all spans at persistenc
   assert.equal(checked.originalText,null);assert.deepEqual(checked.originalFormatting,[]);
   assert.equal(store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,saved.id).body,corrupt,'read sanitation preserves stored evidence');
 });
+
+test('a distribution omitted from expanded metadata is resolved by exact list detail before extraction',async t=>{
+  const {store,worker,generation}=setup(t),id=targetId+'-AM-001-001';
+  const detail={id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:tabled,foresees_change_of:[target.id],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/example/discovered_en.docx'}]}]};
+  const expanded={...detail,amendmentDistributionDeclared:false};delete expanded.is_realized_by;
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,inverse_foresees_change_of:[expanded]},fetchedAt);
+  store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[],sources:[]},fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  let calls=0;worker.fetchRecord=async endpoint=>{calls++;assert.equal(endpoint,'/documents/'+id);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt,payload:{data:[detail]}};};
+  const metadata=nextAmendmentTask(store,generation);assert.equal(metadata.kind,'amendment-list-detail');await worker.task(metadata);
+  assert.equal(calls,1);assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  rebuildAmendmentTarget(worker,generation,targetId);assert.equal(listDetailJobs(store,generation).filter(job=>!job.done).length,0);
+});
+
+test('a fileless published list can read only its exact report comparison block through the existing source writer',async t=>{
+  const {store,worker,generation,advance}=setup(t),id=targetId+'-AM-001-002',url='https://data.europarl.europa.eu/distribution/example/report_en.docx';
+  const detail={id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/AMENDMENT_LIST',itemNumberBegin:1,itemNumberEnd:2,document_date:tabled,foresees_change_of:[target.id]};
+  const report={...target,inverse_foresees_change_of:[{...detail,amendmentDistributionDeclared:false}],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'authority/DOCX',issued:'2026-10-02T08:00:00Z',is_exemplified_by:url}]}]};
+  const p=value=>'<w:p><w:r><w:t>'+value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
+  const tr=cells=>'<w:tr>'+cells.map(value=>'<w:tc>'+p(value)+'</w:tc>').join('')+'</w:tr>';
+  const am=n=>p('<Amend><NumAm>'+n+'</NumAm>')+p('<Article>Article '+n+'</Article>')+'<w:tbl>'+tr(['Text proposed by the Commission','Amendment'])+tr(['Original '+n,'Report proposal '+n])+'</w:tbl>'+p('</Amend>');
+  const buffer=docx('<w:document xmlns:w="urn:word"><w:body>'+p('<NoDocSe>A10-0254/2026</NoDocSe>')+p('Rapporteur: A Person')+p('<RepeatBlock-Amend>')+am(1)+am(2)+p('</RepeatBlock-Amend>')+'</w:body></w:document>');
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',report,fetchedAt);
+  store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[],sources:[]},fetchedAt);
+  worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+id);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt,payload:{data:[detail]}};};
+  let downloads=0;worker.downloadAmendmentDocx=async requested=>{assert.equal(requested,url);downloads++;return {buffer};};
+  rebuildAmendmentTarget(worker,generation,targetId);await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');await worker.task(nextAmendmentTask(store,generation));
+  const source=store.source(generation,'amendment:list:'+id).work;
+  assert.equal(source.distributionEvidence.state,'unavailable');assert.equal(source.extraction.reportId,targetId);assert.equal(downloads,1);
+  const items=amendmentsPage(store,{document:targetId}).items;
+  assert.deepEqual(items.map(a=>[a.number,a.proposedText,a.wordingSource.reportId]),[[1,'Report proposal 1',targetId],[2,'Report proposal 2',targetId]]);
+  for(const item of items){assert.deepEqual(item.authors,[]);assert.equal(item.documentDate,null);assert.equal(item.proposerDate,tabled);assert.equal(item.proposerDateBasis,'amendment-list-metadata');}
+  const proof=source.relationshipEvidence;
+  const retryAt=new Date(worker.clock()+7*86400000).toISOString();
+  store.putSource(generation,'amendment:list:'+id,'amendment-list',{...source,sourceRetentionRetryAt:retryAt},fetchedAt);
+  advance(30*60_000);assert(store.acquire());
+  const confirmationAt=new Date(worker.clock()).toISOString();
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',report,confirmationAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  const confirmed=store.source(generation,'amendment:list:'+id).work;
+  assert.equal(confirmed.lastConfirmedAt,confirmationAt,'Only independently observed report metadata confirms the report wording descriptor.');
+  assert.equal(confirmed.metadataCheckedAt,fetchedAt,'A parent observation does not postpone the exact list check.');
+  assert.equal(confirmed.sourceRetentionRetryAt,retryAt);
+  advance(30*60_000);assert(store.acquire());
+  const observedAt=new Date(worker.clock()).toISOString(),changed=structuredClone(report);
+  changed.is_realized_by[0].is_embodied_by[0].issued=observedAt;
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',changed,observedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  const updated=store.source(generation,'amendment:list:'+id).work;
+  assert.deepEqual(updated.relationshipEvidence,proof,'Refreshing report metadata must preserve the list proof and its retrieval time.');
+  assert.equal(updated.reportWording.distributionEvidence.descriptors[0].issued,observedAt);
+  assert.equal(updated.reportWording.distributionEvidence.source.fetchedAt,observedAt);
+  assert.equal(updated.lastConfirmedAt,confirmationAt,'A changed report descriptor preserves the prior confirmation.');
+  assert.equal(updated.metadataCheckedAt,fetchedAt);
+  assert.equal(updated.sourceRetentionRetryAt,retryAt);
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  const pending=amendmentsPage(store,{document:targetId}).items;
+  for(const item of pending){assert.equal(item.sourceFreshness.status,'pending');assert.equal(item.wordingRetained,true);}
+  assert.equal(listDetailJobs(store,generation).filter(job=>!job.done).length,0);
+});
