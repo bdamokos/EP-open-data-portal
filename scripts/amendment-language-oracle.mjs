@@ -1,14 +1,16 @@
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
+import {oracleAddress,oracleFold,oracleOpening,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 export const rawDocument=buffer=>JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./amendment-language-raw.py',import.meta.url)),String(buffer.length)],{input:buffer,maxBuffer:32*1024*1024,timeout:30_000}).toString());
 // This deliberately does not import production labels, normalizers, segmenters
 // or proposal trees. Unsupported addresses remain explicitly unverified.
-export const rawNormal=value=>String(value).normalize('NFC').replace(/\u00ad/gu,'').replace(/[‘’]/gu,"'").replace(/[“”„«»]/gu,'"').replace(/[–—]/gu,'-').replace(/\s+/gu,' ').trim();
-const strip=value=>rawNormal(value).replace(/^(?:\(\d+[\p{L}]{0,3}\)\s*|\d+[\p{L}]{0,3}[.)]\s*|[\p{Lu}]{1,3}[.)]\s+)/u,'').replace(/[.;]+$/u,'').trim();
-const opening=/^(?:The European Parliament|Европейският парламент|Evropský parlament|Europa-Parlamentet|Das Europäische Parlament|Το Ευρωπαϊκό Κοινοβούλιο|El Parlamento Europeo|Euroopa Parlament|Euroopan parlamentti(?:, joka)?|Le Parlement européen|(?:Tá )?Parlaimint na hEorpa|Europski parlament|Az Európai Parlament|Il Parlamento europeo|Europos Parlamentas|Eiropas Parlaments|Il-Parlament Ewropew|Het Europees Parlement|Parlament Europejski|O Parlamento Europeu|Parlamentul European|Európsky parlament|Evropski parlament|Europaparlamentet(?: utfärdar denna resolution)?)[,;:]?$/iu;
+export const rawNormal=oracleFold;
+const strip=value=>String(value).split(/\r?\n/u).map(line=>rawNormal(line).replace(/^["']\s*/u,'').replace(/^(?:\([\p{L}\d]{1,6}\)\s*|\d+[\p{L}]{0,3}[.)]\s*|[\p{Lu}]{1,3}[.)]\s+)/u,'').replace(/[.;"'\s]+$/u,'').trim()).join(' ').replace(/\s+/gu,' ').trim();
+
 const ref=value=>{
   let m=/^(\d+[\p{Ll}]{0,3})[.)]\s*/u.exec(value);
   if(m)return {kind:'paragraph',value:m[1]};
@@ -24,38 +26,41 @@ const proposals=new Set(vocabulary.map(v=>sectionKey(v.proposalClass)));
 const resolutionHeadings=new Set(vocabulary.map(v=>sectionKey(v.resolution)));
 const decisionHeadings=new Set(vocabulary.map(v=>sectionKey(v.decision)));
 export function rawExpected(block,language) {
+  // Committee comparisons print outer proposal and underlying act headings in
+  // the same block. Select the recognized proposal class and the NEXT address;
+  // do not accidentally replace it with the final underlying-act address.
+  const headers=block.tables?.[0]?.before||[],at=headers.findIndex(h=>proposals.has(sectionKey(h)));
+  if(at>=0&&headers[at+1])block={...block,section:headers[at],targetLabel:headers[at+1],underlyingSection:headers[at+2]||null,underlyingTargetLabel:headers[at+3]||null};
   const key=sectionKey(block.section);
   return {...block,language,sectionKind:resolutions.has(key)?'resolution':proposals.has(key)?'commission-proposal':null,operation:block.gap?null:expectedOperation(block)};
 }
 // Language-neutral numeric token extraction is only accepted for simple source
 // headings. Parent paths, selectors and quoted acts require a separate gold row.
 export function rawTargetKind(label,language) {
-  const examples=LANGUAGE_SECTIONS[language]?.references;
-  if(!examples)return null;
-  const key=sectionKey(label);
-  for(const [kind,example] of Object.entries(examples)) {
-    const words=sectionKey(example).match(/\p{L}+/gu)||[];
-    if(words.length&&words.every(word=>key.includes(word)))return kind;
-  }
-  return null;
+ const segments=oracleAddress(label,language,{resolution:true});
+ return segments?.length===1?segments[0].kind:null;
 }
-export function simpleAddress(label) {
-  if(!label||/[\r\n]/u.test(label)||/[–—]/u.test(label))return null;
-  const m=[...label.matchAll(/(?<![\p{L}\d])(-?\d+|\p{Lu})(?:\s+([\p{Ll}]{1,3}))?(?![\p{L}\d])/gu)];
-  if(m.length!==1)return null;
-  return {base:m[0][1],suffix:m[0][2]||'',value:m[0][1]+(m[0][2]||'')};
+
+export function simpleAddress(label,language='en') {
+ const target=oracleAddress(label,language,{resolution:true});
+ if(target?.length!==1||!['paragraph','recital','citation'].includes(target[0].kind))return null;
+ return target[0];
 }
+
 export function rawSections(raw) {
   const rows=raw.paragraphs.filter(p=>p.body&&p.text);
-  let group=0,active=false,kind=null,heading=null;
+  let group=0,active=false,kind=null,heading=null,citation=0,provisions=false;
   return rows.map((row,index)=>{
     const key=sectionKey(row.text.replace(/^\d+\.\s*/u,''));
     const sectionHeading=resolutionHeadings.has(key)?'resolution':decisionHeadings.has(key)?'decision':null;
     if(sectionHeading){active=false;kind=sectionHeading;heading=row.path;}
     else if(row.style==='PageHeading'){active=false;kind=null;heading=row.path;}
-    const isOpening=opening.test(rawNormal(row.text));
-    if(isOpening){group++;active=true;if(!kind&&raw.motionDocument)kind='resolution';}
-    return {...row,index,section:active?group:0,sectionKind:active?kind:null,heading,opening:isOpening,ref:ref(row.text)};
+    const isOpening=oracleOpening.test(rawNormal(row.text));
+    if(isOpening){group++;active=true;citation=0;provisions=false;if(!kind&&raw.motionDocument)kind='resolution';}
+    let reference=ref(row.text);
+    if(active&&!reference&&!provisions&&/^[–—−\-•]\s*\S/u.test(row.text))reference={kind:'citation',value:String(++citation)};
+    if(reference&&reference.kind!=='citation')provisions=true;
+    return {...row,index,section:active?group:0,sectionKind:active?kind:null,heading,opening:isOpening,ref:reference};
   });
 }
 function proposalRecitals(raw) {
@@ -80,34 +85,46 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   // Map by original XML path only; never by wording similarity. Proposal rows
   // expose source through the production source projection, not unit ownership.
   if(proposal)for(let i=0;i<observed.length;i++)observed[i].path ||= proposal.paragraphSources?.[i]?.path;
+  const rawProposal=()=>{
+    if(expected.sectionKind!=='commission-proposal')return unknown('raw-proposal-section-unverified');
+    const rows=observed.map((p,index)=>{
+      const rawRow=sourceRows.find(r=>r.path===p.path);
+      return {index,text:rawRow?.text??'',properties:{styleId:rawRow?.style},source:{container:rawRow?.body?'body':'table',complete:Boolean(rawRow&&!rawRow.uncertain&&!rawRow.automatic)},complete:Boolean(rawRow&&!rawRow.uncertain&&!rawRow.automatic)};
+    });
+    const result=rawProposalAssertion({proposal:{paragraphs:rows,sourceKind:'docx'},wording:expected,placement});
+    const target=oracleAddress(expected.targetLabel,expected.language);
+    if(result.status!=='verified')return result;
+    return {...result,location:{section:'commission-proposal',kind:target.at(-1).kind,value:target.map(s=>s.kind+':'+s.value).join('/'),scope:'proposal'}};
+  };
   const span=placement.span;
   if(expected.operation==='insert') {
     if(proposal) {
-      if(targetKind!=='recital')return unknown('raw-proposal-target-kind-unverified');
+      if(targetKind!=='recital')return rawProposal();
       if(expected.sectionKind!=='commission-proposal')return unknown('raw-proposal-section-unverified');
-      const address=simpleAddress(expected.targetLabel),recitals=proposalRecitals(raw),anchors=recitals.filter(p=>p.value===address?.base);
+      const address=simpleAddress(expected.targetLabel,expected.language),recitals=proposalRecitals(raw),anchors=recitals.filter(p=>p.value===address?.base);
       if(!address?.suffix||anchors.length!==1)return unknown('raw-proposal-insertion-boundary-unverified');
       const anchor=anchors[0],at=recitals.indexOf(anchor),next=recitals[at+1];
       if(!next)return unknown('raw-proposal-insertion-boundary-unverified');
       if(observed[placement.insertAfter]?.path!==anchor.path||observed[placement.insertBefore]?.path!==next.path)return unknown('raw-proposal-insertion-extent-unverified');
       return {status:'verified',reason:'raw-proposal-recital-boundary',location:{section:'proposal-recitals',kind:'recital',value:address.value,scope:'proposal'}};
     }
-    const address=simpleAddress(expected.targetLabel);
-    if(!address?.suffix)return unknown('raw-insertion-address-unverified');
-    const rows=rawSections(raw),matches=rows.filter(p=>p.ref?.value===address.base&&p.section>0&&p.sectionKind===expected.sectionKind);
+    const relative=oracleRelative(expected.targetLabel,expected.language);
+    const address=relative||simpleAddress(expected.targetLabel,expected.language);
+    if(!relative&&(!address?.suffix||!address.isNew))return unknown('raw-insertion-address-unverified');
+    const rows=rawSections(raw),matches=rows.filter(p=>p.ref?.kind===(relative?'paragraph':targetKind)&&p.ref.value===address.base&&p.section>0&&p.sectionKind===expected.sectionKind);
     if(matches.length!==1)return unknown('raw-insertion-section-unverified');
     const anchor=matches[0];
-    if(!targetKind)return unknown('raw-target-kind-unverified');
-    if(anchor.ref.kind!==targetKind)return failed('raw-target-kind-mismatch',{expected:targetKind,actual:anchor.ref.kind});
+    if(!targetKind&&!relative)return unknown('raw-target-kind-unverified');
+    if(anchor.ref.kind!==(relative?'paragraph':targetKind))return failed('raw-target-kind-mismatch',{expected:targetKind,actual:anchor.ref.kind});
     if(!expected.sectionKind)return unknown('raw-section-unverified');
-    const next=rows.slice(anchor.index+1).find(p=>p.ref||p.opening||/^[°\s]+$/u.test(p.text));
+    const next=rows.slice(anchor.index+1).find(p=>p.ref||p.opening||p.style==='PageHeading'||p.bold||/^[°\s]+$/u.test(p.text));
     // Without a source boundary, never turn a last-row insertion into correct.
     if(!next)return unknown('raw-insertion-extent-unverified');
     const between=rows.slice(anchor.index+1,next.index);
     if(between.some(p=>!/[.;:]$/u.test(p.text)||p.uncertain))return unknown('raw-insertion-extent-unverified');
     const last=rows[next.index-1],after=observed[placement.insertAfter],before=observed[placement.insertBefore];
     if(after?.path!==last.path||before?.path!==next.path)return failed('raw-insertion-boundary-mismatch',{expectedAfter:last.path,expectedBefore:next.path,actualAfter:after?.path,actualBefore:before?.path});
-    return {status:'verified',reason:'raw-sibling-boundary',location:{section:anchor.sectionKind,kind:anchor.ref.kind,value:address.value,scope:'body'}};
+    return {status:'verified',reason:'raw-sibling-boundary',location:{section:anchor.sectionKind,kind:relative?'heading':anchor.ref.kind,value:address.value,scope:'body'}};
   }
   if(!span||!Number.isInteger(span.start)||!Number.isInteger(span.end)||span.start<0||span.end<span.start||span.end>=observed.length)return failed('raw-invalid-span');
   let splicedSource;
@@ -123,9 +140,12 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   const selected=observed.slice(span.start,span.end+1),rawSelected=selected.map(p=>sourceRows.find(r=>r.path===p.path));
   if(rawSelected.some((p,i)=>!p||p.uncertain||p.automatic||rawNormal(p.text)!==rawNormal(selected[i].text)))return unknown('raw-span-projection-unverified');
   if(proposal) {
-    if(targetKind!=='recital')return unknown('raw-proposal-target-kind-unverified');
+    if(targetKind!=='recital'){
+      if(strip(splicedSource)!==strip(expected.originalText))return failed('raw-original-splice-mismatch');
+      return rawProposal();
+    }
     if(expected.sectionKind!=='commission-proposal')return unknown('raw-proposal-section-unverified');
-    const recitals=proposalRecitals(raw),address=simpleAddress(expected.targetLabel),matched=recitals.filter(r=>r.path===rawSelected[0].path);
+    const recitals=proposalRecitals(raw),address=simpleAddress(expected.targetLabel,expected.language),matched=recitals.filter(r=>r.path===rawSelected[0].path);
     if(!address||matched.length!==1||rawSelected.length!==1)return unknown('raw-proposal-scope-unverified');
     if(address.value!==matched[0].value)return failed('raw-proposal-recital-address-mismatch',{expected:address.value,actual:matched[0].value});
     // Supported recital comparisons describe the complete published row. All
@@ -142,7 +162,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   if(sections.length!==1)return failed('raw-cross-section-span');
   if(expected.sectionKind&&selectedRows.some(p=>p.sectionKind&&p.sectionKind!==expected.sectionKind))return failed('raw-section-mismatch',{expected:expected.sectionKind,actual:selectedRows.map(p=>p.sectionKind)});
   if(!expected.sectionKind||selectedRows.some(p=>!p.sectionKind))return unknown('raw-section-kind-unverified');
-  const address=simpleAddress(expected.targetLabel),start=selectedRows[0];
+  const address=simpleAddress(expected.targetLabel,expected.language),start=selectedRows[0];
   if(!address||!start.ref||!targetKind)return unknown('raw-address-unverified');
   if(start.ref.kind!==targetKind)return failed('raw-target-kind-mismatch',{expected:targetKind,actual:start.ref.kind});
   if(start.ref.value!==address.value)return failed('raw-address-mismatch',{expected:address.value,actual:start.ref.value});

@@ -22,7 +22,7 @@ async function runtimeIdentity(directory) {
   return {head:git(['rev-parse','HEAD']),dirty:Boolean(git(['status','--porcelain'])),treeHash:digest(JSON.stringify(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(directory,file)))]))))};
 }
 async function oracleIdentity() {
-  return digest(Buffer.concat(await Promise.all(['amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
+  return digest(Buffer.concat(await Promise.all(['amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
 }
 async function immutableJson(file,value) {
   const bytes=JSON.stringify(value,null,2)+'\n';
@@ -60,10 +60,10 @@ export function languageMetrics(rows) {
     const selected=rows.filter(r=>r.language===language),paired=selected.filter(r=>r.published!==false&&english.get(r.identity)?.published!==false&&english.has(r.identity));
     const sameOutcome=paired.filter(r=>r.outcome===english.get(r.identity).outcome);
     const located=paired.filter(r=>parityLocation(r)&&parityLocation(english.get(r.identity)));
-    return {language,total:selected.length,published:selected.filter(r=>r.published!==false).length,counts:count(selected.map(r=>r.outcome)),withheldByReason:count(selected.filter(r=>r.outcome==='withheld').map(r=>r.reason)),paired:paired.length,sameOutcome:sameOutcome.length,locatedPairs:located.length,sameLocation:located.filter(r=>parityLocation(r)&&parityLocation(english.get(r.identity))&&JSON.stringify(parityLocation(r))===JSON.stringify(parityLocation(english.get(r.identity)))).length,behindEnglishWithheld:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='withheld').length,behindEnglishUnverified:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='placed-unverified').length,behindEnglish:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome!=='correct').length};
+    return {language,total:selected.length,published:selected.filter(r=>r.published!==false).length,counts:count(selected.map(r=>r.outcome)),unverifiedByReason:count(selected.filter(r=>r.outcome==='placed-unverified').map(r=>r.reason)),withheldByReason:count(selected.filter(r=>r.outcome==='withheld').map(r=>r.reason)),paired:paired.length,sameOutcome:sameOutcome.length,locatedPairs:located.length,sameLocation:located.filter(r=>parityLocation(r)&&parityLocation(english.get(r.identity))&&JSON.stringify(parityLocation(r))===JSON.stringify(parityLocation(english.get(r.identity)))).length,behindEnglishWithheld:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='withheld').length,behindEnglishUnverified:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='placed-unverified').length,behindEnglish:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome!=='correct').length};
   });
 }
-export function compareLanguages(current,baseline) {
+export function compareLanguages(current,baseline,calibration) {
   if(current.snapshotId!==baseline.snapshotId||JSON.stringify(current.sample)!==JSON.stringify(baseline.sample)||JSON.stringify(current.inputs)!==JSON.stringify(baseline.inputs)||current.oracleVersion!==baseline.oracleVersion)throw new Error('Language baseline snapshot/sample/inputs/oracle differ.');
   const unique=rows=>{const m=new Map();for(const row of rows){if(m.has(row.key))throw new Error('Duplicate language observation: '+row.key);m.set(row.key,row);}return m;};
   const now=unique(current.rows),before=unique(baseline.rows);
@@ -74,8 +74,18 @@ export function compareLanguages(current,baseline) {
     // Implementation maintenance retains a sealed baseline only when every
     // independent source expectation and verification assertion is identical.
     const assertions=row=>JSON.stringify({expected:row.expected,verification:row.verification});
-    if(now.size!==before.size||[...before.values()].some(old=>!now.has(old.key)||assertions(old)!==assertions(now.get(old.key))))throw new Error('Language oracle changed its raw expectations or verification assertions; a reviewed calibration is required.');
-    warnings.push('Oracle implementation changed; all raw expectations and verification assertions match the sealed baseline.');
+    const changed=[...before.values()].filter(old=>!now.has(old.key)||assertions(old)!==assertions(now.get(old.key)));
+    if(now.size!==before.size)throw new Error('Language oracle calibration cannot change the observation set.');
+    if(changed.length){
+      if(!calibration||calibration.snapshotId!==current.snapshotId||calibration.baselineOracleFingerprint!==baseline.oracleFingerprint||calibration.candidateOracleFingerprint!==current.oracleFingerprint)throw new Error('Language oracle changed its raw expectations or verification assertions; a reviewed calibration is required.');
+      const entries=new Map((calibration.rows||[]).map(row=>[row.key,row]));
+      if(entries.size!==changed.length||entries.size!==calibration.rows.length)throw new Error('Oracle calibration must account for exactly every changed assertion.');
+      for(const old of changed){
+        const entry=entries.get(old.key);
+        if(!entry||entry.beforeDigest!==digest(assertions(old))||entry.afterDigest!==digest(assertions(now.get(old.key)))||!entry.checkedBy||!entry.note||!entry.sources?.length||entry.sources.some(source=>!/^https:\/\/(?:data\.europarl\.europa\.eu|publications\.europa\.eu)\//u.test(source.url)||! /^[a-f0-9]{64}$/u.test(source.sha256)||!source.paths?.length||!Number.isFinite(Date.parse(source.retrievedAt))))throw new Error('Oracle calibration source evidence incomplete for '+old.key);
+      }
+      warnings.push('Source-checked oracle calibration applied to '+changed.length+' assertions; independent review of the exact head is still required.');
+    }else warnings.push('Oracle implementation changed; all raw expectations and verification assertions match the sealed baseline.');
   }
   warnings.push(...(current.harnessFingerprint===baseline.harnessFingerprint?[]:['Language measurement harness changed or baseline predates its fingerprint; review measurement changes before using deltas.']));
   return {warnings,failed:regressions.length>0||falsePlacements.length>0,regressions,falsePlacements: falsePlacements.map(r=>r.key),deltas:languageMetrics(current.rows).map(m=>({language:m.language,correct:(m.counts.correct||0)-(languageMetrics(baseline.rows).find(b=>b.language===m.language).counts.correct||0)}))};
@@ -141,7 +151,7 @@ async function evaluate(publications,cache,runtime) {
         } else if(wording)placement.reason='wording-unavailable';
         const outcome=placement.status==='placed'?(verification.status==='failed'?'false-placement':verification.status==='verified'?'correct':'placed-unverified'):'withheld';
         const savedPlacement={...placement};delete savedPlacement.originalText;
-        rows.push({key,identity,documentId:publication.documentId,listId:publication.listId,number,language:e.language,published:Boolean(e.wording),outcome,reason:placement.status==='placed'?verification.reason:placement.reason,location:verification.location||null,expected:expected?{operation:expected.operation,originalSha256:typeof expected.originalText==='string'?digest(expected.originalText):null,proposedSha256:typeof expected.proposedText==='string'?digest(expected.proposedText):null,section:expected.section,sectionKind:expected.sectionKind,targetLabel:expected.targetLabel,sourcePath:expected.path,cellPaths:expected.cellPaths,gap:expected.gap}:null,placement:savedPlacement,verification,sources:{wording:e.wording?.url||null,body:e.body?.url||null}});
+        rows.push({key,identity,documentId:publication.documentId,listId:publication.listId,number,language:e.language,published:Boolean(e.wording),outcome,reason:placement.status==='placed'?verification.reason:placement.reason,location:verification.location||null,expected:expected?{operation:expected.operation,originalSha256:typeof expected.originalText==='string'?digest(expected.originalText):null,proposedSha256:typeof expected.proposedText==='string'?digest(expected.proposedText):null,section:expected.section,sectionKind:expected.sectionKind,targetLabel:expected.targetLabel,...(expected.underlyingTargetLabel?{underlyingSection:expected.underlyingSection,underlyingTargetLabel:expected.underlyingTargetLabel}:{}),sourcePath:expected.path,cellPaths:expected.cellPaths,gap:expected.gap}:null,placement:savedPlacement,verification,sources:{wording:e.wording?.url||null,body:e.body?.url||null}});
       }
       process.stderr.write('Language edition: '+publication.documentId+' '+e.language+'\n');
     }
@@ -171,15 +181,15 @@ export async function languageMain(opts) {
     const ledger=path.join(directory,'ratchet.jsonl');let records=[];
     try{records=(await readFile(ledger,'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);}catch(e){if(e.code!=='ENOENT')throw e;}
     const baselineFile=opts.baseline||records.at(-1)?.file;
-    if(baselineFile)result.comparison=compareLanguages(result,await json(baselineFile));
+    if(baselineFile){try{result.comparison=compareLanguages(result,await json(baselineFile),opts.oracleCalibration?await json(opts.oracleCalibration):undefined);}catch(error){if(!/reviewed calibration/.test(error.message))throw error;result.comparison={failed:true,calibrationRequired:true,error:error.message};}}
     else if(!opts.recordBaseline)throw new Error('Language ratchet has no baseline. Record a clean current-main run with --record-language-baseline first.');
-    if(opts.baseline&&records.length&&opts.baseline!==records.at(-1).file){result.ratchetComparison=compareLanguages(result,await json(records.at(-1).file));if(result.ratchetComparison.failed)result.comparison.failed=true;}
+    if(opts.baseline&&records.length&&opts.baseline!==records.at(-1).file){result.ratchetComparison=compareLanguages(result,await json(records.at(-1).file),opts.oracleCalibration?await json(opts.oracleCalibration):undefined);if(result.ratchetComparison.failed)result.comparison.failed=true;}
     const name='languages-'+code.head.slice(0,12)+'-'+digest(JSON.stringify(result)).slice(0,10),filename=path.join(output,name+'.json');
     await immutableJson(filename,result);await writeFile(path.join(output,name+'.md'),languageMarkdown(result));
     if(opts.recordBaseline) {
       if(code.dirty)throw new Error('Language ratchet requires a clean measured checkout.');
       if(!records.length&&code.head!==execFileSync('git',['rev-parse','origin/main'],{cwd:runtimeRoot,encoding:'utf8'}).trim())throw new Error('First language ratchet row must measure current origin/main.');
-      if(records.length){const baseline=await json(records.at(-1).file);if(compareLanguages(result,baseline).failed)throw new Error('Language ratchet regression; ledger unchanged.');}
+      if(records.length){const baseline=await json(records.at(-1).file);if(compareLanguages(result,baseline,opts.oracleCalibration?await json(opts.oracleCalibration):undefined).failed)throw new Error('Language ratchet regression; ledger unchanged.');}
       await appendLanguageBaseline(directory,result);
     }
     process.stdout.write(JSON.stringify({file:filename,snapshotId:result.snapshotId,code,metrics:result.metrics,comparison:result.comparison},null,2)+'\n');

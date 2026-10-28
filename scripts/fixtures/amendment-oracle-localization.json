@@ -1,0 +1,4688 @@
+{
+  "source": "Official EP DOCX excerpts; labels preserve language-specific differences.",
+  "examples": [
+    {
+      "language": "bg",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_bg.docx",
+        "sha256": "825270f8f7493525a8d31edb5bd1527e7b05722ca96db6ce6fcfdc5999119760",
+        "retrievedAt": "2026-10-27T20:16:46.385453+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Предложение за регламент",
+          "Член 1 – параграф 1 – точка 1 – буква б",
+          "Регламент (ЕС) № 2023/2124",
+          "Член 3 – параграф 1 – точка 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "б"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Съображение 3 a (ново)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Член 1 – параграф 1 – точка 17 – уводна част",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Приложение VII – заглавие",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_bg.docx",
+        "label": "Подзаглавие (ново) (след параграф 25)",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0022.01/DOC_1",
+          "sha256": "cf7fb96655b698f7c4228c47b356d74898744e29d4ba089a61b52a8d791cbdbf",
+          "fetchedAt": "2026-10-27T20:26:58.789834+00:00"
+        },
+        "rows": [
+          {
+            "text": "Член 1\nИзменения на Регламент (ЕС) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Регламент (ЕС) 2023/2124 се изменя, както следва:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) член 3 се изменя, както следва:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) встъпителното изречение се заменя със следното:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„За целите на настоящия регламент се прилагат следните определения в допълнение към определенията, установени в член 4 от Регламент (ЕС) № 1380/2013 на Европейския парламент и на Съвета, член 2 от Регламент (ЕО) № 1967/2006 на Съвета, член 2, точки 1—4 от Регламент (ЕО) № 1005/2008 на Съвета, член 4 от Регламент (ЕО) № 1224/2009 на Съвета, член 2, точки 1—13 от Регламент (ЕС) 2019/1022 на Европейския парламент и на Съвета и член 6 от Регламент (ЕС) 2019/1241 на Европейския парламент и на Съвета“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "б) добавят се следните точки:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9)   „зона с ограничения за риболов“ означава географски определена зона, в която определени риболовни дейности са временно забранени или ограничени, за да се подобрят опазването и",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "устойчивото използване на живите морски ресурси в зоната на прилагане на GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10) „oпределен пункт за разтоварване“ означава пристанища или места в близост до брега, терминали в морето и други съоръжения за разтоварване, трансбордиране, опаковане, преработка, зареждане на риболовни кораби с гориво или с други провизии, където са разрешени операции по разтоварване, трансбордиране, опаковане и/или преработка на продукти от риболов, определени от договарящите страни и сътрудничещите недоговарящи страни в съответствие с Препоръка GFCM/40/2016/1 относно регионална схема за мерките на пристанищната държава за борба с незаконния, недеклариран и нерегулиран риболов в зоната на прилагане на GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) „сертификат за улов“ означава официален документ, придружаващ дадена пратка, който е заверен от компетентния орган и позволява предаването на точна и проверима информация относно рибата по цялата верига на доставка;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12) „схема за документиране на улова“ означава система, създадена съгласно съответните международни задължения, чиято основна цел е да помогне да се определи по цялата верига на доставка дали рибата произхожда от улов, който е в съответствие с приложимите национални, регионални и международни мерки за опазване и управление.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) член 4 се заменя със следното:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Член 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Обхват",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Настоящата глава се прилага по отношение на всички риболовни дейности, насочени към улова на европейска змиорка (Anguilla anguilla) — и по-специално целеви, случаен и любителски риболов — във всички води на Средиземно море съгласно определението в приложение I, включително сладките води и преходните и бракичните води, като например лагуни и естуари.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) между член 12 и член 13 се вмъква следният член 12а:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Член 2 \nВлизане в сила",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Член 1 – параграф 1 – точка 2 a (нова)"
+      }
+    },
+    {
+      "language": "cs",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_cs.docx",
+        "sha256": "5a7235236a26bd8ed6cb5814e134c3e1ff036baf7d5e7708dff4adc57e616604",
+        "retrievedAt": "2026-10-27T20:16:52.387326+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Návrh nařízení",
+          "Čl. 1 – odst. 1 – bod 1 – písm. b",
+          "Nařízení (EU) 2023/2124",
+          "Čl. 3 – pododstavec 1 – bod 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Bod odůvodnění 3 a (nový)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Čl. 1 – odst. 1 – bod 17",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Příloha VII – název",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_cs.docx",
+        "label": "Dílčí nadpis (nový) – za bod 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0020.01/DOC_1",
+          "sha256": "685a45c59d5937c6068c30f970c3b9b163630efcf466862ce7ac3367816e7e8d",
+          "fetchedAt": "2026-10-27T20:27:01.784084+00:00"
+        },
+        "rows": [
+          {
+            "text": "Článek 1 \nZměny nařízení (EU) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Nařízení (EU) 2023/2124 se mění takto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) článek 3 se mění takto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) úvodní věta se nahrazuje tímto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Pro účely tohoto nařízení se kromě definic stanovených v článku 4 nařízení Evropského parlamentu a Rady (EU) č. 1380/2013, článku 2 nařízení Rady (ES) č. 1967/2006, čl. 2 bodech 1 až 4 nařízení Rady (ES) č. 1005/2008, článku 4 nařízení Rady (ES) č. 1224/2009, čl. 2 bodech 1 až 13 nařízení Evropského parlamentu a Rady (EU) 2019/1022 a článku 6 nařízení Evropského parlamentu a Rady (EU) 2019/1241 použijí tyto definice“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) doplňují se nové body, které znějí:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9)  „oblastí omezeného rybolovu“ geograficky vymezená oblast, v níž jsou některé konkrétní rybolovné činnosti dočasně zakázány nebo omezeny s cílem zlepšit zachování a",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "udržitelné využívání živých mořských zdrojů v oblasti působnosti GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10) „určeným místem vykládky“ přístavy nebo místa v blízkosti pobřeží, příbřežní terminály a jiná zařízení pro vykládku, překládku, balení, zpracování, doplňování paliva nebo zásobování rybářských plavidel, kde jsou povoleny vykládky, překládky, balení a/nebo zpracování produktů rybolovu, určené smluvními stranami a spolupracujícími nesmluvními stranami v souladu s doporučením GFCM/40/2016/1 o regionálním režimu opatření přístavních států pro boj proti nezákonným, nehlášeným a neregulovaným rybolovným činnostem v oblasti působnosti GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) „osvědčením o úlovku“ úřední doklad doprovázející zásilku a potvrzený příslušným orgánem, který umožňuje předání přesných a ověřitelných informací o rybách v celém dodavatelském řetězci;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  „systémem dokumentace úlovků“ nebo „CDS“ systém zavedený v souladu s příslušnými mezinárodními závazky, jehož hlavním účelem je pomoci v celém dodavatelském řetězci určit, zda ryby pocházejí z úlovků, které jsou v souladu s platnými vnitrostátními, regionálními a mezinárodními opatřeními pro zachování a řízení zdrojů.“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) Článek 4 se nahrazuje tímto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Článek 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Oblast působnosti",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Tato kapitola se vztahuje na všechny rybolovné činnosti týkající se úhoře říčního (Anguilla anguilla), konkrétně cíleného, příležitostného a rekreačního rybolovu ve všech vodách Středozemního moře uvedených v příloze I, včetně sladkých vod a přechodných a brakických vod, jako jsou laguny a ústí řek.“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) Mezi články 12 a 13 se vkládá nový článek 12a, který zní:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Článek 2 \nVstup v platnost",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Čl. 1 – odst. 1 – bod 2 a (nový)"
+      }
+    },
+    {
+      "language": "da",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_da.docx",
+        "sha256": "07ec9f2e360dfd1b3b1dba9b7e5cd91544116177aa27f8f65d5b0beb8f9a67ef",
+        "retrievedAt": "2026-10-27T20:16:58.393720+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Forslag til forordning",
+          "Artikel 1 – stk. 1 – nr. 1 – litra b",
+          "Forordning (EU) nr. 2023/2124",
+          "Artikel 3 – stk. 1 – nr. 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Betragtning 3 a (ny)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artikel 1 – stk. 1 – nr. 17 – indledning",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Bilag VII – overskrift",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_da.docx",
+        "label": "Overskrift (ny) – efter afsnit 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0019.01/DOC_1",
+          "sha256": "7cf1f4d82d398fbd9da1573bf11934eeb54bb98fd2fd6c31a051ad23863bcac3",
+          "fetchedAt": "2026-10-27T20:27:04.786408+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artikel 1\nÆndringer af forordning (EU) nr. 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Forordning (EU) 2023/2124 ændres som følger:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) I artikel 3 foretages følgende ændringer:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) Indledningen affattes således:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "\"Ud over definitionerne i artikel 4 i Europa-Parlamentets og Rådets forordning (EU) nr. 1380/2013, artikel 2 i Rådets forordning (EF) nr. 1967/2006, artikel 2, nr. 1)-4), i Rådets forordning (EF) nr. 1005/2008, artikel 4 i Rådets forordning (EF) nr. 1224/2009, artikel 2, nr. 1)-13), i Europa-Parlamentets og Rådets forordning (EU) 2019/1022 og artikel 6 i Europa-Parlamentets og Rådets forordning (EU) 2019/1241 forstås i nærværende forordning ved:\".",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) Følgende numre tilføjes:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "\"9)  \"område med fiskeribegrænsninger\": et geografisk afgrænset område, hvor nogle specifikke fiskeriaktiviteter er midlertidigt forbudt eller begrænset for forbedre bevarelsen og den bæredygtige anvendelse af levende marine ressourcer i GFCM-anvendelsesområdet",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "10) \"udpeget landingssted\": havne eller steder tæt på kysten, offshoreterminaler og andre anlæg til landing, omladning, emballering, forarbejdning, bunkring eller anden forsyning af fiskerfartøjer, hvor landing, omladning, emballering og/eller forarbejdning af fiskevarer og havnetjenester er tilladt, som er udpeget af de kontraherende parter og samarbejdende ikkekontraherende parter i overensstemmelse med henstilling GFCM/40/2016/1 om en regional ordning vedrørende havnestatsforanstaltninger til bekæmpelse af ulovligt, urapporteret og ureguleret fiskeri i GFCM-anvendelsesområdet",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) \"fangstattest\": et officielt dokument, som ledsager en sending og er valideret af den kompetente myndighed, og som gør det muligt at sende nøjagtige og verificerbare oplysninger om fisk gennem forsyningskæden",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  \"fangstdokumentationsordning\": et system, der er oprettet i overensstemmelse med relevante internationale forpligtelser, og som primært har til formål at hjælpe med at fastslå igennem hele forsyningskæden, hvorvidt fisken stammer fra fangster, der er i overensstemmelse med gældende nationale, regionale og internationale bevarelses- og forvaltningsforanstaltninger.\"",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) Artikel 4 affattes således:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "\"Artikel 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Anvendelsesområde",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Dette kapitel finder anvendelse på alt fiskeri efter europæisk ål (Anguilla anguilla), dvs. målrettet, utilsigtet og rekreativt fiskeri i alle de i bilag I fastsatte havområder i Middelhavet, herunder ferskvandsområder og overgangs- og brakvande såsom laguner og flodmundinger.\"",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) Følgende artikel indsættes mellem artikel 12 og 13 som artikel 12a:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artikel 2\nIkrafttræden",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artikel 1 – stk. 1 – nr. 2 a (nyt)"
+      }
+    },
+    {
+      "language": "de",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_de.docx",
+        "sha256": "bf58bccb7d530cfae3a67774725095a91a549bbace4c2641e5ea7f302ba58005",
+        "retrievedAt": "2026-10-27T20:17:04.389389+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Vorschlag für eine Verordnung",
+          "Artikel 1 – Absatz 1 – Nummer 1 – Buchstabe b",
+          "Verordnung (EU) 2023/2124",
+          "Artikel 3 – Absatz 1 – Nummer 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Erwägung 3 a (neu)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artikel 1 – Absatz 1 – Nummer 17 – Einleitung",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Anhang VII – Überschrift",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_de.docx",
+        "label": "Zwischenüberschrift (neu) – nach Ziffer 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0024.01/DOC_1",
+          "sha256": "b9a28ef9c5a0c5096f3420064b1d9c6ddab851a3901df91a71b9d0975658d6b9",
+          "fetchedAt": "2026-10-27T20:27:07.799786+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artikel 1\nÄnderungen der Verordnung (EU) Nr. 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Die Verordnung (EU) 2023/2124 wird wie folgt geändert:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1. Artikel 3 wird wie folgt geändert:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) Der einleitende Satz erhält folgende Fassung:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Zusätzlich zu den Begriffsbestimmungen des Artikels 4 der Verordnung (EU) Nr. 1380/2013 des Europäischen Parlaments und des Rates, des Artikels 2 der Verordnung (EG) Nr. 1967/2006 des Rates, des Artikels 2 Nummern 1 bis 4 der Verordnung (EG) Nr. 1005/2008 des Rates, des Artikels 4 der Verordnung (EG) Nr. 1224/2009 des Rates, des Artikels 2 Nummern 1 bis 13 der Verordnung (EU) 2019/1022 des Europäischen Parlaments und des Rates und des Artikels 6 der Verordnung (EU) 2019/1241 des Europäischen Parlaments und des Rates gelten für die Zwecke dieser Verordnung folgende Begriffsbestimmungen:“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) Die folgenden Nummern werden angefügt:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9.  „Fischereisperrgebiet“ bezeichnet ein geografisch abgegrenztes Gebiet, in dem bestimmte Fangtätigkeiten vorübergehend verboten oder eingeschränkt sind, um die Erhaltung und",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "die nachhaltige Nutzung der lebenden Meeresressourcen im GFCM-Anwendungsgebiet zu verbessern;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. „Benannte Anlandestelle“ bezeichnet Häfen oder küstennahe Orte, Offshore-Terminals und andere Anlagen zur Anlandung, Umladung, Verpackung, Verarbeitung, Betankung oder Bevorratung von Fischereifahrzeugen, in denen Anlandungen, Umladungen, Verpackung und/oder Verarbeitung von Fischereierzeugnissen zulässig sind, die von den Vertragsparteien und kooperierenden Nichtvertragsparteien gemäß der Empfehlung GFCM/40/2016/1 über eine regionale Regelung für Hafenstaatmaßnahmen zur Bekämpfung der illegalen, nicht gemeldeten und unregulierten Fischerei im GFCM-Anwendungsbereich benannt werden;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. „Fangbescheinigung“ bezeichnet ein von der zuständigen Behörde validiertes amtliches Dokument, das eine Sendung begleitet und es ermöglicht, genaue und überprüfbare Informationen über Fische in der gesamten Lieferkette zu übermitteln;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12.  „Fangdokumentationsregelung“ oder CDS (Catch Documentation Scheme) bezeichnet ein im Einklang mit den einschlägigen internationalen Verpflichtungen eingerichtetes System, das in erster Linie dazu beitragen soll, in der gesamten Lieferkette festzustellen, ob der Fisch aus Fängen stammt, die mit den geltenden nationalen, regionalen und internationalen Erhaltungs- und Bewirtschaftungsmaßnahmen vereinbar sind.“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2. Artikel 4 erhält folgende Fassung:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Artikel 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Geltungsbereich",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Dieses Kapitel gilt für alle Fischereitätigkeiten auf Europäischen Aal (Anguilla anguilla), insbesondere die gezielte Befischung, die unbeabsichtigte Fischerei und die Freizeitfischerei, in allen aufgeführten Gewässern des Mittelmeers gemäß Anhang I, einschließlich Süßwasser- und Brackgewässern wie Lagunen und Mündungsgebieten.“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3. Zwischen Artikel 12 und Artikel 13 wird folgender Artikel 12a eingefügt:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artikel 2\nInkrafttreten",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[773]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artikel 1 – Absatz 1 – Nummer 2 a (neu)"
+      }
+    },
+    {
+      "language": "el",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_el.docx",
+        "sha256": "7029d380b3a847c3dc309eec4558186eb88890efa3be6bdb2efbf0df1e9bdf64",
+        "retrievedAt": "2026-10-27T20:17:10.449830+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Πρόταση κανονισμού",
+          "Άρθρο 1 – παράγραφος 1 – σημείο 1 – στοιχείο β",
+          "Κανονισμός (ΕΕ) 2023/2124",
+          "Άρθρο 3 – παράγραφος 1 – σημείο 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "β"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Αιτιολογική σκέψη 3 α (νέα)",
+        "expected": [
+          "recital",
+          "3α"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Άρθρο 1 – παράγραφος 1 – εδάφιο 17 – εισαγωγικό μέρος",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "subparagraph",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Παράρτημα VII – τίτλος",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+        "label": "Υπότιτλος (νέος) – μετά την παράγραφο 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0017.01/DOC_1",
+          "sha256": "7ad3409b3a2c2a85fce49550e9e7b09cad425d0b607a12c5d0ac905b243077bf",
+          "fetchedAt": "2026-10-27T20:27:10.847646+00:00"
+        },
+        "rows": [
+          {
+            "text": "Άρθρο 1\nΤροποποιήσεις του κανονισμού (ΕΕ) αριθ. 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Ο κανονισμός (ΕΕ) 2023/2124 τροποποιείται ως εξής:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) Το άρθρο 3 τροποποιείται ως εξής:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "α) η εισαγωγική φράση αντικαθίσταται από το ακόλουθο κείμενο:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "«Για τους σκοπούς του παρόντος κανονισμού, επιπλέον των ορισμών του άρθρου 4 του κανονισμού (ΕΕ) αριθ. 1380/2013 του Ευρωπαϊκού Κοινοβουλίου και του Συμβουλίου, του άρθρου 2 του κανονισμού (ΕΚ) αριθ. 1967/2006 του Συμβουλίου, του άρθρου 2 σημεία 1) έως 4) του κανονισμού (ΕΚ) αριθ. 1005/2008 του Συμβουλίου, του άρθρου 4 του κανονισμού (ΕΚ) αριθ. 1224/2009 του Συμβουλίου, του άρθρου 2 σημεία 1) έως 13) του κανονισμού (ΕΕ) 2019/1022 του Ευρωπαϊκού Κοινοβουλίου και του Συμβουλίου και του άρθρου 6 του κανονισμού (ΕΕ) 2019/1241 του Ευρωπαϊκού Κοινοβουλίου και του Συμβουλίου, ισχύουν οι ακόλουθοι ορισμοί:»·",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "β) προστίθενται τα ακόλουθα σημεία:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "«(9)  “απαγορευμένη περιοχή αλιείας”: γεωγραφικά καθορισμένη περιοχή στην οποία ορισμένες ειδικές αλιευτικές δραστηριότητες προσωρινά απαγορεύονται ή περιορίζονται με σκοπό τη βελτίωση της διατήρησης και",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "της βιώσιμης χρήσης των έμβιων θαλάσσιων πόρων στην περιοχή εφαρμογής της ΓΕΑΜ·",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "(10) “καθορισμένο σημείο εκφόρτωσης”: λιμένες ή τόποι κοντά στην ακτή, υπεράκτιοι τερματικοί σταθμοί και άλλες εγκαταστάσεις εκφόρτωσης, μεταφόρτωσης, συσκευασίας, μεταποίησης, ανεφοδιασμού σε καύσιμα ή άλλα εφόδια για αλιευτικά σκάφη, όπου επιτρέπονται οι εκφορτώσεις, οι μεταφορτώσεις, οι εργασίες συσκευασίας και/ή μεταποίησης αλιευτικών προϊόντων, τα οποία καθορίζονται από τα συμβαλλόμενα μέρη και τα συνεργαζόμενα μη συμβαλλόμενα μέρη σύμφωνα με τη σύσταση GFCM/40/2016/1 σχετικά με περιφερειακό πρόγραμμα μέτρων κράτους λιμένα για την καταπολέμηση των δραστηριοτήτων παράνομης, αδήλωτης και ανεξέλεγκτης αλιείας στην περιοχή εφαρμογής της ΓΕΑΜ·",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "(11) “πιστοποιητικό αλιευμάτων”: επίσημο έγγραφο που συνοδεύει ένα φορτίο και έχει επικυρωθεί από την αρμόδια αρχή, το οποίο καθιστά δυνατή τη διαβίβαση ακριβών και επαληθεύσιμων πληροφοριών σχετικά με τα ψάρια σε ολόκληρη την αλυσίδα εφοδιασμού·",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "(12)  “σύστημα τεκμηρίωσης αλιευμάτων” ή “CDS”: σύστημα που θεσπίζεται σύμφωνα με σχετικές διεθνείς υποχρεώσεις, με πρωταρχικό σκοπό να συμβάλει στον προσδιορισμό, σε όλο το μήκος της αλυσίδας εφοδιασμού, του αν τα ψάρια προέρχονται από αλιεύματα που συνάδουν με τα ισχύοντα εθνικά, περιφερειακά και διεθνή μέτρα διατήρησης και διαχείρισης.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) Το άρθρο 4 αντικαθίσταται από το ακόλουθο κείμενο:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "«Άρθρο 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Πεδίο εφαρμογής",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Το παρόν άρθρο εφαρμόζεται σε όλες τις αλιευτικές δραστηριότητες αλίευσης ευρωπαϊκού χελιού (Anguilla anguilla), συγκεκριμένα στη στοχευμένη, την παρεμπίπτουσα και την ερασιτεχνική αλιεία, σε όλα τα ύδατα της Μεσογείου θάλασσας όπως προβλέπεται στο παράρτημα I, συμπεριλαμβανομένων των γλυκών υδάτων και των μεταβατικών και υφάλμυρων υδάτων, όπως οι λιμνοθάλασσες και οι εκβολές ποταμών.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) Μεταξύ των άρθρων 12 και 13 παρεμβάλλεται το ακόλουθο άρθρο 12α:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Άρθρο 2\nΈναρξη ισχύος",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Άρθρο 1 – παράγραφος 1 – σημείο 2 α (νέο)"
+      }
+    },
+    {
+      "language": "en",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_en.docx",
+        "sha256": "5397d69dfa655899c6d9b82303f686c10989ff8a5b164673d96ddfa1f2cf60d5",
+        "retrievedAt": "2026-10-27T16:24:57.200Z"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Proposal for a regulation",
+          "Article 1 – paragraph 1 – point 1 – point b",
+          "Regulation (EU) No 2023/2124",
+          "Article 3 – paragraph 1 – point 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Recital 3 a (new)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Article 1 – paragraph 1 – point 17 – introductory part",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Annex VII – title",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_en.docx",
+        "label": "Subheading (new) – after paragraph 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0001.01/DOC_1",
+          "sha256": "30fbfa2169fbedd4331f4ed5ab229930271de6950f891a271f6cf809cb7d1fed",
+          "fetchedAt": "2026-10-27T16:25:27.255Z"
+        },
+        "rows": [
+          {
+            "text": "Article 1\nAmendments to Regulation (EU) No 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Regulation (EU) 2023/2124 is amended as follows:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "(1) Article 3 is amended as follows:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "(a) the introductory phrase is replaced by the following:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "“For the purposes of this Regulation, the following definitions shall apply in addition to the definitions laid down in Article 4 of Regulation (EU) No 1380/2013 of the European Parliament and of the Council, Article 2 of Council Regulation (EC) No 1967/2006, Article 2, points (1) to (4), of Council Regulation (EC) No 1005/2008, Article 4 of Council Regulation (EC) No 1224/2009, Article 2, points (1) to (13), of Regulation (EU) 2019/1022 of the European Parliament and of the Council and Article 6 of Regulation (EU) 2019/1241 of the European Parliament and of the Council”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "(b) the following points are added:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "“(9)  “Fisheries restricted area” means a geographically-defined area in which some specific fishing activities are temporarily banned or restricted in order to improve the conservation and",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "sustainable use of marine living resources in the GFCM area of application.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "(10) “Designated landing point” means ports, or places close to the shore, offshore terminals and other installations for landing, transhipping, packaging, processing, refuelling or resupplying of fishing vessels, where landings, transhipments, packaging and/or processing operations of fishery products are permitted, designated by the contracting parties and cooperating non-contracting parties in accordance with Recommendation GFCM/40/2016/1 on a regional scheme on port state measures to combat illegal, unreported and unregulated fishing activities in the GFCM area of application;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "(11) “Catch certificate” means an official document accompanying a consignment and validated by the competent authority, allowing to pass accurate and verifiable information concerning fish throughout the supply chain;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "(12)  “Catch documentation scheme” or “CDS” means a system established in accordance with relevant international obligations, with the primary purpose of helping to determine, throughout the supply chain whether the fish originates from catches that are consistent with applicable national, regional and international conservation and management measures.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "(2) Article 4 is replaced by the following:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "“Article 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Scope",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "This Chapter applies to all fishing activities catching European eel (Anguilla anguilla), namely targeted, incidental and recreational fisheries, in all the waters of the Mediterranean Sea as provided for in Annex I, including freshwaters and transitional and brackish waters, such as lagoons and estuaries.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "(3) the following Article 12a is inserted between Article 12 and Article 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Article 2\nEntry into force",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Article 1 – paragraph 1 – point 2 a (new)"
+      }
+    },
+    {
+      "language": "es",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_es.docx",
+        "sha256": "ba66ec5c940c0e6755348f17fdaae7f6f1377a9ce4de92d41943f5dbdd5a8056",
+        "retrievedAt": "2026-10-27T20:17:16.490331+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Propuesta de Reglamento",
+          "Artículo 1 – párrafo 1 – punto 1 – letra b",
+          "Reglamento (UE) n° 2023/2124",
+          "Artículo 3 – párrafo 1 – punto 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Considerando 3 bis (nuevo)",
+        "expected": [
+          "recital",
+          "3bis"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artículo 1 – párrafo 1 – punto 17 – parte introductoria",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Anexo VII – título",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_es.docx",
+        "label": "Subtítulo (nuevo) (después del apartado 25)",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0021.01/DOC_1",
+          "sha256": "3aec9b3114b2482d2aca1d714d13d9e281abd9c0650bb5f64f1f17e1c85a01fa",
+          "fetchedAt": "2026-10-27T20:27:13.827509+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artículo 1\nModificaciones del Reglamento (UE) n.º 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "El Reglamento (UE) 2023/2124 se modifica como sigue:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) El artículo 3 se modifica como sigue:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) La frase introductoria se sustituye por el texto siguiente:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "«A los efectos del presente Reglamento, se aplicarán las definiciones siguientes, además de las establecidas en el artículo 4 del Reglamento (UE) n.º 1380/2013 del Parlamento Europeo y del Consejo, en el artículo 2 del Reglamento (CE) n.º 1967/2006, en el artículo 2, puntos 1 a 4, del Reglamento (CE) n.º 1005/2008 del Consejo, en el artículo 4 del Reglamento (CE) n.º 1224/2009 del Consejo, en el artículo 2, puntos 1 a 13, del Reglamento (UE) 2019/1022 del Parlamento Europeo y del Consejo y en el artículo 6 del Reglamento (UE) 2019/1241 del Parlamento Europeo y del Consejo.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) Se añaden los puntos siguientes:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "«9) “zona restringida de pesca”: zona definida geográficamente en la que se prohíben o restringen temporalmente algunas actividades pesqueras determinadas para mejorar la conservación y uso sostenible de los recursos marinos vivos en la zona de aplicación de la CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "10) “punto de desembarque designado”: puerto o lugar cercano a la costa, terminal mar adentro u otra instalación de desembarque, transbordo, embalaje, transformación, repostaje o reabastecimiento de buques pesqueros, en el que se permita descargar a tierra, transbordar, embalar o realizar operaciones de transformación de productos pesqueros, y que haya sido designado por las Partes contratantes o las Partes no contratantes colaboradoras de conformidad con la Recomendación GFCM/40/2016/1, relativa a un régimen regional de medidas del Estado rector del puerto para luchar contra las actividades de pesca ilegal, no declarada y no reglamentada en la zona de aplicación de la CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "11) “certificado de captura”: documento oficial que acompaña a una partida y ha sido validado por la autoridad competente, que permite transmitir información exacta y verificable sobre los productos pesqueros a lo largo de toda la cadena de suministro;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "12) Sistema de Documentación de Capturas” o “SDC”: sistema establecido conforme a las obligaciones internacionales correspondientes, cuyo objetivo principal es ayudar a determinar, a través de la cadena de suministro, si los peces proceden de capturas que cumplan las normas aplicables de conservación y gestión a escala nacional, regional e internacional.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "2) El artículo 4 se sustituye por el texto siguiente:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "«Artículo 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "Ámbito de aplicación",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "El presente capítulo se aplica a todas las actividades pesqueras mediante las que se captura anguila (Anguilla anguilla), en concreto la pesca selectiva (dirigida), accidental o recreativa, en todas las aguas del mar Mediterráneo indicadas en el anexo I, incluidas las aguas dulces y las aguas salobres de transición, como las lagunas y los estuarios.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "3) Entre el artículo 12 y el artículo 13, se inserta el artículo 12 bis siguiente:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[104]"
+          },
+          {
+            "text": "Artículo 2\nEntrada en vigor",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[774]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artículo 1 – párrafo 1 – punto 2 bis (nuevo)"
+      }
+    },
+    {
+      "language": "et",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_et.docx",
+        "sha256": "4a9838cab1c5c9407fd0e56e442b02423bb08f49fc7a33390edc0777e6b2ac53",
+        "retrievedAt": "2026-10-27T20:17:22.476804+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Ettepanek võtta vastu määrus",
+          "Artikkel 1 – lõik 1 – punkt 1 – alapunkt b",
+          "Määrus (EL) nr 2023/2124",
+          "Artikkel 3 – lõik 1 – punkt 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Põhjendus 3 a (uus)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artikkel 1 – lõik 1 – punkt 17 – sissejuhatav osa",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "VII lisa – pealkiri",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_et.docx",
+        "label": "Alapealkiri (uus) (pärast punkti 25)",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0018.01/DOC_1",
+          "sha256": "8258553b31050e7aa16f35aa4c5b9f54d8fe80f61f260874c38e89eb366d28fb",
+          "fetchedAt": "2026-10-27T20:27:16.811737+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artikkel 1\nMääruse (EL) 2023/2124 muutmine",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Määrust (EL) 2023/2124 muudetakse järgmiselt:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) artiklit 3 muudetakse järgmiselt:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) sissejuhatav lause asendatakse järgmisega:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Käesolevas määruses kasutatakse lisaks Euroopa Parlamendi ja nõukogu määruse (EL) nr 1380/2013 artiklis 4, nõukogu määruse (EÜ) nr 1967/2006 artiklis 2, nõukogu määruse (EÜ) nr 1005/2008 artikli 2 punktides 1–4, nõukogu määruse (EÜ) nr 1224/2009 artiklis 4, Euroopa Parlamendi ja nõukogu määruse (EL) 2019/1022 artikli 2 punktides 1–13 ning Euroopa Parlamendi ja nõukogu määruse (EL) 2019/1241 artiklis 6 sätestatud mõistetele järgmisi mõisteid:“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) lisatakse järgmised punktid:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9)  „püügikeeluala“ – geograafiliselt määratletud piirkond, kus mõni konkreetne püügitegevus on ajutiselt keelatud või piiratud, et parandada",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "mere elusressursside kaitset ja säästvat kasutamist GFCMi lepingu piirkonnas;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10) „määratud lossimiskoht“ – sadam, rannikuäärne paik, avamereterminal või muu lossimiseks, ümberlaadimiseks, pakendamiseks, töötlemiseks, tankimiseks või varude täiendamiseks ettenähtud rajatis, kus on lubatud lossida, ümber laadida, pakendada ja/või töödelda kalatooteid, mille on määranud lepinguosaline või koostööd tegev kolmas riik kooskõlas soovitusega GFCM/40/2016/1, mis käsitleb piirkondlikku sadamariigi meetmete kava ebaseadusliku, teatamata ja reguleerimata kalapüügi vastu võitlemiseks GFCMi lepingu piirkonnas;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) „püügisertifikaat“ – saadetisega kaasas olev pädeva asutuse kinnitatud ametlik dokument, mis võimaldab anda kogu tarneahelas kalade kohta täpset ja kontrollitavat teavet;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  „püügidokumentide süsteem (CDS)“ – süsteem, mis on loodud kooskõlas asjaomaste rahvusvaheliste kohustustega eelkõige selleks, et aidata kogu tarneahelas kindlaks teha, kas kala on pärit saagist, mis on kooskõlas kohaldatavate riiklike, piirkondlike ja rahvusvaheliste kaitse- ja majandamismeetmetega.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) artikkel 4 asendatakse järgmisega:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Artikkel 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Kohaldamisala",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Käesolevat peatükki kohaldatakse euroopa angerja (Anguilla anguilla) siht-, juhu- ja harrastuspüügi suhtes kõigis I lisas kindlaks määratud Vahemere piirkonna vetes, sealhulgas mageveekogudes ning ülemineku- ja riimvetes, nagu laguunid ja estuaarid.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) artiklite 12 ja 13 vahele lisatakse artikkel 12a:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artikkel 2\nJõustumine",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artikkel 1 – lõik 1 – punkt 2 a (uus)"
+      }
+    },
+    {
+      "language": "fi",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fi.docx",
+        "sha256": "ed5029e5881c9d447647b7886529fd15c644c1e117532cb040c067f5b3d40f03",
+        "retrievedAt": "2026-10-27T20:17:28.594947+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Ehdotus asetukseksi",
+          "1 artikla – 1 kohta – 1 alakohta – b alakohta",
+          "Asetus (EU) N:o 2023/2124",
+          "3 artikla – 1 kohta – 10 alakohta"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Johdanto-osan 3 a kappale (uusi)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "1 artikla – 1 kohta – 17 alakohta – johdantokappale",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Liite VII – otsikko",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fi.docx",
+        "label": "Alaotsikko (uusi) – 25 kohdan jälkeen",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0004.01/DOC_1",
+          "sha256": "762df48408df63aa79869a1b24845ffcf2f6e81503760028ae8fbd1ca3973692",
+          "fetchedAt": "2026-10-27T20:27:19.843008+00:00"
+        },
+        "rows": [
+          {
+            "text": "1 artikla\nAsetuksen (EU) 2023/2124 muuttaminen",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Muutetaan asetus (EU) 2023/2124 seuraavasti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) Muutetaan 3 artikla seuraavasti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) korvataan johdantokappale seuraavasti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "”Tässä asetuksessa sovelletaan Euroopan parlamentin ja neuvoston asetuksen (EU) N:o 1380/2013 4 artiklassa, neuvoston asetuksen (EY) N:o 1967/2006 2 artiklassa, neuvoston asetuksen (EY) N:o 1005/2008 2 artiklan 1–4 alakohdassa, neuvoston asetuksen (EY) N:o 1224/2009 4 artiklassa, Euroopan parlamentin ja neuvoston asetuksen (EU) 2019/1022 2 artiklan 1–13 alakohdassa ja Euroopan parlamentin ja neuvoston asetuksen (EU) 2019/1241 6 artiklassa vahvistettujen määritelmien lisäksi seuraavia määritelmiä:”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) lisätään alakohdat seuraavasti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "”9)  ’kalastusrajoitusalueella’ tarkoitetaan maantieteellisesti määriteltyä aluetta, jolla tietyt kalastustoimet on väliaikaisesti kielletty tai niitä on rajoitettu meren elollisten luonnonvarojen säilyttämisen ja kestävän käytön edistämiseksi GFCM:n soveltamisalueella;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "10) ’nimetyllä purkamispaikalla’ tarkoitetaan satamia tai lähellä rannikkoa olevia paikkoja, avomeriterminaaleja ja muita laitoksia, joita käytetään kalastusalusten purkamiseen, jälleenlaivaukseen, pakkaamiseen, jalostukseen, tankkaukseen tai varustuksen täydentämiseen, joissa kalastustuotteiden purkaminen, jälleenlaivaus, pakkaaminen ja/tai jalostustoiminta sallitaan ja jotka sopimuspuolet ja yhteistyötä tekevät muut kuin sopimuspuolet ovat nimenneet satamavaltion toimenpiteitä koskevasta alueellisesta järjestelmästä laittoman, ilmoittamattoman ja sääntelemättömän kalastuksen torjumiseksi GFCM:n soveltamisalueella annetun suosituksen GFCM/40/2016/1 mukaisesti;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) ’saalistodistuksella’ tarkoitetaan lähetyksen mukana olevaa ja toimivaltaisen viranomaisen vahvistamaa virallista asiakirjaa, jonka avulla kalasta voidaan tarjota tarkkoja ja todennettavissa olevia tietoja koko toimitusketjussa;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  ’saalisasiakirjajärjestelmällä’ tarkoitetaan asiaankuuluvien kansainvälisten velvoitteiden mukaisesti perustettua järjestelmää, jonka pääasiallisena tarkoituksena on auttaa määrittämään koko toimitusketjussa, onko kala peräisin sovellettavien kansallisten, alueellisten ja kansainvälisten säilyttämis- ja hoitotoimenpiteiden mukaisista saaliista.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) Korvataan 4 artikla seuraavasti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "”4 artikla",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Soveltamisala",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Tätä lukua sovelletaan kaikkeen ankeriaan (Anguilla anguilla) kalastukseen eli kohdennettuun, tahattomaan ja virkistyskalastukseen kaikilla liitteessä I vahvistetuilla vesillä Välimerellä, mukaan lukien makean veden alueet ja murtovesialueet, kuten laguunit ja suistot.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) Lisätään 12 ja 13 artiklan väliin 12 a artikla seuraavasti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "2 artikla\nVoimaantulo",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "1 artikla – 1 kohta – 2 a alakohta (uusi)"
+      }
+    },
+    {
+      "language": "fr",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_fr.docx",
+        "sha256": "a55ed913f41aa9742e3a5a50c66ac73e9005ec53827827b481b80edd4a773ba4",
+        "retrievedAt": "2026-10-27T20:17:34.609154+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Proposition de règlement",
+          "Article 1 – alinéa 1 – point 1 – sous-point b",
+          "Règlement (UE) 2023/2124",
+          "Article 3 – alinéa 1 – point 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Considérant 3 bis (nouveau)",
+        "expected": [
+          "recital",
+          "3bis"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Article 1 – alinéa 1 – point 17 – partie introductive",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Annexe VII – titre",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fr.docx",
+        "label": "Sous-titre (nouveau) – après le paragraphe 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0023.01/DOC_1",
+          "sha256": "977ac41ef62618bcb84f41a64508bdec4e2b313b63b092d433c5324f1036a05c",
+          "fetchedAt": "2026-10-27T20:27:22.844139+00:00"
+        },
+        "rows": [
+          {
+            "text": "Article premier\nModifications du règlement (UE) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Le règlement (UE) 2023/2124 est modifié comme suit:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) L’article 3 est modifié comme suit:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) la phrase introductive est remplacée par le texte suivant:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "«Aux fins du présent règlement, outre les définitions figurant à l’article 4 du règlement (UE) nº 1380/2013 du Parlement européen et du Conseil, à l’article 2 du règlement (CE) nº 1967/2006 du Conseil, à l’article 2, points 1) à 4), du règlement (CE) nº 1005/2008 du Conseil, à l’article 4 du règlement (CE) nº 1224/2009 du Conseil, à l’article 2, points 1) à 13), du règlement (UE) 2019/1022 du Parlement européen et du Conseil et à l’article 6 du règlement (UE) 2019/1241 du Parlement européen et du Conseil, on entend par:»;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) les points suivants sont ajoutés:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "«9)  “zone de pêche à accès réglementé”, une zone géographique délimitée dans laquelle certaines activités de pêche spécifiques sont temporairement interdites ou restreintes afin d’améliorer la conservation et",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "l’utilisation durable des ressources biologiques marines dans la zone d’application de la CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10) “point de débarquement désigné”, les ports ou lieux situés à proximité du littoral, les terminaux au large et toute autre installation servant au débarquement, au transbordement, au conditionnement, à la transformation, à l’approvisionnement en carburant ou à l’avitaillement des navires de pêche où les débarquements, transbordements et opérations de conditionnement et/ou de transformation de produits de la pêche sont autorisés, désignés par les parties contractantes et les parties non contractantes coopérantes conformément à la recommandation CGPM/40/2016/1 concernant un mécanisme régional relatif aux mesures du ressort de l’État du port visant à lutter contre la pêche illicite, non déclarée et non réglementée dans la zone d’application de la CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) “certificat de capture”, un document officiel accompagnant un lot et validé par l’autorité compétente, permettant de transmettre des informations exactes et vérifiables concernant les poissons tout au long de la chaîne d’approvisionnement;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  “système de documentation des captures” ou “SDC”, un système établi conformément aux obligations internationales ayant pour objectif premier de contribuer à déterminer, tout au long de la chaîne d’approvisionnement, si les poissons proviennent de captures effectuées conformément aux mesures de conservation et de gestion nationales, régionales et internationales applicables.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) L'article 4 est remplacé par le texte suivant:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "«Article 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Champ d'application",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Le présent chapitre s’applique à toutes les activités de pêche capturant l’anguille d’Europe (Anguilla anguilla), à savoir la pêche ciblée, accidentelle et récréative, dans toutes les eaux de la mer Méditerranée comme prévu à l’annexe I, y compris les eaux douces et les eaux saumâtres et les eaux de transition telles que les lagunes et les estuaires.».",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) L'article 12 bis suivant est inséré entre l'article 12 et l’article 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Article 2\nEntrée en vigueur",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[772]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Article 1 – alinéa 1 – point 2 bis (nouveau)"
+      }
+    },
+    {
+      "language": "ga",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ga.docx",
+        "sha256": "cdc20d23d5870d108f3e78fb23884b643395c13ba7aa614b578e66100ba86961",
+        "retrievedAt": "2026-10-27T20:17:40.619047+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Togra le haghaidh rialacháin",
+          "Airteagal 1 – mír 1 – pointe 1 – pointe b",
+          "Rialachán (AE) Uimh. 2023/2124",
+          "Airteagal 3 – mír 1 – pointe 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Aithris 3 a (nua)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Airteagal 1 – mír 1 – pointe 17 – an chuid réamhráiteach",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Iarscríbhinn VII – teideal",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_ga.docx",
+        "label": "Mír 25 – fomhír 1 (nua)",
+        "expected": null
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0002.01/DOC_1",
+          "sha256": "ed089b189bb254ced172df31faa3d17f08e502ac19c4cba49db4acf98e71cd36",
+          "fetchedAt": "2026-10-27T20:27:25.865708+00:00"
+        },
+        "rows": [
+          {
+            "text": "Airteagal 1\nLeasuithe ar Rialachán (AE) Uimh. 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Leasaítear Rialachán (AE) 2023/2124 mar a leanas:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "(1) Leasaítear Airteagal 3 mar a leanas:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "(a) cuirtear an méid seo a leanas in ionad na habairte réamhráití:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "‘Chun críocha an Rialacháin seo, beidh feidhm ag na sainmhínithe seo a leanas i dteannta na sainmhínithe a leagtar síos in Airteagal 4 de Rialachán (AE) Uimh. 1380/2013 ó Pharlaimint na hEorpa agus ón gComhairle, Airteagal 2 de Rialachán (CE) Uimh. 1967/2006 ón gComhairle, Airteagal 2, pointí (1) go (4), de Rialachán (AE) Uimh. 1005/2008 ón gComhairle, agus Airteagal 4 de Rialachán (CE) Uimh. 1224/2009 ón gComhairle, Airteagal 2, pointí (1) go (13), de Rialachán (AE) 2019/1022 ó Pharlaimint na hEorpa agus ón gComhairle agus Airteagal 6 de Rialachán (AE) 2019/1241 ó Pharlaimint na hEorpa agus ón gComhairle’;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "(b) cuirtear isteach na pointí seo a leanas:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "‘(9)  Ciallaíonn “limistéar srianta iascaigh” limistéar a shainítear go geografach ina bhfuil toirmeasc nó srian sealadach ar roinnt gníomhaíochtaí iascaireachta sonracha chun feabhas a chur ar chaomhnú agus",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "úsáid inbhuanaithe acmhainní bitheolaíocha na mara i limistéar chur i bhfeidhm CGIM.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "(10) Ciallaíonn “láthair tabhairt i dtír a ainmnítear” calafoirt, nó áiteanna gar don chladach, críochfoirt amach ón gcósta agus suiteálacha eile chun soithí iascaireachta a thabhairt i dtír, a thrasloingsiú, a phacáistiú, a phróiseáil, a athbhreoslú nó a athsholáthar, i gcás ina gceadaítear teacht i dtír, trasloingsithe, oibríochtaí pacáistithe agus/nó próiseála táirgí iascaigh, arna n‑ainmniú ag na páirtithe conarthacha agus páirtithe comhoibríocha neamhchonarthacha i gcomhréir le Moladh CGIM/40/2016/1 i ndáil le scéim réigiúnach maidir le bearta stát an chalafoirt chun gníomhaíochtaí iascaireachta neamhdhleathacha, neamhthuairiscithe agus neamhrialáilte i limistéar chur i bhfeidhm CGIM a chomhrac;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "(11) Ciallaíonn “deimhniú gabhála” doiciméad oifigiúil a ghabhann le coinsíneacht agus atá bailíochtaithe ag an údarás inniúil, lena gceadaítear faisnéis chruinn infhíoraithe a chur ar aghaidh a bhaineann le héisc ar fud an tslabhra soláthair;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "(12)  Ciallaíonn “scéim doiciméadaithe um ghabháil” nó “CDS” córas a bunaíodh i gcomhréir le hoibleagáidí idirnáisiúnta ábhartha, a bhfuil sé de phríomhchuspóir aige cuidiú le cinneadh a dhéanamh, ar fud an tslabhra soláthair, maidir le cé acu atá nó nach bhfuil an t‑iasc de thionscnamh gabhálacha atá i gcomhréir le bearta caomhnúcháin náisiúnta, réigiúnacha agus idirnáisiúnta is infheidhme.’",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "(2) cuirtear an méid seo a leanas in ionad Airteagal 4:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "‘Airteagal 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Raon feidhme",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Tá feidhm ag an gCaibidil seo maidir le gach gníomhaíocht iascaireachta ina ngabhtar an eascann Eorpach (Anguilla anguilla), is é sin iascaigh spriocdhírithe, theagmhasacha agus áineasa, in uiscí uile na Meánmhara dá bhforáiltear in Iarscríbhinn I, lena n‑áirítear fionnuiscí agus uiscí trasdultacha agus goirt, amhail murlaigh agus inbhir.’",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "(3) cuirtear isteach an tAirteagal 12a seo a leanas idir Airteagal 12 agus Airteagal 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Airteagal 2\nTeacht i bhfeidhm",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Airteagal 1 – mír 1 – pointe 2 a (nua)"
+      }
+    },
+    {
+      "language": "hr",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hr.docx",
+        "sha256": "bd81cac3d32ed82fafacbb64419adb1b676ee6d3f897994e9f7be149de16a76a",
+        "retrievedAt": "2026-10-27T20:17:46.571569+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Prijedlog uredbe",
+          "Članak 1. – stavak 1. – točka 1. – podtočka b",
+          "Uredba (EU) 2023/2124",
+          "Članak 3. – stavak 1. – točka 10."
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Uvodna izjava 3.a (nova)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Članak 1. – stavak 1. – točka 17. – uvodni dio",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Prilog VII. – naslov",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_hr.docx",
+        "label": "Podnaslov (novi) – nakon stavka 25.",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0016.01/DOC_1",
+          "sha256": "b22d1f73a9f811c09f921aaa663cfc994552a68f9c774699f598f7b806db9969",
+          "fetchedAt": "2026-10-27T20:27:28.859845+00:00"
+        },
+        "rows": [
+          {
+            "text": "Članak 1.\nIzmjene Uredbe (EU) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Uredba (EU) 2023/2124 mijenja se kako slijedi:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1. članak 3. mijenja se kako slijedi:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "(a) uvodna rečenica zamjenjuje se sljedećim:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Za potrebe ove Uredbe, uz definicije iz članka 4. Uredbe (EU) br. 1380/2013 Europskog parlamenta i Vijeća, članka 2. Uredbe Vijeća (EZ) br. 1967/2006, članka 2. točaka od 1. do 4. Uredbe Vijeća (EZ) br. 1005/2008, članka 4. Uredbe Vijeća (EZ) br. 1224/2009, članka 2. točaka od 1. do 13. Uredbe (EU) 2019/1022 Europskog parlamenta i Vijeća i članka 6. Uredbe (EU) 2019/1241 Europskog parlamenta i Vijeća, primjenjuju se sljedeće definicije”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "(b) dodaju se sljedeće točke:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9.  „područje ograničenog ribolova” znači geografski definirano područje na kojem su neke posebne ribolovne aktivnosti privremeno zabranjene ili ograničene kako bi se poboljšalo očuvanje i",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "održivo iskorištavanje živih morskih resursa na području primjene GFCM-a;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. „određeno iskrcajno mjesto” znači luke ili mjesta blizu obale, odobalni terminali i druga postrojenja za iskrcaj, prekrcaj, pakiranje, preradu, opskrbu gorivom ili obnovu zaliha ribarskih plovila gdje su dopušteni iskrcaj, prekrcaj, pakiranje i/ili prerada proizvoda ribarstva, koje su u skladu s Preporukom GFCM/40/2016/1 o regionalnom programu mjera države luke za borbu protiv nezakonitog, neprijavljenog i nereguliranog ribolova na području primjene GFCM-a odredile ugovorne stranke i neugovorne stranke koje surađuju;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. „certifikat o ulovu” znači službeni dokument uz pošiljku koji je ovjerilo nadležno tijelo i koji omogućuje prosljeđivanje točnih i provjerljivih informacija o ribi u cijelom lancu opskrbe;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12.  „program dokumentiranja ulova” znači sustav uspostavljen u skladu s relevantnim međunarodnim obvezama, čija je primarna svrha da se u cijelom lancu opskrbe utvrdi potječe li riba iz ulova koji je u skladu s primjenjivim nacionalnim, regionalnim i međunarodnim mjerama očuvanja i upravljanja.”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2. članak 4. zamjenjuje se sljedećim:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Članak 4.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Područje primjene",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Ovo se poglavlje primjenjuje na sve ribolovne aktivnosti u kojima se lovi jegulja (Anguilla anguilla) odnosno na ciljani, slučajni i rekreacijski ribolov, u svim vodama Sredozemnog mora navedenima u Prilogu I., uključujući slatke vode te prijelazne i bočate vode, kao što su lagune i estuariji.”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3. između članka 12. i članka 13. umeće se sljedeći članak 12.a:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Članak 2.\nStupanje na snagu",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Članak 1. – stavak 1. – točka 2.a (nova)"
+      }
+    },
+    {
+      "language": "hu",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_hu.docx",
+        "sha256": "d6bb2c14969f54343e4bbf42e6289fc63ba2f80959cf7950c7aed2f0662f4011",
+        "retrievedAt": "2026-10-27T20:17:52.630833+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Rendeletre irányuló javaslat",
+          "1 cikk – 1 bekezdés – 1 pont – b pont",
+          "(EU) 2023/2124 rendelet",
+          "3 cikk – 1 bekezdés – 10 pont"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "3 a preambulumbekezdés (új)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "1 cikk – 1 bekezdés – 17 pont – bevezető rész",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "VII melléklet – cím",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_hu.docx",
+        "label": "Alcím (új) a 25 bekezdés után",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0012.01/DOC_1",
+          "sha256": "3801a6294aae65d56c93caf37d9b6ed829ce29e9a2bb0df73cfc75c3831e7cc1",
+          "fetchedAt": "2026-10-27T20:27:31.862196+00:00"
+        },
+        "rows": [
+          {
+            "text": "1. cikk\nA 2023/2124/EU rendelet módosításai",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Az (EU) 2023/2124 rendelet a következőképpen módosul:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1. A 3. cikk a következőképpen módosul:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) a bevezető szövegrész helyébe a következő szöveg lép:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„E rendelet alkalmazásában az 1380/2013/EU európai parlamenti és tanácsi rendelet 4. cikkében, az 1967/2006/EK tanácsi rendelet 2. cikkében, az 1005/2008 tanácsi rendelet 2. cikkének 1–4. pontjában, az 1224/2009/EK tanácsi rendelet 4. cikkében, az (EU) 2019/1022 európai parlamenti és tanácsi rendelet 2. cikkének 1–13. pontjában és az (EU) 2019/1241 európai parlamenti és tanácsi rendelet 6. cikkében meghatározott fogalommeghatározásokon túlmenően a következő fogalommeghatározások alkalmazandók”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) a szöveg a következő pontokkal egészül ki:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9. »halászati korlátozás hatálya alá tartozó terület«: földrajzilag meghatározott terület, ahol bizonyos halászati tevékenységek ideiglenes tilalom vagy korlátozás alatt állnak",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "a GFCM alkalmazási területén a tengerek biológiai erőforrásai védelmének és fenntartható hasznosításának javítása érdekében;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. »kijelölt kirakodási pont«: a szerződő felek és az együttműködő nem szerződő felek által a GFCM alkalmazási területén a kikötő szerinti államok jogellenes, be nem jelentett és szabályozatlan halászattal szembeni intézkedéseinek regionális rendszeréről szóló GFCM/40/2016/1. sz. ajánlással összhangban kijelölt kikötők vagy parthoz közeli helyek, tengeri terminálok és más, kirakodásra, átrakodásra, csomagolásra, halászhajók üzemanyag-felvételére és készletfelvételére szolgáló létesítmények, ahol a halászati termékek kirakodása, átrakodása, csomagolása és/vagy feldolgozási műveletei engedélyezettek;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. »fogási tanúsítvány«: a szállítmányt kísérő és az illetékes hatóság által hitelesített hivatalos okmány, amely lehetővé teszi a halakra vonatkozó pontos és ellenőrizhető információk továbbítását az ellátási lánc egészében;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12. »fogási dokumentációs rendszer« vagy »CDS«: a vonatkozó nemzetközi kötelezettségekkel összhangban létrehozott rendszer, amelynek elsődleges célja elősegíteni annak megállapítását az ellátási lánc mentén, hogy a halak az alkalmazandó nemzeti, regionális és nemzetközi állományvédelmi és -gazdálkodási intézkedésekkel összhangban lévő fogásokból származnak-e.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2. A 4. cikk helyébe a következő szöveg lép:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„4. cikk",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Hatály",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Ez a fejezet az európai angolnára (Anguilla anguilla) irányuló valamennyi halászati tevékenységre alkalmazandó, így a célzott és járulékos halászatra, valamint a rekreációs célú halászatra a Földközi-tenger vizein az I. mellékletben meghatározottak szerint, ideértve az édesvizeket, valamint az átmeneti és a brakkvizeket is, mint például a lagúnák és a torkolatok.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3. Az irányelv a 12. és a 13. cikk között a következő 12a. cikkel egészül ki:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "2. cikk\nHatálybalépés",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "1 cikk – 1 bekezdés – 2 a pont (új)"
+      }
+    },
+    {
+      "language": "it",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_it.docx",
+        "sha256": "cd1611006e0335416603273ad391061441a55bfd4b313ad99e8d21233f819853",
+        "retrievedAt": "2026-10-27T20:17:58.625123+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Proposta di regolamento",
+          "Articolo 1 – punto 1 – lettera b",
+          "Regolamento (UE) 2023/2124",
+          "Articolo 3 – punto 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Considerando 3 bis (nuovo)",
+        "expected": [
+          "recital",
+          "3bis"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Articolo 1 – punto 17",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Allegato VII – titolo",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_it.docx",
+        "label": "Titolo (nuovo) – dopo il paragrafo 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0015.01/DOC_1",
+          "sha256": "457e33f91fefec04f7d756fa00be00716a0ede327cacb9e8e81030128de3e430",
+          "fetchedAt": "2026-10-27T20:27:34.867767+00:00"
+        },
+        "rows": [
+          {
+            "text": "Articolo 1\nModifiche del regolamento (UE) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Il regolamento (UE) 2023/2124 è così modificato:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) l'articolo 3 è così modificato:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) la frase introduttiva è sostituita dalla seguente:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "\"Ai fini del presente regolamento, in aggiunta alle definizioni di cui all'articolo 4 del regolamento (UE) n. 1380/2013 del Parlamento europeo e del Consiglio, all'articolo 2 del regolamento (CE) n. 1967/2006 del Consiglio, all'articolo 2, punti da 1) a 4), del regolamento (CE) n. 1005/2008 del Consiglio, all'articolo 4 del regolamento (CE) n. 1224/2009 del Consiglio, all'articolo 2, punti da 1) a 13), del regolamento (UE) 2019/1022 del Parlamento europeo e del Consiglio e all'articolo 6 del regolamento (UE) 2019/1241 del Parlamento europeo e del Consiglio, si applicano le definizioni seguenti:\";",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) sono aggiunti i punti seguenti:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "\"9) \"zona di restrizione della pesca\": una zona geografica definita in cui alcune attività di pesca specifiche sono temporaneamente vietate o limitate al fine di migliorare la conservazione e l'uso sostenibile delle risorse marine vive nella zona di applicazione dell'accordo CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "10) \"punto di sbarco designato\": porti o luoghi in prossimità della costa, terminali offshore e altri impianti per lo sbarco, il trasbordo, l'imballaggio, la trasformazione, il rifornimento di carburante o il riapprovvigionamento dei pescherecci in cui sono consentite operazioni di sbarco, trasbordo, imballaggio e/o trasformazione dei prodotti della pesca, designati dalle parti contraenti e dalle parti non contraenti cooperanti conformemente alla raccomandazione CGPM/40/2016/1 relativa a un regime regionale di misure di competenza dello Stato di approdo per contrastare le attività di pesca illegali, non dichiarate e non regolamentate nella zona di applicazione dell'accordo CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "11) \"certificato di cattura\": documento ufficiale che accompagna una partita e convalidato dall'autorità competente, che consente di trasmettere informazioni esatte e verificabili sul pesce lungo tutta la catena di approvvigionamento;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "12)  \"programma di documentazione delle catture\" o \"SDC\": sistema istituito a norma degli obblighi internazionali pertinenti avente principalmente lo scopo di contribuire a determinare, lungo tutta la catena di approvvigionamento, se il pesce proviene da catture effettuate conformemente alle misure nazionali, regionali e internazionali di conservazione e gestione applicabili.\";",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "2) l'articolo 4 è sostituito dal seguente:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "\"Articolo 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "Ambito di applicazione",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Il presente capo si applica a tutte le attività di pesca dell'anguilla (Anguilla anguilla), in particolare la pesca mirata, accidentale e ricreativa, in tutte le acque del Mar Mediterraneo di cui all'allegato I, comprese le acque dolci e le acque di transizione e salmastre, quali lagune ed estuari.\";",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "3) tra l'articolo 12 e l'articolo 13 è inserito l'articolo 12 bis seguente:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[104]"
+          },
+          {
+            "text": "Articolo 2\nEntrata in vigore",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[772]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Articolo 1 – punto 2 bis (nuovo)"
+      }
+    },
+    {
+      "language": "lt",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lt.docx",
+        "sha256": "1f22c729d60d3c3e53b8890a890f9637c26792051868ba554cd825644cf305fc",
+        "retrievedAt": "2026-10-27T20:18:04.671798+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Pasiūlymas dėl reglamento",
+          "1 straipsnio 1 dalies 1 punkto b papunktis",
+          "Reglamentas (ES) Nr. 2023/2124",
+          "3 straipsnio 1 dalies 10 punktas"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "3 a konstatuojamoji dalis (nauja)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "1 straipsnio 1 dalies 17 punkto įžanginė dalis",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "VII priedo pavadinimas",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_lt.docx",
+        "label": "Paantraštė (nauja) po 25 dalies",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0013.01/DOC_1",
+          "sha256": "12cedc0513b8218f962c3e0436689866b7136fd6b33a5ae3b3f54d106c957b8b",
+          "fetchedAt": "2026-10-27T20:27:37.885386+00:00"
+        },
+        "rows": [
+          {
+            "text": "1 straipsnis\nReglamento (ES) 2023/2124 pakeitimai",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Reglamentas (ES) 2023/2124 iš dalies keičiamas taip:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) 3 straipsnis iš dalies keičiamas taip:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) įvadinis sakinys pakeičiamas taip:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Be terminų, kurių apibrėžtys nustatytos Europos Parlamento ir Tarybos reglamento (ES) Nr. 1380/2013 4 straipsnyje, Tarybos reglamento (EB) Nr. 1967/2006 2 straipsnyje, Tarybos reglamento (EB) Nr. 1005/2008 2 straipsnio 1–4 punktuose, Tarybos reglamento (EB) Nr. 1224/2009 4 straipsnyje, Europos Parlamento ir Tarybos reglamento (ES) 2019/1022 2 straipsnio 1–13 punktuose ir Europos Parlamento ir Tarybos reglamento (ES) 2019/1241 6 straipsnyje, šiame reglamente vartojami taip apibrėžiami terminai:“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) pridedami šie punktai:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9.  ribojamos žvejybos rajonas – geografiškai apibrėžtas rajonas, kuriame laikinai draudžiama arba ribojama tam tikra konkreti žvejybos veikla, siekiant pagerinti išteklių išsaugojimą ir",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "tausų jūrų gyvųjų išteklių naudojimą GFCM nuostatų taikymo rajone;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. paskirtoji iškrovimo vieta – uostai arba netoli kranto esančios vietos, jūroje esantys terminalai ir kiti iškrovimo, perkrovimo, pakavimo, perdirbimo ir žvejybos laivų kuro ar kitų atsargų papildymo įrenginiai, kuriuose leidžiama iškrauti, perkrauti, pakuoti ir (arba) perdirbti žvejybos produktus, nustatyti susitariančiųjų šalių ir bendradarbiaujančiųjų šalių, kurios nėra susitariančiosios šalys, pagal Rekomendaciją GFCM/40/2016/1 dėl uosto valstybės priemonių, skirtų kovoti su neteisėta, nedeklaruojama ir nereglamentuojama žvejyba GFCM nuostatų taikymo rajone, regioninės sistemos;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. laimikio sertifikatas – oficialus dokumentas, pridedamas prie krovinio ir patvirtintas kompetentingos institucijos, leidžiantis perduoti tikslią ir patikrinamą informaciją apie žuvis visoje tiekimo grandinėje;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12.  laimikio dokumentavimo sistema (CDS) – pagal atitinkamus tarptautinius įsipareigojimus sukurta sistema, kurios pagrindinis tikslas – padėti visoje tiekimo grandinėje nustatyti, ar žuvys gautos iš laimikio, atitinkančio taikytinas nacionalines, regionines ir tarptautines išteklių išsaugojimo ir valdymo priemones.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) 4 straipsnis pakeičiamas taip:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„4 straipsnis",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Taikymo sritis",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Šis skyrius taikomas visai žvejybos, kurią vykdant sužvejojami europiniai upiniai unguriai (Anguilla anguilla), veiklai, t. y. tikslinei, atsitiktinei ir mėgėjų žvejybai visuose Viduržemio jūros vandenyse, kaip numatyta I priede, įskaitant gėluosius vandenis ir tarpinius bei sūrokus vandenis, pvz., lagūnas ir estuarijas.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) tarp 12 ir 13 straipsnių įterpiamas 12a straipsnis:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "2 straipsnis\nĮsigaliojimas",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "1 straipsnio 1 dalies 2 a punktas (naujas)"
+      }
+    },
+    {
+      "language": "lv",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Regulas priekšlikums",
+          "1. pants – 1. daļa – 1. punkts – b apakšpunkts",
+          "Regula (ES) 2023/2124",
+          "3. pants – 1. daļa – 10. punkts"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "3.a apsvērums (jauns)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "1. pants – 1. daļa – 17. punkts – ievaddaļa",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "VII pielikums – virsraksts",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_lv.docx",
+        "label": "Apakšvirsraksts (jauns) – pēc 25. punkta",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0014.01/DOC_1",
+          "sha256": "bb746c376172fa3a61fbb3ed247070ea2d772c5ee33cad0fdecdccc3ab8564b3",
+          "fetchedAt": "2026-10-27T20:27:40.908576+00:00"
+        },
+        "rows": [
+          {
+            "text": "1. pants\nGrozījumi Regulā (ES) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Regulu (ES) 2023/2124 groza šādi:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) regulas 3. pantu groza šādi:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) ievadfrāzi aizstāj ar šādu:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "“Papildus definīcijām, kas noteiktas Eiropas Parlamenta un Padomes Regulas (ES) Nr. 1380/2013 4. pantā, Padomes Regulas (EK) Nr. 1967/2006 2. pantā, Padomes Regulas (EK) Nr. 1005/2008 2. panta 1. līdz 4. punktā, Padomes Regulas (EK) Nr. 1224/2009 4. pantā, Eiropas Parlamenta un Padomes Regulas (ES) 2019/1022 2. panta 1. līdz 13. punktā un Eiropas Parlamenta un Padomes Regulas (ES) 2019/1241 6. pantā, šajā regulā piemēro šādas definīcijas:”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) pievieno šādus punktus:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "“9) “zvejas ierobežojumu apgabals” ir ģeogrāfiski noteikts apgabals, kurā dažas konkrētas zvejas darbības uz laiku ir aizliegtas vai ierobežotas, lai veicinātu jūras dzīvo resursu saglabāšanu un ilgtspējīgu izmantošanu GFCM nolīguma piemērošanas apgabalā;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "10) “apstiprināta izkraušanas vieta” ir ostas vai krastam tuvas vietas, atkrastes termināļi un citas iekārtas, kuras zvejas kuģi izmanto izkraušanai, pārkraušanai citā kuģī, iepakošanai, apstrādei, degvielas uzpildīšanai vai krājumu papildināšanai, kurās ir atļauta zvejas produktu izkraušana, pārkraušana citā kuģī, iepakošanas un/vai apstrādes operācijas un kuras līgumslēdzējas puses un sadarbības partneri, kas nav līgumslēdzējas puses, ir apstiprinājuši saskaņā ar Ieteikumu GFCM/40/2016/1 par reģionālu shēmu, kas nosaka, kā īstenojami ostas valsts pasākumi, ar kuriem apkaro nelegālas, nereģistrētas un neregulētas zvejas darbības GFCM nolīguma piemērošanas apgabalā;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) “nozvejas sertifikāts” ir kompetentās iestādes validēts oficiāls dokuments, ko dod līdzi sūtījumam un kas visā piegādes ķēdē ļauj nodot precīzu un verificējamu informāciju par zivīm;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  “nozvejas dokumentēšanas shēma” jeb “NDS” ir saskaņā ar attiecīgajām starptautiskajām saistībām izveidota sistēma, kuras primārais mērķis ir palīdzēt visā piegādes ķēdē konstatēt, vai zivju izcelsme ir nozvejas, kas gūtas saskaņā ar piemērojamajiem nacionālajiem, reģionālajiem un starptautiskajiem saglabāšanas un pārvaldības pasākumiem.”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) regulas 4. pantu aizstāj ar šādu:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "“4. pants",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Darbības joma",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Šo nodaļu piemēro visām zvejas darbībām, kurās tiek zvejots zutis (Anguilla anguilla), proti, specializētai zvejai, nejaušai nozvejai un atpūtas zvejai visos I pielikumā noteiktajos Vidusjūras ūdeņos, arī saldūdeņos, pārejas ūdeņos un iesāļūdeņos, piemēram, lagūnās un estuāros.”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) starp 12. un 13. pantu iekļauj šādu 12.a pantu:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "2. pants\nStāšanās spēkā",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "1. pants – 1. daļa – 2.a punkts (jauns)"
+      }
+    },
+    {
+      "language": "mt",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_mt.docx",
+        "sha256": "e7d66d4edcaf90e16bac3ab9af3bf5ed9a2908105f8a92c0da8ee75cdadf7dfc",
+        "retrievedAt": "2026-10-27T20:18:16.713507+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Proposta għal regolament",
+          "Artikolu 1 – paragrafu 1 – punt 1 – punt b",
+          "Regolament (UE) Nru 2023/2124",
+          "Artikolu 3 – paragrafu 1 – punt 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Premessa 3a (ġdida)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artikolu 1 – paragrafu 1 – punt 17 – parti introduttorja",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Anness VII – titolu",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_mt.docx",
+        "label": "Subintestatura (ġdida) – wara paragrafu 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0011.01/DOC_1",
+          "sha256": "79f7b6f08e89b5a29a12b70464cc3defda5a3437e987a2115154820a6c949c36",
+          "fetchedAt": "2026-10-27T20:27:43.896095+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artikolu 1\nEmendi għar-Regolament (UE) Nru 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Ir-Regolament (UE) 2023/2124 huwa emendat kif ġej:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "(1) l-Artikolu 3 huwa emendat kif ġej:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "(a) il-frażi introduttorja hija sostitwita b’dan li ġej:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "“Għall-finijiet ta’ dan ir-Regolament, għandhom japplikaw id-definizzjonijiet minbarra d-definizzjonijiet stabbiliti fl-Artikolu 4 tar-Regolament (UE) Nru 1380/2013 tal-Parlament Ewropew u tal-Kunsill, l-Artikolu 2 tar-Regolament tal-Kunsill (KE) Nru 1967/2006, l-Artikolu 2, il-punti (1) sa (4), tar-Regolament tal-Kunsill (KE) Nru 1005/2008, l-Artikolu 4 tar-Regolament tal-Kunsill (KE) Nru 1224/2009, l-Artikolu 2, il-punti (1) sa (13), tar-Regolament (UE) 2019/1022 tal-Parlament Ewropew u tal-Kunsill u l-Artikolu 6 tar-Regolament (UE) 2019/1241 tal-Parlament Ewropew u tal-Kunsill”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "(b) jiżdiedu l-punti li ġejjin:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "“(9)  “Żona ristretta għas-sajd” tfisser żona definita ġeografikament li fiha xi attivitajiet tas-sajd speċifiċi huma temporanjament ipprojbiti jew ristretti sabiex jittejbu l-konservazzjoni u",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "l-użu sostenibbli tar-riżorsi ħajjin tal-baħar fiż-żona ta’ applikazzjoni tal-GFCM.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "(10) “Punt ta’ ħatt l-art deżinjat” tfisser portijiet, jew postijiet qrib ix-xatt, terminals offshore u installazzjonijiet oħrajn għall-ħatt l-art, għat-trażbord, għall-ippakkjar, għall-ipproċessar, għar-riforniment jew għall-forniment mill-ġdid ta’ bastimenti tas-sajd, fejn ikunu permessi operazzjonijiet ta’ ħatt l-art, trażbordi, ippakkjar u/jew ipproċessar tal-prodotti tas-sajd, deżinjati mill-partijiet kontraenti u mill-partijiet mhux kontraenti li jikkooperaw f’konformità mar-Rakkomandazzjoni GFCM/40/2016/1 dwar skema reġjonali dwar miżuri tal-Istat tal-port biex jiġu miġġielda l-attivitajiet ta’ sajd illegali, mhux irrappurtat u mhux irregolat fiż-żona ta’ applikazzjoni tal-GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "(11) “Ċertifikat tal-qabda” tfisser dokument uffiċjali li jakkumpanja kunsinna u li jkun ivvalidat mill-awtorità kompetenti, li jippermetti li tingħadda informazzjoni akkurata u li tista’ tiġi vverifikata dwar il-ħut tul il-katina tal-provvista;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "(12)  “Skema ta’ dokumentazzjoni tal-qbid” jew “CDS” tfisser sistema stabbilita f’konformità mal-obbligi internazzjonali rilevanti, bil-fini primarju li tgħin biex jiġi ddeterminat, tul il-katina tal-provvista, jekk il-ħut joriġinax minn qabdiet li huma konsistenti mal-miżuri nazzjonali, reġjonali u internazzjonali applikabbli ta’ konservazzjoni u ta’ ġestjoni.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "(2) l-Artikolu 4 huwa sostitwit b’dan li ġej:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "“Artikolu 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Kamp ta' applikazzjoni",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Dan il-Kapitolu japplika għall-attivitajiet kollha tas-sajd li jaqbdu s-sallura (Anguilla anguilla), jiġifieri s-sajd immirat, inċidentali u rikreattiv, fl-ilmijiet kollha tal-Baħar Mediterran kif previst fl-Anness I, inklużi l-ilma ħelu u l-ilmijiet ta’ tranżizzjoni u salmastri, bħal laguni u estwarji.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "(3) l-Artikolu 12a li ġej jiddaħħal bejn l-Artikolu 12 u l-Artikolu 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artikolu 2\nDħul fis-seħħ",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artikolu 1 – paragrafu 1 – punt 2a (ġdid)"
+      }
+    },
+    {
+      "language": "nl",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+        "sha256": "c3dae014db7eb08f0cb520b304425e5b64892bcfb12d484a64eb1dde7b2a3809",
+        "retrievedAt": "2026-10-27T20:18:22.771658+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Voorstel voor een verordening",
+          "Artikel 1 – alinea 1 – punt 1 – b",
+          "Verordening (EU) 2023/2124",
+          "Artikel 3– alinea 1 – punt 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Overweging 3 bis (nieuw)",
+        "expected": [
+          "recital",
+          "3bis"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artikel 1 – alinea 1 – punt 17 – inleidende formule",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Bijlage VII – titel",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_nl.docx",
+        "label": "Kopje (nieuw) – na paragraaf 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0010.01/DOC_1",
+          "sha256": "293b3651da8b4a5e3aafa139541241dd19f8e2d66d1f6dd8fab4bd86f12de238",
+          "fetchedAt": "2026-10-27T20:27:47.001862+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artikel 1 \nWijziging van Verordening (EU) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Verordening (EU) 2023/2124 wordt als volgt gewijzigd:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) Artikel 3 wordt als volgt gewijzigd:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) de inleidende zin wordt vervangen door:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "“Voor de toepassing van deze verordening zijn naast de definities van artikel 4 van Verordening (EU) nr. 1380/2013 van het Europees Parlement en de Raad, artikel 2 van Verordening (EG) nr. 1967/2006 van de Raad, artikel 2, punten 1 tot en met 4, van Verordening (EG) nr. 1005/2008 van de Raad, artikel 4 van Verordening (EG) nr. 1224/2009 van de Raad, artikel 2, punten 1) tot en met 13), van Verordening (EU) 2019/1022 van het Europees Parlement en de Raad en artikel 6 van Verordening (EU) 2019/1241 van het Europees Parlement en de Raad de volgende definities van toepassing:”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) de volgende punten worden toegevoegd:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "“9)  “voor de visserij beperkt gebied”: een geografisch afgebakend gebied waarin bepaalde visserijactiviteiten tijdelijk zijn verboden of beperkt om de instandhouding en het duurzame gebruik van levende mariene hulpbronnen in het GFCM-toepassingsgebied te verbeteren;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "10) “aangewezen aanlandingsplaats”: havens of plaatsen dicht bij de kust, offshore-terminals en andere installaties voor het aanlanden, overladen, verpakken, verwerken, bijtanken of herbevoorraden van vissersvaartuigen, waar aanlandingen, overladingen, verpakkings- en/of verwerkingsverrichtingen voor visserijproducten zijn toegestaan en die door de overeenkomstsluitende partijen en samenwerkende niet-overeenkomstsluitende partijen zijn aangewezen overeenkomstig Aanbeveling GFCM/40/2016/1 inzake een regionale regeling voor havenstaatmaatregelen ter bestrijding van illegale, ongemelde en ongereglementeerde visserijactiviteiten in het GFCM-toepassingsgebied;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) “vangstcertificaat”: een door de bevoegde autoriteit gevalideerd, bij een zending behorend officieel document waarmee nauwkeurige en verifieerbare informatie over vis in de gehele toeleveringsketen kan worden doorgegeven;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  “vangstdocumentatieregeling”: een overeenkomstig internationale verplichtingen opgezet systeem dat primair bedoeld is om in de gehele toeleveringsketen te helpen bepalen of de vis afkomstig is van vangsten die in overeenstemming zijn met geldende nationale, regionale en internationale instandhoudings- en beheersmaatregelen.”.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) Artikel 4 wordt vervangen door:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "“Artikel 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Werkingssfeer",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Dit hoofdstuk is van toepassing op alle visserijactiviteiten waarbij Europese aal (Anguilla anguilla) wordt gevangen, te weten gerichte, incidentele en recreatievisserij, in alle wateren van de Middellandse Zee als bepaald in bijlage I, met inbegrip van zoet water en brakke en overgangswateren zoals lagunen en estuaria.”.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) Het volgende artikel 12 bis wordt ingevoegd tussen de artikelen 12 en 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artikel 2 \nInwerkingtreding",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[776]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artikel 1 – alinea 1 – punt 2 bis (nieuw)"
+      }
+    },
+    {
+      "language": "pl",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pl.docx",
+        "sha256": "95c772b1dfe81dd1eee506f5d67cb91564a3239615fb1c216d0e6b45d8835434",
+        "retrievedAt": "2026-10-27T20:18:28.851081+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Wniosek dotyczący rozporządzenia",
+          "Artykuł 1 – akapit 1 – punkt 1 – litera b",
+          "Rozporządzenie (UE) 2023/2124",
+          "Artykuł 3 – akapit 1 – punkt 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Motyw 3 a (nowy)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artykuł 1 – akapit 1 – punkt 17 – wprowadzenie",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Załącznik VII – tytuł",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_pl.docx",
+        "label": "Śródtytuł (nowy) - po ustępie 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0009.01/DOC_1",
+          "sha256": "f72840f59b038cc6a189a36d286fc3673d10acc0f38b413207615bba5b7dad8b",
+          "fetchedAt": "2026-10-27T20:27:49.927335+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artykuł 1\nZmiany w rozporządzeniu (UE) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "W rozporządzeniu (UE) 2023/2124 wprowadza się następujące zmiany:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1) w art. 3 wprowadza się następujące zmiany:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) zdanie wprowadzające otrzymuje brzmienie:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Do celów niniejszego rozporządzenia, oprócz definicji zawartych w art. 4 rozporządzenia Parlamentu Europejskiego i Rady (UE) nr 1380/2013, art. 2 rozporządzenia Rady (WE) nr 1967/2006, art. 2 pkt 1–4 rozporządzenia Rady (WE) nr 1005/2008, art. 4 rozporządzenia Rady (WE) nr 1224/2009, art. 2 pkt 1–13 rozporządzenia Parlamentu Europejskiego i Rady (UE) 2019/1022 i art. 6 rozporządzenia Parlamentu Europejskiego i Rady (UE) 2019/1241, stosuje się następujące definicje:”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) dodaje się punkty w brzmieniu:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9)  „obszar ograniczonych połowów” oznacza określony geograficznie obszar, na którym określona działalność połowowa jest tymczasowo zakazana lub ograniczona w celu poprawy ochrony oraz",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "zrównoważonego wykorzystania żywych zasobów morskich na obszarze podlegającym GFCM.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10) „wyznaczony punkt wyładunkowy” oznacza porty lub miejsca w pobliżu brzegu, terminale przybrzeżne i inne instalacje do wyładunku, przeładunku, pakowania, przetwarzania, pobierania paliwa lub uzupełniania zapasów statków rybackich, w których dozwolone są wyładunki, przeładunki, pakowanie lub przetwarzanie produktów rybołówstwa, wyznaczone przez umawiające się strony i współpracujące strony niebędące umawiającymi się stronami zgodnie z zaleceniem GFCM/40/2016/1 w sprawie regionalnego systemu środków stosowanych przez państwo portu w celu zwalczania nielegalnych, nieraportowanych i nieuregulowanych połowów na obszarze podlegającym GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) „świadectwo połowowe” oznacza urzędowy dokument towarzyszący dostawie i zatwierdzony przez właściwy organ, umożliwiający przekazywanie dokładnych i możliwych do zweryfikowania informacji dotyczących ryb w całym łańcuchu dostaw;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  „system dokumentowania połowów” lub “CDS” oznacza system ustanowiony zgodnie z odpowiednimi międzynarodowymi zobowiązaniami, którego głównym celem jest przyczynienie się do ustalenia – w całym łańcuchu dostaw – czy ryby pochodzą z połowów, które są zgodne z obowiązującymi, krajowymi, regionalnymi i międzynarodowymi środkami ochrony i zarządzania w dziedzinie rybołówstwa.”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) art.4 otrzymuje brzmienie:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Artykuł 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Zakres stosowania",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Niniejszy rozdział ma zastosowanie do wszelkiej działalności połowowej polegającej na połowach węgorza europejskiego (Anguilla anguilla), a mianowicie do połowów ukierunkowanych, połowów przypadkowych i połowów rekreacyjnych we wszystkich wodach Morza Śródziemnego określonych w załączniku I, w tym w wodach słodkich oraz w wodach przejściowych i wodach słonawych, takich jak laguny i estuaria.”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) pomiędzy art. 12 i art. 13 dodaje się następujący art. 12a:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artykuł 2\nWejście w życie",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artykuł 1 – akapit 1 – punkt 2 a (nowy)"
+      }
+    },
+    {
+      "language": "pt",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_pt.docx",
+        "sha256": "18039d55c56e9947a602ac08349eb3e3911fa288f9964e2e9b83213513a23e01",
+        "retrievedAt": "2026-10-27T20:18:34.877103+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Proposta de regulamento",
+          "Artigo 1 – parágrafo 1 – ponto 1 – alínea b)",
+          "Regulamento (UE) n.º 2023/2124",
+          "Artigo 3 – parágrafo 1 – ponto 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Considerando 3-A (novo)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artigo 1 – parágrafo 1 – ponto 17 – parte introdutória",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Anexo VII – título",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_pt.docx",
+        "label": "Subtítulo (novo) – após o n.º 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0008.01/DOC_1",
+          "sha256": "32ffd0a752d1d9ffa7c4fb48458140790684423bde733237b356a5c027efb29e",
+          "fetchedAt": "2026-10-27T20:27:52.945764+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artigo 1.º\nAlterações do Regulamento (UE) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "O Regulamento (UE) 2023/2124 é alterado do seguinte modo:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "(1) O artigo 3.º é alterado do seguinte modo:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) O proémio passa a ter a seguinte redação:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "«Para efeitos do presente regulamento, e para além das definições constantes do artigo 4.º do Regulamento (UE) n.º 1380/2013 do Parlamento Europeu e do Conselho, do artigo 2.º do Regulamento (CE) n.º 1967/2006 do Conselho, do artigo 2.º, pontos 1 a 4, do Regulamento (CE) n.º 1005/2008 do Conselho, do artigo 4.º do Regulamento (CE) n.º 1224/2009 do Conselho, do artigo 2.º, pontos 1 a 13, do Regulamento (UE) 2019/1022 do Parlamento Europeu e do Conselho e do artigo 6.º do Regulamento (UE) 2019/1241 do Parlamento Europeu e do Conselho, igualmente aplicáveis, entende-se por:»;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) São aditados os seguintes pontos:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "«9)  “Zona de restrição da pesca”, uma zona geográfica delimitada em que são proibidas ou restringidas temporariamente algumas atividades de pesca específicas, a fim de melhorar a conservação e",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "a utilização sustentável dos recursos marinhos vivos na zona de aplicação da CGPM.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10) “Ponto de desembarque designado”, portos ou locais perto do litoral, terminais no mar e outras instalações para o desembarque, o transbordo, o acondicionamento, a transformação, o reabastecimento ou o reaprovisionamento de navios de pesca, em que são permitidas operações de desembarque, transbordo, acondicionamento e/ou transformação de produtos da pesca, designados pelas partes contratantes e pelas partes não contratantes cooperantes em conformidade com a Recomendação CGPM/40/2016/1 relativa a um regime regional de medidas do Estado do porto para combater as atividades de pesca ilegal, não declarada e não regulamentada na zona de aplicação da CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11) “Certificado de captura”, um documento oficial que acompanha uma remessa, validado pela autoridade competente, que permite transmitir informações exatas e verificáveis sobre o pescado ao longo de toda a cadeia de abastecimento;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12)  “Programa de documentação das capturas” ou “PDC”, um sistema estabelecido em conformidade com obrigações internacionais pertinentes, com o principal objetivo de ajudar a determinar, ao longo das cadeias de abastecimento, se o pescado foi capturado de forma coerente com as medidas de conservação e de gestão aplicáveis ao nível nacional, regional ou internacional.»",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2) O artigo 4.º passa a ter a seguinte redação:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "«Artigo 4.º",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Âmbito de aplicação",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "O presente capítulo aplica-se a todas as atividades de pesca em que é capturada enguia-europeia (Anguilla anguilla), a saber, a pesca dirigida, acidental e recreativa, em todas as águas do mar Mediterrâneo conforme indicadas no anexo I, incluindo as águas doces e as águas de transição e águas salobras, como lagoas e estuários.»;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3) É inserido o seguinte artigo 12.º-A entre os artigos 12.º e 13.º:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artigo 2.º\nEntrada em vigor",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artigo 1 – parágrafo 1 – ponto 2-A (novo)"
+      }
+    },
+    {
+      "language": "ro",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ro.docx",
+        "sha256": "ea2fb6c5b28108f286cc0922eff0a7b8dcb9bdedcdf72382ac023d37e05c68d4",
+        "retrievedAt": "2026-10-27T20:18:40.805242+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Propunere de regulament",
+          "Articolul 1 – paragraful 1 – punctul 1 – litera b",
+          "Regulamentul (UE) 2023/2124",
+          "Articolul 3 – paragraful 1 – punctul 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Considerentul 3 a (nou)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Articolul 1 – paragraful 1 – punctul 17 – partea introductivă",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Anexa VII – titlu",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_ro.docx",
+        "label": "Subtitlu (nou) – după punctul 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0007.01/DOC_1",
+          "sha256": "cef05b5c5984c9e67e6f84f221a472f094c5a1e08e651b4354939cac78df243c",
+          "fetchedAt": "2026-10-27T20:27:55.928962+00:00"
+        },
+        "rows": [
+          {
+            "text": "Articolul 1\nModificări la Regulamentul (UE) nr. 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Regulamentul (UE) 2023/2124 se modifică după cum urmează:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1. Articolul 3 se modifică după cum urmează:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "(a) teza introductivă se înlocuiește cu următorul text:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„În sensul prezentului regulament, pe lângă definițiile stabilite la articolul 4 din Regulamentul (UE) nr. 1380/2013 al Parlamentului European și al Consiliului, la articolul 2 din Regulamentul (CE) nr. 1967/2006, la articolul 2 punctele 1-4 din Regulamentul (CE) 1005/2008 al Consiliului, la articolul 4 din Regulamentul (CE) nr. 1224/2009 al Consiliului, la articolul 2 punctele 1-13 din Regulamentul (UE) 2019/1022 al Parlamentului European și al Consiliului și la articolul 6 din Regulamentul (UE) 2019/1241 al Parlamentului European și al Consiliului, se aplică următoarele definiții”;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "(b) se adaugă următoarele puncte:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9.  «zonă de pescuit cu acces restricționat» înseamnă o zonă delimitată geografic în care anumite activități de pescuit specifice sunt interzise sau restricționate temporar pentru a îmbunătăți conservarea și",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "utilizarea sustenabilă a resurselor marine vii în zona de aplicare a CGPM.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. «punct de debarcare desemnat» înseamnă porturile sau locurile din apropierea țărmului, terminalele din larg (offshore) și alte instalații de debarcare, transbordare, ambalare, prelucrare, realimentare cu combustibil sau reaprovizionare a navelor de pescuit, în care sunt permise debarcările, transbordările, ambalarea și/sau prelucrarea produselor pescărești, desemnate de părțile contractante și de părțile necontractante cooperante în conformitate cu Recomandarea GFCM/40/2016/1 privind un sistem regional de măsuri ale statului portului pentru combaterea activităților de pescuit ilegal, nedeclarat și nereglementat în zona de aplicare a CGPM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. «certificat de captură» înseamnă un document oficial care însoțește un transport și care este validat de autoritatea competentă, care permite transmiterea de informații exacte și verificabile privind peștele de-a lungul întregului lanț de aprovizionare;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12.  «sistem de documentare a capturilor» sau «SDC» înseamnă un sistem instituit în conformitate cu obligațiile internaționale relevante, urmărind în primul rând să contribuie la a stabili, pe parcursul întregului lanț de aprovizionare, dacă peștele provine din capturi care respectă măsurile de conservare și gestionare naționale, regionale și internaționale.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2. Articolul 4 se înlocuiește cu următorul text:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Articolul 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Domeniul de aplicare",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Prezentul capitol se aplică tuturor activităților de pescuit care vizează anghila europeană (Anguilla anguilla), și anume pescuitului direcționat, accidental și recreativ, în toate apele Mării Mediterane prevăzute în anexa I, inclusiv apele dulci și apele de tranziție și salmastre, cum ar fi lagunele și estuarele.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3. Se introduce următorul articol 12a între articolul 12 și articolul 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Articolul 2\nIntrarea în vigoare",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Articolul 1 – paragraful 1 – punctul 2 a (nou)"
+      }
+    },
+    {
+      "language": "sk",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sk.docx",
+        "sha256": "857ca4771cf9b9507ce1bb47b4da6c9aad4b83379b255e9f01d50934bb7e2f9c",
+        "retrievedAt": "2026-10-27T20:18:46.879279+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Návrh nariadenia",
+          "Článok 1 – odsek 1 – bod 1 – písmeno b",
+          "Nariadenie (EÚ) 2023/2124",
+          "Článok 3 – odsek 1 – bod 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Odôvodnenie 3 a (nové)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Článok 1 – odsek 1 – bod 17 – úvodná časť",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Príloha VII – názov",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sk.docx",
+        "label": "Podnadpis (nový) – za odsekom 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0006.01/DOC_1",
+          "sha256": "4801ad90fbf173a12520797d6e1f041c91947cb11590e4d16347d2e292d64396",
+          "fetchedAt": "2026-10-27T20:27:58.963286+00:00"
+        },
+        "rows": [
+          {
+            "text": "Článok 1\nZmeny nariadenia (EÚ) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Nariadenie (EÚ) 2023/2124 sa mení takto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1. Článok 3 sa mení takto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) Úvodná veta sa nahrádza takto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„Na účely tohto nariadenia sa okrem pojmov vymedzených v článku 4 nariadenia Európskeho parlamentu a Rady (EÚ) č. 1380/2013, článku 2 nariadenia Rady (ES) č. 1967/2006, článku 2 bodoch 1 až 4 nariadenia Rady (ES) č. 1005/2008, článku 4 nariadenia Rady (ES) č. 1224/2009, článku 2 bodoch 1 až 13 nariadenia Európskeho parlamentu a Rady (EÚ) 2019/1022 a článku 6 nariadenia Európskeho parlamentu a Rady (EÚ) 2019/1241 uplatňujú aj tieto vymedzenia pojmov:“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) Dopĺňajú sa tieto body:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„9.  „oblasť obmedzeného rybolovu“ je geograficky vymedzená oblasť, v ktorej sú niektoré špecifické rybolovné činnosti dočasne zakázané alebo obmedzené s cieľom zlepšiť ochranu a",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "udržateľné využívanie živých morských zdrojov v oblasti uplatňovania GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. „určené miesto vylodenia“ sú prístavy alebo miesta v blízkosti pobrežia, terminály na mori a iné zariadenia na vylodenie, prekládku, balenie, spracovanie, dopĺňanie paliva alebo zásobovanie rybárskych plavidiel, kde je povolené vylodenie, prekládky, balenie a/alebo spracovanie produktov rybolovu, ktoré určili zmluvné strany a spolupracujúce nezmluvné strany v súlade s odporúčaním GFCM/40/2016/1 týkajúcim sa regionálneho systému opatrení prístavných štátov na boj proti nezákonným, nenahláseným a neregulovaným rybolovným činnostiam v oblasti uplatňovania GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. „osvedčenie o úlovku“ je úradný doklad priložený k zásielke a potvrdený príslušným orgánom, ktorý umožňuje odovzdávať presné a overiteľné informácie týkajúce sa rýb v celom dodávateľskom reťazci;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12.  systém dokumentovania úlovkov“ alebo „CDS“ je systém zriadený v súlade s príslušnými medzinárodnými záväzkami, ktorého hlavným účelom je pomôcť v celom dodávateľskom reťazci určiť, či ryby pochádzajú z úlovkov, ktoré sú v súlade s uplatniteľnými vnútroštátnymi, regionálnymi a medzinárodnými ochrannými a riadiacimi opatreniami.“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2. Článok 4 sa nahrádza takto:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Článok 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Rozsah pôsobnosti",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Táto kapitola sa vzťahuje na všetky rybolovné činnosti, pri ktorých sa loví úhor európsky (Anguilla anguilla), konkrétne cielený, náhodný a rekreačný rybolov vo všetkých vodách Stredozemného mora uvedených v prílohe I vrátane sladkých vôd a prechodných a brakických vôd, ako sú lagúny a ústia riek.“",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3. Medzi článok 12 a článok 13 sa vkladá tento článok 12a:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Článok 2\nNadobudnutie účinnosti",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Článok 1 – odsek 1 – bod 2 a (nový)"
+      }
+    },
+    {
+      "language": "sl",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sl.docx",
+        "sha256": "a2cbcc06499a771e7d3079440eb422f9b2b4b89552e4130a986c0686830aa2b7",
+        "retrievedAt": "2026-10-27T20:18:52.883616+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Predlog uredbe",
+          "Člen 1 – odstavek 1 – točka 1 – točka b",
+          "Uredba (EU) št. 2023/2124",
+          "Člen 3 – odstavek 1 – točka 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Uvodna izjava 3 a (novo)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Člen 1 – odstavek 1 – točka 17 – uvodni del",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Priloga VII – naslov",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sl.docx",
+        "label": "Podnaslov (novo) – po odstavku 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0005.01/DOC_1",
+          "sha256": "27e269487957a7d8f17587436603d5c848a50ab36beb568d0218d5bb96042a1e",
+          "fetchedAt": "2026-10-27T20:28:02.004697+00:00"
+        },
+        "rows": [
+          {
+            "text": "Člen 1\nSpremembe Uredbe (EU) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Uredba (EU) 2023/2124 se spremeni:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "(1) člen 3 se spremeni:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "(a) uvodni stavek se nadomesti z naslednjim:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "„V tej uredbi se poleg opredelitev pojmov iz člena 4 Uredbe (EU) št. 1380/2013 Evropskega parlamenta in Sveta, člena 2 Uredbe Sveta (ES) št. 1967/2006, člena 2, točke 1 do 4, Uredbe Sveta (ES) št. 1005/2008, člena 4 Uredbe Sveta (ES) št. 1224/2009, člena 2, točke 1 do 13, Uredbe (EU) 2019/1022 Evropskega parlamenta in Sveta ter člena 6 Uredbe (EU) 2019/1241 Evropskega parlamenta in Sveta uporabljajo naslednje opredelitve pojmov:“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "(b) dodajo se naslednje točke:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "„(9)  ,zaprto območje za ribolov‘ pomeni geografsko opredeljeno območje, na katerem so nekatere določene ribolovne dejavnosti začasno prepovedane ali omejene zaradi izboljšanja ohranjanja in",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "trajnostne rabe živih morskih virov na območju uporabe GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "(10) ,določeno mesto iztovarjanja‘ pomeni pristanišča ali kraje v bližini obale, predobalne terminale in druge naprave za iztovarjanje, pretovarjanje, pakiranje, predelavo, oskrbo z gorivom ali obnovitev zalog ribiških plovil, kjer so dovoljeni iztovarjanje, pretovarjanje, pakiranje in/ali predelava ribiških proizvodov ter ki jih določijo pogodbenice in sodelujoče nepogodbenice v skladu s Priporočilom GFCM/40/2016/1 o regionalnem načrtu ukrepov države pristanišča za boj proti nezakonitim, neprijavljenim in nereguliranim ribolovnim dejavnostim na območju uporabe GFCM;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "(11) ,potrdilo o ulovu‘ pomeni uradni dokument, priložen pošiljki, ki ga potrdi pristojni organ in ki omogoča posredovanje točnih in preverljivih informacij o ribah v celotni dobavni verigi;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "(12)  ,sistem dokumentacije o ulovu‘ ali ,CDS‘ pomeni sistem, vzpostavljen v skladu z ustreznimi mednarodnimi obveznostmi, katerega glavni namen je pomagati, da se v celotni dobavni verigi lahko določi, ali je riba pridobljena iz ulova, ki je v skladu z veljavnimi nacionalnimi, regionalnimi in mednarodnimi ukrepi za ohranjanje in upravljanje.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "(2) člen 4 se nadomesti z naslednjim:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "„Člen 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Področje uporabe",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "To poglavje se uporablja za vse ribolovne dejavnosti, pri katerih se lovi jegulja (Anguilla anguilla), in sicer za usmerjeni, naključni in rekreacijski ribolov, v vseh vodah Sredozemskega morja, kot je določeno v Prilogi I, vključno s sladkimi vodami ter somornicami in brakičnimi vodami, kot so lagune in ustja rek.“;",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "(3) med člena 12 in 13 se vstavi naslednji člen 12a:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Člen 2\nZačetek veljavnosti",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[775]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Člen 1 – odstavek 1 – točka 2 a (novo)"
+      }
+    },
+    {
+      "language": "sv",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_sv.docx",
+        "sha256": "884551ec8ad605477c1cc936118c343e69fcb29c8772740ac6a253b35a7d95e0",
+        "retrievedAt": "2026-10-27T20:18:58.925491+00:00"
+      },
+      "outer": {
+        "number": 13,
+        "headings": [
+          "Förslag till förordning",
+          "Artikel 1 – stycke 1 – led 1 – led b",
+          "Förordning (EU) 2023/2124",
+          "Artikel 3 – stycke 1 – led 10"
+        ],
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "1"
+          ],
+          [
+            "point",
+            "b"
+          ]
+        ]
+      },
+      "insertion": {
+        "number": 3,
+        "label": "Skäl 3a (nytt)",
+        "expected": [
+          "recital",
+          "3a"
+        ]
+      },
+      "intro": {
+        "number": 26,
+        "label": "Artikel 1 – stycke 1 – led 17 – inledningen",
+        "expected": [
+          [
+            "article",
+            "1"
+          ],
+          [
+            "paragraph",
+            "1"
+          ],
+          [
+            "point",
+            "17"
+          ],
+          [
+            "introductory-part",
+            ""
+          ]
+        ]
+      },
+      "title": {
+        "number": 108,
+        "label": "Bilaga VII – rubriken",
+        "expected": [
+          [
+            "annex",
+            "VII"
+          ],
+          [
+            "title",
+            ""
+          ]
+        ]
+      },
+      "relative": {
+        "number": 6,
+        "source": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sv.docx",
+        "label": "Underrubrik (ny) – efter punkt 25",
+        "expected": "25"
+      },
+      "proposal": {
+        "source": {
+          "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0003.01/DOC_1",
+          "sha256": "0bbdaca059c7705cdf2f1a948bd3ce21a0e058eb02e7d9c6a513581d9ea0e644",
+          "fetchedAt": "2026-10-27T20:28:05.025323+00:00"
+        },
+        "rows": [
+          {
+            "text": "Artikel 1\nÄndringar av förordning (EU) 2023/2124",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[89]"
+          },
+          {
+            "text": "Förordning (EU) 2023/2124 ska ändras på följande sätt:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[90]"
+          },
+          {
+            "text": "1. Artikel 3 ska ändras på följande sätt:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[91]"
+          },
+          {
+            "text": "a) Inledningsfrasen ska ersättas med följande:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[92]"
+          },
+          {
+            "text": "”I denna förordning gäller följande definitioner, utöver de definitioner som fastställs i artikel 4 i Europaparlamentets och rådets förordning (EU) nr 1380/2013, artikel 2 i rådets förordning (EG) nr 1967/2006, artikel 2.1–2.4 i rådets förordning (EG) nr 1005/2008, artikel 4 i rådets förordning (EG) nr 1224/2009, artikel 2.1–2.13 i Europarlamentets och rådets förordning (EU) 2019/1022 och artikel 6 i Europaparlamentets och rådets förordning (EU) 2019/1241:”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[93]"
+          },
+          {
+            "text": "b) Följande led ska läggas till:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[94]"
+          },
+          {
+            "text": "”9.  område med särskilda fiskebegränsningar: ett geografiskt avgränsat område där viss specifik fiskeverksamhet tillfälligt förbjuds eller begränsas i syfte att förbättra bevarandet och",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[95]"
+          },
+          {
+            "text": "det hållbara nyttjandet av marina levande resurser i AKFM:s avtalsområde.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[96]"
+          },
+          {
+            "text": "10. utsedda landningspunkter: hamnar eller platser nära kusten, terminaler till havs och andra anläggningar för landning, omlastning, förpackning, beredning, bränslepåfyllning eller proviantering av fiskefartyg, där landning, omlastning, förpackning och/eller beredning av fiskeriprodukter tillåts och som är utsedda av de avtalsslutande parterna och samarbetande icke-avtalsslutande parter i enlighet med rekommendation GFCM/40/2016/1 om ett regionalt system för hamnstatsåtgärder för att bekämpa olagligt, orapporterat och oreglerat fiske i AKFM:s avtalsområde.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[97]"
+          },
+          {
+            "text": "11. fångstintyg: ett officiellt dokument som åtföljer en sändning, som godkänts av den behöriga myndigheten och som gör det möjligt att lämna korrekta och kontrollerbara uppgifter om fisk genom hela distributionskedjan.",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[98]"
+          },
+          {
+            "text": "12.  fångstdokumentationssystem: ett system som upprättats i enlighet med relevanta internationella skyldigheter med det primära syftet att genom hela distributionskedjan bidra till att avgöra om fisken härrör från fångster som är förenliga med tillämpliga nationella, regionala och internationella bevarande- och förvaltningsåtgärder.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[99]"
+          },
+          {
+            "text": "2. Artikel 4 ska ersättas med följande:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[100]"
+          },
+          {
+            "text": "”Artikel 4",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[101]"
+          },
+          {
+            "text": "Tillämpningsområde",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[102]"
+          },
+          {
+            "text": "Detta kapitel ska tillämpas på all fiskeverksamhet där ål (Anguilla anguilla) fångas, nämligen riktat fiske, oavsiktlig fångst och fritidsfiske, i alla vatten i Medelhavet enligt bilaga I, inbegripet sötvatten och vatten i övergångszoner och bräckta vatten såsom laguner och flodmynningar.”",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[103]"
+          },
+          {
+            "text": "3. Följande artikel ska införas som artikel 12a mellan artiklarna 12 och 13:",
+            "style": null,
+            "path": "/w:document[1]/w:body[1]/w:p[105]"
+          },
+          {
+            "text": "Artikel 2\nIkraftträdande",
+            "style": "Titrearticle",
+            "path": "/w:document[1]/w:body[1]/w:p[773]"
+          }
+        ]
+      },
+      "outerInsertion": {
+        "number": 17,
+        "label": "Artikel 1 – stycke 1 – led 2a (nytt)"
+      }
+    }
+  ],
+  "otherPublishedForms": [
+    {
+      "id": "A-10-2026-0080-AM-11",
+      "language": "en",
+      "label": "Subheading (new) after paragraph 31",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-008-014/A-10-2026-0080-AM-008-014_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-008-014/A-10-2026-0080-AM-008-014_en.docx",
+        "fetchedAt": "2026-10-27T00:35:10.177Z",
+        "sha256": "aba57589ab91121d09c98bd85d3a40a8d872b6902b92020e53b34888eeeef20b",
+        "status": 200
+      },
+      "rawLabel": "Subheading (new) after paragraph 31",
+      "expected": [
+        [
+          "heading",
+          "31"
+        ]
+      ]
+    },
+    {
+      "id": "A-10-2026-0189-AM-6",
+      "language": "en",
+      "label": "Paragraph 1 (d) a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0189-AM-003-007/A-10-2026-0189-AM-003-007_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0189-AM-003-007/A-10-2026-0189-AM-003-007_en.docx",
+        "fetchedAt": "2026-10-27T00:42:37.739Z",
+        "sha256": "5c2f729991c2ed1dd814e1e0c95e5cccf131aa8074bf10b865b56d965791b75c",
+        "status": 200
+      },
+      "rawLabel": "Paragraph 1 (d) a (new)",
+      "expected": [
+        [
+          "paragraph",
+          "1"
+        ],
+        [
+          "point",
+          "da"
+        ]
+      ]
+    },
+    {
+      "id": "A-10-2026-0189-AM-7",
+      "language": "en",
+      "label": "Paragraph 1 (d) b (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0189-AM-003-007/A-10-2026-0189-AM-003-007_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0189-AM-003-007/A-10-2026-0189-AM-003-007_en.docx",
+        "fetchedAt": "2026-10-27T00:42:37.739Z",
+        "sha256": "5c2f729991c2ed1dd814e1e0c95e5cccf131aa8074bf10b865b56d965791b75c",
+        "status": 200
+      },
+      "rawLabel": "Paragraph 1 (d) b (new)",
+      "expected": [
+        [
+          "paragraph",
+          "1"
+        ],
+        [
+          "point",
+          "db"
+        ]
+      ]
+    },
+    {
+      "id": "A-10-2026-0199-AM-81",
+      "language": "en",
+      "label": "Recital CN a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0199-AM-074-083/A-10-2026-0199-AM-074-083_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0199-AM-074-083/A-10-2026-0199-AM-074-083_en.docx",
+        "fetchedAt": "2026-10-27T00:42:58.776Z",
+        "sha256": "5387396fabb1a3b3d288d1b55563daaeb114dd2c8a5f10373c254aac3cd12b62",
+        "status": 200
+      },
+      "rawLabel": "Recital CN a (new)",
+      "expected": [
+        [
+          "recital",
+          "CNa"
+        ]
+      ]
+    },
+    {
+      "id": "B-10-2026-0190-AM-1",
+      "language": "en",
+      "label": "Rectial J a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0190-AM-001-004/B-10-2026-0190-AM-001-004_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0190-AM-001-004/B-10-2026-0190-AM-001-004_en.docx",
+        "fetchedAt": "2026-10-27T00:47:32.602Z",
+        "sha256": "addb5e73483e26ba8bcbe839de2ded3a4903439dbd8e106ffca91de98adb509d",
+        "status": 200
+      },
+      "rawLabel": "Rectial J a (new)",
+      "expected": [
+        [
+          "recital",
+          "Ja"
+        ]
+      ]
+    },
+    {
+      "id": "B-10-2026-0424-AM-86",
+      "language": "en",
+      "label": "Rectial K",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-083-092/B-10-2026-0424-AM-083-092_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-083-092/B-10-2026-0424-AM-083-092_en.docx",
+        "fetchedAt": "2026-10-27T00:49:24.563Z",
+        "sha256": "0f84aa3cdad8ee1ae802f2c789b592bb8cf880ff88620695f2f5762ad213729e",
+        "status": 200
+      },
+      "rawLabel": "Rectial K",
+      "expected": [
+        [
+          "recital",
+          "K"
+        ]
+      ]
+    },
+    {
+      "id": "B-10-2026-0424-AM-87",
+      "language": "en",
+      "label": "Rectial L",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-083-092/B-10-2026-0424-AM-083-092_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-083-092/B-10-2026-0424-AM-083-092_en.docx",
+        "fetchedAt": "2026-10-27T00:49:24.563Z",
+        "sha256": "0f84aa3cdad8ee1ae802f2c789b592bb8cf880ff88620695f2f5762ad213729e",
+        "status": 200
+      },
+      "rawLabel": "Rectial L",
+      "expected": [
+        [
+          "recital",
+          "L"
+        ]
+      ]
+    },
+    {
+      "id": "RC-10-2026-0294-AM-2",
+      "language": "en",
+      "label": "3 a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0294-AM-001-002/RC-10-2026-0294-AM-001-002_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRc_Amd/RC-10-2026-0294-AM-001-002/RC-10-2026-0294-AM-001-002_en.docx",
+        "fetchedAt": "2026-10-27T00:51:04.618Z",
+        "sha256": "7da8d345764d84e9c7bef7c7cf88692adae5a1ad8683cb377c7a08fe1b07994a",
+        "status": 200
+      },
+      "rawLabel": "3 a (new)",
+      "expected": [
+        [
+          "paragraph",
+          "3a"
+        ]
+      ]
+    },
+    {
+      "id": "A-10-2026-0237-AM-33",
+      "language": "pt",
+      "label": "N.º 1 – alínea k‑A (nova)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0237-AM-032-036/A-10-2026-0237-AM-032-036_pt.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0237-AM-032-036/A-10-2026-0237-AM-032-036_pt.docx",
+        "fetchedAt": "2026-10-27T00:44:58.309Z",
+        "sha256": "ef75d8f3f2d489b714c4e9ee63bcb2f310475cef614a255792681a493635ff05",
+        "status": 200
+      },
+      "rawLabel": "N.º 1 – alínea k‑A (nova)",
+      "expected": [
+        [
+          "paragraph",
+          "1"
+        ],
+        [
+          "point",
+          "ka"
+        ]
+      ]
+    },
+    {
+      "id": "RC-10-2026-0209-AM-4",
+      "language": "en",
+      "label": "Paragraph B a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "fetchedAt": "2026-10-27T00:50:26.226Z",
+        "sha256": "5fed6c5cdcd56f2965aab5b415551c1b92e87c950912860a3c1fa526d3802120",
+        "status": 200
+      },
+      "rawLabel": "Paragraph B a (new)",
+      "expected": [
+        [
+          "recital",
+          "Ba"
+        ]
+      ]
+    },
+    {
+      "id": "RC-10-2026-0209-AM-5",
+      "language": "en",
+      "label": "Paragraph D a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "fetchedAt": "2026-10-27T00:50:26.226Z",
+        "sha256": "5fed6c5cdcd56f2965aab5b415551c1b92e87c950912860a3c1fa526d3802120",
+        "status": 200
+      },
+      "rawLabel": "Paragraph D a (new)",
+      "expected": [
+        [
+          "recital",
+          "Da"
+        ]
+      ]
+    },
+    {
+      "id": "RC-10-2026-0209-AM-6",
+      "language": "en",
+      "label": "Paragraph F a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "fetchedAt": "2026-10-27T00:50:26.226Z",
+        "sha256": "5fed6c5cdcd56f2965aab5b415551c1b92e87c950912860a3c1fa526d3802120",
+        "status": 200
+      },
+      "rawLabel": "Paragraph F a (new)",
+      "expected": [
+        [
+          "recital",
+          "Fa"
+        ]
+      ]
+    },
+    {
+      "id": "RC-10-2026-0209-AM-7",
+      "language": "en",
+      "label": "Paragraph F b (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRc_Amd/RC-10-2026-0209-AM-004-009/RC-10-2026-0209-AM-004-009_en.docx",
+        "fetchedAt": "2026-10-27T00:50:26.226Z",
+        "sha256": "5fed6c5cdcd56f2965aab5b415551c1b92e87c950912860a3c1fa526d3802120",
+        "status": 200
+      },
+      "rawLabel": "Paragraph F b (new)",
+      "expected": [
+        [
+          "recital",
+          "Fb"
+        ]
+      ]
+    },
+    {
+      "id": "A-10-2026-0201-AM-131",
+      "language": "en",
+      "label": "Article 1 – paragraph 1 – point 1 – point a a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0201-AM-131-133/A-10-2026-0201-AM-131-133_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0201-AM-131-133/A-10-2026-0201-AM-131-133_en.docx",
+        "fetchedAt": "2026-10-27T00:43:37.014Z",
+        "sha256": "4649a7ea0db12f304647220dca576b8563e190ba83b8aec84e899d2be28f387a",
+        "status": 200
+      },
+      "rawLabel": "Article 1 – paragraph 1 – point 1 – point a a (new)",
+      "expected": [
+        [
+          "article",
+          "1"
+        ],
+        [
+          "paragraph",
+          "1"
+        ],
+        [
+          "point",
+          "1"
+        ],
+        [
+          "point",
+          "aa"
+        ]
+      ],
+      "underlyingLabel": "Regulation (EU) 2023/956 — Article 2 – paragraph 2a"
+    },
+    {
+      "id": "A-10-2026-0201-AM-134",
+      "language": "en",
+      "label": "Article 1 – paragraph 1 – point 1 – point e a (new)",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0201-AM-134-135/A-10-2026-0201-AM-134-135_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0201-AM-134-135/A-10-2026-0201-AM-134-135_en.docx",
+        "fetchedAt": "2026-10-27T00:43:38.519Z",
+        "sha256": "e0da4f95bb1af05050347891a928743e9d30402db9f7828753882396c1f25782",
+        "status": 200
+      },
+      "rawLabel": "Article 1 – paragraph 1 – point 1 – point e a (new)",
+      "expected": [
+        [
+          "article",
+          "1"
+        ],
+        [
+          "paragraph",
+          "1"
+        ],
+        [
+          "point",
+          "1"
+        ],
+        [
+          "point",
+          "ea"
+        ]
+      ],
+      "underlyingLabel": "Regulation (EU) 2023/956 — Article 2 – paragraph 12a (new)"
+    }
+  ],
+  "irishHyphen": {
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ga.docx",
+      "sha256": "cdc20d23d5870d108f3e78fb23884b643395c13ba7aa614b578e66100ba86961",
+      "retrievedAt": "2026-10-27T20:17:40.619047+00:00"
+    },
+    "amendmentNumbers": [
+      3
+    ],
+    "xml": "<w:p><w:r><w:t>n</w:t></w:r><w:r><w:noBreakHyphen/><w:t>oibreoidh</w:t></w:r></w:p>",
+    "text": "n‑oibreoidh"
+  }
+}

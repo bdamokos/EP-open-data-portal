@@ -28,6 +28,10 @@ def read_docx(data):
             return ''
         if node.tag == W+'t':
             return node.text or ''
+        if node.tag == W+'noBreakHyphen':
+            return '\u2011'
+        if node.tag == W+'softHyphen':
+            return '\u00ad'
         if node.tag in [W+'tab', W+'br', W+'cr']:
             return ' ' if node.tag == W+'tab' else '\n'
         return ''.join(text(n) for n in node)
@@ -37,7 +41,9 @@ def read_docx(data):
         value = text(p).strip()
         props = p.find(W+'pPr')
         style = props.find(W+'pStyle') if props is not None else None
-        paragraphs.append(dict(path=paths[id(p)], text=value, style=style.get(W+'val') if style is not None else None,
+        runs = [r for r in p.iter(W+'r') if text(r).strip()]
+        bold = bool(runs) and all(r.find(W+'rPr/'+W+'b') is not None and r.find(W+'rPr/'+W+'b').get(W+'val') not in ['0','false','off'] for r in runs)
+        paragraphs.append(dict(bold=bold, path=paths[id(p)], text=value, style=style.get(W+'val') if style is not None else None,
             body=bool(re.fullmatch(r'/w:document\[1\]/w:body\[1\]/w:p\[\d+\]', paths[id(p)])),
             uncertain=any(n.tag in [W+'drawing', W+'object', W+'sym', W+'sdt', W+'altChunk'] or n.tag.endswith('}oMath') for n in p.iter()),
             automatic=props is not None and props.find(W+'numPr') is not None))

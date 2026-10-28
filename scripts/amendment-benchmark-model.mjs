@@ -1,5 +1,4 @@
-import {parseTargetLabel} from '../server/proposal-structure.mjs';
-import {placementReference} from '../server/document-context-model.mjs';
+import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
@@ -49,21 +48,12 @@ const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
-  try {
-    if (['motion-resolution','unknown'].includes(wording.baseline)) {
-      const ref=placementReference(wording.targetLabel,wording.language,wording.proposedText);
-      if(ref) {
-        const segments=(ref.parents||[]).map(parent=>({kind:parent.kind,value:parent.label,number:/^\d+$/.test(parent.label)?Number(parent.label):null,suffix:'',isNew:false}));
-        segments.push({kind:ref.after?'heading':ref.kind,value:ref.label,base:ref.base,number:/^\d+$/.test(ref.base)?Number(ref.base):ref.base,suffix:ref.suffix,isNew:ref.isNew,
-          ...(ref.negative?{negative:true}:{}),...(ref.after?{after:ref.base}:{})});
-        return {raw:wording.targetLabel,language:wording.language,complete:true,segments,unparsed:[]};
-      }
-    }
-    const raw = wording.targetPath?.proposal?.length === 1 ? wording.targetPath.proposal[0].raw : wording.targetLabel;
-    return parseTargetLabel(raw || '', wording.language);
-  } catch {
-    return {raw:wording.targetLabel, language:wording.language, complete:false, segments:[], unparsed:['unsupported-language']};
-  }
+ const raw=wording.targetPath?.proposal?.length===1?wording.targetPath.proposal[0].raw:wording.targetLabel||'';
+ const resolution=['motion-resolution','unknown'].includes(wording.baseline);
+ const relative=resolution&&oracleRelative(raw,wording.language);
+ const segments=relative?[relative]:oracleAddress(raw.split('\n')[0],wording.language,{resolution});
+ if(segments&&resolution&&segments.length===1&&segments[0].kind==='recital'&&segments[0].number!==null&&new RegExp('^\\s*'+segments[0].value+'[.)]\\s','u').test(wording.proposedText||''))segments[0].kind='paragraph';
+ return {raw,language:wording.language,complete:Boolean(segments),segments:segments||[],unparsed:segments?[]:['unsupported-oracle-grammar']};
 }
 
 // Fixed oracle policy, deliberately independent of the placer's normaliser.
