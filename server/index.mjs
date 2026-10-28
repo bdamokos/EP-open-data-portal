@@ -16,7 +16,7 @@ import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
 import {plenaryLive} from './plenary-live.mjs';
-import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus} from './odp.mjs';
+import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus,startOdpMonitoring} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
@@ -49,7 +49,7 @@ import {LegalReferences,referencesQuery} from './legal-references.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 import {PressMentions,pressMentionsQuery} from './press-releases.mjs';
 const interventions=new SpeechInterventions();
-let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let insightService,pressMentions;
+let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
@@ -390,6 +390,7 @@ function shutDown(signal) {
   stopIndex();
   stopCorpus();
   stopBodyWarmup();
+  stopMonitoring();
   console.log(`[parliament-explorer] received ${signal}; shutting down`);
   const forceTimer = setTimeout(() => {
     process.exitCode = 1;
@@ -413,6 +414,7 @@ if (isEntryPoint) {
   process.on("SIGINT", () => shutDown("SIGINT"));
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   startServer();
+  stopMonitoring=startOdpMonitoring();
   stopIndex = startActivityIndex();
   stopCorpus = startCorpus();
   stopBodyWarmup = startCorporateBodyWarmup();

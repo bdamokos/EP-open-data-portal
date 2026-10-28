@@ -8,7 +8,7 @@ import {ActivityWorker,feedDocuments} from './activity-index-worker.mjs';
 import {projectDocument} from './activity-index-model.mjs';
 import {scheduleSittingOutcomes} from './amendments-worker.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
-import {DAY,MUTABLE_LIMIT,GAP_LIMIT,documentRefreshState,scheduleMutable,recordTaskGap,sittingConfirmationDay,sittingOutcomesComplete} from './refresh-policy.mjs';
+import {DAY,MUTABLE_LIMIT,GAP_LIMIT,documentRefreshState,scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,sittingConfirmationDay,sittingOutcomesComplete} from './refresh-policy.mjs';
 
 const languages='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
 const files=n=>languages.slice(0,n).map(language=>({language,is_embodied_by:[{format:'DOCX',is_exemplified_by:`https://data.europarl.europa.eu/distribution/test/${language}.docx`}]}));
@@ -22,6 +22,75 @@ function setup(t,at='2026-10-20T10:00:00Z') {
 }
 const sitting='MTG-PL-2026-10-07';
 const complete=()=>({results:[{id:'result'}],decisions:[{id:'decision'}],coverage:{missingResultIds:[],missingDecisionIds:[]},splitRequests:[],amendmentVersion:AMENDMENTS_VERSION,amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION});
+
+test('backfill recovers due gaps between daily cycles without resetting future retries or saved cursors',t=>{
+  const {store,generation,worker,clock,advance}=setup(t);
+  for(let i=0;i<28;i++) {
+    const key='recover:'+i,body={endpoint:'/parliamentary-questions/E-10-2026-'+i,offset:150};
+    store.enqueue(generation,key,'document',body,84);
+    recordTaskGap(worker,{generation,key,kind:'document',body,priority:84,attempts:4},new Error('EP API returned 500'));
+  }
+  store.publish(generation);store.set('lastSuccess',new Date(clock()).toISOString());
+  worker.recoveryMode='backfill';
+  assert.equal(gapRecoveryDue(store,generation,clock()),false);
+  advance(7*DAY);store.set('lastSuccess',new Date(clock()).toISOString());
+  // Ignore other optional upgrade triggers: the recovery-specific predicate is
+  // independent of a daily core refresh and preserves recorded admission state.
+  assert.equal(worker.coreDue(),false);assert.equal(gapRecoveryDue(store,generation,clock()),true);
+  assert.equal(scheduleGapRecovery(worker,generation),25);
+  assert.equal(store.taskCounts(generation).total-store.taskCounts(generation).completed,25);
+  const first=store.nextTask(generation);assert.equal(first.body.offset,150);assert.equal(first.attempts,5);
+  assert.equal(scheduleGapRecovery(worker,generation),3);
+  assert.equal(scheduleGapRecovery(worker,generation),0);
+  assert.equal(gapRecoveryDue(store,generation,clock()),false);
+  assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,28,'admission leaves coverage gaps visible');
+  store.finishTask(first);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,27,'only successful completion clears its gap');
+  assert.equal(store.get('slowGapAdmissions'),null,'temporary backfill does not consume the normal daily cap');
+});
+
+test('idle backfill publishes recovered questions and Following marks in a new frozen generation',async t=>{
+  const {store,generation,worker,clock}=setup(t);
+  store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);
+  const key='/parliamentary-questions/E-10-2026-000001';
+  store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'document',JSON.stringify({endpoint:key}),84,'EP API returned 500',5,new Date(clock()-8*DAY).toISOString(),clock()-1,null);
+  worker.recoveryMode='backfill';
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/E-10-2026-000001',creator:['person/42']})]}});
+  const runTask=worker.task.bind(worker);
+  // Leave the actual recovered document and publication paths intact while
+  // settling unrelated discovery jobs without upstream fixture traffic.
+  worker.task=async task=>task.key===key?runTask(task):store.finishTask(task);
+  assert.equal(worker.coreDue(),false);store.release();await worker.runIteration();
+  const active=store.get('active');assert.notEqual(active,generation);assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=? AND source_id=?').get(generation,'E-10-2026-000001').n,0,'old serving rows stay frozen');
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=? AND source_id=?').get(active,'E-10-2026-000001').n,1);
+  assert.equal(store.db.prepare("SELECT mark FROM item_marks WHERE mep='42' AND source_id='E-10-2026-000001'").get()?.mark,active);
+  assert.equal(store.db.prepare("SELECT activity_count FROM follow_summary WHERE generation=? AND mep='42'").get(active)?.activity_count,1);
+  assert.equal(store.db.prepare("SELECT activity_count FROM follow_summary WHERE generation=? AND mep='42'").get(generation)?.activity_count,0);
+});
+
+test('multiple admission batches share one working generation and publish only after due recovery is admitted',async t=>{
+  const {store,generation,worker,clock}=setup(t);
+  store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);
+  for(let i=1;i<=28;i++) {
+    const key='/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0');
+    store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'document',JSON.stringify({endpoint:key}),84,'EP API returned 500',5,new Date(clock()-8*DAY).toISOString(),clock()-1,null);
+  }
+  worker.recoveryMode='backfill';
+  worker.fetchRecord=async endpoint=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({identifier:endpoint.split('/').at(-1),id:'eli/dl/doc/'+endpoint.split('/').at(-1),creator:['person/42']})]}});
+  const runTask=worker.task.bind(worker);
+  worker.task=async task=>task.key.startsWith('/parliamentary-questions/')?runTask(task):store.finishTask(task);
+  store.release();await worker.runIteration();
+  assert.equal(store.get('active'),generation);const working=store.get('working').generation;
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,25);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,0);
+  await worker.runIteration();
+  assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,28);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,28);
+  assert.equal(store.db.prepare("SELECT activity_count FROM follow_summary WHERE generation=? AND mep='42'").get(working).activity_count,28);
+});
 
 test('mutable policy counts distinct observed official file languages and answer languages',()=>{
   const unanswered=projectDocument(document());

@@ -8,6 +8,7 @@ import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
 import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
+import {OdpObservations,odpPacing} from './odp-observability.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
@@ -32,7 +33,16 @@ const pending = new Map();
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
 // API v2 paths/IDs/queries. Reserve 50 starts for readers as a local fairness rule.
 export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:50});
-const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT});
+const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
+const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
+const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
+export const observedOdpFetch=(url,options)=>observations.fetch(url,options);
+export const odpObservations=()=>observations.snapshot();
+export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
+  const report=()=>log('[odp-monitor]',JSON.stringify(odpObservations()));
+  report();const timer=setInterval(report,intervalMs);timer.unref();
+  return ()=>{clearInterval(timer);report();};
+}
 const sourceQueues=new Map([['odp',upstreamQueue]]);
 function sourceQueue(source) {
   if(!['odp','website','documents','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
@@ -250,7 +260,7 @@ export async function odp(
         const response = await upstreamQueue.runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
           release=releaseSlot;
-          return fetch(url, {
+          return observedOdpFetch(url, {
           headers: {
             Accept: "application/ld+json",
             "User-Agent":
@@ -1009,7 +1019,7 @@ async function feed(endpoint, params, entity) {
   const url = new URL(ODP_BASE + endpoint);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return boundedUpstream(async()=>{
-    const r = await fetch(url, {
+    const r = await observedOdpFetch(url, {
       headers: {
         Accept: "application/atom+xml",
         "User-Agent":

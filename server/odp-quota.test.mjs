@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {UpstreamQueue} from './upstream-queue.mjs';
 
 process.env.ODP_CACHE_DIR='';
-const {odp,syncOdpFeeds}=await import('./odp.mjs');
+const {odp,syncOdpFeeds,odpObservations}=await import('./odp.mjs');
 const {apiFetch}=await import('./activity-index-worker.mjs');
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
 function sharedAdmission(t,queue) {
@@ -18,7 +18,11 @@ test('foreground, directory, feeds and worker metadata share starts across IDs, 
     calls.push(String(url));assert.equal(options.redirect,'error');
     return String(url).includes('/feed?')?new Response('<feed/>',{headers:{'content-type':'application/atom+xml'}}):Response.json({data:[]});
   });
+  const before=odpObservations();
   await syncOdpFeeds({force:true});assert.equal(calls.length,4);
+  const after=odpObservations();
+  assert.equal(after.starts-before.starts,4,'directory and both Atom feed requests reach quota monitoring');
+  assert.equal(after.routes['/meps/feed'],1);assert.equal(after.routes['/corporate-bodies/feed'],1);
   const worker=apiFetch('/speeches',{offset:0});await turn();assert.equal(calls.length,4);
   assert.equal(queue.active,0,'quota waits hold no connection');
   t.mock.timers.tick(101);await worker;assert.equal(calls.length,5);
@@ -28,6 +32,17 @@ test('foreground, directory, feeds and worker metadata share starts across IDs, 
   const next=odp('/meps/900003',{language:'de'});await turn();assert.equal(calls.length,8);
   t.mock.timers.tick(100);await turn();assert.equal(calls.length,8);
   t.mock.timers.tick(1);await next;assert.equal(calls.length,9,'IDs and queries do not shard quota');
+});
+
+test('an Atom feed throttle is visible even when synchronization retains the directory',async t=>{
+  const queue=new UpstreamQueue({rateLimit:{maximum:10,windowMs:300_000}});sharedAdmission(t,queue);
+  t.mock.method(console,'warn',()=>{});
+  t.mock.method(globalThis,'fetch',async url=>String(url).includes('/meps/feed?')?new Response(null,{status:429,headers:{'Retry-After':'60'}}):Response.json({data:[]}));
+  const before=odpObservations().statuses[429]||0;
+  const result=await syncOdpFeeds({force:true});
+  assert(result.error);const after=odpObservations();
+  assert.equal(after.statuses[429],before+1);assert.equal(after.lastThrottle.route,'/meps/feed');
+  assert.equal(after.lastThrottle.retryAfterSeconds,60);
 });
 
 test('each background retry spends a start and yields its connection while quota is exhausted',async t=>{
