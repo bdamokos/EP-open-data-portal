@@ -1,7 +1,7 @@
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import type {WordingFormat} from './components/WordingFormatting';
 import {VoteSubjectTitle} from './VoteSubjectTitle';
-import {AttendanceLine,AttendanceDetail} from './MemberAttendance';
+import {AttendanceLine} from './MemberAttendance';
 import type {MemberAttendanceResponse} from './MemberAttendanceTypes';
 import {memberAttendanceRoute,validateMemberAttendanceResponse} from './memberAttendancePresentation.mjs';
 import {voteMethodLabel} from './voteMethod.mjs';
@@ -101,7 +101,7 @@ function ContextVote({vote,memberName,language}:{vote:MemberVote;memberName:stri
     <VotePartDescriptions vote={vote} language={language}/><div className="member-votes-strip"><Position vote={vote} memberName={memberName}/><Result vote={vote}/></div></section>;
 }
 
-function Detail({vote,data,memberName,language,onDecision,openContext,attendance,attendanceLoading,attendanceAttempted,retryAttendance,explanationsActive}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;attendance:MemberAttendanceResponse|null;attendanceLoading:boolean;attendanceAttempted:boolean;retryAttendance:()=>void;explanationsActive:boolean}) {
+function Detail({vote,data,memberName,language,onDecision,openContext,explanationsActive}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;explanationsActive:boolean}) {
   const subject=data.subjects.find(subject=>subject.id===vote.subjectId);
   const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote),recordUrl=votingRecordUrl(vote);
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
@@ -110,15 +110,14 @@ function Detail({vote,data,memberName,language,onDecision,openContext,attendance
   const contexts=vote.parts.flatMap(part=>part.contextComponents).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index&&!vote.parts.some(part=>part.componentId===component.componentId));
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date)}</p>{subject&&<VoteSubjectTitle subject={subject} vote={vote} language={language}/>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language)}</h2></header>
-    {subject?.wholeTextDecisions.length?subject.wholeTextDecisions.map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>):null}
     <section className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName}/><Result vote={vote}/>
       {vote.intention.status==='reported'&&vote.intention.positions.length>0&&<p className="member-votes-intention">Declared intention: <strong>{vote.intention.positions.map(position=>({for:'For',against:'Against',abstaining:'Abstain'}[position])).join(', ')}</strong>. Declared afterwards; result unchanged.</p>}
-      {attendanceAttempted&&<AttendanceDetail day={attendance?.sittings.find(day=>day.sittingId===vote.sittingId)} loading={attendanceLoading} onRetry={retryAttendance}/>}
     </section>
-    {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
     <VotePartDescriptions vote={vote} language={language}/>
     {targets.map(target=><Wording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext} showHeading={targets.length!==1||memberVoteLabel(vote,language)!=='Amendment '+(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p>Amendment wording unavailable here.</p>}
+    {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
+    {subject?.wholeTextDecisions.some(whole=>whole.id!==vote.id)&&<details className="member-votes-related"><summary>Final vote on the whole text</summary>{subject.wholeTextDecisions.filter(whole=>whole.id!==vote.id).map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>)}</details>}
     {contexts.length>0&&<details className="member-votes-related"><summary>Other parts of this split vote</summary>{contexts.map(component=>{
       const text=selectLanguageText(Object.fromEntries(Object.entries(component.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
       return <div key={component.componentId}><h4>{component.number!==null?'Part '+component.number:'Another part'}</h4>{text.text?<p lang={text.language}>{text.text}</p>:<p>Part wording unavailable here.</p>}</div>;
@@ -236,7 +235,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
       </div>
       <div ref={detailRef} className="member-votes-pane" hidden={!state.decisionId||Boolean(state.context)} onScroll={event=>{detailScroll.current=event.currentTarget.scrollTop;}}>
         <button className="member-votes-back" type="button" onClick={()=>change({decisionId:null,context:null})}>← Back to votes</button>
-        <div ref={headingRef}>{selected?<Detail vote={selected} data={data} attendance={attendance} attendanceLoading={attendanceRequest.loading} attendanceAttempted={attendanceRoute!==null} retryAttendance={attendanceRequest.retry} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})} explanationsActive={!state.context}/>:state.decisionId?<div className="member-votes-empty"><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></div>:null}</div>
+        <div ref={headingRef}>{selected?<Detail vote={selected} data={data} memberName={memberName} language={language} onDecision={selectDecision} openContext={context=>change({context})} explanationsActive={!state.context}/>:state.decisionId?<div className="member-votes-empty"><h2 tabIndex={-1}>Vote unavailable</h2><p>The requested decision is unavailable in this period.</p></div>:null}</div>
       </div>
       {state.context&&(contextAllowed?renderContext({...state.context,onBack:()=>change({context:null}),backLabel:'Back to vote',summary:<ContextVote vote={selected!} memberName={memberName} language={language}/>}):<div className="member-votes-empty"><button type="button" onClick={()=>change({context:null})}>← Back to vote</button><p>The requested document is unavailable for this vote.</p></div>)}
     </>}
