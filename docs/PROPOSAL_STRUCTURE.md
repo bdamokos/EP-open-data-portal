@@ -29,7 +29,7 @@ The bounded DOCX projection retains at most 500 body hyperlinks, 500 referenced 
 - Unit `path` segments preserve labels, suffixes and scripts. Chapter, section and title containers remain in the tree. `proposalCandidates` permits an article/annex/recital address to omit its preceding heading containers, returning every candidate when the result is ambiguous. A bare annex’s unnumbered lead has an internal implicit paragraph container; its published point addresses omit that unpublished level. Explicit numbered paragraph levels remain distinct.
 - `extent: {start, end}` is a half-open range of paragraph indices including descendants. `content` identifies directly owned paragraphs; `spans` supplies exact UTF-16 slices. An instruction and inline replacement can share a paragraph through disjoint slices.
 - Memorandum, preamble, signature and financial statement remain separate regions. Articles, including binding final articles, belong to the legal body. A non-normative region is never treated as an article container.
-- Quoted replacements have `scope: 'quoted'`, their outer `instructionPath`, and an `underlyingPath` that inherits the enclosing instruction's article/annex context. A quoted Article 9 cannot become an outer proposal Article 9. Inline openings retain quoted scope across paragraphs until the observed outer delimiter closes; nested term quotations and possessive apostrophes do not close it. A possible trailing apostrophe retains quoted scope and an `ambiguous-quotation-boundary` gap unless the next source instruction or annex heading independently verifies the boundary. An explicit replacement instruction can establish the opening boundary when the DOCX omits its quotation mark; `boundaryBasis` records this.
+- Quoted replacements have `scope: 'quoted'`, their outer `instructionPath`, and an `underlyingPath` that inherits the enclosing instruction's article/annex context. A quoted Article 9 cannot become an outer proposal Article 9. Inline openings retain quoted scope across paragraphs; nested term quotations and possessive apostrophes do not close it. A possible trailing apostrophe retains an `ambiguous-quotation-boundary` gap unless the next source instruction or annex heading independently verifies the boundary. A consecutive amending instruction with the same list syntax and style can end a replacement whose source omits its closing mark; `closingBoundaryBasis: 'instruction-sequence'` records this. Numbered continuation paragraphs with distinct inner list syntax stay quoted after a premature closing mark. An explicit replacement instruction can establish an omitted opening mark; `boundaryBasis` records this. Numbered instruction prose takes precedence over a short heading prefix.
 - Tables retain rows, cell paragraph references, column spans, horizontal/vertical merges and nested tables. Empty tables retain their source anchor. Cells are not concatenated into legal paragraphs.
 - `complete`, `contentComplete` and `structureComplete` distinguish object/text fidelity from structural gaps. Inspect the selected unit and its objects as well as document-wide status. An unresolved logo can make the whole document incomplete while a legal provision remains readable.
 
@@ -78,6 +78,20 @@ For CBAM report A-10-2025-0085:
 The normaliser does not fold case, remove accents, transliterate suffixes, change dates or numbers, delete words, or use fuzzy matching. The real source pairs and source URLs are in `server/fixtures/proposal-matching-excerpts.json`.
 
 ## Sources and bounded validation
+
+The attributed COM(2024)183 excerpts in `server/fixtures/proposal-quotation-excerpts.json` establish these observed replacement delimiters:
+
+| Pair | Source languages |
+| --- | --- |
+| `“…”` | EN, LV, MT, NL |
+| `„…“` | BG, CS, DE, ET, LT, SK, SL |
+| `„…”` | HR, HU, PL, RO |
+| `«…»` | EL, ES, FR, PT |
+| `”…”` | FI, SV |
+| `"…"` | DA, IT |
+| `‘…’` | GA |
+
+Closers may precede whitespace and a full stop or semicolon, including Greek `·`. Nested terms include repeated double marks, Finnish `’…’`, Hungarian `»…«` and Slovenian `,…‘`. The same sources contain omitted, repeated and premature delimiters; list ownership and source boundaries remain necessary alongside punctuation. These are observed conventions, not a claim that every document uses one pair per language.
 
 The offline fixtures contain selected public Commission DOCX paragraphs and EP amendment labels with exact source URLs, languages, hashes and retrieval dates. Full documents remain outside Git. The CBAM act/annex, AI Act annex, all 24 label grammars, instruction nesting, shared-list restarts, MathML safety and punctuation pairs have offline tests. The large-text regression parses exactly 8 MiB within a 15-second CPU budget and 60-second wall guard under a 256 MiB V8 heap cap; cache hits reuse the immutable result.
 
