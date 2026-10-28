@@ -30,7 +30,7 @@ Browse plenary debates and votes, explore legislative dossiers, and follow the d
 
 - [Project vision](VISION.md) — the ideas behind the explorer and where it could go next.
 - [Public data sources](docs/PUBLIC_DATA.md) — where the data comes from and what it covers.
-- [Run locally](docs/DEVELOPMENT.md#run-locally) — setup, configuration and development.
+- [Development](docs/DEVELOPMENT.md) — local configuration and application architecture.
 - [Contribute](CONTRIBUTING.md) — checks and the pull-request workflow.
 
 Application source has no redistribution licence assigned. Public data and included third-party material retain their own terms; see [Third-party notices](THIRD_PARTY_NOTICES.md).
