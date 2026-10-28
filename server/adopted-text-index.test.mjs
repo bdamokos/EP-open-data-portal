@@ -125,3 +125,20 @@ test('legacy repair uses bounded batches and publishes them in one new generatio
   await worker.runIteration();assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=1").get(working).n,101);
 });
+
+for(const owner of ['amendment','deferred'])test('catalogue discovery preserves '+owner+' document retry ownership',async t=>{
+  const {store,worker,cycle}=setup(t),old=adopted();delete old.adopts;
+  const body={endpoint,offset:750},saved={generation:cycle.generation,key:endpoint,kind:'document',body:JSON.stringify(body),priority:101,done:0,attempts:3,retry_at:at+3_600_000,error:'Saved source failure'};
+  if(owner==='amendment')store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(saved.generation,saved.key,saved.kind,saved.body,saved.priority,saved.done,saved.attempts,saved.retry_at,saved.error);
+  else store.putSource(cycle.generation,'amendment:continuations','amendment-continuations',{tasks:[saved],discovery:[],completed:[]},stamp);
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[{identifier:id}]}});
+  for(const retained of [false,true]) {
+    if(retained)store.putSource(cycle.generation,endpoint,'document',projectDocument(old),stamp);
+    assert.equal(scheduleAdoptedTextRepairs(worker,cycle),0);
+    const key='catalog:'+retained,task={generation:cycle.generation,key,kind:'catalog',body:{endpoint:'/adopted-texts',params:{year:2026},offset:0}};
+    store.enqueue(cycle.generation,key,'catalog',task.body);await worker.task(task);
+    assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint),undefined);
+  }
+  const after=owner==='amendment'?store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(cycle.generation,endpoint):store.source(cycle.generation,'amendment:continuations').work.tasks[0];
+  assert.equal(after.attempts,3);assert.equal(after.retry_at,saved.retry_at);assert.equal(JSON.parse(after.body).offset,750);
+});

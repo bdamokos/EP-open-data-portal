@@ -27,7 +27,7 @@ import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -256,11 +256,14 @@ export class ActivityWorker {
       if(!nodes.length){this.store.finishTask({...task,body:{...body,availabilityCheck}});return;}
       const signatures=nodes.map(w=>w.identifier || tail(w.id)).join('|');
       if(signatures===body.lastPage)throw new Error('EP document pagination repeated a page.');
+      const adoptedDeferred=body.endpoint==='/adopted-texts'?adoptedTextDeferredKeys(this.store,generation):null;
       for(const w of nodes){const id=w.identifier || tail(w.id);if(!safeId(id))throw new Error('EP document identifier was invalid.');
         if(body.endpoint!='/committee-documents' && !/^[A-Z]+-10-/.test(id))continue;
         const endpoint=body.endpoint+'/'+id, old=this.store.source(generation,endpoint);
         this.store.markSeen(generation,endpoint);
-        if(!old||body.endpoint==='/adopted-texts'&&old.work.adoptionProjectionVersion!==adoptedTextProjectionVersion)this.store.enqueue(generation,endpoint,'document',{endpoint},101,body.endpoint==='/adopted-texts');
+        // Existing adopted records use the bounded repair path, never catalogue
+        // fan-out. New IDs can also already have an optional/deferred owner.
+        if(!old&&!(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,endpoint,adoptedDeferred)))this.store.enqueue(generation,endpoint,'document',{endpoint},101,Boolean(adoptedDeferred));
       }
       this.store.taskProgress(task,{...body,offset:body.offset+nodes.length,lastPage:signatures,availabilityCheck});
     } else if(task.kind==='speeches' && body.recoveryId) {

@@ -52,10 +52,16 @@ const legacyWhere=`source.generation=? AND source.kind='document' AND source.key
   AND NOT EXISTS(SELECT 1 FROM refresh_gaps gap WHERE gap.generation=source.generation AND gap.key=source.key)
   AND NOT EXISTS(SELECT 1 FROM tasks task WHERE task.generation=source.generation AND task.key=source.key AND (task.done IS NULL OR task.done<>1))
   AND NOT EXISTS(SELECT 1 FROM amendment_jobs task WHERE task.generation=source.generation AND task.key=source.key AND task.done<>1)`;
+export function adoptedTextDeferredKeys(store,generation) {
+  const checkpoint=store.source(generation,'amendment:continuations')?.work;
+  return new Set([...(checkpoint?.tasks||[]),...(checkpoint?.discovery||[])].map(task=>task.key));
+}
+export function adoptedTextOwnedElsewhere(store,generation,key,deferred=adoptedTextDeferredKeys(store,generation)) {
+  return deferred.has(key)||Boolean(store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1').get(generation,key));
+}
 function repairCandidates(store,generation,limit) {
   if(!store.db.prepare('SELECT 1 FROM sources source WHERE '+legacyWhere+' LIMIT 1').get(generation))return [];
-  const checkpoint=store.source(generation,'amendment:continuations')?.work;
-  const reserved=new Set([...(checkpoint?.tasks||[]),...(checkpoint?.discovery||[])].map(task=>task.key));
+  const reserved=adoptedTextDeferredKeys(store,generation);
   const selected=[];
   for(const row of store.db.prepare('SELECT source.key FROM sources source WHERE '+legacyWhere+' ORDER BY source.key').iterate(generation)) {
     if(reserved.has(row.key))continue;
