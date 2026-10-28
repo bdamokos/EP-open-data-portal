@@ -1374,7 +1374,7 @@ test('an exact settled detail check is due after 90 days despite newer expanded 
   observe();assert.equal(nextAmendmentTask(store,generation),null);
 });
 
-async function authorLanguageFixture(t,{issued=null}={}) {
+async function authorLanguageFixture(t,{issued=null,ageDays=80}={}) {
   const context=await fixture(t),{store,worker,generation}=context;
   const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null,...(issued?{issued}:{})};
   const rosterKey='amendment:roster:'+documentDate,roster=store.source(generation,rosterKey);
@@ -1385,7 +1385,7 @@ async function authorLanguageFixture(t,{issued=null}={}) {
   enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
   await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.source(generation,listKey).work.authorNames.descriptor.url,newUrl);
-  context.advance(80*freshnessDay);
+  context.advance(ageDays*freshnessDay);
   return {...context,primary,alternate,buffer};
 }
 
@@ -1419,6 +1419,42 @@ for(const issued of [null,oldRetrievedAt])for(const failure of ['storage-full','
   assert.equal(extractionJob(store,generation).done,1,'Daily preparation must not re-download an unretainable author language.');
   context.advance(6*freshnessDay);rebuildAmendmentTarget(worker,generation,targetId);
   assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+});
+
+for(const issued of [null,oldRetrievedAt])for(const cached of [false,true])test('weekly alternate failures preserve backoff even with older cached bytes; issued='+issued+' cached='+cached,async t=>{
+  const context=await authorLanguageFixture(t,{issued,ageDays:8}),{store,worker,generation,primary,alternate,buffer}=context;
+  const sources=amendmentSourceStore(store);
+  if(!cached){unlinkSync(path.join(sources.directory,sources.match(alternate).sha256+'.docx'));assert.equal(await sources.read(alternate),null);}
+  const confirmMetadata=()=>{
+    const saved=store.source(generation,listKey);
+    store.putSource(generation,listKey,'amendment-list',{...saved.work,metadataCheckedAt:context.at()},saved.fetchedAt);
+  };
+  confirmMetadata();
+  const downloads={primary:0,alternate:0};let unavailable=true;
+  worker.downloadAmendmentDocx=async url=>{
+    downloads[url===primary.url?'primary':'alternate']++;
+    if(url===alternate.url&&unavailable)throw Object.assign(new Error('Author-language unavailable'),{status:404});
+    return {buffer:buffer(url)};
+  };
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,{primary:1,alternate:1});
+  assert.equal(sources.has(primary),true);assert.equal(sources.has(alternate),cached);
+  assert.equal(Date.parse(store.source(generation,listKey).work.sourceRetentionRetryAt),store.clock()+7*freshnessDay);
+  for(let index=0;index<3;index++) {
+    rebuildAmendmentTarget(worker,generation,targetId);
+    assert.equal(extractionJob(store,generation).done,1,'A failed weekly refresh must not immediately reopen during its own rebuild.');
+  }
+  context.advance(freshnessDay);rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(extractionJob(store,generation).done,1);
+  assert.deepEqual(downloads,{primary:1,alternate:1});
+  context.advance(6*freshnessDay);confirmMetadata();rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  unavailable=false;await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,{primary:2,alternate:2});
+  assert.equal(store.source(generation,listKey).work.sourceRetentionRetryAt,null);
+  assert.equal(store.source(generation,listKey).work.authorNames.source.fetchedAt,context.at());
 });
 
 test('successful dated alternate evidence still needs valid chronology during retention backoff',async t=>{
