@@ -52,4 +52,9 @@ for(const example of boundaries.examples)test(`COM(2024)183 ${example.language}:
     .every(u=>u.instructionPath[2].value===example.recoveredInstruction));
   assert.deepEqual(units.filter(u=>u.kind==='article'&&u.scope==='proposal').map(u=>u.label.value),['1']);
   assert(!proposal.gaps.some(g=>g.code==='unclosed-quotation'));
+  for(const sample of example.instructionReferenceSamples??[]){
+    const projection={paragraphs:[...example.paragraphs.slice(0,2),sample.text],paragraphProperties:[...example.paragraphProperties.slice(0,2),{styleId:'Normal'}],coverage:{complete:false}};
+    const parsed=parseProposal(projection,example),owner=flat(parsed.units).find(u=>u.kind==='point'&&u.scope==='proposal');
+    assert.deepEqual(owner.instruction.underlyingTargets.filter(t=>t.kind==='article').map(t=>t.value),sample.articleLabels);
+  }
 });

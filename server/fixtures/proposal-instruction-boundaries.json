@@ -224,7 +224,17 @@
       "recoveredInstruction": "12",
       "recoveredOperation": "amend",
       "recoveredSourceOrdinal": 144,
-      "followingSourceOrdinal": 150
+      "followingSourceOrdinal": 150,
+      "instructionReferenceSamples": [
+        {
+          "sourceParagraphOrdinal": 536,
+          "sourcePath": "/w:document[1]/w:body[1]/w:p[537]",
+          "text": "53) I artikel 106, stk. 1, foretages følgende ændringer:",
+          "articleLabels": [
+            "106"
+          ]
+        }
+      ]
     },
     {
       "name": "missing-delimiter-instruction-vocabulary",
