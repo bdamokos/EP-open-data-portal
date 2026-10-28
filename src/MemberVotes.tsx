@@ -135,6 +135,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const alignmentFocus=useRef<MemberVotesState['alignment']|null>(null);
   const listScroll=useRef(0),detailScroll=useRef(0),headingRef=useRef<HTMLDivElement>(null);
   const restoredPane=useRef<HTMLDivElement|null>(null);
+  const focusedSelection=useRef<string|null>(null);
   const listHeadingRef=useRef<HTMLHeadingElement>(null);
   const lastSelection=useRef<{decisionId:string;groupId:string|null}|null>(null),returnFocus=useRef(false);
   const snapshotRefresh=useRef<{route:string;started:boolean;baseline:MemberVotesResponse|null}|null>(null);
@@ -212,7 +213,13 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     (row||group||listHeadingRef.current)?.focus({preventScroll:true});
     returnFocus.current=false;
   },[data,groups,selected,state.decisionId,state.context,request.loading,request.error]);
-  useEffect(()=>{if(state.decisionId&&!state.context)headingRef.current?.querySelector<HTMLElement>('h2')?.focus({preventScroll:true});},[data,state.decisionId,state.context]);
+  useEffect(()=>{
+    if(!state.decisionId||state.context){focusedSelection.current=null;return;}
+    const key=JSON.stringify([memberId,state.decisionId]);
+    if(focusedSelection.current===key)return;
+    const heading=headingRef.current?.querySelector<HTMLElement>('h2');
+    if(heading){heading.focus({preventScroll:true});focusedSelection.current=key;}
+  },[data,memberId,state.decisionId,state.context]);
   useLayoutEffect(()=>{
     if(alignmentFocus.current===null||request.loading||!data)return;
     // A filter request briefly removes the list; restore its initiating control.

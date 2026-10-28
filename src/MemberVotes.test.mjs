@@ -1087,6 +1087,24 @@ test('an off-page selection keeps the list mounted while pending without claimin
  hold=false;await act(async()=>release());assert.match(visiblePane(h.container).textContent,/Vote unavailable/);
 });
 
+test('settling a retained selection preserves control focus; new off-page selections focus once available',async t=>{
+ let release,hold=false;
+ const items=[vote(1)],h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{
+   if(hold)await new Promise(resolve=>{release=resolve;});
+   const selectedId=stateFrom(url).decisionId;
+   return Response.json(responseFor(url,{items,selected:selectedId?{status:'found',item:selectedId===decision(99)?vote(99):items[0]}:{status:'not-requested',item:null}}));
+ }});
+ hold=true;await h.update({decisionId:decision(1)});
+ assert.equal(document.activeElement,visiblePane(h.container).querySelector('h2'));
+ const back=button(h.container,'← Back to votes');back.focus();
+ hold=false;await act(async()=>release());assert.equal(document.activeElement,back);
+ hold=true;await h.update({decisionId:decision(99)});
+ assert.match(visiblePane(h.container).textContent,/Loading selected vote/);
+ hold=false;await act(async()=>release());
+ assert.equal(document.activeElement,visiblePane(h.container).querySelector('h2'));
+ assert.equal(document.activeElement.textContent,'Decision 99');
+});
+
 test('failed selection reads clear retained records before another selection starts',async t=>{
  let mode='ok',release;
  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{
