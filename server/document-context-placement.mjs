@@ -1,3 +1,4 @@
+import {amendmentLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {resolveAmendmentPlacement,amendmentOperation,resolutionReference} from './document-context-model.mjs';
 import {resolveProposalPlacement} from './proposal-placement.mjs';
 import {resolveExistingLawPlacement} from './existing-law-placement.mjs';
@@ -8,6 +9,8 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(!includeBody)return null;
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
+  const scope=amendmentLanguageScope(chosen);
+  if(scope)return {operation:null,status:'not-applicable',reason:'language_version_unaffected',evidence:[{basis:'published-language-scope',...scope}]};
   if(chosen.baselineSource?.conflicted===true)return unresolved('conflicting_baselines');
   if(chosen.baseline==='present-text'&&chosen.baselineSource?.category==='present-text'&&chosen.baselineSource.conflicted===false&&(items?.length||baseline))return resolveExistingLawPlacement(items||[],chosen,baseline);
   const council=chosen.baseline==='council-position';

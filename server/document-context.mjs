@@ -1,3 +1,4 @@
+import {amendmentLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {createHash} from 'node:crypto';
 import {odp,ODP_BASE,odpLanguage,boundedUpstream} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -20,7 +21,7 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
 import {amendmentLanguagePreference} from './language-order.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=26;
+export const DOCUMENT_CONTEXT_VERSION=27;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -174,14 +175,15 @@ export class DocumentContext {
     const differentLanguage=chosen&&(wordingSelected&&chosen.language===null||chosen.language!==document?.selectedText?.textLanguage);
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
-    const target=!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):references.length>1?{...unavailableTarget('conflicting-reference-decisions'),status:'ambiguous'}:differentLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language});
+    const unaffected=chosen&&amendmentLanguageScope(chosen);
+    const target=unaffected?unavailableTarget('language-version-unaffected'):!query.amendmentId||query.includeBody===false?{...unavailableTarget(null),status:'not-requested'}:!chosen?unavailableTarget(amendment?.variants.length?'choose-source-version':'amendment-wording-unavailable'):references.length>1?{...unavailableTarget('conflicting-reference-decisions'),status:'ambiguous'}:differentLanguage?unavailableTarget('different-text-languages'):resolveDocumentTarget(document?.selectedText,{originalText:chosen.originalText,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:references[0],language:chosen.language});
     const placementOptions={chosen,text:document?.selectedText,referenceTexts:references,resolutionDocument:['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].some(type=>canonicalType(work.work_type)==='def/ep-document-types/'+type),includeBody:query.includeBody!==false,amendmentRequested:Boolean(query.amendmentId)};
     let placement=documentContextPlacement(placementOptions);
     let baseline=null,proposal=null;
     const proposalKind=chosen?.baseline==='commission-proposal'&&chosen.baselineSource?.category==='commission-proposal'&&chosen.baselineSource.conflicted===false;
     const councilKind=chosen?.baseline==='council-position'&&chosen.baselineSource?.category==='council-position'&&chosen.baselineSource.conflicted===false;
     const existingKind=chosen?.baseline==='present-text'&&chosen.baselineSource?.category==='present-text'&&chosen.baselineSource.conflicted===false;
-    if(chosen&&query.includeBody!==false&&(proposalKind||councilKind||existingKind)) {
+    if(chosen&&!unaffected&&query.includeBody!==false&&(proposalKind||councilKind||existingKind)) {
       const documentReferences=chosen.documentReferences||[];
       const explicit=[...new Set(documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw).map(r=>r.celex)))];
       const eligible=typeof chosen.language==='string'&&(query.id.startsWith('A-')||explicit.length===1);

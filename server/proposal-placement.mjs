@@ -1,3 +1,4 @@
+import {amendmentLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {latinSuffixRank} from './legal-latin-numbering.mjs';
@@ -289,8 +290,10 @@ function ancestorFallback(target,original,candidatesFor) {
 
 /** All addresses are proposal-level. Inner quoted provisions cannot be candidates. */
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language}={}) {
-  const operation=amendmentOperation({originalText,proposedText}),evidence=[];
+  const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
+  const scope=amendmentLanguageScope({originalText,proposedText,language});
+  if(scope)return {operation:null,status:'not-applicable',reason:'language_version_unaffected',evidence:[{basis:'published-language-scope',...scope}]};
   if(!operation)return unresolved('amendment_wording_unavailable');
   if([originalText,proposedText].some(text=>text.length>MAX_COLUMN_CHARACTERS))return unresolved('matching_budget');
   if([originalText,proposedText].some(text=>text.includes('\uFFFC')))return unresolved('math_comparison_unavailable');
