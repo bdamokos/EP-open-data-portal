@@ -1,0 +1,73 @@
+{
+  "attribution": "European Union - Source: European Parliament and European Commission",
+  "documentId": "A-10-2025-0150",
+  "listId": "A-10-2025-0150-AM-001-129",
+  "number": 5,
+  "language": "en",
+  "wordingSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_en.docx",
+    "sha256": "5397d69dfa655899c6d9b82303f686c10989ff8a5b164673d96ddfa1f2cf60d5",
+    "fetchedAt": "2026-10-27T16:24:57.200Z"
+  },
+  "baselineSource": {
+    "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0001.01/DOC_1",
+    "sha256": "30fbfa2169fbedd4331f4ed5ab229930271de6950f891a271f6cf809cb7d1fed",
+    "fetchedAt": "2026-10-27T16:25:27.255Z"
+  },
+  "comparison": {
+    "originalText": "(13) At its annual session in 2022, the GFCM adopted Recommendation GFCM/45/2022/1 on a multiannual management plan for European eel in the Mediterranean Sea, amending Recommendation GFCM/42/2018/1.",
+    "proposedText": "deleted",
+    "targetLabel": "Recital 13",
+    "section": "Proposal for a regulation"
+  },
+  "sourceParagraphs": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[54]",
+      "text": "THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,",
+      "style": "Institutionquiagit",
+      "body": true,
+      "uncertain": false,
+      "automatic": false
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[73]",
+      "text": "(13) At its annual session in 2022, the GFCM adopted Recommendation GFCM/45/2022/1 on a multiannual management plan for European eel in the Mediterranean Sea, amending Recommendation GFCM/42/2018/1.",
+      "style": "ManualConsidrant",
+      "body": true,
+      "uncertain": false,
+      "automatic": false
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[89]",
+      "text": "Article 1\nAmendments to Regulation (EU) No 2023/2124",
+      "style": "Titrearticle",
+      "body": true,
+      "uncertain": false,
+      "automatic": false
+    }
+  ],
+  "observed": {
+    "index": 69,
+    "text": "(13)\tAt its annual session in 2022, the GFCM adopted Recommendation GFCM/45/2022/1 on a multiannual management plan for European eel in the Mediterranean Sea, amending Recommendation GFCM/42/2018/1.",
+    "path": "/w:document[1]/w:body[1]/w:p[73]"
+  },
+  "placement": {
+    "operation": "delete",
+    "status": "placed",
+    "itemIndex": 0,
+    "span": {
+      "start": 69,
+      "end": 69
+    },
+    "splice": {
+      "start": {
+        "paragraph": 69,
+        "offset": 0
+      },
+      "end": {
+        "paragraph": 69,
+        "offset": 198
+      }
+    }
+  }
+}

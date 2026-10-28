@@ -3,6 +3,7 @@
 // The 24 language editions of A-10-2025-0150-AM-001-129 AM5 supply the
 // instructions below; bounded excerpts and provenance live in
 // server/fixtures/amendment-operation-excerpts.json.
+import {expectedLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 const instructions = new Set([
   'deleted', 'заличава се', 'vypouští se', 'udgår', 'entfällt',
   'διαγράφεται', 'suprimido', 'välja jäetud', 'poistetaan', 'supprimé',
@@ -13,8 +14,9 @@ const instructions = new Set([
   'supprimée', 'gestrichen', 'soppressa', 'suprimida', 'geschrapt', 'eliminată',
 ]);
 
-export function expectedOperation({originalText, proposedText} = {}) {
+export function expectedOperation({originalText, proposedText, language} = {}) {
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
+  if(expectedLanguageScope({originalText,proposedText,language}))return 'not-applicable';
   const original = originalText.trim(), proposed = proposedText.trim();
   // Only the observed terminal full stop and surrounding whitespace are
   // ignored. Prose, quotes, ellipses and other punctuation retain their meaning.

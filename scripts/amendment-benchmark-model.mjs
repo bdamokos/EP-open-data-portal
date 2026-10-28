@@ -1,8 +1,8 @@
-import {parseTargetLabel} from '../server/proposal-structure.mjs';
-import {placementReference} from '../server/document-context-model.mjs';
+import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
+import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -16,7 +16,8 @@ export const SOURCE_REASONS = Object.freeze({
 });
 
 export function classify(stages) {
-  if (stages.S5.status === 'placed' && stages.S6.status === 'failed') return {outcome:'false-placement', reason:stages.S6.reason};
+  if (stages.S6.status === 'failed') return {outcome:'false-placement', reason:stages.S6.reason};
+  if(stages.S1.status==='passed'&&stages.S2.status==='passed'&&stages.S5.status==='not-applicable'&&stages.S6.status==='verified')return {outcome:'not-applicable',reason:stages.S6.reason};
   for (const key of ['S1','S2','S3','S4']) {
     const stage = stages[key];
     // A parse limit does not erase a placement the actual pipeline can verify
@@ -49,22 +50,13 @@ const fail = reason => ({status:'failed', reason});
 const verified = reason => ({status:'verified', reason});
 
 export function parseBenchmarkTarget(wording) {
-  try {
-    if (['motion-resolution','unknown'].includes(wording.baseline)) {
-      const ref=placementReference(wording.targetLabel,wording.language,wording.proposedText);
-      if(ref) {
-        const segments=(ref.parents||[]).map(parent=>({kind:parent.kind,value:parent.label,number:/^\d+$/.test(parent.label)?Number(parent.label):null,suffix:'',isNew:false}));
-        segments.push({kind:ref.after?'heading':ref.kind,value:ref.label,base:ref.base,number:/^\d+$/.test(ref.base)?Number(ref.base):ref.base,suffix:ref.suffix,isNew:ref.isNew,
-          ...(ref.negative?{negative:true}:{}),...(ref.after?{after:ref.base}:{})});
-        return {raw:wording.targetLabel,language:wording.language,complete:true,segments,unparsed:[]};
-      }
-    }
-    const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
-    const raw = paths?.length === 1 ? paths[0].raw : wording.targetLabel;
-    return parseTargetLabel(raw || '', wording.language);
-  } catch {
-    return {raw:wording.targetLabel, language:wording.language, complete:false, segments:[], unparsed:['unsupported-language']};
-  }
+ const paths=wording.baseline==='present-text'?wording.targetPath?.underlying:wording.targetPath?.proposal;
+ const raw=paths?.length===1?paths[0].raw:wording.targetLabel||'';
+ const resolution=['motion-resolution','unknown'].includes(wording.baseline);
+ const relative=resolution&&oracleRelative(raw,wording.language);
+ const segments=relative?[relative]:oracleAddress(raw.split('\n')[0],wording.language,{resolution});
+ if(segments&&resolution&&segments.length===1&&segments[0].kind==='recital'&&segments[0].number!==null&&new RegExp('^\\s*'+segments[0].value+'[.)]\\s','u').test(wording.proposedText||''))segments[0].kind='paragraph';
+ return {raw,language:wording.language,complete:Boolean(segments),segments:segments||[],unparsed:segments?[]:['unsupported-oracle-grammar']};
 }
 
 // Fixed oracle policy, deliberately independent of the placer's normaliser.
@@ -237,6 +229,8 @@ export function verifyPlacement(input) {
 }
 
 function verifyKnownPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
+  const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
+  if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
@@ -342,7 +336,7 @@ export function targetPatterns(wording = {}, gaps = []) {
 
 const ratio = (n,d) => d ? n/d : null;
 export function metrics(rows) {
-  const counts = Object.fromEntries(['correct','placed-unverified','withheld-pipeline','withheld-source','acquisition-unavailable','not-placeable','false-placement'].map(key => [key,0]));
+  const counts = Object.fromEntries(['correct','placed-unverified','withheld-pipeline','withheld-source','acquisition-unavailable','not-placeable','not-applicable','false-placement'].map(key => [key,0]));
   const votes = new Map(), groups = new Map(),strata=new Map(),reasons=new Map();
   for(const row of rows){const key=JSON.stringify([row.documentType,row.language]);strata.set(key,(strata.get(key)||0)+1);}
   for (const row of rows) {
