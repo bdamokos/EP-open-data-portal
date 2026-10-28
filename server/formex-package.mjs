@@ -3,7 +3,7 @@ import {inflateRawSync,crc32} from 'node:zlib';
 import path from 'node:path';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
-export const FORMEX_PACKAGE_VERSION=1;
+export const FORMEX_PARSER_REVISION=1;
 export const FORMEX_PACKAGE_LIMITS=Object.freeze({archive:8*1024*1024,entries:256,entry:8*1024*1024,inflated:24*1024*1024,elements:100000,depth:64,parts:64,blocks:30000});
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const fail=code=>{throw Object.assign(new Error('Unsupported Formex package: '+code),{code});};
@@ -268,7 +268,7 @@ export function readFormexPackage(bytes,{source,coverage}={}) {
   for(const b of blocks)for(const o of b.objects)objects.push({...o,block:b.ordinal});
   for(const n of notes)for(const [noteBlock,b] of n.blocks.entries())for(const o of b.objects)objects.push({...o,note:n.id,noteBlock});
   if(coverage?.complete===false)gap('excerpted-source',{part:manifest.source.part,path:'/'});
-  return {parserVersion:FORMEX_PACKAGE_VERSION,sourceKind:'formex-package',preference:'held',source:{...source,contentHash:hash(bytes),byteSize:bytes.byteLength,binding:'caller-supplied'},
+  return {parserVersion:FORMEX_PARSER_REVISION,sourceKind:'formex-package',preference:'held',source:{...source,contentHash:hash(bytes),byteSize:bytes.byteLength,binding:'caller-supplied'},
     coverage:coverage?.complete===false?{...coverage}:{complete:true},
     manifest:{name:manifest.source.part,tree:manifest,publications,seeds:seeds.map(s=>({...s,target:s.edge.target}))},
     entries:[...entries.values()].map(({name,size,compressedSize,hash})=>({name,size,compressedSize,hash})),edges,parts,containers,blocks,notes,objects,links,gaps,

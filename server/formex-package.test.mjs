@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {crc32,deflateRawSync} from 'node:zlib';
-import {readFormexPackage,FORMEX_PACKAGE_LIMITS,FORMEX_PACKAGE_VERSION} from './formex-package.mjs';
+import {readFormexPackage,FORMEX_PACKAGE_LIMITS,FORMEX_PARSER_REVISION} from './formex-package.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/formex-excerpts.json',import.meta.url)));
 function zip(entries,{method=8}={}) {
@@ -21,7 +21,7 @@ const read=(c=ngt,items=entries(c),options={})=>readFormexPackage(zip(items),{so
 
 for(const c of fixture.cases)test('retained public Formex graph: '+c.celex,()=>{
   const r=read(c);
-  assert.equal(r.parserVersion,FORMEX_PACKAGE_VERSION);assert.equal(r.preference,'held');assert.equal(r.sourceKind,'formex-package');
+  assert.equal(r.parserVersion,FORMEX_PARSER_REVISION);assert.equal(r.preference,'held');assert.equal(r.sourceKind,'formex-package');
   assert.equal(r.source.celex,c.celex);assert.equal(r.source.retrievedAt,c.source.retrievedAt);assert.equal(r.source.url,c.source.url);assert.equal(r.source.binding,'caller-supplied');
   assert.equal(r.complete,false);assert.ok(r.gaps.some(g=>g.code==='excerpted-source'));
   assert.ok(r.fidelityGaps.some(g=>g.code==='legal-projection-unverified'));
