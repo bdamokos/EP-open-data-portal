@@ -19,6 +19,8 @@ import {config} from './config.mjs';
 import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStructure,DOCX_EXTRACTION_VERSION as EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {styleFormatting,paragraphFormat,tableLayout,documentFormatting,DOCX_FORMATTING_VERSION as FORMATTING_VERSION} from './docx-formatting.mjs';
 import {documentAuthorIdentities} from './document-authors.mjs';
+import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
+export const DOCUMENT_TEXT_VERSION=1;
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
 
@@ -370,9 +372,11 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===languages[0]) || files[0];
+  const adoptedTextXml=adoptedTextXmlSources(work,chosen?.language??language);
   const base={status:'unavailable',paragraphs:[],authorBylineParagraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
     structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],formatStatus:'not-extracted',paragraphFormats:[],tables:[],extractionVersion:null,sourceVersion:null,
-    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null};
+    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null,
+    ...(adoptedTextXml?{adoptedTextXml}:{})};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
   const key=chosen.url,name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
   const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,key);
