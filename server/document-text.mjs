@@ -52,7 +52,7 @@ export function documentNeedsRefresh(saved,work,descriptor,now){
 }
 const DOCX_PARTS=['word/document.xml','word/styles.xml','word/numbering.xml','word/settings.xml','word/_rels/document.xml.rels','word/footnotes.xml','word/_rels/footnotes.xml.rels','word/endnotes.xml','word/_rels/endnotes.xml.rels'];
 // Read only standard text, style, numbering, note and relationship parts. No archive paths are written to disk.
-export function docxParts(buffer) {
+export function docxParts(buffer,{packageMetadata=false}={}) {
   if(buffer.length>MAX_FILE || buffer.length<22)throw new Error('DOCX size is unsupported.');
   let end=-1;
   for(let i=buffer.length-22;i>=Math.max(0,buffer.length-65557);i--)if(buffer.readUInt32LE(i)===0x06054b50){end=i;break;}
@@ -67,7 +67,7 @@ export function docxParts(buffer) {
     const nameLength=buffer.readUInt16LE(cursor+28),extra=buffer.readUInt16LE(cursor+30),comment=buffer.readUInt16LE(cursor+32),offset=buffer.readUInt32LE(cursor+42);
     const name=buffer.subarray(cursor+46,cursor+46+nameLength).toString('utf8');
     cursor+=46+nameLength+extra+comment;
-    if(!DOCX_PARTS.includes(name))continue;
+    if(!DOCX_PARTS.includes(name)&&!(packageMetadata&&['[Content_Types].xml','_rels/.rels'].includes(name)))continue;
     const partLimit=name==='word/document.xml'?MAX_XML:4*1024*1024;
     total+=size;
     if(parts.has(name) || flags&1 || total>MAX_XML || size>partLimit || compressed>MAX_FILE || offset+30>buffer.length || buffer.readUInt32LE(offset)!==0x04034b50)throw new Error('Unsupported DOCX document entry.');

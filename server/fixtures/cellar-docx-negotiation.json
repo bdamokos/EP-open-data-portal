@@ -1,0 +1,74 @@
+{
+  "celex": "52024PC0531",
+  "language": "en",
+  "procedure": "2024/0301(COD)",
+  "source": {
+    "url": "https://publications.europa.eu/resource/cellar/efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01/DOC_1",
+    "status": 200,
+    "request": {
+      "accept": "application/zip;type=akn4eu",
+      "language": "eng"
+    },
+    "headers": {
+      "Date": "Wed, 28 Oct 2026 11:33:25 GMT",
+      "Content-Type": "application/zip;type=akn4eu;charset=UTF-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "close",
+      "ETag": "\"Con-20241114163435000\"",
+      "Last-Modified": "Thu, 14 Nov 2024 15:34:35 GMT",
+      "Cache-Control": "no-cache",
+      "Content-Language": "",
+      "Content-Security-Policy": "script-src 'self';"
+    },
+    "bytes": 131539,
+    "sha256": "7b22b2caea590147e0ed266bd3d7b9f6863b4e3573f15bbab4ab8b89f5d34f42",
+    "fetchedAt": "2026-10-28T11:33:25.950118+00:00"
+  },
+  "metadata": {
+    "url": "https://publications.europa.eu/resource/cellar/efd95e89-a29d-11ef-85f0-01aa75ed71a1/rdf/tree/full",
+    "status": 200,
+    "request": {
+      "accept": "application/rdf+xml;notice=tree"
+    },
+    "headers": {
+      "Date": "Wed, 28 Oct 2026 11:34:41 GMT",
+      "Content-Type": "application/rdf+xml;charset=UTF-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "close",
+      "Last-Modified": "Fri, 23 May 2025 18:50:32 GMT",
+      "ETag": "\"RTW-20250523205032589\"",
+      "Cache-Control": "no-cache",
+      "Content-Security-Policy": "script-src 'self';",
+      "X-Cache-Status": "REVALIDATED"
+    },
+    "bytes": 491252,
+    "sha256": "c6e9c2342d63dce48c1a3b265f36c02c9ad0e6bc9e64860474d59606dfe78b74",
+    "fetchedAt": "2026-10-28T11:34:42.036027+00:00"
+  },
+  "advertisement": {
+    "url": "https://publications.europa.eu/resource/cellar/efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01/DOC_1",
+    "status": 406,
+    "request": {
+      "accept": "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml",
+      "language": "eng"
+    },
+    "headers": {
+      "Date": "Wed, 28 Oct 2026 11:33:24 GMT",
+      "Content-Type": "application/xml;charset=UTF-8",
+      "Content-Length": "1130",
+      "Connection": "close",
+      "Last-Modified": "Thu, 01 Jan 1970 00:00:00 GMT",
+      "Expires": "Wed, 28 Oct 2026 11:33:24 GMT",
+      "Content-Security-Policy": "script-src 'self';"
+    },
+    "bytes": 1130,
+    "sha256": "33014af27379f5666a3ecaf1d6410aa5897b0a0a48ba21f2d8994b183934a990",
+    "fetchedAt": "2026-10-28T11:33:24.896540+00:00"
+  },
+  "errorXml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<error>\n<id>406</id>\n<message>406 Header mimetype(s)[application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml] \nis/are not compliant with the resource mimetype [application/zip;type=akn4eu] corresponding to this identifier : cellar:efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01</message>\n<cause>org.springframework.web.client.HttpServerErrorException: 406 Header mimetype(s)[application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml] \nis/are not compliant with the resource mimetype [application/zip;type=akn4eu] corresponding to this identifier : cellar:efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01</cause>\n<description><![CDATA[\nThe CELLAR could not satisfy the request as an error with HTTP status of 406 has been generated.\n\nWhat you can do now:\n1) check your request against the error's details shown above\n2) if solution 1) did not fix the problem, please gather further details from the CELLAR's logs\n3) if none of the solutions above fixed the problem, please contact the CELLAR administrator at your premises.\n]]></description>\n</error>",
+  "package": {
+    "contentTypes": "<ns0:Types xmlns:ns0=\"http://schemas.openxmlformats.org/package/2006/content-types\"><ns0:Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\" /></ns0:Types>",
+    "relationships": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties\" Target=\"docProps/app.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/><Relationship Id=\"rId4\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties\" Target=\"docProps/custom.xml\"/></Relationships>"
+  },
+  "excerptPolicy": "Only the Word-main content-type declaration and root relationships are retained. Tests construct small packages; full raw source remains outside Git."
+}

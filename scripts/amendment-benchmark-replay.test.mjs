@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {InputCache,allowedSource} from './amendment-benchmark-cache.mjs';
-import {replayRuntime,sourceReplay,publicDocumentUrl,rawExistingLawReferences} from './amendment-benchmark-replay.mjs';
+import {replayRuntime,sourceReplay,publicDocumentUrl,rawExistingLawReferences,missingDeclaredRepresentation} from './amendment-benchmark-replay.mjs';
 import {acquireReport,evaluateReport,contextUrl} from './amendment-benchmark.mjs';
 import {metrics,compareBaseline} from './amendment-benchmark-model.mjs';
 
@@ -197,4 +197,24 @@ test('source replay preserves report wording identity through the measured extra
   const measured={...runtime,extractAmendments:(bytes,options)=>{calls++;assert.equal(options.reportId,f.document);return runtime.extractAmendments(bytes,options);}};
   const [result]=await evaluateReport([f.row],sample,cache,{runtime:measured,replay:sourceReplay(cache,measured)});
   assert.equal(calls,1);assert.equal(result.outcome,'correct',JSON.stringify(result.stages));assert.equal(cache.requests,requests);
+});
+
+test('only the exact absent declared representation maps to a sealed acquisition gap',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'cellar-declared-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const recorded=JSON.parse(await readFile(new URL('../server/fixtures/cellar-docx-negotiation.json',import.meta.url),'utf8'));
+  const url=recorded.source.url,standard={accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml',language:'eng'},declared={accept:'application/zip;type=akn4eu',language:'eng'};
+  const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:2,delay:0,sleep:async()=>{},fetcher:async()=>new Response(recorded.errorXml,{status:406,headers:{'content-type':'application/xml'}})});
+  await cache.get(url,standard);await cache.seal(cache.manifest());
+  const before=cache.manifest(),requests=cache.requests,error=await missingDeclaredRepresentation(cache,url,declared);
+  assert.equal(error.code,'missing-declared-representation');assert.equal(error.source.status,406);assert.equal(error.source.sha256,recorded.advertisement.sha256);assert.deepEqual(error.request,{url,...declared});assert.equal(cache.requests,requests);assert.deepEqual(cache.manifest(),before);cache.assertHealthy();
+  for(const [u,r] of [[url,{...declared,language:'fra'}],[url.replace('/DOC_1','/DOC_2'),declared],[url,{...declared,accept:'application/zip'}],[url,standard]])assert.equal(await missingDeclaredRepresentation(cache,u,r),null);
+  const exact=JSON.stringify([url,declared]);cache.sealed.add(exact);assert.equal(await missingDeclaredRepresentation(cache,url,declared),null);cache.sealed.delete(exact);
+  // The narrow mapping does not swallow InputCache's unexpected-missing error.
+  await assert.rejects(cache.get(url,{...declared,language:'fra'}),/input-not-in-snapshot/);assert.throws(()=>cache.assertHealthy(),/input-not-in-snapshot/);
+});
+test('a406 without the declared advertisement and a404 are not mapped to a representation gap',async()=>{
+  const url='https://publications.europa.eu/resource/cellar/efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01/DOC_1',standard={accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml',language:'eng'},declared={accept:'application/zip;type=akn4eu',language:'eng'};
+  for(const input of [{status:404,body:Buffer.from('resource mimetype [application/zip;type=akn4eu]')},{status:406,body:Buffer.from('resource mimetype [application/xml]')}]) {
+    const cache={sealed:new Set([JSON.stringify([url,standard])]),get:async()=>input};assert.equal(await missingDeclaredRepresentation(cache,url,declared),null);
+  }
 });
