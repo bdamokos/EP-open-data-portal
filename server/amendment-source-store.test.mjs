@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdtempSync,mkdirSync,rmSync,readdirSync,writeFileSync,readFileSync,existsSync,utimesSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,rmSync,readdirSync,writeFileSync,readFileSync,existsSync,utimesSync,symlinkSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -307,4 +307,12 @@ test('recent orphan files are swept on a later writer access after the grace per
   await sources.initialize();assert(existsSync(orphan));
   advance(11*60_000);await sources.read(descriptor);
   assert.equal(existsSync(orphan),false);assert.equal(sources.usedBytes(),0);
+});
+
+test('has degrades a filesystem error to a missing blob and logs once',async t=>{
+  const {sources,blobs,buffer}=fixture(t);await sources.save(descriptor,buffer,retrievedAt);
+  const filename=path.join(blobs,sha(buffer)+'.docx');rmSync(filename);symlinkSync(path.basename(filename),filename);
+  const warnings=[];t.mock.method(console,'warn',message=>warnings.push(message));
+  assert.equal(sources.has(descriptor),false);assert.equal(sources.has(descriptor),false);
+  assert.equal(warnings.length,1);assert.match(warnings[0],/ELOOP/);
 });

@@ -1,5 +1,6 @@
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
+import {resolutionPointPlacement} from './resolution-points.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -484,6 +485,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
   const ref = placementReference(options.targetLabel, options.language, options.proposedText);
+  const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
+  if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
     if (reference.kind !== 'point') return true;
     let parent = units.find(candidate => candidate.start === unit.parent);
