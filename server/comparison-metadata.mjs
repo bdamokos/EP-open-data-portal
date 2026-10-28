@@ -38,7 +38,7 @@ import {createHash} from 'node:crypto';
  * @property {'exact'|'explicit-whitespace-map'|'unmapped'} mapping
  */
 
-export const COMPARISON_METADATA_VERSION=1;
+const METADATA_SCHEMA=1;
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const hash=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
 const MAX_TEXT=256*1024,MAX_ROWS=2000;
@@ -218,7 +218,7 @@ export function comparisonMetadata({observation,native,amendment}) {
     fields[field]={text,fieldSha256:typeof text==='string'?sha(text):null,rawText,regions,markers,definitions,separators,
       mapping:map?{status:'mapped',segments:map.segments}:{status:'unmapped',segments:[]}};
   }
-  return {metadataVersion:COMPARISON_METADATA_VERSION,source,pathConvention:native.pathConvention,namespaces:structuredClone(native.namespaces),
+  return {metadataVersion:METADATA_SCHEMA,source,pathConvention:native.pathConvention,namespaces:structuredClone(native.namespaces),
     table:locator(source,native,native.tablePath),heading:native.heading?{text:native.heading.text,native:locator(source,native,native.heading.path)}:null,
     status:gaps.length?'unresolved':'candidate',fields,gaps};
 }
@@ -251,5 +251,5 @@ export function xhtmlNoteMetadata({observation,native}) {
   });
   const markers=(native.verticalText||[]).map(mark=>({kind:'unresolved-vertical-text',rawText:mark.text,presentation:mark.presentation,
     native:locator(source,native,mark.path,null,range(0,mark.text.length)),binding:'unresolved'}));
-  return {metadataVersion:COMPARISON_METADATA_VERSION,source,pathConvention:native.pathConvention,namespaces:structuredClone(native.namespaces),references,markers};
+  return {metadataVersion:METADATA_SCHEMA,source,pathConvention:native.pathConvention,namespaces:structuredClone(native.namespaces),references,markers};
 }
