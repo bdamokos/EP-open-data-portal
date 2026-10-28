@@ -29,7 +29,7 @@ test('question text search keeps country and dates while visual topic filters re
   await act(async()=>root.render(createElement(QuestionTopics,{language:'en',onBack(){}})));
   assert.equal(container.querySelectorAll('input[type="search"]').length,0,'text fields are collapsed initially');
   assert(container.querySelector('.insight-question-dimensions'));
-  const toggle=container.querySelector('button[aria-label="Search question and answer text"]');assert(toggle,'question text search icon');
+  const toggle=container.querySelector('button[aria-label="Search text · question and answer text"]');assert(toggle,'question text search icon');
   await act(async()=>toggle.click());
   assert.equal(container.querySelector('.insight-question-dimensions'),null);
   assert.equal(container.querySelector('.insight-topic-picker'),null);

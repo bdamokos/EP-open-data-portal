@@ -74,7 +74,7 @@
 .explorer-amendment-card>header~* {margin-left:calc(2rem + 14px);}
 .explorer-amendment-card .explorer-amendment-authors {margin-top:7px;margin-bottom:12px;}
 .explorer-amendment-authors p {display:inline;margin:0 0 0 8px;}
-.explorer-amendment-outcome {border:0;padding:0;font-size:15px;font-weight:600;}
+.explorer-amendment-outcome {border:0;padding:0;border-radius:0;font-size:14px;font-weight:500;line-height:1.5;}
 .explorer-amendment-decision {padding:8px 0;border:0;}
 .explorer-amendment-decision-heading {margin-bottom:10px;justify-content:space-between;}
 .explorer-amendment-totals {gap:6px 18px;margin:7px 0;}

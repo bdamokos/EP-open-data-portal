@@ -21,20 +21,9 @@
   align-items:center;
   justify-content:center;
   gap:6px;
-  min-height:44px;
-  padding:10px 12px;
-  border:0;
-  border-radius:var(--radius-sm) var(--radius-sm) 0 0;
-  background:transparent;
-  box-shadow:inset 0 -3px transparent;
-  color:var(--ink-muted);
-  font:inherit;
-  text-align:center;
   white-space:nowrap;
   overflow-wrap:normal;
 }
-.parliament-header nav button:hover:not(:disabled) { color:var(--ink); background:var(--surface-2); }
-.parliament-header nav button[aria-current=page],.parliament-header nav button[aria-current=page]:hover { color:var(--ink); background:transparent; border-color:transparent; box-shadow:inset 0 -3px var(--accent); font-weight:600; }
 .parliament-header nav button:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .parliament-header nav button small { font-size:13px; }
 .parliament-header .explorer-saved-count { margin-left:0; }
@@ -45,7 +34,7 @@
   .parliament-header nav { order:3; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; margin:0; }
   .parliament-header nav button { min-width:0; padding:8px 4px; white-space:normal; }
 }
-.parliament-header .explorer-scheme-toggle { display:inline-flex; align-items:center; justify-content:center; flex:0 0 40px; width:40px; height:40px; min-height:40px; padding:9px; border:1px solid transparent; border-radius:var(--radius-sm); background:transparent; color:inherit; }
+.parliament-header .explorer-scheme-toggle { display:inline-flex; align-items:center; justify-content:center; flex:0 0 var(--control-height); width:var(--control-height); height:var(--control-height); min-height:var(--control-height); padding:9px; border:1px solid transparent; border-radius:var(--radius-sm); background:transparent; color:inherit; }
 .parliament-header .explorer-scheme-toggle:hover { background:var(--surface-2); border-color:var(--line); }
 .parliament-header .explorer-scheme-toggle:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .explorer-scheme-toggle svg { width:21px; height:21px; flex:none; }

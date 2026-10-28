@@ -1,6 +1,7 @@
 .availability-note {display:flex;align-items:baseline;flex-wrap:wrap;gap:0 14px;color:var(--ink-muted);font-size:13px;margin:10px 0 16px;}
 .availability-note p {margin:0;}
 .availability-note details {min-width:0;}
+.explorer-insights .availability-note details {margin:0;font-size:inherit;}
 .availability-note summary {cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:10px 0;min-height:44px;}
 .availability-note details[open] {flex-basis:100%;}
 .availability-note details>p {margin:4px 0 10px;}

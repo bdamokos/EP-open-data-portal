@@ -133,7 +133,7 @@ test('Back restoration, text-search activation and remount do not inherit an old
     if(action==='history'){
       await h.navigate('?view=questions');retained=h.container.querySelector('[data-question-country]');retained.focus();
     }else if(action==='text-search'){
-      await act(async()=>{const toggle=h.container.querySelector('button[aria-label="Search question and answer text"]');toggle.focus();toggle.click();});
+      await act(async()=>{const toggle=h.container.querySelector('button[aria-label="Search text · question and answer text"]');toggle.focus();toggle.click();});
       await h.flushFrames();retained=h.container.querySelector('input[type="search"]');assert(retained);retained.focus();
     }else{
       await h.render(null);retained=document.createElement('button');retained.textContent='Retained navigation';document.body.append(retained);retained.focus();await h.render(h.component());
