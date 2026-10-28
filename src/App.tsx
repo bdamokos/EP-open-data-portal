@@ -421,6 +421,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
   const [speechSearchActive,setSpeechSearchActive]=useState(false);
+  const [speechSearchReset,setSpeechSearchReset]=useState(0);
   const [statisticsStatus,setStatisticsStatus]=useState<'loading'|'ready'|'unavailable'>('loading');
   const speechSearchInput=useRef<HTMLInputElement>(null);
   const [,setSpeechSearch]=useExplorerParam<string>('mep-speech-fts-search','');
@@ -464,9 +465,9 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   return <section lang={lang}>
     <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2></div>
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} onStatus={setStatisticsStatus} filter={{selected:category,href:filterHref,select:selectCategory}}/>
-    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
+    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};setSpeechSearchReset(value=>value+1);setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
     {filtered&&<div className="explorer-section-title" lang="en"><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}>Clear category</button>}</div>}
-    <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={category&&statisticsStatus!=='ready'?(statisticsStatus==='loading'?'Loading category…':'Category unavailable.'):undefined} onActiveChange={setSpeechSearchActive} summary={<>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</>}/>
+    <TextSearch key={'search:'+id+':'+speechSearchReset} inline inputRef={speechSearchInput} prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={category&&statisticsStatus!=='ready'?(statisticsStatus==='loading'?'Loading category…':'Category unavailable.'):undefined} onActiveChange={setSpeechSearchActive} summary={<>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</>}/>
     {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading speeches…</p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
