@@ -32,13 +32,14 @@ function connectedFocusTarget(element:HTMLElement|null|undefined) {
   for(let parent=element.parentElement;parent;parent=parent.parentElement)if(parent.matches('details:not([open])')&&!parent.querySelector(':scope > summary')?.contains(element))return false;
   return true;
 }
-function returnToReference(trigger:HTMLElement|undefined,scope:HTMLElement|null) {
+function returnToReference(trigger:HTMLElement|undefined,scope:HTMLElement|null,reveal=false) {
   const heading=scope?.closest('section,article')?.querySelector<HTMLElement>('h1,h2,h3,h4,h5,h6');
   const target=[trigger,heading,scope].find(connectedFocusTarget);
   if(!target)return;
   const temporary=!target.hasAttribute('tabindex')&&!target.matches('button,a[href],input,select,textarea,summary');
   if(temporary){target.tabIndex=-1;target.addEventListener('blur',()=>target.removeAttribute('tabindex'),{once:true});}
   target.focus({preventScroll:true});
+  if(reveal)target.scrollIntoView({block:'nearest'});
 }
 
 export function useReferenceLookup(texts:string[],language:string) {
@@ -86,7 +87,11 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
   },[open]);
   const reference=open?references.get(open.key):undefined;
   useEffect(()=>{if(!open){focusedCard.current=null;return;}if(open.pinned&&card.current&&focusedCard.current!==open){focusedCard.current=open;card.current.focus({preventScroll:true});card.current.scrollIntoView({block:'nearest'});}},[open,position,reference]);
-  useLayoutEffect(()=>{if(question)questionReader.current?.focus({preventScroll:true});},[question]);
+  useLayoutEffect(()=>{
+    if(!question||!questionReader.current)return;
+    questionReader.current.focus({preventScroll:true});
+    questionReader.current.scrollIntoView({block:'start'});
+  },[question]);
   const scope=useMemo(()=>({references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId}),[references,noteKeys,notePrefix,textLanguage,open,show,hoverEnd,cardId]);
   return <ReferenceScopeContext.Provider value={scope}><div className="legal-reference-scope" ref={wrapper} role="group" aria-label="Document text and references" tabIndex={-1}>
     {children}
@@ -96,7 +101,7 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
       <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} footnote={open.footnote} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
       <button type="button" lang="en" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
     </div>}
-    {question&&renderQuestion&&<div lang="en" className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
+    {question&&renderQuestion&&<div lang="en" className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current,true);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
   </div></ReferenceScopeContext.Provider>;
 }
 
