@@ -1,0 +1,663 @@
+[
+  {
+    "id": "TA-10-2024-0001",
+    "language": "en",
+    "attribution": "European Union - European Parliament",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/doc/TA-10-2024-0001_en.xml",
+      "resolvedUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2024-0001_en.xml",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:52:28 GMT",
+        "Content-Type": "application/xml",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "Server": "nginx",
+        "Last-Modified": "2024-10-28T16:23:07Z",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "0",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:52:28.787077+00:00",
+      "bytes": 4310,
+      "sha256": "82215489da1765573d498db9decca9c54daabfd3991d2596117b2fd2418971ce",
+      "accept": "*/*"
+    },
+    "metadataSource": {
+      "url": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2024-0001?format=application%2Fld%2Bjson",
+      "resolvedUrl": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2024-0001?format=application%2Fld%2Bjson",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:51:04 GMT",
+        "Content-Type": "application/ld+json",
+        "Content-Length": "29226",
+        "Connection": "close",
+        "Server": "nginx",
+        "X-Total-Count": "1000",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1 ; mode=block",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:51:04.562461+00:00",
+      "bytes": 29226,
+      "sha256": "0404d4f413b38480e62d1a7160f82e2544d462953e79d3ddd55976eb637c8a71",
+      "accept": "application/ld+json"
+    },
+    "coverage": {
+      "complete": true,
+      "selection": [
+        "complete bounded XML observation"
+      ]
+    },
+    "work": {
+      "id": "eli/dl/doc/TA-10-2024-0001",
+      "identifier": "TA-10-2024-0001",
+      "work_type": "def/ep-document-types/TEXT_ADOPTED",
+      "notation_publicRegister": "P10_TA(2024)0001",
+      "is_realized_by": [
+        {
+          "id": "eli/dl/doc/TA-10-2024-0001/en",
+          "type": "Expression",
+          "is_embodied_by": [
+            {
+              "id": "eli/dl/doc/TA-10-2024-0001/en/docx",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2024-0001_en.docx",
+              "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+              "issued": "2025-10-29T12:31:34+01:00",
+              "byteSize": "44218"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2024-0001/en/xml",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2024-0001_en.xml",
+              "media_type": "https://www.iana.org/assignments/media-types/application/xml",
+              "format": "http://publications.europa.eu/resource/authority/file-type/XML",
+              "issued": "2024-09-26T16:40:20+02:00",
+              "byteSize": "4310"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2024-0001/en/pdf",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2024-0001_en.pdf",
+              "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+              "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+              "issued": "2025-10-29T12:32:07+01:00",
+              "byteSize": "84240"
+            }
+          ],
+          "language": "http://publications.europa.eu/resource/authority/language/ENG",
+          "title": {
+            "en": "Numerical strength of standing committees"
+          },
+          "title_alternative": {
+            "en": "European Parliament decision of 17 July 2024 on the numerical strength of the standing committees (2024/2716(RSO))"
+          }
+        }
+      ]
+    },
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><SDOCTA xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" STATUS=\"DEF1\" xsi:noNamespaceSchemaLocation=\"TA.xsd\"><IDENT><STRING BOLD=\"on\">P10_TA(2024)0001</STRING></IDENT><TI><STRING BOLD=\"on\">Numerical strength of standing committees</STRING></TI><HIDDEN><STRING HIDDEN=\"on\" ITALIC=\"on\">(B10-0004/2024)</STRING></HIDDEN><TXTLST><DECISION><TI><STRING BOLD=\"on\">European Parliament decision of 17 July 2024 on the numerical strength of the standing committees (2024/2716(RSO))</STRING></TI><TEXT><PREAMBLE><PRINIT><STRING ITALIC=\"on\">The European Parliament,</STRING></PRINIT><GRVISA><VISA><P><NO.P>–</NO.P>having regard to the proposal from the Conference of Presidents,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to its decision of 15 January 2014 on the powers and responsibilities of the standing committees<FOOTNOTE><FIELD> OJ C 482, 23.12.2016, p. 160.</FIELD></FOOTNOTE>,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to its decision of 18 June 2020 on setting up a subcommittee on tax matters<FOOTNOTE><FIELD> OJ C 362, 8.9.2021, p. 181.</FIELD></FOOTNOTE>,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to its decision of 14 February 2023 on setting up a subcommittee on public health<FOOTNOTE><FIELD> OJ C 283, 11.8.2023, p. 64.</FIELD></FOOTNOTE>,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to Rules 212, 218 and 219 of its Rules of Procedure,</P></VISA></GRVISA></PREAMBLE><DISPOSITIF> <ACTLST><ACTION><P><NO.P>1.</NO.P>Decides that the numerical strength of the standing committees and subcommittees shall be as follows:</P></ACTION><ACTION><P><NO.P>I.</NO.P>Committee on Foreign Affairs: 79 members,</P></ACTION><ACTION><P><NO.P>II.</NO.P>Committee on Development: 25 members,</P></ACTION><ACTION><P><NO.P>III.</NO.P>Committee on International Trade: 43 members,</P></ACTION><ACTION><P><NO.P>IV.</NO.P>Committee on Budgets: 40 members,</P></ACTION><ACTION><P><NO.P>V.</NO.P>Committee on Budgetary Control: 30 members,</P></ACTION><ACTION><P><NO.P>VI.</NO.P>Committee on Economic and Monetary Affairs: 60 members,</P></ACTION><ACTION><P><NO.P>VII.</NO.P>Committee on Employment and Social Affairs: 60 members,</P></ACTION><ACTION><P><NO.P>VIII.</NO.P>Committee on the Environment, Public Health and Food Safety: 90 members,</P></ACTION><ACTION><P><NO.P>IX.</NO.P>Committee on Industry, Research and Energy: 90 members,</P></ACTION><ACTION><P><NO.P>X.</NO.P>Committee on the Internal Market and Consumer Protection: 52 members,</P></ACTION><ACTION><P><NO.P>XI.</NO.P>Committee on Transport and Tourism: 46 members,</P></ACTION><ACTION><P><NO.P>XII.</NO.P>Committee on Regional Development: 41 members,</P></ACTION><ACTION><P><NO.P>XIII.</NO.P>Committee on Agriculture and Rural Development: 49 members,</P></ACTION><ACTION><P><NO.P>XIV.</NO.P>Committee on Fisheries: 27 members,</P></ACTION><ACTION><P><NO.P>XV.</NO.P>Committee on Culture and Education: 30 members,</P></ACTION><ACTION><P><NO.P>XVI.</NO.P>Committee on Legal Affairs: 25 members,</P></ACTION><ACTION><P><NO.P>XVII.</NO.P>Committee on Civil Liberties, Justice and Home Affairs: 75 members,</P></ACTION><ACTION><P><NO.P>XVIII.</NO.P>Committee on Constitutional Affairs: 30 members,</P></ACTION><ACTION><P><NO.P>XIX.</NO.P>Committee on Women’s Rights and Gender Equality: 40 members,</P></ACTION><ACTION><P><NO.P>XX.</NO.P>Committee on Petitions: 35 members,</P></ACTION><ACTION><P>Subcommittee on Security and Defence: 30 members,</P></ACTION><ACTION><P>Subcommittee on Human Rights: 30 members,</P></ACTION><ACTION><P>Subcommittee on Tax matters: 30 members,</P></ACTION><ACTION><P>Subcommittee on Public Health: 30 members;</P></ACTION><ACTION><P><NO.P>2.</NO.P>Decides, with reference to the decisions of the Conference of Presidents of 30 June 2019 and 9 January 2020 relating to the composition of committee and subcommittee bureaux, that the committee and subcommittee bureaux may consist of up to four vice-chairs;</P></ACTION><ACTION><P><NO.P>3.</NO.P>Decides that this decision will enter into force on the day of its adoption;</P></ACTION><ACTION><P><NO.P>4.</NO.P>Instructs its President to forward this decision to the Council and the Commission, for information.</P></ACTION></ACTLST></DISPOSITIF></TEXT></DECISION></TXTLST></SDOCTA>",
+    "excerptHash": "82215489da1765573d498db9decca9c54daabfd3991d2596117b2fd2418971ce"
+  },
+  {
+    "id": "TA-10-2025-0247",
+    "language": "en",
+    "attribution": "European Union - European Parliament",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/doc/TA-10-2025-0247_en.xml",
+      "resolvedUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2025-0247_en.xml",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:49:18 GMT",
+        "Content-Type": "application/xml",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "Server": "nginx",
+        "Last-Modified": "2026-01-26T17:22:18Z",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "0",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:49:18.336918+00:00",
+      "bytes": 29939,
+      "sha256": "d4937da0f498d077eda5c59408b5d0365ed6aea48e092f7dc147edadf7a2d622",
+      "accept": "*/*"
+    },
+    "metadataSource": {
+      "url": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2025-0247?format=application%2Fld%2Bjson",
+      "resolvedUrl": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2025-0247?format=application%2Fld%2Bjson",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:47:41 GMT",
+        "Content-Type": "application/ld+json",
+        "Content-Length": "39075",
+        "Connection": "close",
+        "Server": "nginx",
+        "X-Total-Count": "1000",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1 ; mode=block",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:47:41.536302+00:00",
+      "bytes": 39075,
+      "sha256": "675108b3a9c55675238379dd7e4d9e3d4ddf4f9289fe4b8281723c09fcb80f9e",
+      "accept": "application/ld+json"
+    },
+    "coverage": {
+      "complete": false,
+      "selection": [
+        "two-note visas",
+        "first recital",
+        "all section headings and separators",
+        "first/last action per section"
+      ]
+    },
+    "work": {
+      "id": "eli/dl/doc/TA-10-2025-0247",
+      "identifier": "TA-10-2025-0247",
+      "work_type": "def/ep-document-types/TEXT_ADOPTED",
+      "notation_publicRegister": "P10_TA(2025)0247",
+      "is_realized_by": [
+        {
+          "id": "eli/dl/doc/TA-10-2025-0247/en",
+          "type": "Expression",
+          "is_embodied_by": [
+            {
+              "id": "eli/dl/doc/TA-10-2025-0247/en/docx",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2025-0247_en.docx",
+              "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+              "issued": "2025-12-08T11:32:46+01:00",
+              "byteSize": "59592"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2025-0247/en/xml",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2025-0247_en.xml",
+              "media_type": "https://www.iana.org/assignments/media-types/application/xml",
+              "format": "http://publications.europa.eu/resource/authority/file-type/XML",
+              "issued": "2026-01-26T18:21:59+01:00",
+              "byteSize": "29939"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2025-0247/en/pdf",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2025-0247_en.pdf",
+              "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+              "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+              "issued": "2025-12-08T11:32:48+01:00",
+              "byteSize": "119190"
+            }
+          ],
+          "language": "http://publications.europa.eu/resource/authority/language/ENG",
+          "title": {
+            "en": "Institutional consequences of the EU enlargement negotiations"
+          },
+          "title_alternative": {
+            "en": "European Parliament resolution of 22 October 2025 on the institutional consequences of the EU enlargement negotiations (2025/2041(INI))"
+          }
+        }
+      ]
+    },
+    "xml": "<SDOCTA xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" STATUS=\"DEF2\" xsi:noNamespaceSchemaLocation=\"TA.xsd\"><IDENT><STRING BOLD=\"on\">P10_TA(2025)0247</STRING></IDENT><TI><STRING BOLD=\"on\">Institutional consequences of the EU enlargement negotiations</STRING></TI><HIDDEN><STRING HIDDEN=\"on\" ITALIC=\"on\">(A10-0177/2025 - Rapporteur: Sandro Gozi)</STRING></HIDDEN><TXTLST><RESOL><TI><STRING BOLD=\"on\">European Parliament resolution of 22 October 2025 on the institutional consequences of the EU enlargement negotiations (2025/2041(INI))</STRING></TI><TEXT><PREAMBLE><PRINIT><STRING ITALIC=\"on\">The European Parliament,</STRING></PRINIT><GRVISA><VISA><P><NO.P>–</NO.P>having regard to its resolutions of 16 February 2017 on improving the functioning of the European Union building on the potential of the Lisbon Treaty<FOOTNOTE><FIELD> OJ C 252, 18.7.2018, p. 215.</FIELD></FOOTNOTE>, and of 11 July 2023 on the implementation of the <STRING ITALIC=\"on\">passerelle clauses</STRING> in the EU Treaties<FOOTNOTE><FIELD> OJ C, C/2024/3996, 17.7.2024, ELI: http://data.europa.eu/eli/C/2024/3996/oj.</FIELD></FOOTNOTE>,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to its resolutions of 9 June 2022 on the call for a Convention for the revision of the Treaties<FOOTNOTE><FIELD> OJ C 493, 27.12.2022, p. 130.</FIELD></FOOTNOTE>, and of 22 November 2023 on proposals of the European Parliament for the amendment of the Treaties<FOOTNOTE><FIELD> OJ C, C/2024/4216, 24.7.2024, ELI: http://data.europa.eu/eli/C/2024/4216/oj.</FIELD></FOOTNOTE>, including through the activation of Article 48 TEU asking the European Council to agree to call a Convention to reform the Treaties,</P></VISA></GRVISA><GRCONS><CONS><P><NO.P>A.</NO.P>whereas 9 of the 10 countries currently aspiring to join the EU have candidate status, some of which have held this status for many years; whereas the candidate countries are at various stages of the accession process and negotiations; whereas Georgia unilaterally suspended EU accession negotiations on 28 November 2024;</P></CONS></GRCONS></PREAMBLE><DISPOSITIF><ACTLST><ACTINIT><STRING BOLD=\"on\"><STRING ITALIC=\"on\">The cost of not reforming the enlarged EU</STRING></STRING></ACTINIT><ACTION><P><NO.P>1.</NO.P>Argues that the EU and candidate countries have always used enlargement as a policy and geopolitical tool to promote democracy, stability, security and prosperity across the continent; is of the view that EU enlargement represents a long-term geostrategic investment;</P></ACTION><ACTION><P><NO.P>6.</NO.P>Recognises that ad hoc solutions could serve as temporary fixes, but they lack the predictability, democratic transparency and accountability, and long-term sustainability that only structural reforms can bring about;</P></ACTION></ACTLST><ACTLST><ACTINIT><STRING BOLD=\"on\"><STRING ITALIC=\"on\">Objectives of the institutional pre-enlargement reforms: efficiency, power and democracy</STRING></STRING></ACTINIT><ACTION><P><NO.P>7.</NO.P>Firmly believes that the EU institutional reforms, regardless of the decision-making procedure for their adoption, should increase the EU’s ability to act in an efficient and timely manner; points out that the pre-enlargement reforms of the EU institutional framework should meet the objectives of improving the EU’s efficiency, making the EU more powerful on the global stage and making the EU more democratic, legitimate and accountable;</P></ACTION></ACTLST><ACTLST><ACTINIT><STRING ITALIC=\"on\">The efficiency challenge</STRING></ACTINIT><ACTION><P><NO.P>8.</NO.P>Underlines that, in order to improve the enlarged EU’s efficiency, the composition of the EU institutions should be adapted, made more efficient and their functioning enhanced; suggests that the enlargement process should be supported by the early and close involvement of candidate countries in the functioning of the EU institutions, e.g. through observer status; notes that this could be successfully achieved in a similar manner as at the time of the 2004 enlargement; notes, as a positive example of such gradual integration, the Commission’s efforts to involve candidate countries in the areas of security and defence, in particular through their being referred to in the white paper on the future of EU defence and in the internal security strategy;</P></ACTION><ACTION><P><NO.P>12.</NO.P>Proposes strengthening and reforming the procedure in Article 7 TEU by ending unanimity in European Council decisions, by introducing a clear time frame and by making the Court of Justice of the European Union the arbiter of violations;</P></ACTION></ACTLST><ACTLST><ACTINIT><STRING ITALIC=\"on\">The power and resources challenge</STRING></ACTINIT><ACTION><P><NO.P>13.</NO.P>Reiterates its call to revise the governance of the MFF, namely by attributing full co-legislative powers over the expenditure side of the EU budget, including the adoption of the MFF;</P></ACTION><ACTION><P><NO.P>17.</NO.P>Stresses that the post 2027 MFF and a more effective budget, including the new own resources package, should enable the EU to move decisively towards enlarging while safeguarding current policies, programmes and priorities;</P></ACTION></ACTLST><ACTLST><ACTINIT><STRING ITALIC=\"on\">The democracy challenge</STRING></ACTINIT><ACTION><P><NO.P>18.</NO.P>Stresses the importance of bolstering the democratic legitimacy of EU policies by reinforcing the decision-making and scrutiny rights, including a strong right of inquiry, of the European Parliament, which is the only directly elected institution representing EU citizens;</P></ACTION><ACTION><P><NO.P>23.</NO.P>Considers it essential to improve the transparency and democratic accountability of Parliament, by strengthening the European dimension of the elections and by laying down uniform electoral rules across the EU; calls on the remaining Member State to ratify Council Decision 2018/994<FOOTNOTE><FIELD> Council Decision (EU, Euratom) 2018/994 of 13 July 2018 amending the Act concerning the election of the members of the European Parliament by direct universal suffrage, annexed to Council Decision 76/787/ECSC, EEC, Euratom of 20 September 1976 (OJ L 178, 16.7.2018, p. 1, ELI: http://data.europa.eu/eli/dec/2018/994/oj).</FIELD></FOOTNOTE>; calls on the Council to work on the suggestions put forward in Parliament’s position of 3 May 2022<FOOTNOTE><FIELD> European Parliament legislative resolution of 3 May 2022 on the proposal for a Council Regulation on the election of the members of the European Parliament by direct universal suffrage, repealing Council Decision (76/787/ECSC, EEC, Euratom) and the Act concerning the election of the members of the European Parliament by direct universal suffrage annexed to that Decision (OJ C 465, 6.12.2022, p. 171).</FIELD></FOOTNOTE>; reiterates its call for Parliament and the Council to make progress in discussions on the introduction of a permanent mechanism for the allocation of seats of the European Parliament;</P></ACTION></ACTLST><ACTLST><ACTINIT><STRING BOLD=\"on\"><STRING ITALIC=\"on\">Means of implementing institutional pre-enlargement reforms</STRING></STRING></ACTINIT><ACTION><P><NO.P>24.</NO.P>Considers that the above objectives of the institutional pre-enlargement reforms can be implemented by various means, including by activating the flexibilities offered by the current Treaties through one or more targeted Treaty amendments;</P></ACTION><SEPARATION><P>°</P><P>°         °</P></SEPARATION><ACTION><P><NO.P>31.</NO.P>Instructs its President to forward this resolution to the Council and the Commission.</P></ACTION></ACTLST></DISPOSITIF></TEXT></RESOL></TXTLST></SDOCTA>",
+    "excerptHash": "5f28aeeabc531f54992edfd04e835b336c4efb401f736c99156b9f1775328cfe"
+  },
+  {
+    "id": "TA-10-2026-0241",
+    "language": "en",
+    "attribution": "European Union - European Parliament",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0241_en.xml",
+      "resolvedUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0241_en.xml",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:52:17 GMT",
+        "Content-Type": "application/xml",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "Server": "nginx",
+        "Last-Modified": "2026-07-09T07:25:37Z",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "0",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:52:17.925352+00:00",
+      "bytes": 11395,
+      "sha256": "3f3ad36eea5c470d39463ddc72b701f27e263fc37a9c040bb0c32e1b91c6eaa9",
+      "accept": "*/*"
+    },
+    "metadataSource": {
+      "url": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0241?format=application%2Fld%2Bjson",
+      "resolvedUrl": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0241?format=application%2Fld%2Bjson",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:50:46 GMT",
+        "Content-Type": "application/ld+json",
+        "Content-Length": "51740",
+        "Connection": "close",
+        "Server": "nginx",
+        "X-Total-Count": "1000",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1 ; mode=block",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:50:46.794698+00:00",
+      "bytes": 51740,
+      "sha256": "1587df4ef79ef92d4ba8d1565e520671d6886693a63b56301125d28e1d4ba3bb",
+      "accept": "application/ld+json"
+    },
+    "coverage": {
+      "complete": true,
+      "selection": [
+        "complete bounded XML observation"
+      ]
+    },
+    "work": {
+      "id": "eli/dl/doc/TA-10-2026-0241",
+      "identifier": "TA-10-2026-0241",
+      "work_type": "def/ep-document-types/TEXT_ADOPTED",
+      "notation_publicRegister": "P10_TA(2026)0241",
+      "is_realized_by": [
+        {
+          "id": "eli/dl/doc/TA-10-2026-0241/en",
+          "type": "Expression",
+          "is_embodied_by": [
+            {
+              "id": "eli/dl/doc/TA-10-2026-0241/en/xml",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0241_en.xml",
+              "media_type": "https://www.iana.org/assignments/media-types/application/xml",
+              "format": "http://publications.europa.eu/resource/authority/file-type/XML",
+              "issued": "2026-07-09T09:23:34+02:00",
+              "byteSize": "11395"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0241/en/pdf",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0241_en.pdf",
+              "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+              "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+              "issued": "2026-07-07T15:13:27+02:00",
+              "byteSize": "105993"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0241/en/docx",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0241_en.docx",
+              "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+              "issued": "2026-07-07T15:00:41+02:00",
+              "byteSize": "53616"
+            }
+          ],
+          "language": "http://publications.europa.eu/resource/authority/language/ENG",
+          "title": {
+            "en": "International road passenger transport services by coach and bus in the border regions: cabotage operations between Austria and Switzerland"
+          },
+          "title_alternative": {
+            "en": "European Parliament legislative resolution of 7 July 2026 on the proposal for a decision of the European Parliament and of the Council empowering Austria to amend its existing bilateral road transport agreement with Switzerland with a view to authorising cabotage operations in the course of the provision of international road passenger transport services by coach and bus in the border regions between the two countries (COM(2025)0773 – C10-0367/2025 – 2025/0407(COD))"
+          }
+        }
+      ]
+    },
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><SDOCTA xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"TA.xsd\"><IDENT><STRING BOLD=\"on\">P10_TA(2026)0241</STRING></IDENT><TI><STRING BOLD=\"on\">International road passenger transport services by coach and bus in the border regions: cabotage operations between Austria and Switzerland</STRING></TI><HIDDEN><STRING HIDDEN=\"on\" ITALIC=\"on\">(A10-0174/2026 - Rapporteur: Elissavet Vozemberg-Vrionidi)</STRING></HIDDEN><TXTLST><RESOL><TI><STRING BOLD=\"on\">European Parliament legislative resolution of 7 July 2026 on the proposal for a decision of the European Parliament and of the Council empowering Austria to amend its existing bilateral road transport agreement with Switzerland with a view to authorising cabotage operations in the course of the provision of international road passenger transport services by coach and bus in the border regions between the two countries (COM(2025)0773 – C10-0367/2025 – 2025/0407(COD))</STRING></TI><NOTE>(Ordinary legislative procedure: first reading)</NOTE><TEXT><PREAMBLE><PRINIT><STRING ITALIC=\"on\">The European Parliament,</STRING></PRINIT><GRVISA><VISA><P><NO.P>–</NO.P>having regard to the Commission proposal to Parliament and the Council (COM(2025)0773),</P></VISA><VISA><P><NO.P>–</NO.P>having regard to Article 294(2) and Articles 2(1) and 91 of the Treaty on the Functioning of the European Union, pursuant to which the Commission submitted the proposal to Parliament (C10‑0367/2025),</P></VISA><VISA><P><NO.P>–</NO.P>having regard to Article 294(3) of the Treaty on the Functioning of the European Union,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the undertaking given by the Council representative by letter of 10 June 2026 to approve Parliament’s position, in accordance with Article 294(4) of the Treaty on the Functioning of the European Union,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the opinion of the Committee on Legal Affairs on the proposed legal basis,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the opinion of the European Economic and Social Committee of 21 January 2026<FOOTNOTE><FIELD> OJ C, C/2026/1970, 28.4.2026, ELI: http://data.europa.eu/eli/C/2026/1970/oj.</FIELD></FOOTNOTE>,</P></VISA><VISA><P><NO.P>–</NO.P>after having consulted the Committee of the Regions,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to Rules 60 and 41 of its Rules of Procedure,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the report of the Committee on Transport and Tourism (A10-0174/2026),</P></VISA></GRVISA></PREAMBLE><DISPOSITIF><ACTLST><ACTION><P><NO.P>1.</NO.P>Adopts its position at first reading hereinafter set out;</P></ACTION><ACTION><P><NO.P>2.</NO.P>Instructs its President to forward its position to the Council, the Commission and the national parliaments.</P></ACTION></ACTLST></DISPOSITIF></TEXT></RESOL></TXTLST><TXTLST><IDENT><STRING BOLD=\"on\">P10_TC1-COD(2025)0407</STRING></IDENT><TCONSOLID><TI><STRING BOLD=\"on\">Position of the European Parliament adopted at first reading on 7 July 2026 with a view to the adoption of Decision (EU) 2026/… of the European Parliament and of the Council empowering Austria to amend its bilateral road transport agreement with Switzerland with a view to authorising cabotage operations in the course of the provision of international passenger transport services by coach and bus in the border regions between the two countries</STRING><BRK/></TI><TEXT><PREAMBLE><PRINIT>THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,</PRINIT><GRVISA><VISA><P>Having regard to the Treaty on the Functioning of the European Union, and in particular <STRING BOLD=\"on\"><STRING ITALIC=\"on\">Article</STRING></STRING> 91 thereof,</P></VISA><VISA><P>Having regard to the proposal from the European Commission,</P></VISA><VISA><P>After transmission of the draft legislative act to the national parliaments,</P></VISA><VISA><P>Having regard to the opinion of the European Economic and Social Committee<FOOTNOTE><FIELD>OJ C, C/2026/1970, 28.4.2026, ELI: http://data.europa.eu/eli/C/2026/1970/oj.</FIELD></FOOTNOTE>,</P></VISA><VISA><P>After consulting the Committee of the Regions,</P></VISA><VISA><P>Acting in accordance with the ordinary legislative procedure<FOOTNOTE><FIELD>Position of the European Parliament of 7 July 2026.</FIELD></FOOTNOTE>,</P></VISA></GRVISA><GRCONS><GRCINIT>Whereas:</GRCINIT><CONS><P><NO.P>(1)</NO.P>In accordance with Article 20(1) of the Agreement between the European Community and the Swiss Confederation on the Carriage of Goods and Passengers by Rail and by Road<FOOTNOTE><FIELD>OJ L 114, 30.4.2002, p. 91, ELI: http://data.europa.eu/eli/agree_internation/2002/309(3)/oj.</FIELD></FOOTNOTE> (the <STRING BOLD=\"on\"><STRING ITALIC=\"on\">‘</STRING></STRING>EU-Swiss Agreement’), the transport of passengers by coach and bus between two points situated on the territory of the same Contracting Party to the EU-Swiss Agreement by carriers established in the territory of the other Contracting Party, known as cabotage, is not authorised.</P></CONS><CONS><P><NO.P>(2)</NO.P>In accordance with Article 20(2) of the EU-Swiss Agreement, existing cabotage rights set out in bilateral agreements concluded between Member States and Switzerland which were in force when the EU-Swiss Agreement was concluded on 21 June 1999, can continue to be exercised, provided that there is no discrimination between carriers established in the Union and no distortion of competition. The bilateral road transport agreement between Austria and Switzerland of 22 October 1958<FOOTNOTE><FIELD>BGBl. (Austria) No. 123/1959.</FIELD></FOOTNOTE> (the ‘Austrian-Swiss Agreement’) does not authorise cabotage operations in the course of the provision of international passenger transport services by coach and bus between the two countries. Therefore, the right to conduct such operations is not among the rights set out in Article 20(2) of the EU-Swiss Agreement.</P></CONS><CONS><P><NO.P>(3)</NO.P>International commitments permitting carriers established in Switzerland to conduct cabotage operations within the Union are liable to affect Article 20 of the EU-Swiss Agreement, since that Article does not authorise such operations.</P></CONS><CONS><P><NO.P>(4)</NO.P>Furthermore, Regulation (EC) No 1073/2009 of the European Parliament and of the Council<FOOTNOTE><FIELD>Regulation (EC) No 1073/2009 of the European Parliament and of the Council of 21 October 2009 on common rules for access to the international market for coach and bus services, and amending Regulation (EC) No 561/2006 (OJ L 300, 14.11.2009, p. 88, ELI: http://data.europa.eu/eli/reg/2009/1073/oj).</FIELD></FOOTNOTE> permits cabotage operations within the Union to be conducted, under certain conditions, exclusively by carriers holding a Community licence. International commitments permitting third-country carriers, that do not hold such a licence, to conduct operations of that kind are liable to affect that Regulation.</P></CONS><CONS><P><NO.P>(5)</NO.P>Consequently, such international commitments fall within the Union’s exclusive external competence. Member States are able to negotiate, or enter into, such commitments only if empowered to do so by the Union in accordance with Article 2(1) of the Treaty on the Functioning of the European Union (TFEU).</P></CONS><CONS><P><NO.P>(6)</NO.P>Cabotage operations carried out within the Union by third-country carriers not holding a Community licence as provided for in Regulation (EC) No 1073/2009 affect the functioning of the internal market for coach and bus services, as established by that Regulation. It is therefore necessary that an empowerment pursuant to Article 2(1) TFEU be granted by the Union legislator, in accordance with the legislative procedure referred to in Article 91 TFEU.</P></CONS><CONS><P><NO.P>(7)</NO.P>By letter of 17 March 2025, Austria requested an empowerment from the Union to amend the Austrian-Swiss Agreement with a view to authorising cabotage operations in the course of the provision of international passenger transport services by coach and bus in the border regions of Austria and Switzerland<STRING BOLD=\"on\"><STRING ITALIC=\"on\">, thereby fostering greater territorial cohesion</STRING></STRING>.</P></CONS><CONS><P><NO.P>(8)</NO.P>Cabotage operations enable the load factor of the vehicles to be increased, which enhances the economic efficiency of international passenger transport services by coach and bus. It is therefore appropriate to authorise such operations in the course of the provision of international passenger transport services by coach and bus in the border regions of Austria and Switzerland. That could further strengthen the close integration of those border regions.</P></CONS><CONS><P><NO.P>(9)</NO.P>In order to ensure that the cabotage operations concerned do not excessively alter the functioning of the internal market for coach and bus services, as established by Regulation (EC) No 1073/2009, the authorisation of such cabotage operations should be conditional upon there being no discrimination between carriers established within the Union and there being no distortion of competition.</P></CONS><CONS><P><NO.P>(10)</NO.P>For the same reason, cabotage operations should only be authorised in the border regions of Austria in the course of the provision of international passenger transport services by coach and bus between Austria and Switzerland. To this effect, it is necessary to define the border regions of Austria for the purposes of this Decision in a manner that takes due account of the functioning of Regulation (EC) No 1073/2009, while allowing the efficiency of the operations concerned to be increased,</P></CONS></GRCONS></PREAMBLE><DISPOSITIF><DINIT>HAVE ADOPTED THIS DECISION:</DINIT><GR.ART><ARTICLE><TI.ART>Article 1</TI.ART><PARAG>Austria is hereby empowered to amend the bilateral road transport agreement between Austria and Switzerland of 22 October 1958 (the ‘Austrian-Swiss Agreement’) with a view to authorising cabotage operations in the border regions of Austria and Switzerland in the course of the provision of international passenger transport services by coach and bus between the two countries, provided that there is no discrimination between carriers established in the Union and no distortion of competition.</PARAG><PARAG>The administrative districts of Bludenz, Bregenz, Dornbirn and Feldkirch in the region of Vorarlberg and the district of Landeck in the region of Tyrol shall be considered to be border regions of Austria within the meaning of the first paragraph.</PARAG></ARTICLE><ARTICLE><TI.ART>Article 2</TI.ART><PARAG>Austria shall inform the Commission of the amendment of the Austrian-Swiss Agreement pursuant to Article 1 of this Decision and shall notify the Commission of the text of the amended agreement.</PARAG><PARAG>The Commission shall inform the European Parliament and the Council thereof.</PARAG></ARTICLE><ARTICLE><TI.ART>Article 3</TI.ART><PARAG>This Decision is addressed to the Republic of Austria.</PARAG></ARTICLE></GR.ART><SIGNATURE><P>Done at …,</P><P><STRING ITALIC=\"on\">For the European Parliament\tFor the Council</STRING></P><P><STRING ITALIC=\"on\">The President\tThe President</STRING></P></SIGNATURE></DISPOSITIF></TEXT></TCONSOLID></TXTLST></SDOCTA>",
+    "excerptHash": "3f3ad36eea5c470d39463ddc72b701f27e263fc37a9c040bb0c32e1b91c6eaa9"
+  },
+  {
+    "id": "TA-10-2026-0330",
+    "language": "en",
+    "attribution": "European Union - European Parliament",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0330_en.xml",
+      "resolvedUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0330_en.xml",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:52:22 GMT",
+        "Content-Type": "application/xml",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "Server": "nginx",
+        "Last-Modified": "2026-10-09T09:04:07Z",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "0",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:52:22.294662+00:00",
+      "bytes": 55352,
+      "sha256": "a52231630333364a4ebc5be63c44ea58fe44c1973980a591ad72c53e88012129",
+      "accept": "*/*"
+    },
+    "metadataSource": {
+      "url": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0330?format=application%2Fld%2Bjson",
+      "resolvedUrl": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0330?format=application%2Fld%2Bjson",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:50:58 GMT",
+        "Content-Type": "application/ld+json",
+        "Content-Length": "47178",
+        "Connection": "close",
+        "Server": "nginx",
+        "X-Total-Count": "1000",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1 ; mode=block",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:50:58.115362+00:00",
+      "bytes": 47178,
+      "sha256": "62176b4c18e4ab7e8b484580866f9859f0bf060a6c65bfca63e3f337de2b81d3",
+      "accept": "application/ld+json"
+    },
+    "coverage": {
+      "complete": false,
+      "selection": [
+        "resolution in full",
+        "AMEND[11]",
+        "AMEND[17]",
+        "AMEND[18]",
+        "AMEND[31]"
+      ]
+    },
+    "work": {
+      "id": "eli/dl/doc/TA-10-2026-0330",
+      "identifier": "TA-10-2026-0330",
+      "work_type": "def/ep-document-types/TEXT_ADOPTED",
+      "notation_publicRegister": "P10_TA(2026)0330",
+      "is_realized_by": [
+        {
+          "id": "eli/dl/doc/TA-10-2026-0330/en",
+          "type": "Expression",
+          "is_embodied_by": [
+            {
+              "id": "eli/dl/doc/TA-10-2026-0330/en/xml",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0330_en.xml",
+              "media_type": "https://www.iana.org/assignments/media-types/application/xml",
+              "format": "http://publications.europa.eu/resource/authority/file-type/XML",
+              "issued": "2026-10-09T11:03:35+02:00",
+              "byteSize": "55352"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0330/en/pdf",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0330_en.pdf",
+              "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+              "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+              "issued": "2026-10-07T12:32:38+02:00",
+              "byteSize": "149114"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0330/en/docx",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0330_en.docx",
+              "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+              "issued": "2026-10-07T12:32:35+02:00",
+              "byteSize": "62855"
+            }
+          ],
+          "language": "http://publications.europa.eu/resource/authority/language/ENG",
+          "title": {
+            "en": "Consular protection for unrepresented citizens of the Union in third countries"
+          },
+          "title_alternative": {
+            "en": "European Parliament legislative resolution of 7 October 2026 on the draft for a Council directive amending Directive (EU) 2015/637 on the coordination and cooperation measures to facilitate consular protection for unrepresented citizens of the Union in third countries and Directive (EU) 2019/997 establishing an EU Emergency Travel Document (05760/2026 – C10-0027/2026 – 2023/0441(CNS))"
+          }
+        }
+      ]
+    },
+    "xml": "<SDOCTA xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"TA.xsd\"><IDENT><STRING BOLD=\"on\">P10_TA(2026)0330</STRING></IDENT><TI><STRING BOLD=\"on\">Consular protection for unrepresented citizens of the Union in third countries</STRING></TI><HIDDEN><STRING HIDDEN=\"on\" ITALIC=\"on\">(A10-0254/2026 - Rapporteur: Lena Düpont)</STRING></HIDDEN><TXTLST><RESOL><TI><STRING BOLD=\"on\">European Parliament legislative resolution of 7 October 2026 on the draft for a Council directive amending Directive (EU) 2015/637 on the coordination and cooperation measures to facilitate consular protection for unrepresented citizens of the Union in third countries and Directive (EU) 2019/997 establishing an EU Emergency Travel Document (05760/2026 – C10-0027/2026 – 2023/0441(CNS))</STRING></TI><NOTE>(Special legislative procedure – renewed consultation)</NOTE><TEXT><PREAMBLE><PRINIT><STRING ITALIC=\"on\">The European Parliament,</STRING></PRINIT><GRVISA><VISA><P><NO.P>–</NO.P>having regard to the Council draft (05760/2026),</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the Commission proposal to the Council (COM(2023)0930),</P></VISA><VISA><P><NO.P>–</NO.P>having regard to its position of 24 April 2024<FOOTNOTE><FIELD> OJ C, C/2025/3762, 17.9.2025, ELI: http://data.europa.eu/eli/C/2025/3762/oj</FIELD></FOOTNOTE></P></VISA><VISA><P><NO.P>–</NO.P>having regard to Article 23(2) of the Treaty on the Functioning of the European Union, pursuant to which the Council consulted Parliament (C10‑0027/2026),</P></VISA><VISA><P><NO.P>–</NO.P>having regard to Rules 84 and 86 of its Rules of Procedure,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the opinion of the Committee on Foreign Affairs,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to the report of the Committee on Civil Liberties, Justice and Home Affairs (A10-0254/2026),</P></VISA></GRVISA></PREAMBLE><DISPOSITIF><ACTLST><ACTION><P><NO.P>1.</NO.P>Approves the Commission proposal as amended;</P></ACTION><ACTION><P><NO.P>2.</NO.P>Calls on the Commission to alter its proposal accordingly, in accordance with Article 293(2) of the Treaty on the Functioning of the European Union;</P></ACTION><ACTION><P><NO.P>3.</NO.P>Calls on the Council to notify Parliament if it intends to depart from the text approved by Parliament;</P></ACTION><ACTION><P><NO.P>4.</NO.P>Asks the Council to consult Parliament again if it intends to substantially amend the Commission proposal;</P></ACTION><ACTION><P><NO.P>5.</NO.P>Instructs its President to forward its position to the Council, the Commission and the national parliaments.</P></ACTION></ACTLST></DISPOSITIF><AMDLST><HD><HEAD.OLD><STRING ITALIC=\"on\">Text proposed by the Council</STRING></HEAD.OLD><HEAD.NEW><STRING ITALIC=\"on\">Amendment</STRING></HEAD.NEW></HD><AMEND><TI.AMD><STRING BOLD=\"on\">Amendment\t\t11</STRING></TI.AMD><STI.AMD><STRING BOLD=\"on\">Proposal for a directive</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Recital 19</STRING></STI.AMD><OLD><P><NO.P>(19)</NO.P>Member States should take <STRING BOLD=\"on\"><STRING ITALIC=\"on\">appropriate</STRING></STRING> measures to further contribute to raising Union citizen’s awareness of their right set out in Article 20(2), point (c), TFEU, also taking into account the specific needs of persons with disabilities. This could include, for example, reproducing the wording of Article 23 TFEU in passports issued by Member States as already recommended by Commission Recommendation C(2007) 5841<STRING SUPERSCRIPT=\"on\">3</STRING> , including relevant information in travel advice and campaigns relating to consular assistance, or encouraging passenger transport service providers and transport hubs offering travel to third countries to add relevant details to the information materials made available to customers.</P></OLD><NEW><P><NO.P>(19)</NO.P>Member States should take <STRING BOLD=\"on\"><STRING ITALIC=\"on\">the</STRING></STRING> measures <STRING BOLD=\"on\"><STRING ITALIC=\"on\">that they deem appropriate</STRING></STRING> to further contribute to raising Union citizen’s awareness of their right set out in Article 20(2), point (c), TFEU, also taking into account the specific needs of persons with disabilities. This could include, for example, reproducing the wording of Article 23 TFEU in passports issued by Member States as already recommended by Commission Recommendation C(2007) 5841<STRING SUPERSCRIPT=\"on\">3</STRING> , including relevant information in travel advice and campaigns relating to consular assistance, or encouraging passenger transport service providers and transport hubs offering travel to third countries to add relevant details to the information materials made available to customers.</P></NEW><OLD><P>__________________</P></OLD><NEW><P>__________________</P></NEW><OLD><P><STRING SUPERSCRIPT=\"on\">3</STRING> Commission Recommendation C(2007) 5841 of 5 December 2007 on reproducing the text of Article 20 TEC in passports (OJ L 118, 6.5.2008, p. 30, ELI: http://data.europa.eu/eli/reco/2008/355/oj).</P></OLD><NEW><P><STRING SUPERSCRIPT=\"on\">3</STRING> Commission Recommendation C(2007) 5841 of 5 December 2007 on reproducing the text of Article 20 TEC in passports (OJ L 118, 6.5.2008, p. 30, ELI: http://data.europa.eu/eli/reco/2008/355/oj).</P></NEW></AMEND><AMEND><TI.AMD><STRING BOLD=\"on\">Amendment\t\t17</STRING></TI.AMD><STI.AMD><STRING BOLD=\"on\">Proposal for a directive</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Recital 32</STRING></STI.AMD><OLD><P><NO.P>(32)</NO.P>In accordance with the Interinstitutional Agreement of 13 April 2016 on Better Law-Making<STRING SUPERSCRIPT=\"on\">8</STRING> , the Commission should, <STRING BOLD=\"on\"><STRING ITALIC=\"on\">no sooner than</STRING></STRING> [<STRING BOLD=\"on\"><STRING ITALIC=\"on\">eight</STRING></STRING> years after the transposition deadline of the amending Directive], carry out an evaluation of this Directive in order to assess the actual effects of this Directive and the need for any further action. Member States should provide the Commission with the information necessary for the preparation of that report.</P></OLD><NEW><P><NO.P>(32)</NO.P>In accordance with the Interinstitutional Agreement of 13 April 2016 on Better Law-Making<STRING SUPERSCRIPT=\"on\">8</STRING> , the Commission should, <STRING BOLD=\"on\"><STRING ITALIC=\"on\">by</STRING></STRING> … [<STRING BOLD=\"on\"><STRING ITALIC=\"on\">five</STRING></STRING> years after the transposition deadline of the amending Directive], carry out an evaluation of this Directive in order to assess the actual effects of this Directive and the need for any further action. Member States should provide the Commission with the information necessary for the preparation of that report.</P></NEW><OLD><P>__________________</P></OLD><NEW><P>__________________</P></NEW><OLD><P><STRING SUPERSCRIPT=\"on\">8</STRING> OJ L 123, 12.5.2016, p. 1, ELI: http://data.europa.eu/eli/agree_interinstit/2016/512/oj.</P></OLD><NEW><P><STRING SUPERSCRIPT=\"on\">8</STRING> OJ L 123, 12.5.2016, p. 1, ELI: http://data.europa.eu/eli/agree_interinstit/2016/512/oj.</P></NEW></AMEND><AMEND><TI.AMD><STRING BOLD=\"on\">Amendment\t\t18</STRING></TI.AMD><STI.AMD><STRING BOLD=\"on\">Proposal for a directive</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Article 1 – paragraph 1 – point 1</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Directive (EU) 2015/637</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Article 7 – paragraph 3 a (new)</STRING></STI.AMD><OLD /><NEW><P><NO.P>3a.</NO.P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">Where a crisis situation results in a period of more than 48 hours for citizens to safely reach or be reached by the embassy or consulate of their Member State of nationality, those citizens shall be considered unrepresented.</STRING></STRING></P></NEW><OLD /><NEW><P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">Depending on the individual circumstances of each assistance request and if the local circumstances pose a danger or make it impossible for the citizens to safely reach or be reached by the embassy or consulate of their Member State of nationality, the period of 48 hours referred to in the first subparagraph shall not apply and the citizens shall be considered unrepresented.</STRING></STRING></P></NEW></AMEND><AMEND><TI.AMD><STRING BOLD=\"on\">Amendment\t\t31</STRING></TI.AMD><STI.AMD><STRING BOLD=\"on\">Proposal for a directive</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Article 1 – paragraph 1 – point 6</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Directive (EU) 2015/637</STRING></STI.AMD><STI.AMD><STRING BOLD=\"on\">Article 13c – paragraph 1</STRING></STI.AMD><OLD><P><NO.P>1.</NO.P>Member States shall take appropriate measures to inform their citizens of their right set out in Article 20(2), point (c), TFEU.</P></OLD><NEW><P><NO.P>1.</NO.P>Member States shall take appropriate measures to inform their citizens of their right set out in Article 20(2), point (c), TFEU <STRING BOLD=\"on\"><STRING ITALIC=\"on\">in particular by:</STRING></STRING></P></NEW><OLD /><NEW><P><NO.P>(a)</NO.P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">including information on the right to consular protection in travel advice and campaigns relating to consular protection;</STRING></STRING></P></NEW><OLD /><NEW><P><NO.P>(b)</NO.P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">cooperating on information campaigns with passenger transport service providers and transport hubs offering travel to third countries;</STRING></STRING></P></NEW><OLD /><NEW><P><NO.P>(c)</NO.P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">developing digital platforms or mobile applications through which Union citizens have quick and easy access to consular protection information and contact channels at any time;</STRING></STRING></P></NEW><OLD /><NEW><P><NO.P>(d)</NO.P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">developing automatic notification systems, such as short message systems via telephone networks, to provide all Union citizens with contextualised information on their rights and how to exercise them upon arrival in third countries, as well as real-time warning messages and recommendations in the event of a crisis for citizens who have registered in accordance with Article 13(4a) of this Directive</STRING></STRING>.</P></NEW><OLD /><NEW><P><STRING BOLD=\"on\"><STRING ITALIC=\"on\">Member States may also reproduce the Article 23, first paragraph, TFEU on national passports.</STRING></STRING></P></NEW></AMEND></AMDLST></TEXT></RESOL></TXTLST></SDOCTA>",
+    "excerptHash": "8d6c6eeeae1c03a3f3be9f36f40c57fbeb83486b8b4cecbcd9aa28fe8f26c0bf"
+  },
+  {
+    "id": "TA-10-2026-0339",
+    "language": "en",
+    "attribution": "European Union - European Parliament",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_en.xml",
+      "resolvedUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_en.xml",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:49:22 GMT",
+        "Content-Type": "application/xml",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "Server": "nginx",
+        "Last-Modified": "2026-10-12T05:33:52Z",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "0",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:49:22.649229+00:00",
+      "bytes": 22778,
+      "sha256": "fea8a1a46faaa4824e5bebbdbadb7fb222bd0f842af7ff1f4cb9d4da1baac79f",
+      "accept": "*/*"
+    },
+    "metadataSource": {
+      "url": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0339?format=application%2Fld%2Bjson",
+      "resolvedUrl": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0339?format=application%2Fld%2Bjson",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:47:38 GMT",
+        "Content-Type": "application/ld+json",
+        "Content-Length": "42357",
+        "Connection": "close",
+        "Server": "nginx",
+        "X-Total-Count": "1000",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1 ; mode=block",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:47:38.858100+00:00",
+      "bytes": 42357,
+      "sha256": "58dd0b7564c12cc4afe22a07745f45edaf5b5adc813873d7ae25bb6212479900",
+      "accept": "application/ld+json"
+    },
+    "coverage": {
+      "complete": false,
+      "selection": [
+        "first/last citation, recital and action"
+      ]
+    },
+    "work": {
+      "id": "eli/dl/doc/TA-10-2026-0339",
+      "identifier": "TA-10-2026-0339",
+      "work_type": "def/ep-document-types/TEXT_ADOPTED",
+      "notation_publicRegister": "P10_TA(2026)0339",
+      "is_realized_by": [
+        {
+          "id": "eli/dl/doc/TA-10-2026-0339/en",
+          "type": "Expression",
+          "is_embodied_by": [
+            {
+              "id": "eli/dl/doc/TA-10-2026-0339/en/docx",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0339_en.docx",
+              "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+              "issued": "2026-10-08T16:02:35+02:00",
+              "byteSize": "47965"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0339/en/pdf",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0339_en.pdf",
+              "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+              "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+              "issued": "2026-10-08T16:02:37+02:00",
+              "byteSize": "102144"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0339/en/xml",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0339_en.xml",
+              "media_type": "https://www.iana.org/assignments/media-types/application/xml",
+              "format": "http://publications.europa.eu/resource/authority/file-type/XML",
+              "issued": "2026-10-12T07:33:26+02:00",
+              "byteSize": "22778"
+            }
+          ],
+          "language": "http://publications.europa.eu/resource/authority/language/ENG",
+          "title": {
+            "en": "The 2026 undemocratic elections to the Russian State Duma and its implications on civil society"
+          },
+          "title_alternative": {
+            "en": "European Parliament resolution of 8 October 2026 on the 2026 undemocratic elections to the Russian State Duma and their implications for civil society (2026/2907(RSP))"
+          }
+        }
+      ]
+    },
+    "xml": "<SDOCTA xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"TA.xsd\"><IDENT><STRING BOLD=\"on\">P10_TA(2026)0339</STRING></IDENT><TI><STRING BOLD=\"on\">The 2026 undemocratic elections to the Russian State Duma and its implications on civil society</STRING></TI><HIDDEN><STRING HIDDEN=\"on\" ITALIC=\"on\">(B10-0441, 0444, 0445, 0446 and 0449/2026)</STRING></HIDDEN><TXTLST><RESOL><TI><STRING BOLD=\"on\">European Parliament resolution of 8 October 2026 on the 2026 undemocratic elections to the Russian State Duma and their implications for civil society (2026/2907(RSP))</STRING></TI><TEXT><PREAMBLE><PRINIT><STRING ITALIC=\"on\">The European Parliament,</STRING></PRINIT><GRVISA><VISA><P><NO.P>–</NO.P>having regard to its previous resolutions on Russia,</P></VISA><VISA><P><NO.P>–</NO.P>having regard to Rule 136(2) and (4) of its Rules of Procedure,</P></VISA></GRVISA><GRCONS><CONS><P><NO.P>A.</NO.P>whereas the fake elections to the Russian State Duma held from 18 to 20 September 2026 were illegitimate and undemocratic and conducted without any genuine political competition in an increasingly authoritarian environment of systematic and institutionalised repression; whereas Russia continues to wage an illegal war of aggression against Ukraine;</P></CONS><CONS><P><NO.P>M.</NO.P>whereas the Russian regime has decimated long-standing human rights organisations by branding them ‘extremist’, while criminalising major environmental watchdogs such as Greenpeace International, WWF International and Bellona as ‘undesirable organisations’ and replacing them with government-organised non-governmental organisations under a ‘sovereign ecology’ framework;</P></CONS></GRCONS></PREAMBLE><DISPOSITIF><ACTLST><ACTION><P><NO.P>1.</NO.P>Deplores the fact that the fake elections to the Russian State Duma held from 18 to 20 September 2026 were neither free nor fair, violated fundamental international electoral standards, lacked democratic legitimacy and were a complete sham orchestrated under repression, thereby depriving citizens of their constitutional right to a free and democratic vote; deplores the fact that the Russian opposition, civil society and independent media have been brutally suppressed and that critics of the regime have been imprisoned, murdered or forced into exile;</P></ACTION><ACTION><P><NO.P>20.</NO.P>Instructs its President to forward this resolution to the Council, the Commission, the Vice-President of the Commission / High Representative of the Union for Foreign Affairs and Security Policy, the governments and parliaments of the Member States, the Council of Europe, the Organization for Security and Co-operation in Europe, the United Nations, and the authorities of the Russian Federation, Ukraine, the Republic of Moldova and Georgia.</P></ACTION></ACTLST></DISPOSITIF></TEXT></RESOL></TXTLST></SDOCTA>",
+    "excerptHash": "d838069e82a5d185d857cc4fe7ab68d066c6da2ce69e15a61a42163e0c3721f7"
+  },
+  {
+    "id": "TA-10-2026-0339",
+    "language": "hu",
+    "attribution": "European Union - European Parliament",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_hu.xml",
+      "resolvedUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0339_hu.xml",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:52:30 GMT",
+        "Content-Type": "application/xml",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "Server": "nginx",
+        "Last-Modified": "2026-10-12T05:33:52Z",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "0",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:52:30.944763+00:00",
+      "bytes": 27057,
+      "sha256": "6bc25638d66bb81ab8abb86727eb541be3632e2bc856c306e751dbaf2c7a369a",
+      "accept": "*/*"
+    },
+    "metadataSource": {
+      "url": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0339?format=application%2Fld%2Bjson",
+      "resolvedUrl": "https://data.europarl.europa.eu/api/v2/adopted-texts/TA-10-2026-0339?format=application%2Fld%2Bjson",
+      "status": 200,
+      "headers": {
+        "Date": "Tue, 27 Oct 2026 20:47:38 GMT",
+        "Content-Type": "application/ld+json",
+        "Content-Length": "42357",
+        "Connection": "close",
+        "Server": "nginx",
+        "X-Total-Count": "1000",
+        "Cache-Control": "no-cache, no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1 ; mode=block",
+        "Referrer-Policy": "no-referrer"
+      },
+      "retrievedAt": "2026-10-27T20:47:38.858100+00:00",
+      "bytes": 42357,
+      "sha256": "58dd0b7564c12cc4afe22a07745f45edaf5b5adc813873d7ae25bb6212479900",
+      "accept": "application/ld+json"
+    },
+    "coverage": {
+      "complete": false,
+      "selection": [
+        "first/last citation, recital and action"
+      ]
+    },
+    "work": {
+      "id": "eli/dl/doc/TA-10-2026-0339",
+      "identifier": "TA-10-2026-0339",
+      "work_type": "def/ep-document-types/TEXT_ADOPTED",
+      "notation_publicRegister": "P10_TA(2026)0339",
+      "is_realized_by": [
+        {
+          "id": "eli/dl/doc/TA-10-2026-0339/hu",
+          "type": "Expression",
+          "is_embodied_by": [
+            {
+              "id": "eli/dl/doc/TA-10-2026-0339/hu/docx",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0339_hu.docx",
+              "media_type": "https://www.iana.org/assignments/media-types/application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+              "issued": "2026-10-08T15:53:35+02:00",
+              "byteSize": "49761"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0339/hu/pdf",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0339_hu.pdf",
+              "media_type": "https://www.iana.org/assignments/media-types/application/pdf",
+              "format": "http://publications.europa.eu/resource/authority/file-type/PDF",
+              "issued": "2026-10-08T15:53:37+02:00",
+              "byteSize": "111674"
+            },
+            {
+              "id": "eli/dl/doc/TA-10-2026-0339/hu/xml",
+              "type": "Manifestation",
+              "is_exemplified_by": "distribution/doc/TA-10-2026-0339_hu.xml",
+              "media_type": "https://www.iana.org/assignments/media-types/application/xml",
+              "format": "http://publications.europa.eu/resource/authority/file-type/XML",
+              "issued": "2026-10-12T07:33:26+02:00",
+              "byteSize": "27057"
+            }
+          ],
+          "language": "http://publications.europa.eu/resource/authority/language/HUN",
+          "title": {
+            "hu": "A 2026. évi antidemokratikus orosz parlamenti választások és azok civil társadalomra gyakorolt hatásai"
+          },
+          "title_alternative": {
+            "hu": "Az Európai Parlament 2026. október 8-i állásfoglalása a 2026. évi antidemokratikus orosz parlamenti választásokról és azok civil társadalomra gyakorolt hatásairól (2026/2907(RSP))"
+          }
+        }
+      ]
+    },
+    "xml": "<SDOCTA xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"TA.xsd\"><IDENT><STRING BOLD=\"on\">P10_TA(2026)0339</STRING></IDENT><TI><STRING BOLD=\"on\">A 2026. évi antidemokratikus orosz parlamenti választások és azok civil társadalomra gyakorolt hatásai</STRING></TI><HIDDEN><STRING HIDDEN=\"on\" ITALIC=\"on\">(B10-0441, 0444, 0445, 0446 és 0449/2026)</STRING></HIDDEN><TXTLST><RESOL><TI><STRING BOLD=\"on\">Az Európai Parlament 2026. október 8-i állásfoglalása a 2026. évi antidemokratikus orosz parlamenti választásokról és azok civil társadalomra gyakorolt hatásairól (2026/2907(RSP))</STRING></TI><TEXT><PREAMBLE><PRINIT><STRING ITALIC=\"on\">Az Európai Parlament,</STRING></PRINIT><GRVISA><VISA><P><NO.P>–</NO.P>tekintettel az Oroszországról szóló korábbi állásfoglalásaira,</P></VISA><VISA><P><NO.P>–</NO.P>tekintettel eljárási szabályzata 136. cikkének (2) és (4) bekezdésére,</P></VISA></GRVISA><GRCONS><CONS><P><NO.P>A.</NO.P>mivel a 2026. szeptember 18. és 20. között tartott színlelt orosz parlamenti választások jogellenesek és antidemokratikusak voltak, és azokat valódi politikai verseny nélkül bonyolították le a rendszerszintű és intézményesített elnyomás egyre nagyobb mértékben önkényuralmi környezetében; mivel Oroszország továbbra is jogellenes agressziós háborút folytat Ukrajna ellen;</P></CONS><CONS><P><NO.P>M.</NO.P>mivel az orosz rezsim megtizedelte a régóta fennálló emberi jogi szervezeteket, azáltal, hogy „szélsőségesnek” nyilvánította őket, miközben „nemkívánatos szervezetnek” minősített olyan jelentős környezetvédelmi megfigyelő szervezeteket, mint a Greenpeace International, a WWF International és a Bellona, és ezeket a „szuverén ökológia” keretében a kormány által szervezett nem kormányzati szervezetekkel váltotta fel;</P></CONS></GRCONS></PREAMBLE><DISPOSITIF><ACTLST><ACTION><P><NO.P>1.</NO.P>sajnálatát fejezi ki amiatt, hogy a 2026. szeptember 18. és 20. között tartott színlelt orosz parlamenti választások nem voltak sem szabadok, sem tisztességesek, megsértették az alapvető nemzetközi választási normákat, nélkülözték a demokratikus legitimitást és elnyomás alatt szervezett, teljes látszatválasztást jelentettek, ezáltal megfosztották a polgárokat a szabad és demokratikus szavazáshoz való alkotmányos joguktól; sajnálatát fejezi ki amiatt, hogy az orosz ellenzéket, a civil társadalmat és a független médiát brutálisan elnyomják, és hogy a rezsim bírálóit bebörtönzik, meggyilkolják vagy száműzetésbe kényszerítik;</P></ACTION><ACTION><P><NO.P>20.</NO.P>utasítja elnökét, hogy továbbítsa ezt az állásfoglalást a Tanácsnak, a Bizottságnak, a Bizottság alelnökének / az Unió külügyi és biztonságpolitikai főképviselőjének, a tagállamok kormányainak és parlamentjeinek, az Európa Tanácsnak, az Európai Biztonsági és Együttműködési Szervezetnek, az ENSZ-nek, valamint az Oroszországi Föderáció, Ukrajna, a Moldovai Köztársaság és Grúzia hatóságainak.</P></ACTION></ACTLST></DISPOSITIF></TEXT></RESOL></TXTLST></SDOCTA>",
+    "excerptHash": "63477dab9a9bc544e89fa37f626a93ec6c0ccb4a232afc71bfc4397a7d739d27"
+  }
+]
