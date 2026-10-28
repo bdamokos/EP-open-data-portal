@@ -22,6 +22,7 @@ for(const e of fixture.examples){
   assert.deepEqual(shape(oracleAddress(e.intro.label,e.language)),e.intro.expected);
   assert.deepEqual(shape(oracleAddress(e.title.label,e.language)),e.title.expected);
   assert.equal(oracleRelative(e.relative.label,e.language)?.after??null,e.relative.expected);
+  for(const selector of Object.values(e.selectors))assert.deepEqual(shape(oracleAddress(selector.label,e.language)),selector.expected);
  });
  test(e.language+': raw published instruction rows keep quoted numbered wording in the addressed subtree',()=>{
   const paragraphs=e.proposal.rows.map((row,index)=>({index,text:row.text,properties:{styleId:row.style},source:{container:'body',complete:true},complete:true}));
@@ -87,12 +88,12 @@ test('the second published Irish report-heading form scopes the resolution indep
  const expected={language:'ga',operation:'insert',sectionKind:'resolution',targetLabel:'Mír 2 a (nua)'};
  assert.equal(verifyLanguagePlacement({expected,rawText,text,placement:{status:'placed',operation:'insert',insertAfter:2,insertBefore:3}}).status,'verified');
 });
-test('an unsupported selector after a recognized source address cannot become a unique-quote success',async()=>{
+test('a published indent selector cannot disappear into a unique-quote success',async()=>{
  const {parseBenchmarkTarget,verifyPlacement}=await import('./amendment-benchmark-model.mjs');
  // A-10-2025-0150 publishes Annex VIII – indent 11 (AM119's underlying
  // address). An unsupported child must remain explicit to the oracle.
  const wording={language:'en',baseline:'motion-resolution',targetLabel:'Annex VIII – indent 11',originalText:'A unique source sentence.',proposedText:'Changed.'};
- assert.equal(parseBenchmarkTarget(wording).partial,true);
+ assert.equal(parseBenchmarkTarget(wording).segments.at(-1).kind,'indent');
  const text={paragraphs:['A unique source sentence.'],paragraphSources:[{complete:true,container:'body'}]};
  assert.equal(verifyPlacement({wording,text,placement:{status:'placed',operation:'replace',span:{start:0,end:0}}}).reason,'oracle-address-grammar-unavailable');
 });

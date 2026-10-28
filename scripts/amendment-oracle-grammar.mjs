@@ -31,6 +31,10 @@ const words={
  sl:['člen','priloga','odstavek','pododstavek','točka|podtočka','uvodna izjava','navedba sklicevanja','uvodni del','naslov','novo|nova|nov'],
  sv:['artikel','bilaga','punkt|stycke','stycke','led','skäl','beaktandeled','inledningen','rubrik|rubriken','ny|nytt'],
 };
+// Literal row/indent labels from AM109/119 of the same published list. They
+// remain explicit unsupported scopes, rather than disappearing into a generic
+// quote fallback. Portuguese prints linha for both addresses; retain 'row'.
+const selectors={bg:['ред','тире'],cs:['řádek','odrážka'],da:['række','led'],de:['Zeile','Gedankenstrich'],el:['σειρά','περίπτωση'],en:['row','indent'],es:['fila','guion'],et:['rida','taane'],fi:['rivi','luetelmakohta'],fr:['ligne','tiret'],ga:['ró','fleasc'],hr:['redak','alineja'],hu:['sor','franciabekezdés'],it:['riga','trattino'],lt:['eilutė','įtrauka'],lv:['rinda','ievilkums'],mt:['ringiela','inċiż'],nl:['rij','bolletje'],pl:['wiersz','tiret'],pt:['linha','linha'],ro:['rândul','liniuța'],sk:['riadok','zarážka'],sl:['vrstica','alinea'],sv:['rad','strecksats']};
 const kinds=['article','annex','paragraph','subparagraph','point','recital','citation','introductory-part','title'];
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/gu,'\\$&');
 const literal=value=>value.split('|').map(escape).join('|');
@@ -94,6 +98,13 @@ export function oracleAddress(raw,language='en',{resolution=false}={}) {
   // has no dash separators; consume its consecutive inflected noun phrases.
   while(rest){
    let found=false;
+   for(const [index,term] of (selectors[language]||[]).entries()){
+    const postfix=['hu','lt','lv'].includes(language)||language==='fi'&&index===1;
+    const pattern=postfix?'(\\d+)\\.?\\s+'+escape(term):escape(term)+'\\s+(\\d+)\\.?';
+    const match=new RegExp('^'+pattern+'$','iu').exec(rest);
+    if(match){segments.push({kind:index===0||language==='pt'?'row':'indent',value:match[1],number:Number(match[1]),suffix:'',isNew:false});rest='';found=true;break;}
+   }
+   if(found){consumed=true;break;}
    const order=[5,6,7,8,0,1,2,3,4];
    for(const at of order){
     const kind=kinds[at],term=vocabulary[at];if(!term)continue;

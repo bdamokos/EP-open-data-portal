@@ -182,6 +182,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Член 1 – параграф 1 – точка 2 a (нова)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Приложение VII – ред 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Приложение VIII – тире 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -361,6 +391,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Čl. 1 – odst. 1 – bod 2 a (nový)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Příloha VII – řádek 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Příloha VIII – odrážka 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -539,6 +599,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artikel 1 – stk. 1 – nr. 2 a (nyt)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Bilag VII – række 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Bilag VIII – led 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -722,6 +812,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artikel 1 – Absatz 1 – Nummer 2 a (neu)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Anhang VII – Zeile 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Anhang VIII – Gedankenstrich 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -905,6 +1025,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Άρθρο 1 – παράγραφος 1 – σημείο 2 α (νέο)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Παράρτημα VII – σειρά 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Παράρτημα VIII – περίπτωση 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -1088,6 +1238,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Article 1 – paragraph 1 – point 2 a (new)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Annex VII – row 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Annex VIII – indent 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -1266,6 +1446,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artículo 1 – párrafo 1 – punto 2 bis (nuevo)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Anexo VII – fila 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Anexo VIII – guion 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -1449,6 +1659,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artikkel 1 – lõik 1 – punkt 2 a (uus)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "VII lisa – rida 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "VIII lisa – taane 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -1627,6 +1867,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "1 artikla – 1 kohta – 2 a alakohta (uusi)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Liite VII – rivi 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Liite VIII – 11 luetelmakohta",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -1810,6 +2080,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Article 1 – alinéa 1 – point 2 bis (nouveau)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Annexe VII – ligne 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Annexe VIII – tiret 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -1993,6 +2293,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Airteagal 1 – mír 1 – pointe 2 a (nua)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Iarscríbhinn VII – ró 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Iarscríbhinn VIII – fleasc 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -2176,6 +2506,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Članak 1. – stavak 1. – točka 2.a (nova)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Prilog VII. – redak 2.",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Prilog VIII. – alineja 11.",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -2359,6 +2719,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "1 cikk – 1 bekezdés – 2 a pont (új)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "VII melléklet – 2 sor",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "VIII melléklet – 11 franciabekezdés",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -2525,6 +2915,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Articolo 1 – punto 2 bis (nuovo)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Allegato VII – riga 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Allegato VIII – trattino 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -2708,6 +3128,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "1 straipsnio 1 dalies 2 a punktas (naujas)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "VII priedo 2 eilutė",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "VIII priedo 11 įtrauka",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -2886,6 +3336,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "1. pants – 1. daļa – 2.a punkts (jauns)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "VII pielikums – 2. rinda",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "VIII pielikums – 11. ievilkums",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -3069,6 +3549,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artikolu 1 – paragrafu 1 – punt 2a (ġdid)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Anness VII – ringiela 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Anness VIII – inċiż 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -3247,6 +3757,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artikel 1 – alinea 1 – punt 2 bis (nieuw)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Bijlage VII – rij 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Bijlage VIII – bolletje 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -3430,6 +3970,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artykuł 1 – akapit 1 – punkt 2 a (nowy)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Załącznik VII – wiersz 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Załącznik VIII – tiret 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -3613,6 +4183,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artigo 1 – parágrafo 1 – ponto 2-A (novo)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Anexo VII – linha 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Anexo VIII – linha 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "row",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -3796,6 +4396,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Articolul 1 – paragraful 1 – punctul 2 a (nou)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Anexa VII – rândul 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Anexa VIII – liniuța 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -3979,6 +4609,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Článok 1 – odsek 1 – bod 2 a (nový)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Príloha VII – riadok 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Príloha VIII – zarážka 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -4162,6 +4822,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Člen 1 – odstavek 1 – točka 2 a (novo)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Priloga VII – vrstica 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Priloga VIII – alinea 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     },
     {
@@ -4345,6 +5035,36 @@
       "outerInsertion": {
         "number": 17,
         "label": "Artikel 1 – stycke 1 – led 2a (nytt)"
+      },
+      "selectors": {
+        "row": {
+          "number": 109,
+          "label": "Bilaga VII – rad 2",
+          "expected": [
+            [
+              "annex",
+              "VII"
+            ],
+            [
+              "row",
+              "2"
+            ]
+          ]
+        },
+        "indent": {
+          "number": 119,
+          "label": "Bilaga VIII – strecksats 11",
+          "expected": [
+            [
+              "annex",
+              "VIII"
+            ],
+            [
+              "indent",
+              "11"
+            ]
+          ]
+        }
       }
     }
   ],
