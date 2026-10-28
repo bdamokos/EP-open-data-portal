@@ -170,13 +170,23 @@ export const COMPARISON_HEADINGS=Object.freeze({
     "council-position": "Rådets ståndpunkt"
   }
 });
+// Additional labels published in the amendment templates. A rejection heading
+// identifies proposed wording but supplies no original baseline category.
+const HEADING_ALIASES={
+  en:{'Commission proposal':'commission-proposal',Modification:'amendment','Proposal for rejection':'amendment'},
+  it:{'Proposta di reiezione':'amendment'},
+  fr:{'Proposition de rejet':'amendment'},
+  ro:{'Propunere de rezoluție':'motion-resolution'},
+  hu:{'Állásfoglalási indítvány':'motion-resolution'},
+};
 export function comparisonHeading(raw,language) {
   const vocabulary=COMPARISON_HEADINGS[language];
   const category=Object.entries(vocabulary||{}).find(([,label])=>normalise(label)===normalise(raw))?.[0]
-    ?? ((language==='ro'&&normalise(raw)==='propunere de rezoluție'||language==='hu'&&normalise(raw)==='állásfoglalási indítvány')?'motion-resolution':undefined);
+    ||Object.entries(HEADING_ALIASES[language]||{}).find(([label])=>normalise(label)===normalise(raw))?.[1];
   return {raw:raw??null,category:category==='amendment'?'other':category||'unknown'};
 }
-export const isAmendmentHeading=(raw,language)=>normalise(raw)!==''&&normalise(COMPARISON_HEADINGS[language]?.amendment)===normalise(raw);
+export const isAmendmentHeading=(raw,language)=>normalise(raw)!==''&&(normalise(COMPARISON_HEADINGS[language]?.amendment)===normalise(raw)
+  ||Object.entries(HEADING_ALIASES[language]||{}).some(([label,category])=>category==='amendment'&&normalise(label)===normalise(raw)));
 export function baselineDescriptor(headings) {
   const categories=new Set(headings.map(h=>h.left.category));
   return {category:headings.length&&categories.size===1?[...categories][0]:'unknown',headings,conflicted:categories.size>1};
