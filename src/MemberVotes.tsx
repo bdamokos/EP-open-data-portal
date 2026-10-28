@@ -9,7 +9,7 @@ import {PersonName} from './PersonName';
 import {Result,Position,VotePartDescriptions} from './MemberVoteSummary';
 import {OutcomeAlignmentFilter} from './OutcomeAlignmentFilter';
 import {VotePeriodNavigation} from './VotePeriodNavigation';
-import {votePeriodTransition} from './plenaryPeriods.mjs';
+import {validateVotePeriods,votePeriodTransition,type VotePeriodsResponse} from './plenaryPeriods.mjs';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
@@ -139,10 +139,19 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const listHeadingRef=useRef<HTMLHeadingElement>(null);
   const lastSelection=useRef<{decisionId:string;groupId:string|null}|null>(null),returnFocus=useRef(false);
   const snapshotRefresh=useRef<{route:string;started:boolean;baseline:MemberVotesResponse|null}|null>(null);
-  const route=useMemo(()=>{try{return memberVotesRoute(memberId,state,language);}catch{return null;}},[memberId,state.week,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
+  const chooseLatest=state.week==='latest'&&!state.sittingId&&!state.snapshotId&&!state.decisionId&&!state.context&&state.offset===0&&state.alignment==='all';
+  const searchScope=JSON.stringify([memberId,language]);
+  const [latestSearch,setLatestSearch]=useState<{scope:string;week:string;complete:boolean}|null>(null);
+  const search=latestSearch?.scope===searchScope?latestSearch:{scope:searchScope,week:'latest',complete:false};
+  const calendarRequest=useData<VotePeriodsResponse>(chooseLatest?'vote-periods':null);
+  const requestedWeek=chooseLatest?search.week:state.week;
+  const requestedState={...state,week:requestedWeek};
+  const route=useMemo(()=>{try{return memberVotesRoute(memberId,{...state,week:requestedWeek},language);}catch{return null;}},[memberId,requestedWeek,state.sittingId,state.positions,state.alignment,state.offset,state.decisionId,state.snapshotId,language]);
   const request=useData<MemberVotesResponse>(route) as ReturnType<typeof useData<MemberVotesResponse>>&{status?:number};
-  const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state}));
-  const data=valid?request.data:null,groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
+  const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state:requestedState}));
+  const candidateData=valid?request.data:null;
+  const findingLatest=chooseLatest&&!search.complete&&(!candidateData||candidateData.pagination.recordedTotal===0);
+  const data=findingLatest?null:candidateData,groups=useMemo(()=>data?groupMemberVotes(data):[],[data]);
   const attendanceScope=JSON.stringify([memberId,language,state.sittingId?['sitting',state.sittingId]:['week',state.week]]);
   const [lastAttendance,setLastAttendance]=useState<{scope:string;route:string;sittingIds:string[]}|null>(null);
   const attendanceReady=Boolean(data&&!request.loading&&!request.error&&state.snapshotId===data.snapshotId);
@@ -171,12 +180,20 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     if(!refresh.started){refresh.started=true;refresh.baseline=request.data;request.retry();}
   },[route,request.retry]);
   useEffect(()=>{
-    if(!data||request.loading)return;
+    if(!candidateData||request.loading)return;
+    if(chooseLatest&&!search.complete&&candidateData.pagination.recordedTotal===0){
+      if(calendarRequest.loading)return;
+      const calendar=!calendarRequest.error&&validateVotePeriods(calendarRequest.data)?calendarRequest.data:null;
+      const previous=calendar?.weeks.find(week=>candidateData.period.week&&week.week<candidateData.period.week);
+      if(previous){setLatestSearch({scope:searchScope,week:previous.week,complete:false});return;}
+      // With no match, keep the latest plenary available for manual browsing.
+      setLatestSearch({scope:searchScope,week:'latest',complete:true});return;
+    }
     const refresh=snapshotRefresh.current;
     if(refresh){if(!refresh.started||request.data===refresh.baseline)return;snapshotRefresh.current=null;}
-    const current=stateRef.current,week=!current.sittingId&&data.period.week?data.period.week:current.week;
-    if(current.snapshotId!==data.snapshotId||current.week!==week)onStateChange({...current,week,snapshotId:data.snapshotId},{replace:true});
-  },[data,request.data,request.loading,onStateChange]);
+    const current=stateRef.current,week=!current.sittingId&&candidateData.period.week?candidateData.period.week:current.week;
+    if(current.snapshotId!==candidateData.snapshotId||current.week!==week)onStateChange({...current,week,snapshotId:candidateData.snapshotId},{replace:true});
+  },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
   useLayoutEffect(()=>{
     const pane=state.context?null:state.decisionId?detailRef.current:listRef.current;
     // The journey owner may restore this node after a tab remount. A refreshed
@@ -213,15 +230,17 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const expired=request.status===409;
   const rejected=Boolean(!route||request.data&&!valid);
   const coverageNotice=data?memberVotesCoverageNotice(data,state):null;
+  const noRecordedPositions=data?.pagination.recordedTotal===0&&data.pagination.observedTotal>0;
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId?exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId):topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang="en" aria-label={`${memberName} · Votes`}>
     <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}>Voting records</h2><p>{periodLabel(data,state)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
     {data&&!request.error&&!state.decisionId&&!state.context&&<AttendanceLine data={attendance} loading={attendanceRequest.loading} attempted={attendanceRoute!==null} onRetry={attendanceRequest.retry}/>}
-    {request.loading&&!data&&<p role="status">Loading voting records…</p>}
+    {(request.loading||findingLatest&&!rejected)&&!data&&!request.error&&<p role="status">{findingLatest?'Finding latest recorded votes…':'Loading voting records…'}</p>}
     {expired?<div className="member-votes-notice" role="alert"><p>This page is out of date. Refresh to load the votes.</p><button type="button" onClick={()=>{snapshotRefresh.current={route:memberVotesRoute(memberId,{...state,snapshotId:null},language),started:false,baseline:null};change({snapshotId:null});}}>Refresh votes</button></div>:request.error?<div className="member-votes-notice" role="alert"><p>Voting records could not be loaded. Try again.</p><button type="button" disabled={request.loading} onClick={request.retry}>Retry votes</button></div>:rejected?<div className="member-votes-notice" role="alert"><p>These voting records are unavailable.</p><button type="button" onClick={request.retry}>Retry votes</button></div>:null}
     {data&&!expired&&!request.error&&<>
       {coverageNotice&&<p className="member-votes-notice">{coverageNotice}</p>}
       <div ref={listRef} className="member-votes-pane" hidden={Boolean(state.decisionId||state.context)} onScroll={event=>{listScroll.current=event.currentTarget.scrollTop;}}>
+        {noRecordedPositions?<p className="member-votes-empty">No recorded positions {state.sittingId?'at this sitting':'this week'}.</p>:<>
         <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')}{data.pagination.recordedTotal!==null?` · ${data.pagination.recordedTotal} with a recorded position`:''}{data.coverage.status==='partial'?' · Partial coverage':''}</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button></div></div>
         <OutcomeAlignmentFilter value={state.alignment} counts={data.alignmentCounts} coverage={data.coverage.status} sitting={Boolean(state.sittingId)} onChange={alignment=>{alignmentFocus.current=alignment;listScroll.current=0;change({alignment,offset:0});}}/>
         {groups.map(group=>{
@@ -233,6 +252,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
         })}
         {!groups.length&&data.coverage.status!=='unavailable'&&<p className="member-votes-empty">{data.coverage.status==='complete'&&data.pagination.observedTotal===0&&Array.isArray(data.coverage.sittings)&&data.coverage.sittings.some(day=>day?.state==='complete'&&day.observedDecisionCount===0&&(!state.sittingId||day.sittingId===state.sittingId))?(state.sittingId?'No votes were recorded at this sitting.':'No votes were recorded in this week.'):data.pagination.filteredTotal>0?'No matching voting records on this page.':state.alignment!=='all'?data.coverage.status==='partial'?`No matching recorded votes among the available records for this ${state.sittingId?'sitting day':'week'}.`:`No recorded ${state.alignment==='abstained'?'abstentions':`votes ${state.alignment} Parliament’s outcome`} ${state.sittingId?'on this sitting day':'in this week'}.`:state.positions==='recorded'?'No recorded positions in this period. Choose All decisions to see outcomes.':'No decisions are available for this period.'}</p>}
         {(state.offset>0||data.pagination.nextOffset!==null)&&<nav className="member-votes-pages" aria-label="Voting records pages"><button type="button" disabled={state.offset===0} onClick={()=>{listScroll.current=0;change({offset:Math.max(0,state.offset-MEMBER_VOTES_PAGE_SIZE)});}}>Previous page</button><button type="button" disabled={data.pagination.nextOffset===null} onClick={()=>{listScroll.current=0;change({offset:data.pagination.nextOffset??state.offset});}}>Next page</button></nav>}
+        </>}
       </div>
       <div ref={detailRef} className="member-votes-pane" hidden={!state.decisionId||Boolean(state.context)} onScroll={event=>{detailScroll.current=event.currentTarget.scrollTop;}}>
         <button className="member-votes-back" type="button" onClick={()=>change({decisionId:null,context:null})}>← Back to votes</button>

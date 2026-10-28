@@ -234,8 +234,8 @@ test('off-page whole-text outcomes do not add empty subjects or hide the recorde
   const absent=subject([],{id:'off-page-subject',counts:{observed:1,filtered:0,page:0},wholeTextDecisions:[whole]});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,positions:'recorded'},handler:url=>Response.json(responseFor(url,{items:[],subjects:[absent],pagination:{observedTotal:1,filteredTotal:0}}))});
   assert.equal(h.container.querySelectorAll('.member-votes-subject').length,0);
-  assert.match(visiblePane(h.container).textContent,/No recorded positions in this period/);
-  assert(button(h.container,'All decisions'),'the other decisions remain one action away');
+  assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert.equal(button(h.container,'All decisions'),undefined,'Parliament outcomes are hidden for a period without member positions');
 });
 
 test('null totals, real zero totals and lapsed decisions remain distinct without invented member choices',async t=>{
@@ -746,7 +746,7 @@ for(const status of ['partial','unavailable'])test(status+' zero observations ne
 
 test('a member without recorded positions is not labelled as a sitting with no votes',async t=>{
  const h=await mount(t,{state:{sittingId:SITTING,week:WEEK,positions:'recorded'},handler:url=>Response.json(responseFor(url,{items:[],pagination:{observedTotal:1,filteredTotal:0},coverage:{sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'complete',observedDecisionCount:1}]}}))});
- assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions in this period/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
+ assert.equal(h.container.querySelector('.vote-period-no-votes'),null);assert.match(visiblePane(h.container).textContent,/No recorded positions at this sitting/);assert.doesNotMatch(visiblePane(h.container).textContent,/No votes were recorded/);
 });
 
 test('outcome alignment retains the snapshot, resets pagination, marks rows and returns focus from detail',async t=>{
@@ -754,7 +754,7 @@ test('outcome alignment retains the snapshot, resets pagination, marks rows and 
   const counts={with:1,against:1,abstained:0,unclassified:0};
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,offset:50},handler:url=>{
     const state=stateFrom(url),filtered=[vote(1),against].filter(item=>state.alignment==='all'||item.alignment===state.alignment),items=state.offset?[]:filtered;
-    return Response.json(responseFor(url,{items,alignmentCounts:counts,pagination:{offset:state.offset,observedTotal:2,filteredTotal:filtered.length}}));
+    return Response.json(responseFor(url,{items,alignmentCounts:counts,pagination:{offset:state.offset,observedTotal:2,recordedTotal:2,filteredTotal:filtered.length}}));
   }});
   // Start from a valid first page after proving the changed control resets a remembered offset.
   await h.update({offset:0});
@@ -829,6 +829,95 @@ function attendanceResponse({status='observed',memberStatus='listed-present'}={}
     register:{documentId:'PV-10-2026-03-25-ATT',pdf:{url:'https://data.europarl.europa.eu/distribution/doc/PV-10-2026-03-25-ATT_en.pdf',language:'en'},issued:'2026-03-26T10:00:00Z',status:'available',source}}]};
 }
 
+const olderWeek='2026-03-16',olderSitting='MTG-PL-2026-03-18';
+const searchCalendar={version:2,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]},{week:olderWeek,sittings:[{sittingId:olderSitting,date:olderSitting.slice(7)}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+function searchResponse(url,{olderRecorded=true,coverage={}}={}) {
+  const older=stateFrom(url).week===olderWeek;
+  const item=vote(1,older&&olderRecorded?{}:{actualPosition:{status:'no-record',position:null},alignment:'unclassified'});
+  const value=responseFor(url,{items:[item],coverage});
+  return older?JSON.parse(JSON.stringify(value).replaceAll(SITTING,olderSitting).replaceAll(SITTING.slice(7),olderSitting.slice(7))):value;
+}
+
+test('initial votes skips empty latest weeks, pins the latest recorded week and leaves manual navigation intact',async t=>{
+  let attendanceCalls=0;
+  const h=await mount(t,{calendar:searchCalendar,handler:url=>Response.json(searchResponse(url)),attendanceHandler:()=>{attendanceCalls++;return Response.json(JSON.parse(JSON.stringify(attendanceResponse()).replaceAll(SITTING,olderSitting).replaceAll(SITTING.slice(7),olderSitting.slice(7))));}});
+  assert.equal(h.state.week,olderWeek);assert.equal(h.state.snapshotId,SNAPSHOT);
+  assert(h.container.querySelector('.member-votes-subject'));
+  assert(h.changes.every(change=>change.options.replace),'search changes replace history');
+  assert.deepEqual([...new Set(h.calls.filter(url=>url.includes('member-votes/')).map(url=>stateFrom(url).week))],['latest',olderWeek]);
+  assert.equal(attendanceCalls,1,'skipped weeks start no attendance read');
+  await h.click('Next plenary week');
+  assert.equal(h.state.week,WEEK);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert.equal(h.container.querySelector('.member-votes-subject'),null);
+});
+
+for(const state of [{week:WEEK},{week:'latest',decisionId:decision(1)}])test('explicit period stays on its requested empty week '+JSON.stringify(state),async t=>{
+    const h=await mount(t,{calendar:searchCalendar,state,handler:url=>Response.json(searchResponse(url))});
+    assert.equal(h.state.week,WEEK);assert.equal(h.calls.some(url=>url.includes('member-votes/')&&stateFrom(url).week===olderWeek),false);
+});
+
+test('manual period selection cancels a pending automatic search',async t=>{
+  let releaseOlder;
+  const gate=new Promise(resolve=>{releaseOlder=resolve;});
+  const h=await mount(t,{calendar:searchCalendar,handler:async url=>{if(stateFrom(url).week===olderWeek)await gate;return Response.json(searchResponse(url));}});
+  assert.match(h.container.textContent,/Finding latest recorded votes/);
+  await h.update({week:WEEK});
+  await act(async()=>releaseOlder());
+  assert.equal(h.state.week,WEEK);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert.equal(h.container.querySelector('.member-votes-subject'),null);
+});
+
+test('an invalid calendar leaves the latest empty week usable instead of an endless search',async t=>{
+  const h=await mount(t,{calendar:{version:99},handler:url=>Response.json(searchResponse(url))});
+  assert.equal(h.state.week,WEEK);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert.doesNotMatch(h.container.textContent,/Finding latest recorded votes/);
+});
+
+test('a member with no positions in any available week returns to the latest plenary',async t=>{
+  const h=await mount(t,{calendar:searchCalendar,handler:url=>Response.json(searchResponse(url,{olderRecorded:false}))});
+  assert.equal(h.state.week,WEEK);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert(h.calls.some(url=>url.includes('member-votes/')&&stateFrom(url).week===olderWeek));
+  assert(h.calls.filter(url=>url.includes('member-votes/')).length<=4,'the search terminates after the available calendar');
+});
+
+test('an unavailable latest vote period stops the search without claiming no positions',async t=>{
+  const h=await mount(t,{calendar:searchCalendar,handler:url=>Response.json(responseFor(url,{items:[],subjects:[],coverage:{status:'unavailable',collectionComplete:false}}))});
+  assert.equal(h.state.week,WEEK);assert.match(h.container.textContent,/Voting records unavailable/);
+  assert.equal(h.calls.some(url=>url.includes('member-votes/')&&stateFrom(url).week===olderWeek),false);
+});
+
+for(const memberStatus of ['listed-excused','listed-present','not-listed'])test('a week without member positions hides results and keeps '+memberStatus+' attendance',async t=>{
+  const unrecorded=vote(1,{actualPosition:{status:'no-record',position:null},alignment:'unclassified',scope:{kind:'whole-text',basis:'exact-component-reference'}});
+  const calendar={version:2,weeks:[{week:WEEK,sittings:[{sittingId:SITTING,date:SITTING.slice(7)}]},{week:'2026-03-16',sittings:[{sittingId:'MTG-PL-2026-03-18',date:'2026-03-18'}]}],coverage:{status:'complete',years:[{year:2026,state:'complete',sources:[]}]}};
+  const h=await mount(t,{calendar,state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[unrecorded],subjects:[subject([unrecorded],{wholeTextDecisions:[unrecorded]})],pagination:{observedTotal:100,filteredTotal:100,nextOffset:1}})),attendanceHandler:()=>Response.json(attendanceResponse({memberStatus}))});
+  assert.equal(visiblePane(h.container).textContent,'No recorded positions this week.');
+  assert.equal(h.container.querySelector('.member-votes-subject, .member-votes-tools, .member-votes-alignment, .member-votes-pages'),null);
+  assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,new RegExp({'listed-excused':'excused','listed-present':'listed present','not-listed':'not listed'}[memberStatus]));
+  assert.doesNotMatch(h.container.textContent,/absent/i);
+  await act(async()=>h.container.querySelectorAll('.member-votes-days button')[1].click());
+  assert.equal(h.state.sittingId,SITTING);assert.match(visiblePane(h.container).textContent,/No recorded positions at this sitting/);
+  await h.click('Previous plenary week');
+  assert.equal(h.state.week,'2026-03-16');assert.equal(h.state.sittingId,null);
+});
+
+test('a zero-position partial week keeps its incomplete coverage notice without displaying outcomes',async t=>{
+  const h=await mount(t,{handler:url=>Response.json(responseFor(url,{items:[vote(1,{actualPosition:{status:'no-record',position:null},alignment:'unclassified'})],coverage:{status:'partial',collectionComplete:false,incompleteSittingIds:[SITTING]}}))});
+  assert.match(h.container.querySelector('.member-votes-notice').textContent,/Incomplete voting records/);
+  assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+  assert.equal(h.container.querySelector('.member-votes-subject'),null);
+});
+
+test('an unknown recorded total stays unavailable rather than becoming a zero-position claim',async t=>{
+  const h=await mount(t,{handler:url=>Response.json(responseFor(url,{items:[],subjects:[],coverage:{status:'unavailable',collectionComplete:false}}))});
+  assert.match(h.container.textContent,/Voting records unavailable/);
+  assert.doesNotMatch(h.container.textContent,/No recorded positions|absent/i);
+});
+
+test('a recorded vote remains visible alongside a contradictory excused register entry',async t=>{
+  const h=await mount(t,{handler:url=>Response.json(responseFor(url)),attendanceHandler:()=>Response.json(attendanceResponse({memberStatus:'listed-excused'}))});
+  assert(h.container.querySelector('.member-votes-subject'));assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/excused/);
+});
+
 test('all decisions shows non-named ballots, shared methods, counts and page summaries without changing outcomes',async t=>{
   const hand=vote(1,{method:'VOTE_HAND',actualPosition:{status:'not-individually-recorded',position:null},alignment:'unclassified',totals:{for:null,against:null,abstaining:null}});
   const electronic=vote(2,{method:'VOTE_ELECTRONIC',actualPosition:{status:'not-individually-recorded',position:null},alignment:'unclassified'});
@@ -846,7 +935,7 @@ test('all decisions shows non-named ballots, shared methods, counts and page sum
 for(const [status,memberStatus,expected] of [
   ['observed','listed-present',/^Listed as present at this sitting\.$/],
   ['observed','listed-excused',/Listed as excused/],
-  ['observed','not-listed',/Not listed.*Not listed doesn’t mean absent\./],
+  ['observed','not-listed',/^Not listed in this sitting's attendance register\.$/],
   ['observed','conflicting',/Listed as both present and excused/],
   ['not-published',null,/not yet published/],
   ['partial',null,/Attendance register unavailable for this sitting/],
@@ -892,11 +981,10 @@ test('no scanned sittings leaves the unattempted attendance line hidden',async t
   assert.equal(h.container.querySelector('.member-votes-filter button').textContent,'All decisions');
 });
 
-test('not-listed detail discloses an unsupplied excused list beside the no-absence explanation',async t=>{
+test('not-listed detail keeps the register observation brief with an unsupplied excused list',async t=>{
   const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url)),attendanceHandler:()=>{const value=attendanceResponse({memberStatus:'not-listed'});value.sittings[0].excusedSupplied=false;value.sittings[0].counts.excused=null;return Response.json(value);}});
   const text=visiblePane(h.container).querySelector('.member-votes-attendance').textContent;
-  assert.match(text,/Not listed as present\./);
-  assert.match(text,/Not listed doesn’t mean absent\./);
+  assert.equal(text,'Not listed as present.');
 });
 
 for(const outcome of ['LAPSED','WITHDRAWN'])test('unheld '+outcome+' detail replaces its retained method label',async t=>{

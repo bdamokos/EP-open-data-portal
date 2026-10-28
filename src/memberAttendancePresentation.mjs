@@ -37,7 +37,23 @@ export function memberAttendanceDetail(day) {
   }[day.memberStatus]||'Attendance register unavailable for this sitting.';
 }
 const shortDate=value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
+function attendanceDates(dates) {
+  const runs=[];
+  for(const date of [...new Set(dates)].sort()){
+    const previous=runs.at(-1);
+    if(previous&&Date.parse(date)-Date.parse(previous.at(-1))===86400000)previous.push(date);
+    else runs.push([date]);
+  }
+  const formatter=new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+  return runs.map(run=>run.length===1?shortDate(run[0]):formatter.formatRange(new Date(run[0]+'T12:00:00Z'),new Date(run.at(-1)+'T12:00:00Z')).replace(/\s*–\s*/g,'–')).join(', ');
+}
 export function memberAttendanceLine(sittings) {
   const labels={'listed-present':'listed present','listed-excused':'excused','not-listed':'not listed',conflicting:'conflicting entries','not-published':'not yet published',unavailable:'unavailable',partial:'unavailable'};
-  return 'Attendance register: '+sittings.map(day=>(labels[day.status==='observed'?day.memberStatus:day.status]||'unavailable')+' '+shortDate(day.date)).join(' · ');
+  const groups=new Map();
+  for(const day of sittings){
+    const label=labels[day.status==='observed'?day.memberStatus:day.status]||'unavailable';
+    if(!groups.has(label))groups.set(label,[]);
+    groups.get(label).push(day.date);
+  }
+  return 'Attendance register: '+[...groups].map(([label,dates])=>label+' '+attendanceDates(dates)).join(' · ');
 }

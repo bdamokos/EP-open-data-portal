@@ -11,6 +11,5 @@ export function AttendanceLine({data,loading,attempted,onRetry}:{data:MemberAtte
 export function AttendanceDetail({day,loading,onRetry}:{day?:MemberAttendanceSitting;loading:boolean;onRetry:()=>void}) {
   return <div className="member-votes-attendance">
     <p role={!day?'status':undefined}>{day?memberAttendanceDetail(day):loading?'Loading attendance register…':<LoadFailure onRetry={onRetry}/>}</p>
-    {day?.memberStatus==='not-listed'&&<p>Not listed doesn’t mean absent.</p>}
   </div>;
 }
