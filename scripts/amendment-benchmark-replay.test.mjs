@@ -5,11 +5,53 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {InputCache,allowedSource} from './amendment-benchmark-cache.mjs';
-import {replayRuntime,sourceReplay,publicDocumentUrl,rawExistingLawReferences,missingDeclaredRepresentation} from './amendment-benchmark-replay.mjs';
+import {replayRuntime,sourceReplay,replaySourceClients,publicDocumentUrl,rawExistingLawReferences,missingDeclaredRepresentation} from './amendment-benchmark-replay.mjs';
 import {acquireReport,evaluateReport,contextUrl} from './amendment-benchmark.mjs';
 import {metrics,compareBaseline} from './amendment-benchmark-model.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url)),apiBase='https://explorer.example';
+
+test('offline metadata retains its age and observation through delayed immutable refreshes',async()=>{
+  const runtime=await replayRuntime(root),celex='52024PC0531';
+  const rdf=await readFile(new URL('../server/fixtures/proposal-52024PC0531.rdf',import.meta.url));
+  const laterRdf=await readFile(new URL('../server/fixtures/proposal-52025PC0087.rdf',import.meta.url));
+  // The old metadata and next-day transport times reproduce the retained
+  // 0531 chronology. The second real RDF fixture supplies the clock advance;
+  // its virtual time is a scheduling probe, not a new source observation.
+  const oldAt='2026-10-27T16:35:15.589Z',laterAt='2026-10-28T11:33:25.950Z';
+  const outcomes=[];
+  for(const slow of [false,true]) {
+    let reads=0;
+    const calls=[],cache={get:async(url,options)=>{
+      calls.push({url,accept:options.accept});
+      if(slow)await new Promise(resolve=>setTimeout(resolve,3));
+      const later=url.endsWith('52025PC0087');
+      if(!later)reads++;
+      return {url,body:later?laterRdf:rdf,fetchedAt:later?laterAt:oldAt,status:200,headers:{'content-type':'application/rdf+xml'}};
+    }};
+    const {sources,documents}=replaySourceClients(cache,runtime);
+    const first=await documents.metadata(celex);
+    assert.equal(first.viewCache.stale,false);
+    assert.equal(first.fetchedAt,oldAt);
+    await documents.metadata('52025PC0087');
+    const repeated=[];
+    for(let i=0;i<3;i++) {
+      const record=await documents.metadata(celex);
+      assert.equal(record.xml,rdf.toString());
+      assert.equal(record.fetchedAt,oldAt);
+      assert.equal(record.viewCache.computedAt,oldAt);
+      assert.equal(record.viewCache.stale,true);
+      // Already-admitted replays finish at the boundary and cannot rewind
+      // the next read's age or re-date the captured observation.
+      assert.equal(sources.cache.pending.size,0);
+      repeated.push(record);
+    }
+    assert.equal(reads,4);
+    assert.equal(calls.length,5);
+    outcomes.push(repeated);
+  }
+  assert.deepEqual(outcomes[0],outcomes[1]);
+});
 const p=text=>'<w:p><w:r><w:t>'+text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
 function docx(xml) {
   const name=Buffer.from('word/document.xml'),body=Buffer.from('<w:document xmlns:w="urn:word"><w:body>'+xml+'</w:body></w:document>'),local=Buffer.alloc(30),central=Buffer.alloc(46),end=Buffer.alloc(22);
