@@ -1,0 +1,84 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {ActivityStore} from './activity-index-store.mjs';
+import {ActivityWorker} from './activity-index-worker.mjs';
+import {projectDocument} from './activity-index-model.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText} from './adopted-text-index.mjs';
+import {recordTaskGap} from './refresh-policy.mjs';
+import {motionAmendmentsPage,motionAmendmentsQuery} from './motion-amendments.mjs';
+
+const at=Date.parse('2026-10-28T12:00:00Z'),stamp=new Date(at).toISOString();
+const target='B-10-2026-0001',id='TA-10-2026-0001',endpoint='/adopted-texts/'+id;
+// Synthetic records follow the public API's adopted-text and exact-link schema.
+const adopted=(extra={})=>({id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/TEXT_ADOPTED',parliamentary_term:'org/ep-10',document_date:'2026-10-20',title_dcterms:{en:'Adopted title'},adopts:['eli/dl/doc/'+target],...extra});
+function setup(t) {
+  const directory=mkdtempSync(path.join(os.tmpdir(),'adopted-index-'));let now=at;
+  const store=new ActivityStore(directory,{clock:()=>now});store.acquire();const cycle=store.beginCycle();
+  const worker=new ActivityWorker(store,{clock:()=>now,fetchRecord:async()=>{throw new Error('Unexpected source request');}});
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
+  return {store,worker,cycle,setYear:year=>{store.release();now=Date.parse(year+'-01-02T12:00:00Z');assert(store.acquire());}};
+}
+
+test('versioned adopted-text admission is restartable, preserves cursors and adds only a new year',t=>{
+  const {store,worker,cycle,setYear}=setup(t);
+  assert.equal(adoptedTextDiscoveryDue(store),true);assert.equal(scheduleAdoptedTexts(worker,cycle),true);
+  const tasks=store.db.prepare("SELECT * FROM tasks WHERE kind='catalog' ORDER BY key").all();
+  assert.equal(tasks.length,3);assert.deepEqual(tasks.map(row=>JSON.parse(row.body).params.year),[2024,2025,2026]);
+  assert(tasks.every(row=>JSON.parse(row.body).params['parliamentary-term']===10));
+  const progressed={...JSON.parse(tasks[0].body),offset:250};store.taskProgress(tasks[0],progressed);
+  assert.equal(scheduleAdoptedTexts(worker,cycle),false);
+  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM tasks WHERE key=?').get(tasks[0].key).body).offset,250);
+  setYear(2027);assert.equal(scheduleAdoptedTexts(worker,cycle),true);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='catalog'").get().n,4);
+  assert.equal(adoptedTextDiscoveryDue(store),false);
+  store.set('adoptedTextDiscovery',{version:1,throughYear:'2027'});assert.equal(adoptedTextDiscoveryDue(store),true);
+});
+
+test('one missing adopted-text detail does not block the next exact record or lose its gap',async t=>{
+  const {store,worker,cycle}=setup(t),other='TA-10-2026-0002';
+  const catalog={generation:cycle.generation,key:'adopted-catalog',kind:'catalog',body:{endpoint:'/adopted-texts',params:{year:2026,'parliamentary-term':10},offset:0},priority:100};
+  store.enqueue(cycle.generation,catalog.key,catalog.kind,catalog.body,100);
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[{identifier:id},{identifier:other},{identifier:'TA-9-2023-0001'}]}});
+  await worker.task(catalog);
+  assert.equal(store.source(cycle.generation,endpoint),undefined);
+  const missing=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint);
+  worker.fetchRecord=async ep=>{if(ep===endpoint)throw Object.assign(new Error('EP API returned 404'),{status:404});return {fetchedAt:stamp,payload:{data:[adopted({id:'eli/dl/doc/'+other,identifier:other})]}};};
+  await assert.rejects(worker.task({...missing,body:JSON.parse(missing.body)}),/404/);
+  assert(recordTaskGap(worker,{...missing,body:JSON.parse(missing.body)},Object.assign(new Error('EP API returned 404'),{status:404})));
+  await worker.task({generation:cycle.generation,key:'/adopted-texts/'+other,kind:'document',body:{endpoint:'/adopted-texts/'+other}});
+  assert(store.source(cycle.generation,'/adopted-texts/'+other));
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,endpoint).n,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE key LIKE '%TA-9-%'").get().n,0);
+});
+
+test('detail ingestion retains exact adoption links for the existing indexed motion reader',async t=>{
+  const {store,worker,cycle}=setup(t);
+  store.putSource(cycle.generation,'/plenary-documents/'+target,'document',{id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:'2026-10-19'},stamp);
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[adopted()]}});
+  await worker.task({generation:cycle.generation,key:endpoint,kind:'document',body:{endpoint}});
+  const read=motionAmendmentsPage(store,motionAmendmentsQuery(target,new URLSearchParams('lang=en')));
+  assert.equal(read.relations.adoptedTexts[0].id,id);
+  assert.equal(read.relations.adoptedTexts[0].relationship.to,target);
+  assert.deepEqual(store.source(cycle.generation,endpoint).work.adopts,['eli/dl/doc/'+target]);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(cycle.generation).n,0,'adoption does not invent individual authorship');
+  for(const value of [null,[],['eli/dl/doc/'+target]])assert.deepEqual(projectDocument(adopted({adopts:value})).adopts,value);
+  const unknown=adopted();delete unknown.adopts;assert.equal(Object.hasOwn(projectDocument(unknown),'adopts'),false);
+  for(const change of [{identifier:'TA-9-2023-0001'},{id:'https://example.org/'+id},{work_type:'def/ep-document-types/REPORT_PLENARY'},{parliamentary_term:'org/ep-9'}])assert.throws(()=>validateAdoptedText(endpoint,adopted(change)),/Invalid/);
+});
+
+test('adopted-text update feeds retain their custom interval and refresh final-language metadata',async t=>{
+  const {store,worker,cycle}=setup(t);
+  const languages='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
+  store.putSource(cycle.generation,endpoint,'document',projectDocument(adopted({is_realized_by:languages.map(language=>({language,is_embodied_by:[{format:'DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/test/'+language+'.docx'}]}))})), '2026-09-01T12:00:00Z');
+  worker.fetchRecord=async(ep,params,opts)=>{
+    assert.equal(ep,'/adopted-texts/feed');assert.deepEqual(params,{timeframe:'custom','start-date':'2024-07-16'});assert.equal(opts.xml,true);
+    return {fetchedAt:stamp,xml:'<feed><entry><id>https://data.europarl.europa.eu/eli/dl/doc/'+id+'</id><updated>2026-10-27T12:00:00Z</updated></entry></feed>'};
+  };
+  const task={generation:cycle.generation,key:'feed:adopted',kind:'feed',body:{endpoint:'/adopted-texts',start:'2024-07-16'}};
+  store.enqueue(cycle.generation,task.key,task.kind,task.body,105);await worker.task(task);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint).done,0);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM refresh_gaps WHERE kind='coverage'").get().n,0,'custom feeds do not acquire a fixed-month gap');
+});

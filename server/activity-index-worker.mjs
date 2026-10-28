@@ -27,9 +27,11 @@ import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
+const customFeeds=new Set(['/procedures','/adopted-texts']);
 const day = t => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
 const hour = t => Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',hourCycle:'h23'}).format(new Date(t)));
 const safeId = id => /^[A-Z0-9-]{1,100}$/.test(id);
@@ -90,7 +92,7 @@ export class ActivityWorker {
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
     this.recoveryMode=recoveryMode;
   }
-  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&groupHistoryRepairDue(this.store) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
+  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
@@ -206,7 +208,7 @@ export class ActivityWorker {
   }
   enqueueFeeds(generation,prefix,since) {
     const start=day(Date.parse(since)-2*DAY);
-    for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures']) {
+    for(const endpoint of ['/plenary-documents','/committee-documents','/parliamentary-questions','/procedures','/adopted-texts']) {
       // A partially published cycle advances lastSuccess, not a failed feed's
       // coverage cursor. Its saved task owns that interval until recovery.
       const saved=this.store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND kind='feed' AND json_extract(body,'$.endpoint')=? LIMIT 1").get(generation,endpoint) ||
@@ -214,7 +216,7 @@ export class ActivityWorker {
       const earliest=saved?JSON.parse(saved.body).start || feedStart(this.store,this.clock()):start;
       // Catalogue discovery is independent of feed availability and retry due
       // dates. A failed feed must not hide IDs after its window has expired.
-      if(endpoint!=='/procedures' && Date.parse(earliest)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,earliest);
+      if(!customFeeds.has(endpoint) && Date.parse(earliest)<this.clock()-28*DAY)this.recoverFeedWindow(generation,endpoint,earliest);
       if(saved)continue;
       this.store.enqueue(generation,prefix+endpoint,'feed',{endpoint,start},105);
     }
@@ -320,8 +322,8 @@ export class ActivityWorker {
       }
       const start=body.start;
       // Recovery must survive HTTP failures and malformed feed responses too.
-      if(body.endpoint!=='/procedures' && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
-      const r=await this.request(body.endpoint+'/feed',body.endpoint==='/procedures'?{timeframe:'custom','start-date':start}:{},{xml:true});
+      if(!customFeeds.has(body.endpoint) && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
+      const r=await this.request(body.endpoint+'/feed',customFeeds.has(body.endpoint)?{timeframe:'custom','start-date':start}:{},{xml:true});
       const entries=feedDocuments(r.xml,body.endpoint);
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
@@ -334,14 +336,15 @@ export class ActivityWorker {
           const resolved=endpoint.replace(/-ASW$/,'');
           const prior=this.store.source(generation,resolved);
           const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
-          if(!gap && (!prior || documentRefreshState(prior.work).mutable && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
+          if(!gap && (!prior || (body.endpoint==='/adopted-texts'||documentRefreshState(prior.work).mutable) && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
         }
       }
       this.store.finishTask(task);
     } else if(task.kind==='document') {
       const r=await this.request(body.endpoint);const work=r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
-      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
+      if(body.endpoint.startsWith('/adopted-texts/'))validateAdoptedText(body.endpoint,work);
+      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(work), proc=new Map();
       for(const id of procedureIds(work)) {
         const endpoint='/procedures/'+id, existing=this.store.source(generation,endpoint);
@@ -637,6 +640,7 @@ export class ActivityWorker {
       // must publish through a working generation, even between daily cycles.
       const recover=this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,active,this.clock());
       const cycle=this.coreDue()||recover?this.store.beginCycle():null,generation=cycle?.generation || active;
+      if(cycle)scheduleAdoptedTexts(this,cycle);
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);

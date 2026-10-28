@@ -29,7 +29,9 @@ function setup(t,options={}) {
     const projected=projectDocument(work),key='/plenary-documents/'+work.identifier;
     store.putSource(generation,key,'document',projected,stamp,documentRows(projected,key,stamp).rows);
   }
-  // This fixture exercises settled metadata; group-voice, membership and group-history upgrades have separate tests.
+  // This fixture exercises settled metadata; source-discovery, group-voice,
+  // membership and group-history upgrades have separate tests.
+  store.set('adoptedTextDiscovery',{version:1,throughYear:2026});
   store.db.prepare('INSERT INTO group_voice_state VALUES (?,1)').run(generation);
   store.putSource(generation,'outside:state','outside-state',{version:1,terms:[9,10]},stamp);
   store.updateCycle({initialized:true,membershipScheduled:true,groupHistoryScheduled:true,motionOutcomesDay:date,reportJoinsReady:true,procedureTitlesQueued:true,amendmentsPreparedVersion:AMENDMENTS_VERSION,amendmentsPreparedDay:date,splitParserVersion:SPLIT_PARSER_VERSION,amendmentDocumentParserVersion:AMENDMENT_EXTRACTION_VERSION,amendmentDocumentLinksVersion:AMENDMENT_LINKS_VERSION,amendmentSittingProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION,amendmentDistributionProofVersion:AMENDMENT_DISTRIBUTION_PROOF_VERSION});
