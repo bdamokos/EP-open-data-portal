@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 300;
-export const API_VERSION = 300;
+export const API_CONTRACT_REVISION = 305;
+export const API_VERSION = 305;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -298,12 +298,17 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   292: '6dd71a771f8577553bafa1a2d9d789703764ee143dc3ba1d4d28c9597c3479ed',
   293: '6ed2f3ceb778a3e528794e73d4deff05a277b78d61af8d3403908f8e4dc9f5bd',
   294: '1570994d34536f7669cb95d277ad3ef15ef7108c9d8b6de6b7401b30382b3a5c',
-  295: '9adaa9ecc079e6325b472d53a59fd7744c9f638abe8d7947fa027331d036aa14',
-  296: '4cc5ff1f9e36856f9710d695ca3d39fa4aa38efa192edd9a81bea1473d792fa4',
-  297: '4f28c6bbd9022bee3eb8db22444c1b0b1a9eeda8f1560dd3261c89544ab0f8e5',
-  298: '5d603417bab140723faa9bac2047aeab78a7ddfaae943309d2432114dff9dab5',
-  299: '1570994d34536f7669cb95d277ad3ef15ef7108c9d8b6de6b7401b30382b3a5c',
-  300: '362678ace359c3e02f05c49463720eb78b96a75c8b618fee8387677938364373',
+  295: 'c67f5ccb2a0fc81d6a16b8ff98830948bc41e18895f1bfa19a8d6561fd2d3396',
+  296: '6ed2f3ceb778a3e528794e73d4deff05a277b78d61af8d3403908f8e4dc9f5bd',
+  297: '1570994d34536f7669cb95d277ad3ef15ef7108c9d8b6de6b7401b30382b3a5c',
+  298: '4d49994df9ff7f85e009b80e406a42db4afb9c8a2711cb1953a159db85d31847',
+  299: '9adaa9ecc079e6325b472d53a59fd7744c9f638abe8d7947fa027331d036aa14',
+  300: '4cc5ff1f9e36856f9710d695ca3d39fa4aa38efa192edd9a81bea1473d792fa4',
+  301: '4f28c6bbd9022bee3eb8db22444c1b0b1a9eeda8f1560dd3261c89544ab0f8e5',
+  302: '5d603417bab140723faa9bac2047aeab78a7ddfaae943309d2432114dff9dab5',
+  303: '1570994d34536f7669cb95d277ad3ef15ef7108c9d8b6de6b7401b30382b3a5c',
+  304: '362678ace359c3e02f05c49463720eb78b96a75c8b618fee8387677938364373',
+  305: 'a93d1873f5d2f3314f3f112042920404b73d86b6517b64912a65e35b8d058eac',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.
