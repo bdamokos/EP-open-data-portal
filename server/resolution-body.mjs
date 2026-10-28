@@ -15,7 +15,7 @@ const openings={
   lv:'Eiropas Parlaments',lt:'Europos Parlamentas',hu:'Az Európai Parlament',mt:'Il-Parlament Ewropew',nl:'Het Europees Parlement',pl:'Parlament Europejski',
   pt:'O Parlamento Europeu',ro:'Parlamentul European',sk:'Európsky parlament',sl:'Evropski parlament',fi:'Euroopan parlamentti',sv:'Europaparlamentet',
 };
-const openingVariants={fi:['Euroopan parlamentti, joka'],sv:['Europaparlamentet utfärdar denna resolution']};
+const openingVariants={ga:['Tá Parlaimint na hEorpa'],fi:['Euroopan parlamentti, joka'],sv:['Europaparlamentet utfärdar denna resolution']};
 export const objectWarnings=new Set([
   'A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.',
   'An unmapped symbol is shown as an object placeholder; the surrounding text is retained.',
