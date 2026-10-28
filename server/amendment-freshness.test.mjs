@@ -768,26 +768,20 @@ test('initialization failure does not block a completed extraction and maintenan
   failed.mock.restore();context.advance(60_001);assert.equal(await sources.initialize(),true);
 });
 
-test('a defensive retained-publication refusal downloads and reparses instead of failing the list',async t=>{
+test('a matching dated row retrieved before its publication downloads again without failing the list',async t=>{
   const context=await fixture(t),{store,worker,generation,descriptor}=context;
-  await context.reverify({...descriptor,issued:'2026-10-02T00:00:00Z'});downgrade(context);
-  let injected=false,downloads=0;
-  const extract=worker.extractAmendmentList;
-  worker.extractAmendmentList=async(...args)=>{
-    const result=await extract(...args);
-    if(!injected) {
-      injected=true;
-      store.db.prepare('INSERT INTO amendment_source_bindings VALUES (?,?,?,?,?)').run(descriptor.url,descriptor.language,descriptor.byteSize,createHash('sha256').update(amendmentDocx()).digest('hex'),'2026-10-03T00:00:00Z');
-    }
-    return result;
-  };
-  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
+  const issued='2026-10-02T00:00:00Z';
+  await context.reverify({...descriptor,issued});downgrade(context);
+  // Simulate a dated row retained by the old implementation, which trusted its binding.
+  store.db.prepare('UPDATE amendment_sources SET issued=?,retrieved_at=?').run(issued,'2026-10-01T00:00:00Z');
+  let downloads=0;worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
   prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
   assert.equal(downloads,1);assert.equal(extractionJob(store,generation).done,1);assert.equal(extractionJob(store,generation).attempts,0);
-  assert.equal(store.source(generation,listKey).work.extraction.amendments[0].proposedText,freshProposed);
+  const result=store.source(generation,listKey).work.extraction;
+  assert.equal(result.amendments[0].proposedText,freshProposed);assert.equal(result.fetchedAt,context.at());
 });
 
-for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse records its first issue time and later republication requires a download; '+mode,async t=>{
+for(const mode of ['current','older-writer','missing-issue'])test('retained reuse records the observed issue time and later republication requires a download; '+mode,async t=>{
   const context=await fixture(t),{store,worker,generation,descriptor}=context;downgrade(context);context.advance(30*86400000);
   const observe=issued=>{
     const saved=store.source(generation,listKey);
@@ -798,7 +792,7 @@ for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse 
   observe('2026-10-02T17:04:06+02:00');
   prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
   assert.equal(downloads,0);assert.equal(store.source(generation,listKey).work.extraction.fetchedAt,oldRetrievedAt);
-  // Successful legacy reuse must bind T1 without changing the bytes' retrieval time.
+  // Successful reuse records the descriptor without changing the byte retrieval time.
   const sources=store.db.prepare('SELECT * FROM amendment_sources').all();assert.equal(sources.length,1);
   assert.equal(sources[0].issued,'2026-10-02T17:04:06+02:00');assert.equal(sources[0].retrieved_at,oldRetrievedAt);
   const saved=store.source(generation,listKey);
@@ -808,7 +802,7 @@ for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse 
   if(mode==='missing-issue') {
     downgrade(context);observe(undefined);
     prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
-    assert.equal(downloads,0);assert.equal(store.db.prepare('SELECT issued FROM amendment_sources').get().issued,'2026-10-02T17:04:06+02:00','Missing issue metadata cannot erase a known publication binding.');
+    assert.equal(downloads,0);assert.deepEqual(store.db.prepare('SELECT issued FROM amendment_sources ORDER BY issued').all().map(row=>row.issued),['','2026-10-02T17:04:06+02:00']);
   }
   downgrade(context);observe('2026-10-20T09:00:00+02:00');
   prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));
@@ -819,13 +813,13 @@ for(const mode of ['current','older-writer','missing-issue'])test('legacy reuse 
   assert.deepEqual(store.db.prepare('SELECT issued FROM amendment_sources ORDER BY retrieved_at').all().map(row=>row.issued),mode==='older-writer'?['2026-10-20T09:00:00+02:00']:['2026-10-02T17:04:06+02:00','2026-10-20T09:00:00+02:00']);
 });
 
-for(const mode of ['identical','different','evicted'])test('an undated normal download preserves publication history before a same-size T2 upgrade; '+mode,async t=>{
+for(const mode of ['identical','different','evicted'])test('an undated normal download before same-size republication still requires new bytes; '+mode,async t=>{
   const context=await fixture(t),{store,worker,generation,descriptor}=context;
   const t1='2026-10-02T17:04:06+02:00',t2='2026-10-25T09:00:00+02:00';
   const upgrade=async()=>{downgrade(context);prepareAmendmentParserUpgrade(worker,generation);await worker.task(nextAmendmentTask(store,generation));await worker.task(nextAmendmentTask(store,generation));};
   await context.reverify({...descriptor,issued:t1});await upgrade();
-  const bound=store.source(generation,listKey).work.extraction.publicationBinding;
-  assert.equal(bound.descriptor.issued,t1);assert.equal(typeof bound.sha256,'string');
+  const first=store.source(generation,listKey).work.extraction;
+  assert.equal(first.sourceDescriptor.issued,t1);assert.equal(typeof first.sourceHash,'string');
   context.advance(8*86400000);await context.reverify(descriptor);
   if(mode==='evicted') {
     const sources=amendmentSourceStore(store),observation=store.source(generation,listKey);sources.maxBytes=1;
@@ -842,10 +836,8 @@ for(const mode of ['identical','different','evicted'])test('an undated normal do
   enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
   await worker.task(nextAmendmentTask(store,generation));assert.equal(downloads,1);
   const undated=store.source(generation,listKey).work.extraction;
-  if(mode==='different') {
-    assert.equal(undated.sourceDescriptor.issued,undefined,'Different undated bytes cannot inherit T1.');
-    assert.deepEqual(undated.publicationBinding,bound,'The last known byte/publication binding remains recorded.');
-  } else assert.equal(undated.sourceDescriptor.issued,t1);
+  assert.equal(undated.sourceDescriptor.issued,undefined,'Undated observations retain the descriptor actually observed.');
+  assert.equal(Object.hasOwn(undated,'publicationBinding'),false);
   context.advance(2*86400000);await context.reverify({...descriptor,issued:t2});downloads=0;
   const proposed='A new requirement.',zipped=amendmentDocx(proposed),buffer=Buffer.concat([zipped,Buffer.alloc(descriptor.byteSize-zipped.length)]);
   buffer.writeUInt16LE(descriptor.byteSize-zipped.length,zipped.length-2);
@@ -854,10 +846,47 @@ for(const mode of ['identical','different','evicted'])test('an undated normal do
   await upgrade();
   const result=store.source(generation,listKey).work.extraction;
   assert.equal(downloads,1);assert.equal(result.amendments[0].proposedText,proposed);
-  assert.equal(result.sourceDescriptor.issued,t2);assert.equal(result.publicationBinding.descriptor.issued,t2);
+  assert.equal(result.sourceDescriptor.issued,t2);assert.equal(Object.hasOwn(result,'publicationBinding'),false);
 });
 
-test('primary and alternate byline downloads and reuse share publication-history preservation',async t=>{
+for(const identical of [true,false])test('normal preparation detects republication after an undated refresh; identical='+identical,async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.reverify({...descriptor,issued:'2026-10-02T17:04:06+02:00'});
+  enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
+  await worker.task(nextAmendmentTask(store,generation));
+  context.advance(8*86400000);await context.reverify(descriptor);
+  let downloads=0;
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(identical?oldProposed:'Different undated wording.')};};
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(downloads,1);
+  const retrievedAt=store.source(generation,listKey).work.extraction.fetchedAt;
+  assert.equal(store.source(generation,listKey).work.extraction.sourceDescriptor.issued,undefined);
+  context.advance(2*86400000);
+  const published={...descriptor,issued:'2026-10-25T09:00:00+02:00'};
+  await context.reverify(published);
+  assert(Date.parse(retrievedAt)<Date.parse(published.issued));
+  assert.equal(amendmentSourceStore(store).has(published),false);
+  assert.equal(listWordingFreshness(store.source(generation,listKey).work,{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'pending');
+  const pending=amendmentsPage(store,{document:targetId});
+  assert.equal(pending.coverage.complete,false);assert.equal(pending.coverage.pending,true);
+  assert.equal(pending.items[0].wordingRetained,true);assert.equal(pending.items[0].wordingSource.fetchedAt,retrievedAt);
+  assert.equal(pending.items[0].proposedText,identical?oldProposed:'Different undated wording.');
+  const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');
+  assert.equal(Boolean(task.body.parserUpgrade),false,'Normal preparation must schedule this without a parser upgrade.');
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
+  await worker.task(task);
+  const page=amendmentsPage(store,{document:targetId}),extraction=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,2);assert.equal(page.coverage.complete,true);assert.equal(page.items[0].sourceFreshness.status,'fresh');
+  assert.equal(extraction.fetchedAt,context.at());assert.equal(extraction.amendments[0].proposedText,freshProposed);
+});
+
+for(const [retrievedAt,status] of [[null,'pending'],['invalid','pending'],['2026-10-15T00:00:00Z','pending'],['2026-10-16T15:04:06Z','fresh'],['2026-10-17T00:00:00Z','fresh']])test('dated wording freshness checks retrieval chronology: '+retrievedAt,async t=>{
+  const context=await fixture(t),{store,generation,descriptor}=context;
+  const saved=store.source(generation,listKey),issued='2026-10-16T17:04:06+02:00';
+  const work={...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued}]},extraction:{...saved.work.extraction,sourceDescriptor:{...descriptor,issued},fetchedAt:retrievedAt}};
+  assert.equal(listWordingFreshness(work,{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,status);
+});
+
+test('primary and alternate byline downloads and reuse share retrieval-time checks',async t=>{
   const context=await fixture(t,{baseline:false}),{store,worker,generation,descriptor}=context;
   const primary=amendmentDocx(oldProposed,'Данило Дела Вале'),alternate=amendmentDocx(oldProposed,'Danilo Della Valle');
   const otherUrl=oldUrl.replace('_en','_de'),files=[{...descriptor,language:'bg',byteSize:primary.length},{url:otherUrl,language:'de',byteSize:alternate.length}];
@@ -880,18 +909,18 @@ test('primary and alternate byline downloads and reuse share publication-history
   store.putSource(generation,'amendment:roster:'+documentDate,'amendment-roster',{...roster.work,nameVersion:1},roster.fetchedAt);
   context.advance(8*86400000);observe();downloads=0;await extract(false);assert.equal(downloads,2);
   work=store.source(generation,listKey).work;
-  assert.equal(work.extraction.sourceDescriptor.issued,t1);assert.equal(work.authorNames.descriptor.issued,t1);
-  assert.equal(work.extraction.publicationBinding.descriptor.issued,t1);assert.equal(work.authorNames.publicationBinding.descriptor.issued,t1);
+  assert.equal(work.extraction.sourceDescriptor.issued,undefined);assert.equal(work.authorNames.descriptor.issued,undefined);
+  assert.equal(Object.hasOwn(work.extraction,'publicationBinding'),false);assert.equal(Object.hasOwn(work.authorNames,'publicationBinding'),false);
   const originalDownload=worker.downloadAmendmentDocx;
   worker.downloadAmendmentDocx=async url=>{if(url===otherUrl)throw new Error('Alternate source unavailable');return originalDownload(url);};
   await extract(false);work=store.source(generation,listKey).work;
   assert.match(work.authorNames.error,/Alternate source unavailable/);
-  assert.equal(store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=?').get(otherUrl).issued,t1);
+  assert.equal(store.db.prepare('SELECT retrieved_at FROM amendment_sources WHERE url=? AND issued=?').get(otherUrl,'').retrieved_at,context.at());
   worker.downloadAmendmentDocx=async url=>{assert.equal(url,oldUrl);return {buffer:alternate};};
   await extract(false);work=store.source(generation,listKey).work;
   assert.equal(work.authorNames,null,'A Latin-only parse no longer needs the alternate source.');
   assert.equal(work.extraction.sourceDescriptor.issued,undefined,'Different undated primary bytes remain unassigned.');
-  assert.equal(store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=?').get(otherUrl).issued,t1);
+  assert.equal(store.db.prepare('SELECT retrieved_at FROM amendment_sources WHERE url=? AND issued=?').get(otherUrl,'').retrieved_at,context.at());
   worker.downloadAmendmentDocx=originalDownload;
   context.advance(86400000);observe(t2);downloads=0;await extract(true);assert.equal(downloads,2);
   work=store.source(generation,listKey).work;
@@ -1345,9 +1374,9 @@ test('an exact settled detail check is due after 90 days despite newer expanded 
   observe();assert.equal(nextAmendmentTask(store,generation),null);
 });
 
-async function authorLanguageFixture(t) {
+async function authorLanguageFixture(t,{issued=null,ageDays=80}={}) {
   const context=await fixture(t),{store,worker,generation}=context;
-  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null,...(issued?{issued}:{})};
   const rosterKey='amendment:roster:'+documentDate,roster=store.source(generation,rosterKey);
   store.putSource(generation,rosterKey,'amendment-roster',{...roster.work,nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION},roster.fetchedAt);
   store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
@@ -1356,7 +1385,7 @@ async function authorLanguageFixture(t) {
   enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
   await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.source(generation,listKey).work.authorNames.descriptor.url,newUrl);
-  context.advance(80*freshnessDay);
+  context.advance(ageDays*freshnessDay);
   return {...context,primary,alternate,buffer};
 }
 
@@ -1373,8 +1402,8 @@ test('settled primary and author-language bytes are both reused with their origi
   assert.equal(current.sourceRetentionRetryAt,null);
 });
 
-for(const failure of ['storage-full','download-failed'])test('settled author-language '+failure+' backs off without failing the primary wording',async t=>{
-  const context=await authorLanguageFixture(t),{store,worker,generation,alternate,buffer}=context;
+for(const issued of [null,oldRetrievedAt])for(const failure of ['storage-full','download-failed'])test('settled author-language '+failure+' backs off without failing the primary wording; issued='+issued,async t=>{
+  const context=await authorLanguageFixture(t,{issued}),{store,worker,generation,alternate,buffer}=context;
   const sources=amendmentSourceStore(store),row=sources.match(alternate);unlinkSync(path.join(sources.directory,row.sha256+'.docx'));
   if(failure==='storage-full')t.mock.method(sources,'reserve',async()=>false);
   let downloads=0;worker.downloadAmendmentDocx=async url=>{
@@ -1392,10 +1421,54 @@ for(const failure of ['storage-full','download-failed'])test('settled author-lan
   assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
 });
 
-test('a changed author-language descriptor is retrieved even during an older retention backoff',async t=>{
+for(const issued of [null,oldRetrievedAt])for(const cached of [false,true])test('weekly alternate failures preserve backoff even with older cached bytes; issued='+issued+' cached='+cached,async t=>{
+  const context=await authorLanguageFixture(t,{issued,ageDays:8}),{store,worker,generation,primary,alternate,buffer}=context;
+  const sources=amendmentSourceStore(store);
+  if(!cached){unlinkSync(path.join(sources.directory,sources.match(alternate).sha256+'.docx'));assert.equal(await sources.read(alternate),null);}
+  const confirmMetadata=()=>{
+    const saved=store.source(generation,listKey);
+    store.putSource(generation,listKey,'amendment-list',{...saved.work,metadataCheckedAt:context.at()},saved.fetchedAt);
+  };
+  confirmMetadata();
+  const downloads={primary:0,alternate:0};let unavailable=true;
+  worker.downloadAmendmentDocx=async url=>{
+    downloads[url===primary.url?'primary':'alternate']++;
+    if(url===alternate.url&&unavailable)throw Object.assign(new Error('Author-language unavailable'),{status:404});
+    return {buffer:buffer(url)};
+  };
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,{primary:1,alternate:1});
+  assert.equal(sources.has(primary),true);assert.equal(sources.has(alternate),cached);
+  assert.equal(Date.parse(store.source(generation,listKey).work.sourceRetentionRetryAt),store.clock()+7*freshnessDay);
+  for(let index=0;index<3;index++) {
+    rebuildAmendmentTarget(worker,generation,targetId);
+    assert.equal(extractionJob(store,generation).done,1,'A failed weekly refresh must not immediately reopen during its own rebuild.');
+  }
+  context.advance(freshnessDay);rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(extractionJob(store,generation).done,1);
+  assert.deepEqual(downloads,{primary:1,alternate:1});
+  context.advance(6*freshnessDay);confirmMetadata();rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
+  unavailable=false;await worker.task(nextAmendmentTask(store,generation));
+  assert.deepEqual(downloads,{primary:2,alternate:2});
+  assert.equal(store.source(generation,listKey).work.sourceRetentionRetryAt,null);
+  assert.equal(store.source(generation,listKey).work.authorNames.source.fetchedAt,context.at());
+});
+
+test('successful dated alternate evidence still needs valid chronology during retention backoff',async t=>{
+  const context=await authorLanguageFixture(t,{issued:oldRetrievedAt}),{store,worker,generation}=context;
+  const saved=store.source(generation,listKey);
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,sourceRetentionRetryAt:new Date(store.clock()+7*freshnessDay).toISOString(),authorNames:{...saved.work.authorNames,source:{...saved.work.authorNames.source,fetchedAt:'2026-10-01T00:00:00Z'}}},saved.fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(extractionJob(store,generation).done,0,'A backoff for retention cannot validate successful bytes retrieved before publication.');
+});
+
+for(const failed of [false,true])test('a changed author-language descriptor is retrieved even during an older retention backoff; failed='+failed,async t=>{
   const context=await authorLanguageFixture(t),{store,worker,generation,alternate,buffer}=context;
   const saved=store.source(generation,listKey),changed={...alternate,issued:context.at()};
-  store.putSource(generation,listKey,'amendment-list',{...saved.work,sourceRetentionRetryAt:new Date(store.clock()+7*freshnessDay).toISOString(),distributionEvidence:{...saved.work.distributionEvidence,descriptors:saved.work.distributionEvidence.descriptors.map(file=>file.url===alternate.url?changed:file)}},saved.fetchedAt);
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,...(failed?{authorNames:{...saved.work.authorNames,error:'Author-language unavailable',source:{url:alternate.url,language:alternate.language}}}:{}),sourceRetentionRetryAt:new Date(store.clock()+7*freshnessDay).toISOString(),distributionEvidence:{...saved.work.distributionEvidence,descriptors:saved.work.distributionEvidence.descriptors.map(file=>file.url===alternate.url?changed:file)}},saved.fetchedAt);
   let downloads=0;worker.downloadAmendmentDocx=async url=>{assert.equal(url,newUrl);downloads++;return {buffer:buffer(url)};};
   rebuildAmendmentTarget(worker,generation,targetId);await worker.task(nextAmendmentTask(store,generation));
   assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.authorNames.descriptor.issued,changed.issued);

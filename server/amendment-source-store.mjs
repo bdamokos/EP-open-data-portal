@@ -5,7 +5,7 @@ import {statSync} from 'node:fs';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import {integerFromEnvironment} from './config.mjs';
-import {normalizedDocxDescriptor,sameDocxDescriptor} from './amendments.mjs';
+import {normalizedDocxDescriptor,sameDocxDescriptor,docxRetrievedAfterIssue} from './amendments.mjs';
 
 // Downloaded amendment-list DOCX bytes, retained outside index generations.
 // Raw files are content-addressed by SHA-256. The leased index writer records
@@ -46,10 +46,7 @@ class AmendmentSourceStore {
     this.store.db.exec(`CREATE TABLE IF NOT EXISTS amendment_sources(url TEXT NOT NULL,language TEXT NOT NULL,byte_size INTEGER NOT NULL,issued TEXT NOT NULL,
       sha256 TEXT NOT NULL,size INTEGER NOT NULL,retrieved_at TEXT NOT NULL,list_id TEXT,PRIMARY KEY(url,language,byte_size,issued)) WITHOUT ROWID;
       CREATE INDEX IF NOT EXISTS amendment_sources_hash ON amendment_sources(sha256);
-      CREATE TABLE IF NOT EXISTS amendment_source_bindings(url TEXT NOT NULL,language TEXT NOT NULL,byte_size INTEGER NOT NULL,
-        sha256 TEXT NOT NULL,issued TEXT NOT NULL,PRIMARY KEY(url,language,byte_size,sha256)) WITHOUT ROWID;
-      INSERT OR IGNORE INTO amendment_source_bindings SELECT url,language,byte_size,sha256,issued FROM amendment_sources
-        WHERE issued<>'' ORDER BY retrieved_at DESC,issued DESC;`);
+      DROP TABLE IF EXISTS amendment_source_bindings;`);
     this.schemaReady=true;
   }
   // Import once per process; revisit recent interrupted publications on later
@@ -104,7 +101,8 @@ class AmendmentSourceStore {
       let remove=true;
       if(record&&typeof record==='object') {
         const buffer=typeof record.bytes==='string'?Buffer.from(record.bytes,'base64'):null;
-        if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&Number.isFinite(Date.parse(record.fetchedAt))&&normalizedDocxDescriptor(record.descriptor)) {
+        const descriptor=normalizedDocxDescriptor(record.descriptor);
+        if(record.version===1&&buffer&&buffer.length<=AMENDMENT_SOURCE_LIMITS.maxFileBytes&&sha256(buffer)===record.sha256&&descriptor&&docxRetrievedAfterIssue(record.fetchedAt,descriptor.issued)) {
           remove=await this.save(record.descriptor,buffer,record.fetchedAt,{signal,legacy:true});
           if(remove)imported++;
           else complete=false;
@@ -120,11 +118,9 @@ class AmendmentSourceStore {
   }
   match(descriptor) {
     const wanted=key(descriptor);if(!wanted)return null;
-    const dated=this.store.db.prepare('SELECT 1 FROM amendment_source_bindings WHERE url=? AND language=? AND byte_size=? LIMIT 1').get(wanted.url,wanted.language,wanted.byteSize);
     const rows=this.store.db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
-      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&!(wanted.issued&&!row.issued&&(dated||Date.parse(row.retrieved_at)<Date.parse(wanted.issued))));
-    // Prefer a row with the same published issue time over one without it.
-    return rows.sort((a,b)=>Number(Boolean(b.issued&&wanted.issued))-Number(Boolean(a.issued&&wanted.issued))||b.retrieved_at.localeCompare(a.retrieved_at))[0] || null;
+      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&docxRetrievedAfterIssue(row.retrieved_at,wanted.issued));
+    return rows.sort((a,b)=>Date.parse(b.retrieved_at)-Date.parse(a.retrieved_at))[0] || null;
   }
   // Check only during target preparation. read() verifies the hash before use.
   has(descriptor) {
@@ -133,17 +129,6 @@ class AmendmentSourceStore {
       const row=this.match(descriptor);if(!row)return false;
       const info=statSync(path.join(this.directory,row.sha256+'.docx'));return info.isFile()&&info.size===row.size;
     }catch(error){if(error.code!=='ENOENT')this.storageFailure(error);return false;}
-  }
-  // Publication knowledge is independent of the blob budget. Undated writes
-  // recover the binding for these exact bytes; they never replace it.
-  boundDescriptor(descriptor,hash) {
-    const file=normalizedDocxDescriptor(descriptor),wanted=key(file);
-    if(!wanted||file.issued||!this.schemaReady)return file;
-    try {
-      const binding=this.store.db.prepare('SELECT issued FROM amendment_source_bindings WHERE url=? AND language=? AND byte_size=? AND sha256=?')
-        .get(wanted.url,wanted.language,wanted.byteSize,hash);
-      return binding?{...file,issued:binding.issued}:file;
-    }catch(error){this.storageFailure(error);return file;}
   }
   // Returns the exact retained bytes and their original retrieval time. A
   // missing or damaged file removes its row so the caller can download again.
@@ -173,30 +158,15 @@ class AmendmentSourceStore {
     try {return await this.saveBytes(descriptor,buffer,retrievedAt,options);}
     catch(error){return this.storageFailure(error,options);}
   }
-  async saveBytes(descriptor,buffer,retrievedAt,{listId=null,signal,legacy=false,downloaded=!legacy,onPublicationChange}={}) {
+  async saveBytes(descriptor,buffer,retrievedAt,{listId=null,signal,legacy=false}={}) {
     if(!legacy&&!await this.initialize({signal}))return false;
-    let wanted=key(descriptor);const db=this.store.db;
-    if(!wanted||!Buffer.isBuffer(buffer)||buffer.length>AMENDMENT_SOURCE_LIMITS.maxFileBytes||!Number.isFinite(Date.parse(retrievedAt)))return false;
+    const wanted=key(descriptor),db=this.store.db;
+    if(!wanted||!Buffer.isBuffer(buffer)||buffer.length>AMENDMENT_SOURCE_LIMITS.maxFileBytes||!docxRetrievedAfterIssue(retrievedAt,wanted.issued))return false;
     // The same or a less specific descriptor is replaced; other versions of the
     // URL remain as superseded evidence until the budget needs their space.
     const hash=sha256(buffer);
     this.store.assertWriter();
     signal?.throwIfAborted();
-    if(wanted.issued) {
-      const bindings=db.prepare('SELECT sha256,issued FROM amendment_source_bindings WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize);
-      const prior=bindings.find(row=>row.sha256===hash);
-      const proved=bindings.some(row=>row.sha256===hash&&Date.parse(row.issued)===Date.parse(wanted.issued))||
-        db.prepare('SELECT issued FROM amendment_sources WHERE url=? AND language=? AND byte_size=? AND sha256=? AND issued<>?').all(wanted.url,wanted.language,wanted.byteSize,hash,'')
-          .some(row=>Date.parse(row.issued)===Date.parse(wanted.issued));
-      if(!downloaded&&!proved&&(bindings.length||Date.parse(retrievedAt)<Date.parse(wanted.issued))) {
-        onPublicationChange?.();return false;
-      }
-      // First-use legacy compatibility establishes the first binding. Only a
-      // dated download can replace an existing binding, even for identical bytes.
-      if(downloaded||!prior)db.prepare('INSERT INTO amendment_source_bindings VALUES (?,?,?,?,?) ON CONFLICT(url,language,byte_size,sha256) DO UPDATE SET issued=excluded.issued')
-        .run(wanted.url,wanted.language,wanted.byteSize,hash,wanted.issued);
-    }
-    wanted=key(this.boundDescriptor(descriptor,hash));
     const matching=()=>db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
       .filter(row=>row.issued===wanted.issued||Boolean(wanted.issued)&&(!row.issued||Date.parse(row.issued)===Date.parse(wanted.issued)));
     // A restart may encounter a record imported before its legacy file was

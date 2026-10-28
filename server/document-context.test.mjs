@@ -647,20 +647,37 @@ test('wording-only scope notes leave the document target unrequested',async()=>{
   assert.equal(result.amendment.variants[0].proposedText,note);assert.equal(result.target.evidence.wordingLanguage,'fr');
 });
 
-for(const baseline of ['motion-resolution','commission-proposal','council-position','present-text'])test('mixed scope notes preserve changed footnotes without acquiring or replacing a baseline: '+baseline,async()=>{
+for(const baseline of ['motion-resolution','commission-proposal','council-position','present-text'])test('mixed scope notes preserve changed footnotes and matching-language baseline reads without a splice: '+baseline,async()=>{
   const example=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-layouts.json',import.meta.url))).examples.find(row=>row.language==='sk'&&row.number===53);
   const selected={...indexed,...example,id:amendmentId,listId,baseline,baselineSource:{category:baseline,conflicted:false},targetLabelLanguage:'sk'};
-  const reader=service({findAmendment:()=>selected,readText:async()=>({...summary,textLanguage:'sk',availableTextLanguages:['sk'],paragraphs:['Original document stays intact.']}),
-    readProposal:async()=>assert.fail('Mixed language notes need a separate comparison'),readCouncil:async()=>assert.fail('No Council acquisition'),readExistingLaw:async()=>assert.fail('No existing-law acquisition')});
+  const calls=[];
+  const read=async(kind,request)=>{assert.equal(request.language,'sk');calls.push(kind);return {status:'unavailable',language:'sk',items:[],gaps:['test-baseline-unavailable'],evidence:[]};};
+  const reader=service({findAmendment:()=>selected,readText:async()=>({...summary,textLanguage:'en',availableTextLanguages:['en','sk'],paragraphs:['Original document stays intact.']}),
+    readProposal:request=>read('commission-proposal',request),readCouncil:request=>read('council-position',request),readExistingLaw:request=>read('present-text',request)});
   for(const includeBody of [true,false]) {
     const result=await reader.query(query({amendmentId,listId,wordingLanguage:'sk',includeBody}),{store:{}});
     assert.equal(result.amendment.variants[0].originalText,example.originalText);assert.equal(result.amendment.variants[0].proposedText,example.proposedText);
-    assert.equal(result.baseline,null);assert.equal(result.proposal,null);assert.deepEqual(result.target.paragraphs,[]);
+    assert.equal(result.proposal,null);assert.deepEqual(result.target.paragraphs,[]);
     if(includeBody) {
       assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.operation,null);assert.equal(result.placement.reason,'language_scope_mixed');
       assert.equal(result.placement.evidence[0].status,'partial');assert.equal(result.placement.evidence[0].field,'proposedText');
       assert.equal(result.target.reason,'mixed-language-scope');assert.equal(result.target.evidence.wordingLanguage,'sk');
+      if(baseline==='motion-resolution')assert.equal(result.baseline,null);
+      else {assert.equal(result.baseline.language,'sk');assert.equal(result.baseline.status,'unavailable');}
       assert.deepEqual(result.document.selectedText.paragraphs,['Original document stays intact.']);
-    } else {assert.equal(result.target.status,'not-requested');assert.equal(result.target.reason,null);assert.equal(result.placement,null);}
+    } else {assert.equal(result.target.status,'not-requested');assert.equal(result.target.reason,null);assert.equal(result.placement,null);assert.equal(result.baseline,null);}
   }
+  assert.deepEqual(calls,baseline==='motion-resolution'?[]:[baseline]);
+});
+
+for(const broken of [false,true])test('mixed scope retains readable legal context or its explicit source gap without changing the placement reason: '+broken,async()=>{
+  const example=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-layouts.json',import.meta.url))).examples.find(row=>row.language==='sk'&&row.number===53);
+  const selected={...indexed,...example,id:amendmentId,listId,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},targetLabelLanguage:'sk'};
+  const xml='<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>Článok 1</w:t></w:r></w:p><w:p><w:r><w:t>1. Readable original legal text.</w:t></w:r></w:p></w:body></w:document>';
+  const reader=service({findAmendment:()=>selected,readProposal:async request=>{assert.equal(request.language,'sk');return {status:'available',workId:'exact-work',language:'sk',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'exact-item',expressionId:'exact-expression',buffer:broken?Buffer.from('Not a DOCX'):archive(xml),source:{url:'https://publications.europa.eu/resource/celex/52025PC0087',sha256:'a'.repeat(64),fetchedAt:new Date(at).toISOString()}}]};}});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'sk'}),{store:{}});
+  assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.operation,null);assert.equal(result.placement.reason,'language_scope_mixed');assert.equal(result.placement.splice,undefined);
+  assert.equal(result.baseline.language,'sk');assert.equal(result.amendment.variants[0].proposedText,example.proposedText);
+  if(broken){assert.equal(result.proposal,null);assert.equal(result.baseline.status,'unavailable');assert(result.baseline.gaps.includes('proposal-projection-unavailable'));}
+  else {assert.equal(result.baseline.status,'available');assert.equal(result.document.selectedText,undefined);assert(result.proposal.items[0].proposal.paragraphs.some(p=>p.text==='1. Readable original legal text.'));}
 });
