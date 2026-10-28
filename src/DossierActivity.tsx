@@ -63,9 +63,8 @@ function Coverage({coverage,section,pages}:{coverage:DossierCoverage;section:Dos
   // Gaps stay attributed to the exact target whose read failed.
   const gaps=targets.size?[...targets.entries()].flatMap(([target,page])=>page.coverage.gaps.map(gap=>target+' · '+gap)):coverage.gaps;
   const discovery=coverage.discovery,discoveryGap=Boolean(discovery&&(discovery.pending||discovery.refreshGaps||discovery.capacityGaps.length));
-  const allGaps=[...gaps,...(discovery?.capacityGaps||[])];
   if(coverage.status==='complete'&&!gaps.length&&!discoveryGap)return null;
-  return <div className="dossier-coverage"><p>{section==='people'?'People':labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Still checking for more amendments':discovery?.refreshGaps?'Some amendment sources unavailable':'Partial coverage'}</p>{allGaps.length>0&&<details><summary>Gaps · {allGaps.length}</summary><ul>{allGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details>}</div>;
+  return <div className="dossier-coverage"><p>{section==='people'?'People':labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Still checking for more amendments':discovery?.refreshGaps?'Some amendment sources unavailable':'Partial coverage'}</p></div>;
 }
 function Role({item,language}:{item:DossierRole;language:string}) {
   return <article className="dossier-role"><h4>{roleName(item.role)}</h4>{(item.committee||item.stage)&&<p>{[item.committee,item.stage?stageLabel(item.stage):''].filter(Boolean).join(' · ')}</p>}{(item.date||item.documentId)&&<p>{item.date&&<>{item.dateBasis==='document'?'Document date':'Date'}: <time lang={language}>{humanDate(item.date,language)}</time></>}{item.documentId?(item.date?' · ':'')+item.documentId:''}</p>}<Source source={item.source} id={item.participationId||item.id} language={language}/></article>;
@@ -79,7 +78,7 @@ function Amendment({item,votes,shared,showOutcome,unloaded,votesPending,onMoreVo
 
 function Speech({item,language}:{item:DossierSpeech;language:string}) {
   const [open,setOpen]=useDossierReaderState('dossier-speech:'+item.id,false);
-  return <article className="dossier-speech"><h4 lang={item.titleLanguage??''}>{item.title||'Speech'}</h4>{item.jointDebate&&<p className="dossier-muted">Joint debate</p>}<details open={open} onToggle={event=>setOpen(event.currentTarget.open)}><summary>Read speech</summary>{open&&<InsightSpeechReader id={item.id} language={language}/>}</details><Source source={item.source} id={item.id} language={language}/></article>;
+  return <article className="dossier-speech"><h4 lang={item.titleLanguage??''}>{item.title||'Speech'}</h4>{item.jointDebate&&<p className="dossier-muted">Joint debate</p>}<details open={open} onToggle={event=>setOpen(event.currentTarget.open)}><summary>Read speech</summary>{open&&<InsightSpeechReader id={item.id} language={language}/>}</details></article>;
 }
 
 export function DossierActivity({reference,language='en',onProcedure}:{reference:string;language?:string;onProcedure?:(procedure:DossierReference)=>void}) {
@@ -133,5 +132,5 @@ export function ActivityDossierLinks({procedureIds,person,language='en'}:{proced
   const query=new URLSearchParams({procedures:ids.slice(0,3).join(','),lang:language});
   const state=useInsightData<DossierReferencesResponse>(ids.length?'insights/dossier-references?'+query:null);
   if(!ids.length)return null;
-  return <div className="dossier-work-links">{state.data&&<DossierWorkLinks references={state.data.items.filter(row=>ids.includes(row.id))} person={person} language={language}/>} {state.loading&&<p role="status">Finding dossier references…</p>}{state.error&&<p role="alert">Dossier references unavailable. <button type="button" onClick={state.retry}>Retry dossier links</button></p>}{state.data?.coverage.status!=='complete'&&state.data&&<details><summary>Some dossier references unavailable</summary><ul>{state.data.coverage.gaps.map((gap,index)=><li key={index}>{typeof gap==='string'?gap:gap.message||gap.code||'Reference unavailable'}{typeof gap==='object'&&gap.id?' · '+gap.id:''}</li>)}</ul></details>}{ids.length>3&&<p className="dossier-muted">First 3 of {ids.length} procedures shown.</p>}</div>;
+  return <div className="dossier-work-links">{state.data&&<DossierWorkLinks references={state.data.items.filter(row=>ids.includes(row.id))} person={person} language={language}/>} {state.loading&&<p role="status">Finding dossier references…</p>}{state.error&&<p role="alert">Dossier references unavailable. <button type="button" onClick={state.retry}>Retry dossier links</button></p>}{state.data?.coverage.status!=='complete'&&state.data&&<p className="dossier-muted">Some dossier references unavailable</p>}{ids.length>3&&<p className="dossier-muted">First 3 of {ids.length} procedures shown.</p>}</div>;
 }
