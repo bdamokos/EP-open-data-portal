@@ -1,0 +1,594 @@
+{
+  "attribution": "European Commission, COM(2024)183 final, 2024/0098(COD). Complete consecutive instruction extents in the recorded public DOCX sources; other instructions are omitted.",
+  "examples": [
+    {
+      "name": "missing-delimiter-instruction-vocabulary",
+      "language": "da",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0019.01/DOC_1",
+      "sourceHash": "7cf1f4d82d398fbd9da1573bf11934eeb54bb98fd2fd6c31a051ad23863bcac3",
+      "retrievedAt": "2026-10-27T20:27:04.786408+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        88,
+        89,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        150,
+        151,
+        153
+      ],
+      "sourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[89]",
+        "/w:document[1]/w:body[1]/w:p[90]",
+        "/w:document[1]/w:body[1]/w:p[141]",
+        "/w:document[1]/w:body[1]/w:p[142]",
+        "/w:document[1]/w:body[1]/w:p[143]",
+        "/w:document[1]/w:body[1]/w:p[144]",
+        "/w:document[1]/w:body[1]/w:p[145]",
+        "/w:document[1]/w:body[1]/w:p[146]",
+        "/w:document[1]/w:body[1]/w:p[147]",
+        "/w:document[1]/w:body[1]/w:p[148]",
+        "/w:document[1]/w:body[1]/w:p[149]",
+        "/w:document[1]/w:body[1]/w:p[151]",
+        "/w:document[1]/w:body[1]/w:p[152]",
+        "/w:document[1]/w:body[1]/w:p[154]"
+      ],
+      "paragraphs": [
+        "Artikel 1\nÆndringer af forordning (EU) nr. 2023/2124",
+        "Forordning (EU) 2023/2124 ændres som følger:",
+        "11) Følgende artikel indsættes mellem artikel 23 og 24 som artikel 23a:",
+        "\"Artikel 23a",
+        "Flådeforvaltningsforanstaltninger",
+        "Medlemsstaterne sikrer, at den samlede flådekapacitet, hvad angår bruttotonnage (BT) og/eller bruttoregistertonnage (BRT), maskineffekt (kW) og antal fartøjer som registreret i både nationale registre og GFCM-registre, ikke overstiger flådekapaciteten for fartøjer, der fiskede med skovltrawl efter dybvandsrejer i 2019.",
+        "12) I artikel 24 foretages følgende ændringer:",
+        "a) Stk. 1 affattes således:",
+        "\"1. Medlemsstaterne meddeler senest den 15. marts hvert år for et givet år Kommissionen en liste over alle fiskerfartøjer, der fører deres flag, og som har tilladelse til at fiske efter og aktivt fisker efter de arter, der er anført i artikel 22. Kommissionen sender denne liste til GFCM's sekretariat senest den 31. marts hvert år. Denne liste skal for hvert fartøj indeholde de oplysninger, der er omhandlet i bilag VIII.\"",
+        "b) Følgende tilføjes som stk. 4:",
+        "\"4. Fartøjer, der fisker med skovltrawl inden for anvendelsesområdet for denne afdeling, må kun udøve bestemte fiskeriaktiviteter, hvis disse er anført i en gyldig fiskeritilladelse udstedt af de kompetente myndigheder.\"",
+        "13) Artikel 25, nr. 3), affattes således:",
+        "\"3) samlet fangst og udsmid.\"",
+        "14) Artikel 26 affattes således:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 33,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "11",
+        "12",
+        "13",
+        "14"
+      ],
+      "recoveredInstruction": "12",
+      "recoveredOperation": "amend",
+      "recoveredSourceOrdinal": 144,
+      "followingSourceOrdinal": 150
+    },
+    {
+      "name": "missing-delimiter-instruction-vocabulary",
+      "language": "mt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0011.01/DOC_1",
+      "sourceHash": "79f7b6f08e89b5a29a12b70464cc3defda5a3437e987a2115154820a6c949c36",
+      "retrievedAt": "2026-10-27T20:27:43.896095+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        88,
+        89,
+        493,
+        494,
+        495,
+        496,
+        497,
+        498,
+        500,
+        501,
+        502,
+        503,
+        505,
+        506,
+        507,
+        508,
+        509,
+        510,
+        511,
+        512,
+        513,
+        515,
+        516,
+        517,
+        519
+      ],
+      "sourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[89]",
+        "/w:document[1]/w:body[1]/w:p[90]",
+        "/w:document[1]/w:body[1]/w:p[494]",
+        "/w:document[1]/w:body[1]/w:p[495]",
+        "/w:document[1]/w:body[1]/w:p[496]",
+        "/w:document[1]/w:body[1]/w:p[497]",
+        "/w:document[1]/w:body[1]/w:p[498]",
+        "/w:document[1]/w:body[1]/w:p[499]",
+        "/w:document[1]/w:body[1]/w:p[501]",
+        "/w:document[1]/w:body[1]/w:p[502]",
+        "/w:document[1]/w:body[1]/w:p[503]",
+        "/w:document[1]/w:body[1]/w:p[504]",
+        "/w:document[1]/w:body[1]/w:p[506]",
+        "/w:document[1]/w:body[1]/w:p[507]",
+        "/w:document[1]/w:body[1]/w:p[508]",
+        "/w:document[1]/w:body[1]/w:p[509]",
+        "/w:document[1]/w:body[1]/w:p[510]",
+        "/w:document[1]/w:body[1]/w:p[511]",
+        "/w:document[1]/w:body[1]/w:p[512]",
+        "/w:document[1]/w:body[1]/w:p[513]",
+        "/w:document[1]/w:body[1]/w:p[514]",
+        "/w:document[1]/w:body[1]/w:p[516]",
+        "/w:document[1]/w:body[1]/w:p[517]",
+        "/w:document[1]/w:body[1]/w:p[518]",
+        "/w:document[1]/w:body[1]/w:p[520]"
+      ],
+      "paragraphs": [
+        "Artikolu 1\nEmendi għar-Regolament (UE) Nru 2023/2124",
+        "Ir-Regolament (UE) 2023/2124 huwa emendat kif ġej:",
+        "(49) l-Artikolu 98 huwa emendat kif ġej:",
+        "(a) il-paragrafu 1 huwa sostitwit b’dan li ġej:",
+        "“1. L-Istati Membri għandhom jiżguraw livell għoli ta’ protezzjoni mill-attivitajiet tas-sajd għall-ispeċijiet elażmobranki elenkati fl-Anness II u III tal-Protokoll dwar żoni protetti b’mod speċjali u d-diversità bioloġika fil-Mediterran”.;",
+        "(b) jiżdiedu l-punti li ġejjin:",
+        "“4. Sa mhux aktar tard mill-15 ta’ April 2026, l-Istati Membri għandhom jirrapportaw lill-Kummissjoni, dwar tal-anqas attività waħda għal kull speċi/ġeneru elenkat fl-Anness XVII u preżenti fis-subżona ġeografika fejn jitwettqu l-attivitajiet tas-sajd, jew b’kollox dwar tal-anqas ħames azzjonijiet speċifiċi għall-ispeċijiet biex jittejjeb l-istatus ta’ konservazzjoni tal-elażmobranki, jiġu mmitigati u, meta possibbli, jiġu eliminati r-riskju ta’ qabda inċidentali tal-elażmobranki fl-operazzjonijiet tas-sajd u l-mortalità assoċjata.  Sa mhux aktar tard mit-30 ta’ April 2026, il-Kummissjoni għandha tibgħat dik l-informazzjoni lis-Segretarjat tal-GFCM.",
+        "5. L-Istati Membri għandhom jirrikjedu li l-bastimenti tas-sajd li jaqbdu speċijiet ta’ klieb il-baħar bħala qabda aċċessorja jew qabda inċidentali jillimitaw il-qabda aċċessorja ta’ klieb il-baħar elenkati fl-Anness III tal-Protokoll dwar żoni protetti b’mod speċjali u d-diversità bijoloġika fil-Mediterran għal perċentwal massimu tal-qabda totali bħala piż skont il-vjaġġ tas-sajd jew għal mhux aktar minn tliet kampjuni.",
+        "(50) fl-Artikolu 102, jiżdied il-paragrafu li ġej:",
+        "“3. Fiż-żoni ġeografiċi tal-Baħar Mediterran (il-GSAs 1-27), fejn il-qabda aċċessorja tal-ispeċijiet ta’ għasafar tal-baħar elenkati fl-Anness II tal-Protokoll SPA/BD tal-Konvenzjoni ta’ Barċellona sseħħ skont il-parir tal-SAC (l-aktar meta l-għasafar tal-baħar jinqabdu b’mod inċidentali matul l-operazzjonijiet tas-sajd), għandhom japplikaw il-miżuri li ġejjin:",
+        "(a) l-Istati Membri għandhom jiġbru data biex jikkaratterizzaw bis-sħiħ il-qabda aċċessorja ta’ għasafar tal-baħar fis-sajd, inkluż il-qabda inċidentali tal-garnija tal-Baleariku f’periklu kritiku. Sal-15 ta’ April ta’ kull sena, l-Istati Membri għandhom jirrapportaw lill-Kummissjoni l-informazzjoni msemmija fl-Anness XXII. Sat-30 ta’ April ta’ kull sena, il-Kummissjoni għandha tibgħat dik l-informazzjoni lis-Segretarjat tal-GFCM;",
+        "(b) sal-2024, l-Istati Membri għandhom jevalwaw l-effettività ta’ mill-anqas żewġ miżuri tranżizzjonali ta’ mitigazzjoni elenkati fl-Anness XVIII biex itejbu l-istat ta’ konservazzjoni tal-ispeċijiet ta’ għasafar tal-baħar, jimmitigaw u, meta possibbli, jeliminaw ir-riskju ta’ qabda inċidentali ta’ għasafar tal-baħar fl-operazzjonijiet tas-sajd u l-mortalità assoċjata.”;",
+        "(51) jiddaħħal l-Artikolu 103 a li ġej:",
+        "“Artikolu 103 a",
+        "Miżuri ta' mitigazzjoni",
+        "1. L-Istati Membri huma mħeġġa jieħdu l-passi meħtieġa biex jimplimentaw il-leġiżlazzjoni eżistenti u l-miżuri ta’ mitigazzjoni biex itaffu u, meta possibbli, jeliminaw il-qabda inċidentali ta’ fkieren tal-baħar waqt operazzjonijiet tas-sajd, bħal iżda mhux limitati għal:",
+        "(a) modifiki fl-irkaptu tas-sajd u tipi alternattivi ta’ rkaptu tas-sajd;",
+        "(b) \trestrizzjonijiet tas-sajd fil-ħin u fiż-żona u għeluq, bħal dak ibbażat pereżempju fuq miżuri ta’ rikonoxximent spazjali biex tiġi identifikata l-preżenza tal-fkieren tal-baħar;",
+        "(c) \ttitjib fl-immarkar u fid-detezzjoni tal-irkaptu tas-sajd, inkluża r-riflettività akustika, bħall-użu ta’ xbieki kkuluriti, rifletturi passivi ħfief, dijametru eħxen tal-ispag għall-imballaġġ, sufri jew materjali oħrajn fix-xibka, komposti tal-metall li għandhom karatteristiċi ta’ detezzjoni akustika bħal sulfat tal-barju, u xbieki mdawlin bi stikek tad-dawl li jaħdmu bil-batteriji;",
+        "(d) \timplimentazzjoni tal-limiti massimi potenzjali tal-qabda aċċessorja u l-użu ta’ apparat għall-esklużjoni tal-fkieren b’apparat ta’ separazzjoni u ta’ ġestjoni bir-reqqa; kif ukoll",
+        "(e) \tregoli dwar l-imġiba u l-istrateġiji tas-sajd;",
+        "2. L-Istati Membri huma mħeġġa jiffaċilitaw l-implimentazzjoni ta’ miżuri biex jiġi evitat it-tħabbil matul l-attività ta’ depredazzjoni u biex titnaqqas il-mortalità ta’ wara r-rilaxx, permezz ta’ linji gwida u taħriġ xierqa.",
+        "3. Sal-2026, l-Istati Membri għandhom jinnotifikaw lill-Kummissjoni tal-anqas tnejn mill-miżuri ta’ mitigazzjoni adottati skont il-punti 1 u 2. F’dan ir-rigward, jenħtieġ li jitqiesu ż-żoni u l-flotot b’riskji akbar ta’ interazzjonijiet.",
+        "4. Il-Kummissjoni għandha tinnotifika mingħajr dewmien lis-Segretarjat tal-GFCM b’tali miżuri.",
+        "(52) jiddaħħal l-Artikolu 105 a li ġej:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        },
+        {
+          "styleId": "Normal",
+          "numberingLabel": "",
+          "numberingComplete": true,
+          "notesComplete": true
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 36,
+              "end": 40,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 15,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 23,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "49",
+        "50",
+        "51",
+        "52"
+      ],
+      "recoveredInstruction": "50",
+      "recoveredOperation": "insert",
+      "recoveredSourceOrdinal": 500,
+      "followingSourceOrdinal": 505
+    }
+  ]
+}

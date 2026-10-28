@@ -91,7 +91,7 @@ The attributed COM(2024)183 excerpts in `server/fixtures/proposal-quotation-exce
 | `"…"` | DA, IT |
 | `‘…’` | GA |
 
-Closers may precede whitespace and a full stop or semicolon, including Greek `·`. Nested terms include repeated double marks, Finnish `’…’`, Hungarian `»…«` and Slovenian `,…‘`. The same sources contain omitted, repeated and premature delimiters; list ownership and source boundaries remain necessary alongside punctuation. These are observed conventions, not a claim that every document uses one pair per language.
+Closers may precede whitespace and a full stop or semicolon, including Greek `·`. Nested terms include repeated double marks, Finnish `’…’`, Hungarian `»…«` and Slovenian `,…‘`. The same sources contain omitted, repeated and premature delimiters; list ownership and source boundaries remain necessary alongside punctuation. The Danish amendment phrase `foretages følgende ændringer` and Maltese insertion verb `jiżdied` in COM(2024)183 establish consecutive outer instructions after omitted closers; complete adjacent instruction excerpts are retained in `server/fixtures/proposal-instruction-boundaries.json`. These are observed conventions, not a claim that every document uses one pair per language.
 
 The offline fixtures contain selected public Commission DOCX paragraphs and EP amendment labels with exact source URLs, languages, hashes and retrieval dates. Full documents remain outside Git. The CBAM act/annex, AI Act annex, all 24 label grammars, instruction nesting, shared-list restarts, MathML safety and punctuation pairs have offline tests. The large-text regression parses exactly 8 MiB within a 15-second CPU budget and 60-second wall guard under a 256 MiB V8 heap cap; cache hits reuse the immutable result.
 
