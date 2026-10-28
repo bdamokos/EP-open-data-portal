@@ -70,7 +70,10 @@ function instruction(text,language) {
   // the complete inner target; these are never promoted to proposal paths.
   const targets=[];
   const words=cleanLead(text).replace(/^\(?[\p{L}\d]+[).]\s*/u,'').split(/\s+/);
-  for(let start=0;start<Math.min(words.length,35);start++)for(let width=2;width<=4;width++) {
+  // DA "I artikel 24" means "In Article 24". Its leading preposition is
+  // not a reversed Roman article label; the following full reference owns it.
+  const first=language==='da'&&words[0]==='I'&&parseLabelSegment(words.slice(1,3).join(' '),language)?.kind==='article'?1:0;
+  for(let start=first;start<Math.min(words.length,35);start++)for(let width=2;width<=4;width++) {
     const found=parseLabelSegment(words.slice(start,start+width).join(' ').replace(/[,:;]$/,''),language);
     if(found&&!targets.some(target=>target.kind===found.kind&&target.value===found.value))targets.push(found);
   }
