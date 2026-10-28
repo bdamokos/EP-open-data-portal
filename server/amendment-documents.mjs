@@ -2,8 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
+import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='16';
+export const AMENDMENT_EXTRACTION_VERSION='18';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -161,8 +162,9 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
         const id=property(props,'w:rStyle')||style.character;
         const vertical=property(props,'w:vertAlign')??style.inheritedProperty(id,'vertical',format.vertical);
         const position=property(props,'w:position')??style.inheritedProperty(id,'position',format.position);
-        const marks=[],text=inline(value,style,false,raw,losses,{vertical,position},marks),start=out.length;
+        const marks=[],text=inline(value,style,false,raw,losses,{...format,vertical,position},marks),start=out.length;
         if(!raw&&text.length) {
+          if(style.formatting?.run(format.paragraphStyle,props).bold)marks.push({start:0,end:text.length,kind:'bold'});
           const shifted=Number(position),valid=['baseline','superscript','subscript'].includes(vertical)&&Number.isFinite(shifted);
           if(!valid)losses.add('vertical-formatting-loss');
           else {
@@ -204,24 +206,29 @@ function inline(nodes,style,hidden,raw=false,losses=new Set(),format={vertical:'
   }
   return out;
 }
-function documentBlocks(parts,warnings) {
+function documentBlocks(parts,warnings,language) {
   const style=visibility(parts.get('word/styles.xml'));
+  if(language==='hr')style.formatting=styleFormatting(children(parser().parse(parts.get('word/styles.xml')||''),'w:styles'));
   const label=numberingLabels(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),warnings);
   let count=0,size=0;
   const paragraph=nodes=>{
     const props=children(nodes,'w:pPr'),hidden=style.hidden(property(props,'w:pStyle')||style.paragraph,style.defaults);
     const id=property(props,'w:pStyle')||style.paragraph;
-    const format={vertical:style.inheritedProperty(id,'vertical',style.defaultVertical),position:style.inheritedProperty(id,'position',style.defaultPosition)};
+    const format={paragraphStyle:id,vertical:style.inheritedProperty(id,'vertical',style.defaultVertical),position:style.inheritedProperty(id,'position',style.defaultPosition)};
     const raw=clean(inline(nodes,style,hidden,true,new Set(),format));
     const losses=new Set();
     if(structuralRevision(props))losses.add('structural-revision');
     const marks=[],wording=cleanWording(inline(nodes,style,hidden,false,losses,format,marks),marks);
     let {text,formatting}=wording;
+    const boldMarks=formatting.filter(mark=>mark.kind==='bold');
+    const visibleLength=value=>value.replace(/\s/gu,'').length;
+    const bold=Boolean(text.trim())&&boldMarks.reduce((length,mark)=>length+visibleLength(text.slice(mark.start,mark.end)),0)===visibleLength(text);
+    formatting=formatting.filter(mark=>mark.kind!=='bold');
     const prefix=label(props);if(prefix&&text){const offset=prefix.length+1;text=prefix+'\t'+text;formatting=formatting.map(mark=>({...mark,start:mark.start+offset,end:mark.end+offset}));}
     size+=raw.length+text.length;
     if(++count>20000||size>4*1024*1024)throw new Error('Amendment document text exceeds the supported size.');
     const structure=JSON.stringify(nodes);
-    return {raw,text,formatting,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
+    return {raw,text,formatting,bold,paragraphStyle:id||null,hasNotes:/"w:(?:footnote|endnote)Reference"/.test(structure),losses:[...losses],symbolLoss:losses.has('symbol-text-loss'),unsupportedBody:losses.has('comparison-structure')};
   };
   const blocks=[];
   const summary=content=>({
@@ -273,6 +280,10 @@ function documentBlocks(parts,warnings) {
 }
 const field=(raw,tag)=>[...raw.matchAll(new RegExp('<'+tag+'>([\\s\\S]*?)</'+tag+'>','g'))].map(m=>clean(m[1]));
 const metadata=value=>clean(value).replace(/^\{[^{}]*\}/,'').trim();
+// Published committee-list class lines are metadata, not legal addresses.
+const DOCUMENT_CLASSES={fr:'Proposition de règlement',hu:'Rendeletre irányuló javaslat',ro:'Propunere de regulament'};
+const classKey=value=>clean(value).normalize('NFC').replace(/\s+/gu,' ').toLowerCase();
+const documentClass=(text,language)=>DOCUMENT_CLASSES[language]&&classKey(text)===classKey(DOCUMENT_CLASSES[language]);
 function documentDate(raw) {
   const dates=new Set();
   for(const source of field(raw,'Date'))for(const match of source.matchAll(/(?:\{)?(\d{1,2})[./](\d{1,2})[./](\d{4})(?:\})?/g)) {
@@ -282,12 +293,13 @@ function documentDate(raw) {
   }
   return dates.size===1?[...dates][0]:null;
 }
-const numberIn=(raw,paragraphStyle)=>{
+const numberIn=(raw,paragraphStyle,language)=>{
   const match=raw.match(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/)||raw.match(/^\s*Amendment\s*([1-9]\d*)\b/iu)||(/^AmNumberTabs\d*$/i.test(paragraphStyle||'')&&raw.match(/^[^\d<>]+?\s*([1-9]\d*)\s*$/u));
-  const number=match&&Number(match[1]);return Number.isSafeInteger(number)?number:null;
+  const localized=language==='hr'&&raw.match(/^\s*Amandman\s*([1-9]\d*)\s*$/iu);
+  const number=Number((match||localized)?.[1]);return Number.isSafeInteger(number)?number:null;
 };
 const legacyHeading=text=>/^(?:Amendment|Amendement|Änderungsantrag|Ændringsforslag|Módosítás|Enmienda|Emendamento|Alteração|Amendament|Poprawka|Wijziging|Τροπολογία|Pozmeňujúci návrh|Pozměňovací návrh)$/iu.test(text);
-const groupNumber=group=>group?.filter(b=>b.kind==='paragraph').map(b=>numberIn(b.raw,b.paragraphStyle)).find(Boolean)||null;
+const groupNumber=(group,language)=>group?.filter(b=>b.kind==='paragraph').map(b=>numberIn(b.raw,b.paragraphStyle,language)).find(Boolean)||null;
 
 // Annex comparisons publish two vertical sections, sometimes in separate
 // tables. Only a full-width, exact heading establishes the side; the cells
@@ -309,14 +321,14 @@ function sectionRows(table) {
 
 /** Extract individual amendments without flattening the original/proposed columns. */
 export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null}={}) {
-  const warnings=new Set(),blocks=documentBlocks(docxParts(buffer),warnings),groups=[],gaps=[];
+  const warnings=new Set(),blocks=documentBlocks(docxParts(buffer),warnings,language),groups=[],gaps=[];
   const gap=(code,number,message,details={})=>gaps.push({code,...(number==null?{}:{number}),message,sourceUrl,...details});
   let active=null,tagged=false;const cover=[];
   const finish=()=>{if(active?.length)groups.push(active);active=null;tagged=false;};
   for(const block of blocks) {
     if(block.kind==='paragraph') {
-      const explicit=/<Amend>/.test(block.raw),number=numberIn(block.raw,block.paragraphStyle);
-      const existing=groupNumber(active);
+      const explicit=/<Amend>/.test(block.raw),number=numberIn(block.raw,block.paragraphStyle,language);
+      const existing=groupNumber(active,language);
       if(explicit||(!tagged&&number&&existing&&number!==existing))finish();
       if(explicit||(!active&&number)){active=[];tagged=explicit;}
       if(active)active.push(block);
@@ -337,7 +349,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
   const byNumber=new Map();
   for(const group of groups) {
     const raw=group.filter(b=>b.kind==='paragraph').map(b=>b.raw).join('\n');
-    const number=groupNumber(group);
+    const number=groupNumber(group,language);
     if(!number){gap('number-unavailable',null,'An amendment block has no supported individual amendment number.');continue;}
     const numbers=new Set([...raw.matchAll(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/g)].map(match=>Number(match[1])));
     if(numbers.size>1){gap('number-conflict',number,'The amendment block contains conflicting individual amendment numbers; its content is withheld.');continue;}
@@ -351,10 +363,16 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const targetParts=field(raw,'Article');
     for(let i=2;i<=4;i++)for(const article of field(raw,'Article'+i))targetParts.push([field(raw,'DocAmend'+i)[0],article].filter(Boolean).join(' — '));
     if(!targetParts.length&&committee) {
-      const procedure=field(coverRaw,'Procedure').map(metadata);
+      const procedure=field(coverRaw,'Procedure').map(metadata);let classRecorded=false;
       for(const block of group) {
         if(block.kind==='table')break;
-        if(block.kind==='paragraph'&&/^NormalBold(?:\d+b?)?$/i.test(block.paragraphStyle||'')&&block.text&&!procedure.includes(block.text))targetParts.push(block.text);
+        if(block.kind!=='paragraph'||!block.text||numberIn(block.raw,block.paragraphStyle,language))continue;
+        const targetStyle=/^NormalBold(?:\d+b?)?$/i.test(block.paragraphStyle||'')||language==='hr'&&block.bold;
+        if(!targetParts.length&&targetStyle&&documentClass(block.text,language)) {
+          documentReferences.push({field:'DocumentClass',raw:metadata(block.text),sourceRaw:block.raw,scope:'amendment'});
+          classRecorded=true;continue;
+        }
+        if(!procedure.includes(block.text)&&(targetStyle||(classRecorded||language==='hr')&&targetParts.length))targetParts.push(block.text);
       }
     }
     const targetLabel=targetParts.map(metadata).filter(Boolean).join('\n')||null;

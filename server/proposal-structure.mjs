@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='9';
+export const PROPOSAL_PARSER_VERSION='11';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -325,7 +325,8 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       const parent=points.at(-1)?.unit??implicit(i);
       last=make(parent,'indent',i,{segment:label('indent',String(parent.children.filter(child=>child.kind==='indent').length+1),language)});retain(last,i);continue;
     }
-    continuation(points,i);
+    // Standalone instruction punctuation remains in its preceding point.
+    if(/[\p{L}\p{N}]/u.test(trim))continuation(points,i);
     const parent=points.at(-1)?.unit??implicit(i);
     if(operation&&!points.length&&!paragraph.instruction)paragraph.instruction=operation;
     last=make(parent,'subparagraph',i,{...(operation?{instruction:operation}:{})});retain(last,i);inlineQuotation(last,i);
@@ -376,7 +377,7 @@ export function parseProposal(input,options={}) {
 }
 
 /** All exact candidates, including repeated labels. This helper does not choose
- * by wording, fill missing levels, translate labels or invent numbering aliases. */
+ * by wording, invent numbered levels, translate labels or invent numbering aliases. */
 export function proposalCandidates(proposal,target,{language=proposal.language,scope='proposal'}={}) {
   const parsed=typeof target==='string'?parseTargetLabel(target,language):Array.isArray(target)?{complete:true,segments:target}:target;
   if(!parsed?.complete||!Array.isArray(parsed.segments))return [];
@@ -386,9 +387,18 @@ export function proposalCandidates(proposal,target,{language=proposal.language,s
   }
   let index=candidateIndexes.get(proposal);
   const canonical=segments=>segments.map(segment=>`${segment.kind}:${segment.value}`).join('/');
-  if(!index){index=new Map();const pending=[...proposal.units];while(pending.length){const unit=pending.pop();pending.push(...unit.children);if(!unit.label)continue;
+  if(!index){index=new Map();const pending=[...proposal.units],all=[];
+    while(pending.length){const unit=pending.pop();pending.push(...unit.children);all.push(unit);}
+    // The unnumbered lead of a bare annex has an internal paragraph container,
+    // but published addresses name its numbered points directly under the annex.
+    const implicitAnnexParagraphs=new Set(all.filter(unit=>unit.kind==='paragraph'&&unit.implicit===true
+      &&unit.path.at(-2)?.kind==='annex'&&unit.path.at(-2).value==='').map(unit=>unit.scope+'|'+canonical(unit.path)));
+    for(const unit of all){if(!unit.label)continue;
       const addresses=[unit.path],at=unit.path.findIndex(segment=>['article','annex','recital'].includes(segment.kind));if(at>0)addresses.push(unit.path.slice(at));
-      for(const address of addresses){const key=unit.scope+'|'+canonical(address);const matches=index.get(key)??[];matches.push(unit);index.set(key,matches);}
+      const published=unit.path.filter((segment,i)=>!(i<unit.path.length-1&&segment.kind==='paragraph'
+        &&implicitAnnexParagraphs.has(unit.scope+'|'+canonical(unit.path.slice(0,i+1)))));
+      if(published.length!==unit.path.length){addresses.push(published);const start=published.findIndex(segment=>segment.kind==='annex');if(start>0)addresses.push(published.slice(start));}
+      for(const address of new Set(addresses.map(canonical))){const key=unit.scope+'|'+address;const matches=index.get(key)??[];matches.push(unit);index.set(key,matches);}
     }for(const [key,units] of index)index.set(key,Object.freeze(units.sort((a,b)=>a.extent.start-b.extent.start)));candidateIndexes.set(proposal,index);}
   return index.get(scope+'|'+canonical(parsed.segments))??[];
 }

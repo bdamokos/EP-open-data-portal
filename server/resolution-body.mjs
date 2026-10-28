@@ -15,7 +15,7 @@ const openings={
   lv:'Eiropas Parlaments',lt:'Europos Parlamentas',hu:'Az Európai Parlament',mt:'Il-Parlament Ewropew',nl:'Het Europees Parlement',pl:'Parlament Europejski',
   pt:'O Parlamento Europeu',ro:'Parlamentul European',sk:'Európsky parlament',sl:'Evropski parlament',fi:'Euroopan parlamentti',sv:'Europaparlamentet',
 };
-const openingVariants={fi:['Euroopan parlamentti, joka'],sv:['Europaparlamentet utfärdar denna resolution']};
+const openingVariants={ga:['Tá Parlaimint na hEorpa'],fi:['Euroopan parlamentti, joka'],sv:['Europaparlamentet utfärdar denna resolution','Europaparlamentet fattar detta beslut']};
 export const objectWarnings=new Set([
   'A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.',
   'An unmapped symbol is shown as an object placeholder; the surrounding text is retained.',
@@ -47,11 +47,73 @@ export function bodyCompleteness(text,start) {
       || (text.notes || []).some(note=>note.text.includes('\uFFFC')),
   };
 }
-// Exact English body labels, including the numbered discharge sections. Contents
-// entries with trailing page numbers are not body headings.
-export const resolutionSectionHeading=value=>/^(?:\d+\.\s*)?(?:MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION|PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION)$/u.test(normalize(value));
-const resolutionHeading=value=>/^(?:\d+\.\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u.test(value);
-const sectionEnd=value=>resolutionSectionHeading(value) || /^(?:ANNEX(?:\s+[IVXLCDM\d]+)?(?:\s*[:.–—-].*)?|EXPLANATORY STATEMENT|JUSTIFICATION|INFORMATION ON ADOPTION(?:\s.*)?|FINAL VOTE BY ROLL CALL(?:\s.*)?)$/u.test(value);
+// Exact public report headings; see fixtures/resolution-section-headings.json.
+// Contents entries with trailing page numbers are not body headings.
+const sectionHeadings={
+  bg:["ПРЕДЛОЖЕНИЕ ЗА РЕЗОЛЮЦИЯ НА ЕВРОПЕЙСКИЯ ПАРЛАМЕНТ,", "ПРЕДЛОЖЕНИЕ ЗА РЕШЕНИЕ НА ЕВРОПЕЙСКИЯ ПАРЛАМЕНТ"],
+  es:["PROPUESTA DE RESOLUCIÓN DEL PARLAMENTO EUROPEO", "PROPUESTA DE DECISIÓN DEL PARLAMENTO EUROPEO"],
+  cs:["NÁVRH USNESENÍ EVROPSKÉHO PARLAMENTU", "NÁVRH ROZHODNUTÍ EVROPSKÉHO PARLAMENTU"],
+  da:["FORSLAG TIL EUROPA-PARLAMENTETS BESLUTNING", "FORSLAG TIL EUROPA-PARLAMENTETS AFGØRELSE"],
+  de:["ENTWURF EINER ENTSCHLIESSUNG DES EUROPÄISCHEN PARLAMENTS", "VORSCHLAG FÜR EINEN BESCHLUSS DES EUROPÄISCHEN PARLAMENTS"],
+  et:["EUROOPA PARLAMENDI RESOLUTSIOONI ETTEPANEK", "ETTEPANEK VÕTTA VASTU EUROOPA PARLAMENDI OTSUS"],
+  el:["ΠΡΟΤΑΣΗ ΨΗΦΙΣΜΑΤΟΣ ΤΟΥ ΕΥΡΩΠΑΪΚΟΥ ΚΟΙΝΟΒΟΥΛΙΟΥ", "ΠΡΟΤΑΣΗ ΑΠΟΦΑΣΗΣ ΤΟΥ ΕΥΡΩΠΑΪΚΟΥ ΚΟΙΝΟΒΟΥΛΙΟΥ"],
+  en:["MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION", "PROPOSAL FOR A EUROPEAN PARLIAMENT DECISION"],
+  fr:["PROPOSITION DE RÉSOLUTION DU PARLEMENT EUROPÉEN", "PROPOSITION DE DÉCISION DU PARLEMENT EUROPÉEN"],
+  ga:["TAIRISCINT LE HAGHAIDH RÚIN Ó PHARLAIMINT NA hEORPA", "TOGRA LE HAGHAIDH CINNIDH Ó PHARLAIMINT NA HEORPA"],
+  hr:["PRIJEDLOG REZOLUCIJE EUROPSKOG PARLAMENTA", "PRIJEDLOG ODLUKE EUROPSKOG PARLAMENTA"],
+  it:["PROPOSTA DI RISOLUZIONE DEL PARLAMENTO EUROPEO", "PROPOSTA DI DECISIONE DEL PARLAMENTO EUROPEO"],
+  lv:["EIROPAS PARLAMENTA REZOLŪCIJAS PRIEKŠLIKUMS", "EIROPAS PARLAMENTA LĒMUMA PRIEKŠLIKUMS"],
+  lt:["PASIŪLYMAS DĖL EUROPOS PARLAMENTO REZOLIUCIJOS", "PASIŪLYMAS DĖL EUROPOS PARLAMENTO SPRENDIMO"],
+  hu:["AZ EURÓPAI PARLAMENT ÁLLÁSFOGLALÁSÁRA IRÁNYULÓ INDÍTVÁNY", "AZ EURÓPAI PARLAMENT HATÁROZATÁRA IRÁNYULÓ JAVASLAT"],
+  mt:["MOZZJONI GĦAL RIŻOLUZZJONI TAL-PARLAMENT EWROPEW", "PROPOSTA GĦAL DEĊIŻJONI TAL-PARLAMENT EWROPEW"],
+  nl:["ONTWERPRESOLUTIE VAN HET EUROPEES PARLEMENT", "ONTWERPBESLUIT VAN HET EUROPEES PARLEMENT"],
+  pl:["PROJEKT REZOLUCJI PARLAMENTU EUROPEJSKIEGO", "PROJEKT DECYZJI PARLAMENTU EUROPEJSKIEGO"],
+  pt:["PROPOSTA DE RESOLUÇÃO DO PARLAMENTO EUROPEU", "PROPOSTA DE DECISÃO DO PARLAMENTO EUROPEU"],
+  ro:["PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN", "PROPUNERE DE DECIZIE A PARLAMENTULUI EUROPEAN"],
+  sk:["NÁVRH UZNESENIA EURÓPSKEHO PARLAMENTU", "NÁVRH ROZHODNUTIA EURÓPSKEHO PARLAMENTU"],
+  sl:["PREDLOG RESOLUCIJE EVROPSKEGA PARLAMENTA", "PREDLOG SKLEPA EVROPSKEGA PARLAMENTA"],
+  fi:["EUROOPAN PARLAMENTIN PÄÄTÖSLAUSELMAESITYS", "EUROOPAN PARLAMENTIN PÄÄTÖSEHDOTUS"],
+  sv:["FÖRSLAG TILL EUROPAPARLAMENTETS RESOLUTION", "FÖRSLAG TILL EUROPAPARLAMENTETS BESLUT"],
+};
+const sectionEnds={
+  bg:["ПРИЛОЖЕНИЕ", "ИЗЛОЖЕНИЕ НА МОТИВИТЕ"],
+  es:["ANEXO", "EXPOSICIÓN DE MOTIVOS"],
+  cs:["PŘÍLOHA", "VYSVĚTLUJÍCÍ PROHLÁŠENÍ"],
+  da:["BILAG", "BEGRUNDELSE"],
+  de:["ANLAGE", "BEGRÜNDUNG"],
+  et:["LISA", "SELETUSKIRI"],
+  el:["ΠΑΡΑΡΤΗΜΑ", "ΑΙΤΙΟΛΟΓΙΚΗ ΕΚΘΕΣΗ"],
+  en:["ANNEX", "EXPLANATORY STATEMENT"],
+  fr:["ANNEXE", "EXPOSÉ DES MOTIFS"],
+  ga:["IARSCRÍBHINN", "RÁITEAS MÍNIÚCHÁIN"],
+  hr:["PRILOG", "OBRAZLOŽENJE"],
+  it:["ALLEGATO", "MOTIVAZIONE"],
+  lv:["PIELIKUMS", "PASKAIDROJUMS"],
+  lt:["PRIEDAS", "AIŠKINAMOJI DALIS"],
+  hu:["MELLÉKLET", "INDOKOLÁS"],
+  mt:["ANNESS", "NOTA SPJEGATTIVA"],
+  nl:["BIJLAGE", "TOELICHTING"],
+  pl:["ZAŁĄCZNIK", "UZASADNIENIE"],
+  pt:["ANEXO", "EXPOSIÇÃO DE MOTIVOS"],
+  ro:["ANEXĂ", "EXPUNERE DE MOTIVE"],
+  sk:["PRÍLOHA", "DÔVODOVÁ SPRÁVA"],
+  sl:["PRILOGA", "OBRAZLOŽITEV"],
+  fi:["LIITE", "PERUSTELUT"],
+  sv:["BILAGA", "MOTIVERING"],
+};
+const headingKey=value=>normalize(String(value).split(/[\r\n]/u)[0]).replace(/^\d+\.\s*/u,'').replace(/,$/u,'').toLowerCase();
+const headingKeys=Object.fromEntries(Object.entries(sectionHeadings).map(([language,headings])=>[language,new Set(headings.map(headingKey))]));
+const resolutionKeys=Object.fromEntries(Object.entries(sectionHeadings).map(([language,headings])=>[language,new Set([headingKey(headings[0])])]));
+resolutionKeys.ga.add(headingKey('TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA'));
+headingKeys.ga.add(headingKey('TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA'));
+headingKeys.ga.add(headingKey('TOGRA LE hAGHAIDH CINNEADH Ó PHARLAIMINT NA hEORPA'));
+const endKeys=Object.fromEntries(Object.entries(sectionEnds).map(([language,ends])=>[language,ends.map(headingKey)]));
+export const resolutionSectionHeading=(value,language='en')=>headingKeys[language]?.has(headingKey(value))??false;
+const sectionEnd=(value,language)=>{
+  const key=headingKey(value);
+  return headingKeys[language]?.has(key)||endKeys[language]?.some(end=>key===end||key.startsWith(end)&&/^(?:\s+[IVXLCDM\d]+)?(?:\s*[:.–—-]|$)/iu.test(key.slice(end.length)))
+    ||language==='en'&&/^(?:JUSTIFICATION|INFORMATION ON ADOPTION(?:\s.*)?|FINAL VOTE BY ROLL CALL(?:\s.*)?)$/u.test(normalize(value));
+};
 export function motionBodySelection(paragraphs,language) {
   const opening=openings[language];
   // Some translations use the same Parliament heading on the cover and in the body.
@@ -62,11 +124,11 @@ export function motionBodySelection(paragraphs,language) {
     let next=i+1;while(next<normalized.length&&!normalized[next])next++;
     if(/^(?:[–—−\-•]\s*\S|(?:\d+|\p{Lu}{1,3})[.)]\s+\S)/u.test(normalized[next] || ''))starts.push(i);
   }
-  if(language==='en') {
+  if(sectionHeadings[language]) {
     const sections=[];let hasHeading=false;
-    for(let heading=0;heading<normalized.length;heading++)if(resolutionHeading(normalized[heading])) {
+    for(let heading=0;heading<normalized.length;heading++)if(resolutionKeys[language]?.has(headingKey(paragraphs[heading]))) {
       hasHeading=true;
-      let end=heading+1;while(end<normalized.length&&!sectionEnd(normalized[end]))end++;
+      let end=heading+1;while(end<normalized.length&&!sectionEnd(paragraphs[end],language))end++;
       const candidates=starts.filter(start=>start>heading&&start<end);
       // A split contents entry may be an exact heading, but has no opening
       // before the next section. Several openings in one section stay ambiguous.
