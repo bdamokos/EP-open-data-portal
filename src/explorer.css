@@ -260,6 +260,10 @@
 /* Small or short screens: one page scroll so headers and filters move out of the reading area. */
 @media (max-width:767px), (max-height:560px) {
   .explorer { overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; }
+  /* The retained vote panes restore their own journey positions. After returning
+     from detail, native page anchoring can move a disclosure on expansion;
+     excluding an inner pane does not exclude anchors in its outer layout. */
+  .explorer:has(.member-votes) { overflow-anchor: none; }
   .explorer-wall, .explorer-profile, .explorer-saved-view { flex: none; min-height: auto; overflow: visible; }
   .explorer-portraits, .explorer-profile-body { overflow: visible; min-height: auto; }
   .explorer-profile { grid-template-rows: auto auto auto; }
