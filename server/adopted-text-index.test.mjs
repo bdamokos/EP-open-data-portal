@@ -7,7 +7,7 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument} from './activity-index-model.mjs';
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,validateAdoptedText,adoptedTextRecord,adoptedTextRepairDue,scheduleAdoptedTextRepairs} from './adopted-text-index.mjs';
-import {recordTaskGap} from './refresh-policy.mjs';
+import {recordTaskGap,scheduleMutable,scheduleGapRecovery,gapRecoveryDue} from './refresh-policy.mjs';
 import {motionAmendmentsPage,motionAmendmentsQuery} from './motion-amendments.mjs';
 
 const at=Date.parse('2026-10-28T12:00:00Z'),stamp=new Date(at).toISOString();
@@ -139,6 +139,25 @@ for(const owner of ['amendment','deferred'])test('catalogue discovery preserves 
     store.enqueue(cycle.generation,key,'catalog',task.body);await worker.task(task);
     assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint),undefined);
   }
+  const after=owner==='amendment'?store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(cycle.generation,endpoint):store.source(cycle.generation,'amendment:continuations').work.tasks[0];
+  assert.equal(after.attempts,3);assert.equal(after.retry_at,saved.retry_at);assert.equal(JSON.parse(after.body).offset,750);
+});
+
+for(const owner of ['amendment','deferred'])test('feed, mutable and gap admission preserve '+owner+' retry ownership',async t=>{
+  const {store,worker,cycle}=setup(t),body={endpoint,offset:750};
+  const saved={generation:cycle.generation,key:endpoint,kind:'document',body:JSON.stringify(body),priority:101,done:0,attempts:3,retry_at:at+3_600_000,error:'Saved source failure'};
+  if(owner==='amendment')store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(saved.generation,saved.key,saved.kind,saved.body,saved.priority,saved.done,saved.attempts,saved.retry_at,saved.error);
+  else store.putSource(cycle.generation,'amendment:continuations','amendment-continuations',{tasks:[saved],discovery:[],completed:[]},stamp);
+  worker.fetchRecord=async()=>({fetchedAt:stamp,xml:'<feed><entry><id>https://data.europarl.europa.eu/eli/dl/doc/'+id+'</id><updated>2026-10-27T12:00:00Z</updated></entry></feed>'});
+  for(const retained of [false,true]) {
+    if(retained)store.putSource(cycle.generation,endpoint,'document',adopted(), '2026-09-01T12:00:00Z');
+    const key='feed:'+retained,task={generation:cycle.generation,key,kind:'feed',body:{endpoint:'/adopted-texts',start:'2024-07-16'}};
+    store.enqueue(cycle.generation,key,'feed',task.body);await worker.task(task);
+    scheduleMutable(worker,cycle.generation);
+    assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,endpoint),undefined);
+  }
+  store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(cycle.generation,endpoint,'document',JSON.stringify(body),101,'Saved source failure',3,stamp,at-1,null);
+  worker.recoveryMode='backfill';assert.equal(gapRecoveryDue(store,cycle.generation),false);assert.equal(scheduleGapRecovery(worker,cycle.generation),0);
   const after=owner==='amendment'?store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(cycle.generation,endpoint):store.source(cycle.generation,'amendment:continuations').work.tasks[0];
   assert.equal(after.attempts,3);assert.equal(after.retry_at,saved.retry_at);assert.equal(JSON.parse(after.body).offset,750);
 });

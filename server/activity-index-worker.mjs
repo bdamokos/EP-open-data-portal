@@ -328,6 +328,7 @@ export class ActivityWorker {
       if(!customFeeds.has(body.endpoint) && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
       const r=await this.request(body.endpoint+'/feed',customFeeds.has(body.endpoint)?{timeframe:'custom','start-date':start}:{},{xml:true});
       const entries=feedDocuments(r.xml,body.endpoint);
+      const adoptedDeferred=body.endpoint==='/adopted-texts'?adoptedTextDeferredKeys(this.store,generation):null;
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
@@ -337,6 +338,7 @@ export class ActivityWorker {
         } else if (body.endpoint==='/committee-documents' || /^[A-Z]+-10-/.test(e.id)) {
           // Answer feed IDs resolve through their parent question, never a guessed standalone answer endpoint.
           const resolved=endpoint.replace(/-ASW$/,'');
+          if(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,resolved,adoptedDeferred))continue;
           const prior=this.store.source(generation,resolved);
           const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
           if(!gap && (!prior || (body.endpoint==='/adopted-texts'||documentRefreshState(prior.work).mutable) && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
