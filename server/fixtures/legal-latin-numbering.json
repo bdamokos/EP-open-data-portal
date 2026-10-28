@@ -7,6 +7,12 @@
   ],
   "examples": [
     {
+      "celex": "32005R2182",
+      "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/PDF/?uri=CELEX%3A32005R2182",
+      "location": "Inserted Article 171 quater headings",
+      "labels": ["Article 171 quater nonies", "Article 171 quater decies", "Article 171 quater undecies"]
+    },
+    {
       "celex": "32022R0398",
       "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=oj%3AJOL_2022_082_R_0001",
       "location": "Article 1, point 4, inserted article headings",

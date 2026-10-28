@@ -23,7 +23,7 @@ test('French numbering uses the complete ISG Annex B inventory and distinct comp
   for(const suffix of [...LATIN_NUMBER_SUFFIXES,'bis bis','undecies bis','undecies ter']) {
     for(const base of ['1','a','I']) {
       const label=parseLabelSegment(`${base==='a'?'point':base==='I'?'annexe':'Article'} ${base} ${suffix}`,'fr');
-      assert(label,`${base} ${suffix}`);assert.equal(label.value,base+suffix.replaceAll(' ',''));
+      assert(label,`${base} ${suffix}`);assert.equal(label.value,base+suffix);
       assert.equal(parseLabelSegment(unitLabel(label,'fr'),'fr')?.value,label.value);
     }
   }
@@ -31,7 +31,7 @@ test('French numbering uses the complete ISG Annex B inventory and distinct comp
   for(const invalid of ['1 arbitrary','1 undecies prose','1 bis noise','1 bis bis bis bis'])assert.equal(proposalNumber(invalid,'fr'),null,invalid);
   assert.equal(proposalNumber('1 undecies','en'),null,'extended French vocabulary stays language-specific');
   const target=parseTargetLabel('Article 1 – paragraphe 1 undecies bis\nRèglement (UE) no 833/2014','fr');
-  assert.equal(target.complete,true);assert.equal(target.segments.at(-1).value,'1undeciesbis');
+  assert.equal(target.complete,true);assert.equal(target.segments.at(-1).value,'1undecies bis');
   assert.equal(target.underlyingLabel,'Règlement (UE) no 833/2014');
 });
 
@@ -54,7 +54,7 @@ test('extended and compound insertions follow their complete preceding sibling',
   assert.equal(compound.status,'placed',compound.reason);assert.equal(compound.insertBefore,5);
   const extended=place(parse(['Article 1 decies','1. Texte précédent.','Article 1 duodecies','1. Texte suivant.']),'Article 1 undecies (nouveau)');
   assert.equal(extended.status,'placed',extended.reason);assert.equal(extended.insertBefore,2);
-  const ranks=['','bis','bisbis','ter','decies','undecies','undeciesbis','undeciester','duodecies','quinvicies'].map(latinSuffixRank);
+  const ranks=['','bis','bis bis','ter','decies','undecies','undecies bis','undecies ter','duodecies','quinvicies'].map(latinSuffixRank);
   assert(ranks.every((rank,index)=>index===0||rank>ranks[index-1]));
 });
 
@@ -67,4 +67,21 @@ test('ordinary French parenthetical prose cannot become a suffix-bearing point',
   assert.equal(replacement.status,'placed',replacement.reason);assert.deepEqual(replacement.span,{start:2,end:3});
   const insertion=place(proposal,target+' bis (nouveau)');
   assert.equal(insertion.status,'placed',insertion.reason);assert.equal(insertion.insertBefore,4);
+});
+
+test('published compound quater decies remains distinct from single quaterdecies',()=>{
+  const compound=parseLabelSegment('Article 171 quater decies','fr'),single=parseLabelSegment('Article 171 quaterdecies','fr');
+  assert.notEqual(compound.value,single.value);assert.notEqual(compound.suffix,single.suffix);
+  assert.equal(unitLabel(compound,'fr'),'Article 171 quater decies');
+  assert.equal(unitLabel(single,'fr'),'Article 171 quaterdecies');
+  const proposal=parse(['Article 171 quater nonies','1. Texte précédent.','Article 171 quater undecies','1. Texte suivant.']);
+  const insertion=place(proposal,'Article 171 quater decies (nouveau)');
+  assert.equal(insertion.status,'placed',insertion.reason);assert.equal(insertion.insertBefore,2);
+  const both=parse(['Article 171 quater decies','1. Texte composé.','Article 171 quaterdecies','1. Texte simple.']);
+  for(const [label,text] of [['171 quater decies','1. Texte composé.'],['171 quaterdecies','1. Texte simple.']]) {
+    const placed=place(both,'Article '+label+' – paragraphe 1',text);
+    assert.equal(placed.status,'placed',placed.reason);assert.equal(placed.originalText,text);
+  }
+  assert.equal(proposalNumber('171quaterdecies','fr').value,single.value);
+  assert.equal(proposalNumber('171 bisbis','fr'),null,'unknown compact compounds are not reconstructed');
 });
