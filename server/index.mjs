@@ -413,9 +413,11 @@ if (isEntryPoint) {
   });
   process.on("SIGINT", () => shutDown("SIGINT"));
   process.on("SIGTERM", () => shutDown("SIGTERM"));
+  server.once('listening',()=>{
+    stopMonitoring=startOdpMonitoring();
+    stopIndex = startActivityIndex();
+    stopCorpus = startCorpus();
+    stopBodyWarmup = startCorporateBodyWarmup();
+  });
   startServer();
-  stopMonitoring=startOdpMonitoring();
-  stopIndex = startActivityIndex();
-  stopCorpus = startCorpus();
-  stopBodyWarmup = startCorporateBodyWarmup();
 }

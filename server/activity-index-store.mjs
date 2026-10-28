@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows } from './activity-index-model.mjs';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows, tail } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentParserSourceRevisionKey, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
@@ -38,11 +38,12 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
-  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{} } = {}) {
-    mkdirSync(directory, { recursive: true });
+  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false } = {}) {
+    if(!preparedOnly)mkdirSync(directory, { recursive: true });
     this.prepareLog=prepareLog;this.clock = clock; this.owner = randomUUID();
     this.filename = path.join(directory, 'activities-v1.sqlite');
-    this.initializeIndexes=initializeIndexes||!existsSync(this.filename);
+    if(preparedOnly&&!existsSync(this.filename))throw new Error('Prepared activity database is unavailable.');
+    this.initializeIndexes=!preparedOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
@@ -72,10 +73,13 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS tasks (generation INTEGER, key TEXT, kind TEXT, body TEXT, priority INTEGER, done INTEGER DEFAULT 0, attempts INTEGER DEFAULT 0, retry_at INTEGER DEFAULT 0, error TEXT, PRIMARY KEY(generation,key));
       CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, body TEXT);
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
-    if(!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;');
+    if(!this.initializeIndexes) {
+      if(preparedOnly&&this.db.prepare('PRAGMA journal_mode').get().journal_mode!=='wal'){this.db.close();throw new Error('Prepared activity database requires WAL mode.');}
+      this.db.exec(`${preparedOnly?'':'PRAGMA journal_mode=WAL;'} PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;`);
+    }
     if (this.get('schema') !== 1) throw new Error('Unsupported activity-index schema.');
     try {assertRefreshSnapshot(this);}catch(error){this.db.close();throw error;}
-    membershipSchema(this.db);groupHistorySchema(this.db);
+    if(!preparedOnly){membershipSchema(this.db);groupHistorySchema(this.db);}
     if(this.initializeIndexes){outsideSchema(this.db);amendmentsSchema(this.db);groupVoicesSchema(this.db);refreshPolicyTables(this.db);}
   }
   readSnapshot(fn) {
@@ -182,9 +186,20 @@ export class ActivityStore {
     if (lease?.owner!==this.owner || lease.expires<=this.clock()) throw new Error('Activity-index writer lease was lost.');
   }
   release() { this.db.prepare('DELETE FROM lease WHERE id=1 AND owner=?').run(this.owner); }
-  beginCycle() {
-    return this.transaction(()=> {
+  generationTransaction(fn) {
+    return this.transaction(()=>{
+      // The lease must be live after acquiring the write lock. That unbroken
+      // BEGIN IMMEDIATE excludes takeover while a long rotation runs, even if
+      // its wall-clock TTL elapses. Renew the same owner before committing;
+      // this qualification never applies outside that locked transaction.
       this.assertWriter();
+      const result=fn();
+      if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+90_000,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');
+      return result;
+    });
+  }
+  beginCycle() {
+    return this.generationTransaction(()=> {
       assertRefreshSnapshot(this);
       const working=this.get('working');
       if (working) { groupVoicesCopy(this.db,working.generation,this.get('active') || 0); amendmentsCopy(this.db,working.generation,this.get('active') || 0); return working; }
@@ -329,20 +344,29 @@ export class ActivityStore {
       for (const n of nodes) q.run(String(n.id),JSON.stringify(n));this.set('rosterFetchedAt',new Date(this.clock()).toISOString()); });
   }
   publish(generation,unresolved=[]) {
-    this.transaction(()=> {
-      this.assertWriter();assertRefreshSnapshot(this);const progress=this.taskCounts(generation);
+    this.generationTransaction(()=> {
+      assertRefreshSnapshot(this);const progress=this.taskCounts(generation);
       if (progress.total!==progress.completed) throw new Error('Cannot publish an incomplete generation.');
+      const gaps=typeof unresolved==='function'?unresolved():unresolved;
       const old=this.get('active');this.set('lastRefreshRequests',this.get('working')?.requests || 0);this.set('previous',old);this.set('active',generation);this.set('working',null);
       this.set('refreshPolicyGeneration',generation);
       const publishedAt=new Date(this.clock()).toISOString();
       publishFollowMarks(this,generation,publishedAt,followIndexComplete(this,generation),old);
       freezeMembership(this,generation,old);freezeGroupHistory(this,generation,old);
-      this.set('lastSuccess',publishedAt);this.set('unresolved',unresolved);
+      this.set('lastSuccess',publishedAt);this.set('unresolved',gaps);
       // Retain the immediately previous generation for recovery; cache is reproducible public data.
       this.pruneGenerations(generation,old || generation);
       outsidePrune(this.db,generation,old);
       amendmentsPrune(this.db,generation,old);
       groupVoicesPrune(this.db,generation,old);
+    });
+  }
+  finalize(generation) {
+    this.publish(generation,()=>{
+      const procedures=new Map(this.sources(generation,'procedure').map(source=>[tail(source.key),source]));
+      const unresolved=[];
+      for(const source of this.iterateSources(generation,'document'))unresolved.push(...documentRows(source.work,source.key,source.fetchedAt,procedures).unresolved);
+      return unresolved;
     });
   }
   pruneGenerations(first,second=first) {
