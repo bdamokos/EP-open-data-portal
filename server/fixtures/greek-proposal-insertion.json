@@ -1,0 +1,84 @@
+{
+  "source": {
+    "parent": "A-10-2025-0150",
+    "id": "52024PC0183",
+    "kind": "act",
+    "index": 1,
+    "language": "el",
+    "itemId": "http://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0017.01/DOC_1",
+    "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0017.01/DOC_1",
+    "fetchedAt": "2026-10-27T20:27:10.847646+00:00",
+    "resolvedUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0017.01/DOC_1",
+    "sha256": "7ad3409b3a2c2a85fce49550e9e7b09cad425d0b607a12c5d0ac905b243077bf"
+  },
+  "excerpt": "Exact preamble cue and complete recitals 3 and 4; original Word paths and properties retained; other content omitted.",
+  "input": {
+    "paragraphs": [
+      "Εκτιμώντας τα ακόλουθα:",
+      "(3)\tΟι συστάσεις που υιοθετεί η Γενική Επιτροπή Αλιείας για τη Μεσόγειο (ΓΕΑΜ) είναι δεσμευτικές για τα συμβαλλόμενα μέρη της. Ως εκ τούτου, οι εν λόγω συστάσεις είναι δεσμευτικές για την Ένωση και θα πρέπει, συνεπώς, να ενσωματωθούν στο δίκαιο της Ένωσης, εκτός εάν το περιεχόμενό τους καλύπτεται ήδη από αυτό. Η Ένωση πρέπει να μεριμνά ώστε οι αλιευτικές δραστηριότητες της Ένωσης εκτός των υδάτων της να βασίζονται στις ίδιες αρχές και στα ίδια πρότυπα με την ισχύουσα νομοθεσία της Ένωσης και να προωθεί τον θεμιτό ανταγωνισμό μεταξύ των φορέων εκμετάλλευσης της Ένωσης και των φορέων εκμετάλλευσης τρίτων χωρών.",
+      "(4)\tΓι’ αυτούς τους λόγους και επειδή ο μόνιμος χαρακτήρας των συστάσεων απαιτεί επίσης νομική πράξη διαρκούς ισχύος για την ενσωμάτωσή τους στο δίκαιο της Ένωσης, ενδείκνυται η ενσωμάτωση των εν λόγω συστάσεων μέσω νομοθετικής πράξης, η οποία θα διασφαλίζει νομική σαφήνεια και προβλεψιμότητα για τους φορείς εκμετάλλευσης της Ένωσης στα ύδατα που καλύπτονται από τη ΓΕΑΜ."
+    ],
+    "structureStatus": "extracted",
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[60]",
+        "ordinal": 59,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[63]",
+        "ordinal": 62,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[64]",
+        "ordinal": 63,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "ManualConsidrant",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "ManualConsidrant",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "coverage": {
+      "complete": false
+    },
+    "sourceKind": "docx"
+  },
+  "amendment": {
+    "number": 3,
+    "listId": "A-10-2025-0150-AM-001-129",
+    "language": "el",
+    "targetLabel": "Αιτιολογική σκέψη 3 α (νέα)",
+    "originalText": "",
+    "proposedText": "(3α)\tΕίναι σημαντικό η Ένωση να εκπληρώνει εγκαίρως και ορθά τη διεθνή υποχρέωσή της, προκειμένου να παρέχει προβλεψιμότητα στους φορείς εκμετάλλευσης και να διασφαλίζει ότι η Ένωση είναι αξιόπιστος διεθνής εταίρος. Για να διασφαλιστεί αυτό, είναι εξαιρετικά σημαντικό τα αρμόδια θεσμικά όργανα της ΕΕ να αναπτύξουν μια αποτελεσματική και εύρυθμη συνεργασία που θα διασφαλίζει ισχυρές διαπραγματευτικές θέσεις οι οποίες, μετά την έγκρισή τους στη ΓΕΑΜ, θα μπορούν να ενσωματωθούν ταχέως στο δίκαιο της ΕΕ. Η μείωση της τρέχουσας καθυστέρησης μεταφοράς των διεθνών υποχρεώσεων της Ένωσης πρέπει να αντιμετωπιστεί ταχύτερα.",
+    "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_el.docx",
+    "fetchedAt": "2026-10-27T20:17:10.449830+00:00",
+    "sha256": "7029d380b3a847c3dc309eec4558186eb88890efa3be6bdb2efbf0df1e9bdf64"
+  }
+}

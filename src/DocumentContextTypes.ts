@@ -7,7 +7,7 @@ export type DocumentContextRequest={documentId:string;amendmentId?:string;listId
 export type ContextSource={url:string;fetchedAt:string;contentHash:string;stale:boolean;refreshInProgress:boolean;refreshError:string|null;language?:string|null;resolvedSourceUrl?:string;retrievedByteSize?:number;sourceVersion?:{byteSize:number|null;issued:string|null}};
 export type DocumentContextResponse={
   version:number;
-  baseline?:null|{kind:'commission-proposal';celex:string|null;workId:string|null;language:string;status:string;items:{kind:'act'|'annex';index:number;source:{url:string;resolvedSourceUrl?:string;fetchedAt:string;sha256:string;stale:boolean;refreshError:string|null}}[];gaps:unknown[];attribution:string};
+  baseline?:null|{kind:'commission-proposal'|'council-position';celex:string|null;workId:string|null;language:string;status:string;items:{kind:'act'|'annex';index:number;source:{url:string;resolvedSourceUrl?:string;fetchedAt:string;sha256:string;stale:boolean;refreshError:string|null}}[];gaps:unknown[];attribution:string};
   proposal?:null|{items:{kind:'act'|'annex';index:number;proposal:ProposalDocument}[]};
   documentId:string;
   requestedLanguage:string;

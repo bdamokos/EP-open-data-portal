@@ -1,6 +1,8 @@
 import {wordingText} from './test-support/wordingText.mjs';
 import {parseProposal,proposalCandidates} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
+import {parsePublicLegalXhtml} from '../server/public-legal-xhtml.mjs';
+import {readFileSync} from 'node:fs';
 import {proposalContextResponse} from './test-support/proposalContext.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
@@ -1057,4 +1059,17 @@ test('failed and missing document bodies retain exact amendment wording, summary
     if(body==='error')assert(h.container.querySelector('[role="alert"] button'),'retry survives a failed extraction');
     await h.click(h.container.querySelector('.document-context-back'));assert.equal(backs,1);
   });
+});
+
+test('Council context uses the Council label, comparison heading and public reading link',async t=>{
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/council-position-excerpts.json',import.meta.url),'utf8'));
+  const value=proposalContextResponse(report,amendment,list,4),proposal=parsePublicLegalXhtml(fixture.xhtml,{language:'en',sourceUrl:fixture.sourceUrl});
+  const variant={...value.amendment.variants[0],baseline:'council-position',baselineSource:{category:'council-position',conflicted:false},targetPath:null,targetLabel:'Article 30 – title',targetLabelLanguage:'en',originalText:'Code of conduct',proposedText:'Binding code of conduct'};
+  value.baseline={...value.baseline,kind:'council-position',celex:fixture.celex};value.proposal.items=[{kind:'act',index:1,proposal}];value.amendment.variants=[variant];value.placement=resolveProposalPlacement(value.proposal.items,variant);
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(value.placement.status,'placed');assert(h.container.querySelector('[data-context-target="true"]'));
+  assert(h.container.textContent.includes('Council position · 6/2026'));
+  assert(!h.container.textContent.includes('Commission proposal'));assert(!h.container.textContent.includes('DOCX'));
+  assert(h.container.querySelector('a[href*="CELEX:52026AG0006"]'));
+  assert(h.container.querySelector('.document-context-amendment h4').textContent.includes('Council position'));
 });
