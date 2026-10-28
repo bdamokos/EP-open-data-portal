@@ -110,6 +110,16 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     return {status:'verified',reason:'raw-sibling-boundary',location:{section:anchor.sectionKind,kind:anchor.ref.kind,value:address.value,scope:'body'}};
   }
   if(!span||!Number.isInteger(span.start)||!Number.isInteger(span.end)||span.start<0||span.end<span.start||span.end>=observed.length)return failed('raw-invalid-span');
+  let splicedSource;
+  if(proposal) {
+    const splice=placement.splice,start=splice?.start,end=splice?.end;
+    if(!start||!end||start.paragraph!==span.start||end.paragraph!==span.end
+      ||!Number.isSafeInteger(start.offset)||!Number.isSafeInteger(end.offset)
+      ||start.offset<0||start.offset>observed[span.start].text.length
+      ||end.offset<0||end.offset>observed[span.end].text.length
+      ||span.start===span.end&&end.offset<start.offset)return failed('raw-invalid-splice');
+    splicedSource=observed.slice(span.start,span.end+1).map((row,i,rows)=>row.text.slice(i===0?start.offset:0,i===rows.length-1?end.offset:row.text.length)).join('\n');
+  }
   const selected=observed.slice(span.start,span.end+1),rawSelected=selected.map(p=>sourceRows.find(r=>r.path===p.path));
   if(rawSelected.some((p,i)=>!p||p.uncertain||p.automatic||rawNormal(p.text)!==rawNormal(selected[i].text)))return unknown('raw-span-projection-unverified');
   if(proposal) {
@@ -118,7 +128,11 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     const recitals=proposalRecitals(raw),address=simpleAddress(expected.targetLabel),matched=recitals.filter(r=>r.path===rawSelected[0].path);
     if(!address||matched.length!==1||rawSelected.length!==1)return unknown('raw-proposal-scope-unverified');
     if(address.value!==matched[0].value)return failed('raw-proposal-recital-address-mismatch',{expected:address.value,actual:matched[0].value});
-    if(strip(rawSelected[0].text)!==strip(expected.originalText))return failed('raw-original-span-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
+    // Supported recital comparisons describe the complete published row. All
+    // 77 correct proposal splices in the language sample cover that full row.
+    const {start,end}=placement.splice;
+    if(start.offset!==0||end.offset!==selected[0].text.length)return failed('raw-proposal-recital-splice-mismatch');
+    if(strip(splicedSource)!==strip(expected.originalText))return failed('raw-original-splice-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});
     return {status:'verified',reason:'raw-proposal-recital-span',location:{section:'proposal-recitals',kind:'recital',value:address.value,scope:'proposal'}};
   }
   if(strip(rawSelected.map(p=>p.text).join('\n'))!==strip(expected.originalText))return failed('raw-original-span-mismatch',{sourcePaths:rawSelected.map(p=>p.path)});

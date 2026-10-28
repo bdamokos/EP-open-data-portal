@@ -71,7 +71,7 @@ export function compareLanguages(current,baseline) {
   const falsePlacements=current.rows.filter(r=>r.outcome==='false-placement');
   const warnings=[];
   if(current.oracleFingerprint!==baseline.oracleFingerprint) {
-    // Transport-only maintenance can retain a sealed baseline only when every
+    // Implementation maintenance retains a sealed baseline only when every
     // independent source expectation and verification assertion is identical.
     const assertions=row=>JSON.stringify({expected:row.expected,verification:row.verification});
     if(now.size!==before.size||[...before.values()].some(old=>!now.has(old.key)||assertions(old)!==assertions(now.get(old.key))))throw new Error('Language oracle changed its raw expectations or verification assertions; a reviewed calibration is required.');

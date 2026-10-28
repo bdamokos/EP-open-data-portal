@@ -108,3 +108,30 @@ test('ratchet retries never rewrite the baseline or append a duplicate row',asyn
     assert.equal((await readFile(path.join(directory,'ratchet.jsonl'),'utf8')).trim().split('\n').length,2);
   } finally {await rm(directory,{recursive:true,force:true});}
 });
+
+test('published AM5 deletion verifies the actual splice and fails a one-character mutation',async()=>{
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/amendment-language-splice.json',import.meta.url),'utf8'));
+  const expected=rawExpected(fixture.comparison,fixture.language);
+  const paragraphs=Array.from({length:fixture.observed.index+1},(_,index)=>({text:'',source:{path:'/unretained-'+index}}));
+  paragraphs[fixture.observed.index]={text:fixture.observed.text,source:{path:fixture.observed.path}};
+  const args={expected,items:[{proposal:{paragraphs}}],rawItems:[{paragraphs:fixture.sourceParagraphs}]};
+  const verified=verifyLanguagePlacement({...args,placement:fixture.placement});
+  assert.equal(verified.status,'verified');assert.equal(fixture.observed.text.length,198);
+  const placement=structuredClone(fixture.placement);placement.splice.end.offset=1;
+  const verification=verifyLanguagePlacement({...args,placement});
+  assert.equal(verification.status,'failed');assert.equal(verification.reason,'raw-proposal-recital-splice-mismatch');
+  const before=report([row('en','correct',{placement:fixture.placement,verification:verified})]);
+  const after=report([row('en','false-placement',{placement,verification})]);
+  assert.equal(compareLanguages(after,before).failed,true);
+  for(const mutate of [
+    p=>{delete p.splice;},
+    p=>{p.splice.start.paragraph--;},
+    p=>{p.splice.end.paragraph++;},
+    p=>{p.splice.start.offset=-1;},
+    p=>{p.splice.end.offset=199;},
+    p=>{p.splice.end.offset=0.5;},
+    p=>{p.splice.start.offset=10;p.splice.end.offset=1;},
+  ]) {const invalid=structuredClone(fixture.placement);mutate(invalid);assert.equal(verifyLanguagePlacement({...args,placement:invalid}).reason,'raw-invalid-splice');}
+  const prefix=structuredClone(fixture.placement);prefix.splice.start.offset=1;
+  assert.equal(verifyLanguagePlacement({...args,placement:prefix}).reason,'raw-proposal-recital-splice-mismatch');
+});
