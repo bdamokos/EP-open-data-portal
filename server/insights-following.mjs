@@ -36,6 +36,9 @@ export const followingIdsSql=markedKinds.map(([,index,predicate],number)=>`SELEC
   JOIN item_marks mark ON mark.mep=? AND mark.kind=${number} AND mark.source_id=current.source_id`).join(' UNION ALL ')+' ORDER BY mark DESC,date DESC,source_id DESC,kind';
 
 export function followingResponse(store,view,search) {
+  return store.readSnapshot(()=>followingSnapshot(store,view,search));
+}
+function followingSnapshot(store,view,search) {
   const query=followingQuery(view,search),status=followingStatus(store);
   if(view==='following-status')return {status:200,body:status,cacheControl:'public, max-age=60'};
   const unavailable=()=>({status:503,body:{error:{code:'marks_unavailable',message:'Update checks are not available yet.'}}});

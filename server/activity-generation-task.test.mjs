@@ -7,6 +7,8 @@ import net from 'node:net';
 import {Worker} from 'node:worker_threads';
 import {setTimeout as delay} from 'node:timers/promises';
 import {ActivityStore} from './activity-index-store.mjs';
+import {documentRows} from './activity-index-model.mjs';
+import {followingResponse} from './insights-following.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
 import {loopback} from './test-support/loopback.mjs';
 import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
@@ -19,7 +21,9 @@ beforeEach(t=>{
 function fixture(t,options={}) {
   const directory=mkdtempSync(path.join(tmpdir(),'activity-generation-')),store=new ActivityStore(directory,options);
   assert(store.acquire());
-  for(let i=0;i<2;i++){const cycle=store.beginCycle();store.setMembers([{id:'101',name:'Member'}]);store.publish(cycle.generation);}
+  const endpoint='/plenary-documents/B-10-2026-0001',stamp='2026-10-28T12:00:00Z';
+  const work={id:'eli/dl/doc/B-10-2026-0001',identifier:'B-10-2026-0001',work_type:'def/ep-document-types/RESOLUTION_MOTION',parliamentary_term:'org/ep-10',document_date:'2026-10-28',title_dcterms:{en:'Motion'},creator:['person/101']};
+  for(let i=0;i<2;i++){const cycle=store.beginCycle();store.setMembers([{id:'101',name:'Member'}]);store.putSource(cycle.generation,endpoint,'document',work,stamp,documentRows(work,endpoint,stamp).rows);store.publish(cycle.generation);}
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
   return {directory,store};
 }
@@ -50,6 +54,33 @@ test('owner mismatch inside generation preparation rolls back the whole rotation
   store.pruneGenerations=(...args)=>{prune(...args);store.db.prepare("UPDATE lease SET owner='different-owner'").run();};
   assert.throws(()=>store.beginCycle(),/lease/);
   assert.equal(store.get('active'),2);assert.equal(store.get('previous'),1);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),2);store.assertWriter();
+});
+
+for(const fail of [false,true])test('nested publication checks keep lock qualification and clear it after '+(fail?'rollback':'commit'),t=>{
+  let now=Date.now();const {store}=fixture(t,{clock:()=>now}),cycle=store.beginCycle();
+  const publish=()=>store.publish(cycle.generation,()=>{now+=120_000;store.assertWriter();if(fail)throw new Error('Interrupted publication');return [];});
+  if(fail){assert.throws(publish,/Interrupted publication/);assert.equal(store.get('active'),2);assert.equal(store.get('working').generation,3);}
+  else {publish();assert.equal(store.get('active'),3);assert.equal(store.get('working'),null);assert.equal(store.db.prepare('SELECT expires FROM lease').get().expires,now+90_000);now+=91_000;}
+  assert.throws(()=>store.assertWriter(),/lease/,'expired ownership is fenced outside the qualified write transaction');
+  store.readSnapshot(()=>assert.throws(()=>store.assertWriter(),/lease/,'a read transaction cannot reuse the old write qualification'));
+});
+
+for(const view of ['following-manifest','following-member'])test(view+' pins a populated previous generation while the writer prunes it',t=>{
+  const {directory,store}=fixture(t),writer=new ActivityStore(directory);store.release();assert(writer.acquire());t.after(()=>writer.close());
+  const search=new URLSearchParams({epoch:store.get('marksEpoch'),generation:'1',...(view==='following-member'?{member:'101',lang:'en'}:{})});
+  const expected=followingResponse(store,view,search);assert.equal(expected.status,200);
+  if(view==='following-manifest')assert(Object.hasOwn(expected.body.members,'101'));else assert(expected.body.ids.length>0);
+  const prepare=store.db.prepare.bind(store.db);let pruned=false;
+  store.db.prepare=sql=>{
+    const statement=prepare(sql);
+    if(sql.startsWith(view==='following-manifest'?'SELECT * FROM follow_summary':'SELECT 1 FROM follow_summary')) {
+      const method=view==='following-manifest'?'all':'get',read=statement[method].bind(statement);
+      statement[method]=(...args)=>{if(!pruned&&args[0]===1){pruned=true;writer.beginCycle();}return read(...args);};
+    }
+    return statement;
+  };
+  try {assert.deepEqual(followingResponse(store,view,search),expected);assert(pruned);assert.equal(writer.get('previous'),null);assert.equal(followingResponse(store,view,search).status,409);}
+  finally {store.db.prepare=prepare;}
 });
 
 test('off-thread preparation and publication preserve frozen snapshots and reject a stale caller',async t=>{

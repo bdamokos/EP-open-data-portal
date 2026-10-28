@@ -56,6 +56,10 @@ function official() {
   if(!officialContext){const sources=getSharedOfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
   return officialContext;
 }
+function indexedRead(read) {
+  const store=activityIndex().store;
+  return store.readSnapshot(()=>read(store));
+}
 function positiveId(value) {
   const raw = String(value || "");
   if (!/^[1-9][0-9]*$/.test(raw)) {
@@ -194,11 +198,11 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
       const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});
-      result=failures?amendmentFailures(activityIndex().store,query):amendmentsPage(activityIndex().store,query);
+      result=indexedRead(store=>failures?amendmentFailures(store,query):amendmentsPage(store,query));
     }
     else if (segments[0] === 'outside' && segments.length === 2) {
-      const query=outsideQuery(url.searchParams), store=activityIndex().store;
-      result=segments[1]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[1],query);
+      const query=outsideQuery(url.searchParams);
+      result=indexedRead(store=>segments[1]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[1],query));
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
@@ -286,7 +290,7 @@ async function handleApi(request,response,url,apiPrefix){
       if(category!==null && !Object.hasOwn(CATEGORIES,category))throw new HttpError(400,'invalid_category','Unknown activity category.');
       const sourceId=url.searchParams.get('source-id');
       if(sourceId!==null && !/^[A-Z0-9-]{1,100}$/.test(sourceId))throw new HttpError(400,'invalid_source_id','Invalid source identifier.');
-      result=questionStatuses(activityIndex().store,latestActivities(positiveId(segments[1]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)}));
+      result=indexedRead(store=>questionStatuses(store,latestActivities(positiveId(segments[1]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)})));
     }
     else if (segments.length === 2 && segments[0] === 'speech-context') {
       requireQuery(url.searchParams,['lang']);

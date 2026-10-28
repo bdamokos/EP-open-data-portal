@@ -38,6 +38,7 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
+  #generationLeaseOwner;
   constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false } = {}) {
     if(!preparedOnly)mkdirSync(directory, { recursive: true });
     this.prepareLog=prepareLog;this.clock = clock; this.owner = randomUUID();
@@ -183,7 +184,8 @@ export class ActivityStore {
   renew(ttl=90_000) { return this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=? AND expires>?').run(this.clock()+ttl,this.owner,this.clock()).changes===1; }
   assertWriter() {
     const lease=this.db.prepare('SELECT owner,expires FROM lease WHERE id=1').get();
-    if (lease?.owner!==this.owner || lease.expires<=this.clock()) throw new Error('Activity-index writer lease was lost.');
+    const qualified=this.db.isTransaction&&this.#generationLeaseOwner===this.owner;
+    if (lease?.owner!==this.owner || !qualified&&lease.expires<=this.clock()) throw new Error('Activity-index writer lease was lost.');
   }
   release() { this.db.prepare('DELETE FROM lease WHERE id=1 AND owner=?').run(this.owner); }
   generationTransaction(fn) {
@@ -193,9 +195,12 @@ export class ActivityStore {
       // its wall-clock TTL elapses. Renew the same owner before committing;
       // this qualification never applies outside that locked transaction.
       this.assertWriter();
-      const result=fn();
-      if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+90_000,this.owner).changes!==1)throw new Error('Activity-index writer lease was lost.');
-      return result;
+      const owner=this.owner;this.#generationLeaseOwner=owner;
+      try {
+        const result=fn();
+        if(this.owner!==owner||this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+90_000,owner).changes!==1)throw new Error('Activity-index writer lease was lost.');
+        return result;
+      } finally {this.#generationLeaseOwner=undefined;}
     });
   }
   beginCycle() {
@@ -380,6 +385,9 @@ export class ActivityStore {
     }
   }
   status() {
+    return this.readSnapshot(()=>this.statusSnapshot());
+  }
+  statusSnapshot() {
     const cycle=this.get('working'), active=this.get('active'), generation=active || cycle?.generation || 0;
     const counts=this.db.prepare('SELECT kind,COUNT(*) AS count FROM sources WHERE generation=? GROUP BY kind').all(generation);
     const lease=this.db.prepare('SELECT expires FROM lease WHERE id=1').get();
