@@ -278,3 +278,22 @@ test('eight metadata jobs can each hand their slot to extraction without deadloc
   }
   assert.equal(worker.requests,8);assert.equal(store.source(generation,'amendment:continuations'),undefined);
 });
+
+test('daily link recovery rotates beyond the first hundred repeatedly invalidated reports to B and RC motions',async t=>{
+  const {store,worker,generation}=setup(t);
+  for(const targetId of ['A-10-2026-0254','B-10-2026-0424',...Array.from({length:105},(_,i)=>id(i)),'B-10-2026-0244','RC-10-2026-0285'])seedTarget(store,generation,targetId);
+  store.db.exec("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE kind='document'");
+  const prepare=async()=>{for(let pass=0;pass<40;pass++)if(await prepareAmendments(worker,store.get('working')))return;assert.fail('preparation did not finish');};
+  await prepare();
+  const first=store.db.prepare("SELECT key FROM tasks WHERE kind='document' ORDER BY key").all().map(r=>r.key);
+  assert.equal(first.length,100);assert(!first.includes('/plenary-documents/B-10-2026-0244'));
+  const cursor=store.get('amendmentLinkUpgradeAfterKey');assert.equal(cursor,first.at(-1));
+  // An overflowing continuation can invalidate the same first hundred again;
+  // their pending jobs must not consume the next daily upgrade window.
+  store.updateCycle({amendmentsPreparedDay:null});
+  store.db.exec("UPDATE amendment_jobs SET done=1 WHERE kind='amendment-prepare'");
+  await prepare();
+  const all=store.db.prepare("SELECT key FROM tasks WHERE kind='document' ORDER BY key").all().map(r=>r.key);
+  assert.equal(all.length,109);assert(all.includes('/plenary-documents/B-10-2026-0244'));assert(all.includes('/plenary-documents/RC-10-2026-0285'));
+  assert.equal(store.get('amendmentLinkUpgradeAfterKey'),'');assert.equal(worker.requests,0);
+});

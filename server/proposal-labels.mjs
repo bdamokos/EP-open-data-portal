@@ -108,7 +108,10 @@ function grammar(language) {
 export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
   if(language==='fr') {
-    const numbered=text.match(/^(\d+(?:\.\d+)*|[A-Z]{1,3}|[a-z]{1,4})\s*([a-z]+(?:\s+[a-z]+){0,2})$/u);
+    // Lowercase bases require their published separator: compact prose such
+    // as "ajouter" must never become base "ajou" plus suffix "ter".
+    const numbered=text.match(/^(\d+(?:\.\d+)*|[A-Z]{1,3})\s*([a-z]+(?:\s+[a-z]+){0,2})$/u)??
+      text.match(/^([a-z]{1,4})\s+([a-z]+(?:\s+[a-z]+){0,2})$/u);
     const parts=numbered&&latinSuffixParts(numbered[2]);
     if(parts){const base=numbered[1],suffix=parts.join('');return {value:base+suffix,number:/^\d+$/u.test(base)?Number(base):null,base,suffix};}
   }

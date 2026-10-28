@@ -57,3 +57,14 @@ test('extended and compound insertions follow their complete preceding sibling',
   const ranks=['','bis','bisbis','ter','decies','undecies','undeciesbis','undeciester','duodecies','quinvicies'].map(latinSuffixRank);
   assert(ranks.every((rank,index)=>index===0||rank>ranks[index-1]));
 });
+
+test('ordinary French parenthetical prose cannot become a suffix-bearing point',()=>{
+  for(const word of ['ajouter','rester','adapter'])assert.equal(proposalNumber(word,'fr'),null,word);
+  const paragraphs=['Article premier','1. Liste:','(a) Première règle.','(ajouter) Cette précision appartient à la première règle.','(b) Deuxième règle.'];
+  const proposal=parse(paragraphs),target='Article 1 – paragraphe 1 – point a';
+  assert.deepEqual(proposalCandidates(proposal,target,{language:'fr'})[0].extent,{start:2,end:4});
+  const replacement=place(proposal,target,paragraphs.slice(2,4).join('\n'));
+  assert.equal(replacement.status,'placed',replacement.reason);assert.deepEqual(replacement.span,{start:2,end:3});
+  const insertion=place(proposal,target+' bis (nouveau)');
+  assert.equal(insertion.status,'placed',insertion.reason);assert.equal(insertion.insertBefore,4);
+});
