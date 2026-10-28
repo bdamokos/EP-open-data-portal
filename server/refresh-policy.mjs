@@ -1,6 +1,7 @@
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
+import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
 
 export const DAY=86_400_000, MUTABLE_LIMIT=100, GAP_LIMIT=25;
 export const feedStart=(store,now)=>new Date(Date.parse(store.get('lastSuccess') || store.get('working')?.startedAt || new Date(now).toISOString())-2*DAY).toISOString().slice(0,10);
@@ -90,7 +91,12 @@ export function refreshPolicySchema(store) {
 
 export function scheduleMutable(worker,generation) {
   const store=worker.store,now=worker.clock();
-  for(const {key} of store.db.prepare('SELECT key FROM mutable_documents mutable WHERE generation=? AND next_check<=? AND NOT EXISTS (SELECT 1 FROM refresh_gaps gap WHERE gap.generation=mutable.generation AND gap.key=mutable.key) ORDER BY next_check,key LIMIT ?').all(generation,now,MUTABLE_LIMIT)) {
+  let adoptedDeferred;const eligible=[];
+  for(const {key} of store.db.prepare('SELECT key FROM mutable_documents mutable WHERE generation=? AND next_check<=? AND NOT EXISTS (SELECT 1 FROM refresh_gaps gap WHERE gap.generation=mutable.generation AND gap.key=mutable.key) ORDER BY next_check,key').iterate(generation,now)) {
+    if(key.startsWith('/adopted-texts/')&&adoptedTextOwnedElsewhere(store,generation,key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
+    eligible.push(key);if(eligible.length>=MUTABLE_LIMIT)break;
+  }
+  for(const key of eligible) {
     store.enqueue(generation,key,'document',{endpoint:key},84,true);
     store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);
   }
@@ -99,8 +105,9 @@ export function scheduleMutable(worker,generation) {
 
 function dueRecoveryGaps(store,generation,now,limit) {
   if(limit<=0)return [];
-  const today=localDay(now),result=[];
+  const today=localDay(now),result=[];let adoptedDeferred;
   for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key").iterate(generation,now)) {
+    if(gap.key.startsWith('/adopted-texts/')&&adoptedTextOwnedElsewhere(store,generation,gap.key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
     if(gap.kind==='motion-outcomes'&&today<sittingConfirmationDay(gap.sitting_id))continue;
     result.push(gap);if(result.length>=limit)break;
   }
