@@ -45,9 +45,9 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
       citationInNotes&&showCitation&&createElement(DocumentNotes,{notes,prefix:'focus-notes'})))));
   const click=element=>act(async()=>{assert(element,'Missing action');element.focus();element.click();});
   const findButton=(label,scope=container)=>[...scope.querySelectorAll('button')].find(button=>button.textContent===label);
-  const finish=(id,paragraphs,{error=false}={})=>act(async()=>{
+  const finish=(id,paragraphs,{error=false,answers=[]}={})=>act(async()=>{
     const request=requests.find(request=>request.route===`document/${id}?lang=en`&&!request.finished);assert(request,'Missing document request '+id);request.finished=true;
-    if(error)request.reject(new Error('Fixture document unavailable'));else request.resolve(Response.json(documentResponse(id,paragraphs)));
+    if(error)request.reject(new Error('Fixture document unavailable'));else request.resolve(Response.json({...documentResponse(id,paragraphs),answers}));
   });
   await render();
   return {window,container,scrolls,tick,render,click,findButton,finish,citation:()=>container.querySelector('button.legal-ref'),open:async(trigger=container.querySelector('button.legal-ref'))=>{await click(trigger);const card=container.querySelector('.legal-reference-card');assert.equal(document.activeElement,card);return card;}};
@@ -82,9 +82,11 @@ test('referenced readers focus a stable pending destination, preserve local-find
   const outer=h.container.querySelector('.legal-reference-question');
   assert.equal(document.activeElement,outer);assert.equal(outer.getAttribute('aria-label'),'Referenced question');
   assert(outer.textContent.includes('Loading text…'),'the destination exists while its document is pending');
-  assert.equal(h.scrolls.length,1,'opening the nested reader must not add a new scrolling policy');
+  assert.equal(h.scrolls.length,2);
+  assert.deepEqual(h.scrolls.at(-1),{element:outer,options:{block:'start'}});
   const retained=h.container.querySelector('#retained');retained.focus();
   await h.finish(first,['See question E-003032/2026.']);assert.equal(document.activeElement,retained,'document completion must not steal focus');
+  assert.equal(h.scrolls.length,2,'background completion must not scroll again');
   const search=outer.querySelector('button[aria-label="Find in referenced question"]');assert(search,'the existing local-find control remains available');
   assert(outer.querySelector('.insight-reader-text').textContent.includes('E-003032/2026'));
   assert.equal(outer.querySelector('.insight-reader-text').closest('[role="status"],[aria-live]'),null);
@@ -93,7 +95,21 @@ test('referenced readers focus a stable pending destination, preserve local-find
   await h.finish(second,['An exact nested question body.']);
   assert.equal(document.activeElement,inner,'arrival retains the already focused destination');
   await h.click(inner.querySelector(':scope > button'));assert.equal(document.activeElement,nested);assert.equal(inner.isConnected,false);
+  assert.deepEqual(h.scrolls.at(-1),{element:nested,options:{block:'nearest'}});
   await h.click(outer.querySelector(':scope > button'));assert.equal(document.activeElement,original);assert.equal(outer.isConnected,false);
+  assert.deepEqual(h.scrolls.at(-1),{element:original,options:{block:'nearest'}});
+});
+
+test('referenced question loads its answer without moving the reader again',async t=>{
+  const h=await reader(t);await h.open();await h.click(h.findButton('Read question'));
+  const destination=h.container.querySelector('.legal-reference-question');
+  const answer=first+'-ASW';
+  await h.finish(first,['Exact referenced question body.'],{answers:[{id:answer}]});
+  await h.finish(answer,['Exact referenced answer body.']);
+  assert(destination.textContent.includes('Exact referenced question body.'));
+  assert(destination.textContent.includes('Exact referenced answer body.'));
+  assert.equal(document.activeElement,destination);
+  assert.equal(h.scrolls.length,2,'question and answer arrivals must not reset the reading position');
 });
 
 test('nested-reader error and late completion after close do not reclaim focus',async t=>{
@@ -139,7 +155,8 @@ test('closing a referenced question from collapsed Notes returns to a visible lo
   await h.click(h.container.querySelector('.legal-reference-question > button'));
   assert(document.activeElement===h.container.querySelector('h3'),'the return target must be visible outside collapsed Notes');
   assert.equal(notes.open,false,'focus recovery preserves the chosen disclosure state');
-  assert.equal(h.scrolls.length,1,'focus recovery adds no scroll operation');
+  assert.equal(h.scrolls.length,3);
+  assert.deepEqual(h.scrolls.at(-1),{element:h.container.querySelector('h3'),options:{block:'nearest'}});
   assert.equal(citation.textContent,'E-003031/2026','the exact cited identifier remains intact');
 });
 
