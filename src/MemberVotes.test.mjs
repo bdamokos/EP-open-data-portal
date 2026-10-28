@@ -843,22 +843,10 @@ test('all decisions shows non-named ballots, shared methods, counts and page sum
   assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/listed present 25 Mar/);
 });
 
-for(const [status,memberStatus,expected] of [
-  ['observed','listed-present',/^Listed as present at this sitting\.$/],
-  ['observed','listed-excused',/Listed as excused/],
-  ['observed','not-listed',/Not listed.*Not listed doesn’t mean absent\./],
-  ['observed','conflicting',/Listed as both present and excused/],
-  ['not-published',null,/not yet published/],
-  ['partial',null,/Attendance register unavailable for this sitting/],
-  ['unavailable',null,/Attendance register unavailable for this sitting/],
-])test('attendance detail renders '+status+'/'+memberStatus+' independently of the member position',async t=>{
-  const item=vote(1,{actualPosition:{status:'no-record',position:null},alignment:'unclassified'});
-  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items:[item]})),attendanceHandler:()=>Response.json(attendanceResponse({status,memberStatus}))});
-  const detail=visiblePane(h.container),attendance=detail.querySelector('.member-votes-attendance');
-  assert.match(attendance.textContent,expected);assert.match(detail.querySelector('.member-votes-position').textContent,/No recorded position/);
-  assert.equal(attendance.parentElement.className,'member-votes-strip');
-  assert.equal(attendance.querySelectorAll('details, a, time, code').length,0);
-  assert.doesNotMatch(attendance.textContent,/About the attendance register|Content hash|PDF issued/);
+for(const memberStatus of ['listed-present','not-listed','excused'])test('attendance stays in list for '+memberStatus,async t=>{
+ const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},attendanceHandler:()=>Response.json(attendanceResponse({memberStatus}))});
+ assert.equal(visiblePane(h.container).querySelector('.member-votes-attendance'),null);
+ await h.update({decisionId:null});assert(h.container.querySelector('.member-votes-attendance-line'));
 });
 
 test('attendance starts only after valid votes settle and failures leave votes and pagination usable',async t=>{
@@ -890,13 +878,6 @@ test('no scanned sittings leaves the unattempted attendance line hidden',async t
   const h=await mount(t,{handler:url=>Response.json(responseFor(url,{items:[],subjects:[],coverage:{scannedSittingIds:[]}})),attendanceHandler:()=>{reads++;return Response.json(attendanceResponse());}});
   assert.equal(reads,0);assert.equal(h.container.querySelector('.member-votes-attendance-line'),null);
   assert.equal(h.container.querySelector('.member-votes-filter button').textContent,'All decisions');
-});
-
-test('not-listed detail discloses an unsupplied excused list beside the no-absence explanation',async t=>{
-  const h=await mount(t,{state:{week:WEEK,decisionId:decision(1)},handler:url=>Response.json(responseFor(url)),attendanceHandler:()=>{const value=attendanceResponse({memberStatus:'not-listed'});value.sittings[0].excusedSupplied=false;value.sittings[0].counts.excused=null;return Response.json(value);}});
-  const text=visiblePane(h.container).querySelector('.member-votes-attendance').textContent;
-  assert.match(text,/Not listed as present\./);
-  assert.match(text,/Not listed doesn’t mean absent\./);
 });
 
 for(const outcome of ['LAPSED','WITHDRAWN'])test('unheld '+outcome+' detail replaces its retained method label',async t=>{
@@ -931,7 +912,7 @@ test('pending attendance survives filter, page and decision reloads for the same
     assert.equal(reads.length,1);assert.equal(reads[0].signal.aborted,false);
   }
   await act(async()=>releaseAttendance());
-  assert.match(visiblePane(h.container).querySelector('.member-votes-attendance').textContent,/Listed as present/);
+  assert.equal(visiblePane(h.container).querySelector('.member-votes-attendance'),null);
   await h.update({decisionId:null,offset:0});
   assert.match(h.container.querySelector('.member-votes-attendance-line').textContent,/listed present/);
   assert.equal(reads.length,1);
@@ -968,7 +949,7 @@ test('unattempted attendance detail stays hidden with an empty sitting selection
   assert.equal(h.container.querySelector('.member-votes-attendance'),null);
 });
 
-for(const detail of [false,true])for(const failure of ['http','network','invalid'])test(`attendance ${failure} failure retries in ${detail?'detail':'list'} without implying source absence`,async t=>{
+for(const detail of [false])for(const failure of ['http','network','invalid'])test(`attendance ${failure} failure retries in ${detail?'detail':'list'} without implying source absence`,async t=>{
  let attempts=0;
  const h=await mount(t,{state:{week:WEEK,...(detail?{decisionId:decision(1)}:{})},attendanceHandler:()=>{
    attempts++;
@@ -1074,4 +1055,13 @@ test('split amendment and whole-text context restore published part descriptions
     check();await h.remount();check();await h.click('Back from context');
     assert.equal(h.state.context,null);assert.equal(h.state.decisionId,item.id);
   });
+});
+
+test('detail subordinates whole-text decisions and removes final-vote self links',async t=>{
+ const item=vote(1),whole=vote(2,{scope:{kind:'whole-text'}}),items=[item,whole];
+ const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items,subjects:[subject(items,{wholeTextDecisions:[whole]})]}))});
+ const detail=h.container.querySelector('.member-votes-detail');
+ assert.equal(detail.querySelector(':scope > .member-votes-whole'),null);
+ assert.equal(detail.querySelector('details.member-votes-related summary').textContent,'Final vote on the whole text');
+ await h.update({decisionId:whole.id});assert.equal(h.container.querySelector('.member-votes-detail .member-votes-whole'),null);
 });

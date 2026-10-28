@@ -61,7 +61,7 @@ test('other decisions show a subject explanation with a final-vote link, never a
 
 test('failed and mismatched responses preserve the vote and cannot supply stale attachments',async t=>{
   const view=await mount(t,{response:result({memberId:'42'})});
-  assert.match(view.container.textContent,/Explanations couldn’t be loaded/);assert.doesNotMatch(view.container.textContent,/Read oral explanation|No oral explanation found/);
+  assert.match(view.container.textContent,/This member’s oral explanation is unavailable/);assert.doesNotMatch(view.container.textContent,/Read oral explanation|No oral explanation found/);
   assert(view.container.querySelector('button')?.textContent.includes('Retry'));
   await view.update({vote:{id:sitting+'-DEC-999',sittingId:sitting,subjectId:subject}});
   assert.doesNotMatch(view.container.textContent,/Read oral explanation/);
@@ -69,7 +69,7 @@ test('failed and mismatched responses preserve the vote and cannot supply stale 
 
 test('incomplete searches stay distinct from none found, without repeated attribution or links',async t=>{
   const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'speech-source-unavailable'}]}})});
-  assert.match(view.container.textContent,/Some oral explanations could not be loaded/);
+  assert.match(view.container.textContent,/This member’s oral explanation is unavailable/);
   assert.doesNotMatch(view.container.textContent,/No oral explanation found|Written explanations|0 explanations/);
   assert.equal(view.container.querySelectorAll('button').length,1);
   assert.equal(view.container.querySelector('button').textContent,'Retry');
@@ -78,20 +78,20 @@ test('incomplete searches stay distinct from none found, without repeated attrib
 
 test('a complete empty search is one quiet line and has no retry',async t=>{
   const view=await mount(t,{response:result({items:[]})});
-  assert.equal(view.container.textContent,'No oral explanation found.');
+  assert.equal(view.container.textContent,'No oral explanation found for this member.');
   assert.equal(view.container.querySelectorAll('p').length,1);
   assert.equal(view.container.querySelectorAll('a,button,h3,section').length,0);
 });
 
 test('structural gaps retain uncertainty without offering a retry',async t=>{
   const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-read-limit'},{code:'explanation-transcript-conflict'}]}})});
-  assert.match(view.container.textContent,/Some oral explanations could not be loaded/);
+  assert.match(view.container.textContent,/This member’s oral explanation is unavailable/);
   assert.equal(view.container.querySelectorAll('button').length,0);
 });
 
 test('malformed coverage cannot crash the reader or claim that nothing was found',async t=>{
   const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:{code:'speech-source-unavailable'}}})});
-  assert.match(view.container.textContent,/Explanations couldn’t be loaded/);
+  assert.match(view.container.textContent,/This member’s oral explanation is unavailable/);
   assert.doesNotMatch(view.container.textContent,/No oral explanation found/);
   assert.equal(view.container.querySelectorAll('button').length,1);
 });
@@ -116,6 +116,6 @@ test('multiple disclosures have unique mounted targets and keep external attribu
 test('partial matches show one qualifier and at most one useful retry',async t=>{
   const view=await mount(t,{response:result({coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-source-stale'}]}})});
   assert.match(view.container.textContent,/Read oral explanation of vote/);
-  assert.match(view.container.textContent,/Some records unavailable/);
+  assert.match(view.container.textContent,/Search incomplete/);
   assert.equal([...view.container.querySelectorAll('button')].filter(button=>button.textContent==='Retry').length,1);
 });
