@@ -22,6 +22,11 @@ test('wording comparison modes, accessible announcements, source language, defau
   let props={original:'La vieille politique.\n',proposed:'La nouvelle politique.\n',language:'fr',emptySemantics:'insertion-deletion'};
   const render=async patch=>{props={...props,...patch};await act(async()=>root.render(createElement(WordingDiff,props)));};
   const button=text=>[...container.querySelectorAll('button')].find(node=>node.textContent===text);
+  await render({original:'Texte existant.',proposed:'(Ne concerne pas la version française.)',language:'fr'});
+  assert.match(container.textContent,/No change in this language version/);
+  assert.equal(container.querySelector('ins, del, button'),null);
+  assert.equal(container.querySelector('p[lang="fr"]').textContent,'(Ne concerne pas la version française.)');
+  await render({original:'La vieille politique.\n',proposed:'La nouvelle politique.\n'});
   await render({});
   assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
   assert(container.querySelector('del'));assert(container.querySelector('ins'));

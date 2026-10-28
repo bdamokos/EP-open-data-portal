@@ -784,3 +784,16 @@ test('report wording requires its exact cover and complete main-list range and e
     [cover+main.replace(escape('<NumAm>2</NumAm>'),escape('<NumAm>1</NumAm>')),{}],
   ]){const invalid=extract(xml,extra);assert.deepEqual(invalid.amendments,[]);assert.equal(invalid.gaps[0].code,'report-amendment-identity');}
 });
+
+test('language-scope cells remain verbatim extraction evidence rather than empty deletion cells',()=>{
+  const {examples}=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-scope.json',import.meta.url)));
+  for(const example of examples) {
+    const original=example.originalText??'Quoted wording.',proposed=example.proposedText??example.note;
+    const xml=body(metadata()+table(row(cell(p(original)),cell(p(proposed))))+p('</Amend>'));
+    const result=extractAmendments(archive(xml),{...options,language:example.language});
+    const amendment=result.amendments[0];
+    assert.equal(amendment.originalText,original,example.language);
+    assert.equal(amendment.proposedText,proposed,example.language);
+    assert.equal(amendmentOperation(amendment),null,example.language);
+  }
+});

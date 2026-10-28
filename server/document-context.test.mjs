@@ -608,3 +608,16 @@ test('indexed wording ranges remain tied to their exact selected source columns'
   assert.deepEqual(result.amendment.variants[0].originalFormatting,originalFormatting);
   assert.deepEqual(result.amendment.variants[0].proposedFormatting,proposedFormatting);
 });
+
+test('a selected unaffected language edition has no placement, replacement target or legal-baseline acquisition',async()=>{
+  const note='(Ne concerne pas la version française.)';
+  const selected={...indexed,language:'fr',targetLabelLanguage:'fr',originalText:'C. Texte existant.',proposedText:note,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false}};
+  const reader=service({findAmendment:()=>selected,readText:async()=>({...summary,textLanguage:'fr',paragraphs:['C. Texte existant.']}),readProposal:async()=>assert.fail('An unaffected edition needs no legal baseline')});
+  const result=await reader.query(query({language:'fr',amendmentId,listId,wordingLanguage:'fr'}),{store:{}});
+  assert.equal(result.placement.status,'not-applicable');assert.equal(result.placement.operation,null);
+  assert.equal(result.target.status,'unavailable');assert.equal(result.target.reason,'language-version-unaffected');
+  assert.deepEqual(result.target.paragraphs,[]);assert.equal(result.baseline,null);assert.equal(result.proposal,null);
+  assert.equal(result.amendment.variants[0].proposedText,note);
+  assert.equal(result.target.evidence.wordingLanguage,'fr');
+  assert.deepEqual(result.document.selectedText.paragraphs,['C. Texte existant.']);
+});
