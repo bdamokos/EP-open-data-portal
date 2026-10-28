@@ -8,7 +8,7 @@ import {ActivityWorker,feedDocuments} from './activity-index-worker.mjs';
 import {projectDocument} from './activity-index-model.mjs';
 import {scheduleSittingOutcomes} from './amendments-worker.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
-import {DAY,MUTABLE_LIMIT,GAP_LIMIT,documentRefreshState,scheduleMutable,recordTaskGap,sittingConfirmationDay,sittingOutcomesComplete} from './refresh-policy.mjs';
+import {DAY,MUTABLE_LIMIT,GAP_LIMIT,documentRefreshState,scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,sittingConfirmationDay,sittingOutcomesComplete} from './refresh-policy.mjs';
 
 const languages='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
 const files=n=>languages.slice(0,n).map(language=>({language,is_embodied_by:[{format:'DOCX',is_exemplified_by:`https://data.europarl.europa.eu/distribution/test/${language}.docx`}]}));
@@ -22,6 +22,33 @@ function setup(t,at='2026-10-20T10:00:00Z') {
 }
 const sitting='MTG-PL-2026-10-07';
 const complete=()=>({results:[{id:'result'}],decisions:[{id:'decision'}],coverage:{missingResultIds:[],missingDecisionIds:[]},splitRequests:[],amendmentVersion:AMENDMENTS_VERSION,amendmentProjectionVersion:AMENDMENT_SITTING_PROJECTION_VERSION});
+
+test('backfill recovers due gaps between daily cycles without resetting future retries or saved cursors',t=>{
+  const {store,generation,worker,clock,advance}=setup(t);
+  for(let i=0;i<28;i++) {
+    const key='recover:'+i,body={endpoint:'/parliamentary-questions/E-10-2026-'+i,offset:150};
+    store.enqueue(generation,key,'document',body,84);
+    recordTaskGap(worker,{generation,key,kind:'document',body,priority:84,attempts:4},new Error('EP API returned 500'));
+  }
+  store.publish(generation);store.set('lastSuccess',new Date(clock()).toISOString());
+  worker.recoveryMode='backfill';
+  assert.equal(gapRecoveryDue(store,generation,clock()),false);
+  advance(7*DAY);store.set('lastSuccess',new Date(clock()).toISOString());
+  // Ignore other optional upgrade triggers: the recovery-specific predicate is
+  // independent of a daily core refresh and preserves recorded admission state.
+  assert.equal(worker.coreDue(),false);assert.equal(gapRecoveryDue(store,generation,clock()),true);
+  assert.equal(scheduleGapRecovery(worker,generation),25);
+  assert.equal(store.taskCounts(generation).total-store.taskCounts(generation).completed,25);
+  const first=store.nextTask(generation);assert.equal(first.body.offset,150);assert.equal(first.attempts,5);
+  assert.equal(scheduleGapRecovery(worker,generation),3);
+  assert.equal(scheduleGapRecovery(worker,generation),0);
+  assert.equal(gapRecoveryDue(store,generation,clock()),false);
+  assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,28,'admission leaves coverage gaps visible');
+  store.finishTask(first);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,27,'only successful completion clears its gap');
+  assert.equal(store.get('slowGapAdmissions'),null,'temporary backfill does not consume the normal daily cap');
+});
 
 test('mutable policy counts distinct observed official file languages and answer languages',()=>{
   const unanswered=projectDocument(document());

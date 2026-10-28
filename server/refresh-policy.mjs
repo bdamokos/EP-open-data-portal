@@ -94,17 +94,34 @@ export function scheduleMutable(worker,generation) {
     store.enqueue(generation,key,'document',{endpoint:key},84,true);
     store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);
   }
-  store.transaction(()=>{
+  if(worker.recoveryMode!=='backfill')scheduleGapRecovery(worker,generation);
+}
+
+function dueRecoveryGaps(store,generation,now,limit) {
+  if(limit<=0)return [];
+  const today=localDay(now),result=[];
+  for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key").iterate(generation,now)) {
+    if(gap.kind==='motion-outcomes'&&today<sittingConfirmationDay(gap.sitting_id))continue;
+    result.push(gap);if(result.length>=limit)break;
+  }
+  return result;
+}
+export const gapRecoveryDue=(store,generation,now=store.clock())=>dueRecoveryGaps(store,generation,now,1).length>0;
+
+export function scheduleGapRecovery(worker,generation) {
+  const store=worker.store,now=worker.clock(),backfill=worker.recoveryMode==='backfill';
+  return store.transaction(()=>{
+    store.assertWriter();
     const today=localDay(now),prior=store.get('slowGapAdmissions');
-    let count=prior?.day===today?prior.count:0;
-    for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key LIMIT ?").all(generation,now,Math.max(0,GAP_LIMIT-count))) {
-      if(gap.kind==='motion-outcomes' && today<sittingConfirmationDay(gap.sitting_id))continue;
+    let count=backfill?0:prior?.day===today?prior.count:0;
+    for(const gap of dueRecoveryGaps(store,generation,now,Math.max(0,GAP_LIMIT-count))) {
       if(!store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true}))continue;
       store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
       if(gap.kind==='motion-outcomes')store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(now+7*DAY,generation,gap.sitting_id);
       count++;
     }
-    store.set('slowGapAdmissions',{day:today,count});
+    if(!backfill)store.set('slowGapAdmissions',{day:today,count});
+    return count;
   });
 }
 
