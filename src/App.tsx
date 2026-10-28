@@ -54,6 +54,7 @@ import type {
   DocumentLink,
 } from "./explorerTypes";
 import "./explorer.css";
+import './Controls.css';
 import { activitySourceId } from "../server/activity-links.mjs";
 import {transcriptParagraphs,TranscriptText} from "./Transcript";
 import { transcriptLanguage } from "../server/transcript-language.mjs";

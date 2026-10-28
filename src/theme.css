@@ -7,6 +7,9 @@
   --font-serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, "Noto Serif", serif;
   --radius: 8px;
   --radius-sm: 5px;
+  --control-height: 44px;
+  --control-font-size: 16px;
+  --control-line-height: 24px;
 
   /* Surfaces: page, raised panel and inset, from back to front. */
   --bg: light-dark(#f6f5f1, #141618);

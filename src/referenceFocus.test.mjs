@@ -161,7 +161,7 @@ test('closing a referenced question from collapsed Notes returns to a visible lo
 });
 
 test('reference scope, citations, reader destinations, cards and player controls use the focus token in both schemes',async t=>{
-  const files=['References.css','ParliamentHeader.css','explorer.css','Insights.css','ExplorerLayout.css','TextSearch.css','base.css','focus.css'];
+  const files=['References.css','Controls.css','ParliamentHeader.css','explorer.css','Insights.css','ExplorerLayout.css','TextSearch.css','base.css','focus.css'];
   const styles=await Promise.all(files.map(file=>readFile(new URL(file,import.meta.url),'utf8')));
   for(const scheme of schemes)for(const shell of ['explorer','explorer-insights'])for(const nested of [false,true])for(const mode of ['focus','focus-visible'])await t.test(`${scheme} ${shell}${nested?' nested':''} ${mode}`,async t=>{
     const window=new Window();t.after(()=>window.happyDOM.close());

@@ -1,0 +1,105 @@
+/* Roles shared by the member and analysis views. Keep layout in each view. */
+:is(.explorer,.explorer-insights) .parliament-header nav > button,
+:is(.explorer,.explorer-insights) :is(.explorer-tabs,.insight-mode-nav,.insight-question-dimensions,.gv-tabs,.ov-tabs) > button {
+  min-height:var(--control-height);
+  padding:10px 8px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:inset 0 -3px transparent;
+  color:var(--ink-muted);
+  font-size:var(--control-font-size);
+  font-weight:400;
+  line-height:var(--control-line-height);
+  text-align:center;
+}
+:is(.explorer,.explorer-insights) .parliament-header nav > button:hover:not(:disabled),
+:is(.explorer,.explorer-insights) :is(.explorer-tabs,.insight-mode-nav,.insight-question-dimensions,.gv-tabs,.ov-tabs) > button:hover:not(:disabled) {
+  background:var(--surface-2);
+  color:var(--ink);
+}
+:is(.explorer,.explorer-insights) .parliament-header nav > button:is([aria-current=page],[aria-pressed=true],.selected),
+:is(.explorer,.explorer-insights) :is(.explorer-tabs,.insight-mode-nav,.insight-question-dimensions,.gv-tabs,.ov-tabs) > button:is([aria-current=page],[aria-pressed=true],.selected) {
+  background:transparent;
+  color:var(--ink);
+  box-shadow:inset 0 -3px var(--accent);
+  font-weight:600;
+}
+
+/* Alternate presentations of the same content form one segmented control. */
+.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  width:fit-content;
+  max-width:100%;
+  padding:4px;
+  border:1px solid var(--line-strong);
+  border-radius:var(--radius-sm);
+  background:var(--surface-2);
+}
+:is(.explorer,.explorer-insights) :is(.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter) > button {
+  flex:1 1 auto;
+  min-width:0;
+  min-height:var(--control-height);
+  padding:9px 12px;
+  border:1px solid transparent;
+  border-radius:calc(var(--radius-sm) - 2px);
+  background:transparent;
+  color:var(--ink-muted);
+  font-size:var(--control-font-size);
+  line-height:var(--control-line-height);
+  text-align:center;
+  white-space:normal;
+}
+:is(.explorer,.explorer-insights) :is(.insight-chart-switch:not(.insight-mode-nav),.member-votes-filter) > button[aria-pressed=true] {
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  color:var(--accent-strong);
+  font-weight:600;
+}
+
+/* Applied filters are removable selections; text actions keep their link style. */
+:is(.explorer,.explorer-insights) :is(.insight-active-filters,.gv-selected) > button:not(.insight-text-button) {
+  min-height:var(--control-height);
+  padding:9px 12px;
+  border:1px solid var(--accent);
+  border-radius:var(--radius-sm);
+  background:var(--accent-soft);
+  color:var(--accent-strong);
+  font-size:var(--control-font-size);
+  line-height:var(--control-line-height);
+}
+
+/* Status is information, with no button enclosure or action-sized padding. */
+.explorer-question-status,.explorer-motion-status {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  max-width:100%;
+  margin:4px 0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--ink-muted);
+  font-size:14px;
+  font-weight:500;
+  line-height:1.5;
+  white-space:normal;
+}
+.explorer-question-status[data-answered=true],.explorer-motion-status[data-outcome=adopted] { color:var(--positive); background:transparent; }
+.explorer-motion-status[data-outcome=rejected] { color:var(--danger); background:transparent; }
+
+/* Primary actions are explicit: DOM order never decides their emphasis. */
+:is(.explorer,.explorer-insights) .ui-primary-action {
+  border-color:var(--accent);
+  background:var(--accent);
+  color:var(--accent-ink);
+  font-weight:600;
+}
+:is(.explorer,.explorer-insights) .ui-primary-action:hover:not(:disabled) { background:var(--accent-strong); }
+
+@media(max-width:767px) {
+  :is(.explorer,.explorer-insights) .parliament-header nav > button { font-size:13px; padding:8px 4px; }
+}
