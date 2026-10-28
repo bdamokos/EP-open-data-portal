@@ -20,20 +20,72 @@ function wholeBold(value,format) {
 const contiguous=(a,b)=>a?.complete===true&&b?.complete===true&&a.container==='body'&&b.container==='body'
   &&a.containerPath===b.containerPath&&a.segment===b.segment&&b.ordinal===a.ordinal+1;
 
+// A second raw-row assertion for explicitly indented point addresses. Work
+// backwards from each printed point to its owning paragraph/shallower point;
+// do not reuse the runtime's stack or its placement evidence.
+export function rawResolutionPointUnits(text) {
+  const paragraphs=text?.paragraphs??[],sources=text?.paragraphSources??[],formats=text?.paragraphFormats??[];
+  const point=value=>{const match=/^\s*(?:\(([a-z]{1,4})\)|([a-z]{1,4})\)|([ivxlcdm]+)\.)\s+/u.exec(value);return match&&(match[1]||match[2]||match[3]);};
+  const heading=i=>wholeBold(paragraphs[i],formats[i])||(Number.isInteger(formats[i]?.heading)&&formats[i].heading>=1);
+  const topic=i=>wholeBold(paragraphs[i],formats[i])&&(formats[i]?.marks??[]).some(mark=>mark.kind==='italic'&&mark.start<=paragraphs[i].search(/\S/u)&&mark.end>=paragraphs[i].trimEnd().length);
+  const units=[];
+  for(let start=0;start<paragraphs.length;start++){
+    const value=point(paragraphs[start]),indent=formats[start]?.indent;
+    if(!value||!Number.isFinite(indent)||sources[start]?.container!=='body'||!sources[start].complete)continue;
+    let parent=null,paragraph=null,blocked=false;
+    for(let i=start-1;i>=0;i--){
+      if(!contiguous(sources[i],sources[i+1]))break;
+      const numeric=/^\s*([1-9]\d{0,5}[a-z]{0,3})[.)]\s+/u.exec(paragraphs[i]);
+      if(numeric){
+        if(Number.isFinite(formats[i]?.indent)&&formats[i].indent<indent)paragraph={kind:'paragraph',label:numeric[1],start:i};
+        break;
+      }
+      if(heading(i)){
+        if(!topic(i)||!point(paragraphs[i+1])){blocked=true;break;}
+        continue;
+      }
+      if(!parent&&point(paragraphs[i])&&Number.isFinite(formats[i]?.indent)&&formats[i].indent<indent)parent=units.find(unit=>unit.start===i)??null;
+      if(/^[°\s]+$/u.test(paragraphs[i])&&paragraphs[i].includes('°'))break;
+    }
+    if(blocked||!paragraph)continue;
+    if(parent&&parent.path[0].value!==paragraph.label)continue;
+    const path=parent?[...parent.path,{kind:'point',value}]:[{kind:'paragraph',value:paragraph.label},{kind:'point',value}];
+    let end=start,complete=false;
+    for(let i=start+1;i<paragraphs.length;i++){
+      if(!contiguous(sources[i-1],sources[i]))break;
+      if(heading(i)||/^\s*(?:\d+|[A-Z]{1,3})[.)]\s+/u.test(paragraphs[i])||point(paragraphs[i])&&formats[i]?.indent<=indent){end=i-1;complete=true;break;}
+      end=i;
+    }
+    const crossedTopic=paragraphs.slice(paragraph.start+1,start).some((_,offset)=>heading(paragraph.start+1+offset));
+    if(crossedTopic&&!/:\s*$/u.test(paragraphs[paragraph.start]))continue;
+    units.push({kind:'point',label:value,start,end,complete,path,parent:parent?.start??paragraph.start,group:paragraph.start});
+  }
+  return {units};
+}
+
 export function rawResolutionUnits(text,language) {
   const paragraphs=text?.paragraphs,sources=text?.paragraphSources;
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
-  const openings={en:'The European Parliament',fr:'Le Parlement européen',es:'El Parlamento Europeo',de:'Das Europäische Parlament',bg:'Европейският парламент',el:'Το Ευρωπαϊκό Κοινοβούλιο',hr:'Europski parlament',cs:'Evropský parlament'};
+  // Native-script provision labels remain literal. English and Romanian report
+  // headings delimit their motion; other duplicated bodies remain unverified.
+  const openings={en:'The European Parliament',fr:'Le Parlement européen',es:'El Parlamento Europeo',de:'Das Europäische Parlament',bg:'Европейският парламент',el:'Το Ευρωπαϊκό Κοινοβούλιο',hr:'Europski parlament',cs:'Evropský parlament',ro:'Parlamentul European'};
   const opening=openings[language];
   const openers=paragraphs.flatMap((p,i)=>opening&&p.replace(/\s+/gu,' ').trim().replace(/[,;:]$/u,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
-  if(language==='en'&&!openers.length||language!=='en'&&opening&&openers.length!==1)return {units:[],reason:'oracle-resolution-start-unverified'};
-  const start=opening?openers[0]+1:0,events=[],openerRows=new Set(openers);
+  const reportHeading=language==='en'?/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u:language==='ro'?/^(?:\d+[.)]\s*)?PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN$/u:null;
+  // Scope a report independently of the placer's section hint. Plain TOC
+  // entries and page suffixes cannot establish the published motion heading.
+  const headings=paragraphs.flatMap((p,i)=>reportHeading?.test(p.trim())&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
+  const scoped=Boolean(reportHeading)&&headings.length===1;
+  if(opening&&(!openers.length||!reportHeading&&openers.length!==1))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const selectedOpening=scoped?openers.find(i=>i>headings[0]):openers[0];
+  if(opening&&!Number.isInteger(selectedOpening))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const start=opening?selectedOpening+1:0,events=[],openerRows=new Set(openers);
   const endings={fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
   const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
-    if(openerRows.has(i)){events.push({start:i,boundary:true});group++;parent=null;citation=0;provisions=false;active=true;continue;}
+    if(openerRows.has(i)){events.push({start:i,boundary:true});group++;parent=null;citation=0;provisions=false;if(!scoped)active=true;continue;}
     if(!active)continue;
     if(source?.complete!==true||source.container!=='body'||i>start&&!contiguous(sources[i-1],source)) {
       events.push({start:i,boundary:true,uncertain:true});group++;parent=null;
@@ -41,11 +93,11 @@ export function rawResolutionUnits(text,language) {
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
     const translatedEnd=languageEnd?.test(value.split(/[\r\n]/u)[0]);
-    const section=(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter)\b/iu.test(value))&&!/[.;!?]$/u.test(value);
+    const section=(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value))&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {
       events.push({start:i,boundary:true});group++;parent=null;
-      if(section&&(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?)\b/iu.test(value)))active=false;
+      if(section&&(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value))){if(scoped)break;active=false;}
       continue;
     }
     let ref=label(value);

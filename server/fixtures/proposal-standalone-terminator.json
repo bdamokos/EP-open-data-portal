@@ -1,0 +1,437 @@
+{
+  "documentId": "A-10-2026-0104",
+  "amendments": [
+    76,
+    77,
+    78,
+    79
+  ],
+  "language": "en",
+  "source": {
+    "url": "https://publications.europa.eu/resource/cellar/f55c66d0-5ca8-11f0-a9d0-01aa75ed71a1.0001.01/DOC_1",
+    "sha256": "f4560910d9dc0dda9f926f4cce13bccb17f3bc99535350eae7bf90432abfa8f4",
+    "fetchedAt": "2026-10-27T16:53:16.399Z"
+  },
+  "structureStatus": "extracted",
+  "coverage": {
+    "complete": false
+  },
+  "paragraphs": [
+    "Article 3",
+    "Amendments to Regulation (EU) 2019/1009",
+    "Regulation (EU) 2019/1009 is amended as follows:",
+    "(9)\tArticle 42 is amended as follows:",
+    "(a)\tin paragraph 4, the introductory statement is replaced by the following:",
+    "‘The Commission may adopt delegated acts pursuant to paragraph 1 amending Annex II to add new micro-organisms or strains of micro-organisms, or additional processing methods to the component material category for such organisms after having verified which strains of the additional micro-organism fulfil the criteria in paragraph 1, point (b), on the basis of the following data:’",
+    ";",
+    "(b)\tthe following paragraph 4a is inserted:",
+    "‘4a.   The Commission may also adopt delegated acts pursuant to paragraph 1 amending Annex II to set out criteria and a methodology for the assessment of micro-organisms other than those listed in Annex II, which, if compliance with those criteria is demonstrated in the conformity assessment of the EU fertilising product in accordance with that methodology, may be used as component material in EU fertilising products. The criteria and methodology shall allow for verification that the micro-organisms fulfil the criteria in paragraph 1, point (b), and provide, as a minimum, for the consideration of the following elements:",
+    "(a) scientific literature reporting about safe production, conservation and use of the micro-organism;",
+    "(b) taxonomic relation of the micro-organism to micro-organisms species fulfilling the requirements for a Qualified Presumption of Safety as established by the European Food Safety Authority;",
+    "(c) information on the production process of the micro-organism, including, where relevant, the composition of the cultivation medium, processing methods such as spray drying, fluid-bed drying, static drying, centrifugation, deactivation by heat, filtration and grinding;",
+    "(d) information on the identity and residue levels of residual intermediates, toxins or microbial metabolites in the component material;",
+    "(e) natural occurrence, survival and mobility in the environment;",
+    "(f) susceptibility to all relevant antimicrobial agents as defined in the Annex, Introduction to Part B, point (ii)(28), to Commission Regulation (EU) No 283/2013*, with the exception of intrinsic resistance.",
+    "*Commission Regulation (EU) No 283/2013 of 1 March 2013 setting out the data requirements for active substances, in accordance with Regulation (EC) No 1107/2009 of the European Parliament and of the Council concerning the placing of plant protection products on the market (OJ L 93, 3.4.2013, p. 1, ELI: http://data.europa.eu/eli/reg/2013/283/oj).’",
+    ";",
+    "(10)\tArticle 43 is deleted;",
+    "(11)\tAnnexes I, II and IV to Regulation (EU) 2019/1009 are amended in accordance with Annex IV to this Regulation.",
+    "Article 4"
+  ],
+  "paragraphSources": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[235]",
+      "ordinal": 234,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[236]",
+      "ordinal": 235,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[237]",
+      "ordinal": 236,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[294]",
+      "ordinal": 293,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[295]",
+      "ordinal": 294,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[296]",
+      "ordinal": 295,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[297]",
+      "ordinal": 296,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[298]",
+      "ordinal": 297,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[299]",
+      "ordinal": 298,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[300]",
+      "ordinal": 299,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[301]",
+      "ordinal": 300,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[302]",
+      "ordinal": 301,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[303]",
+      "ordinal": 302,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[304]",
+      "ordinal": 303,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[305]",
+      "ordinal": 304,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[306]",
+      "ordinal": 305,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[307]",
+      "ordinal": 306,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[308]",
+      "ordinal": 307,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[309]",
+      "ordinal": 308,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[310]",
+      "ordinal": 309,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 2,
+      "complete": true
+    }
+  ],
+  "paragraphProperties": [
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "NormalCentered",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Text2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    }
+  ],
+  "paragraphFormats": [
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "kind": "italic"
+        }
+      ]
+    },
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 39,
+          "kind": "bold"
+        }
+      ]
+    },
+    {
+      "align": "justify"
+    },
+    {
+      "align": "justify",
+      "indent": 3.54,
+      "hanging": 3.54
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "size": "sm",
+      "marks": [
+        {
+          "start": 304,
+          "end": 345,
+          "kind": "underline"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 5.9
+    },
+    {
+      "align": "justify",
+      "indent": 3.54,
+      "hanging": 3.54
+    },
+    {
+      "align": "justify",
+      "indent": 3.54,
+      "hanging": 3.54
+    },
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "kind": "italic"
+        }
+      ]
+    }
+  ]
+}

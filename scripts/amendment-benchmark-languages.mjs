@@ -18,7 +18,7 @@ async function metadata(cache,kind,id) {
 export async function acquireLanguageVariants(rows,contexts,cache) {
   const result=new Map(),documentId=rows[0].targetDocumentId;
   const all=rows.flatMap(row=>(row.variants?.length?row.variants:[row]));
-  const missing=all.filter(variant=>variant.listId&&variant.language&&variant.wordingSource?.url&&variant.baseline!=='commission-proposal'&&
+  const missing=all.filter(variant=>variant.listId&&variant.language&&variant.wordingSource?.url&&!['commission-proposal','council-position'].includes(variant.baseline)&&
     contexts.get(variant.language)?.plain.value?.document?.selectedText?.availableTextLanguages?.length&&
     !contexts.get(variant.language).plain.value.document.selectedText.availableTextLanguages.includes(variant.language));
   if(!missing.length)return result;

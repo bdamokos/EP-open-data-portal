@@ -176,6 +176,8 @@ const HEADING_ALIASES={
   en:{'Commission proposal':'commission-proposal',Modification:'amendment','Proposal for rejection':'amendment'},
   it:{'Proposta di reiezione':'amendment'},
   fr:{'Proposition de rejet':'amendment'},
+  ro:{'Propunere de rezoluție':'motion-resolution'},
+  hu:{'Állásfoglalási indítvány':'motion-resolution'},
 };
 export function comparisonHeading(raw,language) {
   const vocabulary=COMPARISON_HEADINGS[language];

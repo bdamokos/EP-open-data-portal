@@ -1,6 +1,8 @@
 import {relativeResolutionHeading} from './resolution-labels.mjs';
+import {comparisonHeading} from './amendment-baseline.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
+import {resolutionPointPlacement} from './resolution-points.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -312,7 +314,7 @@ function motionStructure(text, language) {
     // Word soft breaks separate a section label from its title inside one
     // paragraph. Inspect that physical line before whitespace normalization.
     const firstLine = headingNormal(whitespace(row.value.split(/[\r\n]/u)[0]));
-    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || language === 'en' && resolutionSectionHeading(value))) {
+    if (row.source.container === 'body' && (resolutionEndPatterns[language]?.test(firstLine) || resolutionSectionHeading(row.value, language))) {
       end = index - 1; endAvailable = row.complete; close(end, !row.complete); break;
     }
     if (row.source.container === 'body' && annexPrefixes[language]?.test(firstLine) && !/[.;!?]$/u.test(firstLine)) {
@@ -477,7 +479,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     // The report identity alone cannot distinguish decisions that restart at 1.
     // Require the amendment's published section label; wording is checked only
     // against units in that section below, never against another decision.
-    const label = value => whitespace(value || '').toLowerCase() === 'motion for a resolution';
+    const label = value => comparisonHeading(value, options.language).category === 'motion-resolution';
     const references = options.documentReferences || [];
     const sectionLabels = references.filter(reference => reference.field === 'DocAmend');
     const headings = options.baselineSource?.headings || [];
@@ -494,6 +496,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
+  const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
+  if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
     if (reference.kind !== 'point') return true;
     let parent = units.find(candidate => candidate.start === unit.parent);

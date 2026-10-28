@@ -8,9 +8,10 @@ export function documentContextPlacement({chosen,text,items,referenceTexts=[],re
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
   if(chosen.baselineSource?.conflicted===true)return unresolved('conflicting_baselines');
-  const proposalKind=chosen.baseline==='commission-proposal'&&chosen.baselineSource?.category==='commission-proposal'&&chosen.baselineSource.conflicted===false;
+  const council=chosen.baseline==='council-position';
+  const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
-    ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':'proposal_baseline_unavailable');
+    ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
   const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
