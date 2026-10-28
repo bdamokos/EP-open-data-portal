@@ -5,7 +5,7 @@ import {statSync} from 'node:fs';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import {integerFromEnvironment} from './config.mjs';
-import {normalizedDocxDescriptor,sameDocxDescriptor} from './amendments.mjs';
+import {normalizedDocxDescriptor,sameDocxDescriptor,docxRetrievedAfterIssue} from './amendments.mjs';
 
 // Downloaded amendment-list DOCX bytes, retained outside index generations.
 // Raw files are content-addressed by SHA-256. The leased index writer records
@@ -30,7 +30,6 @@ const key=descriptor=>{
   return file&&{url:file.url,language:file.language ?? '',byteSize:file.byteSize ?? -1,issued:file.issued ?? ''};
 };
 const descriptorOf=row=>normalizedDocxDescriptor({url:row.url,language:row.language||null,byteSize:row.byte_size<0?null:row.byte_size,issued:row.issued||null});
-const retrievedAfterIssue=(retrievedAt,issued)=>Number.isFinite(Date.parse(retrievedAt))&&(!issued||Date.parse(retrievedAt)>=Date.parse(issued));
 
 class AmendmentSourceStore {
   constructor(store,{maxBytes}={}) {
@@ -119,7 +118,7 @@ class AmendmentSourceStore {
   match(descriptor) {
     const wanted=key(descriptor);if(!wanted)return null;
     const rows=this.store.db.prepare('SELECT * FROM amendment_sources WHERE url=? AND language=? AND byte_size=?').all(wanted.url,wanted.language,wanted.byteSize)
-      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&retrievedAfterIssue(row.retrieved_at,wanted.issued));
+      .filter(row=>sameDocxDescriptor(descriptorOf(row),descriptor)&&docxRetrievedAfterIssue(row.retrieved_at,wanted.issued));
     return rows.sort((a,b)=>Date.parse(b.retrieved_at)-Date.parse(a.retrieved_at))[0] || null;
   }
   // Check only during target preparation. read() verifies the hash before use.
@@ -161,7 +160,7 @@ class AmendmentSourceStore {
   async saveBytes(descriptor,buffer,retrievedAt,{listId=null,signal,legacy=false}={}) {
     if(!legacy&&!await this.initialize({signal}))return false;
     const wanted=key(descriptor),db=this.store.db;
-    if(!wanted||!Buffer.isBuffer(buffer)||buffer.length>AMENDMENT_SOURCE_LIMITS.maxFileBytes||!retrievedAfterIssue(retrievedAt,wanted.issued))return false;
+    if(!wanted||!Buffer.isBuffer(buffer)||buffer.length>AMENDMENT_SOURCE_LIMITS.maxFileBytes||!docxRetrievedAfterIssue(retrievedAt,wanted.issued))return false;
     // The same or a less specific descriptor is replaced; other versions of the
     // URL remain as superseded evidence until the budget needs their space.
     const hash=sha256(buffer);

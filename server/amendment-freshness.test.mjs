@@ -849,6 +849,43 @@ for(const mode of ['identical','different','evicted'])test('an undated normal do
   assert.equal(result.sourceDescriptor.issued,t2);assert.equal(Object.hasOwn(result,'publicationBinding'),false);
 });
 
+for(const identical of [true,false])test('normal preparation detects republication after an undated refresh; identical='+identical,async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.reverify({...descriptor,issued:'2026-10-02T17:04:06+02:00'});
+  enqueueAmendment(store,generation,extractKey,'amendment-extract',{listId,targetDocumentId:targetId},112,true);
+  await worker.task(nextAmendmentTask(store,generation));
+  context.advance(8*86400000);await context.reverify(descriptor);
+  let downloads=0;
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(identical?oldProposed:'Different undated wording.')};};
+  await worker.task(nextAmendmentTask(store,generation));assert.equal(downloads,1);
+  const retrievedAt=store.source(generation,listKey).work.extraction.fetchedAt;
+  assert.equal(store.source(generation,listKey).work.extraction.sourceDescriptor.issued,undefined);
+  context.advance(2*86400000);
+  const published={...descriptor,issued:'2026-10-25T09:00:00+02:00'};
+  await context.reverify(published);
+  assert(Date.parse(retrievedAt)<Date.parse(published.issued));
+  assert.equal(amendmentSourceStore(store).has(published),false);
+  assert.equal(listWordingFreshness(store.source(generation,listKey).work,{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,'pending');
+  const pending=amendmentsPage(store,{document:targetId});
+  assert.equal(pending.coverage.complete,false);assert.equal(pending.coverage.pending,true);
+  assert.equal(pending.items[0].wordingRetained,true);assert.equal(pending.items[0].wordingSource.fetchedAt,retrievedAt);
+  assert.equal(pending.items[0].proposedText,identical?oldProposed:'Different undated wording.');
+  const task=nextAmendmentTask(store,generation);assert.equal(task.kind,'amendment-extract');
+  assert.equal(Boolean(task.body.parserUpgrade),false,'Normal preparation must schedule this without a parser upgrade.');
+  worker.downloadAmendmentDocx=async()=>{downloads++;return {buffer:amendmentDocx(freshProposed)};};
+  await worker.task(task);
+  const page=amendmentsPage(store,{document:targetId}),extraction=store.source(generation,listKey).work.extraction;
+  assert.equal(downloads,2);assert.equal(page.coverage.complete,true);assert.equal(page.items[0].sourceFreshness.status,'fresh');
+  assert.equal(extraction.fetchedAt,context.at());assert.equal(extraction.amendments[0].proposedText,freshProposed);
+});
+
+for(const [retrievedAt,status] of [[null,'pending'],['invalid','pending'],['2026-10-15T00:00:00Z','pending'],['2026-10-16T15:04:06Z','fresh'],['2026-10-17T00:00:00Z','fresh']])test('dated wording freshness checks retrieval chronology: '+retrievedAt,async t=>{
+  const context=await fixture(t),{store,generation,descriptor}=context;
+  const saved=store.source(generation,listKey),issued='2026-10-16T17:04:06+02:00';
+  const work={...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[{...descriptor,issued}]},extraction:{...saved.work.extraction,sourceDescriptor:{...descriptor,issued},fetchedAt:retrievedAt}};
+  assert.equal(listWordingFreshness(work,{parserVersion:AMENDMENT_EXTRACTION_VERSION}).status,status);
+});
+
 test('primary and alternate byline downloads and reuse share retrieval-time checks',async t=>{
   const context=await fixture(t,{baseline:false}),{store,worker,generation,descriptor}=context;
   const primary=amendmentDocx(oldProposed,'Данило Дела Вале'),alternate=amendmentDocx(oldProposed,'Danilo Della Valle');
