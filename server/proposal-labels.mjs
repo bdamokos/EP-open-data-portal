@@ -113,7 +113,7 @@ export function proposalNumber(raw,language='en') {
     const numbered=text.match(/^(\d+(?:\.\d+)*|[A-Z]{1,3})\s*([a-z]+(?:\s+[a-z]+){0,2})$/u)??
       text.match(/^([a-z]{1,4})\s+([a-z]+(?:\s+[a-z]+){0,2})$/u);
     const parts=numbered&&latinSuffixParts(numbered[2]);
-    if(parts){const base=numbered[1],suffix=parts.join('');return {value:base+suffix,number:/^\d+$/u.test(base)?Number(base):null,base,suffix};}
+    if(parts){const base=numbered[1],suffix=parts.join(' ');return {value:base+suffix,number:/^\d+$/u.test(base)?Number(base):null,base,suffix};}
   }
   // EP separates an inserted suffix from its alphabetic/Roman base; source
   // point labels also publish compact forms such as Croatian "ba".
