@@ -67,6 +67,15 @@ test('a partial Article 8 quotation cannot implement the published whole-article
   const r=resolveExistingLawPlacement([{kind:'act',index:1,proposal:p}],{...chosen(cbam,'Article 8'),originalText,proposedText:'(6a) Article 8 is replaced by the following:\n"Replacement."'},baseline(cbam));
   assert.equal(r.reason,'existing-law-instruction-scope-conflict');
 });
+test('published ETS AM13 remains readable but its mixed replacement ending is not applied',()=>{
+  const f=fixtures[3],amendment=f.amendment,p=projection(f),published=amendment.proposed;
+  assert.equal(amendment.id,'A-10-2026-0276-AM-13');
+  assert(published.endsWith('Article.’;"'));
+  assert.equal(existingLawReplacement(published,f.language),null);
+  const r=resolveExistingLawPlacement([{kind:'act',index:1,proposal:p}],{...chosen(f,amendment.target),originalText:amendment.original,proposedText:published},baseline(f));
+  assert.equal(r.status,'unresolved');assert.equal(r.reason,'existing-law-operation-unavailable');
+  assert.equal(amendment.proposed,published);
+});
 test('INSPIRE point/article discrepancy stays unresolved, and Polish replacement offsets are exact',()=>{
   const f=fixtures[2],p=projection(f);assert.equal(resolveExistingLawPlacement([{kind:'act',index:1,proposal:p}],{...chosen(f,'Punkt 12'),originalText:'Artykuł 12',proposedText:'6b) art. 12 otrzymuje brzmienie:\n„New text”'},baseline(f)).reason,'existing-law-target-unavailable');
   const text='10a) w art. 17 wprowadza się następujące zmiany:\na) ust. 1 otrzymuje brzmienie:\n1. Nowy tekst.';

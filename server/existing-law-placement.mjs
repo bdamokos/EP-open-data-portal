@@ -8,6 +8,9 @@ const prefixless=(text,unit)=>unit.label?.prefix&&text.startsWith(unit.label.pre
 
 export function existingLawReplacement(text,language) {
   if(typeof text!=='string')return null;
+  // ETS AM13 separates two closing quotes with a semicolon. Neither the
+  // normative ending nor the wrapper boundary can be established from it.
+  if(/[’”"'][;.]+\s*[’”"']\s*[;.]*\s*$/u.test(text))return null;
   // Keep the published wrapper and its replacement as exact separate slices.
   // Polish committee lists sometimes omit the opening quotation mark.
   const instruction=language==='en'?/[^\n]*(?:is|are) replaced by the following:\s*\n/u:language==='pl'?/[^\n]*otrzymuje brzmienie:\s*\n/u:null;

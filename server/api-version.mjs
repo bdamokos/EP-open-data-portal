@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 274;
-export const API_VERSION = 274;
+export const API_CONTRACT_REVISION = 279;
+export const API_VERSION = 279;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -273,11 +273,16 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   267: '893075ebf25c2e8be0a466f9c72dad7bad0e143b0d43ee57634e03c9719fe6f9',
   268: '8c6da5111d616bc0b2850da0480cf0e85f6323afd402f5aaf633436242ab8e44',
   269: '478bd1d2b2c24816b85d57aa53f515a8d5d33dbaa5eb3bddfeb9c0ff0d144449',
-  270: '11c1cc5b23a1038a5779214822d39e1e4234e7bee6681fc5e053f5c52236a92b',
-  271: 'f86013ba49590a84a6420dc97ad1bae887d28221d834017483237d3c679231ab',
-  272: 'b633bbc55e2eb4d05de58bc0c5735076bcae52fe3dabe3c462e15b16a4b37908',
-  273: 'a52cd264d8ae0ae53c49aa39581c5aa79a126e5868b9935748c676399dbeffc3',
-  274: '5fd835593bf371cfa6064eb5f57242c5840a817160800c099523e1f760a606a1',
+  270: '7e2a0b4d416090aa4d03522341a2616b6646ec29b2957438cfa62faa2085c0fe',
+  271: '98ea251e972b00df77471d418e72d191cc2c3d4e643b8c27ba6f77cc90efd782',
+  272: 'bdadae04e5f9b365b738854cef1c5436a59a3a5361e1397af1cd8206fffc798f',
+  273: 'fa8e8bad6687b66a0a932d2d4d3381a5ec527a33689f292c042e31621b7b4f36',
+  274: '11c1cc5b23a1038a5779214822d39e1e4234e7bee6681fc5e053f5c52236a92b',
+  275: 'f86013ba49590a84a6420dc97ad1bae887d28221d834017483237d3c679231ab',
+  276: 'b633bbc55e2eb4d05de58bc0c5735076bcae52fe3dabe3c462e15b16a4b37908',
+  277: 'a52cd264d8ae0ae53c49aa39581c5aa79a126e5868b9935748c676399dbeffc3',
+  278: '5fd835593bf371cfa6064eb5f57242c5840a817160800c099523e1f760a606a1',
+  279: '1fb909d260f87f513536cdac74091954bc2c268d329fd0384be454e875274297',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.
