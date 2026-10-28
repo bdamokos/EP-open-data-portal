@@ -14,6 +14,45 @@ import {parsePublicLegalXhtml} from './public-legal-xhtml.mjs';
 import {languageCode} from './ep-links.mjs';
 
 export const CELLAR_DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
+// This is a transport compatibility type, not support for Akoma Ntoso.
+export const CELLAR_DECLARED_DOCX_MIME='application/zip;type=akn4eu';
+const negotiationBytes=16*1024;
+export function declaredDocxRepresentation(buffer,url) {
+  if(buffer.length>negotiationBytes)return null;
+  const xml=buffer.toString('utf8');
+  if(/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true)return null;
+  const error=new XMLParser({parseTagValue:false}).parse(xml)?.error;
+  const manifestation=new URL(url).pathname.match(/\/resource\/cellar\/([^/]+)\/DOC_[1-9]\d{0,3}$/)?.[1];
+  if(!manifestation||error?.id!=='406'||typeof error.message!=='string')return null;
+  const type=error.message.match(/resource mimetype \[([^\]]+)\]/u)?.[1];
+  const advertisedId=error.message.match(/corresponding to this identifier : cellar:([a-f0-9.-]+)\s*$/u)?.[1];
+  return type===CELLAR_DECLARED_DOCX_MIME&&advertisedId===manifestation?type:null;
+}
+function packageRoot(xml,name,namespace) {
+  if(!xml)throw new Error('Missing OPC metadata.');
+  const parsed=new XMLParser({ignoreAttributes:false,parseTagValue:false}).parse(xml),keys=Object.keys(parsed).filter(k=>!k.startsWith('?'));
+  const key=keys[0],prefix=key?.includes(':')?key.split(':')[0]+':':'';
+  if(keys.length!==1||key!==prefix+name||parsed[key]?.['@_xmlns'+(prefix?':'+prefix.slice(0,-1):'')]!==namespace)throw new Error('Unexpected OPC namespace.');
+  return {node:parsed[key],prefix};
+}
+function validateNegotiatedDocx(buffer) {
+  const parts=docxParts(buffer,{packageMetadata:true});
+  const types=packageRoot(parts.get('[Content_Types].xml'),'Types','http://schemas.openxmlformats.org/package/2006/content-types');
+  const main=array(types.node[types.prefix+'Override']).filter(n=>n['@_PartName']==='/word/document.xml');
+  if(main.length!==1||main[0]['@_ContentType']!==CELLAR_DOCX_MIME)throw new Error('Not a Word main document.');
+  const rels=packageRoot(parts.get('_rels/.rels'),'Relationships','http://schemas.openxmlformats.org/package/2006/relationships');
+  const office=array(rels.node[rels.prefix+'Relationship']).filter(n=>n['@_Type']==='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument');
+  if(office.length!==1||!['word/document.xml','/word/document.xml'].includes(office[0]['@_Target'])||office[0]['@_TargetMode']&&office[0]['@_TargetMode']!=='Internal')throw new Error('Not an internal Word document.');
+  const document=packageRoot(parts.get('word/document.xml'),'document','http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+  if(!document.node[document.prefix+'body'])throw new Error('Missing Word body.');
+}
+const mediaType=value=>String(value||'').toLowerCase().split(';').map(p=>p.trim()).filter(Boolean);
+function matchesRepresentation(value,accept) {
+  const [type,...parameters]=mediaType(value);
+  if(accept===CELLAR_DECLARED_DOCX_MIME)return type==='application/zip'&&parameters.filter(p=>p.startsWith('type=')).length===1&&parameters.includes('type=akn4eu');
+  return type===accept.split(';')[0];
+}
+
 export const CELLAR_LIMITS=Object.freeze({metadataBytes:3*1024*1024,itemBytes:8*1024*1024,bundleBytes:24*1024*1024,items:32,redirects:3,diskBytes:256*1024*1024,memoryBytes:24*1024*1024,freshMs:7*86400_000,metadataFreshMs:6*3600_000});
 const uuid='[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}';
 export const CELLAR_WORK_PATTERN=new RegExp('^http://publications\\.europa\\.eu/resource/cellar/'+uuid+'$');
@@ -54,30 +93,45 @@ export class CellarDocuments {
   async request(input,{accept,language,validators={},maximum=CELLAR_LIMITS.metadataBytes}={}) {
     const initial=cellarTransportUrl(input),owner=requestSignal();owner?.throwIfAborted();
     const budget=createRequestBudget(20_000),signal=owner?AbortSignal.any([owner,budget.signal]):budget.signal;
-    try{return await this.sources.schedule(async()=>{
-      let target=initial;
-      for(let n=0;n<=CELLAR_LIMITS.redirects;n++) {
-        signal.throwIfAborted();
-        const response=await this.fetchSource(target,{headers:{Accept:accept,'User-Agent':userAgent('Commission proposal context'),...(language?{'Accept-Language':language}:{}),...(validators.etag?{'If-None-Match':validators.etag}:{}),...(validators.lastModified?{'If-Modified-Since':validators.lastModified}:{})},redirect:'manual',signal});
-        if([301,302,303,307,308].includes(response.status)) {
-          const location=response.headers.get('location');await response.body?.cancel();
-          if(!location||n===CELLAR_LIMITS.redirects)throw failure('cellar_redirect','The CELLAR redirect chain is incomplete or too long.');
-          const next=cellarTransportUrl(new URL(location,target),{redirect:true});
-          if([CELLAR_DOCX_MIME,'application/xhtml+xml'].includes(accept)&&new URL(next).pathname!==new URL(initial).pathname)throw failure('cellar_redirect_identity','The content redirect changed the discovered item identity.');
-          target=next;continue;
-        }
-        if([429,503].includes(response.status)) {
-          const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
-          throw Object.assign(failure('cellar_limited','CELLAR is temporarily limiting requests.'),{retryAfter});
-        }
-        if(response.status===304){await response.body?.cancel();return {status:304,url:target,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};}
-        if(response.status!==200){await response.body?.cancel();throw failure(response.status===300?'cellar_multipart':response.status===404||response.status===406?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');}
-        const type=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
-        if(type!==accept.split(';')[0]){await response.body?.cancel();throw failure('cellar_type','CELLAR returned an unexpected representation.');}
-        const buffer=await limitedCellarBody(response,maximum);signal.throwIfAborted();
-        return {status:200,url:target,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
+    let target=initial,selectedAccept=accept,selectedValidators=validators,redirects=0,negotiation=null;
+    const contentRequest=[CELLAR_DOCX_MIME,CELLAR_DECLARED_DOCX_MIME,'application/xhtml+xml'].includes(accept);
+    try {
+      while(true) {
+        // Each hop/negotiation reacquires admission and any origin pause, within
+        // the same deadline. No retry follows throttling or a multipart reply.
+        const result=await this.sources.schedule(async()=>{
+          signal.throwIfAborted();
+          const response=await this.fetchSource(target,{headers:{Accept:selectedAccept,'User-Agent':userAgent('Commission proposal context'),...(language?{'Accept-Language':language}:{}),...(selectedValidators.etag?{'If-None-Match':selectedValidators.etag}:{}),...(selectedValidators.lastModified?{'If-Modified-Since':selectedValidators.lastModified}:{})},redirect:'manual',signal});
+          if([301,302,303,307,308].includes(response.status)) {
+            const location=response.headers.get('location');await response.body?.cancel();
+            if(!location||redirects===CELLAR_LIMITS.redirects)throw failure('cellar_redirect','The CELLAR redirect chain is incomplete or too long.');
+            const next=cellarTransportUrl(new URL(location,target),{redirect:true});
+            if(contentRequest&&new URL(next).pathname!==new URL(initial).pathname)throw failure('cellar_redirect_identity','The content redirect changed the discovered item identity.');
+            return {redirect:next};
+          }
+          if([429,503].includes(response.status)) {
+            const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
+            throw Object.assign(failure('cellar_limited','CELLAR is temporarily limiting requests.'),{retryAfter});
+          }
+          const contentType=response.headers.get('content-type')||null;
+          if(response.status===406&&selectedAccept===CELLAR_DOCX_MIME&&!negotiation&&/\/DOC_[1-9]\d{0,3}$/.test(new URL(initial).pathname)) {
+            const buffer=await limitedCellarBody(response,negotiationBytes);signal.throwIfAborted();
+            const advertisedAccept=declaredDocxRepresentation(buffer,initial);
+            if(advertisedAccept)return {advertisement:{url:target,status:406,request:{accept:selectedAccept,...(language?{language}:{})},contentType,sha256:hash(buffer),bytes:buffer.length,fetchedAt:new Date(this.clock()).toISOString(),advertisedAccept}};
+          } else if(response.status===304) {
+            await response.body?.cancel();return {status:304,url:target,accept:selectedAccept,contentType,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
+          } else if(response.status===200) {
+            if(!matchesRepresentation(contentType,selectedAccept)){await response.body?.cancel();throw failure('cellar_type','CELLAR returned an unexpected representation.');}
+            const buffer=await limitedCellarBody(response,maximum);signal.throwIfAborted();
+            return {status:200,url:target,accept:selectedAccept,contentType,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
+          } else await response.body?.cancel();
+          throw failure(response.status===300?'cellar_multipart':response.status===404||response.status===406?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');
+        },{origin:new URL(initial).origin,priority:'interactive',signal});
+        if(result.redirect){target=result.redirect;redirects++;continue;}
+        if(result.advertisement){negotiation=result.advertisement;selectedAccept=negotiation.advertisedAccept;selectedValidators={};continue;}
+        return {...result,...(negotiation?{negotiation}:{})};
       }
-    },{origin:new URL(initial).origin,priority:'interactive',signal});}finally{budget.dispose();}
+    }catch(error){if(negotiation)error.negotiation=negotiation;throw error;}finally{budget.dispose();}
   }
   async candidates(celex) {
     const query=proposalCandidatesSparql(celex),url=new URL('https://publications.europa.eu/webapi/rdf/sparql');
@@ -108,6 +162,8 @@ export class CellarDocuments {
       const file=path.join(this.directory,key+'.json');if((await stat(file)).size>8192)return null;
       const source=JSON.parse(await readFile(file,'utf8')),[celex,language,itemId,format]=JSON.parse(identity);
       if(source.schemaVersion!==1||source.key!==key||source.identity!==identity||source.celex!==celex||source.language!==language||source.itemId!==itemId||source.url!==cellarTransportUrl(itemId,{redirect:true})||cellarTransportUrl(source.resolvedSourceUrl)!==source.url||source.format!==format.toUpperCase()||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isFinite(Date.parse(source.checkedAt))||!Number.isFinite(Date.parse(source.fetchedAt)))return null;
+      if(source.accept!=null&&(![format==='docx'?CELLAR_DOCX_MIME:'application/xhtml+xml',...(format==='docx'?[CELLAR_DECLARED_DOCX_MIME]:[])].includes(source.accept)||!matchesRepresentation(source.contentType,source.accept)))return null;
+      if(source.accept===CELLAR_DECLARED_DOCX_MIME&&(!source.negotiation||source.negotiation.url!==source.url||source.negotiation.status!==406||source.negotiation.request?.accept!==CELLAR_DOCX_MIME||source.negotiation.advertisedAccept!==CELLAR_DECLARED_DOCX_MIME||source.negotiation.request?.language!==language.split('/').at(-1).toLowerCase()||!/^[a-f0-9]{64}$/.test(source.negotiation.sha256)))return null;
       const blob=source.sha256+'.blob';if((await stat(path.join(this.directory,blob))).size>CELLAR_LIMITS.itemBytes)return null;
       const buffer=await readFile(path.join(this.directory,blob));if(hash(buffer)!==source.sha256)return null;
       this.disk.used(key+'.json');this.disk.used(blob);const record={source,buffer};this.remember(key,record);return record;
@@ -138,12 +194,12 @@ export class CellarDocuments {
       const failureAt=this.failures.get(key);
       if(old&&failureAt&&this.clock()-failureAt.at<60_000)return {...old,source:{...old.source,stale:true,refreshError:failureAt.code}};
       try {
-        const acquire=()=>this.request(url,{accept:mime,language:language.split('/').at(-1).toLowerCase(),validators:old?.source,maximum:CELLAR_LIMITS.itemBytes});
+        const acquire=()=>this.request(url,{accept:old?.source.accept||mime,language:language.split('/').at(-1).toLowerCase(),validators:old?.source,maximum:CELLAR_LIMITS.itemBytes});
         const result=format==='XHTML'?await this.structuredQueue.run(acquire,{signal:owner}):await acquire();
-        if(result.status===304&&!old)throw failure('cellar_validator','CELLAR returned a validator without saved content.');
+        if(result.status===304&&(!old||(old.source.accept||mime)!==result.accept))throw failure('cellar_validator','CELLAR returned a validator without matching saved content.');
         const buffer=result.status===304?old.buffer:result.buffer;
-        try{if(format==='DOCX')docxParts(buffer);else parsePublicLegalXhtml(buffer,{language:languageCode(language),sourceUrl:url});}catch{throw failure(format==='DOCX'?'cellar_docx':'cellar_content','The source is not a supported legal document.');}
-        const now=new Date(this.clock()).toISOString(),source={schemaVersion:1,key,identity,url,resolvedSourceUrl:result.url,celex,language,itemId,expressionId,manifestationId,format,sha256:hash(buffer),etag:result.etag??(result.status===304?old?.source.etag:null)??null,lastModified:result.lastModified??(result.status===304?old?.source.lastModified:null)??null,fetchedAt:result.status===304?old.source.fetchedAt:now,checkedAt:now,stale:false,refreshError:null};
+        try{if(format==='DOCX'){if(result.accept===CELLAR_DECLARED_DOCX_MIME)validateNegotiatedDocx(buffer);else docxParts(buffer);}else parsePublicLegalXhtml(buffer,{language:languageCode(language),sourceUrl:url});}catch{throw failure(format==='DOCX'?'cellar_docx':'cellar_content','The source is not a supported legal document.');}
+        const now=new Date(this.clock()).toISOString(),source={schemaVersion:1,key,identity,url,resolvedSourceUrl:result.url,celex,language,itemId,expressionId,manifestationId,format,accept:result.accept,contentType:result.contentType??(result.status===304?old?.source.contentType:null)??null,...(result.negotiation||old?.source.negotiation?{negotiation:result.negotiation||old.source.negotiation}:{}),sha256:hash(buffer),etag:result.etag??(result.status===304?old?.source.etag:null)??null,lastModified:result.lastModified??(result.status===304?old?.source.lastModified:null)??null,fetchedAt:result.status===304?old.source.fetchedAt:now,checkedAt:now,stale:false,refreshError:null};
         const record=await this.save(key,{source,buffer});this.failures.delete(key);return record;
       }catch(error) {
         owner.throwIfAborted();

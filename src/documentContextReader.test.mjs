@@ -992,6 +992,23 @@ test('unavailable wording opens the exact main-report amendment and keeps the co
   assert.equal(h.scrolls.at(-1).element,selected);
 });
 
+for(const language of ['fr','lv','mt'])test(`unavailable ${language} wording navigates to its published report heading without a placement`,async t=>{
+  const {editions}=JSON.parse(readFileSync(new URL('../server/fixtures/report-amendment-headings.json',import.meta.url)));
+  const edition=editions.find(item=>item.language===language);
+  const paragraphs=[edition.opening[1],...edition.amendmentOrdinals.map((_,i)=>edition.amendmentHeading.replace('{number}',String(i+1))),edition.ends[0][1],edition.opinion.heading[1],...edition.opinion.amendments.map(row=>row[1])];
+  const doc=reportFallbackText(paragraphs);doc.id=edition.documentId;doc.selectedDocumentId=edition.documentId;
+  Object.assign(doc.selectedText,{textLanguage:language,requestedLanguage:language,availableTextLanguages:[language]});
+  const request={documentId:edition.documentId,amendmentId:edition.documentId+'-AM-2',listId:edition.listId,wordingLanguage:language,view:'document'};
+  const value={...fallbackResponse(doc),documentId:edition.documentId,requestedLanguage:language,requestedWordingLanguage:language,amendment:{id:request.amendmentId,status:'unavailable',variants:[]}};
+  const h=await harness(t,()=>value);await h.render({request,language});
+  const selected=h.container.querySelector('[data-report-amendment="true"]');
+  assert.equal(selected?.dataset.sourceParagraph,'2');assert.equal(selected.textContent,paragraphs[2]);
+  assert.equal(h.window.document.activeElement,selected);assert.equal(h.scrolls.at(-1).element,selected);
+  assert.equal(h.container.querySelectorAll('[data-context-target]').length,0);
+  await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
+  assert.equal(h.scrolls.at(-1).element,selected);
+});
+
 for(const variant of ['wrong-list','wrong-document','opinion-only','duplicate','missing-section-end','incomplete-heading','table-heading','sequence-gap','other-language'])test('report heading fallback withholds '+variant,async t=>{
   const doc=reportFallbackText(),request={...fallbackRequest};
   if(variant==='wrong-list')request.listId=report+'-AM-003-004';

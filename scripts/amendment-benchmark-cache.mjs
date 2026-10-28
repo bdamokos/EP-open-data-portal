@@ -73,7 +73,7 @@ export class InputCache {
     if (!(officialRedirect?allowedDownload(url):allowedInput(url,this.apiBase)||allowedSource(url))) throw new Error('Unsupported public input URL: '+url);
     const request=accept?{accept,...(language?{language}:{})}:null;
     const identity=request?JSON.stringify([url,request]):url;
-    const maximum=accept===CELLAR_DOCX_MIME||allowedDownload(url)?CELLAR_LIMITS.itemBytes:accept?.startsWith('application/rdf+xml')||accept==='application/sparql-results+json'?CELLAR_LIMITS.metadataBytes:16*1024*1024;
+    const maximum=[CELLAR_DOCX_MIME,'application/zip;type=akn4eu'].includes(accept)||allowedDownload(url)?CELLAR_LIMITS.itemBytes:accept?.startsWith('application/rdf+xml')||accept==='application/sparql-results+json'?CELLAR_LIMITS.metadataBytes:16*1024*1024;
     if(this.sealed&&!this.sealed.has(identity))throw new Error('input-not-in-snapshot: '+url);
     const key=digest(identity), metaPath=path.join(this.directory,key+'.json'), bodyPath=path.join(this.directory,key+'.body');
     let meta,body;

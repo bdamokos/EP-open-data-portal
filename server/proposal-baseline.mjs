@@ -45,7 +45,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
             if(bytes>CELLAR_LIMITS.bundleBytes){gaps.push({code:'bundle-too-large',itemId:item.itemId});break;}
             items.push({...item,source:content.source,buffer:content.buffer});
             if(content.source.stale)gaps.push({code:'stale-content',itemId:item.itemId,refreshError:content.source.refreshError});
-          }catch(error){if(isLocalRequestFailure(error))throw error;gaps.push({code:error.code||'docx-unavailable',itemId:item.itemId});}
+          }catch(error){if(isLocalRequestFailure(error))throw error;gaps.push({code:error.code||'docx-unavailable',itemId:item.itemId,...(error.code==='missing-declared-representation'?{source:error.source,request:error.request,negotiation:error.negotiation}:{})});}
         }
         if(metadataStale||metadata.viewCache?.stale)gaps.push({code:'stale-metadata'});
         return {status:gaps.length?items.length?'partial':'unavailable':'available',celex:sourceCelex,workId:identity.workId,language,items,gaps,evidence};
