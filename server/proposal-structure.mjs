@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='11';
+export const PROPOSAL_PARSER_VERSION='12';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -16,11 +16,15 @@ const nonnormative=new Set(['frontmatter','memorandum','signature','financial-st
 const stylePoint=/^(?:Manual)?Point(\d)/i;
 const firstLine=text=>text.split(/\r?\n/,1)[0].trim();
 const cleanLead=text=>text.replace(opening,'').trimStart();
+const listForm=prefix=>prefix?.replace(/[\p{L}\d]+/gu,'#').replace(/\s/gu,'');
 const label=(kind,value,language)=>({kind,...(proposalNumber(String(value),language)??{value:String(value),number:null,suffix:''}),isNew:false});
 const key=segments=>segments.map(segment=>`${segment.kind}:${segment.value}${segment.occurrence?`~${segment.occurrence}`:''}`).join('/');
 
 function heading(text,language,style) {
   const line=firstLine(cleanLead(text));
+  // Numbered amending instructions can begin with a heading reference (SV
+  // "37. I avdelning II ..."). The list number belongs to the instruction.
+  if(/^\d+[.)]\s/u.test(line)&&instructionOperation(line,language))return null;
   if(/Annexetitre/i.test(style)&&isBareLabel(line,'annex',language))return {kind:'annex',value:'',number:null,suffix:'',isNew:false,raw:line};
   if(/Titrearticle/i.test(style)&&isBareLabel(line,'article',language))return {kind:'article',value:'?',number:null,suffix:'',isNew:false,raw:line,unavailable:true};
   if(line.length>120&&!/Annexetitre|Titrearticle|Titrefamille|Titrechapitre|SectionTitle/i.test(style))return null;
@@ -224,6 +228,22 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(['frontmatter','memorandum'].includes(area.kind)&&(/Rfrenceinterinstitutionnelle|Typedudocument|Statut/i.test(style)||/^\d{4}\/\d{4}\s*\((?:COD|CNS|APP)\)$/u.test(trim))){region('preamble',i,false);retain(make(area,'title',i),i);continue;}
     if(nonnormative.has(area.kind)&&area.kind!=='frontmatter') {retain(area,i);continue;}
     const pointLevel=style.match(stylePoint)?.[1];
+    if(quote&&!opening.test(trim)){
+      const number=leadingNumber(trim,language,style,p.properties?.numbering,points),operation=instruction(lead,language);
+      // A consecutive instruction in the same outer list independently ends
+      // a replacement whose source omitted a closing mark. A verb inside a
+      // quoted provision, without the outer list sequence, is insufficient.
+      const owners=[quote.owner,...points.map(point=>point.unit)];
+      const consecutive=number&&owners.some(unit=>{
+        const owner=unit.label;
+        return owner?.prefix&&listForm(number.prefix)===listForm(owner.prefix)&&style===(paragraphs[unit.extent.start].properties?.styleId??'')&&
+          (Number.isInteger(owner.number)&&number.number===owner.number+1&&number.suffix===owner.suffix||
+            /^[a-z]$/u.test(owner.value)&&number.value===String.fromCharCode(owner.value.charCodeAt(0)+1));
+      });
+      if(consecutive&&operation){
+        quote.root.closingBoundaryBasis='instruction-sequence';closeQuote(i);
+      }
+    }
     if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)&&
       leadingNumber(trim,language,style,p.properties?.numbering,points)&&instruction(lead,language)){
       quote.root.closingBoundaryBasis='instruction-style';closeQuote(i);
@@ -265,7 +285,17 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
         target=make(q.points.at(-1)?.unit??q.paragraph??q.container,'subparagraph',i,{scope:'quoted',instructionPath:q.owner.path,underlyingPath:(q.paragraph??q.container).underlyingPath??q.underlyingPath});
       }
       retain(target,i);q.last=target;
-      if(observedQuotation(text,q,i))closeQuote();
+      const delimiter=q.marks[0];
+      if(observedQuotation(text,q,i)){
+        const next=paragraphs[i+1],nextStyle=next?.properties?.styleId??'',nextNumber=next&&leadingNumber(next.text,language,nextStyle,next.properties?.numbering,q.points);
+        // The Dutch source closes Article 130 bis in point (b), then continues
+        // the same article's numbered paragraphs before its final delimiter.
+        // Their decimal syntax differs from the outer amending-point list.
+        const continuation=delimiter&&q.container.kind==='article'&&q.paragraph?.label?.prefix&&nextNumber?.prefix&&
+          nextNumber.number>q.paragraph.label.number&&listForm(nextNumber.prefix)===listForm(q.paragraph.label.prefix)&&
+          listForm(nextNumber.prefix)!==listForm(q.owner.label?.prefix)&&!heading(next.text,language,nextStyle)&&!instruction(next.text,language);
+        if(continuation)q.marks=[delimiter];else closeQuote();
+      }
       continue;
     }
     if(headed) {
