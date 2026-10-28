@@ -635,6 +635,10 @@ test('COM(2025)462 retains the published unnumbered annex and its numbered point
   assert.equal(units.filter(u=>u.kind==='recital').length,0);
   assert.deepEqual(units.filter(u=>u.kind==='point'&&u.scope==='proposal').map(u=>u.label.value),['1','2','3']);
   assert.equal(units.filter(u=>u.kind==='indent'&&u.path.some(p=>p.kind==='point'&&p.value==='1')).length,9);
+  const direct=proposalCandidates(parsed,'Annex – point 1');
+  assert.equal(direct.length,1);assert.equal(direct[0].label.value,'1');
+  assert.equal(direct[0].path.at(-2).kind,'paragraph','the parser retains its internal implicit container');
+  assert.equal(proposalCandidates(parsed,'Annex – paragraph 1 – point 1').length,1);
   assert.equal(proposalCandidates(parsed,'Annex I – paragraph 1 – point 1').length,0,'an unnumbered source annex does not acquire an invented Roman number');
 });
 

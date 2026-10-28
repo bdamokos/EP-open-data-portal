@@ -1,0 +1,650 @@
+[
+  {
+    "language": "bg",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_bg.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_bg.docx",
+      "fetchedAt": "2026-10-27T20:19:04.880249+00:00",
+      "sha256": "b1d1330bb35f2d6c89e087609c45917ce68db18059d744eea25251f6e0f44344"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Позоваване 21 a (ново)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Съображение Б a (ново)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Съображение Б б (ново)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Подзаглавие (ново) (след параграф 25)"
+      }
+    ]
+  },
+  {
+    "language": "es",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_es.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_es.docx",
+      "fetchedAt": "2026-10-27T20:19:35.021345+00:00",
+      "sha256": "add3de64f98254968e528669a7145fa942c15c33a51b445fe49ceff118d8c4d1"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Visto 21 bis (nuevo)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Considerando B bis (nuevo)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Considerando B ter (nuevo)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Subtítulo (nuevo) (después del apartado 25)"
+      }
+    ]
+  },
+  {
+    "language": "cs",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_cs.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_cs.docx",
+      "fetchedAt": "2026-10-27T20:19:10.865549+00:00",
+      "sha256": "73cb9149aa54bdb7d2afe119497f07814f347f1b4c51833f78842a2e862d20c2"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Právní východisko 21 a (nové)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Bod odůvodnění B a (nový)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Bod odůvodnění B b (nový)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Dílčí nadpis (nový) – za bod 25"
+      }
+    ]
+  },
+  {
+    "language": "da",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_da.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_da.docx",
+      "fetchedAt": "2026-10-27T20:19:16.897547+00:00",
+      "sha256": "2104dc9129fe86baf1009f110c827678b897dfc9ed6ff6fe1cbe9de8c6e47586"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Henvisning 21 a (ny)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Betragtning B a (ny)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Betragtning B b (ny)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Overskrift (ny) – efter afsnit 25"
+      }
+    ]
+  },
+  {
+    "language": "de",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_de.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_de.docx",
+      "fetchedAt": "2026-10-27T20:19:22.915030+00:00",
+      "sha256": "6f199f7b89a6bb60fc20d0584b212726756a138ff59fdfd1bd181521b7984b17"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Bezugsvermerk 21 a (neu)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Erwägung B a (neu)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Erwägung B b (neu)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Zwischenüberschrift (neu) – nach Ziffer 25"
+      }
+    ]
+  },
+  {
+    "language": "et",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_et.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_et.docx",
+      "fetchedAt": "2026-10-27T20:19:41.007320+00:00",
+      "sha256": "f9ed2e7d75bce93c38d94417d784a4f96f07060540cebd50a0aa9cf31d062f33"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Volitus 21 a (uus)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Põhjendus B a (uus)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Põhjendus B b (uus)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Alapealkiri (uus) (pärast punkti 25)"
+      }
+    ]
+  },
+  {
+    "language": "el",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_el.docx",
+      "fetchedAt": "2026-10-27T20:19:28.987714+00:00",
+      "sha256": "5dcbf21f072b56dd849682f86f5a67607c0d416b23ae2231e22a2d61a5943ac9"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Αιτιολογική αναφορά 21 α (νέα)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Αιτιολογική σκέψη B α (νέα)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Αιτιολογική σκέψη B β (νέα)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Υπότιτλος (νέος) – μετά την παράγραφο 25"
+      }
+    ]
+  },
+  {
+    "language": "en",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_en.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_en.docx",
+      "fetchedAt": "2026-10-27T00:35:08.674Z",
+      "sha256": "c686706e2997fbac0397f0c1fb12c53e7ecf203f6a9e3b8768a0f6e514df75bd"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Citation 21 a (new)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Recital B a (new)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Recital B b (new)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Subheading (new) – after paragraph 25"
+      }
+    ]
+  },
+  {
+    "language": "fr",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fr.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fr.docx",
+      "fetchedAt": "2026-10-27T20:19:53.104675+00:00",
+      "sha256": "553ba42b521d56dcea7634cf424d27e34963b8d33b0907e402dc95b4603ea432"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Visa 21 bis (nouveau)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Considérant B bis (nouveau)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Considérant B ter (nouveau)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Sous-titre (nouveau) – après le paragraphe 25"
+      }
+    ]
+  },
+  {
+    "language": "ga",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_ga.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_ga.docx",
+      "fetchedAt": "2026-10-27T20:19:59.129182+00:00",
+      "sha256": "31e4306a83e7bf9f66df59d8177e2b755ca7a951b6f10a8c1dcd0deb01b60115"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Lua 21 a (nua)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Aithris B a (nua)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Aithris B b (nua)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Mír 25 – fomhír 1 (nua)"
+      }
+    ]
+  },
+  {
+    "language": "hr",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_hr.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_hr.docx",
+      "fetchedAt": "2026-10-27T20:20:05.168479+00:00",
+      "sha256": "5c39695871f1be9d3859e93267582454be919ad817319d15c140533f57001cf6"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Pozivanje 21.a (novo)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Uvodna izjava Ba (nova)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Uvodna izjava Bb (nova)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Podnaslov (novi) – nakon stavka 25."
+      }
+    ]
+  },
+  {
+    "language": "it",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_it.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_it.docx",
+      "fetchedAt": "2026-10-27T20:20:17.227933+00:00",
+      "sha256": "7f0616c4dd69c9f98d4360520caffc6c968853e434f194adee2b3d6e518da9d6"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Visto 21 bis (nuovo)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Considerando B bis (nuovo)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Considerando B ter (nuovo)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Titolo (nuovo) – dopo il paragrafo 25"
+      }
+    ]
+  },
+  {
+    "language": "lv",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_lv.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_lv.docx",
+      "fetchedAt": "2026-10-27T20:20:29.271586+00:00",
+      "sha256": "2ca65ae9ce02bfd441c26834dc876e72fd4cdf0e18a2570f83cd0bac0df25401"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "21.a norāde (jauna)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Ba apsvērums (jauns)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Bb apsvērums (jauns)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Apakšvirsraksts (jauns) – pēc 25. punkta"
+      }
+    ]
+  },
+  {
+    "language": "lt",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_lt.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_lt.docx",
+      "fetchedAt": "2026-10-27T20:20:23.250374+00:00",
+      "sha256": "b08bae16b3565dec425781091848f22d7543ca787cf74545b34cc49bb40ee461"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "21 a nurodomoji dalis (nauja)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "B a konstatuojamoji dalis (nauja)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "B b konstatuojamoji dalis (nauja)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Paantraštė (nauja) po 25 dalies"
+      }
+    ]
+  },
+  {
+    "language": "hu",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_hu.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_hu.docx",
+      "fetchedAt": "2026-10-27T20:20:11.206486+00:00",
+      "sha256": "3a8c162deb43386ae4ef42e3f69ea15223975d9c2a4fa16b4421310a598da78b"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "21 a bevezető hivatkozás (új)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "B a preambulumbekezdés (új)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "B b preambulumbekezdés (új)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Alcím (új) a 25 bekezdés után"
+      }
+    ]
+  },
+  {
+    "language": "mt",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_mt.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_mt.docx",
+      "fetchedAt": "2026-10-27T20:20:35.293574+00:00",
+      "sha256": "3a9aa6dc72b43cead802cd08d71ab3c8165141db62909b36aa1453a4f070235f"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Kunsiderazzjoni 21a (ġdida)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Premessa Ba (ġdida)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Premessa Bb (ġdida)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Subintestatura (ġdida) – wara paragrafu 25"
+      }
+    ]
+  },
+  {
+    "language": "nl",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_nl.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_nl.docx",
+      "fetchedAt": "2026-10-27T20:20:41.334105+00:00",
+      "sha256": "5bc65c19886037592d0d4290efe2292bb7b46e936213e6e4ce9dc9fb8b9ce10a"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Visum 21 bis (nieuw)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Overweging B bis (nieuw)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Overweging B ter (nieuw)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Kopje (nieuw) – na paragraaf 25"
+      }
+    ]
+  },
+  {
+    "language": "pl",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_pl.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_pl.docx",
+      "fetchedAt": "2026-10-27T20:20:47.351076+00:00",
+      "sha256": "ae28de421733f063946ee3f017b757b81c235418fab071fe359c6c498447ce11"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Umocowanie 21 a (nowe)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Motyw B a (nowy)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Motyw B b (nowy)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Śródtytuł (nowy) - po ustępie 25"
+      }
+    ]
+  },
+  {
+    "language": "pt",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_pt.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_pt.docx",
+      "fetchedAt": "2026-10-27T20:20:53.375519+00:00",
+      "sha256": "f86064e1a1c5577ccb05293d171962b54badbfb4752e204a5faf6ea4efa04b8a"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Citação 21-A (nova)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Considerando B-A (novo)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Considerando B-B (novo)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Subtítulo (novo) – após o n.º 25"
+      }
+    ]
+  },
+  {
+    "language": "ro",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_ro.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_ro.docx",
+      "fetchedAt": "2026-10-27T20:20:59.401496+00:00",
+      "sha256": "378fd0400e8b06314cdbbb2ba450bc21b71a9df54ef81aab604e12fefcddf838"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Referirea 21 a (nouă)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Considerentul Ba (nou)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Considerentul Bb (nou)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Subtitlu (nou) – după punctul 25"
+      }
+    ]
+  },
+  {
+    "language": "sk",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sk.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sk.docx",
+      "fetchedAt": "2026-10-27T20:21:05.437646+00:00",
+      "sha256": "be6e424ca3d2497936b4344fd32f92810ef3f0b6a855ee49e3e843c5eb62efd4"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Citácia 21 a (nová)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Odôvodnenie B a (nové)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Odôvodnenie B b (nové)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Podnadpis (nový) – za odsekom 25"
+      }
+    ]
+  },
+  {
+    "language": "sl",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sl.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sl.docx",
+      "fetchedAt": "2026-10-27T20:21:11.416580+00:00",
+      "sha256": "8311d4d796b24a103b39e43ac3438e04d4397240b5fc59d1ac82e77a028475fe"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Navedba sklicevanja 21 a (novo)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Uvodna izjava B a (novo)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Uvodna izjava B b (novo)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Podnaslov (novo) – po odstavku 25"
+      }
+    ]
+  },
+  {
+    "language": "fi",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fi.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_fi.docx",
+      "fetchedAt": "2026-10-27T20:19:47.075375+00:00",
+      "sha256": "49cbc5250b4256b6bceb7c974db0c3e85cf8c9b65e980ddae0b8d81e42ec2e36"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Johdanto-osan 21 a viite (uusi)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Johdanto-osan B a kappale (uusi)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Johdanto-osan B b kappale (uusi)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Alaotsikko (uusi) – 25 kohdan jälkeen"
+      }
+    ]
+  },
+  {
+    "language": "sv",
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sv.docx",
+      "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0080-AM-001-007/A-10-2026-0080-AM-001-007_sv.docx",
+      "fetchedAt": "2026-10-27T20:21:17.473802+00:00",
+      "sha256": "5ceed1b49d4aadf9ec61f027dbc727c0c6296f4edfaa67e32222b185d4d70468"
+    },
+    "examples": [
+      {
+        "number": 1,
+        "targetLabel": "Beaktandeled 21a (nytt)"
+      },
+      {
+        "number": 2,
+        "targetLabel": "Skäl Ba (nytt)"
+      },
+      {
+        "number": 3,
+        "targetLabel": "Skäl Bb (nytt)"
+      },
+      {
+        "number": 6,
+        "targetLabel": "Underrubrik (ny) – efter punkt 25"
+      }
+    ]
+  }
+]
