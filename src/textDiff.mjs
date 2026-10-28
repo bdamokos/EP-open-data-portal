@@ -1,5 +1,5 @@
 // Limits include tokenisation, the Myers frontier, and its backtracking trace.
-export const TEXT_DIFF_LIMITS=Object.freeze({characters:20_000,tokens:4_000,editDistance:256,work:1_000_000});
+export const TEXT_DIFF_LIMITS=Object.freeze({characters:20_000,tokens:4_000,editDistance:512,work:1_000_000});
 const pieces=text=>text.match(/[\p{L}\p{M}\p{N}_]+|\s+|[^\p{L}\p{M}\p{N}_\s]/gu)||[];
 
 function tokenize(text,language) {

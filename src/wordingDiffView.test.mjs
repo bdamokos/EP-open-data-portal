@@ -57,6 +57,14 @@ test('wording comparison modes, accessible announcements, source language, defau
   assert.equal(container.querySelectorAll('.wording-diff__columns section').length,2);
   assert.equal(wordingText(container,'original'),props.original);assert.equal(wordingText(container,'proposed'),props.proposed);
   await render({});assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
+  const unchanged='Existing employment policy. '.repeat(40);
+  const addition=Array.from({length:145},(_,index)=>'skill'+index+' ').join('');
+  await render({original:unchanged,proposed:unchanged+addition,language:'en'});
+  assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
+  assert.equal(container.querySelector('ins').textContent,'Inserted text: '+addition+' end');
+  assert(!container.textContent.includes('Too extensively changed'));
+  assert.equal(wordingText(container,'original'),unchanged);
+  assert.equal(wordingText(container,'proposed'),unchanged+addition);
   await render({original:'Completely different',proposed:'Ново съдържание',language:'bg'});
   assert.match(container.textContent,/Mostly rewritten/);assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
   await act(async()=>button('Changes').click());assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
