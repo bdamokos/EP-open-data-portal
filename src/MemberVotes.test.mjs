@@ -1065,3 +1065,24 @@ test('detail subordinates whole-text decisions and removes final-vote self links
  assert.equal(detail.querySelector('details.member-votes-related summary').textContent,'Final vote on the whole text');
  await h.update({decisionId:whole.id});assert.equal(h.container.querySelector('.member-votes-detail .member-votes-whole'),null);
 });
+
+test('pending exact decision reads preserve page nodes and wording; changed filters cannot reuse them',async t=>{
+ let release,hold=false;
+ const item=vote(1),h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,expandedSubjectIds:[SUBJECT]},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(responseFor(url,{items:[item]}));}});
+ const list=h.container.querySelector('.member-votes-pane'),row=list.querySelector('[data-vote-id]');
+ hold=true;await h.update({decisionId:item.id});
+ assert.equal(h.container.querySelector('.member-votes-pane'),list);assert.equal(list.querySelector('[data-vote-id]'),row);
+ assert(h.container.querySelector('.member-votes-detail'));assert.doesNotMatch(h.container.textContent,/Loading voting records/);
+ hold=false;await act(async()=>release());
+ hold=true;await h.update({positions:'recorded'});assert.equal(h.container.querySelector('.member-votes-detail'),null);
+ hold=false;await act(async()=>release());
+});
+
+test('an off-page selection keeps the list mounted while pending without claiming absence',async t=>{
+ let release,hold=false;
+ const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{if(hold)await new Promise(resolve=>{release=resolve;});return Response.json(responseFor(url,{selected:stateFrom(url).decisionId?{status:'not-found-in-scanned-data',item:null}:{status:'not-requested',item:null}}));}});
+ const list=h.container.querySelector('.member-votes-pane');hold=true;await h.update({decisionId:decision(99)});
+ assert.equal(h.container.querySelector('.member-votes-pane'),list);
+ assert.match(visiblePane(h.container).textContent,/Loading selected vote/);assert.doesNotMatch(visiblePane(h.container).textContent,/Vote unavailable/);
+ hold=false;await act(async()=>release());assert.match(visiblePane(h.container).textContent,/Vote unavailable/);
+});
