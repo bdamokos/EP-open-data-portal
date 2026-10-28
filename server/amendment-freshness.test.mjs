@@ -1374,9 +1374,9 @@ test('an exact settled detail check is due after 90 days despite newer expanded 
   observe();assert.equal(nextAmendmentTask(store,generation),null);
 });
 
-async function authorLanguageFixture(t) {
+async function authorLanguageFixture(t,{issued=null}={}) {
   const context=await fixture(t),{store,worker,generation}=context;
-  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null};
+  const saved=store.source(generation,listKey),primary={url:oldUrl,language:'bg',byteSize:null},alternate={url:newUrl,language:'de',byteSize:null,...(issued?{issued}:{})};
   const rosterKey='amendment:roster:'+documentDate,roster=store.source(generation,rosterKey);
   store.putSource(generation,rosterKey,'amendment-roster',{...roster.work,nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION},roster.fetchedAt);
   store.putSource(generation,listKey,'amendment-list',{...saved.work,distributionEvidence:{...saved.work.distributionEvidence,descriptors:[primary,alternate]}},saved.fetchedAt);
@@ -1402,8 +1402,8 @@ test('settled primary and author-language bytes are both reused with their origi
   assert.equal(current.sourceRetentionRetryAt,null);
 });
 
-for(const failure of ['storage-full','download-failed'])test('settled author-language '+failure+' backs off without failing the primary wording',async t=>{
-  const context=await authorLanguageFixture(t),{store,worker,generation,alternate,buffer}=context;
+for(const issued of [null,oldRetrievedAt])for(const failure of ['storage-full','download-failed'])test('settled author-language '+failure+' backs off without failing the primary wording; issued='+issued,async t=>{
+  const context=await authorLanguageFixture(t,{issued}),{store,worker,generation,alternate,buffer}=context;
   const sources=amendmentSourceStore(store),row=sources.match(alternate);unlinkSync(path.join(sources.directory,row.sha256+'.docx'));
   if(failure==='storage-full')t.mock.method(sources,'reserve',async()=>false);
   let downloads=0;worker.downloadAmendmentDocx=async url=>{
@@ -1421,10 +1421,18 @@ for(const failure of ['storage-full','download-failed'])test('settled author-lan
   assert.equal(nextAmendmentTask(store,generation).kind,'amendment-extract');
 });
 
-test('a changed author-language descriptor is retrieved even during an older retention backoff',async t=>{
+test('successful dated alternate evidence still needs valid chronology during retention backoff',async t=>{
+  const context=await authorLanguageFixture(t,{issued:oldRetrievedAt}),{store,worker,generation}=context;
+  const saved=store.source(generation,listKey);
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,sourceRetentionRetryAt:new Date(store.clock()+7*freshnessDay).toISOString(),authorNames:{...saved.work.authorNames,source:{...saved.work.authorNames.source,fetchedAt:'2026-10-01T00:00:00Z'}}},saved.fetchedAt);
+  rebuildAmendmentTarget(worker,generation,targetId);
+  assert.equal(extractionJob(store,generation).done,0,'A backoff for retention cannot validate successful bytes retrieved before publication.');
+});
+
+for(const failed of [false,true])test('a changed author-language descriptor is retrieved even during an older retention backoff; failed='+failed,async t=>{
   const context=await authorLanguageFixture(t),{store,worker,generation,alternate,buffer}=context;
   const saved=store.source(generation,listKey),changed={...alternate,issued:context.at()};
-  store.putSource(generation,listKey,'amendment-list',{...saved.work,sourceRetentionRetryAt:new Date(store.clock()+7*freshnessDay).toISOString(),distributionEvidence:{...saved.work.distributionEvidence,descriptors:saved.work.distributionEvidence.descriptors.map(file=>file.url===alternate.url?changed:file)}},saved.fetchedAt);
+  store.putSource(generation,listKey,'amendment-list',{...saved.work,...(failed?{authorNames:{...saved.work.authorNames,error:'Author-language unavailable',source:{url:alternate.url,language:alternate.language}}}:{}),sourceRetentionRetryAt:new Date(store.clock()+7*freshnessDay).toISOString(),distributionEvidence:{...saved.work.distributionEvidence,descriptors:saved.work.distributionEvidence.descriptors.map(file=>file.url===alternate.url?changed:file)}},saved.fetchedAt);
   let downloads=0;worker.downloadAmendmentDocx=async url=>{assert.equal(url,newUrl);downloads++;return {buffer:buffer(url)};};
   rebuildAmendmentTarget(worker,generation,targetId);await worker.task(nextAmendmentTask(store,generation));
   assert.equal(downloads,1);assert.equal(store.source(generation,listKey).work.authorNames.descriptor.issued,changed.issued);

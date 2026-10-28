@@ -161,7 +161,8 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sitt
     const alternate=alternateAuthorDescriptor(prior?.work,prior?.work.extraction);
     const retentionDeferred=Date.parse(prior?.work.sourceRetentionRetryAt)>worker.clock();
     const bytesPresent=!settled||retentionDeferred||sources.has(freshness.descriptor)&&(!alternate||sources.has(alternate));
-    const alternateUnchanged=!alternate||samePublishedDescriptor(alternate,prior?.work.authorNames?.descriptor)&&(!alternate.issued||docxRetrievedAfterIssue(prior?.work.authorNames?.source?.fetchedAt,alternate.issued));
+    const alternateFailureDeferred=retentionDeferred&&Boolean(prior?.work.authorNames?.error);
+    const alternateUnchanged=!alternate||samePublishedDescriptor(alternate,prior?.work.authorNames?.descriptor)&&(alternateFailureDeferred||!alternate.issued||docxRetrievedAfterIssue(prior?.work.authorNames?.source?.fetchedAt,alternate.issued));
     const unchanged=freshness.status==='fresh'&&bytesPresent&&alternateUnchanged&&(settled||worker.clock()-Date.parse(prior?.work.extraction?.fetchedAt || prior?.fetchedAt)<7*DAY);
     if(discover&&currentDocxDescriptor(prior?.work)&&(!unchanged||alternateAuthorDescriptor(prior?.work,prior?.work.extraction)&&prior?.work.extraction?.authorNamesVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)&&!retryDeferred)enqueueAmendment(worker.store,generation,'amendment:extract:'+candidate.id,'amendment-extract',{listId:candidate.id,targetDocumentId:id},112,true);
     const date=prior?.work.document_date;
