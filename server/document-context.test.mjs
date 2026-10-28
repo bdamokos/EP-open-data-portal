@@ -367,7 +367,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,31);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,32);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -680,4 +680,19 @@ for(const broken of [false,true])test('mixed scope retains readable legal contex
   assert.equal(result.baseline.language,'sk');assert.equal(result.amendment.variants[0].proposedText,example.proposedText);
   if(broken){assert.equal(result.proposal,null);assert.equal(result.baseline.status,'unavailable');assert(result.baseline.gaps.includes('proposal-projection-unavailable'));}
   else {assert.equal(result.baseline.status,'available');assert.equal(result.document.selectedText,undefined);assert(result.proposal.items[0].proposal.paragraphs.some(p=>p.text==='1. Readable original legal text.'));}
+});
+
+for(const status of ['error','unavailable','available'])test('a selected file language without body paragraphs does not override a standalone scope note: '+status,async()=>{
+  const note='(Ne concerne pas la version française.)';
+  const selected={...indexed,language:'fr',targetLabelLanguage:'fr',proposedText:note,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false}};
+  const missing={...summary,status,textLanguage:'en',availableTextLanguages:['en','fr'],paragraphs:[]};
+  const reader=service({findAmendment:()=>selected,readText:async()=>missing,readProposal:async()=>assert.fail('Standalone scope notes need no legal baseline')});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'fr'}),{store:{}});
+  assert.equal(result.placement.status,'not-applicable');assert.equal(result.placement.operation,null);assert.equal(result.placement.reason,'language_version_unaffected');
+  assert.equal(result.placement.evidence[0].note,note);assert.equal(result.placement.evidence[0].language,'fr');
+  assert.equal(result.target.reason,'language-version-unaffected');assert.deepEqual(result.target.paragraphs,[]);
+  assert.equal(result.document.selectedText.status,status);assert.deepEqual(result.document.selectedText.paragraphs,[]);
+  const ordinary=service({findAmendment:()=>({...indexed,language:'fr',originalText:'Original français.',proposedText:'Nouveau texte.'}),readText:async()=>missing});
+  const value=await ordinary.query(query({amendmentId,listId,wordingLanguage:'fr'}),{store:{}});
+  assert.equal(value.target.status,'unavailable');assert.equal(value.target.reason,'source_structure_unavailable');
 });

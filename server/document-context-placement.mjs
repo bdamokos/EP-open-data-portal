@@ -10,7 +10,7 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
   const mixedScope=amendmentMixedLanguageScope(chosen),scope=amendmentLanguageScope(chosen);
-  if(scope&&text?.textLanguage&&chosen.language!==text.textLanguage)return unresolved('different_text_languages');
+  if(scope&&text?.paragraphs?.length&&text.textLanguage&&scope.language!==text.textLanguage)return unresolved('different_text_languages');
   if(mixedScope)return {operation:null,status:'unresolved',reason:'language_scope_mixed',evidence:[{basis:'published-language-scope',...mixedScope}]};
   if(scope)return {operation:null,status:'not-applicable',reason:'language_version_unaffected',evidence:[{basis:'published-language-scope',...scope}]};
   if(chosen.baselineSource?.conflicted===true)return unresolved('conflicting_baselines');

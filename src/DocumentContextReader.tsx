@@ -109,7 +109,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const found=Boolean(!data?.placement&&amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
   const placement=data?.placement;
   const wording=variants.length===1&&variants[0].wordingStatus==='available'?variants[0]:null;
-  const scopeLanguageMismatch=Boolean(wording&&amendmentLanguageScope(wording)&&text?.textLanguage&&text.textLanguage!==wording.language);
+  const scopeLanguageMismatch=Boolean(allParagraphs.length&&wording&&amendmentLanguageScope(wording)&&text?.textLanguage&&text.textLanguage!==wording.language);
   const reportHeading=data?.amendment?.id===amendmentRequest?.amendmentId&&data?.placement?.reason==='amendment_wording_unavailable'&&!wording?
     reportAmendmentHeading(text,id,amendmentRequest?.amendmentId,amendmentRequest?.listId):null;
   useEffect(()=>{
