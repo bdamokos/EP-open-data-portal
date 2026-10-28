@@ -10,6 +10,7 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   const unresolved=reason=>({operation:amendmentOperation(chosen||{}),status:'unresolved',reason,evidence:[]});
   if(!chosen)return amendmentRequested?unresolved(referenceTexts.length>1?'conflicting_target_evidence':'amendment_wording_unavailable'):null;
   const scope=amendmentLanguageScope(chosen);
+  if(scope&&text?.textLanguage&&scope.language!==text.textLanguage)return unresolved('different_text_languages');
   if(scope)return {operation:null,status:'not-applicable',reason:'language_version_unaffected',evidence:[{basis:'published-language-scope',...scope}]};
   if(chosen.baselineSource?.conflicted===true)return unresolved('conflicting_baselines');
   if(chosen.baseline==='present-text'&&chosen.baselineSource?.category==='present-text'&&chosen.baselineSource.conflicted===false&&(items?.length||baseline))return resolveExistingLawPlacement(items||[],chosen,baseline);

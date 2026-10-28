@@ -25,6 +25,23 @@ const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
+for(const textLanguage of ['en','fr',null])test('a French scope note is shown only beside French text or without a body: '+textLanguage,async t=>{
+  const note='(Ne concerne pas la version française.)',mismatch=textLanguage==='en';
+  const paragraphs=textLanguage?['The published document stays intact.']:[];
+  const doc=sourceDocument(report,paragraphs,{textLanguage,availableTextLanguages:['en','fr'],status:textLanguage?'available':'unavailable'});
+  const value=response(report,doc,{requestedLanguage:'fr',requestedWordingLanguage:'fr',amendment:{...amendmentSource,variants:[wordingVariant('fr',{proposedText:note})]},
+    target:{...target,status:'unavailable',paragraphs:[],evidence:pinnedEvidence('fr')},
+    placement:{status:mismatch?'unresolved':'not-applicable',operation:null,reason:mismatch?'different_text_languages':'language_version_unaffected',evidence:[]}});
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'fr',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.textContent.includes('No change in this language version.'),!mismatch);
+  assert.equal(h.container.textContent.includes(note),!mismatch);
+  assert.equal(h.container.querySelectorAll('[data-amendment-block]').length,mismatch?0:1);
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
+  if(textLanguage)assert(h.container.textContent.includes(paragraphs[0]));
+  if(mismatch)assert(h.container.textContent.includes('The document and amendment wording are in different languages.'));
+});
+
 async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]})) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};

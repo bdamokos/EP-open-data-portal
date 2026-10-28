@@ -367,7 +367,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,28);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,29);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -620,4 +620,29 @@ test('a selected unaffected language edition has no placement, replacement targe
   assert.equal(result.amendment.variants[0].proposedText,note);
   assert.equal(result.target.evidence.wordingLanguage,'fr');
   assert.deepEqual(result.document.selectedText.paragraphs,['C. Texte existant.']);
+});
+
+for(const baseline of ['motion-resolution','commission-proposal','council-position','present-text'])test('an unaffected French edition does not describe the English document: '+baseline,async()=>{
+  const note='(Ne concerne pas la version française.)';
+  const selected={...indexed,language:'fr',targetLabelLanguage:'fr',originalText:'C. Texte existant.',proposedText:note,baseline,baselineSource:{category:baseline,conflicted:false}};
+  const reader=service({findAmendment:()=>selected,readText:async()=>({...summary,availableTextLanguages:['en','fr']}),
+    readProposal:async()=>assert.fail('A language-scope note needs no proposal baseline'),
+    readCouncil:async()=>assert.fail('A language-scope note needs no Council baseline'),
+    readExistingLaw:async()=>assert.fail('A language-scope note needs no existing-law baseline')});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'fr'}),{store:{}});
+  assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.operation,null);
+  assert.equal(result.placement.reason,'different_text_languages');assert.deepEqual(result.placement.evidence,[]);
+  assert.equal(result.target.status,'unavailable');assert.equal(result.target.reason,'different-text-languages');
+  assert.deepEqual(result.target.paragraphs,[]);assert.equal(result.baseline,null);assert.equal(result.proposal,null);
+  assert.equal(result.amendment.variants[0].proposedText,note);assert.equal(result.target.evidence.wordingLanguage,'fr');
+  assert.deepEqual(result.document.selectedText.paragraphs,summary.paragraphs);
+});
+
+test('wording-only scope notes leave the document target unrequested',async()=>{
+  const note='(Ne concerne pas la version française.)';
+  const reader=service({findAmendment:()=>({...indexed,language:'fr',proposedText:note}),readText:async()=>assert.fail('Wording-only requests do not read document text')});
+  const result=await reader.query(query({amendmentId,listId,wordingLanguage:'fr',includeBody:false}),{store:{}});
+  assert.equal(result.target.status,'not-requested');assert.equal(result.target.reason,null);
+  assert.deepEqual(result.target.paragraphs,[]);assert.equal(result.placement,null);
+  assert.equal(result.amendment.variants[0].proposedText,note);assert.equal(result.target.evidence.wordingLanguage,'fr');
 });
