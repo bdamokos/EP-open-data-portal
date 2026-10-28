@@ -1,4 +1,14 @@
 import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
+
+export function failureClass(message='') {
+  const status=String(message).match(/(?:returned|HTTP|unavailable\s*\()\s*(404|410|429|5\d\d)/i)?.[1];
+  if(status==='429')return 'throttled';
+  if(status==='404'||status==='410')return 'missing-at-source';
+  if(status?.startsWith('5')||/timeout|timed out|ECONN|ENET|fetch failed/i.test(message))return 'transient';
+  if(/invalid|malformed|archive|parse|unsupported|ambiguous/i.test(message))return 'source-or-parser';
+  return 'unclassified';
+}
 
 // Maintenance inventory, never a public completeness assertion. On-demand
 // readers are deliberately distinguished from durable collection workers.
@@ -48,11 +58,12 @@ export function auditIndex(db,now) {
     lastSuccessfulRefresh:meta(db,'lastSuccess'),writerLeaseActive:Boolean(lease?.expires>now),
     generations:generations.map(generation=>{
       const gaps=has(db,'refresh_gaps')?db.prepare('SELECT kind,COUNT(*) AS count,MIN(retry_at) AS earliestRetryAt FROM refresh_gaps WHERE generation=? GROUP BY kind').all(generation):null;
+      const gapRecords=has(db,'refresh_gaps')?db.prepare('SELECT key,kind,error,attempts,retry_at AS retryAt FROM refresh_gaps WHERE generation=? ORDER BY key').all(generation).map(({error,...gap})=>({...gap,failure:failureClass(error)})):null;
       const sourceGaps=has(db,'sources')?db.prepare("SELECT kind,COUNT(*) AS count FROM sources WHERE generation=? AND kind IN ('outside-gap','amendment-gap') GROUP BY kind").all(generation):null;
       const continuation=has(db,'sources')?db.prepare("SELECT body FROM sources WHERE generation=? AND key='amendment:continuations'").get(generation):null;
       const saved=continuation?JSON.parse(continuation.body):null;
       return {generation,queues:Object.fromEntries(['tasks','amendment_jobs','group_voice_jobs'].map(table=>[table,queues(db,table,now,generation)])),
-        refreshGaps:gaps,savedSourceGaps:sourceGaps,
+        refreshGaps:gaps,gapRecords,savedSourceGaps:sourceGaps,
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
         mutableDocuments:has(db,'mutable_documents')?db.prepare('SELECT COUNT(*) AS count,SUM(next_check<=?) AS due FROM mutable_documents WHERE generation=?').get(now,generation):null};
     }),
@@ -64,6 +75,7 @@ export function auditCorpus(db,now) {
   return {phase:meta(db,'phase'),lastRunAt:meta(db,'lastRunAt'),backfilledAt:meta(db,'backfilledAt'),
     authoritativeComplete:false,writerLeaseActive:Boolean(lease?.expires>now),languages:meta(db,'documentLanguages'),
     queues:queues(db,'tasks',now),
+    pendingTasks:has(db,'tasks')?db.prepare('SELECT key,kind,attempts,retry_at AS retryAt,error FROM tasks WHERE done=0 ORDER BY key').all().map(({error,...task})=>({...task,failure:failureClass(error)})):null,
     documents:has(db,'documents')&&has(db,'texts')?db.prepare(`SELECT d.kind,COUNT(*) AS discovered,
       SUM(NOT EXISTS(SELECT 1 FROM texts t WHERE t.document_id=d.id)) AS withoutText FROM documents d GROUP BY d.kind`).all():null};
 }
@@ -83,19 +95,35 @@ export function reconcileQuestionFiles(indexFile,corpusFile,{exampleLimit=20,now
     if(!['all','primary'].includes(policy))return {state:'unavailable',reason:'corpus language policy unknown'};
     const text=corpus.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1');
     const task=corpus.prepare('SELECT done,retry_at FROM tasks WHERE key=?');
-    const counts={retained:0,queued:0,retryingLater:0,unowned:0,completedWithoutText:0,excludedByPolicy:0},examples=[];
+    const counts={retained:0,queued:0,retryingLater:0,unowned:0,completedWithoutText:0,excludedByPolicy:0},examples=[],missing=[],universe=createHash('sha256');
     const files=index.prepare('SELECT url,MAX(is_primary) AS is_primary FROM question_files WHERE generation=? GROUP BY url ORDER BY url').iterate(generation);
     for(const file of files) {
       if(policy==='primary'&&!file.is_primary){counts.excludedByPolicy++;continue;}
+      universe.update(file.url+'\n');
       if(text.get(file.url)){counts.retained++;continue;}
       const queued=task.get('docx:'+file.url),state=!queued?'unowned':queued.done===1?'completedWithoutText':'queued';
       counts[state]++;
+      missing.push({url:file.url,state});
       if((state==='unowned'||state==='completedWithoutText')&&examples.length<exampleLimit)examples.push({url:file.url,state});
       if(state==='queued'&&queued.retry_at>now)counts.retryingLater++;
     }
-    return {state:'observed',generation,policy,counts,examples,action:counts.unowned||counts.completedWithoutText?'reconcile through the corpus writer; inspect completed empty extractions before requeue':'existing corpus queue owns known eligible files'};
+    return {state:'observed',generation,policy,eligibleFiles:counts.retained+missing.length,eligibleUrlDigest:universe.digest('hex'),counts,missing,examples,action:counts.unowned||counts.completedWithoutText?'reconcile through the corpus writer; inspect completed empty extractions before requeue':'existing corpus queue owns known eligible files'};
   } catch(error) {return {state:'unavailable',reason:error.code||'read failed'};}
   finally {for(const db of [index,corpus])if(db){if(db.isTransaction)db.exec('ROLLBACK');db.close();}}
+}
+
+export function compareGapAudits(current,baseline) {
+  const compare=(before,after,key)=>{
+    if(!Array.isArray(before)||!Array.isArray(after))return {state:'unavailable'};
+    const a=new Set(before.map(row=>row[key])),b=new Set(after.map(row=>row[key]));
+    return {state:'observed',previous:a.size,current:b.size,resolved:[...a].filter(id=>!b.has(id)),newlyMissing:[...b].filter(id=>!a.has(id)),retained:[...b].filter(id=>a.has(id)).length};
+  };
+  const active=report=>report.index?.generations?.find(g=>g.generation===report.index.activeGeneration)?.gapRecords;
+  const questionFiles=compare(baseline.questionFiles?.missing,current.questionFiles?.missing,'url');
+  return {baselineAt:baseline.observedAt,currentAt:current.observedAt,
+    indexGaps:compare(active(baseline),active(current),'key'),corpusTasks:compare(baseline.corpus?.pendingTasks,current.corpus?.pendingTasks,'key'),questionFiles,
+    sameQuestionFileUniverse:baseline.questionFiles?.eligibleUrlDigest&&current.questionFiles?.eligibleUrlDigest?baseline.questionFiles.eligibleUrlDigest===current.questionFiles.eligibleUrlDigest:null,
+    note:'Resolved means absent from the current missing set; confirm retained data and source scope before calling it recovered. New publications can add gaps while older gaps recover.'};
 }
 export function dataGapAudit({indexFile,corpusFile,pressFile,now=Date.now(),reconcile=false}={}) {
   return {schemaVersion:1,observedAt:new Date(now).toISOString(),recoveryPaths:RECOVERY_PATHS,

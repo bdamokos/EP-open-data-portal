@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {auditIndex,dataGapAudit,reconcileQuestionFiles} from './data-gap-audit.mjs';
+import {auditIndex,dataGapAudit,reconcileQuestionFiles,compareGapAudits,failureClass} from './data-gap-audit.mjs';
 import {auditOptions} from '../scripts/data-gap-audit.mjs';
 
 test('audit includes serving and working queues, including NULL and outside pending states',()=>{
@@ -20,6 +20,20 @@ test('audit includes serving and working queues, including NULL and outside pend
     assert.equal(outside.pending,1);assert.equal(outside.due,0);assert.equal(outside.retrying,1);
     assert.equal(result.generations[0].queues.amendment_jobs.state,'unavailable');
   } finally {db.close();}
+});
+
+test('baseline comparison uses exact missing identities and reports a changed denominator',()=>{
+  const baseline={observedAt:'before',index:{activeGeneration:8,generations:[{generation:8,gapRecords:[{key:'old'},{key:'same'}]}]},corpus:{pendingTasks:[{key:'task'}]},questionFiles:{eligibleUrlDigest:'a',missing:[{url:'https://example.org/old'}]}};
+  const current={observedAt:'after',index:{activeGeneration:9,generations:[{generation:9,gapRecords:[{key:'new'},{key:'same'}]}]},corpus:{pendingTasks:[]},questionFiles:{eligibleUrlDigest:'b',missing:[{url:'https://example.org/new'}]}};
+  const result=compareGapAudits(current,baseline);
+  assert.deepEqual(result.indexGaps,{state:'observed',previous:2,current:2,resolved:['old'],newlyMissing:['new'],retained:1});
+  assert.deepEqual(result.corpusTasks.resolved,['task']);assert.equal(result.sameQuestionFileUniverse,false);
+  assert.equal(compareGapAudits({},{}).questionFiles.state,'unavailable');
+  assert.equal(failureClass('EP API returned 500 at /speeches'),'transient');
+  assert.equal(failureClass('EP API returned 429'),'throttled');
+  assert.equal(failureClass('EP API returned 404'),'missing-at-source');
+  assert.equal(failureClass('Invalid DOCX archive'),'source-or-parser');
+  assert.equal(failureClass('Unknown problem'),'unclassified');
 });
 
 test('exact-URL audit distinguishes missing ownership, queued work, empty completed extraction and policy exclusions without writes',async()=>{

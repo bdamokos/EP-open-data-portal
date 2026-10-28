@@ -34,6 +34,8 @@ Bundled supporting data: committee labels from the corporate-bodies API, country
 
 `ACTIVITY_INDEX_RECOVERY_MODE=backfill` wakes the existing writer for already-due durable source gaps between daily refreshes and admits at most 25 per iteration. It preserves saved task bodies/cursors, admission deduplication, upstream retry times and all ordinary request/time/disk limits. New failures return to their usual cooldown. `normal` retains the daily admission cap; coverage-window labels and parser/source-research gaps require their own resolution.
 
+Saved audit JSON can be supplied with `--baseline FILE` to compare exact gap/task/distribution identities. Reports retain a digest of the eligible question-file URL universe and distinguish newly missing entries from resolved entries. A resolved queue entry still needs retained-data validation. Error-message classifications are diagnostic: 5xx/timeouts are transient, 404/410 record source absence at that attempt, and malformed archives/unsupported content remain source-or-parser problems. No class alone proves that a record will never be published.
+
 | Data | Recovery owner and remaining limits |
 | --- | --- |
 | Member directory, memberships, questions, reports, procedures and speech metadata | Leased activity-index writer; catalogues, feeds, dated rosters and bounded mutable/gap recovery. Expired monthly feed windows cannot be reconstructed authoritatively. Unverified categories and exact joins need source research or code changes. |

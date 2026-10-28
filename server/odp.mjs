@@ -1019,7 +1019,7 @@ async function feed(endpoint, params, entity) {
   const url = new URL(ODP_BASE + endpoint);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return boundedUpstream(async()=>{
-    const r = await fetch(url, {
+    const r = await observedOdpFetch(url, {
       headers: {
         Accept: "application/atom+xml",
         "User-Agent":
