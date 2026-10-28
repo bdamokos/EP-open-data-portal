@@ -178,7 +178,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
       const council=wording.baseline==='council-position',existing=wording.baseline==='present-text',structured=commission||council||existing;
       const pair=contexts.get(originalVariant?.language||'en');
       const {input,value}=translated&&!structured?languageVariantContext(translated,pair.plain,runtime):pair[commission?'proposal':'plain'];
-      let items=value?.proposal?.items,text=value?.document?.selectedText,baseline=value?.baseline;
+      let items=value?.proposal?.items,text=value?.document?.selectedText,baseline=value?.baseline,nativeProposalInputs;
       if(replay) {
         const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?wording.documentDate:null]:[]]);
         if(!projected.has(key)) {
@@ -189,7 +189,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
           else if(existing)projected.set(key,await replay.existingLaw({...wording,language}));
           else projected.set(key,{text:await replay.text(work,language)});
         }
-        ({items,text,baseline}=projected.get(key));
+        ({items,text,baseline,nativeProposalInputs}=projected.get(key));
       }
       const hints=(wording.documentReferences||[]).filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>(runtime?.commissionReferences||commissionReferences)(r.raw));
       const referenceConflict=commission&&baseline?.celex&&hints.some(h=>h.celex!==baseline.celex||h.qualifier&&h.qualifier!=='final');
@@ -212,7 +212,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay}={}) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
         stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
-        stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target});
+        stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],amendmentBuffer:fetched.body,number:row.number}:undefined});
         // Keep coordinates and assertions, not a growing corpus of source text.
         // The exact text is recoverable from the hashed input for this report.
         delete stages.S5.originalText;
@@ -238,7 +238,7 @@ async function checkoutIdentity(root,runtime) {
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','package-lock.json'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','package-lock.json'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 

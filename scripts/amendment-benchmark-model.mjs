@@ -1,4 +1,5 @@
 import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
@@ -228,7 +229,7 @@ export function verifyPlacement(input) {
   return raw.status==='unverified'?result:raw;
 }
 
-function verifyKnownPlacement({placement, wording, items, text, target = parseBenchmarkTarget(wording)}) {
+function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, target = parseBenchmarkTarget(wording)}) {
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
@@ -236,6 +237,10 @@ function verifyKnownPlacement({placement, wording, items, text, target = parseBe
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  // Explicit inner labels must reach the independent native assertion before
+  // the generic target grammar can decline an outer non-new instruction.
+  const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
+  if(quoted.status!=='unverified')return quoted;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
     let source, labels = [];
     if (proposal) {
