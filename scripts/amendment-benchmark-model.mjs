@@ -73,12 +73,16 @@ export function oracleNormal(value,labels=[]) {
   const escape=value=>String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const prefixes=[...new Set(labels.map(label=>label.value))].map(value=>'\\('+escape(value)+'\\)|'+escape(value)+'[.)]');
   const prefix=prefixes.length?new RegExp('^(?:'+prefixes.join('|')+')\\s*','u'):null;
+  // A comparison cell can flatten several source paragraphs. Only the end
+  // of the complete comparison has a terminator; internal punctuation stays.
   return value.normalize('NFC').replace(/\u00ad/g,'').replace(/[‘’‚‛ʻʼ]/g,"'").replace(/[“”„‟«»]/g,'"').replace(/[‐‑‒–—]/g,'-')
     .split(/\r?\n/).map(line=>{
       let text=line.trim().replace(/^["']\s*/, '');
       if(prefix)text=text.replace(prefix,'');
-      return text.replace(/[.;'"\s]+$/u,'').trim();
-    }).join(' ').replace(/\s+/gu,' ').trim();
+      // Published comparison columns can put a closing quote before or after
+      // the same terminators. Keep the marks, with one ordering on both sides.
+      return text.replace(/([.;]+)(["']+)([.;]*)$/u,'$2$1$3');
+    }).join(' ').replace(/\s+/gu,' ').trim().replace(/[.;'"\s]+$/u,'');
 }
 const occurrences=(haystack,needle)=>{
   let count=0,offset=0;if(!needle)return 0;
@@ -365,7 +369,7 @@ export function compareBaseline(current, baseline, {placementOnly=false}={}) {
   const fingerprint = value => JSON.stringify({sample:value.sample,snapshotId:value.snapshotId,inputs:value.inputs});
   if (fingerprint(current) !== fingerprint(baseline)) throw new Error('Baseline sample/input hashes differ; replay the same frozen cache and sample.');
   const warnings=[];
-  for(const file of ['scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
+  for(const file of ['scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark.mjs'])if((current.harness?.files||current.code?.files)?.[file]!== (baseline.harness?.files||baseline.code?.files)?.[file])warnings.push('Benchmark/oracle model changed: '+file+'; review scoring-policy changes before using deltas.');
   const replay=current.projectionMode==='cached-source-replay'&&['cached-source-replay','live-projection-comparison'].includes(baseline.projectionMode);
   const scope=replay?'full-pipeline-cached-sources':placementOnly?'placement-only-frozen-projections':'full-pipeline';
   const refuse=reason=>({scope,failed:true,refused:true,warnings,reason,deltas:{},taxonomyDeltas:[],regressions:[]});

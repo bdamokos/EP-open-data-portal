@@ -42,6 +42,30 @@ test('replace/delete oracle reads exact splice coordinates, tolerates only provi
   assert.equal(verifyPlacement({placement:{...placement,splice:{start:{paragraph:1,offset:500},end:{paragraph:1,offset:1}}},wording:amendment,items}).reason,'oracle-invalid-span');
   assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:'(not) A café sentence.'},items}).status,'failed');
 });
+test('oracle preserves internal punctuation when a comparison column flattens source paragraphs',()=>{
+  const rows=['7. Allocates funding as follows:','the first programme receives ten units;','the second programme receives five units.','the balance remains available;'];
+  const text=source(['The European Parliament,',...rows,'8. Requests a report.','ANNEX']);
+  const original=rows.join(' '),amendment={...wording('Paragraph 7',original,'Revised allocation.'),baseline:'motion-resolution'};
+  // Supply coordinates directly: this tests the independent oracle, not the placer.
+  for(const operation of ['replace','delete']) {
+    const placement={status:'placed',operation,span:{start:1,end:4}},chosen=operation==='delete'?{...amendment,proposedText:'deleted.'}:amendment;
+    assert.equal(verifyPlacement({placement,wording:chosen,text}).status,'verified');
+    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units;','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units.','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement:{...placement,span:{start:1,end:3}},wording:chosen,text}).status,'failed');
+  }
+  const labels=[{value:'7'}];
+  assert.equal(oracleNormal(rows.join('\n'),labels),oracleNormal(original,labels));
+  assert.equal(oracleNormal(rows.join('\r\n'),labels),oracleNormal(original,labels));
+  assert.equal(oracleNormal(rows.join('\n'),labels),'Allocates funding as follows: the first programme receives ten units; the second programme receives five units. the balance remains available');
+  const quotedRows=['7. Amends the rule:','“A synthetic obligation applies.”;','the reporting duty remains;'];
+  const quotedText=source(['The European Parliament,',...quotedRows,'8. Requests a report.','ANNEX']);
+  const quotedOriginal=quotedRows.join('\n').replace('applies.”;','applies.;”');
+  const quoted={...amendment,originalText:quotedOriginal};
+  const placement={status:'placed',operation:'replace',span:{start:1,end:3}};
+  assert.equal(verifyPlacement({placement,wording:quoted,text:quotedText}).status,'verified','quote/terminator ordering remains typographic');
+  assert.equal(verifyPlacement({placement,wording:{...quoted,originalText:quotedOriginal.replace('applies.;”','applies.”')},text:quotedText}).status,'failed','the internal semicolon still matters');
+});
 test('independent operation oracle fails the old localized replace placements at the correct coordinates',async()=>{
   const {examples}=JSON.parse(await readFile(new URL('../server/fixtures/amendment-operation-excerpts.json',import.meta.url),'utf8'));
   for(const {language,deletion,insertion} of examples) {
