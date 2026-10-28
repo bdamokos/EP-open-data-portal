@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='11';
+export const PROPOSAL_PARSER_VERSION='12';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -40,7 +40,7 @@ function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
   const dottedLabel=(stylePoint.test(style)||/^Text\d/i.test(style)||/Roman|Letter/i.test(numbering?.format??''))?
     line.match(/^([\p{L}]|[ivxlcdm]{2,8})\.\s+/u):null;
   if(!/^[\d(•–—-]/u.test(line)&&! /^[\p{L}]{1,8}[)\]]/u.test(line)&&!dottedLabel)return null;
-  const point=line.match(/^\(?([\p{L}\d]+(?:\.\d+)*(?:\s+[\p{L}]{1,3})?)[)\]]\s*/u)??
+  const point=line.match(/^\(?([\p{L}\d]+(?:\.\d+)*(?:\s+[\p{L}]{1,25}){0,3})[)\]]\s*/u)??
     dottedLabel;
   if(point) {
     const value=proposalNumber(point[1],language);if(!value)return null;
@@ -55,7 +55,7 @@ function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
       !(previous.length===1&&point[1].length===1&&point[1].charCodeAt(0)===previous.charCodeAt(0)+1);
     return {kind:'point',...value,isNew:false,level,prefix:point[0],...(numbering?{numbering}:{}),...(hierarchyAmbiguous?{hierarchyAmbiguous:true}:{})};
   }
-  const paragraph=line.match(/^(\d+(?:\.\d+)*)\.(?:\s+|(?=\p{Lu}))/u)??line.match(/^(\d+(?:\.\d+)*(?:[.‑–-]?\s*[\p{L}]{1,3})?)\.(?:\s+|(?=\p{Lu}))/u);
+  const paragraph=line.match(/^(\d+(?:\.\d+)*)\.(?:\s+|(?=\p{Lu}))/u)??line.match(/^(\d+(?:\.\d+)*(?:[.‑–-]?\s*[\p{L}]{1,25}){0,3})\.(?:\s+|(?=\p{Lu}))/u);
   if(paragraph){const parsed=proposalNumber(paragraph[1],language);if(!parsed)return null;const level=numbering?.level??style.match(stylePoint)?.[1];return {kind:level===undefined?'paragraph':'point',...parsed,isNew:false,prefix:paragraph[0],...(level===undefined?{}:{level:Number(level)}),...(numbering?{numbering}:{})};}
   if(/^[•–—-](?:\s|\t)/u.test(line))return {kind:'indent',value:'',number:null,suffix:'',isNew:false,prefix:line.slice(0,1)};
   return null;

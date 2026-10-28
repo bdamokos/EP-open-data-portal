@@ -1,5 +1,6 @@
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
+import {latinSuffixRank} from './legal-latin-numbering.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -8,9 +9,8 @@ const MAX_UNIT_CHARACTERS=256*1024,MAX_COLUMN_CHARACTERS=64*1024;
 const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children)]);
 const parentKey=unit=>JSON.stringify(unit.path.slice(0,-1).map(({kind,value,occurrence})=>[kind,value,occurrence??null]));
 const suffixes=['','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','ab','ac'];
-const latinSuffixes=['','bis','ter','quater','quinquies','sexies','septies','octies','nonies','decies'];
 const greekSuffixes=['','α','β','γ','δ','ε','στ','ζ','η','θ','ι','ια','ιβ','ιγ','ιδ','ιε','ιστ','ιζ','ιη','ιθ','κ'];
-const suffixRank=(suffix,requested)=> (greekSuffixes.includes(requested)&&requested?greekSuffixes:latinSuffixes.includes(requested)&&requested?latinSuffixes:suffixes).indexOf(suffix);
+const suffixRank=(suffix,requested)=>requested&&latinSuffixRank(requested)!==null?(latinSuffixRank(suffix)??-1):(greekSuffixes.includes(requested)&&requested?greekSuffixes:suffixes).indexOf(suffix);
 
 // Retain UTF-16 source ranges while normalizing punctuation and whitespace.
 // Numbering is removed only for labels supplied by the parsed unit metadata.

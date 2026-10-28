@@ -1,3 +1,5 @@
+import {LATIN_NUMBER_SUFFIXES,latinSuffixParts} from './legal-latin-numbering.mjs';
+
 // Surface forms are deliberately language-specific. Proposal headings were checked
 // against COM(2025)87 DOCX in all 24 languages; amendment forms include the public
 // EP amendment excerpts in server/fixtures. See docs/PROPOSAL_STRUCTURE.md.
@@ -83,6 +85,9 @@ const citationWords={"bg": "Позоваване", "es": "Visto", "cs": "Právn�
 const reverseOrder=new Set(['fi','hu','lt','lv']);
 const grammars=new Map();
 const qualifiers=new Map();
+const legacyLatin=LATIN_NUMBER_SUFFIXES.slice(0,9).join('|');
+const legacyRomanSuffix=new RegExp(`^([\\p{Lu}]{1,3})\\s*(${legacyLatin})$`,'u');
+const legacyDecimalSuffix=new RegExp(`^(?:${legacyLatin}|aa|ab|ac|ba)$`,'u');
 function grammar(language) {
   if(grammars.has(language))return grammars.get(language);
   const row=rows[language],words=Object.fromEntries(kinds.map((kind,i)=>[kind,row[i]]));
@@ -102,11 +107,14 @@ function grammar(language) {
 // Latin suffix. Such a cross-language mapping belongs to an explicit resolver.
 export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
-  const frenchSuffix=language==='fr'&&/^([A-Z]{1,3}|[a-z]{1,4})\s+(bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)$/u.exec(text);
-  if(frenchSuffix)return {value:frenchSuffix[1]+frenchSuffix[2],number:null,base:frenchSuffix[1],suffix:frenchSuffix[2]};
+  if(language==='fr') {
+    const numbered=text.match(/^(\d+(?:\.\d+)*|[A-Z]{1,3}|[a-z]{1,4})\s*([a-z]+(?:\s+[a-z]+){0,2})$/u);
+    const parts=numbered&&latinSuffixParts(numbered[2]);
+    if(parts){const base=numbered[1],suffix=parts.join('');return {value:base+suffix,number:/^\d+$/u.test(base)?Number(base):null,base,suffix};}
+  }
   // EP separates an inserted suffix from its alphabetic/Roman base; source
   // point labels also publish compact forms such as Croatian "ba".
-  const latinSuffix=text.match(/^([\p{Lu}]{1,3})\s*(bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)$/u);
+  const latinSuffix=text.match(legacyRomanSuffix);
   if(latinSuffix)return {value:latinSuffix[1]+latinSuffix[2],number:null,base:latinSuffix[1],suffix:latinSuffix[2]};
   const spaced=text.match(/^([\p{Lu}]{1,3}|[a-z]{1,8})\s+([\p{Ll}]{1,2})$/u);
   if(spaced)return {value:spaced[1]+spaced[2],number:null,base:spaced[1],suffix:spaced[2]};
@@ -117,7 +125,7 @@ export function proposalNumber(raw,language='en') {
   if(language==='fr'&&/^(?:premier|1er)$/i.test(text))return {value:'1',number:1,suffix:''};
   const decimal=text.match(/^(\d+(?:\.\d+)*)\s*([\p{L}]+|[\p{L}]\s[\p{L}])?$/u);
   if(decimal){const suffix=(decimal[2]??'').replace(/\s/g,'').toLowerCase();
-    if(suffix.length>1&&!/^(?:bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies|aa|ab|ac|ba)$/u.test(suffix))return null;
+    if(suffix.length>1&&!legacyDecimalSuffix.test(suffix))return null;
     return {value:decimal[1]+suffix,number:decimal[1].includes('.')?null:Number(decimal[1]),suffix};}
   if(/^[IVXLCDM]+$/.test(text))return {value:text,number:null,suffix:''};
   if(/^(?:[\p{L}]{1,2}|[ivxlcdm]{1,8})$/u.test(text))return {value:text.toLowerCase(),number:null,suffix:''};
@@ -152,7 +160,7 @@ export function parseLabelSegment(label,language='en') {
     const capital=['recital','paragraph'].includes(kind)&&/^([\p{Lu}]{1,3})(?:\s*([\p{Ll}]{1,3}))?$/u.exec(negative?rawValue.slice(1):rawValue);
     if(value&&capital){value.value=capital[1]+(capital[2]??'');value.suffix=capital[2]??'';if(capital[2])value.base=capital[1];}
     if(value&&negative){value.value='-'+value.value;value.negative=true;}
-    if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^(-?\d)|^[IVXLCDM]+[a-z]{0,2}$|^[\p{L}]$/u.test(value.value))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
+    if(value){if(['article','annex','chapter','section','title'].includes(kind)&&!/^(-?\d)|^[IVXLCDM]+[a-z]{0,2}$|^[\p{L}]$/u.test(value.value)&&!(language==='fr'&&latinSuffixParts(value.suffix)&&/^[IVXLCDM]+$/u.test(value.base??'')))continue;return {kind,...value,isNew,raw:label,...(sourceValue?{sourceValue}:{})};}
   }
   return null;
 }
@@ -203,6 +211,7 @@ export function unitLabel(unit,language='en') {
   const kind=segment.kind??unit.kind,entry=grammar(language).find(entry=>entry.kind===kind);
   if(!entry)return String(segment.raw??segment.value??kind??'');
   let value=String(segment.value??'');
+  if(language==='fr'&&segment.suffix&&latinSuffixParts(segment.suffix))value=(segment.base??value.slice(0,-segment.suffix.length))+' '+latinSuffixParts(segment.suffix).join(' ');
   if(kind==='article'&&language==='fr'&&value==='1')value='premier';
   const word=entry.terms[0];
   let label=reverseOrder.has(language)?`${value}${['hu','lv'].includes(language)?'.':''} ${word}`:`${word} ${value}`;
