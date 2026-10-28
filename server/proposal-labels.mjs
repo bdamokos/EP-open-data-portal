@@ -69,6 +69,8 @@ function grammar(language) {
 // Latin suffix. Such a cross-language mapping belongs to an explicit resolver.
 export function proposalNumber(raw,language='en') {
   const text=fold(raw).replace(/^[([]|[)\]]$/g,'').replace(/(\d+)\.º(?=-[\p{L}]|$)/u,'$1').replace(/[.\s]*(?:º|°)$/u,'').replace(/\.$/,'').replace(/^(\d+)[.‑–-]\s*([\p{L}])$/u,'$1$2');
+  const frenchSuffix=language==='fr'&&/^([A-Z]{1,3}|[a-z]{1,4})\s+(bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)$/u.exec(text);
+  if(frenchSuffix)return {value:frenchSuffix[1]+frenchSuffix[2],number:null,base:frenchSuffix[1],suffix:frenchSuffix[2]};
   // EP separates an inserted suffix from its alphabetic/Roman base; source
   // point labels also publish compact forms such as Croatian "ba".
   const spaced=text.match(/^([\p{Lu}]{1,3}|[a-z]{1,8})\s+([\p{Ll}]{1,2})$/u);

@@ -13,6 +13,7 @@ import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
 import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl} from './amendment-benchmark.mjs';
+import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
 const apiBase='https://explorer.example';
@@ -47,11 +48,11 @@ test('oracle preserves internal punctuation when a comparison column flattens so
   const original=rows.join(' '),amendment={...wording('Paragraph 7',original,'Revised allocation.'),baseline:'motion-resolution'};
   // Supply coordinates directly: this tests the independent oracle, not the placer.
   for(const operation of ['replace','delete']) {
-    const placement={status:'placed',operation,span:{start:1,end:4}};
-    assert.equal(verifyPlacement({placement,wording:amendment,text}).status,'verified');
-    assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:original.replace('units;','units')},text}).reason,'oracle-original-span-mismatch');
-    assert.equal(verifyPlacement({placement,wording:{...amendment,originalText:original.replace('units.','units')},text}).reason,'oracle-original-span-mismatch');
-    assert.equal(verifyPlacement({placement:{...placement,span:{start:1,end:3}},wording:amendment,text}).status,'failed');
+    const placement={status:'placed',operation,span:{start:1,end:4}},chosen=operation==='delete'?{...amendment,proposedText:'deleted.'}:amendment;
+    assert.equal(verifyPlacement({placement,wording:chosen,text}).status,'verified');
+    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units;','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement,wording:{...chosen,originalText:original.replace('units.','units')},text}).reason,'oracle-original-span-mismatch');
+    assert.equal(verifyPlacement({placement:{...placement,span:{start:1,end:3}},wording:chosen,text}).status,'failed');
   }
   const labels=[{value:'7'}];
   assert.equal(oracleNormal(rows.join('\n'),labels),oracleNormal(original,labels));
@@ -64,6 +65,23 @@ test('oracle preserves internal punctuation when a comparison column flattens so
   const placement={status:'placed',operation:'replace',span:{start:1,end:3}};
   assert.equal(verifyPlacement({placement,wording:quoted,text:quotedText}).status,'verified','quote/terminator ordering remains typographic');
   assert.equal(verifyPlacement({placement,wording:{...quoted,originalText:quotedOriginal.replace('applies.;”','applies.”')},text:quotedText}).status,'failed','the internal semicolon still matters');
+});
+test('independent operation oracle fails the old localized replace placements at the correct coordinates',async()=>{
+  const {examples}=JSON.parse(await readFile(new URL('../server/fixtures/amendment-operation-excerpts.json',import.meta.url),'utf8'));
+  for(const {language,deletion,insertion} of examples) {
+    const amendment={...deletion,language,baseline:'motion-resolution',targetLabel:'',targetPath:null};
+    const text={...source([deletion.originalText]),textLanguage:language};
+    const placement={status:'placed',operation:'replace',span:{start:0,end:0}};
+    const result=verifyPlacement({placement,wording:amendment,text});
+    assert.deepEqual(result,{status:'failed',reason:'oracle-operation-mismatch',expectedOperation:'delete',actualOperation:'replace'},language);
+    const value=stages();value.S5=placement;value.S6=result;
+    assert.equal(classify(value).outcome,'false-placement',language);
+    assert.equal(expectedOperation({...insertion,proposedText:'New wording.'}),'insert',language);
+    assert.equal(expectedOperation({...deletion,proposedText:deletion.proposedText+' Ordinary prose.'}),'replace',language);
+    assert.equal(expectedOperation({...deletion,proposedText:null}),null,language);
+  }
+  const amendment=wording('Article 1','Original.','Replacement.');
+  assert.equal(verifyPlacement({placement:{status:'placed',operation:'delete'},wording:amendment}).reason,'oracle-operation-mismatch');
 });
 test('introductory-part addresses are checked against their own provision',()=>{
   const items=item(['Article 1','1. Lead text of the paragraph:','(a) first point;','2. Other paragraph lead:']);

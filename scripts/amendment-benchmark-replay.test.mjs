@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -47,6 +47,29 @@ function fixture(commission=true,referenceOnly=false,omittedLanguage=false) {
   return {row,document,fetcher};
 }
 const sample={mode:'documents',asOf:'2026-10-27'};
+test('Council source replay freezes discovered XHTML and evaluates it without borrowing a live projection',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'council-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const runtime=await replayRuntime(root),f=fixture(),excerpts=JSON.parse(await readFile(new URL('../server/fixtures/council-position-excerpts.json',import.meta.url),'utf8')),rdf=await readFile(new URL('../server/fixtures/council-position-metadata.rdf',import.meta.url),'utf8');
+  const cell=value=>'<w:tc>'+p(value)+'</w:tc>',tr=(a,b)=>'<w:tr>'+cell(a)+cell(b)+'</w:tr>';
+  const list=docx(p('<Amend><NumAm>1</NumAm>')+p('<DocRef>17037/1/2025 – 2023/0226(COD)</DocRef>')+p('<DocAmend>Council position</DocAmend>')+p('<Article>Article 30 – paragraph 3 – point b</Article>')+'<w:tbl>'+tr('Council position','Amendment')+tr('(b) arrangements for the licensing of patents under fair and reasonable conditions, including through the voluntary platforms referred to in paragraph 2;','(b) New licensing arrangements;')+'</w:tbl>'+p('</Amend>'));
+  const fetcher=async(url,options)=>{
+    if(url===f.row.wordingSource.url)return new Response(list);
+    if(url.includes('/sparql?'))return Response.json({results:{bindings:[{work:{type:'uri',value:'http://publications.europa.eu/resource/cellar/94b1ab29-4450-11f1-8095-01aa75ed71a1'},celex:{type:'literal',value:excerpts.celex}}]}},{headers:{'content-type':'application/sparql-results+json'}});
+    if(url.includes('/celex/52026AG0006%2801%29'))return new Response(rdf,{headers:{'content-type':'application/rdf+xml'}});
+    if(url===excerpts.sourceUrl)return new Response(excerpts.xhtml,{headers:{'content-type':'application/xhtml+xml'}});
+    const result=await f.fetcher(url,options);
+    if(url===publicDocumentUrl(f.document)) {
+      const data=await result.json();data.data[0].inverse_created_a_realization_of=['eli/dl/proc/2023-0226'];data.data[0].is_realized_by[0].title_alternative={en:'17037/1/2025 – 2023/0226(COD)'};return Response.json(data);
+    }
+    return result;
+  };
+  const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:20,delay:0,sleep:async()=>{},fetcher});
+  await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));
+  const manifest=cache.manifest();assert(manifest.some(meta=>meta.url===excerpts.sourceUrl&&meta.request.accept==='application/xhtml+xml'));
+  const offline=new InputCache(directory,{apiBase,fetcher:()=>{throw new Error('Network forbidden');}});await offline.seal(manifest);
+  const rows=await evaluateReport([f.row],sample,offline,{runtime,replay:sourceReplay(offline,runtime)});
+  assert.equal(rows[0].outcome,'correct',JSON.stringify(rows[0].stages));assert.equal(rows[0].stages.S4.kind,'council-position');assert.equal(rows[0].stages.S6.status,'verified');
+});
 test('offline replay improves proposal-parser outcomes on identical bytes despite empty outdated live projections',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const runtime=await replayRuntime(root),f=fixture(),cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:20,delay:0,sleep:async()=>{},fetcher:f.fetcher});

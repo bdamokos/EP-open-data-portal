@@ -7,6 +7,8 @@ import { EventEmitter } from 'node:events';
 import { AMENDMENT_EXTRACTION_VERSION, extractAmendments } from './amendment-documents.mjs';
 import { docxParts, downloadDocxBuffer, downloadDocx } from './document-text.mjs';
 import { amendmentDownloads } from './amendments-worker.mjs';
+import {amendmentOperation,resolveAmendmentPlacement} from './document-context-model.mjs';
+import {resolveProposalPlacement} from './proposal-placement.mjs';
 
 // In-memory ZIPs keep tests offline while exercising the shared bounded reader.
 function archive(documentXml,stylesXml='',extra={}) {
@@ -28,6 +30,18 @@ const cell=(...paragraphs)=>`<w:tc>${paragraphs.join('')}</w:tc>`;
 const row=(...cells)=>`<w:tr>${cells.join('')}</w:tr>`;
 const table=(...rows)=>`<w:tbl>${row(cell(p('Motion for a resolution')),cell(p('Amendment')))}${rows.join('')}</w:tbl>`;
 const body=text=>`<w:document xmlns:w="urn:word"><w:body>${text}</w:body></w:document>`;
+
+test('extractor preserves published localized deletion cells for both placement paths',()=>{
+  const {examples}=JSON.parse(readFileSync(new URL('./fixtures/amendment-operation-excerpts.json',import.meta.url)));
+  for(const {language,deletion} of examples) {
+    const xml=body(p('<Amend><NumAm>5</NumAm>')+p('<Article>Recital 13</Article>')+table(row(cell(p(deletion.originalText)),cell(p(deletion.proposedText))))+p('</Amend>'));
+    const [amendment]=extractAmendments(archive(xml),{language,listId:'A-10-2025-0150-AM-001-129'}).amendments;
+    assert.equal(amendment.proposedText,deletion.proposedText,language);
+    assert.equal(amendmentOperation(amendment),'delete',language);
+    assert.equal(resolveProposalPlacement([],amendment).operation,'delete',language);
+    assert.equal(resolveAmendmentPlacement(null,amendment).operation,'delete',language);
+  }
+});
 const metadata=(number=1,{author='Bruno Gonçalves',date='2.10.2026',target='Paragraph 1'}={})=>p(`<Amend><Date>${date}</Date><NumAm>${number}</NumAm>`)+p(`<Members>${author}</Members>`)+p(`<Article>${target}</Article>`);
 const options={listId:'B-10-2026-0424-AM-001-001',targetDocumentId:'B-10-2026-0424',language:'en',sourceUrl:'https://data.europarl.europa.eu/distribution/example/amendment_en.docx',fetchedAt:'2026-10-16T17:15:00Z'};
 
@@ -61,7 +75,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -114,9 +128,9 @@ test('first ingestion withholds both columns after a lost row and attaches the n
   const supported=row(cell(p('First original row')),cell(p('First proposed row')));
   const unsupported=[
     {code:'comparison-columns',comparison:table(supported,row(cell(p('Lost original')),cell(p('Lost proposal')),cell(p('Unsupported third cell'))))},
-    // A nested-only row has no flattened outer-cell text. It must still count
-    // as a lost comparison row rather than an ignorable blank separator.
-    {code:'nested-table',comparison:table(supported,row(cell(table(row(cell(p('Nested legal text')),cell(p('Nested proposal'))))),cell(p(''))))},
+    // An unsupported nested grid must remain a lost comparison row, even
+    // when its surrounding cell has no visible paragraph.
+    {code:'nested-table',comparison:table(supported,row(cell('<w:tbl><w:tblGrid><w:gridCol/></w:tblGrid><w:tr><w:tc><w:tcPr><w:vMerge/></w:tcPr>'+p('Nested legal text')+'</w:tc></w:tr></w:tbl>'),cell(p(''))))},
     {code:'comparison-header',comparison:table(supported)+'<w:tbl>'+row(cell(p('Unknown original heading')),cell(p('Unknown proposed heading')))+row(cell(p('Lost original')),cell(p('Lost proposal')))+'</w:tbl>'},
   ];
   for(const {code,comparison} of unsupported) {
@@ -335,7 +349,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -441,7 +455,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -604,4 +618,133 @@ test('unknown vertical properties withhold wording with the narrower formatting 
   const xml=body(metadata()+table(row(cell('<w:p>'+formattedRun('<w:position w:val="invalid"/>','4')+'</w:p>'),cell(p('New'))))+p('</Amend>'));
   const {amendments:[a]}=extractAmendments(archive(xml),options);
   assert.equal(a.originalText,null);assert.deepEqual(a.originalFormatting,[]);assert(a.gaps.some(gap=>gap.code==='vertical-formatting-loss'));
+});
+
+
+test('FR/HU/RO published document classes remain metadata before the real committee target',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-document-class.json',import.meta.url),'utf8'));
+  for(const doc of fixture.documents) {
+    const {amendments}=extractAmendments(archive(doc.documentXml,doc.stylesXml),doc);
+    assert.deepEqual(amendments.map(a=>a.number),[1,13]);
+    for(const expected of doc.expected) {
+      const actual=amendments.find(a=>a.number===expected.number);
+      assert.equal(actual.targetLabel,expected.targetLabel,doc.language+' AM'+expected.number);
+      assert.deepEqual(actual.documentReferences.filter(r=>r.field==='DocumentClass'),[{field:'DocumentClass',raw:expected.documentClass,sourceRaw:expected.documentClass,scope:'amendment'}]);
+      assert.equal(actual.language,doc.language);assert.equal(actual.sources[0].url,doc.sourceUrl);
+      assert(actual.originalText!==null&&actual.proposedText!==null);
+    }
+  }
+});
+
+test('Croatian A-10-2025-0150 amendments 3 and 4 retain distinct unstyled boundaries and bold targets',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-croatian-unstyled.json',import.meta.url),'utf8'));
+  const result=extractAmendments(archive(fixture.documentXml,fixture.stylesXml),fixture);
+  assert.deepEqual(result.amendments.map(a=>a.number),[3,4]);
+  for(const expected of fixture.expected) {
+    const actual=result.amendments.find(a=>a.number===expected.number);
+    for(const [key,value] of Object.entries(expected))assert.equal(actual[key],value,`AM${expected.number}: ${key}`);
+    assert.equal(actual.committeeProposer,'Odbor za ribarstvo');
+    assert.equal(actual.date,'2026-09-10');assert.equal(actual.sources[0].url,fixture.sourceUrl);
+    assert(!actual.targetLabel.includes('Amandman'));assert(!actual.targetLabel.includes('Prijedlog uredbe'));
+  }
+});
+
+test('Croatian target lines use inherited bold formatting and honor direct non-bold runs',()=>{
+  const styles='<w:styles><w:style w:styleId="Parent"><w:rPr><w:b/></w:rPr></w:style><w:style w:styleId="Child"><w:basedOn w:val="Parent"/></w:style></w:styles>';
+  const target='<w:p><w:pPr><w:pStyle w:val="Child"/></w:pPr>'+run('Uvodna izjava 3.a (nova)')+'</w:p>';
+  const ordinary='<w:p><w:pPr><w:pStyle w:val="Child"/></w:pPr><w:r><w:rPr><w:b w:val="0"/></w:rPr><w:t>Ordinary metadata</w:t></w:r></w:p>';
+  const xml=body(p('<Committee>Odbor za ribarstvo</Committee>')+p('Amandman3')+ordinary+target+table(row(cell(p('')),cell(p('Published new recital.')))));
+  const result=extractAmendments(archive(xml,styles),{...options,listId:'A-10-2025-0150-AM-001-129',language:'hr'});
+  assert.equal(result.amendments[0].targetLabel,'Uvodna izjava 3.a (nova)');
+});
+
+
+test('Croatian amendment 13 retains plain underlying-act metadata after its bold proposal target',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-croatian-unstyled.json',import.meta.url),'utf8'));
+  const cover=p('<Committee>Odbor za ribarstvo</Committee><Procedure>Prijedlog uredbe</Procedure>');
+  const xml=body(cover+p('Amandman13')+fixture.underlyingTargetParagraphsXml+table(row(cell(p('')),cell(p('Test comparison.')))));
+  const {amendments}=extractAmendments(archive(xml,fixture.stylesXml),fixture);
+  assert.equal(amendments[0].targetLabel,fixture.underlyingTargetLabel);
+});
+
+test('published rejection, modification and stacked-annex layouts keep explicit wording sides',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-comparison-layouts.json',import.meta.url),'utf8'));
+  for(const doc of fixture.documents) {
+    const result=extractAmendments(archive(doc.documentXml,doc.stylesXml,doc.numberingXml?{'word/numbering.xml':doc.numberingXml}:{}),doc),amendment=result.amendments.find(row=>doc.id.endsWith('-AM-'+row.number));
+    assert(amendment,doc.id);
+    if(doc.language==='hu') {
+      // This real horizontal instruction spans BOTH comparison columns. Its
+      // wording has no unique side, so the whole amendment remains withheld.
+      assert.equal(amendment.originalText,null);assert(amendment.gaps.some(g=>g.code==='comparison-grid'));continue;
+    }
+    assert.equal(typeof amendment.proposedText,'string',doc.id);
+    assert(!amendment.gaps.some(g=>['comparison-header','comparison-grid'].includes(g.code)),doc.id);
+    if(['fr','it'].includes(doc.language)||doc.id==='A-10-2026-0048-AM-2') {
+      assert.equal(amendment.originalText,'');assert.equal(amendment.baseline,'unknown');
+      assert.equal(amendment.proposedText,{en:'The European Parliament rejects the Commission proposal.',fr:'Le Parlement européen rejette la proposition de la Commission.',it:'Il Parlamento europeo respinge la proposta della Commissione.'}[doc.language]);
+    } else {
+      assert.equal(amendment.baseline,'commission-proposal');
+      if(doc.id==='A-10-2026-0202-AM-88') {
+        assert.equal(amendment.baselineSource.headings[0].left.raw,'Commission proposal');
+        assert.equal(amendment.baselineSource.headings[0].right.raw,'Modification');
+        assert.equal(amendment.originalText,'');assert.match(amendment.proposedText,/^\(3a\)\tIt should be emphasised/);
+      } else {
+        assert.match(amendment.originalText,/Iron and [Ss]teel/);assert.match(amendment.proposedText,/Iron and [Ss]teel/);
+        assert(amendment.originalText.includes('CN code\tGreenhouse gas'));
+        assert(amendment.proposedText.includes('\tCarbon dioxide'));
+      }
+    }
+  }
+});
+
+test('stacked sections require both exact headings and retain tab-delimited table columns and formatting',()=>{
+  const full=text=>row('<w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr>'+p(text)+'</w:tc>');
+  const start=full('Text proposed by the Commission'),end=full('Amendment');
+  const original=row(cell(p('CN code')),cell(p('Greenhouse gas'))),proposed=row(cell('<w:p><w:r><w:rPr><w:vertAlign w:val="subscript"/></w:rPr><w:t>CO2</w:t></w:r></w:p>'),cell(p('Changed')));
+  const tbl=rows=>'<w:tbl><w:tblGrid><w:gridCol/><w:gridCol/></w:tblGrid>'+rows+'</w:tbl>';
+  for(const tables of [tbl(start+original+end+proposed),tbl(start+original)+tbl(end+proposed)]) {
+    const amendment=extractAmendments(archive(body(metadata()+tables+p('</Amend>'))),options).amendments[0];
+    assert.equal(amendment.originalText,'CN code\tGreenhouse gas');assert.equal(amendment.proposedText,'CO2\tChanged');
+    assert.deepEqual(amendment.proposedFormatting,[{start:0,end:3,kind:'subscript'}]);
+  }
+  for(const rows of [start+original,start+original+full('Unidentified proposal')+proposed,start+original+end+proposed+end+proposed]) {
+    const amendment=extractAmendments(archive(body(metadata()+tbl(rows)+p('</Amend>'))),options).amendments[0];
+    assert.equal(amendment.originalText,null);assert.equal(amendment.proposedText,null);
+    assert(amendment.gaps.some(g=>g.code==='comparison-header'));
+  }
+});
+
+test('official nested-cell and budget-annex tables retain wording on their explicitly headed sides',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-nested-tables.json',import.meta.url),'utf8'));
+  for(const doc of fixture.documents) {
+    const result=extractAmendments(archive(doc.documentXml,doc.stylesXml,doc.numberingXml?{'word/numbering.xml':doc.numberingXml}:{}),doc);
+    const amendment=result.amendments.find(row=>doc.id.endsWith('-AM-'+row.number));
+    assert.equal(typeof amendment.originalText,'string',doc.id);assert.equal(typeof amendment.proposedText,'string',doc.id);
+    assert(!amendment.gaps.some(gap=>['nested-table','comparison-grid','comparison-header'].includes(gap.code)),doc.id);
+    if(doc.id==='B-10-2026-0469-AM-2') {
+      assert.equal(amendment.originalText,'');
+      assert.equal(amendment.proposedText,'7a. Calls on the Commission to ensure the convergence towards the highest standards between the Union and its partners in free trade agreements and in agri-food imports and exports;');
+    } else if(/AM-(112|136)$/.test(doc.id)) {
+      assert.match(amendment.originalText,/7602 Aluminium waste and scrap except post-consumer scrap\tCarbon dioxide/);
+      assert.match(amendment.proposedText,/7602 Aluminium waste and scrap\tCarbon dioxide/);
+    } else if(doc.id==='A-10-2026-0201-AM-113') {
+      assert.equal(amendment.originalText,'');assert.match(amendment.proposedText,/threshold referred to in Article 2a shall be set at 5 tonnes/);
+    } else if(doc.id==='A-10-2026-0073-AM-120') {
+      assert.equal(amendment.baseline,'present-text');assert.match(amendment.originalText,/Directive 2006\/42\/EC/);assert.match(amendment.proposedText,/\(31a\)/);
+    } else {
+      assert.equal(amendment.originalText,'');assert.match(amendment.proposedText,/Title\tChapter\tArticle\tItem\tDescription/);
+    }
+  }
+});
+
+test('nested wording retains source order and formatting; unsupported inner grids and objects still withhold',()=>{
+  const nested='<w:tbl><w:tblGrid><w:gridCol/></w:tblGrid>'+row(cell('<w:p><w:r><w:rPr><w:vertAlign w:val="subscript"/></w:rPr><w:t>2</w:t></w:r></w:p>'))+'</w:tbl>';
+  const complete=metadata()+table(row(cell(p('')),cell(p('CO'),nested,p('after'))))+p('</Amend>');
+  const wording=extractAmendments(archive(body(complete)),options).amendments[0];
+  assert.equal(wording.proposedText,'CO\n2\nafter');assert.deepEqual(wording.proposedFormatting,[{start:3,end:4,kind:'subscript'}]);
+  for(const content of [nested.replace('<w:gridCol/>','<w:gridCol/><w:gridCol/>'),nested.replace('<w:tc>','<w:tc><w:tcPr><w:vMerge/></w:tcPr>'),nested.replace('<w:t>2</w:t>','<w:drawing/>')]) {
+    const result=extractAmendments(archive(body(metadata()+table(row(cell(p('')),cell(content)))+p('</Amend>'))),options).amendments[0];
+    assert.equal(result.originalText,null);assert.equal(result.proposedText,null);
+    assert(result.gaps.some(gap=>['nested-table','non-text-content'].includes(gap.code)));
+  }
 });
