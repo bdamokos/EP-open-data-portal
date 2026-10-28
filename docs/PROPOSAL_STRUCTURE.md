@@ -39,6 +39,14 @@ IDs are versioned hashes of source identity, source content, language and item p
 
 Results use a bounded process-local LRU keyed by exact input hash, parser version, language, item, identity and source URL. Up to eight immutable results occupy an estimated 64 MiB budget. Consumers must copy a result before modifying it. Changes to parsing semantics require a parser-version bump.
 
+## Internal comparison metadata
+
+`server/comparison-metadata.mjs` consumes an existing amendment record and a bounded native observation. It is a standalone helper; readers, endpoints and placement do not call it. `sourceObservation` retains the declared distribution separately from the response URL, language, retrieval time, response hash and representation. Its identifier hashes the complete observation tuple; missing declarations remain null.
+
+`comparisonMetadata({observation, native, amendment})` expects source-ordered content rows with both cells, including empty paragraphs. The caller supplies the hashed native part, namespace aliases, one-based qualified sibling paths, the preceding amendment heading, exact paragraph text, native run/separator ranges and completeness/object evidence. Read and verify these from the source before calling the helper. Recital numbers and auxiliary same-number candidates cannot establish amendment identity. The helper bounds rows and text and checks identity and exact field mapping; it does not read files or select sources.
+
+Each field retains its existing text plus the complete native column, disjoint paragraph/join regions and a reversible UTF-16 whitespace map. Removed whitespace stays in the map; punctuation and URLs remain literal. Markers and labels annotate their parent regions. Typed Word bindings remain source-layout candidates, with missing references and duplicate labels explicit. Unsupported objects and unmapped fields remain unresolved. `xhtmlNoteMetadata` separately retains exact native forward/backlink edges and occurrence arrays from a complete source observation. Neither helper supplies legal coordinates, note equivalence, composite classification, deletion semantics or shared-note application.
+
 ## Numbering and candidate resolution
 
 Proposal extraction uses the shared `docxContent` numbering resolver through `proposalNumberingLabels`, which adds level and format metadata for proposal hierarchy. Concrete numbering instances sharing an abstract list continue that list unless an explicit `startOverride` or overridden level start restarts it. Formatting-only overrides continue the list. `lvlRestart` uses its one-based trigger from the abstract definition; zero prevents restarts, and an omitted or invalid trigger uses the preceding level. Independent abstract lists remain separate. This recovers the CBAM annex's published `(1), (2), (3)` sequence and makes amendment 8's `Annex I / paragraph 1 / point 2 / point a` address unique.
