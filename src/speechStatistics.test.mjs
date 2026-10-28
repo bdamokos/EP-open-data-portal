@@ -37,6 +37,17 @@ const result=(available,nextPage=null,overrides={})=>({
   nextPage,sources:[{url:'https://example.org/source',fetchedAt:'2026-10-15T22:00:00Z',stale:false}],...overrides,
 });
 
+test('chairing counts only classified chair contributions and stays absent without observations',async t=>{
+  const rows=[{id:'chair-1',intervention:{type:'chair'}},{id:'speech-1',intervention:{type:'speech',speaker:{office:'President',sittingRole:'chair'}}}];
+  let items=rows;
+  const ui=await statistics(t,async()=>Response.json(result(items.length,null,{items})));
+  await ui.render({member:42,filter:{selected:'',href:category=>'?category='+category,select(){}}});
+  assert.equal(ui.stat('Chairing contributions'),'1');
+  assert.equal(ui.container.querySelector('a[aria-label^="Chairing contributions:"]').getAttribute('href'),'?category=chair');
+  items=rows.slice(1);await ui.render({member:99});
+  assert.equal(ui.stat('Chairing contributions'),undefined,'holding an office is not evidence of chairing this contribution');
+});
+
 test('automatically counts every page including written and unreadable contributions, with a spinner until finished',async t=>{
   const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speech-interventions-live-20261015.json',import.meta.url)));
   const ordinary=fixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===172);

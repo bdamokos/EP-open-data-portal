@@ -420,6 +420,9 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const c=interfaceCopy(lang);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
+  const [speechSearchActive,setSpeechSearchActive]=useState(false);
+  const [,setSpeechSearch]=useExplorerParam<string>('mep-speech-fts-search','');
+  const [,setSpeechSearchRead]=useExplorerParam<string>('mep-speech-fts-read','');
   const [category,setCategory]=useExplorerParam<string>('mep-speech-category','',speechCategories.map(([key])=>key));
   const [categoryOffset,setCategoryOffset]=useState(0);
   const filtered=category?enrichedSpeeches.filter(speech=>matchesSpeechCategory(speech,category as SpeechCategory)):null;
@@ -457,10 +460,12 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   };
   useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset]);
   return <section lang={lang}>
-    <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><TextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16"/></div>
+    <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2></div>
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} filter={{selected:category,href:filterHref,select:selectCategory}}/>
-    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
-    <div className="explorer-section-title" lang="en">{filtered?<h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>:<span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span>}</div>
+    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
+    {filtered&&<div className="explorer-section-title" lang="en"><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>{speechSearchActive&&<button onClick={()=>setCategory('')}>Clear category</button>}</div>}
+    <TextSearch key={'search:'+id} inline prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} onActiveChange={setSpeechSearchActive} summary={<>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</>}/>
+    {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading speeches…</p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
     {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
@@ -473,6 +478,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
     {filtered?<div className="explorer-category-top" lang="en">{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}>Newer</button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}>Older</button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}>Clear filter</button></div>:state.data && <div className="explorer-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    </>}
   </section>;
 }
 export default function App() {

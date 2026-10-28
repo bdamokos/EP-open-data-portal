@@ -17,7 +17,7 @@ type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start
 export interface TextSearchProps {
   prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;addressee?:string;from?:string;to?:string;
   sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:ReactNode;disabledReason?:string;
-  className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;
+  className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;inline?:boolean;summary?:ReactNode;
 }
 const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
 const kindLabel=(kind:Kind)=>kind==='speech'?'Speech':kind==='answer'?'Institutional answer':'Question';
@@ -46,7 +46,7 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   </section>;
 }
 
-export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false}:TextSearchProps) {
+export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false,inline=false,summary}:TextSearchProps) {
   useGlobalSearchMemory(prefix);
   const [query,setQuery]=useTextSearchParam<string>(prefix+'-search','');
   const [textLanguage,setTextLanguage]=useTextSearchParam<string>(prefix+'-text-lang','');
@@ -82,8 +82,14 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   useEffect(()=>setDraft(query),[query]);
   const previousNavigation=useRef({query,read,closed});
   useEffect(()=>{const previous=previousNavigation.current;previousNavigation.current={query,read,closed};if(closed==='1')setOpen(false);else if(query&&query!==previous.query||read&&read!==previous.read||previous.closed==='1'&&(query||read))setOpen(true);},[query,read,closed]);
-  useEffect(()=>{callback.current?.(open);return()=>callback.current?.(false);},[open]);
-  useEffect(()=>{if(open){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open]);
+  const active=inline?Boolean(query||read):open,pendingDraft=inline&&draft.trim()!==query;
+  useEffect(()=>{callback.current?.(active);return()=>callback.current?.(false);},[active]);
+  useEffect(()=>{if(open&&!inline){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open,inline]);
+  useEffect(()=>{
+    if(!pendingDraft)return;
+    const timer=window.setTimeout(()=>{setClosed('');setQuery(draft.trim());setPage(0);setExactOffset(-1);setRead('');setVariants({});},300);
+    return()=>window.clearTimeout(timer);
+  },[pendingDraft,draft,setClosed,setQuery,setPage,setExactOffset,setRead]);
   const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,addressee,from:dateFrom,to:dateTo,sourceIds,group,dateBasis,sort,limit:20,offset});
   const searchIdentity=JSON.stringify({...JSON.parse(request),offset:0});
   const predecessors=useRef<{key:string;offsets:Map<number,number>}>({key:searchIdentity,offsets:new Map()});
@@ -91,7 +97,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   const previousOffset=predecessors.current.offsets.get(offset)??0;
   const previousLabel=!predecessors.current.offsets.has(offset)?'First page':'Previous';
   function moveTo(next:number){setExactOffset(next);setPage(0);setRead('');}
-  const activeRequest=open&&Boolean(query)&&!disabledReason&&!scopeChanging&&showText;
+  const activeRequest=(inline||open)&&Boolean(query)&&!pendingDraft&&!disabledReason&&!scopeChanging&&showText;
   useEffect(()=>{
     if(!activeRequest)return;
     const controller=new AbortController();let current=true;
@@ -109,29 +115,29 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
     }).catch(error=>{if(current)setState(old=>({...old,loading:false,error:controller.signal.aborted?'This search took too long. Please retry.':error.message}));}).finally(()=>clearTimeout(timer));
     return()=>{current=false;controller.abort();clearTimeout(timer);};
   },[request,activeRequest,attempt]);
-  const data=showText&&state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading),error=showText&&state.key===request?state.error:null;
-  const selected=!showText||disabledReason||scopeChanging?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
-  function close(){setOpen(false);setClosed(prefix==='global-fts'||query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
+  const data=showText&&!pendingDraft&&(!inline||query)&&state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=showText&&!pendingDraft&&(!inline||query)&&state.key===request?state.error:null;
+  const selected=!showText||disabledReason||scopeChanging||pendingDraft?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
+  function close(){if(inline){setDraft('');setQuery('');reset();setVariants({});input.current?.focus();return;}setOpen(false);setClosed(prefix==='global-fts'||query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   function reset(){setPage(0);setExactOffset(-1);if(global)setCatalogOffset(0);setRead('');}
   function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);reset();setVariants({});if(next===query)setAttempt(v=>v+1);}
 
-  return <div lang="en" className={'explorer-text-search '+(open?'is-open ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&open){event.stopPropagation();close();}}}>
-    <button ref={toggle} type="button" className={"explorer-search-icon"+(!global?" explorer-search-launcher":"")} aria-label={global?label:'Search text · '+label.replace(/^Search\s+/i,'')} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>{if(open)close();else{setClosed('');setOpen(true);}}}><Magnifier/>{!global&&<span>Search text</span>}{query&&!open&&<span className="explorer-search-dot"/>}</button>
-    {open&&<section className="explorer-search-panel" id={panel} aria-label={label}>
-      <header className="explorer-search-heading"><h3>{label}</h3><button type="button" className="explorer-search-icon" aria-label={global?'Close search':'Close text search'} title={global?'Close search':'Close text search'} onClick={close}><CloseIcon/></button></header>
-      <form onSubmit={submit}><div className="explorer-search-input"><label className="explorer-search-field"><span className="explorer-search-sr">{global?'Names, topics or words':'Words or exact phrase'}</span><input ref={input} type="search" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={200} placeholder={global?'Names, topics or words':'Words or “exact phrase”'} aria-describedby={panel+'-hint'}/></label><button type="submit" className="explorer-search-icon" aria-label="Run text search" title="Search" disabled={Boolean(disabledReason)||loading}><Magnifier/></button></div>
-      <p id={panel+'-hint'} className="explorer-search-hint">All words · Use quotes for a phrase</p>
-      <div className="explorer-search-facets">
+  return <div lang="en" className={'explorer-text-search '+(inline||open?'is-open ':'')+(inline?'explorer-text-search-inline ':'')+className} onKeyDown={event=>{if(event.key==='Escape'&&(inline||open)){event.stopPropagation();close();}}}>
+    {!inline&&<button ref={toggle} type="button" className={"explorer-search-icon"+(!global?" explorer-search-launcher":"")} aria-label={global?label:'Search text · '+label.replace(/^Search\s+/i,'')} title={label} aria-expanded={open} aria-controls={panel} onClick={()=>{if(open)close();else{setClosed('');setOpen(true);}}}><Magnifier/>{!global&&<span>Search text</span>}{query&&!open&&<span className="explorer-search-dot"/>}</button>}
+    {(inline||open)&&<section className="explorer-search-panel" id={panel} aria-label={label}>
+      {!inline&&<header className="explorer-search-heading"><h3>{label}</h3><button type="button" className="explorer-search-icon" aria-label={global?'Close search':'Close text search'} title={global?'Close search':'Close text search'} onClick={close}><CloseIcon/></button></header>}
+      <form onSubmit={submit}><div className="explorer-search-inline-heading"><div className="explorer-search-input"><label className="explorer-search-field"><span className="explorer-search-sr">{inline?label:global?'Names, topics or words':'Words or exact phrase'}</span><input ref={input} type="search" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={200} placeholder={inline?'Search speech text':global?'Names, topics or words':'Words or “exact phrase”'} aria-describedby={!inline?panel+'-hint':undefined}/></label>{inline&&draft?<button type="button" className="explorer-search-icon" aria-label="Clear speech search" onClick={close}><CloseIcon/></button>:<button type="submit" className="explorer-search-icon" aria-label="Run text search" title="Search" disabled={Boolean(disabledReason)||loading}><Magnifier/></button>}</div>{inline&&summary&&<span className="explorer-search-summary">{summary}</span>}</div>
+      {!inline&&<p id={panel+'-hint'} className="explorer-search-hint">All words · Use quotes for a phrase</p>}
+      {(!inline||active)&&<div className="explorer-search-facets">
       {global&&<label>Result type<select value={['mep','topic','question','speech','answer'].includes(field)?field:''} onChange={e=>{setField(e.target.value);reset();}}><option value="">All results</option><option value="mep">MEPs</option><option value="topic">Plenary topics</option><option value="question">Questions</option><option value="speech">Speeches</option><option value="answer">Institutional answers</option></select></label>}
       {showText&&<label>Text language<select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);reset();}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all">All available languages</option></select></label>}
       {!global&&allowedKinds.length>1&&<label>Search in<select value={actualKinds.length===1?actualKinds[0]:''} onChange={e=>{setField(e.target.value);reset();}}><option value="">{group==='question'?'Questions + answers':'All text types'}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{kind==='answer'?'Answer text':kind==='question'?'Question text':'Speech text'}</option>)}</select></label>}
       {showText&&<label>{global?'Text order':'Order'}<select value={sort} onChange={e=>{setSort(e.target.value);reset();}}><option value="relevance">Best match</option><option value="newest">Newest first</option></select></label>}
       {global&&field!=='mep'&&<><label>From<input type="date" value={searchFrom} max={searchTo||undefined} onChange={e=>{setSearchFrom(e.target.value);reset();}}/></label><label>To<input type="date" value={searchTo} min={searchFrom||undefined} onChange={e=>{setSearchTo(e.target.value);reset();}}/></label></>}
-      </div></form>
+      </div>}</form>
       {showCatalog&&query&&<ParliamentSearchResults key={JSON.stringify([query,catalogType,language,dateFrom,dateTo,attempt])} query={query} type={catalogType} language={language} from={dateFrom} to={dateTo}/>}
       {global&&showText&&query&&<h4 className="explorer-search-text-heading">Matching text</h4>}
       {scopeNote&&<p className="explorer-search-scope">{scopeNote}</p>}
-      {(from||to)&&<p className="explorer-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: <span lang={from?language:'en'}>{dateLabel(from,language)||'start'}</span> — <span lang={to?language:'en'}>{dateLabel(to,language)||'present'}</span></p>}
+      {!inline&&(from||to)&&<p className="explorer-search-hint">{dateBasis==='question'?'Question date':'Publication date'}: <span lang={from?language:'en'}>{dateLabel(from,language)||'start'}</span> — <span lang={to?language:'en'}>{dateLabel(to,language)||'present'}</span></p>}
       {disabledReason&&<p role="status" className="explorer-search-status">{disabledReason}</p>}
       {loading&&<p role="status" className="explorer-search-status">Searching…</p>}
       {error&&<p role="alert" className="explorer-search-status">{error} <button className="explorer-search-link" type="button" onClick={()=>setAttempt(v=>v+1)}>Retry</button></p>}

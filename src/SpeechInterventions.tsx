@@ -14,13 +14,14 @@ import {selectLanguageText} from './language.mjs';
 
 const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','oral-explanation-of-vote':'Oral explanation of vote','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Unclassified'};
 export const speechCategories=[
-  ['total','Total contributions','speech'],['groupOrations','On behalf of a group','speech'],['written','Written statements','written'],['blueQuestions','Blue cards raised','blue-card-question'],['blueAnswers','Blue cards answered','blue-card-answer'],['blueReactions','Blue-card reactions','blue-card-reaction']
+  ['total','Total contributions','speech'],['groupOrations','On behalf of a group','speech'],['written','Written statements','written'],['blueQuestions','Blue cards raised','blue-card-question'],['blueAnswers','Blue cards answered','blue-card-answer'],['blueReactions','Blue-card reactions','blue-card-reaction'],['chair','Chairing contributions','chair']
 ] as const;
 export type SpeechCategory=typeof speechCategories[number][0];
 export function matchesSpeechCategory(speech:Speech,category:SpeechCategory) {
   const intervention=speech.intervention;
   switch(category){
     case 'total':return true;
+    case 'chair':return intervention?.type==='chair';
     case 'written':return speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT';
     case 'groupOrations':return Boolean(intervention?.onBehalfOf.some(group=>group.politicalGroup));
     case 'blueQuestions':return intervention?.type==='blue-card-question'||intervention?.type==='blue-card-intervention';
@@ -65,8 +66,10 @@ export function InterventionStatistics({member,onItems,filter}:{member:number;on
   return <section className="intervention-statistics" lang="en" aria-label="Speaking statistics">
     <div className="intervention-stats-heading"><h3>At the microphone</h3><div className="intervention-stats-meta"><span>Term 10</span>{loading&&<span className="intervention-counting" role="status"><span className="intervention-spinner" aria-hidden="true"/><span className="intervention-counting-label">Counting contributions…</span></span>}</div></div>
     {result&&<><div className="intervention-stats-grid" aria-busy={loading}>{speechCategories.map(([key,label,type])=>{
+      const chairs=result.items.filter(item=>matchesSpeechCategory(item,'chair')).length;
+      if(key==='chair'&&!chairs)return null;
       const written=result.items.filter(item=>matchesSpeechCategory(item,'written')).length;
-      const count=key==='total'?result.coverage.available:key==='written'?(written||result.coverage.complete?written:null):result.counts[key];
+      const count=key==='total'?result.coverage.available:key==='chair'?chairs:key==='written'?(written||result.coverage.complete?written:null):result.counts[key];
       return <div key={key}><InterventionIcon type={type}/><strong>{filter&&count!==null?<a href={filter.href(key)} aria-label={`${label}: ${count}. Filter contributions`} aria-current={filter.selected===key?'true':undefined} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();filter.select(key);}}>{count}</a>:count??'—'}</strong><span>{label}{count!==null&&key!=='total'&&result.coverage.unclassified>0&&<PartialValue partial/>}</span></div>;
     })}</div>
       {!loading&&<>
