@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {docxContent,documentText,documentStructure} from './document-text.mjs';
 import {runWithRequestSignal,cancelledRequest} from './request-budget.mjs';
+import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
 
@@ -151,14 +152,14 @@ test('symbol and object positions remain aligned with numbering, hyperlinks and 
 });
 
 test('legacy and malformed structure is unknown even when cached paragraphs are readable',()=>{
-  const content=docxContent(zip(doc(p('Readable')))),record={extractionVersion:8,...content};
+  const content=docxContent(zip(doc(p('Readable')))),record={extractionVersion:DOCX_EXTRACTION_VERSION,...content};
   assert.equal(documentStructure(record).structureStatus,'extracted');
   for(const bad of [{...record,extractionVersion:6},{...record,paragraphSources:[]},{...record,paragraphSources:[{...record.paragraphSources[0],ordinal:-1}]},{...record,structureStatus:undefined}]) {
     assert.deepEqual(documentStructure(bad),{structureStatus:'not-extracted',paragraphSources:[],documentObjects:[]});
   }
   const object=docxContent(zip(doc(`<w:p><w:r>${symbol('Unknown')}</w:r></w:p>`)));
-  assert.equal(documentStructure({extractionVersion:8,...object}).structureStatus,'extracted');
-  assert.equal(documentStructure({extractionVersion:8,...object,paragraphSources:[{...object.paragraphSources[0],complete:true}]}).structureStatus,'not-extracted');
+  assert.equal(documentStructure({extractionVersion:DOCX_EXTRACTION_VERSION,...object}).structureStatus,'extracted');
+  assert.equal(documentStructure({extractionVersion:DOCX_EXTRACTION_VERSION,...object,paragraphSources:[{...object.paragraphSources[0],complete:true}]}).structureStatus,'not-extracted');
 });
 
 test('structure and source provenance survive persistence and settled retention without a cold refresh',async t=>{
@@ -167,7 +168,7 @@ test('structure and source provenance survive persistence and settled retention 
   const work={identifier:'A-10-2026-0237',document_date:'2026-09-16',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url,...source}]}]};
   const content=docxContent(zip(doc(p('Retained'))));let calls=0;
   const result=await documentText(work,'en',{directory,clock:()=>Date.parse('2026-12-01'),download:async()=>{calls++;return content;}});
-  assert.equal(calls,1);assert.equal(result.extractionVersion,8);assert.deepEqual(result.sourceVersion,source);assert.equal(result.structureStatus,'extracted');
+  assert.equal(calls,1);assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);assert.deepEqual(result.sourceVersion,source);assert.equal(result.structureStatus,'extracted');
   const file=path.join(directory,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),saved=JSON.parse(await readFile(file,'utf8'));
   assert.deepEqual(saved.paragraphSources,content.paragraphSources);
   const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});console.log(JSON.stringify(await documentText(${JSON.stringify(work)},'en',{directory:${JSON.stringify(directory)},clock:()=>Date.parse('2027-12-01'),download:async()=>{throw new Error('Unexpected cold refresh');}})));`;
@@ -203,4 +204,16 @@ for(const code of ['upstream_busy','request_timeout'])test(`cold DOCX reads prop
   assert(refreshFailed);await new Promise(resolve=>setImmediate(resolve));
   const retained=await documentText(work,'en',{directory:null,clock,download:()=>{throw new Error('No cold refresh after local failure');}});
   assert.equal(retained.status,'available');assert.deepEqual(retained.paragraphSources,recovered.paragraphSources);assert.equal(retained.refreshError,null);
+});
+
+test('large main XML stays bounded independently of the compressed DOCX size',()=>{
+  // The public A-10-2026-0105 main part is 8,602,381 bytes. Padding stands in
+  // for its verbose formatting; retained text/objects use the normal reader.
+  const xml=doc(p('Before')+'<!--'+' '.repeat(8_602_381)+'-->'+`<w:p><w:r>${symbol('Unknown')}</w:r></w:p>`+p('After'));
+  const result=docxContent(zip(xml));
+  assert.deepEqual(result.paragraphs,['Before','\uFFFC','After']);
+  assert.equal(result.paragraphSources[1].complete,false);
+  assert.equal(result.documentObjects[0].status,'unresolved');
+  assert.throws(()=>docxContent(zip(doc(p('Too large')+'<!--'+' '.repeat(12*1024*1024)+'-->'))),/Unsupported DOCX document entry/);
+  assert.throws(()=>docxContent(zip(doc(p('Small')),{'word/styles.xml':'<w:styles xmlns:w="urn:word"><!--'+' '.repeat(12*1024*1024)+'--></w:styles>'})),/Unsupported DOCX document entry/);
 });

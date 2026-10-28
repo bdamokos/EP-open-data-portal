@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {deflateRawSync} from 'node:zlib';
 import {docxParagraphs,docxContent,allowedDownload,documentText,documentNotes} from './document-text.mjs';
+import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {motionBody,compareMotionBodies} from './motion-diff.mjs';
 
@@ -217,7 +218,7 @@ test('document text coalesces cold reads, persists actual language and serves la
     finish({paragraphs:['Actual answer text']});
     const [a,b]=await Promise.all([first,second]);
     assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,8);
+    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,DOCX_EXTRACTION_VERSION);
     const clock=()=>Date.now()+8*86400000;
     let refreshCalls=0,fail;
     const failure=new Promise((_,reject)=>fail=()=>reject(new Error('upstream500')));
@@ -248,7 +249,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
     const fixture=JSON.parse(await readFile(new URL('./fixtures/motion-text-live-20261016.json',import.meta.url),'utf8'));
     const content=docxContent(zip(fixture.documentXml,fixture.stylesXml)),{paragraphs}=content;
     const upgraded=[];
-    for(const version of [undefined,1,2,3,4,5,6,7]) {
+    for(const version of [undefined,1,2,3,4,5,6,7,8]) {
       const url=`https://data.europarl.europa.eu/distribution/upgrade-${Date.now()}-${version}/motion.docx`;
       const work={identifier:fixture.sourceId,is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
@@ -256,18 +257,18 @@ test('old extracted text is refreshed on demand and current extraction survives 
       await writeFile(file,JSON.stringify(old));let calls=0;
       const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return content;}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
-      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,8);
+      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);
       const saved=JSON.parse(await readFile(file,'utf8'));
-      assert.equal(saved.extractionVersion,8);assert.equal(saved.sourceUrl,url);assert.deepEqual(saved.paragraphs,paragraphs);
+      assert.equal(saved.extractionVersion,DOCX_EXTRACTION_VERSION);assert.equal(saved.sourceUrl,url);assert.deepEqual(saved.paragraphs,paragraphs);
       upgraded.push(work);
     }
     // One cold process verifies every upgraded record without sharing parent memory.
     const script=`const {documentText}=await import(${JSON.stringify(new URL('./document-text.mjs',import.meta.url).href)});let downloads=0;const results=[];for(const work of ${JSON.stringify(upgraded)})results.push(await documentText(work,'en',{directory:${JSON.stringify(dir)},download:async()=>{downloads++;throw new Error('Unexpected redownload');}}));if(downloads)throw new Error('Restart attempted '+downloads+' downloads');console.log(JSON.stringify(results));`;
     const restarted=JSON.parse((await execFileAsync(t,process.execPath,['--input-type=module','-e',script],{encoding:'utf8'})).stdout);
-    assert.equal(restarted.length,8);
+    assert.equal(restarted.length,9);
     for(const [index,result] of restarted.entries()) {
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);
-      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,8);assert.equal(result.refreshInProgress,false);
+      assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);assert.equal(result.refreshInProgress,false);
       assert.equal(result.sourceUrl,upgraded[index].is_realized_by[0].is_embodied_by[0].is_exemplified_by);
     }
   }finally{await rm(dir,{recursive:true,force:true});}

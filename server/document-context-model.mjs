@@ -1,5 +1,6 @@
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {motionBodySelection,resolutionSectionHeading,resolutionSubheading,resolutionSeparator} from './resolution-body.mjs';
+import {resolutionPointPlacement} from './resolution-points.mjs';
 const whitespace = value => typeof value === 'string' ? value.replace(/\s+/gu, ' ').trim() : '';
 const english = language => typeof language === 'string' && /^en(?:-|$)/i.test(language);
 const result = (status, reason, fields = {}) => ({
@@ -241,13 +242,15 @@ export function resolveDocumentTarget(text, {originalText, targetLabel, referenc
 // markers. Only a whole cell is a marker; prose containing these words is text.
 export const DELETION_MARKERS = Object.freeze([
   'deleted', 'supprimé', 'supprimée', 'entfällt', 'gestrichen', 'suprimido',
-  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'udgår',
+  'soppresso', 'soppressa', 'suprimida', 'geschrapt', 'schrappen', 'udgår',
   'utgår', 'poistetaan', 'διαγράφεται', 'törölve', 'eliminat', 'eliminată',
   'заличава се', 'vypouští se', 'vypúšťa sa', 'črtano', 'briše se',
   'skreśla się', 'svītrots', 'išbraukta', 'välja jäetud', 'imħassar', 'scriosta',
 ]);
 const deletionMarkers = new Set(DELETION_MARKERS);
-export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase());
+// Published FI/LT/HR cells also use a terminal full stop. Do not strip other
+// punctuation, quotes or words: only an entire instruction cell is deletion.
+export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase().replace(/\.$/u,'').trimEnd());
 export function amendmentOperation({originalText, proposedText} = {}) {
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
   if (whitespace(originalText)) return !whitespace(proposedText) || isDeletionMarker(proposedText) ? 'delete' : 'replace';
@@ -482,6 +485,8 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis: 'published-resolution-section', heading: structure.selection.heading, opening: structure.start});
   }
   const ref = placementReference(options.targetLabel, options.language, options.proposedText);
+  const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
+  if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
     if (reference.kind !== 'point') return true;
     let parent = units.find(candidate => candidate.start === unit.parent);
