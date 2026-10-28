@@ -1,4 +1,5 @@
 import {Fragment,useMemo,useState,type ReactNode} from 'react';
+import {amendmentLanguageScope} from '../amendmentLanguageScope.mjs';
 import {textDiff,type TextDiffSegment} from '../textDiff.mjs';
 import './WordingDiff.css';
 import {FormattedWording,formattingDiff,type WordingFormat} from './WordingFormatting';
@@ -59,6 +60,8 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
   </div>;
 }
 export function WordingDiff(props:Props) {
+  const scope=amendmentLanguageScope({originalText:props.original,proposedText:props.proposed,language:props.language});
+  if(scope)return <div className="wording-diff" lang="en"><p className="wording-diff__note">No change in this language version.</p><p lang={scope.language}>{scope.note}</p></div>;
   // A new exact wording selection gets its own default; choices never persist outside this instance.
   return <Comparison key={JSON.stringify([props.original,props.proposed,props.originalFormatting,props.proposedFormatting,props.language,props.emptySemantics,props.presentation])} {...props}/>;
 }

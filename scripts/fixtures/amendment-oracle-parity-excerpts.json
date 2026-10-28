@@ -1,0 +1,221 @@
+{
+  "attribution": "European Commission / European Parliament; legal text © European Union",
+  "examples": [
+    {
+      "language": "ga",
+      "source": {
+        "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0002.01/DOC_2",
+        "sha256": "f22cef2518f598ce9772ace08c0e25d67b616da595f09c4c3fd3e11d901b8a02",
+        "retrievedAt": "2026-10-27T23:25:24.317Z"
+      },
+      "wordingSource": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_ga.docx",
+        "sha256": "cdc20d23d5870d108f3e78fb23884b643395c13ba7aa614b578e66100ba86961",
+        "retrievedAt": "2026-10-27T20:17:40.619047+00:00"
+      },
+      "targetLabel": "Iarscríbhinn – pointe 1 – an chuid réamhráiteach",
+      "originalText": "(1) Cuirfear an méid seo a leanas in ionad Iarscríbhinní VII, VIII agus XI:",
+      "paragraphs": [
+        {
+          "text": "IARSCRÍBHINN",
+          "style": "Annexetitre",
+          "path": "/w:document[1]/w:body[1]/w:p[3]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 1
+        },
+        {
+          "text": "(1) Cuirfear an méid seo a leanas in ionad Iarscríbhinní VII, VIII agus XI:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[4]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 2
+        },
+        {
+          "text": "‘IARSCRÍBHINN VII",
+          "style": "NormalCentered",
+          "path": "/w:document[1]/w:body[1]/w:p[6]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 3
+        },
+        {
+          "text": "(1) limistéar srianta iascaigh domhainfharraige ‘Sceir Lophelia amach ó Capo Santa Maria di Leuca’ atá crioslaithe le línte lena gceanglaítear na comhordanáidí seo a leanas:",
+          "style": "Point0",
+          "path": "/w:document[1]/w:body[1]/w:p[102]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 124
+        },
+        {
+          "text": "(2) limistéar srianta iascaigh domhainfharraige ‘Púscadh hidreacarbóin fhuar i limistéar dheilte na Níle’ atá crioslaithe le línte lena gceanglaítear na comhordanáidí seo a leanas:",
+          "style": "Point0",
+          "path": "/w:document[1]/w:body[1]/w:p[107]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 129
+        },
+        {
+          "text": "(2) cuirtear na hIarscríbhinní XVII, XVIII, XIX, XX, XXI, XXII agus XXIII seo a leanas isteach:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[118]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 139
+        }
+      ],
+      "selected": 1
+    },
+    {
+      "language": "lv",
+      "source": {
+        "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0014.01/DOC_1",
+        "sha256": "bb746c376172fa3a61fbb3ed247070ea2d772c5ee33cad0fdecdccc3ab8564b3",
+        "retrievedAt": "2026-10-27T23:25:43.049Z"
+      },
+      "wordingSource": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_lv.docx",
+        "sha256": "0c64190e5c6bdea70c9c58d003d4bf0389433d55d32904c76ff50208f3b96e21",
+        "retrievedAt": "2026-10-27T20:18:10.701572+00:00"
+      },
+      "targetLabel": "1. pants – 1. daļa – 52. punkts",
+      "originalText": "(d) maksimālās iespējamās piezvejas sliekšņvērtības;",
+      "paragraphs": [
+        {
+          "text": "1. pants\nGrozījumi Regulā (ES) 2023/2124",
+          "style": "Titrearticle",
+          "path": "/w:document[1]/w:body[1]/w:p[89]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 85
+        },
+        {
+          "text": "Regulu (ES) 2023/2124 groza šādi:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[90]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 86
+        },
+        {
+          "text": "52) iekļauj šādu 105.a pantu:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[520]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 476
+        },
+        {
+          "text": "d) maksimālās iespējamās piezvejas sliekšņvērtības;",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[528]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 483
+        },
+        {
+          "text": "53) regulas 106. panta 1. punktu groza šādi:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[537]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 491
+        },
+        {
+          "text": "2. pants\nStāšanās spēkā",
+          "style": "Titrearticle",
+          "path": "/w:document[1]/w:body[1]/w:p[775]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 712
+        }
+      ],
+      "selected": 3
+    },
+    {
+      "language": "nl",
+      "source": {
+        "url": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0010.01/DOC_1",
+        "sha256": "293b3651da8b4a5e3aafa139541241dd19f8e2d66d1f6dd8fab4bd86f12de238",
+        "retrievedAt": "2026-10-27T23:25:51.423Z"
+      },
+      "wordingSource": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+        "sha256": "c3dae014db7eb08f0cb520b304425e5b64892bcfb12d484a64eb1dde7b2a3809",
+        "retrievedAt": "2026-10-27T20:18:22.771658+00:00"
+      },
+      "targetLabel": "Artikel 1 – alinea 1 – punt 52",
+      "originalText": "(d) maximale potentiële bijvangstdrempels;",
+      "paragraphs": [
+        {
+          "text": "Artikel 1 \nWijziging van Verordening (EU) 2023/2124",
+          "style": "Titrearticle",
+          "path": "/w:document[1]/w:body[1]/w:p[89]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 85
+        },
+        {
+          "text": "Verordening (EU) 2023/2124 wordt als volgt gewijzigd:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[90]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 86
+        },
+        {
+          "text": "52) Het volgende artikel 105 bis wordt ingevoegd:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[521]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 477
+        },
+        {
+          "text": "d) maximale potentiële bijvangstdrempels;",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[529]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 484
+        },
+        {
+          "text": "53) Lid 1 van artikel 106 wordt als volgt gewijzigd:",
+          "style": null,
+          "path": "/w:document[1]/w:body[1]/w:p[538]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 492
+        },
+        {
+          "text": "Artikel 2 \nInwerkingtreding",
+          "style": "Titrearticle",
+          "path": "/w:document[1]/w:body[1]/w:p[776]",
+          "body": true,
+          "uncertain": false,
+          "automatic": false,
+          "sourceIndex": 713
+        }
+      ],
+      "selected": 3
+    }
+  ]
+}

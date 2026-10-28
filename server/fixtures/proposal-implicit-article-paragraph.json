@@ -1,0 +1,560 @@
+{
+  "proposal": {
+    "attribution": "European Commission / European Parliament; legal text © European Union",
+    "language": "it",
+    "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0015.01/DOC_1",
+    "sourceSha256": "457e33f91fefec04f7d756fa00be00716a0ede327cacb9e8e81030128de3e430",
+    "retrievedAt": "2026-10-27T23:25:35.277Z",
+    "sourceParagraphRange": {
+      "start": 85,
+      "end": 108
+    },
+    "coverage": {
+      "complete": false
+    },
+    "structureStatus": "extracted",
+    "paragraphs": [
+      "Articolo 1\nModifiche del regolamento (UE) 2023/2124",
+      "Il regolamento (UE) 2023/2124 è così modificato:",
+      "1) l'articolo 3 è così modificato:",
+      "a) la frase introduttiva è sostituita dalla seguente:",
+      "\"Ai fini del presente regolamento, in aggiunta alle definizioni di cui all'articolo 4 del regolamento (UE) n. 1380/2013 del Parlamento europeo e del Consiglio, all'articolo 2 del regolamento (CE) n. 1967/2006 del Consiglio, all'articolo 2, punti da 1) a 4), del regolamento (CE) n. 1005/2008 del Consiglio, all'articolo 4 del regolamento (CE) n. 1224/2009 del Consiglio, all'articolo 2, punti da 1) a 13), del regolamento (UE) 2019/1022 del Parlamento europeo e del Consiglio e all'articolo 6 del regolamento (UE) 2019/1241 del Parlamento europeo e del Consiglio, si applicano le definizioni seguenti:\";",
+      "b) sono aggiunti i punti seguenti:",
+      "\"9)\t\"zona di restrizione della pesca\": una zona geografica definita in cui alcune attività di pesca specifiche sono temporaneamente vietate o limitate al fine di migliorare la conservazione e l'uso sostenibile delle risorse marine vive nella zona di applicazione dell'accordo CGPM;",
+      "10)\t\"punto di sbarco designato\": porti o luoghi in prossimità della costa, terminali offshore e altri impianti per lo sbarco, il trasbordo, l'imballaggio, la trasformazione, il rifornimento di carburante o il riapprovvigionamento dei pescherecci in cui sono consentite operazioni di sbarco, trasbordo, imballaggio e/o trasformazione dei prodotti della pesca, designati dalle parti contraenti e dalle parti non contraenti cooperanti conformemente alla raccomandazione CGPM/40/2016/1 relativa a un regime regionale di misure di competenza dello Stato di approdo per contrastare le attività di pesca illegali, non dichiarate e non regolamentate nella zona di applicazione dell'accordo CGPM;",
+      "11)\t\"certificato di cattura\": documento ufficiale che accompagna una partita e convalidato dall'autorità competente, che consente di trasmettere informazioni esatte e verificabili sul pesce lungo tutta la catena di approvvigionamento;",
+      "12)\t \"programma di documentazione delle catture\" o \"SDC\": sistema istituito a norma degli obblighi internazionali pertinenti avente principalmente lo scopo di contribuire a determinare, lungo tutta la catena di approvvigionamento, se il pesce proviene da catture effettuate conformemente alle misure nazionali, regionali e internazionali di conservazione e gestione applicabili.\";",
+      "2) l'articolo 4 è sostituito dal seguente:",
+      "\"Articolo 4",
+      "Ambito di applicazione",
+      "Il presente capo si applica a tutte le attività di pesca dell'anguilla (Anguilla anguilla), in particolare la pesca mirata, accidentale e ricreativa, in tutte le acque del Mar Mediterraneo di cui all'allegato I, comprese le acque dolci e le acque di transizione e salmastre, quali lagune ed estuari.\";",
+      "3) tra l'articolo 12 e l'articolo 13 è inserito l'articolo 12 bis seguente:",
+      "\"Articolo 12 bis",
+      "Pesca ricreativa",
+      "Gli Stati membri provvedono affinché la pesca ricreativa dell'anguilla in tutte le fasi del suo ciclo vitale (ceca, gialla, argentata) sia vietata in tutti gli habitat.\";",
+      "4) tra l'articolo 14 e l'articolo 15 è inserito l'articolo 14 bis seguente:",
+      "\"Articolo 14 bis",
+      "Misure di gestione della flotta",
+      "Gli Stati membri provvedono affinché la capacità totale della flotta o lo sforzo di pesca totale delle flotte che praticano la pesca attiva degli stock principali con reti da traino demersali, con riferimento alla stazza lorda (GT) e/o alle tonnellate di stazza lorda (TSL), alla potenza del motore (kW) e al numero di pescherecci, riportati sia nel registro nazionale che nel registro CGPM, non superino il numero di pescherecci o lo sforzo di pesca previsto per i pescherecci da traino a divergenti che hanno pescato il gambero di profondità nel periodo 2014-2017 o in un altro periodo di tre anni consecutivi, ad esempio 2015-2018, a condizione che l'aumento non sia superiore al 50 % rispetto al periodo di riferimento 2014-2017.\";",
+      "5) l'articolo 15 è così modificato:"
+    ],
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[89]",
+        "ordinal": 88,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[90]",
+        "ordinal": 89,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[91]",
+        "ordinal": 90,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[92]",
+        "ordinal": 91,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[93]",
+        "ordinal": 92,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[94]",
+        "ordinal": 93,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[95]",
+        "ordinal": 94,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[96]",
+        "ordinal": 95,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[97]",
+        "ordinal": 96,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[98]",
+        "ordinal": 97,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[99]",
+        "ordinal": 98,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[100]",
+        "ordinal": 99,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[101]",
+        "ordinal": 100,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[102]",
+        "ordinal": 101,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[104]",
+        "ordinal": 103,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 4,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[105]",
+        "ordinal": 104,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 4,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[106]",
+        "ordinal": 105,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 4,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[107]",
+        "ordinal": 106,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 4,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[109]",
+        "ordinal": 108,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 5,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[110]",
+        "ordinal": 109,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 5,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[111]",
+        "ordinal": 110,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 5,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[112]",
+        "ordinal": 111,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 5,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[113]",
+        "ordinal": 112,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 5,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "paragraphFormats": [
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 11,
+            "kind": "italic"
+          },
+          {
+            "start": 11,
+            "end": 51,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify",
+        "indent": 0.5
+      },
+      {
+        "align": "justify",
+        "indent": 0.5
+      },
+      {
+        "align": "justify",
+        "indent": 0.5
+      },
+      {
+        "align": "justify",
+        "indent": 0.5
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 1,
+            "end": 11,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 22,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "marks": [
+          {
+            "start": 72,
+            "end": 89,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 1,
+            "end": 16,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 16,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 1,
+            "end": 16,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 31,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify"
+      },
+      {
+        "align": "justify"
+      }
+    ]
+  },
+  "amendmentSource": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_it.docx",
+    "sha256": "cd1611006e0335416603273ad391061441a55bfd4b313ad99e8d21233f819853",
+    "retrievedAt": "2026-10-27T20:17:58.625123+00:00"
+  },
+  "amendments": [
+    {
+      "number": 13,
+      "targetLabel": "Articolo 1 – punto 1 – lettera b",
+      "originalText": "10)\t\"punto di sbarco designato\": porti o luoghi in prossimità della costa, terminali offshore e altri impianti per lo sbarco, il trasbordo, l'imballaggio, la trasformazione, il rifornimento di carburante o il riapprovvigionamento dei pescherecci in cui sono consentite operazioni di sbarco, trasbordo, imballaggio e/o trasformazione dei prodotti della pesca, designati dalle parti contraenti e dalle parti non contraenti cooperanti conformemente alla raccomandazione CGPM/40/2016/1 relativa a un regime regionale di misure di competenza dello Stato di approdo per contrastare le attività di pesca illegali, non dichiarate e non regolamentate nella zona di applicazione dell'accordo CGPM;",
+      "proposedText": "10)\t\"punto di sbarco designato\": porti o luoghi in prossimità della costa, terminali offshore e altri impianti per lo sbarco, il trasbordo, l'imballaggio, la trasformazione, il rifornimento di carburante o il riapprovvigionamento dei pescherecci in cui sono consentite operazioni di sbarco, trasbordo, imballaggio e/o trasformazione dei prodotti della pesca, designati dalle parti contraenti e dalle parti non contraenti cooperanti nell'ambito del regime regionale di misure di competenza dello Stato di approdo per contrastare le attività di pesca illegali, non dichiarate e non regolamentate nella zona di applicazione dell'accordo CGPM;",
+      "language": "it"
+    },
+    {
+      "number": 14,
+      "targetLabel": "Articolo 1 – punto 1 – lettera b",
+      "originalText": "11)\t\"certificato di cattura\": documento ufficiale che accompagna una partita e convalidato dall'autorità competente, che consente di trasmettere informazioni esatte e verificabili sul pesce lungo tutta la catena di approvvigionamento;",
+      "proposedText": "11)\t\"certificato di cattura\": documento ufficiale che accompagna una partita e convalidato dall'autorità competente, che consente di trasmettere informazioni esatte e verificabili sui prodotti della pesca lungo tutta la catena di approvvigionamento;",
+      "language": "it"
+    },
+    {
+      "number": 15,
+      "targetLabel": "Articolo 1 – punto 1 – lettera b",
+      "originalText": "12)\t\"programma di documentazione delle catture\" o \"SDC\": sistema istituito a norma degli obblighi internazionali pertinenti avente principalmente lo scopo di contribuire a determinare, lungo tutta la catena di approvvigionamento, se il pesce proviene da catture effettuate conformemente alle misure nazionali, regionali e internazionali di conservazione e gestione applicabili.\";",
+      "proposedText": "12)\t\"programma di documentazione delle catture\" o \"SDC\": sistema istituito a norma degli obblighi internazionali pertinenti avente principalmente lo scopo di contribuire a determinare, lungo tutta la catena di approvvigionamento, se il prodotto della pesca proviene da catture effettuate conformemente alle misure nazionali, regionali e internazionali di conservazione e gestione applicabili.\";",
+      "language": "it"
+    },
+    {
+      "number": 16,
+      "targetLabel": "Articolo 1 – punto 2",
+      "originalText": "Il presente capo si applica a tutte le attività di pesca dell'anguilla (Anguilla anguilla), in particolare la pesca mirata, accidentale e ricreativa, in tutte le acque del Mar Mediterraneo di cui all'allegato I, comprese le acque dolci e le acque di transizione e salmastre, quali lagune ed estuari.",
+      "proposedText": "Il presente capo si applica a tutte le attività di pesca dell'anguilla (Anguilla anguilla), in particolare la pesca mirata, accidentale e ricreativa, in tutte le acque del Mar Mediterraneo di cui all'allegato I, comprese le acque di transizione e salmastre, quali lagune ed estuari.",
+      "language": "it"
+    },
+    {
+      "number": 17,
+      "targetLabel": "Articolo 1 – punto 2 bis (nuovo)",
+      "originalText": "",
+      "proposedText": "2 bis)\tall'articolo 12, sono aggiunti i paragrafi seguenti:\n\"3 bis.\tGli Stati membri istituiscono un sistema di tracciabilità per gli sbarchi, le vendite e le esportazioni che consenta di tracciare le catture dal punto di sbarco autorizzato fino alla destinazione finale, indipendentemente dal fatto che gli esemplari siano venduti vivi, morti o trasformati.\n3 ter.\tGli Stati membri tengono un elenco aggiornato delle sale per la vendita all'asta, degli organismi o delle persone autorizzati da tale Stato membro a provvedere alla prima immissione in commercio dell'anguilla.\"",
+      "language": "it"
+    },
+    {
+      "number": 18,
+      "targetLabel": "Articolo 1 – punto 3",
+      "originalText": "Gli Stati membri provvedono affinché la pesca ricreativa dell'anguilla in tutte le fasi del suo ciclo vitale (ceca, gialla, argentata) sia vietata in tutti gli habitat.\";",
+      "proposedText": "Gli Stati membri provvedono affinché la pesca ricreativa dell'anguilla in tutte le fasi del suo ciclo vitale (ceca, gialla, argentata) sia vietata in tutti gli habitat che rientrano nell'ambito di applicazione del presente regolamento.\"",
+      "language": "it"
+    },
+    {
+      "number": 19,
+      "targetLabel": "Articolo 1 – punto 3 bis (nuovo)",
+      "originalText": "",
+      "proposedText": "3 bis)\ttra l'articolo 12 e l'articolo 13 è inserito l'articolo seguente:\n\"Articolo 12 bis bis\nRaccolta di dati\n1.\tQualora sia noto il verificarsi di pesca INN, gli Stati membri trasmettono alla Commissione, o a un organismo da essa designato, i dati disponibili, comprese le stime. La Commissione, o un organismo da essa designato, trasmette non appena possibile le informazioni sulla pesca INN al segretariato della CGPM.\n2.\tGli Stati membri comunicano alla Commissione i dati riguardanti le attività di ingrasso entro il 15 dicembre di ogni anno. La Commissione trasmette tali dati al segretariato della CGPM entro il 31 dicembre di ogni anno.\n3.\tGli Stati membri possono altresì trasmettere informazioni supplementari su base volontaria alla Commissione, che le trasmette al segretariato della CGPM.\"",
+      "language": "it"
+    }
+  ]
+}

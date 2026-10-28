@@ -100,3 +100,11 @@ test('raw proposal recovery cannot override a failed independent operation asser
   const wrong=verifyPlacement({placement:{...placement,operation:'replace'},wording,items:[{proposal:p}]});
   assert.equal(wrong.status,'failed');assert.equal(wrong.reason,'oracle-operation-mismatch');
 });
+
+test('a published new marker cannot erase an existing address during replacement verification',()=>{
+ const p=proposal([['Article 1','Titrearticle'],['1. Amendments:','ManualNumPar1'],['(1) First instruction.','Point0'],['(2) Second instruction.','Point0'],['Article 2','Titrearticle']]);
+ // Finnish A-10-2025-0150 AM20 retains (uusi) on point 4 although the
+ // comparison replaces wording in the existing fourth proposal instruction.
+ assert.equal(check(p,'Article 1 – paragraph 1 – point 2 (new)',replace(3)).status,'verified');
+ assert.equal(check(p,'Article 1 – paragraph 1 – point 2 (new)',replace(2)).status,'failed');
+});

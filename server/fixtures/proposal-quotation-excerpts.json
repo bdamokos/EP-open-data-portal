@@ -1,0 +1,5261 @@
+{
+  "attribution": "European Commission, COM(2024)183 final, 2024/0098(COD). Selected public DOCX paragraphs retain exact wording and source indices; omitted paragraphs are not part of these excerpts.",
+  "examples": [
+    {
+      "name": "article-insertion",
+      "language": "en",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0001.01/DOC_1",
+      "sourceHash": "30fbfa2169fbedd4331f4ed5ab229930271de6950f891a271f6cf809cb7d1fed",
+      "retrievedAt": "2026-10-27T16:25:27.255Z",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Article 1\nAmendments to Regulation (EU) No 2023/2124",
+        "Regulation (EU) 2023/2124 is amended as follows:",
+        "(3) the following Article 12a is inserted between Article 12 and Article 13:",
+        "“Article 12a",
+        "Recreational fisheries",
+        "Member States shall ensure that recreational fishing of all stages of European eel (glass, yellow, silver) is prohibited in all habitats.” ;",
+        "(4) the following Article 14a is inserted between Article 14 and Article 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 22,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "en",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0001.01/DOC_1",
+      "sourceHash": "30fbfa2169fbedd4331f4ed5ab229930271de6950f891a271f6cf809cb7d1fed",
+      "retrievedAt": "2026-10-27T16:25:27.255Z",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96
+      ],
+      "paragraphs": [
+        "Article 1\nAmendments to Regulation (EU) No 2023/2124",
+        "Regulation (EU) 2023/2124 is amended as follows:",
+        "(1) Article 3 is amended as follows:",
+        "(a) the introductory phrase is replaced by the following:",
+        "“For the purposes of this Regulation, the following definitions shall apply in addition to the definitions laid down in Article 4 of Regulation (EU) No 1380/2013 of the European Parliament and of the Council, Article 2 of Council Regulation (EC) No 1967/2006, Article 2, points (1) to (4), of Council Regulation (EC) No 1005/2008, Article 4 of Council Regulation (EC) No 1224/2009, Article 2, points (1) to (13), of Regulation (EU) 2019/1022 of the European Parliament and of the Council and Article 6 of Regulation (EU) 2019/1241 of the European Parliament and of the Council”;",
+        "(b) the following points are added:",
+        "“(9) \t“Fisheries restricted area” means a geographically-defined area in which some specific fishing activities are temporarily banned or restricted in order to improve the conservation and",
+        "sustainable use of marine living resources in the GFCM area of application.",
+        "(10)\t“Designated landing point” means ports, or places close to the shore, offshore terminals and other installations for landing, transhipping, packaging, processing, refuelling or resupplying of fishing vessels, where landings, transhipments, packaging and/or processing operations of fishery products are permitted, designated by the contracting parties and cooperating non-contracting parties in accordance with Recommendation GFCM/40/2016/1 on a regional scheme on port state measures to combat illegal, unreported and unregulated fishing activities in the GFCM area of application;",
+        "(11)\t“Catch certificate” means an official document accompanying a consignment and validated by the competent authority, allowing to pass accurate and verifiable information concerning fish throughout the supply chain;",
+        "(12)\t “Catch documentation scheme” or “CDS” means a system established in accordance with relevant international obligations, with the primary purpose of helping to determine, throughout the supply chain whether the fish originates from catches that are consistent with applicable national, regional and international conservation and management measures.”",
+        "(2) Article 4 is replaced by the following:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "repeated-opening",
+      "language": "en",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0001.01/DOC_1",
+      "sourceHash": "30fbfa2169fbedd4331f4ed5ab229930271de6950f891a271f6cf809cb7d1fed",
+      "retrievedAt": "2026-10-27T16:25:27.255Z",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151
+      ],
+      "paragraphs": [
+        "Article 1\nAmendments to Regulation (EU) No 2023/2124",
+        "Regulation (EU) 2023/2124 is amended as follows:",
+        "(14) Article 26 is replaced by the following:",
+        "“Article 26",
+        "Temporal restrictions",
+        "“1. Bottom trawlers targeting deep-water red shrimp spawning aggregations shall stop fishing for 30 consecutive days between the months of March and December.",
+        "2. Member States shall communicate these temporal restrictions to the Commission by 30 May of each year. The Commission shall transmit that information to the GFCM Secretariat by 30 June of each year.”;",
+        "(15) Article 27 is replaced by the following:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 1,
+              "kind": "bold"
+            },
+            {
+              "start": 1,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 21,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "14",
+        "15"
+      ]
+    },
+    {
+      "name": "missing-delimiter",
+      "language": "en",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0001.01/DOC_1",
+      "sourceHash": "30fbfa2169fbedd4331f4ed5ab229930271de6950f891a271f6cf809cb7d1fed",
+      "retrievedAt": "2026-10-27T16:25:27.255Z",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        135,
+        136,
+        137,
+        138,
+        139
+      ],
+      "paragraphs": [
+        "Article 1\nAmendments to Regulation (EU) No 2023/2124",
+        "Regulation (EU) 2023/2124 is amended as follows:",
+        "(11) the following Article 23a is inserted between Article 23 and  24:",
+        "“Article 23a",
+        "Fleet management measures",
+        "Member States shall ensure that the overall fleet capacity in terms of gross tonnage (GT) and/or gross registered tonnage (GRT), engine power (kW) and number of vessels, as recorded both in national and GFCM registers, does not exceed the fleet capacity for otter trawlers fishing deep water shrimps in year 2019.",
+        "(12) Article 24 is amended as follows:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 25,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "11",
+        "12"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "bg",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0022.01/DOC_1",
+      "sourceHash": "cf7fb96655b698f7c4228c47b356d74898744e29d4ba089a61b52a8d791cbdbf",
+      "retrievedAt": "2026-10-27T20:26:58.789834+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Член 1\nИзменения на Регламент (ЕС) 2023/2124",
+        "Регламент (ЕС) 2023/2124 се изменя, както следва:",
+        "3) между член 12 и член 13 се вмъква следният член 12а:",
+        "„Член 12a",
+        "Любителски риболов",
+        "Държавите членки гарантират, че любителският риболов по време на всички етапи от жизнения цикъл на европейската змиорка (стъклена, жълта, сребърна) е забранен във всички местообитания.“;",
+        "4) между член 14 и член 15 се вмъква следният член 14а:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 7,
+              "kind": "italic"
+            },
+            {
+              "start": 7,
+              "end": 44,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 18,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "cs",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0020.01/DOC_1",
+      "sourceHash": "685a45c59d5937c6068c30f970c3b9b163630efcf466862ce7ac3367816e7e8d",
+      "retrievedAt": "2026-10-27T20:27:01.784084+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Článek 1 \nZměny nařízení (EU) 2023/2124",
+        "Nařízení (EU) 2023/2124 se mění takto:",
+        "3) Mezi články 12 a 13 se vkládá nový článek 12a, který zní:",
+        "„Článek 12a",
+        "Rekreační rybolov",
+        "Členské státy zajistí, aby byl rekreační rybolov všech vývojových fází úhoře evropského (sklovitého, žlutého, stříbrného) zakázán ve všech stanovištích. “",
+        "4) Mezi články 14 a 15 se vkládá nový článek 14a, který zní:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 39,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 17,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "da",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0019.01/DOC_1",
+      "sourceHash": "7cf1f4d82d398fbd9da1573bf11934eeb54bb98fd2fd6c31a051ad23863bcac3",
+      "retrievedAt": "2026-10-27T20:27:04.786408+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        99,
+        100,
+        101,
+        102,
+        103
+      ],
+      "paragraphs": [
+        "Artikel 1\nÆndringer af forordning (EU) nr. 2023/2124",
+        "Forordning (EU) 2023/2124 ændres som følger:",
+        "3) Følgende artikel indsættes mellem artikel 12 og 13 som artikel 12a:",
+        "\"Artikel 12a",
+        "Rekreativt fiskeri",
+        "Medlemsstaterne sikrer, at rekreativt fiskeri efter alle stadier af europæisk ål (glas, gul, blank) er forbudt på alle levesteder.\"",
+        "4) Følgende artikel indsættes mellem artikel 14 og 15 som artikel 14a:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 18,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "da",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0019.01/DOC_1",
+      "sourceHash": "7cf1f4d82d398fbd9da1573bf11934eeb54bb98fd2fd6c31a051ad23863bcac3",
+      "retrievedAt": "2026-10-27T20:27:04.786408+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+      ],
+      "paragraphs": [
+        "Artikel 1\nÆndringer af forordning (EU) nr. 2023/2124",
+        "Forordning (EU) 2023/2124 ændres som følger:",
+        "1) I artikel 3 foretages følgende ændringer:",
+        "a) Indledningen affattes således:",
+        "\"Ud over definitionerne i artikel 4 i Europa-Parlamentets og Rådets forordning (EU) nr. 1380/2013, artikel 2 i Rådets forordning (EF) nr. 1967/2006, artikel 2, nr. 1)-4), i Rådets forordning (EF) nr. 1005/2008, artikel 4 i Rådets forordning (EF) nr. 1224/2009, artikel 2, nr. 1)-13), i Europa-Parlamentets og Rådets forordning (EU) 2019/1022 og artikel 6 i Europa-Parlamentets og Rådets forordning (EU) 2019/1241 forstås i nærværende forordning ved:\".",
+        "b) Følgende numre tilføjes:",
+        "\"9) \t\"område med fiskeribegrænsninger\": et geografisk afgrænset område, hvor nogle specifikke fiskeriaktiviteter er midlertidigt forbudt eller begrænset for forbedre bevarelsen og den bæredygtige anvendelse af levende marine ressourcer i GFCM-anvendelsesområdet",
+        "10)\t\"udpeget landingssted\": havne eller steder tæt på kysten, offshoreterminaler og andre anlæg til landing, omladning, emballering, forarbejdning, bunkring eller anden forsyning af fiskerfartøjer, hvor landing, omladning, emballering og/eller forarbejdning af fiskevarer og havnetjenester er tilladt, som er udpeget af de kontraherende parter og samarbejdende ikkekontraherende parter i overensstemmelse med henstilling GFCM/40/2016/1 om en regional ordning vedrørende havnestatsforanstaltninger til bekæmpelse af ulovligt, urapporteret og ureguleret fiskeri i GFCM-anvendelsesområdet",
+        "11)\t\"fangstattest\": et officielt dokument, som ledsager en sending og er valideret af den kompetente myndighed, og som gør det muligt at sende nøjagtige og verificerbare oplysninger om fisk gennem forsyningskæden",
+        "12)\t \"fangstdokumentationsordning\": et system, der er oprettet i overensstemmelse med relevante internationale forpligtelser, og som primært har til formål at hjælpe med at fastslå igennem hele forsyningskæden, hvorvidt fisken stammer fra fangster, der er i overensstemmelse med gældende nationale, regionale og internationale bevarelses- og forvaltningsforanstaltninger.\"",
+        "2) Artikel 4 affattes således:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "de",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0024.01/DOC_1",
+      "sourceHash": "b9a28ef9c5a0c5096f3420064b1d9c6ddab851a3901df91a71b9d0975658d6b9",
+      "retrievedAt": "2026-10-27T20:27:07.799786+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Artikel 1\nÄnderungen der Verordnung (EU) Nr. 2023/2124",
+        "Die Verordnung (EU) 2023/2124 wird wie folgt geändert:",
+        "3. Zwischen Artikel 12 und Artikel 13 wird folgender Artikel 12a eingefügt:",
+        "„Artikel 12a",
+        "Freizeitfischerei",
+        "Die Mitgliedstaaten stellen sicher, dass die Freizeitfischerei auf Europäischen Aal in allen seinen Stadien (Glas-, Gelb- und Silberaal) in allen Lebensräumen verboten ist.“",
+        "4. Zwischen Artikel 14 und Artikel 15 wird folgender Artikel 14a eingefügt:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 54,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 17,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "el",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0017.01/DOC_1",
+      "sourceHash": "7ad3409b3a2c2a85fce49550e9e7b09cad425d0b607a12c5d0ac905b243077bf",
+      "retrievedAt": "2026-10-27T20:27:10.847646+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Άρθρο 1\nΤροποποιήσεις του κανονισμού (ΕΕ) αριθ. 2023/2124",
+        "Ο κανονισμός (ΕΕ) 2023/2124 τροποποιείται ως εξής:",
+        "3) Μεταξύ των άρθρων 12 και 13 παρεμβάλλεται το ακόλουθο άρθρο 12α:",
+        "«Άρθρο 12α",
+        "Ερασιτεχνική αλιεία",
+        "Τα κράτη μέλη μεριμνούν ώστε να απαγορεύεται η ερασιτεχνική αλιεία ευρωπαϊκού χελιού σε όλα τα στάδια της ζωής του (υαλόχελο, κιτρινόχελο, αργυρόχελο) σε όλα τα ενδιαιτήματα.».",
+        "4) Μεταξύ των άρθρων 14 και 15 παρεμβάλλεται το ακόλουθο άρθρο 14α:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "italic"
+            },
+            {
+              "start": 8,
+              "end": 57,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 10,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 19,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12α"
+    },
+    {
+      "name": "article-insertion",
+      "language": "es",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0021.01/DOC_1",
+      "sourceHash": "3aec9b3114b2482d2aca1d714d13d9e281abd9c0650bb5f64f1f17e1c85a01fa",
+      "retrievedAt": "2026-10-27T20:27:13.827509+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        99,
+        100,
+        101,
+        102,
+        103
+      ],
+      "paragraphs": [
+        "Artículo 1\nModificaciones del Reglamento (UE) n.º 2023/2124",
+        "El Reglamento (UE) 2023/2124 se modifica como sigue:",
+        "3) Entre el artículo 12 y el artículo 13, se inserta el artículo 12 bis siguiente:",
+        "«Artículo 12 bis",
+        "Pesca recreativa",
+        "Los Estados miembros velarán por que se prohíba la pesca recreativa de la anguila europea en todos sus ciclos de vida (angula, anguila amarilla y anguila plateada) y en todos los hábitats.».",
+        "4) Entre el artículo 14 y el artículo 15, se inserta el artículo 14 bis siguiente:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 59,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 68,
+              "end": 71,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 68,
+              "end": 71,
+              "kind": "italic"
+            }
+          ]
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12bis"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "es",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0021.01/DOC_1",
+      "sourceHash": "3aec9b3114b2482d2aca1d714d13d9e281abd9c0650bb5f64f1f17e1c85a01fa",
+      "retrievedAt": "2026-10-27T20:27:13.827509+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+      ],
+      "paragraphs": [
+        "Artículo 1\nModificaciones del Reglamento (UE) n.º 2023/2124",
+        "El Reglamento (UE) 2023/2124 se modifica como sigue:",
+        "1) El artículo 3 se modifica como sigue:",
+        "a) La frase introductoria se sustituye por el texto siguiente:",
+        "«A los efectos del presente Reglamento, se aplicarán las definiciones siguientes, además de las establecidas en el artículo 4 del Reglamento (UE) n.º 1380/2013 del Parlamento Europeo y del Consejo, en el artículo 2 del Reglamento (CE) n.º 1967/2006, en el artículo 2, puntos 1 a 4, del Reglamento (CE) n.º 1005/2008 del Consejo, en el artículo 4 del Reglamento (CE) n.º 1224/2009 del Consejo, en el artículo 2, puntos 1 a 13, del Reglamento (UE) 2019/1022 del Parlamento Europeo y del Consejo y en el artículo 6 del Reglamento (UE) 2019/1241 del Parlamento Europeo y del Consejo.».",
+        "b) Se añaden los puntos siguientes:",
+        "«9)\t“zona restringida de pesca”: zona definida geográficamente en la que se prohíben o restringen temporalmente algunas actividades pesqueras determinadas para mejorar la conservación y uso sostenible de los recursos marinos vivos en la zona de aplicación de la CGPM;",
+        "10)\t“punto de desembarque designado”: puerto o lugar cercano a la costa, terminal mar adentro u otra instalación de desembarque, transbordo, embalaje, transformación, repostaje o reabastecimiento de buques pesqueros, en el que se permita descargar a tierra, transbordar, embalar o realizar operaciones de transformación de productos pesqueros, y que haya sido designado por las Partes contratantes o las Partes no contratantes colaboradoras de conformidad con la Recomendación GFCM/40/2016/1, relativa a un régimen regional de medidas del Estado rector del puerto para luchar contra las actividades de pesca ilegal, no declarada y no reglamentada en la zona de aplicación de la CGPM;",
+        "11)\t“certificado de captura”: documento oficial que acompaña a una partida y ha sido validado por la autoridad competente, que permite transmitir información exacta y verificable sobre los productos pesqueros a lo largo de toda la cadena de suministro;",
+        "12)\tSistema de Documentación de Capturas” o “SDC”: sistema establecido conforme a las obligaciones internacionales correspondientes, cuyo objetivo principal es ayudar a determinar, a través de la cadena de suministro, si los peces proceden de capturas que cumplan las normas aplicables de conservación y gestión a escala nacional, regional e internacional.».",
+        "2) El artículo 4 se sustituye por el texto siguiente:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 59,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "et",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0018.01/DOC_1",
+      "sourceHash": "8258553b31050e7aa16f35aa4c5b9f54d8fe80f61f260874c38e89eb366d28fb",
+      "retrievedAt": "2026-10-27T20:27:16.811737+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Artikkel 1\nMääruse (EL) 2023/2124 muutmine",
+        "Määrust (EL) 2023/2124 muudetakse järgmiselt:",
+        "3) artiklite 12 ja 13 vahele lisatakse artikkel 12a:",
+        "„Artikkel 12a",
+        "Harrastuskalapüük",
+        "Liikmesriigid tagavad, et kõikides elupaikades on keelatud mis tahes arengujärgus euroopa angerja (nii klaas-, kollase kui ka hõbeangerja) harrastuspüük.“;",
+        "4) artiklite 14 ja 15 vahele lisatakse artikkel 14a:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 42,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 13,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 17,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "fi",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0004.01/DOC_1",
+      "sourceHash": "762df48408df63aa79869a1b24845ffcf2f6e81503760028ae8fbd1ca3973692",
+      "retrievedAt": "2026-10-27T20:27:19.843008+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        99,
+        100,
+        101,
+        102,
+        103
+      ],
+      "paragraphs": [
+        "1 artikla\nAsetuksen (EU) 2023/2124 muuttaminen",
+        "Muutetaan asetus (EU) 2023/2124 seuraavasti:",
+        "3) Lisätään 12 ja 13 artiklan väliin 12 a artikla seuraavasti:",
+        "”12 a artikla",
+        "Virkistyskalastus",
+        "Jäsenvaltioiden on varmistettava, että ankeriaan virkistyskalastus kielletään kaikissa vaiheissa (lasi, keltainen, hopea) kaikissa luontotyypeissä.”",
+        "4) Lisätään 14 ja 15 artiklan väliin 14 a artikla seuraavasti:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 46,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 13,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 17,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "fi",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0004.01/DOC_1",
+      "sourceHash": "762df48408df63aa79869a1b24845ffcf2f6e81503760028ae8fbd1ca3973692",
+      "retrievedAt": "2026-10-27T20:27:19.843008+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+      ],
+      "paragraphs": [
+        "1 artikla\nAsetuksen (EU) 2023/2124 muuttaminen",
+        "Muutetaan asetus (EU) 2023/2124 seuraavasti:",
+        "1) Muutetaan 3 artikla seuraavasti:",
+        "a) korvataan johdantokappale seuraavasti:",
+        "”Tässä asetuksessa sovelletaan Euroopan parlamentin ja neuvoston asetuksen (EU) N:o 1380/2013 4 artiklassa, neuvoston asetuksen (EY) N:o 1967/2006 2 artiklassa, neuvoston asetuksen (EY) N:o 1005/2008 2 artiklan 1–4 alakohdassa, neuvoston asetuksen (EY) N:o 1224/2009 4 artiklassa, Euroopan parlamentin ja neuvoston asetuksen (EU) 2019/1022 2 artiklan 1–13 alakohdassa ja Euroopan parlamentin ja neuvoston asetuksen (EU) 2019/1241 6 artiklassa vahvistettujen määritelmien lisäksi seuraavia määritelmiä:”",
+        "b) lisätään alakohdat seuraavasti:",
+        "”9) \t’kalastusrajoitusalueella’ tarkoitetaan maantieteellisesti määriteltyä aluetta, jolla tietyt kalastustoimet on väliaikaisesti kielletty tai niitä on rajoitettu meren elollisten luonnonvarojen säilyttämisen ja kestävän käytön edistämiseksi GFCM:n soveltamisalueella;",
+        "10)\t’nimetyllä purkamispaikalla’ tarkoitetaan satamia tai lähellä rannikkoa olevia paikkoja, avomeriterminaaleja ja muita laitoksia, joita käytetään kalastusalusten purkamiseen, jälleenlaivaukseen, pakkaamiseen, jalostukseen, tankkaukseen tai varustuksen täydentämiseen, joissa kalastustuotteiden purkaminen, jälleenlaivaus, pakkaaminen ja/tai jalostustoiminta sallitaan ja jotka sopimuspuolet ja yhteistyötä tekevät muut kuin sopimuspuolet ovat nimenneet satamavaltion toimenpiteitä koskevasta alueellisesta järjestelmästä laittoman, ilmoittamattoman ja sääntelemättömän kalastuksen torjumiseksi GFCM:n soveltamisalueella annetun suosituksen GFCM/40/2016/1 mukaisesti;",
+        "11)\t’saalistodistuksella’ tarkoitetaan lähetyksen mukana olevaa ja toimivaltaisen viranomaisen vahvistamaa virallista asiakirjaa, jonka avulla kalasta voidaan tarjota tarkkoja ja todennettavissa olevia tietoja koko toimitusketjussa;",
+        "12)\t ’saalisasiakirjajärjestelmällä’ tarkoitetaan asiaankuuluvien kansainvälisten velvoitteiden mukaisesti perustettua järjestelmää, jonka pääasiallisena tarkoituksena on auttaa määrittämään koko toimitusketjussa, onko kala peräisin sovellettavien kansallisten, alueellisten ja kansainvälisten säilyttämis- ja hoitotoimenpiteiden mukaisista saaliista.”",
+        "2) Korvataan 4 artikla seuraavasti:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 46,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "fr",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0023.01/DOC_1",
+      "sourceHash": "977ac41ef62618bcb84f41a64508bdec4e2b313b63b092d433c5324f1036a05c",
+      "retrievedAt": "2026-10-27T20:27:22.844139+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Article premier\nModifications du règlement (UE) 2023/2124",
+        "Le règlement (UE) 2023/2124 est modifié comme suit:",
+        "3) L'article 12 bis suivant est inséré entre l'article 12 et l’article 13:",
+        "«Article 12 bis",
+        "Pêche récréative",
+        "Les États membres veillent à interdire la pêche récréative de l’anguille d’Europe à tous ses stades de vie (civelle, anguille jaune, anguille argentée) dans tous les habitats.» .",
+        "4) L'article 14 bis suivant est inséré entre l'article 14 et l’article 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "italic"
+            },
+            {
+              "start": 16,
+              "end": 57,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 16,
+              "end": 19,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 16,
+              "end": 19,
+              "kind": "italic"
+            }
+          ]
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12bis"
+    },
+    {
+      "name": "article-insertion",
+      "language": "ga",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0002.01/DOC_1",
+      "sourceHash": "ed089b189bb254ced172df31faa3d17f08e502ac19c4cba49db4acf98e71cd36",
+      "retrievedAt": "2026-10-27T20:27:25.865708+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Airteagal 1\nLeasuithe ar Rialachán (AE) Uimh. 2023/2124",
+        "Leasaítear Rialachán (AE) 2023/2124 mar a leanas:",
+        "(3) cuirtear isteach an tAirteagal 12a seo a leanas idir Airteagal 12 agus Airteagal 13:",
+        "‘Airteagal 12a",
+        "Iascach áineasa",
+        "Áiritheoidh na Ballstáit go dtoirmisctear iascaireacht áineasa ar eascanna Eorpacha (gloine, buí, geala) ag gach céim dá saolré i ngach gnáthóg.’ ;",
+        "(4) cuirtear isteach an tAirteagal 14 a seo a leanas idir Airteagal 14 agus Airteagal 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 55,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 14,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 15,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "missing-delimiter",
+      "language": "ga",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0002.01/DOC_1",
+      "sourceHash": "ed089b189bb254ced172df31faa3d17f08e502ac19c4cba49db4acf98e71cd36",
+      "retrievedAt": "2026-10-27T20:27:25.865708+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        135,
+        136,
+        137,
+        138,
+        139
+      ],
+      "paragraphs": [
+        "Airteagal 1\nLeasuithe ar Rialachán (AE) Uimh. 2023/2124",
+        "Leasaítear Rialachán (AE) 2023/2124 mar a leanas:",
+        "(11) cuirtear isteach an tAirteagal 23a seo a leanas idir Airteagal 23 agus Airteagal 24:",
+        "‘Airteagal 23a",
+        "Bearta bainistithe cabhlach",
+        "Áiritheoidh na Ballstáit nach rachaidh an acmhainneacht cabhlaigh iascaireachta fhoriomlán i dtéarmaí olltonnáiste (GT) agus/nó olltonnáiste cláraithe (GRT), cumhacht innill (kW) agus líon soithí, mar a thaifeadtar i gcláir náisiúnta agus CGIM araon, thar an acmhainneacht cabhlaigh iascaireachta le haghaidh trálaeir otair a dhéanann iascaireacht ar shéaclaí domhainmhara sa bhliain 2019.",
+        "(12) Leasaítear Airteagal 24 mar a leanas:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 55,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 14,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 27,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "11",
+        "12"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "hr",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0016.01/DOC_1",
+      "sourceHash": "b22d1f73a9f811c09f921aaa663cfc994552a68f9c774699f598f7b806db9969",
+      "retrievedAt": "2026-10-27T20:27:28.859845+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Članak 1.\nIzmjene Uredbe (EU) 2023/2124",
+        "Uredba (EU) 2023/2124 mijenja se kako slijedi:",
+        "3. između članka 12. i članka 13. umeće se sljedeći članak 12.a:",
+        "„Članak 12.a",
+        "Rekreacijski ribolov",
+        "Države članice osiguravaju zabranu rekreacijskog ribolova jegulje u svim fazama života (juvenilna, žuta, zrela) i u svim staništima.”;",
+        "4. između članka 14. i članka 15. umeće se sljedeći članak 14.a:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 39,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 20,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "hu",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0012.01/DOC_1",
+      "sourceHash": "3801a6294aae65d56c93caf37d9b6ed829ce29e9a2bb0df73cfc75c3831e7cc1",
+      "retrievedAt": "2026-10-27T20:27:31.862196+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "1. cikk\nA 2023/2124/EU rendelet módosításai",
+        "Az (EU) 2023/2124 rendelet a következőképpen módosul:",
+        "3. Az irányelv a 12. és a 13. cikk között a következő 12a. cikkel egészül ki:",
+        "„12a. cikk",
+        "Rekreációs célú halászat",
+        "A tagállamok gondoskodnak arról, hogy minden élőhelyen megtiltsák a rekreációs célú halászatot az európai angolna valamennyi életszakasza tekintetében (üveg-, sárga- és ezüstangolna). ”",
+        "4. Az irányelv a 14. és a 15. cikk között a következő 14a. cikkel egészül ki:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "italic"
+            },
+            {
+              "start": 8,
+              "end": 43,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 10,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 24,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "hu",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0012.01/DOC_1",
+      "sourceHash": "3801a6294aae65d56c93caf37d9b6ed829ce29e9a2bb0df73cfc75c3831e7cc1",
+      "retrievedAt": "2026-10-27T20:27:31.862196+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96
+      ],
+      "paragraphs": [
+        "1. cikk\nA 2023/2124/EU rendelet módosításai",
+        "Az (EU) 2023/2124 rendelet a következőképpen módosul:",
+        "1. A 3. cikk a következőképpen módosul:",
+        "a) a bevezető szövegrész helyébe a következő szöveg lép:",
+        "„E rendelet alkalmazásában az 1380/2013/EU európai parlamenti és tanácsi rendelet 4. cikkében, az 1967/2006/EK tanácsi rendelet 2. cikkében, az 1005/2008 tanácsi rendelet 2. cikkének 1–4. pontjában, az 1224/2009/EK tanácsi rendelet 4. cikkében, az (EU) 2019/1022 európai parlamenti és tanácsi rendelet 2. cikkének 1–13. pontjában és az (EU) 2019/1241 európai parlamenti és tanácsi rendelet 6. cikkében meghatározott fogalommeghatározásokon túlmenően a következő fogalommeghatározások alkalmazandók”;",
+        "b) a szöveg a következő pontokkal egészül ki:",
+        "„9.\t»halászati korlátozás hatálya alá tartozó terület«: földrajzilag meghatározott terület, ahol bizonyos halászati tevékenységek ideiglenes tilalom vagy korlátozás alatt állnak",
+        "a GFCM alkalmazási területén a tengerek biológiai erőforrásai védelmének és fenntartható hasznosításának javítása érdekében;",
+        "10.\t»kijelölt kirakodási pont«: a szerződő felek és az együttműködő nem szerződő felek által a GFCM alkalmazási területén a kikötő szerinti államok jogellenes, be nem jelentett és szabályozatlan halászattal szembeni intézkedéseinek regionális rendszeréről szóló GFCM/40/2016/1. sz. ajánlással összhangban kijelölt kikötők vagy parthoz közeli helyek, tengeri terminálok és más, kirakodásra, átrakodásra, csomagolásra, halászhajók üzemanyag-felvételére és készletfelvételére szolgáló létesítmények, ahol a halászati termékek kirakodása, átrakodása, csomagolása és/vagy feldolgozási műveletei engedélyezettek;",
+        "11.\t»fogási tanúsítvány«: a szállítmányt kísérő és az illetékes hatóság által hitelesített hivatalos okmány, amely lehetővé teszi a halakra vonatkozó pontos és ellenőrizhető információk továbbítását az ellátási lánc egészében;",
+        "12.\t»fogási dokumentációs rendszer« vagy »CDS«: a vonatkozó nemzetközi kötelezettségekkel összhangban létrehozott rendszer, amelynek elsődleges célja elősegíteni annak megállapítását az ellátási lánc mentén, hogy a halak az alkalmazandó nemzeti, regionális és nemzetközi állományvédelmi és -gazdálkodási intézkedésekkel összhangban lévő fogásokból származnak-e.”",
+        "2. A 4. cikk helyébe a következő szöveg lép:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "italic"
+            },
+            {
+              "start": 8,
+              "end": 43,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "repeated-opening",
+      "language": "hu",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0012.01/DOC_1",
+      "sourceHash": "3801a6294aae65d56c93caf37d9b6ed829ce29e9a2bb0df73cfc75c3831e7cc1",
+      "retrievedAt": "2026-10-27T20:27:31.862196+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151
+      ],
+      "paragraphs": [
+        "1. cikk\nA 2023/2124/EU rendelet módosításai",
+        "Az (EU) 2023/2124 rendelet a következőképpen módosul:",
+        "14. A 26. cikk helyébe a következő szöveg lép:",
+        "„26. cikk",
+        "Időbeli korlátozások",
+        "„(1) A piros ostorgarnéla ívó rajaira halászó fenékvonóhálós hajóknak március és december között 30 egymást követő napon át be kell szüntetniük a halászatot.",
+        "(2) A tagállamok minden év május 30-ig tájékoztatják a Bizottságot ezekről az időbeli korlátozásokról. A Bizottság minden év június 30-ig továbbítja ezeket az információkat a GFCM titkárságának.”",
+        "15. A 27. cikk helyébe a következő szöveg lép:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 8,
+              "kind": "italic"
+            },
+            {
+              "start": 8,
+              "end": 43,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 20,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "14",
+        "15"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "it",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0015.01/DOC_1",
+      "sourceHash": "457e33f91fefec04f7d756fa00be00716a0ede327cacb9e8e81030128de3e430",
+      "retrievedAt": "2026-10-27T20:27:34.867767+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        99,
+        100,
+        101,
+        102,
+        103
+      ],
+      "paragraphs": [
+        "Articolo 1\nModifiche del regolamento (UE) 2023/2124",
+        "Il regolamento (UE) 2023/2124 è così modificato:",
+        "3) tra l'articolo 12 e l'articolo 13 è inserito l'articolo 12 bis seguente:",
+        "\"Articolo 12 bis",
+        "Pesca ricreativa",
+        "Gli Stati membri provvedono affinché la pesca ricreativa dell'anguilla in tutte le fasi del suo ciclo vitale (ceca, gialla, argentata) sia vietata in tutti gli habitat.\";",
+        "4) tra l'articolo 14 e l'articolo 15 è inserito l'articolo 14 bis seguente:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 51,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 16,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12bis"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "it",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0015.01/DOC_1",
+      "sourceHash": "457e33f91fefec04f7d756fa00be00716a0ede327cacb9e8e81030128de3e430",
+      "retrievedAt": "2026-10-27T20:27:34.867767+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+      ],
+      "paragraphs": [
+        "Articolo 1\nModifiche del regolamento (UE) 2023/2124",
+        "Il regolamento (UE) 2023/2124 è così modificato:",
+        "1) l'articolo 3 è così modificato:",
+        "a) la frase introduttiva è sostituita dalla seguente:",
+        "\"Ai fini del presente regolamento, in aggiunta alle definizioni di cui all'articolo 4 del regolamento (UE) n. 1380/2013 del Parlamento europeo e del Consiglio, all'articolo 2 del regolamento (CE) n. 1967/2006 del Consiglio, all'articolo 2, punti da 1) a 4), del regolamento (CE) n. 1005/2008 del Consiglio, all'articolo 4 del regolamento (CE) n. 1224/2009 del Consiglio, all'articolo 2, punti da 1) a 13), del regolamento (UE) 2019/1022 del Parlamento europeo e del Consiglio e all'articolo 6 del regolamento (UE) 2019/1241 del Parlamento europeo e del Consiglio, si applicano le definizioni seguenti:\";",
+        "b) sono aggiunti i punti seguenti:",
+        "\"9)\t\"zona di restrizione della pesca\": una zona geografica definita in cui alcune attività di pesca specifiche sono temporaneamente vietate o limitate al fine di migliorare la conservazione e l'uso sostenibile delle risorse marine vive nella zona di applicazione dell'accordo CGPM;",
+        "10)\t\"punto di sbarco designato\": porti o luoghi in prossimità della costa, terminali offshore e altri impianti per lo sbarco, il trasbordo, l'imballaggio, la trasformazione, il rifornimento di carburante o il riapprovvigionamento dei pescherecci in cui sono consentite operazioni di sbarco, trasbordo, imballaggio e/o trasformazione dei prodotti della pesca, designati dalle parti contraenti e dalle parti non contraenti cooperanti conformemente alla raccomandazione CGPM/40/2016/1 relativa a un regime regionale di misure di competenza dello Stato di approdo per contrastare le attività di pesca illegali, non dichiarate e non regolamentate nella zona di applicazione dell'accordo CGPM;",
+        "11)\t\"certificato di cattura\": documento ufficiale che accompagna una partita e convalidato dall'autorità competente, che consente di trasmettere informazioni esatte e verificabili sul pesce lungo tutta la catena di approvvigionamento;",
+        "12)\t \"programma di documentazione delle catture\" o \"SDC\": sistema istituito a norma degli obblighi internazionali pertinenti avente principalmente lo scopo di contribuire a determinare, lungo tutta la catena di approvvigionamento, se il pesce proviene da catture effettuate conformemente alle misure nazionali, regionali e internazionali di conservazione e gestione applicabili.\";",
+        "2) l'articolo 4 è sostituito dal seguente:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 51,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "lt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0013.01/DOC_1",
+      "sourceHash": "12cedc0513b8218f962c3e0436689866b7136fd6b33a5ae3b3f54d106c957b8b",
+      "retrievedAt": "2026-10-27T20:27:37.885386+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "1 straipsnis\nReglamento (ES) 2023/2124 pakeitimai",
+        "Reglamentas (ES) 2023/2124 iš dalies keičiamas taip:",
+        "3) tarp 12 ir 13 straipsnių įterpiamas 12a straipsnis:",
+        "„12a straipsnis",
+        "Mėgėjų žvejyba",
+        "Valstybės narės užtikrina, kad visose buveinėse būtų draudžiama europinių upinių ungurių mėgėjų žvejyba visais jų gyvenimo etapais (stiklinių, geltonųjų, sidabrinių).“ ;",
+        "4) tarp 14 ir 15 straipsnių įterpiamas 14a straipsnis:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 13,
+              "kind": "italic"
+            },
+            {
+              "start": 13,
+              "end": 49,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 15,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 14,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "lv",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0014.01/DOC_1",
+      "sourceHash": "bb746c376172fa3a61fbb3ed247070ea2d772c5ee33cad0fdecdccc3ab8564b3",
+      "retrievedAt": "2026-10-27T20:27:40.908576+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        99,
+        100,
+        101,
+        102,
+        103
+      ],
+      "paragraphs": [
+        "1. pants\nGrozījumi Regulā (ES) 2023/2124",
+        "Regulu (ES) 2023/2124 groza šādi:",
+        "3) starp 12. un 13. pantu iekļauj šādu 12.a pantu:",
+        "“12.a pants",
+        "Atpūtas zveja",
+        "Dalībvalstis nodrošina, ka jebkurā attīstības stadijā esoša zuša (stikla zutis, dzeltenzutis, sudrabzutis) atpūtas zveja visās dzīvotnēs ir aizliegta.”;",
+        "4) starp 14. un 15. pantu iekļauj šādu 14.a pantu:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            },
+            {
+              "start": 9,
+              "end": 40,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 13,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "mt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0011.01/DOC_1",
+      "sourceHash": "79f7b6f08e89b5a29a12b70464cc3defda5a3437e987a2115154820a6c949c36",
+      "retrievedAt": "2026-10-27T20:27:43.896095+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Artikolu 1\nEmendi għar-Regolament (UE) Nru 2023/2124",
+        "Ir-Regolament (UE) 2023/2124 huwa emendat kif ġej:",
+        "(3) l-Artikolu 12a li ġej jiddaħħal bejn l-Artikolu 12 u l-Artikolu 13:",
+        "“Artikolu 12 a",
+        "Sajd rikreattiv",
+        "L-Istati Membri għandhom jiżguraw li s-sajd rikreattiv tal-istadji kollha tas-sallura (ferħ ta’ sallura, safra, lewn il-fidda) ikun ipprojbit fil-ħabitats kollha.” ;",
+        "(4) l-Artikolu 14a li ġej jiddaħħal bejn l-Artikolu 14 u l-Artikolu 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 14,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 15,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "mt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0011.01/DOC_1",
+      "sourceHash": "79f7b6f08e89b5a29a12b70464cc3defda5a3437e987a2115154820a6c949c36",
+      "retrievedAt": "2026-10-27T20:27:43.896095+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96
+      ],
+      "paragraphs": [
+        "Artikolu 1\nEmendi għar-Regolament (UE) Nru 2023/2124",
+        "Ir-Regolament (UE) 2023/2124 huwa emendat kif ġej:",
+        "(1) l-Artikolu 3 huwa emendat kif ġej:",
+        "(a) il-frażi introduttorja hija sostitwita b’dan li ġej:",
+        "“Għall-finijiet ta’ dan ir-Regolament, għandhom japplikaw id-definizzjonijiet minbarra d-definizzjonijiet stabbiliti fl-Artikolu 4 tar-Regolament (UE) Nru 1380/2013 tal-Parlament Ewropew u tal-Kunsill, l-Artikolu 2 tar-Regolament tal-Kunsill (KE) Nru 1967/2006, l-Artikolu 2, il-punti (1) sa (4), tar-Regolament tal-Kunsill (KE) Nru 1005/2008, l-Artikolu 4 tar-Regolament tal-Kunsill (KE) Nru 1224/2009, l-Artikolu 2, il-punti (1) sa (13), tar-Regolament (UE) 2019/1022 tal-Parlament Ewropew u tal-Kunsill u l-Artikolu 6 tar-Regolament (UE) 2019/1241 tal-Parlament Ewropew u tal-Kunsill”;",
+        "(b) jiżdiedu l-punti li ġejjin:",
+        "“(9) \t“Żona ristretta għas-sajd” tfisser żona definita ġeografikament li fiha xi attivitajiet tas-sajd speċifiċi huma temporanjament ipprojbiti jew ristretti sabiex jittejbu l-konservazzjoni u",
+        "l-użu sostenibbli tar-riżorsi ħajjin tal-baħar fiż-żona ta’ applikazzjoni tal-GFCM.",
+        "(10)\t“Punt ta’ ħatt l-art deżinjat” tfisser portijiet, jew postijiet qrib ix-xatt, terminals offshore u installazzjonijiet oħrajn għall-ħatt l-art, għat-trażbord, għall-ippakkjar, għall-ipproċessar, għar-riforniment jew għall-forniment mill-ġdid ta’ bastimenti tas-sajd, fejn ikunu permessi operazzjonijiet ta’ ħatt l-art, trażbordi, ippakkjar u/jew ipproċessar tal-prodotti tas-sajd, deżinjati mill-partijiet kontraenti u mill-partijiet mhux kontraenti li jikkooperaw f’konformità mar-Rakkomandazzjoni GFCM/40/2016/1 dwar skema reġjonali dwar miżuri tal-Istat tal-port biex jiġu miġġielda l-attivitajiet ta’ sajd illegali, mhux irrappurtat u mhux irregolat fiż-żona ta’ applikazzjoni tal-GFCM;",
+        "(11)\t“Ċertifikat tal-qabda” tfisser dokument uffiċjali li jakkumpanja kunsinna u li jkun ivvalidat mill-awtorità kompetenti, li jippermetti li tingħadda informazzjoni akkurata u li tista’ tiġi vverifikata dwar il-ħut tul il-katina tal-provvista;",
+        "(12)\t “Skema ta’ dokumentazzjoni tal-qbid” jew “CDS” tfisser sistema stabbilita f’konformità mal-obbligi internazzjonali rilevanti, bil-fini primarju li tgħin biex jiġi ddeterminat, tul il-katina tal-provvista, jekk il-ħut joriġinax minn qabdiet li huma konsistenti mal-miżuri nazzjonali, reġjonali u internazzjonali applikabbli ta’ konservazzjoni u ta’ ġestjoni.”",
+        "(2) l-Artikolu 4 huwa sostitwit b’dan li ġej:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 52,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "nl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0010.01/DOC_1",
+      "sourceHash": "293b3651da8b4a5e3aafa139541241dd19f8e2d66d1f6dd8fab4bd86f12de238",
+      "retrievedAt": "2026-10-27T20:27:47.001862+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        99,
+        100,
+        101,
+        102,
+        103
+      ],
+      "paragraphs": [
+        "Artikel 1 \nWijziging van Verordening (EU) 2023/2124",
+        "Verordening (EU) 2023/2124 wordt als volgt gewijzigd:",
+        "3) Het volgende artikel 12 bis wordt ingevoegd tussen de artikelen 12 en 13:",
+        "“Artikel 12 bis",
+        "Recreatievisserij",
+        "De lidstaten zorgen ervoor dat recreatievisserij in alle stadia van Europese aal (glasaal, rode aal, schieraal) in alle habitats verboden is.”.",
+        "4) Het volgende artikel 14 bis wordt ingevoegd tussen de artikelen 14 en 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 51,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 15,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 17,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12bis"
+    },
+    {
+      "name": "article-insertion",
+      "language": "pl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0009.01/DOC_1",
+      "sourceHash": "f72840f59b038cc6a189a36d286fc3673d10acc0f38b413207615bba5b7dad8b",
+      "retrievedAt": "2026-10-27T20:27:49.927335+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Artykuł 1\nZmiany w rozporządzeniu (UE) 2023/2124",
+        "W rozporządzeniu (UE) 2023/2124 wprowadza się następujące zmiany:",
+        "3) pomiędzy art. 12 i art. 13 dodaje się następujący art. 12a:",
+        "„Artykuł 12a",
+        "Połowy rekreacyjne",
+        "Państwa członkowskie zapewniają, aby na wszystkich etapach rozwoju węgorza europejskiego (szklisty, żółty, srebrzysty) jego połowy rekreacyjne były zakazane we wszystkich siedliskach.” ;",
+        "4) pomiędzy art. 14 i art. 15 dodaje się następujący art. 14a:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 48,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 18,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "pt",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0008.01/DOC_1",
+      "sourceHash": "32ffd0a752d1d9ffa7c4fb48458140790684423bde733237b356a5c027efb29e",
+      "retrievedAt": "2026-10-27T20:27:52.945764+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Artigo 1.º\nAlterações do Regulamento (UE) 2023/2124",
+        "O Regulamento (UE) 2023/2124 é alterado do seguinte modo:",
+        "3) É inserido o seguinte artigo 12.º-A entre os artigos 12.º e 13.º:",
+        "«Artigo 12.º-A",
+        "Pesca recreativa",
+        "Os Estados-Membros asseguram que a pesca recreativa em todas as fases do ciclo de vida da enguia-europeia (meixão, enguia-amarela e enguia-prateada) seja proibida em todos os habitats.» ;",
+        "4) É inserido o seguinte artigo 14.º-A entre os artigos 14.º e 15.º:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 51,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 14,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "ro",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0007.01/DOC_1",
+      "sourceHash": "cef05b5c5984c9e67e6f84f221a472f094c5a1e08e651b4354939cac78df243c",
+      "retrievedAt": "2026-10-27T20:27:55.928962+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Articolul 1\nModificări la Regulamentul (UE) nr. 2023/2124",
+        "Regulamentul (UE) 2023/2124 se modifică după cum urmează:",
+        "3. Se introduce următorul articol 12a între articolul 12 și articolul 13:",
+        "„Articolul 12a",
+        "Pescuitul recreativ",
+        "Statele membre se asigură că pescuitul recreativ vizând anghila europeană în toate etapele sale de viață (puiet, anghilă galbenă, anghilă argintie) este interzis în toate habitatele.” ;",
+        "4. Se introduce următorul articol 14a între articolul 14 și articolul 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 12,
+              "kind": "italic"
+            },
+            {
+              "start": 12,
+              "end": 57,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 14,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 19,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "sk",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0006.01/DOC_1",
+      "sourceHash": "4801ad90fbf173a12520797d6e1f041c91947cb11590e4d16347d2e292d64396",
+      "retrievedAt": "2026-10-27T20:27:58.963286+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Článok 1\nZmeny nariadenia (EÚ) 2023/2124",
+        "Nariadenie (EÚ) 2023/2124 sa mení takto:",
+        "3. Medzi článok 12 a článok 13 sa vkladá tento článok 12a:",
+        "„Článok 12a",
+        "Rekreačný rybolov",
+        "Členské štáty zabezpečia, aby bol rekreačný rybolov všetkých vývojových štádií úhora európskeho (sklovitý, žltý a strieborný) zakázaný vo všetkých biotopoch.“",
+        "4. Medzi článok 14 a článok 15 sa vkladá tento článok 14a:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 9,
+              "kind": "italic"
+            },
+            {
+              "start": 9,
+              "end": 40,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 17,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "article-insertion",
+      "language": "sl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0005.01/DOC_1",
+      "sourceHash": "27e269487957a7d8f17587436603d5c848a50ab36beb568d0218d5bb96042a1e",
+      "retrievedAt": "2026-10-27T20:28:02.004697+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Člen 1\nSpremembe Uredbe (EU) 2023/2124",
+        "Uredba (EU) 2023/2124 se spremeni:",
+        "(3) med člena 12 in 13 se vstavi naslednji člen 12a:",
+        "„Člen 12a",
+        "Rekreacijski ribolov",
+        "Države članice zagotovijo, da je rekreacijski ribolov jegulje v vseh fazah njenega življenjskega cikla (steklena, rumena, srebrna jegulja) prepovedan v vseh habitatih.“;",
+        "(4) med člena 14 in 15 se vstavi naslednji člen 14a:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 7,
+              "kind": "italic"
+            },
+            {
+              "start": 7,
+              "end": 38,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 9,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 20,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "definition-quotes",
+      "language": "sl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0005.01/DOC_1",
+      "sourceHash": "27e269487957a7d8f17587436603d5c848a50ab36beb568d0218d5bb96042a1e",
+      "retrievedAt": "2026-10-27T20:28:02.004697+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96
+      ],
+      "paragraphs": [
+        "Člen 1\nSpremembe Uredbe (EU) 2023/2124",
+        "Uredba (EU) 2023/2124 se spremeni:",
+        "(1) člen 3 se spremeni:",
+        "(a) uvodni stavek se nadomesti z naslednjim:",
+        "„V tej uredbi se poleg opredelitev pojmov iz člena 4 Uredbe (EU) št. 1380/2013 Evropskega parlamenta in Sveta, člena 2 Uredbe Sveta (ES) št. 1967/2006, člena 2, točke 1 do 4, Uredbe Sveta (ES) št. 1005/2008, člena 4 Uredbe Sveta (ES) št. 1224/2009, člena 2, točke 1 do 13, Uredbe (EU) 2019/1022 Evropskega parlamenta in Sveta ter člena 6 Uredbe (EU) 2019/1241 Evropskega parlamenta in Sveta uporabljajo naslednje opredelitve pojmov:“;",
+        "(b) dodajo se naslednje točke:",
+        "„(9) \t,zaprto območje za ribolov‘ pomeni geografsko opredeljeno območje, na katerem so nekatere določene ribolovne dejavnosti začasno prepovedane ali omejene zaradi izboljšanja ohranjanja in",
+        "trajnostne rabe živih morskih virov na območju uporabe GFCM;",
+        "(10)\t,določeno mesto iztovarjanja‘ pomeni pristanišča ali kraje v bližini obale, predobalne terminale in druge naprave za iztovarjanje, pretovarjanje, pakiranje, predelavo, oskrbo z gorivom ali obnovitev zalog ribiških plovil, kjer so dovoljeni iztovarjanje, pretovarjanje, pakiranje in/ali predelava ribiških proizvodov ter ki jih določijo pogodbenice in sodelujoče nepogodbenice v skladu s Priporočilom GFCM/40/2016/1 o regionalnem načrtu ukrepov države pristanišča za boj proti nezakonitim, neprijavljenim in nereguliranim ribolovnim dejavnostim na območju uporabe GFCM;",
+        "(11)\t,potrdilo o ulovu‘ pomeni uradni dokument, priložen pošiljki, ki ga potrdi pristojni organ in ki omogoča posredovanje točnih in preverljivih informacij o ribah v celotni dobavni verigi;",
+        "(12)\t ,sistem dokumentacije o ulovu‘ ali ,CDS‘ pomeni sistem, vzpostavljen v skladu z ustreznimi mednarodnimi obveznostmi, katerega glavni namen je pomagati, da se v celotni dobavni verigi lahko določi, ali je riba pridobljena iz ulova, ki je v skladu z veljavnimi nacionalnimi, regionalnimi in mednarodnimi ukrepi za ohranjanje in upravljanje.“;",
+        "(2) člen 4 se nadomesti z naslednjim:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 7,
+              "kind": "italic"
+            },
+            {
+              "start": 7,
+              "end": 38,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "firstLine": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify",
+          "indent": 0.5
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "name": "article-insertion",
+      "language": "sv",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0003.01/DOC_1",
+      "sourceHash": "0bbdaca059c7705cdf2f1a948bd3ce21a0e058eb02e7d9c6a513581d9ea0e644",
+      "retrievedAt": "2026-10-27T20:28:05.025323+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "paragraphs": [
+        "Artikel 1\nÄndringar av förordning (EU) 2023/2124",
+        "Förordning (EU) 2023/2124 ska ändras på följande sätt:",
+        "3. Följande artikel ska införas som artikel 12a mellan artiklarna 12 och 13:",
+        "”Artikel 12a",
+        "Fritidsfiske",
+        "Medlemsstaterna ska säkerställa att fritidsfiske efter ål i alla livsstadier (glasål, gulål, blankål) förbjuds i alla livsmiljöer.”",
+        "4. Följande artikel ska införas som artikel 14a mellan artiklarna 14 och 15:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 48,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 12,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 12,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "3",
+        "4"
+      ],
+      "quotedArticle": "12a"
+    },
+    {
+      "name": "repeated-opening",
+      "language": "sv",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0003.01/DOC_1",
+      "sourceHash": "0bbdaca059c7705cdf2f1a948bd3ce21a0e058eb02e7d9c6a513581d9ea0e644",
+      "retrievedAt": "2026-10-27T20:28:05.025323+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151
+      ],
+      "paragraphs": [
+        "Artikel 1\nÄndringar av förordning (EU) 2023/2124",
+        "Förordning (EU) 2023/2124 ska ändras på följande sätt:",
+        "14. Artikel 26 ska ersättas med följande:",
+        "”Artikel 26",
+        "Tider med restriktioner",
+        "”1. Bottentrålare som fiskar på lekansamlingar av djuphavsräkan Aristaeomorpha foliacea och blåröd räka ska upphöra med fisket under 30 dagar i följd mellan mars och december.",
+        "2. Medlemsstaterna ska meddela kommissionen dessa tider med restriktioner senast den 30 maj varje år. Kommissionen ska vidarebefordra denna information till AKFM:s sekretariat senast den 30 juni varje år.”",
+        "15. Artikel 27 ska ersättas med följande:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 48,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 1,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 23,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 64,
+              "end": 87,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "14",
+        "15"
+      ]
+    },
+    {
+      "name": "swedish-heading-reference",
+      "language": "sv",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0003.01/DOC_1",
+      "sourceHash": "0bbdaca059c7705cdf2f1a948bd3ce21a0e058eb02e7d9c6a513581d9ea0e644",
+      "retrievedAt": "2026-10-27T20:28:05.025323+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        335,
+        336,
+        337,
+        338,
+        339,
+        340,
+        341,
+        342,
+        343,
+        344,
+        345,
+        346,
+        347,
+        348,
+        349,
+        350,
+        351,
+        352,
+        353,
+        354,
+        355,
+        356,
+        357,
+        358,
+        359,
+        360,
+        361,
+        362,
+        363,
+        364,
+        365,
+        366,
+        367,
+        368
+      ],
+      "paragraphs": [
+        "Artikel 1\nÄndringar av förordning (EU) 2023/2124",
+        "Förordning (EU) 2023/2124 ska ändras på följande sätt:",
+        "37. I avdelning II kapitel V ska följande avsnitt införas som avsnitt II mellan artiklarna 75 och 76:",
+        "”Avsnitt II",
+        "Svarta havet",
+        "Artikel 75a",
+        "Tillämpningsområde",
+        "Detta avsnitt ska tillämpas på fiske efter skarpsill (Sprattus sprattus) i Svarta havet, i det geografiska delområdet 29 enligt bilaga I.",
+        "Artikel 75b",
+        "Vetenskaplig övervakning",
+        "Medlemsstaterna ska årligen säkerställa en lämplig vetenskaplig övervakning av statusen för den art som omfattas av tillämpningsområdet för detta avsnitt.",
+        "Artikel 75c",
+        "Förteckning över aktiva fartyg med tillstånd",
+        "1. Medlemsstaterna ska senast den 15 januari varje år till kommissionen lämna förteckningen över alla fiskefartyg som för deras flagg och som har tillstånd att fiska efter och som aktivt fiskar efter skarpsill under det aktuella året. Kommissionen ska vidarebefordra den förteckningen till AKFM:s sekretariat senast den 31 januari varje år. Förteckningen ska, för varje fartyg, innehålla den information som avses i bilaga VIII.",
+        "3. Medlemsstaterna ska omgående underrätta kommissionen om eventuella tillägg, strykningar eller ändringar när det gäller fiskeflottor som fiskar efter skarpsill, närhelst sådana ändringar sker och åtminstone varje månad. Kommissionen ska utan dröjsmål vidarebefordra dessa ändringar till AKFM:s sekretariat.",
+        "4. Fartyg som inte är förtecknade av medlemsstaterna får inte fånga, behålla ombord, omlasta, landa, lagra eller sälja skarpsill.",
+        "Artikel 75d",
+        "Rapporteringsskyldigheter för fartygens befälhavare",
+        "1. Befälhavarna på de fartyg som fiskar efter skarpsill ska två gånger per år, senast den 1 juli och den 1 januari, lämna en detaljerad rapport om sin fiskeverksamhet till medlemsstaterna. Rapporten ska innehålla åtminstone följande information:",
+        "1. Antalet verksamma dagar.",
+        "2. Område där verksamhet bedrivits.",
+        "3. Total fångst av skarpsill.",
+        "2. Medlemsstaterna ska vidarebefordra denna rapport till kommissionen senast den 15 juli och 15 januari varje år.",
+        "3. Kommissionen ska vidarebefordra denna rapport till AKFM:s sekretariat två gånger per år, senast den 31 juli och 31 januari.",
+        "Artikel 75e",
+        "Ytterligare åtgärder",
+        "Medlemsstaterna får anta ytterligare spatiotemporala åtgärder för att skydda områden där ungfisk av skarpsill samlas.",
+        "Artikel 75f",
+        "Kontroll, övervakning och tillsyn av fiske efter skarpsill i Adriatiska havet",
+        "1. Varje medlemsstat ska säkerställa att lämpliga mekanismer inrättas för registrering av varje fiskefartyg i ett nationellt flottregister där fartygets fångster och fiskeansträngning när det gäller skarpsill registreras via loggboken.",
+        "2. Fiskare eller befälhavare på fiskefartyg med tillstånd som aktivt fiskar efter skarpsill ska deklarera alla fångster och bifångster, oavsett fångstens levandevikt.",
+        "Artikel 75g",
+        "Utsedda landningspunkter",
+        "1. Medlemsstaterna ska utse landningspunkter där landningar och omlastningar som görs av fartyg som bedriver aktivt fiske inom tillämpningsområdet för detta avsnitt ska äga rum.",
+        "2. Det ska vara förbjudet att från fiskefartyg landa eller omlasta någon kvantitet av den art som omfattas av tillämpningsområdet för detta avsnitt på någon annan plats än vid de landningspunkter som utsetts av medlemsstaterna i enlighet med punkt 1.”",
+        "38. Artikel 76 ska ersättas med följande:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 48,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 12,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 18,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 54,
+              "end": 71,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 24,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 44,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 51,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 20,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 77,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 24,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "37",
+        "38"
+      ]
+    },
+    {
+      "name": "premature-delimiter",
+      "language": "nl",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0010.01/DOC_1",
+      "sourceHash": "293b3651da8b4a5e3aafa139541241dd19f8e2d66d1f6dd8fab4bd86f12de238",
+      "retrievedAt": "2026-10-27T20:27:47.001862+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
+        684
+      ],
+      "paragraphs": [
+        "Artikel 1 \nWijziging van Verordening (EU) 2023/2124",
+        "Verordening (EU) 2023/2124 wordt als volgt gewijzigd:",
+        "64) Het volgende artikel 130 bis wordt ingevoegd tussen de artikelen 130 en 131:",
+        "“Artikel 130 bis",
+        "Waarnemingen van vaartuigen",
+        "1. Wanneer wordt waargenomen dat een onder buitenlandse vlag varend vaartuig, een vaartuig met een onbepaalde nationaliteit of een vaartuig zonder nationaliteit betrokken is bij visserij- of visserijgerelateerde activiteiten die als illegaal, ongemeld en ongereglementeerd worden aangemerkt, verzamelen de lidstaten zo veel mogelijk informatie door middel van handhavings- en surveillanceverrichtingen van hun bevoegde autoriteiten in het GFCM-toepassingsgebied.",
+        "2. De lidstaten verzamelen informatie over waarnemingen van vaartuigen overeenkomstig het waarnemingsformulier van bijlage VII.",
+        "3. Wanneer een vaartuig wordt waargenomen, zendt de waarnemende lidstaat het waarnemingsformulier en alle geregistreerde beelden van het vaartuig onverwijld toe aan de autoriteiten van de vlaggenlidstaat, van de overeenkomstsluitende vlaggenpartijen bij de GFCM of van de niet-overeenkomstsluitende vlaggenpartijen van het waargenomen vaartuig en:",
+        "a) wanneer het waargenomen vaartuig de vlag van een lidstaat voert, onderneemt de vlaggenlidstaat onverwijld passende actie ten aanzien van het betrokken vaartuig. Zowel de waarnemende lidstaat als de vlaggenlidstaat van het waargenomen vaartuig verstrekt de Commissie en het Europees Bureau voor visserijcontrole (EFCA) informatie over de waarneming, met inbegrip van bijzonderheden over eventuele follow-upactie;",
+        "b) indien het waargenomen vaartuig de vlag van een andere overeenkomstsluitende partij bij de GFCM of niet-overeenkomstsluitende partij voert, een onbepaalde vlag voert of geen nationaliteit heeft, verstrekt de waarnemende lidstaat de Commissie en het EFCA onverwijld alle relevante informatie over de waarneming. De Commissie zendt de informatie over de waarneming in passende gevallen door aan het GFCM-secretariaat.”.",
+        "5. Lidstaten die aan boord gaan van een vaartuig dat zonder nationaliteit actief is, stellen de Commissie daarvan onverwijld in kennis. De Commissie stelt het GFCM-secretariaat onverwijld in kennis.",
+        "6. De lidstaten verstrekken de Commissie onmiddellijk relevante informatie die is verzameld bij de aanhouding van vaartuigen van niet-overeenkomstsluitende partijen die met betrekking tot soorten die onder GFCM-beheersmaatregelen vallen, visserij- of visserijgerelateerde activiteiten verrichten in niet onder nationale jurisdictie vallende wateren van het GFCM-toepassingsgebied. De Commissie stelt het GFCM-secretariaat onverwijld in kennis.",
+        "7. Ter ondersteuning van het vaartuigwaarnemingsproces zoals vastgelegd in dit artikel, verzamelen vissers- en ondersteuningsvaartuigen van lidstaten die actief zijn in het GFCM-toepassingsgebied, relevante informatie, die zij aan hun binnenlandse autoriteiten verstrekken.",
+        "8. De Commissie is bevoegd om gedelegeerde handelingen vast te stellen tot aanvulling van deze verordening overeenkomstig artikel 140 van deze verordening en artikel 18, leden 1 tot en met 6, van Verordening (EU) nr. 1380/2013 wat betreft de gegevens van bijlage VII.”.",
+        "65) Aan lid 1 van artikel 139 worden de volgende punten toegevoegd:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 11,
+              "kind": "italic"
+            },
+            {
+              "start": 11,
+              "end": 51,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 16,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 27,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify",
+          "marks": [
+            {
+              "start": 35,
+              "end": 36,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "64",
+        "65"
+      ]
+    },
+    {
+      "name": "final-missing-delimiter",
+      "language": "ro",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0007.01/DOC_1",
+      "sourceHash": "cef05b5c5984c9e67e6f84f221a472f094c5a1e08e651b4354939cac78df243c",
+      "retrievedAt": "2026-10-27T20:27:55.928962+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        687,
+        688,
+        689,
+        690,
+        691,
+        692,
+        693,
+        694,
+        695,
+        696,
+        697,
+        698,
+        699,
+        700,
+        701,
+        702,
+        703,
+        704,
+        705,
+        706,
+        707,
+        708,
+        709,
+        710,
+        711,
+        712,
+        713
+      ],
+      "paragraphs": [
+        "Articolul 1\nModificări la Regulamentul (UE) nr. 2023/2124",
+        "Regulamentul (UE) 2023/2124 se modifică după cum urmează:",
+        "66. Se introduce următorul articol 138a între articolul 138 și articolul 139:",
+        "„Articolul 138a",
+        "Gestionarea datelor, protecția datelor cu caracter personal și confidențialitate",
+        "(1) Datele cu caracter personal necesare pentru aplicarea articolului 15 alineatul (1), a articolului 24 alineatul (1), a articolului 30b alineatele (4) și (5), a articolului 30c, a articolului 34 alineatul (1), a articolului 37b alineatele (4) și (5), a articolului 37c, a articolului 47 alineatul (4), a articolului 54, a articolului 63 alineatele (4) și (5), a articolului 64, a articolului 70 alineatul (2), a articolului 75c alineatul (1), a articolului 78 alineatul (3) litera (a), a articolului 94a alineatul (1), a articolului 96c alineatul (1), a articolului 106d alineatul (2), a articolului 126, a articolului 128 alineatul (3) sunt colectate și prelucrate de autoritățile statelor membre și de Comisie în următoarele scopuri:",
+        "(a)\trespectarea obligațiilor de identificare a informațiilor relevante privind navele de pescuit și efectuarea de schimburi de date privind pescuitul în conformitate cu articolul 15, articolul 24, articolul 34, articolul 47, articolul 70, articolul 77, articolul 78, articolul 94a și articolul 96c din prezentul regulament; și",
+        "(b)\tmonitorizarea, controlul, inspecția și supravegherea activităților de pescuit în conformitate cu articolul 54, articolele 30b și 30c, articolele 37b și 37c, articolele 63 și 64, articolul 126, articolul 106d și articolul 128 din prezentul regulament.",
+        "(2) Datele cu caracter personal primite în conformitate cu prezentul regulament nu se stochează mai mult timp decât este necesar pentru scopul în care au fost colectate și, în orice caz, nu mai mult de 5 ani de la colectare, cu excepția datelor cu caracter personal care sunt necesare pentru a se putea da curs plângerilor, încălcărilor și procedurilor judiciare sau administrative, aceste date putând fi păstrate până la finalizarea anchetei, a procedurilor administrative sau judiciare în cauză sau atât timp cât este necesar pentru aplicarea sancțiunilor. În cazul în care informațiile sunt păstrate pentru o perioadă mai lungă, datele sunt anonimizate.",
+        "(3) Autoritățile statelor membre sunt considerate operatori în sensul definit la articolul 4 punctul 7 din Regulamentul (UE) 2016/679 în ceea ce privește prelucrarea datelor cu caracter personal pe care le colectează și transmit în temeiul prezentului regulament.",
+        "(4) Comisia este considerată operator în sensul definit la articolul 3 punctul 8 din Regulamentul (UE) 2018/1725 în ceea ce privește prelucrarea datelor cu caracter personal pe care le colectează și transmite în temeiul prezentului regulament.",
+        "(5) Pe lângă obligațiile stabilite în Regulamentele (UE) 2016/679 și (UE) 2018/1725, autoritățile statelor membre și Comisia:",
+        "(a)\tasigură tratamentul confidențial atunci când transmit și primesc date electronice;",
+        "(b)\tiau măsurile necesare pentru a respecta dispozițiile privind confidențialitatea și securitatea prevăzute în recomandările aprobate de CGPM, inclusiv protocoale de criptare adecvate pentru a asigura confidențialitatea și autenticitatea;",
+        "(c)\tdacă este necesar, la cererea Secretariatului CGPM, rectifică sau șterg rapoartele sau mesajele electronice prelucrate într-un mod care nu respectă prezentul regulament;",
+        "(d)\tse asigură că datele electronice sunt stocate și utilizate numai în scopuri de monitorizare, control, inspecție și asigurare a respectării legii sau în alte scopuri specificate în prezentul regulament și",
+        "(e)\tse asigură că toate transmiterile de date electronice utilizează sisteme de comunicații de date testate în mod corespunzător cu Secretariatul CGPM.",
+        "(6) Autoritățile statelor membre și Comisia garantează fiecare securitatea prelucrării datelor cu caracter personal în ceea ce privește prelucrarea datelor cu caracter personal care are loc în scopul aplicării prezentului regulament, inclusiv prelucrarea datelor cu caracter personal de către autoritățile care au drept de acces la bazele de date relevante privind pescuitul. În special, ele adoptă măsurile necesare pentru:",
+        "(a)\ta proteja fizic datele, inclusiv prin elaborarea de planuri pentru situații neprevăzute în scopul protecției infrastructurii critice;",
+        "(b)\ta împiedica citirea, copierea, modificarea sau îndepărtarea neautorizată a suporturilor de date;",
+        "(c)\ta împiedica introducerea neautorizată de date și accesul, modificarea sau ștergerea neautorizată a datelor cu caracter personal înregistrate;",
+        "(d)\ta împiedica prelucrarea neautorizată de date și orice copiere, modificare sau ștergere neautorizată a datelor;",
+        "(e)\ta asigura faptul că persoanele autorizate să aibă acces la bazele de date relevante privind pescuitul au acces numai la datele care fac obiectul autorizației lor de acces, prin utilizarea exclusivă a unor nume de utilizator individuale și a unor moduri de acces confidențiale;",
+        "(f)\ta se asigura că este posibil să se verifice și să se stabilească căror organisme se pot transmite date cu caracter personal și care sunt datele care au fost prelucrate în bazele de date relevante privind pescuitul, când, de către cine și în ce scop;",
+        "(g)\ta împiedica citirea, copierea, modificarea sau ștergerea neautorizată a datelor cu caracter personal în timpul transmiterii acestora către sau din bazele de date relevante privind pescuitul ori în timpul transportului suporturilor de date, în special prin intermediul unor tehnici de criptare corespunzătoare; și",
+        "(h)\ta monitoriza eficacitatea măsurilor de securitate prevăzute la prezentul alineat și a lua măsurile de organizare necesare referitoare la supravegherea internă, astfel încât să se asigure respectarea prezentului regulament.",
+        "67. Anexele VII, VIII și XI sunt înlocuite în conformitate cu punctul 1 din anexa la prezentul regulament.",
+        "68. Anexele XVII, XVIII, XIX, XX, XXI, XXII și XXIII sunt adăugate în conformitate cu punctul 2 din anexa la prezentul regulament.",
+        "Articolul 2\nIntrarea în vigoare"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Titrearticle"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 12,
+              "kind": "italic"
+            },
+            {
+              "start": 12,
+              "end": 57,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 15,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 80,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 12,
+              "kind": "italic"
+            },
+            {
+              "start": 12,
+              "end": 31,
+              "kind": "bold"
+            }
+          ]
+        }
+      ],
+      "outerPoints": [
+        "66",
+        "67",
+        "68"
+      ]
+    },
+    {
+      "name": "missing-delimiter-before-instruction",
+      "language": "de",
+      "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0024.01/DOC_1",
+      "sourceHash": "b9a28ef9c5a0c5096f3420064b1d9c6ddab851a3901df91a71b9d0975658d6b9",
+      "retrievedAt": "2026-10-27T20:27:07.799786+00:00",
+      "celex": "52024PC0183",
+      "coverage": {
+        "complete": false
+      },
+      "sourceParagraphIndices": [
+        85,
+        86,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
+        684
+      ],
+      "paragraphs": [
+        "Artikel 1\nÄnderungen der Verordnung (EU) Nr. 2023/2124",
+        "Die Verordnung (EU) 2023/2124 wird wie folgt geändert:",
+        "64. Zwischen Artikel 130 und Artikel 131 wird folgender Artikel 130a eingefügt:",
+        "„Artikel 130a",
+        "Sichtungen von Schiffen",
+        "(1) Die Mitgliedstaaten sammeln im Rahmen von Durchsetzungs- und Überwachungsmaßnahmen, die von ihren zuständigen Behörden im GFCM-Anwendungsgebiet durchgeführt werden, so viele Informationen wie möglich, wenn ein Schiff unter ausländischer Flagge oder ein Schiff mit unbestimmter oder ohne Staatszugehörigkeit bei Fischerei oder Fischereitätigkeiten gesichtet wird, die als illegal, ungemeldet und unreguliert gelten.",
+        "(2) Die Mitgliedstaaten sammeln Informationen über die Sichtungen von Schiffen gemäß dem in Anhang VII enthaltenen Informationsblatt zur Sichtung.",
+        "(3) Wird ein Schiff gesichtet, so übermittelt der beobachtende Mitgliedstaat den zuständigen Behörden des Flaggenmitgliedstaats oder der GFCM-Vertragsparteien oder des Flaggenstaates einer Nicht-Vertragspartei des gesichteten Schiffes unverzüglich das Informationsblatt zur Sichtung, ergänzt durch eventuelle Bilder des Schiffes.",
+        "a) führt das gesichtete Schiff die Flagge eines Mitgliedstaats, so ergreift der Flaggenmitgliedstaat unverzüglich geeignete Maßnahmen in Bezug auf das betreffende Schiff. Sowohl der beobachtende Mitgliedstaat als auch der Flaggenmitgliedstaat des gesichteten Schiffes übermitteln der Kommission und der Europäischen Fischereiaufsichtsagentur (EFCA) Informationen über die Sichtung, einschließlich Einzelheiten zu den ergriffenen Folgemaßnahmen;",
+        "b) führt das gesichtete Schiff die Flagge einer anderen GFCM-Vertragspartei, einer Nicht-Vertragspartei oder eine unbestimmte Flagge oder besitzt es keine Staatszugehörigkeit, übermittelt der beobachtende Mitgliedstaat der Kommission und der EFCA unverzüglich alle sachdienlichen Informationen im Zusammenhang mit der Sichtung. Die Kommission leitet die entsprechenden Angaben entsprechend an das GFCM-Sekretariat weiter.",
+        "(5) Mitgliedstaaten, deren Vertreter an Bord eines Schiffes ohne Staatszugehörigkeit gehen, teilen dies der Kommission unverzüglich mit. Die Kommission teilt dies dem GFCM-Sekretariat unverzüglich mit.",
+        "(6) Die Mitgliedstaaten übermitteln der Kommission unverzüglich einschlägige Informationen, die an Bord von Schiffen von Nicht-Vertragsparteien gesammelt wurden, die in Gewässern außerhalb der nationalen Gerichtsbarkeit im GFCM-Anwendungsgebiet Fischfang oder fischereibezogene Tätigkeiten auf Arten durchführen, die unter die Bewirtschaftungsmaßnahmen der GFCM fallen. Die Kommission teilt dies dem GFCM-Sekretariat unverzüglich mit.",
+        "(7) Fischereifahrzeuge und Hilfsschiffe von Mitgliedstaaten, die im GFCM-Anwendungsgebiet tätig sind, sammeln einschlägige Informationen und melden diese ihren zuständigen nationalen Behörden, um das in diesem Artikel beschriebene Verfahren bei der Sichtung von Schiffen zu unterstützen.",
+        "(8) Der Kommission wird die Befugnis übertragen, gemäß Artikel 140 der vorliegenden Verordnung und Artikel 18 Absätze 1 bis 6 der Verordnung (EU) Nr. 1380/2013 delegierte Rechtsakte in Bezug auf in den Anhang VII aufzunehmende Daten zu erlassen.",
+        "65. In Artikel 139 Absatz 1 werden folgende Nummern angefügt:"
+      ],
+      "paragraphProperties": [
+        {
+          "styleId": "Titrearticle"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        },
+        {
+          "styleId": "Normal"
+        }
+      ],
+      "paragraphFormats": [
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 10,
+              "kind": "italic"
+            },
+            {
+              "start": 10,
+              "end": 54,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 13,
+              "kind": "italic"
+            }
+          ]
+        },
+        {
+          "align": "center",
+          "marks": [
+            {
+              "start": 0,
+              "end": 23,
+              "kind": "bold"
+            }
+          ]
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        },
+        {
+          "align": "justify"
+        }
+      ],
+      "outerPoints": [
+        "64",
+        "65"
+      ]
+    }
+  ]
+}

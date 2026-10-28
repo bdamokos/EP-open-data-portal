@@ -1,3 +1,4 @@
+import {amendmentLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {relativeResolutionHeading} from './resolution-labels.mjs';
 import {comparisonHeading} from './amendment-baseline.mjs';
 import {parseTargetLabel} from './proposal-labels.mjs';
@@ -253,7 +254,8 @@ const deletionMarkers = new Set(DELETION_MARKERS);
 // Published FI/LT/HR cells also use a terminal full stop. Do not strip other
 // punctuation, quotes or words: only an entire instruction cell is deletion.
 export const isDeletionMarker = value => deletionMarkers.has(whitespace(value).normalize('NFC').toLowerCase().replace(/\.$/u,'').trimEnd());
-export function amendmentOperation({originalText, proposedText} = {}) {
+export function amendmentOperation({originalText, proposedText, language} = {}) {
+  if(amendmentLanguageScope({originalText,proposedText,language}))return null;
   if (typeof originalText !== 'string' || typeof proposedText !== 'string') return null;
   if (whitespace(originalText)) return !whitespace(proposedText) || isDeletionMarker(proposedText) ? 'delete' : 'replace';
   return whitespace(proposedText) && !isDeletionMarker(proposedText) ? 'insert' : null;
@@ -461,6 +463,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const referenceText = resolutionReference(options.referenceText, options.language);
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const placed = fields => ({operation, status: 'placed', ...fields, evidence});
+  if(amendmentLanguageScope(options))return {operation:null,status:'not-applicable',reason:'language_version_unaffected',evidence:[{basis:'published-language-scope',...amendmentLanguageScope(options)}]};
   if (!operation) return unresolved('amendment_wording_unavailable');
   if (options.baselineSource?.conflicted === true) return unresolved('conflicting_baselines');
   if (exceedsInputBudget(text, options) || options.proposedText.length > MATCH_LIMITS.quoteCharacters) return unresolved('matching_budget');
