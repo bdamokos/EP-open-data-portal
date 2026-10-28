@@ -1086,3 +1086,15 @@ test('an off-page selection keeps the list mounted while pending without claimin
  assert.match(visiblePane(h.container).textContent,/Loading selected vote/);assert.doesNotMatch(visiblePane(h.container).textContent,/Vote unavailable/);
  hold=false;await act(async()=>release());assert.match(visiblePane(h.container).textContent,/Vote unavailable/);
 });
+
+test('failed selection reads clear retained records before another selection starts',async t=>{
+ let mode='ok',release;
+ const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:async url=>{
+   if(mode==='denied')return Response.json({error:{message:'Denied'}},{status:403});
+   if(mode==='pending')await new Promise(resolve=>{release=resolve;});
+   return Response.json(responseFor(url));
+ }});
+ mode='denied';await h.update({decisionId:decision(1)});assert.match(h.container.textContent,/Voting records could not be loaded/);
+ mode='pending';await h.update({decisionId:decision(2)});assert.equal(h.container.querySelector('.member-votes-detail'),null);assert.equal(h.container.querySelector('[data-vote-id]'),null);
+ mode='ok';await act(async()=>release());
+});

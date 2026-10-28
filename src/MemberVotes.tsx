@@ -143,7 +143,10 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const valid=Boolean(request.data&&validateMemberVotesResponse(request.data,{memberId,state}));
   const scope=JSON.stringify([memberId,language,state.week,state.sittingId,state.positions,state.alignment,state.offset,state.snapshotId]);
   const retained=useRef<{scope:string;data:MemberVotesResponse}|null>(null);
-  useLayoutEffect(()=>{if(valid&&request.data)retained.current={scope,data:request.data};},[valid,request.data,scope]);
+  useLayoutEffect(()=>{
+    if(request.error||request.data&&!valid)retained.current=null;
+    else if(valid&&request.data)retained.current={scope,data:request.data};
+  },[valid,request.data,request.error,scope]);
   // A decision read changes only selection. Keep this exact page mounted while
   // it resolves; never carry records across member, language, filter or snapshot.
   const previous=request.loading&&retained.current?.scope===scope?retained.current.data:null;
