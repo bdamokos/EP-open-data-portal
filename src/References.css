@@ -11,7 +11,6 @@ button.legal-ref:focus-visible {outline:3px solid var(--focus);outline-offset:2p
 .legal-reference-kind {font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);}
 .legal-reference-title {font-weight:bold;}
 .legal-reference-meta {font-size:13px;color:var(--ink-muted);}
-.legal-reference-source {font-size:12px;color:var(--ink-muted);margin-top:10px!important;}
 .legal-reference-actions {display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px;}
 .legal-reference-card .legal-reference-actions :is(a,button) {display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;font-size:14px;line-height:1.2;text-decoration:none;background:var(--accent);color:var(--accent-ink);border:0;border-radius:var(--radius-sm);}
 .legal-reference-card .legal-reference-actions .legal-reference-secondary {background:var(--surface-2);color:var(--ink);}
@@ -31,8 +30,5 @@ button.legal-ref:focus-visible {outline:3px solid var(--focus);outline-offset:2p
 .legal-notes li {margin-bottom:6px;overflow-wrap:anywhere;scroll-margin-top:12px;}
 .legal-notes li:target {background:color-mix(in srgb,var(--accent-soft) 30%,transparent);}
 @media(max-width:560px) {.legal-reference-card {font-size:14px;max-height:65vh;}}
-.legal-reference-evidence {font-size:13px;padding:6px 8px;margin:8px 0!important;background:var(--surface-2);border-left:3px solid var(--line-strong);}
-.legal-reference-evidence.is-confirmed {background:var(--positive-soft);border-left-color:var(--positive);}
-.legal-reference-evidence a {color:inherit;}
 /* The superscript wrapper uses zero line height; the button needs room below its number for the border. */
 :is(.explorer,.explorer-insights,.insight-inline-reader) button.legal-note-ref {padding:0 2px;border-bottom-width:1px;line-height:normal;}
