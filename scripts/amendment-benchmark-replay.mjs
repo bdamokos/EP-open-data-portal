@@ -2,6 +2,7 @@ import path from 'node:path';
 import {XMLParser} from 'fast-xml-parser';
 import {advertisedRepresentation} from './amendment-benchmark-source-diagnostics.mjs';
 import {pathToFileURL} from 'node:url';
+import {AsyncLocalStorage} from 'node:async_hooks';
 
 // All source/projection/placement modules come from the measured checkout.
 // The harness and independent oracle stay fixed when --runtime-root is used.
@@ -69,6 +70,36 @@ export async function missingDeclaredRepresentation(cache,url,request) {
   return Object.assign(new Error('The declared representation was not acquired in this snapshot.'),{code:'missing-declared-representation',source,request:{url,...request}});
 }
 
+export function replaySourceClients(cache,runtime) {
+  // Source records retain the response's observation time. Cache age advances
+  // monotonically through observed responses, independently of disk latency.
+  let sourceTime=0,observedTime=0;
+  const clock=()=>sourceTime;
+  const sources=new runtime.OfficialContextSources({directory:null,clock,fetchSource:async(url,options)=>{
+    const request={accept:options.headers.Accept,...(options.headers['Accept-Language']?{language:options.headers['Accept-Language']}:{})};
+    const missing=await missingDeclaredRepresentation(cache,url,request);if(missing)throw missing;
+    const input=await cache.get(url,{...request,raw:true,signal:options.signal});
+    sourceTime=Date.parse(input.fetchedAt);
+    if(!Number.isFinite(sourceTime))throw new Error('Invalid source observation time: '+url);
+    observedTime=Math.max(observedTime,sourceTime);
+    return new Response([204,304].includes(input.status)?null:input.body,{status:input.status,headers:input.headers});
+  },run:operation=>operation()});
+  const publication=new AsyncLocalStorage(),view=sources.cache;
+  view.clock=()=>publication.getStore()??observedTime;
+  const save=view.save.bind(view),get=view.get.bind(view);
+  // Reading immutable bytes again cannot make the captured observation newer.
+  view.save=(key,value)=>publication.run(Date.parse(value.fetchedAt),()=>save(key,value));
+  view.get=async(...args)=>{
+    try{return await get(...args);}
+    finally {
+      // Keep the stale result of this read, but finish its admitted offline
+      // refresh before the next source read can alter the response clock.
+      await Promise.allSettled([...view.pending.values()]);
+    }
+  };
+  return {sources,documents:new runtime.CellarDocuments({sources,directory:null,clock})};
+}
+
 export function sourceReplay(cache,runtime) {
   const observedFiles=new Map();
   const textWork=(work,language)=>{
@@ -93,16 +124,7 @@ export function sourceReplay(cache,runtime) {
   };
   // Keep the production metadata validation, negotiation and redirect rules.
   // InputCache owns the single writer, request spacing/cap and immutable bytes.
-  let sourceTime=Date.now();
-  const clock=()=>sourceTime;
-  const sources=new runtime.OfficialContextSources({directory:null,clock,fetchSource:async(url,options)=>{
-    const request={accept:options.headers.Accept,...(options.headers['Accept-Language']?{language:options.headers['Accept-Language']}:{})};
-    const missing=await missingDeclaredRepresentation(cache,url,request);if(missing)throw missing;
-    const input=await cache.get(url,{...request,raw:true,signal:options.signal});
-    sourceTime=Date.parse(input.fetchedAt);
-    return new Response([204,304].includes(input.status)?null:input.body,{status:input.status,headers:input.headers});
-  },run:operation=>operation()});
-  const documents=new runtime.CellarDocuments({sources,directory:null,clock});
+  const {documents}=replaySourceClients(cache,runtime);
   const readProposal=runtime.createProposalBaseline({documents,request});
   const readCouncil=runtime.createCouncilPositionBaseline?.({documents,request});
   const readExisting=runtime.createExistingLawBaseline?.({documents});
