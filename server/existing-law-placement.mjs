@@ -2,6 +2,7 @@ import {existingLawReference} from './existing-law-baseline.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {resolveProposalPlacement} from './proposal-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
+import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 
 const exactKey=text=>normaliseForMatching(text,{stripNumbering:false,stripTerminators:false}).replace(/\s+/gu,' ').trim().replace(/[.;’”'"]+$/u,'').trim();
 const prefixless=(text,unit)=>unit.label?.prefix&&text.startsWith(unit.label.prefix)?text.slice(unit.label.prefix.length):text;
@@ -27,6 +28,9 @@ export function existingLawReplacement(text,language) {
 }
 export function resolveExistingLawPlacement(items,chosen,baseline) {
   const unresolved=reason=>({operation:amendmentOperation(chosen),status:'unresolved',reason,evidence:[]});
+  const mixedScope=amendmentMixedLanguageScope(chosen),scope=amendmentLanguageScope(chosen);
+  if(mixedScope)return {operation:null,status:'unresolved',reason:'language_scope_mixed',evidence:[{basis:'published-language-scope',...mixedScope}]};
+  if(scope)return {operation:null,status:'not-applicable',reason:'language_version_unaffected',evidence:[{basis:'published-language-scope',...scope}]};
   const identity=existingLawReference(chosen);
   if(identity.status!=='resolved')return unresolved(identity.gaps[0]);
   if(baseline?.status!=='available'||baseline.baseCelex!==identity.baseCelex||baseline.amendmentDate!==identity.amendmentDate||baseline.language!==chosen.language)return unresolved(baseline?.gaps?.[0]||'existing-law-baseline-unavailable');

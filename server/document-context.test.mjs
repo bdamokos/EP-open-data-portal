@@ -367,7 +367,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,30);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,31);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -645,4 +645,22 @@ test('wording-only scope notes leave the document target unrequested',async()=>{
   assert.equal(result.target.status,'not-requested');assert.equal(result.target.reason,null);
   assert.deepEqual(result.target.paragraphs,[]);assert.equal(result.placement,null);
   assert.equal(result.amendment.variants[0].proposedText,note);assert.equal(result.target.evidence.wordingLanguage,'fr');
+});
+
+for(const baseline of ['motion-resolution','commission-proposal','council-position','present-text'])test('mixed scope notes preserve changed footnotes without acquiring or replacing a baseline: '+baseline,async()=>{
+  const example=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-layouts.json',import.meta.url))).examples.find(row=>row.language==='sk'&&row.number===53);
+  const selected={...indexed,...example,id:amendmentId,listId,baseline,baselineSource:{category:baseline,conflicted:false},targetLabelLanguage:'sk'};
+  const reader=service({findAmendment:()=>selected,readText:async()=>({...summary,textLanguage:'sk',availableTextLanguages:['sk'],paragraphs:['Original document stays intact.']}),
+    readProposal:async()=>assert.fail('Mixed language notes need a separate comparison'),readCouncil:async()=>assert.fail('No Council acquisition'),readExistingLaw:async()=>assert.fail('No existing-law acquisition')});
+  for(const includeBody of [true,false]) {
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'sk',includeBody}),{store:{}});
+    assert.equal(result.amendment.variants[0].originalText,example.originalText);assert.equal(result.amendment.variants[0].proposedText,example.proposedText);
+    assert.equal(result.baseline,null);assert.equal(result.proposal,null);assert.deepEqual(result.target.paragraphs,[]);
+    if(includeBody) {
+      assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.operation,null);assert.equal(result.placement.reason,'language_scope_mixed');
+      assert.equal(result.placement.evidence[0].status,'partial');assert.equal(result.placement.evidence[0].field,'proposedText');
+      assert.equal(result.target.reason,'mixed-language-scope');assert.equal(result.target.evidence.wordingLanguage,'sk');
+      assert.deepEqual(result.document.selectedText.paragraphs,['Original document stays intact.']);
+    } else {assert.equal(result.target.status,'not-requested');assert.equal(result.target.reason,null);assert.equal(result.placement,null);}
+  }
 });

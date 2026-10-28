@@ -4,6 +4,7 @@ import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
+import {readFileSync} from 'node:fs';
 
 test('wording comparison modes, accessible announcements, source language, defaults and empty semantics',async t=>{
   const window=new Window({url:'http://localhost/'});
@@ -31,6 +32,16 @@ test('wording comparison modes, accessible announcements, source language, defau
     assert.equal(container.querySelector('ins, del, button'),null);
     assert.equal(container.querySelector('p[lang="'+language+'"]').textContent,proposed);
     assert.match(container.textContent,/No change in this language version/);
+  }
+  const mixedExamples=JSON.parse(readFileSync(new URL('../server/fixtures/amendment-language-layouts.json',import.meta.url))).examples.filter(row=>row.expected===null);
+  for(const example of mixedExamples) {
+    await render({original:example.originalText,proposed:example.proposedText,language:example.language});
+    assert.match(container.textContent,/Language note and other wording, shown as published/);
+    assert(!container.textContent.includes('No change in this language version.'));
+    assert.equal(container.querySelector('ins, del, button'),null);
+    assert.equal(wordingText(container,'original'),example.originalText);assert.equal(wordingText(container,'proposed'),example.proposedText);
+    assert(container.textContent.includes('https://www.sprfmo.int/science/'));
+    assert(container.textContent.includes('fisheries-operation-plans'));
   }
   await render({original:'La vieille politique.\n',proposed:'La nouvelle politique.\n',language:'fr'});
   await render({});

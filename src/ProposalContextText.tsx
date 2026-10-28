@@ -14,6 +14,7 @@ const units=(list:ProposalUnit[]):ProposalUnit[]=>list.flatMap(unit=>[unit,...un
 const safeHref=(raw:string|undefined|null)=>{try{const url=new URL(raw||'');return url.protocol==='https:'&&!url.username&&!url.password?url.href:null;}catch{return null;}};
 export const proposalPlacementReasons:Record<string,string>={
   language_version_unaffected:'No change in this language version.',
+  language_scope_mixed:'This comparison is shown separately from the document.',
   amends_existing_law:'This amendment changes existing law.',
   council_position_unavailable:'The Council position is unavailable here.',
   baseline_unknown:'The text this amendment changes isn’t identified.',
