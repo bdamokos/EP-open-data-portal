@@ -266,7 +266,7 @@ test('source hyperlinks retain known or unknown document language while their ow
   });
 });
 
-test('procedure reference popup restores dossier title language and separates evidence titles from English explanation',async t=>{
+test('procedure reference popup preserves dossier and note title languages without matching explanations',async t=>{
   const citation='E-003031/2026',other='E-003032/2026',key='question:E-2026-003031',otherKey='question:E-2026-003032';
   const notes=[{id:'1',label:'1',text:other,links:[]}];
   const h=await harness(t,route=>route==='references'?{references:[{key,kind:'procedure',status:'found',procedure:'2026/0001(COD)'},{key:otherKey,kind:'question',status:'found',id:'E-10-2026-003032',title:'Titre français cité',titleLanguage:'fr'}]}:route==='reference-summary'?procedureData('hu'):undefined);
@@ -275,9 +275,8 @@ test('procedure reference popup restores dossier title language and separates ev
   const summary=h.container.querySelector('.legal-reference-summary');
   assert.equal(effectiveLanguage(summary.querySelector('.legal-reference-title')),'hu');
   assert.equal(effectiveLanguage(summary.querySelector('div[lang]')),'hu');
-  const explanation=h.container.querySelector('.legal-reference-evidence');assert.equal(effectiveLanguage(explanation),'en');
-  const title=explanation.querySelector('span[lang]');assert.equal(title.textContent,'Titre français cité');assert.equal(effectiveLanguage(title),'fr');
-  assert.equal(explanation.textContent,'The document’s footnote 1 points to Titre français cité.');
+  assert.equal(h.container.querySelector('.legal-reference-evidence'),null);
+  assert.equal(h.container.querySelector('.legal-reference-source'),null);
   const note=h.container.querySelector('.legal-note-ref');
   assert.equal(note.getAttribute('aria-label'),'Note 1: Titre français cité');assert.equal(note.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(note),'fr');
   t.diagnostic(JSON.stringify({assessment:'OPEN',accessibleName:note.getAttribute('aria-label'),mechanism:'aria-label',constituents:[{text:'Note 1: ',language:'en'},{text:'Titre français cité',language:'fr'}],effectiveLang:effectiveLanguage(note)}));

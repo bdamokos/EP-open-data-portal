@@ -13,9 +13,7 @@ export type ResolvedReference={key:string;kind:'act'|'document'|'procedure'|'que
   celex?:string|null;title?:string|null;titleLanguage?:string|null;date?:string|null;inForce?:boolean|null;procedure?:string|null;eurLexUrl?:string;
   id?:string|null;answerIds?:string[];source?:Source};
 type Summary={reference:string;title:string;language:string;summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string;fetchedAt:string}};source:{url:string;fetchedAt:string}};
-// How the document itself supports a reference: its own hyperlink, or the footnote that follows the citation.
-type Evidence={status:'hyperlink';url:string}|{status:'confirmed'|'other'|'from-note';note:string;noteId:string;others?:string[]};
-type OpenCard={key:string;text:string;trigger:HTMLElement;pinned:boolean;evidence?:Evidence};
+type OpenCard={key:string;text:string;trigger:HTMLElement;pinned:boolean};
 type OpenQuestion={id:string;trigger:HTMLElement};
 type Scope={references:Map<string,ResolvedReference>;noteKeys:Map<string,{linked:string[];cited:string[]}>;notePrefix:string;textLanguage:string|null;open:OpenCard|null;show:(card:OpenCard)=>void;hoverEnd:()=>void;cardId:string};
 const ReferenceScopeContext=createContext<Scope|null>(null);
@@ -56,7 +54,6 @@ const linked=(reference:ResolvedReference|undefined)=>reference?.status==='found
 // Different keys can name one work, such as COM(2024) 225 and CELEX 52024DC0225.
 const identity=(scope:Scope,key:string)=>{const reference=scope.references.get(key);return reference?.celex||reference?.id||reference?.procedure||key;};
 const distinctFound=(scope:Scope,keys:string[])=>{const seen=new Set<string>(),result:string[]=[];for(const key of keys){if(!linked(scope.references.get(key)))continue;const id=identity(scope,key);if(!seen.has(id)){seen.add(id);result.push(key);}}return result;};
-const allFound=(scope:Scope,noteId:string)=>{const note=scope.noteKeys.get(noteId);return note?distinctFound(scope,[...note.linked,...note.cited]):[];};
 // A footnote's own hyperlink identifies it; its text citations count only when it has no resolved link.
 const noteIdentifies=(scope:Scope,noteId:string)=>{const note=scope.noteKeys.get(noteId);if(!note)return null;const links=distinctFound(scope,note.linked);const found=links.length?links:distinctFound(scope,note.cited);return found.length===1?found[0]:null;};
 
@@ -95,14 +92,14 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
     {lookup.unavailable&&<p lang="en" className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" lang={open.trigger.closest('[lang]')?.getAttribute('lang')??''} role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
-      <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} evidence={open.evidence} notePrefix={notePrefix} references={references} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
+      <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
       <button type="button" lang="en" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
     </div>}
     {question&&renderQuestion&&<div lang="en" className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
   </div></ReferenceScopeContext.Provider>;
 }
 
-function ReferenceCard({reference,text,textLanguage,language,onQuestion,evidence,notePrefix,references}:{reference:ResolvedReference;text:string;textLanguage:string;language:string;onQuestion?:(id:string)=>void;evidence?:Evidence;notePrefix:string;references:Map<string,ResolvedReference>}) {
+function ReferenceCard({reference,text,textLanguage,language,onQuestion}:{reference:ResolvedReference;text:string;textLanguage:string;language:string;onQuestion?:(id:string)=>void}) {
   const procedure=reference.kind==='procedure'?reference.procedure:reference.procedure||null;
   const [summaryOpen,setSummaryOpen]=useState(reference.kind==='procedure');
   useEffect(()=>setSummaryOpen(reference.kind==='procedure'),[reference.key]);
@@ -122,21 +119,11 @@ function ReferenceCard({reference,text,textLanguage,language,onQuestion,evidence
       {reference.eurLexUrl&&<a href={reference.eurLexUrl} target="_blank" rel="noreferrer">EUR-Lex ↗</a>}
       {procedure&&<a className="legal-reference-secondary" href={'?'+new URLSearchParams({view:'legislation','pl-mode':'dossier','dossier-ref':procedure})}>Dossier view</a>}
     </div>
-    {evidence&&<EvidenceNote evidence={evidence} notePrefix={notePrefix} references={references}/>}
     {procedure&&summaryOpen&&<DossierSummary reference={procedure} language={language} showTitle={reference.kind==='procedure'}/>}
-    {reference.source&&<p lang="en" className="legal-reference-source">{reference.source.name}{reference.celex?' · CELEX '+reference.celex:''}</p>}
   </>;
 }
 
 const shortLabel=(reference:ResolvedReference|undefined,key:string)=>{const title=reference?.title||reference?.celex||key.replace(/^[a-z]+:/,'');return title.length>90?title.slice(0,88)+'…':title;};
-function EvidenceNote({evidence,notePrefix,references}:{evidence:Evidence;notePrefix:string;references:Map<string,ResolvedReference>}) {
-  if(evidence.status==='hyperlink'){let host='';try{host=new URL(evidence.url).hostname;}catch{}return <p lang="en" className="legal-reference-evidence">The document links this text to {host||'this source'}.</p>;}
-  const note=<a href={`#${notePrefix}-note-${evidence.noteId}`}>footnote {evidence.note}</a>;
-  if(evidence.status==='confirmed')return <p lang="en" className="legal-reference-evidence is-confirmed"><span aria-hidden="true">✓ </span>The document’s {note} gives the same identifier.</p>;
-  if(evidence.status==='from-note')return <p lang="en" className="legal-reference-evidence is-confirmed">Identified by the document’s {note}.</p>;
-  return <p lang="en" className="legal-reference-evidence">The document’s {note} points to {(evidence.others||[]).map((key,index)=><Fragment key={key}>{index?'; ':''}<span lang={references.get(key)?.title?references.get(key)?.titleLanguage??'':''}>{shortLabel(references.get(key),key)}</span></Fragment>)}.</p>;
-}
-
 function DossierSummary({reference,language,showTitle}:{reference:string;language:string;showTitle:boolean}) {
   const [expanded,setExpanded]=useState(false);
   const {data,loading,error,retry}=useData<Summary>('reference-summary?'+new URLSearchParams({reference,lang:language}));
@@ -153,12 +140,12 @@ function DossierSummary({reference,language,showTitle}:{reference:string;languag
   </section>;
 }
 
-function ReferenceButton({refKey,text,evidence,className='legal-ref',label}:{refKey:string;text:string;evidence?:Evidence;className?:string;label?:string}) {
+function ReferenceButton({refKey,text,className='legal-ref',label}:{refKey:string;text:string;className?:string;label?:string}) {
   const scope=useContext(ReferenceScopeContext)!,self=useRef<HTMLButtonElement>(null),expanded=Boolean(self.current)&&scope.open?.trigger===self.current;
   const hover=useRef<number>(0);
   return <button ref={self} type="button" className={className} aria-label={label} aria-haspopup="dialog" aria-expanded={expanded} aria-controls={expanded?scope.cardId:undefined}
-    onClick={event=>{window.clearTimeout(hover.current);scope.show({key:refKey,text,trigger:event.currentTarget,pinned:true,evidence});}}
-    onPointerEnter={event=>{if(event.pointerType!=='mouse'||!finePointer())return;const trigger=event.currentTarget;hover.current=window.setTimeout(()=>scope.show({key:refKey,text,trigger,pinned:false,evidence}),350);}}
+    onClick={event=>{window.clearTimeout(hover.current);scope.show({key:refKey,text,trigger:event.currentTarget,pinned:true});}}
+    onPointerEnter={event=>{if(event.pointerType!=='mouse'||!finePointer())return;const trigger=event.currentTarget;hover.current=window.setTimeout(()=>scope.show({key:refKey,text,trigger,pinned:false}),350);}}
     onPointerLeave={event=>{window.clearTimeout(hover.current);if(event.pointerType==='mouse')scope.hoverEnd();}}>{text}</button>;
 }
 const urlPattern=/\bhttps?:\/\/[^\s<>"]+[^\s<>".,;:)]/g;
@@ -172,7 +159,7 @@ function plain(text:string,linkify:boolean,key:string,language:string) {
 // A marker opens the reference its footnote identifies, when the footnote identifies exactly one.
 function NoteMark({anchor,notePrefix}:{anchor:NoteAnchor;notePrefix:string}) {
   const scope=useContext(ReferenceScopeContext),key=scope?noteIdentifies(scope,anchor.note):null;
-  if(key)return <sup className="legal-note-mark"><ReferenceButton refKey={key} text={anchor.label} className="legal-ref legal-note-ref" label={'Note '+anchor.label+': '+shortLabel(scope!.references.get(key),key)} evidence={{status:'from-note',note:anchor.label,noteId:anchor.note}}/></sup>;
+  if(key)return <sup className="legal-note-mark"><ReferenceButton refKey={key} text={anchor.label} className="legal-ref legal-note-ref" label={'Note '+anchor.label+': '+shortLabel(scope!.references.get(key),key)}/></sup>;
   return <sup className="legal-note-mark"><a lang="en" href={`#${notePrefix}-note-${anchor.note}`} aria-label={'Note '+anchor.label}>{anchor.label}</a></sup>;
 }
 const emphasisTags={bold:'b',italic:'i',underline:'u',strike:'s',superscript:'sup',subscript:'sub'} as const;
@@ -195,20 +182,12 @@ export function ReferenceText({text,start=0,anchors=[],links=[],marks:formatMark
   // A marker inside a linked span is shown after it.
   const marks=anchors.filter(anchor=>anchor.offset>=start&&(anchor.offset<start+text.length||final&&anchor.offset===start+text.length))
     .map(anchor=>{let at=anchor.offset-start;for(const part of parts)if((part.linked||part.href)&&part.from<at&&at<part.to)at=part.to;return {anchor,at};}).sort((a,b)=>a.at-b.at);
-  const evidenceFor=(part:typeof parts[number]):Evidence|undefined=>{
-    if(part.ref?.via==='hyperlink')return {status:'hyperlink',url:part.ref.url||''};
-    const after=marks.find(mark=>mark.at>=part.to&&/^[\s)\]’'"]*$/.test(text.slice(part.to,mark.at)));
-    if(!after||!scope)return undefined;
-    const found=allFound(scope,after.anchor.note),own=identity(scope,part.ref!.key);
-    if(found.some(key=>identity(scope,key)===own))return {status:'confirmed',note:after.anchor.label,noteId:after.anchor.note};
-    return found.length?{status:'other',note:after.anchor.label,noteId:after.anchor.note,others:found}:undefined;
-  };
   const nodes:ReactNode[]=[];let next=0;
   const mark=()=>{const {anchor}=marks[next++];nodes.push(<NoteMark key={'note-'+next} anchor={anchor} notePrefix={notePrefix}/>);};
   for(const part of parts) {
     if(part.linked||part.href) {
       while(next<marks.length&&marks[next].at<=part.from)mark();
-      const control=part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text} evidence={evidenceFor(part)}/>:<SourceLink key={'link-'+part.from} url={part.href!} contentLanguage={scope?.textLanguage??''} compact>{part.text}</SourceLink>;
+      const control=part.linked?<ReferenceButton key={'ref-'+part.from} refKey={part.ref!.key} text={part.text}/>:<SourceLink key={'link-'+part.from} url={part.href!} contentLanguage={scope?.textLanguage??''} compact>{part.text}</SourceLink>;
       nodes.push(emphasis(control,kindsAt(part.from,part.from+1),'em-'+part.from));
       continue;
     }
