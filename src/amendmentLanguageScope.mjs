@@ -35,9 +35,28 @@ function noteText(value) {
   if(text.startsWith('(')&&text.endsWith(')'))text=text.slice(1,-1).trim();
   return text.replace(/\.$/u,'').trimEnd();
 }
-export function amendmentLanguageScope({originalText,proposedText,language}={}) {
+/** A verified standalone note beside other wording cannot describe the whole column. */
+export function amendmentMixedLanguageScope({originalText,proposedText,language}={}) {
   const supported=markers.get(language);
   if(!supported)return null;
+  for(const [field,value] of Object.entries({originalText,proposedText})) {
+    if(typeof value!=='string'||value.length>200_000)continue;
+    const notes=[];let otherWording=false;
+    for(const line of value.matchAll(/[^\r\n]+/gu)) {
+      const text=line[0].trim();
+      if(!text||/^_{3,}$/u.test(text))continue;
+      if(supported.has(noteText(text))) {
+        const start=line.index+line[0].indexOf(text);
+        notes.push({start,end:start+text.length,note:text});
+      } else otherWording=true;
+    }
+    if(notes.length&&otherWording)return {status:'partial',language,field,notes};
+  }
+  return null;
+}
+export function amendmentLanguageScope({originalText,proposedText,language}={}) {
+  const supported=markers.get(language);
+  if(!supported||amendmentMixedLanguageScope({originalText,proposedText,language}))return null;
   for(const [field,note] of Object.entries({originalText,proposedText})) {
     if(typeof note!=='string'||note.length>4000)continue;
     // A column may repeat the note for each numbered provision or retain the

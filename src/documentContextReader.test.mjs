@@ -43,6 +43,20 @@ for(const [textLanguage,status,hasBody] of [['en','available',true],['fr','avail
   else assert(!h.container.textContent.includes('The document and amendment wording are in different languages.'));
 });
 
+test('mixed note and changed footnote wording stays separate from the intact document',async t=>{
+  const example=JSON.parse(readFileSync(new URL('../server/fixtures/amendment-language-layouts.json',import.meta.url))).examples.find(row=>row.language==='sk'&&row.number===53);
+  const doc=sourceDocument(report,['Original document body.'],{textLanguage:'sk',availableTextLanguages:['sk']});
+  const value=response(report,doc,{requestedLanguage:'sk',requestedWordingLanguage:'sk',amendment:{...amendmentSource,variants:[wordingVariant('sk',{originalText:example.originalText,proposedText:example.proposedText})]},
+    target:{...target,status:'unavailable',paragraphs:[],evidence:pinnedEvidence('sk')},placement:{status:'unresolved',operation:null,reason:'language_scope_mixed',evidence:[]}});
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'sk',view:'document',onBack:()=>{}},language:'en'});
+  assert(h.container.textContent.includes('This comparison is shown separately from the document.'));
+  assert(h.container.textContent.includes('Original document body.'));
+  assert(!h.container.textContent.includes('No change in this language version.'));
+  assert.equal(h.container.querySelector('ins, del'),null);assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
+  assert.equal(wordingText(h.container,'original'),example.originalText);assert.equal(wordingText(h.container,'proposed'),example.proposedText);
+});
+
 async function harness(t,respond,followups=()=>({status:'none-listed',items:[],gaps:[]})) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};

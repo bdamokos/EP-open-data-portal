@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
+import {amendmentLanguageScope,amendmentMixedLanguageScope} from './amendmentLanguageScope.mjs';
 import {amendmentOperation,resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {documentContextPlacement} from '../server/document-context-placement.mjs';
+import {resolveExistingLawPlacement} from '../server/existing-law-placement.mjs';
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/amendment-language-scope.json',import.meta.url)));
 const layouts=JSON.parse(readFileSync(new URL('../server/fixtures/amendment-language-layouts.json',import.meta.url)));
 
@@ -18,11 +19,31 @@ test('published repeated notes and divider-only columns retain whole-column scop
         assert.equal(placement.status,'not-applicable');assert.equal(placement.operation,null);
         assert.equal(placement.evidence[0].note,example.proposedText);
       }
-    } else assert.equal(amendmentOperation(example),'replace');
+    } else assert.equal(amendmentOperation(example),null);
   }
   const note='(Netýka sa slovenskej verzie.)';
   for(const proposedText of [note+'\nNew wording.',note+'\n15 A changed footnote.',note+'\n(Ne concerne pas la version française.)','__________________',note+'\n___ not a divider',Array(17).fill(note).join('\n')])assert.equal(amendmentLanguageScope({language:'sk',proposedText}),null);
   assert.equal(amendmentLanguageScope({language:'sk',proposedText:note+'\r\n\r\n__________________'})?.status,'not-applicable');
+});
+
+test('mixed source columns are neither whole-amendment no-change nor replacement prose',()=>{
+  for(const example of layouts.examples.filter(row=>row.expected===null)) {
+    const mixed=amendmentMixedLanguageScope(example);
+    assert.equal(mixed.status,'partial');assert.equal(mixed.field,'proposedText');assert.equal(mixed.language,example.language);
+    assert.equal(mixed.notes.length,1);
+    for(const note of mixed.notes)assert.equal(example[mixed.field].slice(note.start,note.end),note.note);
+    for(const placement of [resolveAmendmentPlacement(null,example),resolveProposalPlacement([],example),resolveExistingLawPlacement([],example,null),documentContextPlacement({chosen:example})]) {
+      assert.equal(placement.status,'unresolved');assert.equal(placement.operation,null);
+      assert.equal(placement.reason,'language_scope_mixed');assert.equal(placement.span,undefined);assert.equal(placement.splice,undefined);
+      assert.deepEqual(placement.evidence[0],{basis:'published-language-scope',...mixed});
+    }
+  }
+  const note='(Ne concerne pas la version française.)',proposedText='🚤 Other wording.\r\n  '+note+'\r\n15 Changed footnote.';
+  const scope=amendmentMixedLanguageScope({language:'fr',originalText:note,proposedText});
+  assert.equal(scope.field,'proposedText');assert.deepEqual(scope.notes,[{start:proposedText.indexOf(note),end:proposedText.indexOf(note)+note.length,note}]);
+  assert.equal(amendmentLanguageScope({language:'fr',originalText:note,proposedText}),null,'one note-only field cannot hide a mixed other field');
+  for(const language of ['en','ga',null])assert.equal(amendmentMixedLanguageScope({language,proposedText}),null);
+  for(const proposedText of ['The words '+note+'\nFootnote.', '«'+note+'»\nFootnote.',note+'\n__________________'])assert.equal(amendmentMixedLanguageScope({language:'fr',proposedText}),null);
 });
 
 test('official whole-cell notes retain selected language and exact field provenance across placement paths',()=>{
@@ -32,7 +53,7 @@ test('official whole-cell notes retain selected language and exact field provena
     const scope=amendmentLanguageScope(chosen);
     assert.deepEqual(scope,{status:'not-applicable',language:example.language,field:example.noteField,note:example.note},example.language);
     assert.equal(amendmentOperation(chosen),null,example.language);
-    for(const placement of [resolveAmendmentPlacement(null,chosen),resolveProposalPlacement([],chosen),documentContextPlacement({chosen})]) {
+    for(const placement of [resolveAmendmentPlacement(null,chosen),resolveProposalPlacement([],chosen),resolveExistingLawPlacement([],chosen,null),documentContextPlacement({chosen})]) {
       assert.equal(placement.status,'not-applicable',example.language);
       assert.equal(placement.operation,null,example.language);
       assert.equal(placement.reason,'language_version_unaffected',example.language);

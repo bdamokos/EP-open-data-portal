@@ -806,6 +806,6 @@ test('published scope-note layouts preserve every comparison row, including blan
     const [amendment]=extractAmendments(archive(xml),{...options,language:example.language,listId:example.listId,targetDocumentId:example.documentId}).amendments;
     assert.equal(amendment.originalText,example.originalText,example.language);
     assert.equal(amendment.proposedText,example.proposedText,example.language);
-    assert.equal(amendmentOperation(amendment),example.expected===null?'replace':null,example.language);
+    assert.equal(amendmentOperation(amendment),null,example.language);
   }
 });
