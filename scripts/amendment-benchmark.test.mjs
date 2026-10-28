@@ -10,7 +10,7 @@ import {parseProposal} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {documentContextPlacement} from '../server/document-context-placement.mjs';
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
-import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
+import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
 import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
@@ -21,6 +21,12 @@ const source=paragraphs=>({paragraphs,structureStatus:'extracted',textLanguage:'
 const item=paragraphs=>[{kind:'act',index:1,proposal:parseProposal(source(paragraphs),{language:'en'})}];
 const wording=(targetLabel,originalText='',proposedText='New text.')=>({targetLabel,originalText,proposedText,language:'en',baseline:'commission-proposal'});
 const stages=()=>({S1:{status:'passed'},S2:{status:'passed'},S3:{status:'passed'},S4:{status:'passed'},S5:{status:'placed'},S6:{status:'verified'}});
+test('existing-law oracle preserves internal list punctuation and labels across source line wraps',()=>{
+  const left='1. Lead:\na) first;\nb) second;',right='1. Lead:\na) first; b) second;',labels=[{value:'1'},{value:'a'},{value:'b'}];
+  assert.equal(existingLawOracleNormal(left,labels),existingLawOracleNormal(right,labels));
+  assert.notEqual(existingLawOracleNormal(left,labels),existingLawOracleNormal(right.replace('first;','first'),labels));
+  assert.notEqual(existingLawOracleNormal(left,labels),existingLawOracleNormal(right.replace('b)','c)'),labels));
+});
 test('classifier distinguishes affirmative source absence, processing limits, unverified and false placements',()=>{
   assert.equal(classify(stages()).outcome,'correct');
   for(const reason of ['wording-comparison-grid','wording-vertical-text-loss','docx-amendment-not-extracted','input-http-503','wording-source-not-indexed']) {

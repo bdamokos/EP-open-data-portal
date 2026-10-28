@@ -11,7 +11,8 @@ export async function replayRuntime(root) {
   ]);
   const council=await load('council-position-baseline').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
   const xhtml=await load('public-legal-xhtml').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
-  return {...amendments,...text,...baseline,...cellar,...official,...structure,...placement,...model,...order,...amendmentModel,...identity,...council,...xhtml,
+  const existing=await load('existing-law-baseline').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
+  return {...amendments,...text,...baseline,...cellar,...official,...structure,...placement,...model,...order,...amendmentModel,...identity,...council,...xhtml,...existing,
     documentContextVersion:context.DOCUMENT_CONTEXT_VERSION,documentExtractionVersion:docx.DOCX_EXTRACTION_VERSION};
 }
 export const publicDocumentUrl=id=>'https://data.europarl.europa.eu/api/v2/plenary-documents/'+id+'?format=application%2Fld%2Bjson';
@@ -23,6 +24,34 @@ export function rawProposalReferences(buffer,runtime) {
   const tree=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);
   const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.filter(v=>'#text' in v).map(v=>String(v['#text'])):Array.isArray(value)?text(value):[])).join('');
   return [...text(tree).matchAll(/<(DocRef|DocAmend\d?)>([\s\S]*?)<\/\1>/g)].map(([,field,raw])=>({field,raw}));
+}
+
+// Acquisition reads source headings, block boundaries and dates directly,
+// before amendment extraction or placement. A version citation belongs only
+// to its own block; a prospective citation must not trigger a current-law read.
+export function rawExistingLawReferences(buffer,runtime) {
+  let xml;try{xml=runtime.docxParts(buffer).get('word/document.xml');}catch{return [];}
+  const rows=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(xml);
+  const text=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.filter(v=>'#text' in v).map(v=>String(v['#text'])):Array.isArray(value)?text(value):[])).join('');
+  const paragraphs=[];
+  const walk=nodes=>{for(const node of nodes)for(const [key,value] of Object.entries(node))if(key==='w:p')paragraphs.push(text(value));else if(Array.isArray(value))walk(value);};walk(rows);
+  const dates=raw=>[...new Set([...raw.matchAll(/<Date>[^<]*?(\d{1,2})[./](\d{1,2})[./](\d{4})/g)].map(m=>`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`))];
+  const cover=[],groups=[];let group=null;
+  for(const p of paragraphs){if(p.includes('<Amend>')||/^(?:Amendment|Poprawka)\s*\d/u.test(p.trim())){group=[];groups.push(group);}if(group)group.push(p);else cover.push(p);}
+  const result=[];
+  for(const group of groups){
+    // Read the comparison heading directly from the public columns. Inner-law
+    // references also occur in Commission-proposal comparisons; those are not
+    // existing-law acquisition requests.
+    if(!group.some(p=>['Present text','Tekst obowiązujący'].includes(p.trim())))continue;
+    const raw=group.join('\n'),ownDates=dates(raw),observedDates=ownDates.length?ownDates:dates(cover.join('\n'));
+    const citations=[...new Set([...raw.matchAll(/0(?:19|20)\d{2}[RLD]\d{4}-\d{8}\b/g)].map(m=>m[0]))];
+    for(let i=0;i<group.length-1;i++){
+      const document=group[i].replace(/<[^>]+>/g,'').trim(),target=group[i+1].replace(/<[^>]+>/g,'').trim(),celex=runtime.actCelex?.(document);
+      if(celex&&target)for(const documentDate of observedDates)result.push({documentDate,targetPath:{underlying:[{document,raw:target}]},documentReferences:citations.filter(id=>'3'+id.slice(1,10)===celex).map(raw=>({field:'Consolidation',raw}))});
+    }
+  }
+  return result;
 }
 
 export function sourceReplay(cache,runtime) {
@@ -59,6 +88,8 @@ export function sourceReplay(cache,runtime) {
   const documents=new runtime.CellarDocuments({sources,directory:null,clock});
   const readProposal=runtime.createProposalBaseline({documents,request});
   const readCouncil=runtime.createCouncilPositionBaseline?.({documents,request});
+  const readExisting=runtime.createExistingLawBaseline?.({documents});
+  const lawHints=new Map();
   return {
     request,
     observeFiles(id,contexts) {
@@ -70,7 +101,11 @@ export function sourceReplay(cache,runtime) {
         if(urls.length===1)observedFiles.set(language,{url:urls[0],language,catalogue:{url:plain.input.url,sha256:plain.input.sha256,fetchedAt:plain.input.fetchedAt},upstreamSources:plain.value.sources||[]});
       }
     },
-    references:buffer=>rawProposalReferences(buffer,runtime),
+    references:buffer=>{
+      const refs=rawProposalReferences(buffer,runtime);
+      for(const hint of rawExistingLawReferences(buffer,runtime))lawHints.set(JSON.stringify(hint),hint);
+      return refs;
+    },
     async acquire(id,languages,references=new Map()) {
       const record=await request('/plenary-documents/'+id),work=record.payload.data[0];
       if(!work)return null;
@@ -84,6 +119,7 @@ export function sourceReplay(cache,runtime) {
         if(chosen)await cache.get(chosen.url);
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
         if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
+        if(readExisting&&!cache.sealed)for(const hint of lawHints.values()){await readExisting({...hint,language});cache.assertHealthy();}
         const hints=[...new Map((references.get(language)||[]).map(ref=>[JSON.stringify(ref),ref])).values()];
         for(const ref of hints) {
           const celexes=[...new Set(runtime.commissionReferences(ref.raw).map(r=>r.celex))];
@@ -121,12 +157,31 @@ export function sourceReplay(cache,runtime) {
     },
     async council(options) {
       if(!readCouncil)return {baseline:{status:'unresolved',language:options.language,gaps:['council-position-unavailable']},items:[]};
+      if(cache.sealed) {
+        const report=await request('/plenary-documents/'+options.reportId),identity=runtime.reportCouncilReference(report.payload.data[0],options);
+        if(identity.status==='resolved') {
+          const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.councilCandidatesSparql(identity));url.searchParams.set('format','application/sparql-results+json');
+          if(!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',language:options.language,gaps:['council-source-not-in-snapshot']},items:[]};
+        }
+      }
       const source=await readCouncil(options);cache.assertHealthy();
       const items=[];
       try {
         for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,celex:source.celex}})});
         if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new Error('proposal-response-budget');
       }catch {return {baseline:{...source,items:[],status:'unavailable',gaps:[...source.gaps,'proposal-projection-unavailable']},items:[]};}
+      return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items};
+    },
+    async existingLaw(options) {
+      if(!readExisting)return {baseline:{status:'unresolved',gaps:['existing-law-baseline-unavailable']},items:[]};
+      const identity=runtime.existingLawReference(options);
+      if(identity.status!=='resolved')return {baseline:identity,items:[]};
+      const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.consolidationsSparql(identity.baseCelex,options.language));url.searchParams.set('format','application/sparql-results+json');
+      if(cache.sealed&&!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',gaps:['existing-law-source-not-in-snapshot']},items:[]};
+      const source=await readExisting(options);cache.assertHealthy();const items=[];
+      try {for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,celex:source.celex}})});
+        if(Buffer.byteLength(JSON.stringify(items))>3*1024*1024)throw new Error('proposal-response-budget');
+      }catch{return {baseline:{...source,items:[],status:'unavailable',gaps:[...source.gaps,'proposal-projection-unavailable']},items:[]};}
       return {baseline:{...source,items:source.items.map(({buffer,...item})=>item)},items};
     },
   };

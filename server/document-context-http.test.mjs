@@ -74,7 +74,7 @@ test('document context HTTP contract is bounded, query-separated and never start
     const unknown=responses.get('unknown');assert.equal(unknown.body.target.reason,'different-text-languages');assert.equal(unknown.body.target.evidence.wordingLanguage,null);
     const absent=responses.get(undefined);assert.equal(absent.body.target.status,'found');assert.equal(absent.body.target.evidence.wordingLanguage,'en');
     for(const [selector,result] of responses)for(const [otherSelector,other] of responses)if(selector!==otherSelector)assert.equal((await read(selected(selector),{headers:{'If-None-Match':other.headers.etag}})).status,200);
-    assert.equal(bodyReads,18,'default and explicit English revalidate unavailable proposal content; other exact selectors share their cache entry');
+    assert.equal(bodyReads,25,'unavailable Commission and existing-act baselines revalidate; other exact selectors share their cache entry');
     assert.equal(proposalReads,16,'default and explicitly selected Commission variants read the proposal');
     const sameLanguage=await read(selected('hu',{language:'hu'}));assert.equal(sameLanguage.body.target.status,'found');assert.equal(sameLanguage.body.target.quoteMatches,true);assert.equal(sameLanguage.body.document.selectedText.paragraphs[0],wording.hu);assert.equal(sameLanguage.body.target.evidence.wordingLanguage,'hu');
     const missing=await read(selected('fr'));assert.equal(missing.status,200);assert.equal(missing.body.requestedWordingLanguage,'fr');assert.equal(missing.body.target.status,'unavailable');assert.equal(missing.body.target.evidence,null);assert.equal(missing.body.amendment.variants.length,3);

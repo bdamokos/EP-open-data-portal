@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {InputCache,allowedSource} from './amendment-benchmark-cache.mjs';
-import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
+import {replayRuntime,sourceReplay,publicDocumentUrl,rawExistingLawReferences} from './amendment-benchmark-replay.mjs';
 import {acquireReport,evaluateReport,contextUrl} from './amendment-benchmark.mjs';
 import {metrics,compareBaseline} from './amendment-benchmark-model.mjs';
 
@@ -47,6 +47,13 @@ function fixture(commission=true,referenceOnly=false,omittedLanguage=false) {
   return {row,document,fetcher};
 }
 const sample={mode:'documents',asOf:'2026-10-27'};
+test('raw existing-law acquisition binds a prospective citation to its own amendment, before extraction',async()=>{
+  const runtime=await replayRuntime(root);
+  const bytes=docx(p('<Date>{24/04/2026}24.4.2026</Date>')+p('Amendment 1')+p('Regulation (EC) No 1223/2009')+p('Article 15 – paragraph 2')+p('Present text')+p('https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A02009R1223-20260501')+p('Amendment 2')+p('Regulation (EU) 2023/956')+p('Article 5 – paragraph 1')+p('Present text'));
+  const refs=rawExistingLawReferences(bytes,runtime);assert.equal(refs.length,2);assert.deepEqual(refs.map(r=>r.documentDate),['2026-04-24','2026-04-24']);
+  assert.equal(refs[0].documentReferences[0].raw,'02009R1223-20260501');assert.deepEqual(refs[1].documentReferences,[]);
+  assert.equal(runtime.existingLawReference({...refs[0],language:'en'}).gaps[0],'existing-law-prospective-version');
+});
 test('Council source replay freezes discovered XHTML and evaluates it without borrowing a live projection',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'council-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const runtime=await replayRuntime(root),f=fixture(),excerpts=JSON.parse(await readFile(new URL('../server/fixtures/council-position-excerpts.json',import.meta.url),'utf8')),rdf=await readFile(new URL('../server/fixtures/council-position-metadata.rdf',import.meta.url),'utf8');
@@ -69,6 +76,10 @@ test('Council source replay freezes discovered XHTML and evaluates it without bo
   const offline=new InputCache(directory,{apiBase,fetcher:()=>{throw new Error('Network forbidden');}});await offline.seal(manifest);
   const rows=await evaluateReport([f.row],sample,offline,{runtime,replay:sourceReplay(offline,runtime)});
   assert.equal(rows[0].outcome,'correct',JSON.stringify(rows[0].stages));assert.equal(rows[0].stages.S4.kind,'council-position');assert.equal(rows[0].stages.S6.status,'verified');
+  const query=manifest.find(meta=>meta.url.includes('/sparql?')&&decodeURIComponent(meta.url).includes('POSIT'));
+  assert(query);offline.sealed.delete(JSON.stringify([query.url,query.request]));
+  const missing=await sourceReplay(offline,runtime).council({reportId:f.document,language:'en',documentReferences:[{field:'DocRef',raw:'17037/1/2025 – 2023/0226(COD)'}]});
+  assert.deepEqual(missing.baseline.gaps,['council-source-not-in-snapshot']);offline.assertHealthy();
 });
 test('offline replay improves proposal-parser outcomes on identical bytes despite empty outdated live projections',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));

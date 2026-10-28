@@ -367,7 +367,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,24);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,25);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -444,7 +444,7 @@ test('motion and legacy Irish baselines place only within the exact motion or re
       assert.equal(result.placement.status,'placed',documentId+' / '+baseline);assert.deepEqual(result.placement.span,{start:1,end:1});
       assert.equal(result.amendment.variants[0].baseline,baseline??null,'source category is retained without conversion to another baseline');
     }
-    for(const [baseline,reason] of [['commission-proposal','proposal_baseline_unavailable'],['present-text','amends_existing_law'],['council-position','council_position_unavailable'],['other','baseline_unavailable']]) {
+    for(const [baseline,reason] of [['commission-proposal','proposal_baseline_unavailable'],['present-text','existing-law-target-unavailable'],['council-position','council_position_unavailable'],['other','baseline_unavailable']]) {
       const blocked=service({request:async()=>record(motionWork),readText:async()=>text,findAmendment:()=>({...amendment,baseline,baselineSource:{category:baseline,conflicted:false}}),readProposal:async()=>({status:'unresolved',items:[],gaps:['proposal-identity-unavailable'],evidence:[]})});
       assert.equal((await blocked.query(request,{store:{}})).placement.reason,reason,baseline);
     }
@@ -544,7 +544,7 @@ test('published comparison headings retain conflict provenance while withholding
     assert.equal(variant.gaps.some(gap=>gap.code==='baseline-conflict'),scenario.conflicted);
     if(scenario.conflicted){assert.equal(result.placement.status,'unresolved');assert.equal(result.placement.reason,'conflicting_baselines');assert.equal(result.placement.span,undefined);}
     else if(['motion-resolution','unknown'].includes(scenario.category)){assert.equal(result.placement.status,'placed');assert.deepEqual(result.placement.span,{start:1,end:1});}
-    else assert.equal(result.placement.reason,scenario.category==='commission-proposal'?'proposal_baseline_unavailable':scenario.category==='present-text'?'amends_existing_law':scenario.category==='council-position'?'council_position_unavailable':'baseline_unavailable');
+    else assert.equal(result.placement.reason,scenario.category==='commission-proposal'?'proposal_baseline_unavailable':scenario.category==='present-text'?'existing-law-target-unavailable':scenario.category==='council-position'?'council_position_unavailable':'baseline_unavailable');
   }
 });
 
