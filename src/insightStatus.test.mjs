@@ -171,7 +171,7 @@ test('question topic counts stay silent during text search and announce once whe
   const h=await harness(t,'/src/QuestionTopics.tsx','QuestionTopics','?view=questions',url=>{assert(url.pathname.endsWith('/insights/questions'),'blank text search must not request the text corpus');return questions();});
   await h.tick();assert.match(h.status().textContent,/42 questions match these filters/);assert(h.container.querySelector('.insight-question-results'));
   const status=h.status();h.messages.length=0;
-  await act(async()=>h.container.querySelector('button[aria-label="Search question and answer text"]').click());
+  await act(async()=>h.container.querySelector('button[aria-label="Search text · question and answer text"]').click());
   await h.tick();
   assert.equal(h.status(),status);assert.equal(status.textContent,'');assert.equal(h.messages.length,0,'hidden topic results must not announce over text search');
   assert.equal(h.container.querySelector('.insight-question-results'),null);assert(h.container.querySelector('.explorer-search-panel'));

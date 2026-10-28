@@ -81,6 +81,22 @@ for (const scheme of schemes) {
     }
   });
 
+  test(`outside speaker reading and month removal keep distinct roles and touch targets (${scheme})`, async t => {
+    const window = await page(t, `<main class="explorer-insights"><section class="ov"><div class="ov-speaker-body">
+      <div class="insight-active-filters"><button class="ov-clear">October ×</button></div>
+      <div class="ov-contribution-head"><button class="ui-primary-action">Read / watch</button></div>
+    </div></section></main>`, scheme);
+    const [filter, read] = window.document.querySelectorAll('button');
+    for (const button of [filter, read]) {
+      focusContrast(window, button, scheme);
+      const style = window.getComputedStyle(button);
+      assert(parseFloat(style.minHeight) >= 44);
+      assert.equal(style.fontSize, '16px');
+      assert(contrast(style.color, paintedBackground(window, button, scheme)) >= 4.5);
+    }
+    assert.notEqual(paintedBackground(window, filter, scheme), paintedBackground(window, read, scheme));
+  });
+
   for (const panel of ['explorer-profile-body', 'explorer-saved-view']) {
     test(`all reader control types have contrasting focus on ${panel} (${scheme})`, async t => {
       const window = await page(t, `<main class="explorer"><section class="${panel}">

@@ -121,8 +121,10 @@ test('text search stays collapsed without requests, opens with focus, and posts 
   await view.render(scope);
   assert.equal(view.container.querySelector('input'),null);
   assert.equal(view.calls.length,0);
-  assert(view.button('Search fixture speeches').querySelector('svg'));
-  await view.click('Search fixture speeches');await view.flushFrames();
+  const launcher=view.button('Search text · fixture speeches');
+  assert(launcher.querySelector('svg'));
+  assert(launcher.getAttribute('aria-label').startsWith(launcher.textContent.trim()),'the accessible name includes the visible Search text wording for speech input');
+  await view.click('Search text · fixture speeches');await view.flushFrames();
   assert.equal(view.window.document.activeElement,view.find('input[type="search"]'));
   assert.equal(view.calls.length,0,'opening an empty search does not load a corpus');
   await view.input('input[type="search"]','  energy policy  ');await view.submit();
@@ -156,8 +158,8 @@ test('the reader opens the selected exact language fragment, escapes source mark
   assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-read'),JSON.stringify([speech,french.sourceKey]));
   await view.click('Close text search');await view.flushFrames();
   assert.equal(view.container.querySelector('.explorer-search-panel'),null);
-  assert.equal(view.button('Search fixture speeches').getAttribute('aria-expanded'),'false');
-  assert.equal(view.window.document.activeElement,view.button('Search fixture speeches'));
+  assert.equal(view.button('Search text · fixture speeches').getAttribute('aria-expanded'),'false');
+  assert.equal(view.window.document.activeElement,view.button('Search text · fixture speeches'));
   assert.equal(new URL(view.window.location.href).searchParams.has('fixture-fts-read'),false);
   await view.flushFrames();assert.equal(view.container.querySelector('.explorer-search-panel'),null,'clearing a selected reader must not reopen the panel');
 });
@@ -256,7 +258,7 @@ test('Back reopens a closed reader-only link without changing the search query',
   await view.click('Close text search');await view.flushFrames();
   assert.equal(view.container.querySelector('.explorer-search-panel'),null);
   await act(async()=>{const restored=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history.back();await restored;});
-  assert.equal(view.button('Search fixture speeches').getAttribute('aria-expanded'),'true');
+  assert.equal(view.button('Search text · fixture speeches').getAttribute('aria-expanded'),'true');
   assert.equal(view.find('.explorer-search-body').lang,'fr');
   assert.equal(view.searches().length,0);
 });
@@ -271,7 +273,7 @@ test('closing global search removes its URL state and remembers its query across
   assert.equal(view.container.querySelector('.explorer-search-panel'),null);
   assert.equal(view.searches().length,1,'a header remount must not silently reopen or rerun a closed global query');
   assert.equal(view.window.location.search,'');
-  await view.click('Search fixture speeches');
+  await view.click('Search text · fixture speeches');
   assert(view.container.querySelector('.explorer-search-panel'));
   assert.equal(view.searches().length,2);
   assert.equal(new URL(view.window.location.href).searchParams.has('global-fts-closed'),false);
@@ -284,7 +286,7 @@ test('legacy closed search links become clean speaker links without running a se
   await view.render({prefix:'global-fts'});
   assert.equal(view.searches().length,0);
   assert.equal(view.window.location.search,'?view=outside&ov-person=257105');
-  await view.click('Search fixture speeches');
+  await view.click('Search text · fixture speeches');
   assert.equal(view.find('input').value,'deutsch');
   assert.equal(view.searches().at(-1).body.language,'en');
   assert.equal(new URL(view.window.location.href).searchParams.get('ov-person'),'257105');
@@ -295,13 +297,13 @@ test('Back and Forward restore open and closed global search entries with their 
   await view.render({prefix:'global-fts'});
   const step=direction=>act(async()=>{const popped=new Promise(resolve=>view.window.addEventListener('popstate',resolve,{once:true}));view.window.history[direction]();await popped;});
   await view.click('Close text search');
-  await view.click('Search fixture speeches');
+  await view.click('Search text · fixture speeches');
   await view.input('input[type="search"]','second');await view.submit();
   await view.click('Close text search');
   await step('back');assert.equal(view.find('input').value,'second');
   await step('back');assert.equal(view.find('input').value,'first');
   await step('back');assert.equal(view.container.querySelector('input'),null);
-  await view.click('Search fixture speeches');
+  await view.click('Search text · fixture speeches');
   assert.equal(view.find('input').value,'first');assert.equal(view.find('select').value,'fr');
   assert.equal(view.searches().at(-1).body.sort,'newest');
   await step('back');assert.equal(view.container.querySelector('input'),null);
@@ -316,17 +318,17 @@ test('closed global searches survive a session reload but do not enter a fresh s
   view.window.history.replaceState(null,'','?view=outside');
   await view.render({prefix:'global-fts'});
   assert.equal(view.container.querySelector('input'),null);
-  await view.click('Search fixture speeches');assert.equal(view.find('input').value,'energy');
+  await view.click('Search text · fixture speeches');assert.equal(view.find('input').value,'energy');
   await act(async()=>view.root.render(null));
   view.window.sessionStorage.clear();view.window.history.replaceState(null,'','?view=outside');
   await view.render({prefix:'global-fts'});
-  await view.click('Search fixture speeches');assert.equal(view.find('input').value,'');
+  await view.click('Search text · fixture speeches');assert.equal(view.find('input').value,'');
   await act(async()=>view.root.render(null));
   view.window.history.replaceState(closedState,'','?view=outside');
   t.mock.method(view.window.sessionStorage,'getItem',()=>{throw Error('Storage blocked');});
   t.mock.method(view.window.sessionStorage,'setItem',()=>{throw Error('Storage blocked');});
   t.mock.method(view.window.sessionStorage,'removeItem',()=>{throw Error('Storage blocked');});
-  await view.render({prefix:'global-fts'});await view.click('Search fixture speeches');
+  await view.render({prefix:'global-fts'});await view.click('Search text · fixture speeches');
   assert.equal(view.find('input').value,'energy');
 });
 
