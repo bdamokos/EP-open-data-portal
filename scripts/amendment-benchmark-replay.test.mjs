@@ -18,12 +18,13 @@ function docx(xml) {
   end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+body.length,16);
   return Buffer.concat([local,name,body,central,name,end]);
 }
-function fixture(commission=true,referenceOnly=false,omittedLanguage=false) {
+function fixture(commission=true,referenceOnly=false,omittedLanguage=false,reportWording=false) {
   const document=(commission?'A':'B')+'-10-2026-0001',id=document+'-AM-1',listId=document+'-AM-001-001';
   const listUrl='https://data.europarl.europa.eu/distribution/test/'+document+'-list.docx',bodyUrl='https://data.europarl.europa.eu/distribution/test/'+document+'-body.docx';
   const row={id,targetDocumentId:document,number:1,listId,language:'en',baseline:'unknown',originalText:null,wordingSource:{url:listUrl},decisions:[{id:'vote',date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[id],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]};
   const cell=value=>'<w:tc>'+p(value)+'</w:tc>',tr=(a,b)=>'<w:tr>'+cell(a)+cell(b)+'</w:tr>';
-  const list=docx(p('<Amend><NumAm>1</NumAm>')+(referenceOnly?p('<DocRef>COM(2026)1 final – 2026/0001(COD)</DocRef>'):'')+p('<Article>'+(commission?'Article 1 – paragraph 1':'Paragraph 1')+'</Article>')+'<w:tbl>'+tr(commission?'Text proposed by the Commission':'Motion for a resolution','Amendment')+tr('First paragraph.','Changed paragraph.')+'</w:tbl>'+p('</Amend>'));
+  if(reportWording)row.wordingSource.reportId=document;
+  const list=docx((reportWording?p('<NoDocSe>A10-0001/2026</NoDocSe>')+p('<RepeatBlock-Amend>'):'')+p('<Amend><NumAm>1</NumAm>')+(referenceOnly?p('<DocRef>COM(2026)1 final – 2026/0001(COD)</DocRef>'):'')+p('<Article>'+(commission?'Article 1 – paragraph 1':'Paragraph 1')+'</Article>')+'<w:tbl>'+tr(commission?'Text proposed by the Commission':'Motion for a resolution','Amendment')+tr('First paragraph.','Changed paragraph.')+'</w:tbl>'+p('</Amend>')+(reportWording?p('</RepeatBlock-Amend>'):''));
   const language='http://publications.europa.eu/resource/authority/language/ENG',file={format:'http://publications.europa.eu/resource/authority/file-type/DOCX',is_exemplified_by:bodyUrl};
   const work={id:'eli/dl/doc/'+document,identifier:document,work_type:'def/ep-document-types/'+(commission?'REPORT_PLENARY':'RESOLUTION_MOTION'),inverse_created_a_realization_of:['eli/dl/proc/2026-0001'],is_realized_by:[{language:omittedLanguage?'fr':language,title_alternative:referenceOnly?{}:{en:'COM(2026)1 final – 2026/0001(COD)'},is_embodied_by:[file]}]};
   const w='http://publications.europa.eu/resource/cellar/00000000-0000-0000-0000-000000000001',e=w+'.0001',m=e+'.01',item=m+'/DOC_1',celex='52026PC0001';
@@ -187,4 +188,13 @@ test('translated-wording extraction helper retains the measured runtime on seale
   assert.equal(before.outcome,'withheld-pipeline');assert.equal(before.stages.S2.reason,'docx-parser-error');
   const [after]=await evaluateReport([f.row],sample,cache,{runtime,replay:sourceReplay(cache,runtime)});
   assert.equal(after.outcome,'correct');assert.equal(cache.requests,requests);
+});
+
+test('source replay preserves report wording identity through the measured extractor helper',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-report-wording-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const runtime=await replayRuntime(root),f=fixture(true,false,false,true),cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:20,delay:0,sleep:async()=>{},fetcher:f.fetcher});
+  await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));await cache.seal(cache.manifest());const requests=cache.requests;let calls=0;
+  const measured={...runtime,extractAmendments:(bytes,options)=>{calls++;assert.equal(options.reportId,f.document);return runtime.extractAmendments(bytes,options);}};
+  const [result]=await evaluateReport([f.row],sample,cache,{runtime:measured,replay:sourceReplay(cache,measured)});
+  assert.equal(calls,1);assert.equal(result.outcome,'correct',JSON.stringify(result.stages));assert.equal(cache.requests,requests);
 });

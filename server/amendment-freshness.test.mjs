@@ -394,7 +394,13 @@ for(const route of ['detail','expanded'])test(route+' ingestion distinguishes un
     let downloads=0;
     worker.downloadAmendmentDocx=async()=>{downloads++;throw new Error('An absent current distribution must not download retained wording.');};
     await context.observeDistribution(mode,{route});
-    assertAbsentDistribution(context,mode,route,{extraction});
+    const needsDetail=route==='expanded'&&['omitted','null'].includes(mode);
+    assertAbsentDistribution(context,mode,route,{extraction,pending:needsDetail});
+    if(needsDetail) {
+      assert.equal(nextAmendmentTask(store,generation).kind,'amendment-list-detail');
+      await worker.task(nextAmendmentTask(store,generation));
+      assertAbsentDistribution(context,mode,'detail',{extraction});
+    }
     assert.equal(extractionJob(store,generation).done,1);
     await assertNoDistributionChurn(context);
     assert.equal(downloads,0);
