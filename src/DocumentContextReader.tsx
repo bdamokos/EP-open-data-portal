@@ -12,6 +12,7 @@ import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './Referenc
 import {InsightQuestionReader} from './InsightReaders';
 import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
+import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
 import {FindInText} from './TextSearch';
 import {ProposalContextText,proposalPlacementReasons} from './ProposalContextText';
 import {DocumentParagraphs,usableFormatting,type FormatMark} from './DocumentFormatting';
@@ -108,6 +109,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const found=Boolean(!data?.placement&&amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
   const placement=data?.placement;
   const wording=variants.length===1&&variants[0].wordingStatus==='available'?variants[0]:null;
+  const scopeLanguageMismatch=Boolean(allParagraphs.length&&wording&&amendmentLanguageScope(wording)&&text?.textLanguage&&text.textLanguage!==wording.language);
   const reportHeading=data?.amendment?.id===amendmentRequest?.amendmentId&&data?.placement?.reason==='amendment_wording_unavailable'&&!wording?
     reportAmendmentHeading(text,id,amendmentRequest?.amendmentId,amendmentRequest?.listId):null;
   useEffect(()=>{
@@ -167,7 +169,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
         {amendmentRequest?.amendmentId&&(reportHeading!==null?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to amendment</button></div>:placement?(placement.status==='not-applicable'?null:placed?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to amendment</button></div>:<p className="document-context-notice" role="status">{placementReason}</p>):found?<div className="document-context-passage"><button type="button" onClick={showPassage}>Go to passage</button>{target?.quoteMatches===false&&<p>The published text differs from the amendment’s quotation.</p>}</div>:<p className="document-context-notice">The passage this amendment changes could not be found.</p>)}
         {incomplete&&<p className="document-context-notice">Some content is only available in the original document.</p>}
         <ReferenceScope key={id+':'+language} texts={readerTexts(body.paragraphs,notes,links)} notes={notes} notePrefix={notePrefix} language={interfaceLanguage} textLanguage={actual} renderQuestion={question=><InsightQuestionReader id={question} language={interfaceLanguage} heading="Referenced question" includeAnswers/>}>
-          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&amendmentBlock(false)}<DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,allParagraphs.length)} exactOffsets
+          <div className="document-context-text" ref={reader} lang={actual||''}>{placement&&!placed&&wording&&!scopeLanguageMismatch&&amendmentBlock(false)}<DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,allParagraphs.length)} exactOffsets
             paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex)),reportSelected=sourceIndex===reportHeading;return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected?'true':undefined,'data-report-amendment':reportSelected?'true':undefined,className:selected?'document-context-target':undefined,tabIndex:selected||reportSelected?-1:undefined};}}
             renderParagraph={(sourceIndex,paragraph)=>{
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return sourceIndex===placement.span.start?amendmentBlock(true):null;

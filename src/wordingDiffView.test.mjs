@@ -26,7 +26,13 @@ test('wording comparison modes, accessible announcements, source language, defau
   assert.match(container.textContent,/No change in this language version/);
   assert.equal(container.querySelector('ins, del, button'),null);
   assert.equal(container.querySelector('p[lang="fr"]').textContent,'(Ne concerne pas la version française.)');
-  await render({original:'La vieille politique.\n',proposed:'La nouvelle politique.\n'});
+  for(const [language,proposed] of [['sk','7a.\t(Netýka sa slovenskej verzie.)\n7b.\t(Netýka sa slovenskej verzie.)\n7c.\t(Netýka sa slovenskej verzie.)'],['es','(No afecta a la versión española.)\n__________________']]) {
+    await render({language,proposed});
+    assert.equal(container.querySelector('ins, del, button'),null);
+    assert.equal(container.querySelector('p[lang="'+language+'"]').textContent,proposed);
+    assert.match(container.textContent,/No change in this language version/);
+  }
+  await render({original:'La vieille politique.\n',proposed:'La nouvelle politique.\n',language:'fr'});
   await render({});
   assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
   assert(container.querySelector('del'));assert(container.querySelector('ins'));

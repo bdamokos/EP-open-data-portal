@@ -797,3 +797,15 @@ test('language-scope cells remain verbatim extraction evidence rather than empty
     assert.equal(amendmentOperation(amendment),null,example.language);
   }
 });
+
+test('published scope-note layouts preserve every comparison row, including blank proposed footnote cells',()=>{
+  const {examples}=JSON.parse(readFileSync(new URL('./fixtures/amendment-language-layouts.json',import.meta.url)));
+  for(const example of examples) {
+    const comparison=example.comparisonRows.map(part=>row(cell(p(part.original)),cell(p(part.proposed))));
+    const xml=body(metadata(example.number)+table(...comparison)+p('</Amend>'));
+    const [amendment]=extractAmendments(archive(xml),{...options,language:example.language,listId:example.listId,targetDocumentId:example.documentId}).amendments;
+    assert.equal(amendment.originalText,example.originalText,example.language);
+    assert.equal(amendment.proposedText,example.proposedText,example.language);
+    assert.equal(amendmentOperation(amendment),example.expected===null?'replace':null,example.language);
+  }
+});

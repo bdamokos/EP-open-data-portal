@@ -61,7 +61,7 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
 }
 export function WordingDiff(props:Props) {
   const scope=amendmentLanguageScope({originalText:props.original,proposedText:props.proposed,language:props.language});
-  if(scope)return <div className="wording-diff" lang="en"><p className="wording-diff__note">No change in this language version.</p><p lang={scope.language}>{scope.note}</p></div>;
+  if(scope)return <div className="wording-diff" lang="en"><p className="wording-diff__note">No change in this language version.</p><p className="wording-diff__scope" lang={scope.language}>{scope.note}</p></div>;
   // A new exact wording selection gets its own default; choices never persist outside this instance.
   return <Comparison key={JSON.stringify([props.original,props.proposed,props.originalFormatting,props.proposedFormatting,props.language,props.emptySemantics,props.presentation])} {...props}/>;
 }

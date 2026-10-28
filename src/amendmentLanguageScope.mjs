@@ -39,7 +39,11 @@ export function amendmentLanguageScope({originalText,proposedText,language}={}) 
   const supported=markers.get(language);
   if(!supported)return null;
   for(const [field,note] of Object.entries({originalText,proposedText})) {
-    if(supported.has(noteText(note)))return {status:'not-applicable',language,field,note};
+    if(typeof note!=='string'||note.length>4000)continue;
+    // A column may repeat the note for each numbered provision or retain the
+    // printed footnote divider. Every nonempty line must still be a note.
+    const lines=note.split(/\r\n?|\n/u).map(line=>line.trim()).filter(line=>line&&!/^_{3,}$/u.test(line));
+    if(supported.has(noteText(note))||lines.length>0&&lines.length<=16&&lines.every(line=>supported.has(noteText(line))))return {status:'not-applicable',language,field,note};
   }
   return null;
 }
