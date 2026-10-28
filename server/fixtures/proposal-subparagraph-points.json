@@ -1,0 +1,452 @@
+[
+  {
+    "documentId": "A-10-2026-0069",
+    "language": "en",
+    "source": {
+      "url": "https://publications.europa.eu/resource/cellar/19ed2239-8426-11f0-9af8-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "c1d297f4c60a57451e60e1e0cac46393befdf6006c5483c5400cbbbdc6267444",
+      "fetchedAt": "2026-10-27T16:47:50.179Z"
+    },
+    "paragraphs": [
+      "Article 3",
+      "Suspension",
+      "1.\tThe Commission may adopt an implementing act suspending in whole or in part the application of Article 1 or Article 2 in the following circumstances:",
+      "(a)\twhere the United States fails to implement the Joint Statement or otherwise undermines the objectives pursued by the Joint Statement, or undermines access of Union economic operators to the United States market, or otherwise disrupts the trade and investment relationship between the Union and the United States;",
+      "(b)\twhere there are sufficient indications that the United States will act in the manner referred to in point (a) in the future;",
+      "(c)\twhere the adjustment of the customs duties referred to in Article 1, or the opening of tariff quotas referred to in Article 2, results in the importation of a good originating in the United States in such increased quantities, in absolute terms or relative to domestic production, and under such conditions as to cause or threaten to cause serious injury to the domestic industry of the Union;",
+      "(d)\twhere a change of objective circumstances has occurred with regard to those existing at the time the Joint Statement was issued.",
+      "That implementing act shall be adopted in accordance with the examination procedure referred to in Article 4(2).",
+      "2.\tThe implementing act referred to in paragraph 1 shall apply for as long as the circumstances referred to in paragraph 1 persist.",
+      "Article 4"
+    ],
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[83]",
+        "ordinal": 82,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[84]",
+        "ordinal": 83,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[85]",
+        "ordinal": 84,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[86]",
+        "ordinal": 85,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[87]",
+        "ordinal": 86,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[88]",
+        "ordinal": 87,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[89]",
+        "ordinal": 88,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[90]",
+        "ordinal": 89,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[91]",
+        "ordinal": 90,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[92]",
+        "ordinal": 91,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "ManualNumPar1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "ManualNumPar1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "paragraphFormats": [
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 10,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 3.54,
+        "hanging": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54,
+        "hanging": 3.54
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      }
+    ],
+    "structureStatus": "extracted",
+    "coverage": {
+      "complete": false
+    }
+  },
+  {
+    "documentId": "A-10-2026-0070",
+    "language": "en",
+    "source": {
+      "url": "https://publications.europa.eu/resource/cellar/beebdca7-8425-11f0-9af8-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "d26163a2217c93062575d4fb64220e4a46064da610562c1807868089598bc6d4",
+      "fetchedAt": "2026-10-27T16:48:24.076Z"
+    },
+    "paragraphs": [
+      "Article 2",
+      "Suspension",
+      "1.\tThe Commission may adopt an implementing act suspending in whole or in part the application of Article 1 in the following circumstances:",
+      "(a)\twhere the United States fails to implement the Joint Statement or otherwise undermines the objectives of improving the trade and investment relationship between the Union and the United States and the objectives pursued by the Joint Statement, or undermines access of Union economic operators to the United States market, or otherwise disrupts the trade and investment relationship between the Union and the United States;",
+      "(b)\twhere there are sufficient indications that the United States will act in the manner referred to in point (a) in the future;",
+      "(c)\twhere a change of objective circumstances has occurred with regard to those existing at the time the Joint Statement was issued.",
+      "That implementing act shall be adopted in accordance with the examination procedure referred to in Article 3(2).",
+      "2.\tThe implementing act referred to in paragraph 1 shall apply for as long as the circumstances referred to in paragraph 1 persist.",
+      "Article 3"
+    ],
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[70]",
+        "ordinal": 69,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[71]",
+        "ordinal": 70,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[72]",
+        "ordinal": 71,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[73]",
+        "ordinal": 72,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[74]",
+        "ordinal": 73,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[75]",
+        "ordinal": 74,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[76]",
+        "ordinal": 75,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 1,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[78]",
+        "ordinal": 77,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 2,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[79]",
+        "ordinal": 78,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 2,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Normal",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "ManualNumPar1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Text1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "ManualNumPar1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "paragraphFormats": [
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 10,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 3.54,
+        "hanging": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 3.54,
+        "hanging": 3.54
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      }
+    ],
+    "structureStatus": "extracted",
+    "coverage": {
+      "complete": false
+    }
+  }
+]

@@ -121,7 +121,7 @@ test('legacy label provenance stays unknown on rebuild and retention unless its 
 });
 
 test('parser9 grid-loss caches and variants are withheld through pure reads, failed refresh and unsupported current-parser reparse',async t=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'13');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'17');
   for(const conflicted of [false,true]) {
     const {store,worker,generation,metadata,refresh,at}=fixture(t),work=metadata(list1,'en');
     const legacy={number:1,date,documentDate:date,dateBasis:'individual-amendment-document',authors:['Alex Common'],targetLabel:'Article 1',originalText:'Proposal fragment A',proposedText:'Proposal fragment B',language:'en',gaps:[]};
