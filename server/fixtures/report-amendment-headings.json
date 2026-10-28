@@ -1,0 +1,1546 @@
+{
+  "description": "Sparse native Word heading excerpts with exact report/list identities and all 129 heading positions. The common visible heading is stored once with its native ordinal sequence; amendmentOverrides preserves deviations, including Portuguese's hidden number 37. Wording is omitted. Ordinals count every native body paragraph, including table cells. Opinion excerpts are negative controls, not main-report amendments.",
+  "editions": [
+    {
+      "language": "bg",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_bg.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_bg.docx",
+        "fetchedAt": "2026-10-27T20:16:43.277919+00:00",
+        "sha256": "1de5f8075aee7fbb8d5d8da15506d947aad48734ce4213513ce497a8494d4c43",
+        "expression": "eli/dl/doc/A-10-2025-0150/bg",
+        "issued": "2025-08-20T18:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "ПРОЕКТ НА ЗАКОНОДАТЕЛНА РЕЗОЛЮЦИЯ НА ЕВРОПЕЙСКИЯ ПАРЛАМЕНТ"
+      ],
+      "ends": [
+        [
+          2524,
+          "ИЗЛОЖЕНИЕ НА МОТИВИТЕ"
+        ],
+        [
+          2537,
+          "ПРИЛОЖЕНИЕ: ДЕКЛАРАЦИЯ ЗА ИЗТОЧНИЦИТЕ НА ИНФОРМАЦИЯ"
+        ],
+        [
+          2549,
+          "ПРОЦЕДУРА НА ВОДЕЩАТА КОМИСИЯ"
+        ],
+        [
+          2598,
+          "ПОИМЕННО ОКОНЧАТЕЛНО ГЛАСУВАНЕ ВЪВ ВОДЕЩАТА КОМИСИЯ"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_bg.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_bg.docx",
+          "fetchedAt": "2026-10-27T20:23:30.765Z",
+          "sha256": "323a6b4e8011a27d9531e3d291a2c64ac34bea456d78cb1f4bfc1cc368583897"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "СТАНОВИЩЕ НА КОМИСИЯТА ПО ЗЕМЕДЕЛИЕ И РАЗВИТИЕ НА СЕЛСКИТЕ РАЙОНИ"
+        ],
+        "amendments": [
+          [
+            222,
+            "Изменение\t\t1"
+          ],
+          [
+            231,
+            "Изменение\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Изменение\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "cs",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_cs.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_cs.docx",
+        "fetchedAt": "2026-10-27T20:16:49.373039+00:00",
+        "sha256": "f08733f3d80e1407fcf6b0ad2c6f4eae0990aff5043a7b716ba6142b67ffdd10",
+        "expression": "eli/dl/doc/A-10-2025-0150/cs",
+        "issued": "2025-08-14T18:28:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "NÁVRH LEGISLATIVNÍHO USNESENÍ EVROPSKÉHO PARLAMENTU"
+      ],
+      "ends": [
+        [
+          2523,
+          "VYSVĚTLUJÍCÍ PROHLÁŠENÍ"
+        ],
+        [
+          2534,
+          "PŘÍLOHA: ZVEŘEJŇOVÁNÍ PODNĚTŮ"
+        ],
+        [
+          2544,
+          "POSTUP V PŘÍSLUŠNÉM VÝBORU"
+        ],
+        [
+          2591,
+          "JMENOVITÉ KONEČNÉ HLASOVÁNÍ V PŘÍSLUŠNÉM VÝBORU"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_cs.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_cs.docx",
+          "fetchedAt": "2026-10-27T20:23:33.225Z",
+          "sha256": "ccbee661b55baebff871b3c8a8f925069e2a20208a28b0c3c666792559a27664"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          215,
+          "STANOVISKO výboru pro zemědělství a rozvoj venkova"
+        ],
+        "amendments": [
+          [
+            225,
+            "Pozměňovací návrh\t\t1"
+          ],
+          [
+            234,
+            "Pozměňovací návrh\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Pozměňovací návrh\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2069, 2129, 2183, 2344, 2356, 2368, 2380, 2434]
+    },
+    {
+      "language": "da",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_da.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_da.docx",
+        "fetchedAt": "2026-10-27T20:16:55.353495+00:00",
+        "sha256": "486540624b34cb38d415230fa4863788463d24c9185c5c64184b7ecbdbd8fd7e",
+        "expression": "eli/dl/doc/A-10-2025-0150/da",
+        "issued": "2025-08-14T16:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "FORSLAG TIL EUROPA-PARLAMENTETS LOVGIVNINGSMÆSSIGE BESLUTNING"
+      ],
+      "ends": [
+        [
+          2522,
+          "BEGRUNDELSE"
+        ],
+        [
+          2531,
+          "BILAG: ERKLÆRING OM INPUT"
+        ],
+        [
+          2543,
+          "PROCEDURE I KORRESPONDERENDE UDVALG"
+        ],
+        [
+          2592,
+          "ENDELIG AFSTEMNING VED NAVNEOPRÅB I KORRESPONDERENDE UDVALG"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_da.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_da.docx",
+          "fetchedAt": "2026-10-27T20:23:34.434Z",
+          "sha256": "2356d48ea45c05af907eed879ea635ac6418a62f8e5b081369a1a7d93dfea424"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          214,
+          "UDTALELSE FRA UDVALGET OM LANDBRUG OG UDVIKLING AF LANDDISTRIKTER"
+        ],
+        "amendments": [
+          [
+            224,
+            "Ændringsforslag\t\t1"
+          ],
+          [
+            233,
+            "Ændringsforslag\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Ændringsforslag\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "de",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_de.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_de.docx",
+        "fetchedAt": "2026-10-27T20:17:01.419928+00:00",
+        "sha256": "83dc2065fcf63143a11b0ac94f3414649db7ed644935f68999ee5beaa3c1a365",
+        "expression": "eli/dl/doc/A-10-2025-0150/de",
+        "issued": "2025-08-14T11:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "ENTWURF EINER LEGISLATIVEN ENTSCHLIESSUNG DES EUROPÄISCHEN PARLAMENTS"
+      ],
+      "ends": [
+        [
+          2525,
+          "BEGRÜNDUNG"
+        ],
+        [
+          2536,
+          "ANLAGE: ERKLÄRUNG ZU BEITRÄGEN"
+        ],
+        [
+          2546,
+          "VERFAHREN DES FEDERFÜHRENDEN AUSSCHUSSES"
+        ],
+        [
+          2595,
+          "NAMENTLICHE SCHLUSSABSTIMMUNG IM FEDERFÜHRENDEN AUSSCHUSS"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_de.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_de.docx",
+          "fetchedAt": "2026-10-27T20:23:35.533Z",
+          "sha256": "497661757ffa1dffb72e64ef7d651b65fda372a7edbe47f10eb81db3e2a392dc"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          214,
+          "STELLUNGNAHME DES AUSSCHUSSES FÜR LANDWIRTSCHAFT UND LÄNDLICHE ENTWICKLUNG"
+        ],
+        "amendments": [
+          [
+            223,
+            "Änderungsantrag\t\t1"
+          ],
+          [
+            232,
+            "Änderungsantrag\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Änderungsantrag\t\t{number}",
+      "amendmentOrdinals": [70, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 401, 433, 467, 477, 489, 519, 551, 581, 593, 607, 657, 669, 681, 693, 707, 721, 733, 745, 757, 769, 781, 793, 805, 817, 829, 841, 853, 865, 877, 895, 918, 932, 954, 968, 982, 994, 1010, 1036, 1048, 1060, 1072, 1084, 1096, 1108, 1120, 1132, 1144, 1156, 1168, 1191, 1203, 1215, 1227, 1239, 1251, 1263, 1275, 1287, 1299, 1312, 1324, 1336, 1348, 1360, 1372, 1384, 1406, 1418, 1430, 1450, 1464, 1494, 1522, 1562, 1574, 1586, 1664, 1676, 1688, 1730, 1742, 1754, 1770, 1782, 1794, 1816, 1832, 1866, 1880, 1892, 1914, 1926, 1938, 1950, 2071, 2131, 2185, 2346, 2358, 2370, 2382, 2436]
+    },
+    {
+      "language": "el",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_el.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_el.docx",
+        "fetchedAt": "2026-10-27T20:17:07.437720+00:00",
+        "sha256": "3571323b8db1ec4dfbf7a13613667cc7502f4c898033b10d9c79cb840f308e9c",
+        "expression": "eli/dl/doc/A-10-2025-0150/el",
+        "issued": "2025-08-20T18:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "ΣΧΕΔΙΟ ΝΟΜΟΘΕΤΙΚΟΥ ΨΗΦΙΣΜΑΤΟΣ ΤΟΥ ΕΥΡΩΠΑΪΚΟΥ ΚΟΙΝΟΒΟΥΛΙΟΥ"
+      ],
+      "ends": [
+        [
+          2516,
+          "ΑΙΤΙΟΛΟΓΙΚΗ ΕΚΘΕΣΗ"
+        ],
+        [
+          2528,
+          "ΠΑΡΑΡΤΗΜΑ: ΔΗΛΩΣΗ ΕΙΣΗΓΗΣΕΩΝ"
+        ],
+        [
+          2540,
+          "ΔΙΑΔΙΚΑΣΙΑ ΤΗΣ ΑΡΜΟΔΙΑΣ ΕΠΙ ΤΗΣ ΟΥΣΙΑΣ ΕΠΙΤΡΟΠΗΣ"
+        ],
+        [
+          2588,
+          "ΤΕΛΙΚΗ ΨΗΦΟΦΟΡΙΑ ΜΕ ΟΝΟΜΑΣΤΙΚΗ ΚΛΗΣΗ\nΣΤΗΝ ΑΡΜΟΔΙΑ ΕΠΙ ΤΗΣ ΟΥΣΙΑΣ ΕΠΙΤΡΟΠΗ"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_el.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_el.docx",
+          "fetchedAt": "2026-10-27T20:23:37.757Z",
+          "sha256": "0f635f66ab7ef9fd6f5ea0221cd601797a87f0928407e702d60f83efc10f651c"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "ΓΝΩΜΟΔΟΤΗΣΗ ΤΗΣ ΕΠΙΤΡΟΠΗΣ ΓΕΩΡΓΙΑΣ ΚΑΙ ΑΝΑΠΤΥΞΗΣ ΤΗΣ ΥΠΑΙΘΡΟΥ"
+        ],
+        "amendments": [
+          [
+            222,
+            "Τροπολογία\t\t1"
+          ],
+          [
+            231,
+            "Τροπολογία\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Τροπολογία\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 918, 932, 954, 968, 982, 994, 1010, 1036, 1048, 1060, 1072, 1084, 1096, 1108, 1120, 1132, 1144, 1156, 1168, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2067, 2124, 2177, 2339, 2351, 2363, 2375, 2429]
+    },
+    {
+      "language": "en",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_en.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_en.docx",
+        "fetchedAt": "2026-10-27T16:25:16.688Z",
+        "sha256": "3aa0f5ebf5f0149716867f922e8d406f97b1642c8e20d7124b60280c264a85ba",
+        "expression": "eli/dl/doc/A-10-2025-0150/en",
+        "issued": "2025-07-23T14:58:10+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        51,
+        "DRAFT EUROPEAN PARLIAMENT LEGISLATIVE RESOLUTION"
+      ],
+      "ends": [
+        [
+          2524,
+          "ANNEX: DECLARATION OF INPUT"
+        ],
+        [
+          2536,
+          "PROCEDURE – COMMITTEE RESPONSIBLE"
+        ],
+        [
+          2585,
+          "FINAL VOTE BY ROLL CALL BY THE COMMITTEE RESPONSIBLE"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_en.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_en.docx",
+          "fetchedAt": "2026-10-27T20:23:38.938Z",
+          "sha256": "6b92ad72bcdfdf5848d5919cea1b8609299d11387dc5431d9e0eb6009ff5167f"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          214,
+          "OPINION OF THE COMMITTEE ON AGRICULTURE AND RURAL DEVELOPMENT"
+        ],
+        "amendments": [
+          [
+            224,
+            "Amendment\t\t1"
+          ],
+          [
+            233,
+            "Amendment\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Amendment\t\t{number}",
+      "amendmentOrdinals": [67, 77, 87, 97, 107, 117, 127, 137, 147, 157, 167, 177, 187, 199, 211, 223, 235, 251, 263, 285, 297, 309, 321, 333, 345, 357, 369, 401, 433, 467, 477, 489, 519, 551, 581, 593, 607, 657, 669, 681, 693, 707, 721, 733, 745, 757, 769, 781, 793, 805, 817, 829, 841, 853, 865, 877, 895, 915, 929, 951, 965, 979, 991, 1007, 1033, 1045, 1057, 1069, 1081, 1093, 1105, 1117, 1129, 1141, 1153, 1165, 1188, 1200, 1212, 1224, 1236, 1248, 1260, 1272, 1284, 1296, 1308, 1320, 1332, 1344, 1356, 1368, 1380, 1402, 1414, 1426, 1446, 1460, 1490, 1518, 1558, 1570, 1582, 1660, 1672, 1684, 1726, 1738, 1750, 1766, 1778, 1790, 1812, 1828, 1862, 1876, 1888, 1910, 1922, 1934, 1946, 2067, 2127, 2181, 2342, 2354, 2366, 2378, 2432]
+    },
+    {
+      "language": "es",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_es.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_es.docx",
+        "fetchedAt": "2026-10-27T20:17:13.513867+00:00",
+        "sha256": "8dcec70abfbfa9f9d53762297d4b1c393ca41af61f1aaf5a230173b8e4ad1ea7",
+        "expression": "eli/dl/doc/A-10-2025-0150/es",
+        "issued": "2025-08-13T15:58:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "PROYECTO DE RESOLUCIÓN LEGISLATIVA DEL PARLAMENTO EUROPEO"
+      ],
+      "ends": [
+        [
+          2522,
+          "EXPOSICIÓN DE MOTIVOS"
+        ],
+        [
+          2534,
+          "ANEXO: DECLARACIÓN DE CONTRIBUCIONES"
+        ],
+        [
+          2545,
+          "PROCEDIMIENTO DE LA COMISIÓN COMPETENTE PARA EL FONDO"
+        ],
+        [
+          2594,
+          "VOTACIÓN FINAL NOMINAL\nEN LA COMISIÓN COMPETENTE PARA EL FONDO"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_es.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_es.docx",
+          "fetchedAt": "2026-10-27T20:23:31.946Z",
+          "sha256": "36c071e4b3e33f9df6bd92aabbcf74709c5384d41f50bc7ebe5045004d0074be"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          213,
+          "OPINIÓN DE LA COMISIÓN DE AGRICULTURA Y DESARROLLO RURAL"
+        ],
+        "amendments": [
+          [
+            223,
+            "Enmienda\t\t1"
+          ],
+          [
+            232,
+            "Enmienda\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Enmienda\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2066, 2126, 2180, 2341, 2353, 2365, 2377, 2431]
+    },
+    {
+      "language": "et",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_et.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_et.docx",
+        "fetchedAt": "2026-10-27T20:17:19.502831+00:00",
+        "sha256": "3fd5f3312c0402875dcdce536716f413e4ae91f0dd2a0a8aff47c150341472c6",
+        "expression": "eli/dl/doc/A-10-2025-0150/et",
+        "issued": "2025-08-20T17:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "EUROOPA PARLAMENDI SEADUSANDLIKU RESOLUTSIOONI PROJEKT"
+      ],
+      "ends": [
+        [
+          2524,
+          "SELETUSKIRI"
+        ],
+        [
+          2535,
+          "LISA: SISENDI DEKLARATSIOON"
+        ],
+        [
+          2547,
+          "VASTUTAVA KOMISJONI MENETLUS"
+        ],
+        [
+          2596,
+          "NIMELINE LÕPPHÄÄLETUS VASTUTAVAS KOMISJONIS"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_et.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_et.docx",
+          "fetchedAt": "2026-10-27T20:23:36.625Z",
+          "sha256": "71437c92292a7aedca91c4081b0a6716d65cb611be285ce83c633fde56474642"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "PÕLLUMAJANDUSE JA MAAELU ARENGU KOMISJONI ARVAMUS"
+        ],
+        "amendments": [
+          [
+            222,
+            "Muudatusettepanek\t\t1"
+          ],
+          [
+            231,
+            "Muudatusettepanek\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Muudatusettepanek\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "fi",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_fi.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_fi.docx",
+        "fetchedAt": "2026-10-27T20:17:25.506627+00:00",
+        "sha256": "d4bcc57e108a35b6da6c9a3fdd45736bd451c8685b8942cf1de1199306825002",
+        "expression": "eli/dl/doc/A-10-2025-0150/fi",
+        "issued": "2025-08-14T17:28:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        50,
+        "LUONNOS EUROOPAN PARLAMENTIN LAINSÄÄDÄNTÖPÄÄTÖSLAUSELMAKSI"
+      ],
+      "ends": [
+        [
+          2518,
+          "PERUSTELUT"
+        ],
+        [
+          2530,
+          "LIITE: ILMOITUS SAADUISTA TIEDOISTA"
+        ],
+        [
+          2540,
+          "ASIAN KÄSITTELY\nASIASTA VASTAAVASSA VALIOKUNNASSA"
+        ],
+        [
+          2589,
+          "LOPULLINEN ÄÄNESTYS NIMENHUUTOÄÄNESTYKSENÄ\nASIASTA VASTAAVASSA VALIOKUNNASSA"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_fi.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_fi.docx",
+          "fetchedAt": "2026-10-27T20:23:56.119Z",
+          "sha256": "85c48d3ce139a431ea42757f631821e7a123bcc46840656bba1a4d451512a925"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          211,
+          "MAATALOUDEN JA MAASEUDUN KEHITTÄMISEN VALIOKUNNAN LAUSUNTO"
+        ],
+        "amendments": [
+          [
+            221,
+            "Tarkistus\t\t1"
+          ],
+          [
+            230,
+            "Tarkistus\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Tarkistus\t\t{number}",
+      "amendmentOrdinals": [66, 76, 86, 96, 106, 116, 126, 136, 146, 156, 166, 176, 186, 198, 210, 222, 234, 250, 262, 284, 296, 308, 320, 332, 344, 356, 368, 400, 432, 466, 476, 488, 518, 550, 580, 592, 606, 656, 668, 680, 692, 706, 720, 732, 744, 756, 768, 780, 792, 804, 816, 828, 840, 852, 864, 876, 894, 914, 928, 950, 964, 978, 990, 1006, 1032, 1044, 1056, 1068, 1080, 1092, 1104, 1116, 1128, 1140, 1152, 1164, 1187, 1199, 1211, 1223, 1235, 1247, 1259, 1271, 1283, 1295, 1307, 1319, 1331, 1343, 1355, 1367, 1379, 1401, 1413, 1425, 1445, 1459, 1489, 1517, 1557, 1569, 1581, 1659, 1671, 1683, 1725, 1737, 1749, 1765, 1777, 1789, 1811, 1827, 1861, 1875, 1887, 1909, 1921, 1933, 1945, 2066, 2126, 2180, 2341, 2353, 2365, 2377, 2431]
+    },
+    {
+      "language": "fr",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_fr.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_fr.docx",
+        "fetchedAt": "2026-10-27T20:17:31.543097+00:00",
+        "sha256": "14cc7e70f60b777b94fa4dcdfce426395ca62efeacc3675dbe60b52bf3ce5e56",
+        "expression": "eli/dl/doc/A-10-2025-0150/fr",
+        "issued": "2025-08-20T18:08:13+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "PROJET DE RÉSOLUTION LÉGISLATIVE DU PARLEMENT EUROPÉEN"
+      ],
+      "ends": [
+        [
+          2526,
+          "EXPOSÉ DES MOTIFS"
+        ],
+        [
+          2539,
+          "ANNEXE: DÉCLARATION DES CONTRIBUTIONS"
+        ],
+        [
+          2549,
+          "PROCÉDURE DE LA COMMISSION COMPÉTENTE AU FOND"
+        ],
+        [
+          2598,
+          "VOTE FINAL PAR APPEL NOMINAL\nPAR LA COMMISSION COMPÉTENTE AU FOND"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_fr.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_fr.docx",
+          "fetchedAt": "2026-10-27T20:23:40.160Z",
+          "sha256": "0f02a5ca265baa5290b3abc51b874604cb0baa4f6c1d29b1efc8c449b54835bc"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "AVIS DE LA COMMISSION DE L’AGRICULTURE ET DU DÉVELOPPEMENT RURAL"
+        ],
+        "amendments": [
+          [
+            222,
+            "Amendement\t\t1"
+          ],
+          [
+            231,
+            "Amendement\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Amendement\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "ga",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_ga.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_ga.docx",
+        "fetchedAt": "2026-10-27T20:17:37.575907+00:00",
+        "sha256": "7f3c6700135f51e7be440422f9d45ad86f2dd05a474257ce49ae38c9cc77cbea",
+        "expression": "eli/dl/doc/A-10-2025-0150/ga",
+        "issued": "2025-08-20T18:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "DRÉACHTRÚN REACHTACH Ó PHARLAIMINT NA hEORPA"
+      ],
+      "ends": [
+        [
+          2524,
+          "RÁITEAS MÍNIÚCHÁIN"
+        ],
+        [
+          2536,
+          "IARSCRÍBHINN: DEARBHÚ IONCHUIR"
+        ],
+        [
+          2547,
+          "NÓS IMEACHTA – AN COISTE ATÁ FREAGRACH"
+        ],
+        [
+          2596,
+          "VÓTÁIL CHRÍOCHNAITHEACH LE GLAOCH ROLLA SA CHOISTE FREAGRACH"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_ga.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_ga.docx",
+          "fetchedAt": "2026-10-27T20:23:41.283Z",
+          "sha256": "148ea119b09efe381550c798e5e829cf86e1271cacca398ee803e70dbcc79301"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          211,
+          "TUAIRIM ÓN gCOISTE UM THALMHAÍOCHT AGUS UM FHORBAIRT TUAITHE"
+        ],
+        "amendments": [
+          [
+            221,
+            "Leasú\t\t1"
+          ],
+          [
+            230,
+            "Leasú\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Leasú\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "hr",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_hr.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_hr.docx",
+        "fetchedAt": "2026-10-27T20:17:43.602705+00:00",
+        "sha256": "a31a1a92efa4bcb7abbc09c8116d0195c8138c5e5192045d1832fdc7d66acba7",
+        "expression": "eli/dl/doc/A-10-2025-0150/hr",
+        "issued": "2025-08-22T13:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        54,
+        "NACRT ZAKONODAVNE REZOLUCIJE EUROPSKOG PARLAMENTA"
+      ],
+      "ends": [
+        [
+          2526,
+          "OBRAZLOŽENJE"
+        ],
+        [
+          2538,
+          "PRILOG: PRIJAVA PRIMLJENIH INFORMACIJA"
+        ],
+        [
+          2550,
+          "POSTUPAK U NADLEŽNOM ODBORU"
+        ],
+        [
+          2600,
+          "POIMENIČNO KONAČNO GLASOVANJE U NADLEŽNOM ODBORU"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_hr.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_hr.docx",
+          "fetchedAt": "2026-10-27T20:23:42.410Z",
+          "sha256": "14c9d733356e7d6a989e16c6c3b95c2a88e8aaaa6ec5d028d079242abedc7a04"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          213,
+          "MIŠLJENJE ODBORA ZA POLJOPRIVREDU I RURALNI RAZVOJ"
+        ],
+        "amendments": [
+          [
+            223,
+            "Amandman\t\t1"
+          ],
+          [
+            232,
+            "Amandman\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Amandman\t\t{number}",
+      "amendmentOrdinals": [70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 202, 214, 226, 238, 254, 266, 288, 300, 312, 324, 336, 348, 360, 372, 404, 436, 470, 480, 492, 522, 554, 584, 596, 610, 660, 672, 684, 696, 710, 724, 736, 748, 760, 772, 784, 796, 808, 820, 832, 844, 856, 868, 880, 898, 918, 932, 954, 968, 982, 994, 1010, 1036, 1048, 1060, 1072, 1084, 1096, 1108, 1120, 1132, 1144, 1156, 1168, 1191, 1203, 1215, 1227, 1239, 1251, 1263, 1275, 1287, 1299, 1311, 1323, 1335, 1347, 1359, 1371, 1383, 1405, 1417, 1429, 1449, 1463, 1493, 1521, 1561, 1573, 1585, 1663, 1675, 1687, 1729, 1741, 1753, 1769, 1781, 1793, 1815, 1831, 1865, 1879, 1891, 1913, 1925, 1937, 1949, 2070, 2130, 2184, 2345, 2357, 2369, 2381, 2435]
+    },
+    {
+      "language": "hu",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_hu.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_hu.docx",
+        "fetchedAt": "2026-10-27T20:17:49.639991+00:00",
+        "sha256": "a01bfd593629fbd45c704e7b9bf98d50b5fc2f65ca83bc598a956350a66cd8dd",
+        "expression": "eli/dl/doc/A-10-2025-0150/hu",
+        "issued": "2025-08-08T12:58:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "AZ EURÓPAI PARLAMENT JOGALKOTÁSI ÁLLÁSFOGLALÁS-TERVEZETE"
+      ],
+      "ends": [
+        [
+          2525,
+          "MELLÉKLET: NYILATKOZAT AZ ÉSZREVÉTELEKRŐL"
+        ],
+        [
+          2537,
+          "INDOKOLÁS"
+        ],
+        [
+          2548,
+          "MELLÉKLET: AZON SZERVEZETEK VAGY SZEMÉLYEK, AMELYEKTŐL, ILLETVE AKIKTŐL AZ ELŐADÓ ÉSZREVÉTELEKET KAPOTT"
+        ],
+        [
+          2556,
+          "ELJÁRÁS AZ ILLETÉKES BIZOTTSÁGBAN"
+        ],
+        [
+          2605,
+          "AZ ILLETÉKES BIZOTTSÁG NÉV SZERINTI ZÁRÓSZAVAZÁSA"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_hu.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_hu.docx",
+          "fetchedAt": "2026-10-27T20:23:46.943Z",
+          "sha256": "0cf434d84eeee29da72cbb78f13f69b76a183bc1f4e1850ac7de158644b4c8a9"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "VÉLEMÉNY A MEZŐGAZDASÁGI ÉS VIDÉKFEJLESZTÉSI BIZOTTSÁG RÉSZÉRŐL"
+        ],
+        "amendments": [
+          [
+            222,
+            "Módosítás\t\t1"
+          ],
+          [
+            231,
+            "Módosítás\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Módosítás\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "it",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_it.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_it.docx",
+        "fetchedAt": "2026-10-27T20:17:55.655107+00:00",
+        "sha256": "db8c1c195e40dafac32ef6c2507128da9629c3f510e83554a5f43ce0efcf2596",
+        "expression": "eli/dl/doc/A-10-2025-0150/it",
+        "issued": "2025-08-14T12:58:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "PROGETTO DI RISOLUZIONE LEGISLATIVA DEL PARLAMENTO EUROPEO"
+      ],
+      "ends": [
+        [
+          2526,
+          "MOTIVAZIONE"
+        ],
+        [
+          2537,
+          "ALLEGATO: DICHIARAZIONE DEI CONTRIBUTI"
+        ],
+        [
+          2549,
+          "PROCEDURA DELLA COMMISSIONE COMPETENTE PER IL MERITO"
+        ],
+        [
+          2598,
+          "VOTAZIONE FINALE PER APPELLO NOMINALE\nDA PARTE DELLA COMMISSIONE COMPETENTE PER IL MERITO"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_it.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_it.docx",
+          "fetchedAt": "2026-10-27T20:23:43.525Z",
+          "sha256": "9b334177239d24a978b6e6812247e37c64654837931059ad51337bd854e65328"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          213,
+          "PARERE DELLA COMMISSIONE PER L'AGRICOLTURA E LO SVILUPPO RURALE"
+        ],
+        "amendments": [
+          [
+            223,
+            "Emendamento\t\t1"
+          ],
+          [
+            232,
+            "Emendamento\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Emendamento\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2069, 2129, 2183, 2344, 2356, 2368, 2380, 2434]
+    },
+    {
+      "language": "lt",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_lt.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_lt.docx",
+        "fetchedAt": "2026-10-27T20:18:01.677035+00:00",
+        "sha256": "4e4368ad5fd3e40728e77eb05178f238b7f755a1396116bfba64a89f60eba45f",
+        "expression": "eli/dl/doc/A-10-2025-0150/lt",
+        "issued": "2025-08-14T17:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "EUROPOS PARLAMENTO TEISĖKŪROS REZOLIUCIJOS PROJEKTAS"
+      ],
+      "ends": [
+        [
+          2523,
+          "AIŠKINAMOJI DALIS"
+        ],
+        [
+          2535,
+          "PRIEDAS. GAUTOS INFORMACIJOS DEKLARACIJA"
+        ],
+        [
+          2545,
+          "ATSAKINGO KOMITETO PROCEDŪRA"
+        ],
+        [
+          2595,
+          "GALUTINIS VARDINIS BALSAVIMAS ATSAKINGAME KOMITETE"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_lt.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_lt.docx",
+          "fetchedAt": "2026-10-27T20:23:45.805Z",
+          "sha256": "30a8856f68e551564b5489e4bf025bb0791bd77666bad76eeaa0d04bb814f29f"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          216,
+          "ŽEMĖS ŪKIO IR KAIMO PLĖTROS KOMITETO NUOMONĖ"
+        ],
+        "amendments": [
+          [
+            225,
+            "Pakeitimas\t\t1"
+          ],
+          [
+            234,
+            "Pakeitimas\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Pakeitimas\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "lv",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_lv.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_lv.docx",
+        "fetchedAt": "2026-10-27T20:18:07.751134+00:00",
+        "sha256": "9a9163e248c1027feb408d33a5096fa815e7e713a4167a88c77b721a5aa4148a",
+        "expression": "eli/dl/doc/A-10-2025-0150/lv",
+        "issued": "2025-08-20T18:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "EIROPAS PARLAMENTA NORMATĪVĀS REZOLŪCIJAS PROJEKTS"
+      ],
+      "ends": [
+        [
+          2520,
+          "PASKAIDROJUMS"
+        ],
+        [
+          2534,
+          "PIELIKUMS. PIENESUMA DEKLARĀCIJA"
+        ],
+        [
+          2544,
+          "ATBILDĪGĀS KOMITEJAS PROCEDŪRA"
+        ],
+        [
+          2593,
+          "ATBILDĪGĀS KOMITEJAS\nGALĪGAIS ATKLĀTAIS BALSOJUMS"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_lv.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_lv.docx",
+          "fetchedAt": "2026-10-27T20:23:44.616Z",
+          "sha256": "e905710a07ed9ed2fb857fe25b2d5feb08f3cd0b1c37858c5d997ce3aa2754c1"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          211,
+          "LAUKSAIMNIECĪBAS UN LAUKU ATTĪSTĪBAS KOMITEJAS ATZINUMS"
+        ],
+        "amendments": [
+          [
+            220,
+            "Grozījums Nr.\t\t1"
+          ],
+          [
+            229,
+            "Grozījums Nr.\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Grozījums Nr.\t\t{number}",
+      "amendmentOrdinals": [68, 77, 87, 97, 107, 117, 127, 137, 147, 157, 167, 177, 187, 199, 211, 223, 235, 251, 263, 285, 297, 309, 321, 333, 345, 357, 369, 401, 433, 467, 477, 489, 519, 551, 581, 593, 607, 657, 669, 681, 693, 707, 721, 733, 745, 757, 769, 781, 793, 805, 817, 829, 841, 853, 865, 877, 895, 915, 929, 951, 965, 979, 991, 1007, 1033, 1045, 1057, 1069, 1081, 1093, 1105, 1117, 1129, 1141, 1153, 1165, 1188, 1200, 1212, 1224, 1236, 1248, 1260, 1272, 1284, 1296, 1308, 1320, 1332, 1344, 1356, 1368, 1380, 1402, 1414, 1426, 1446, 1460, 1490, 1518, 1558, 1570, 1582, 1660, 1672, 1684, 1726, 1738, 1750, 1766, 1778, 1790, 1812, 1828, 1862, 1876, 1888, 1910, 1922, 1934, 1946, 2066, 2125, 2180, 2341, 2353, 2365, 2377, 2431]
+    },
+    {
+      "language": "mt",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_mt.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_mt.docx",
+        "fetchedAt": "2026-10-27T20:18:13.729299+00:00",
+        "sha256": "86e7b5450372b90d64ff4f8974db07ea9d14f9bc7b7239a8a9b67b7db0d37960",
+        "expression": "eli/dl/doc/A-10-2025-0150/mt",
+        "issued": "2025-08-21T13:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "ABBOZZ TA’ RIŻOLUZZJONI LEĠIŻLATTIVA TAL-PARLAMENT EWROPEW"
+      ],
+      "ends": [
+        [
+          2519,
+          "NOTA SPJEGATTIVA"
+        ],
+        [
+          2535,
+          "ANNESS: DIKJARAZZJONI TA’ KONTRIBUT"
+        ],
+        [
+          2545,
+          "PROĊEDURA TAL-KUMITAT RESPONSABBLI"
+        ],
+        [
+          2594,
+          "VOTAZZJONI FINALI B’SEJĦA TAL-ISMIJIET\nMILL-KUMITAT RESPONSABBLI"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_mt.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_mt.docx",
+          "fetchedAt": "2026-10-27T20:23:48.051Z",
+          "sha256": "e6481378d57dfeff37e75300e44f73a2f6e74533977b317fc5dc0db0c521f81c"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          215,
+          "OPINJONI TAL-KUMITAT GĦALL-AGRIKOLTURA U L-IŻVILUPP RURALI"
+        ],
+        "amendments": [
+          [
+            225,
+            "Emenda\t\t1"
+          ],
+          [
+            234,
+            "Emenda\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Emenda\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "nl",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_nl.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_nl.docx",
+        "fetchedAt": "2026-10-27T20:18:19.821366+00:00",
+        "sha256": "3432f6695ddceb016b130566329810a80f56022a4d24e1057347d2c10060e097",
+        "expression": "eli/dl/doc/A-10-2025-0150/nl",
+        "issued": "2025-08-14T17:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "ONTWERPWETGEVINGSRESOLUTIE VAN HET EUROPEES PARLEMENT"
+      ],
+      "ends": [
+        [
+          2522,
+          "TOELICHTING"
+        ],
+        [
+          2536,
+          "BIJLAGE: BEKENDMAKING VAN INPUT"
+        ],
+        [
+          2545,
+          "PROCEDURE VAN DE BEVOEGDE COMMISSIE"
+        ],
+        [
+          2594,
+          "HOOFDELIJKE EINDSTEMMING IN DE BEVOEGDE COMMISSIE"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_nl.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_nl.docx",
+          "fetchedAt": "2026-10-27T20:23:49.206Z",
+          "sha256": "76506084e4fdf1f1761f128e98634c967340515408efafd0484b24baefa98763"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          226,
+          "ADVIES VAN DE COMMISSIE LANDBOUW EN PLATTELANDSONTWIKKELING"
+        ],
+        "amendments": [
+          [
+            235,
+            "Amendement\t\t1"
+          ],
+          [
+            244,
+            "Amendement\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Amendement\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2069, 2129, 2183, 2344, 2356, 2368, 2380, 2434]
+    },
+    {
+      "language": "pl",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_pl.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_pl.docx",
+        "fetchedAt": "2026-10-27T20:18:25.828607+00:00",
+        "sha256": "adacf80063f483511afca0a47e65fd6b613f78c94b4c2e390ba1d724141451c5",
+        "expression": "eli/dl/doc/A-10-2025-0150/pl",
+        "issued": "2025-08-20T17:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "PROJEKT REZOLUCJI USTAWODAWCZEJ PARLAMENTU EUROPEJSKIEGO"
+      ],
+      "ends": [
+        [
+          2525,
+          "UZASADNIENIE"
+        ],
+        [
+          2537,
+          "ZAŁĄCZNIK: WYKAZ PODMIOTÓW, OD KTÓRYCH SPRAWOZDAWCZYNI OTRZYMAŁA INFORMACJE"
+        ],
+        [
+          2548,
+          "PROCEDURA W KOMISJI PRZEDMIOTOWO WŁAŚCIWEJ"
+        ],
+        [
+          2597,
+          "GŁOSOWANIE KOŃCOWE W FORMIE GŁOSOWANIA IMIENNEGO W KOMISJI PRZEDMIOTOWO WŁAŚCIWEJ"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_pl.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_pl.docx",
+          "fetchedAt": "2026-10-27T20:23:50.318Z",
+          "sha256": "d741639c7395545d40f677ccbdecddedb4a135357977a783395ca88506c9ce51"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "OPINIA KOMISJI ROLNICTWA I ROZWOJU WSI"
+        ],
+        "amendments": [
+          [
+            222,
+            "Poprawka\t\t1"
+          ],
+          [
+            231,
+            "Poprawka\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Poprawka\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    },
+    {
+      "language": "pt",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_pt.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_pt.docx",
+        "fetchedAt": "2026-10-27T20:18:31.778867+00:00",
+        "sha256": "463d04c30613512102284742402e62231e4e08730b79446d61f1d47be34f1326",
+        "expression": "eli/dl/doc/A-10-2025-0150/pt",
+        "issued": "2025-08-14T11:18:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        63,
+        "PROJETO DE RESOLUÇÃO LEGISLATIVA DO PARLAMENTO EUROPEU"
+      ],
+      "ends": [
+        [
+          2530,
+          "ANEXO: DECLARAÇÃO DE CONTRIBUTOS"
+        ],
+        [
+          2542,
+          "PROCESSO DA COMISSÃO COMPETENTE QUANTO À MATÉRIA DE FUNDO"
+        ],
+        [
+          2592,
+          "VOTAÇÃO NOMINAL FINAL\nNA COMISSÃO COMPETENTE QUANTO À MATÉRIA DE FUNDO"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_pt.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_pt.docx",
+          "fetchedAt": "2026-10-27T20:23:51.434Z",
+          "sha256": "585bf345ca1ac995a996902eba996811279641e584cc39cc7c4b8161df25d08d"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          213,
+          "PARECER DA COMISSÃO DA AGRICULTURA E DO DESENVOLVIMENTO RURAL"
+        ],
+        "amendments": [
+          [
+            223,
+            "Alteração\t\t1"
+          ],
+          [
+            232,
+            "Alteração\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Alteração\t\t{number}",
+      "amendmentOrdinals": [79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 199, 211, 223, 235, 247, 263, 275, 297, 309, 321, 333, 345, 357, 369, 381, 413, 445, 479, 489, 501, 531, 563, 593, 605, 619, 663, 675, 687, 699, 713, 727, 739, 751, 763, 775, 787, 799, 811, 823, 835, 847, 859, 871, 883, 901, 921, 935, 957, 971, 985, 997, 1013, 1039, 1051, 1063, 1077, 1089, 1101, 1113, 1125, 1137, 1149, 1161, 1173, 1196, 1208, 1220, 1232, 1244, 1256, 1268, 1280, 1292, 1304, 1316, 1328, 1340, 1352, 1364, 1376, 1388, 1410, 1422, 1434, 1454, 1468, 1498, 1526, 1566, 1578, 1590, 1668, 1680, 1692, 1734, 1746, 1758, 1774, 1786, 1798, 1820, 1836, 1870, 1884, 1896, 1918, 1930, 1942, 1954, 2075, 2135, 2189, 2350, 2362, 2374, 2386, 2440],
+      "amendmentOverrides": {
+        "37": "Alteração"
+      }
+    },
+    {
+      "language": "ro",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_ro.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_ro.docx",
+        "fetchedAt": "2026-10-27T20:18:37.851113+00:00",
+        "sha256": "dafc34d58840ca3f56209735d68e5d7947ce3b2b49d8ab5b86fab9a6409d5209",
+        "expression": "eli/dl/doc/A-10-2025-0150/ro",
+        "issued": "2025-08-20T18:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "PROIECT DE REZOLUȚIE LEGISLATIVĂ A PARLAMENTULUI EUROPEAN"
+      ],
+      "ends": [
+        [
+          2524,
+          "EXPUNERE DE MOTIVE"
+        ],
+        [
+          2536,
+          "ANEXĂ: DECLARAȚIE PRIVIND CONTRIBUȚIILE"
+        ],
+        [
+          2548,
+          "PROCEDURA COMISIEI COMPETENTE"
+        ],
+        [
+          2597,
+          "VOT FINAL PRIN APEL NOMINAL\nDE CĂTRE COMISIA COMPETENTĂ"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_ro.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_ro.docx",
+          "fetchedAt": "2026-10-27T20:23:52.633Z",
+          "sha256": "c9c48bdbdecdc1efd00d2f6b391719c1934903ce432487c2855845e1a8af275a"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          211,
+          "AVIZ AL COMISIEI PENTRU AGRICULTURĂ ȘI DEZVOLTARE RURALĂ"
+        ],
+        "amendments": [
+          [
+            221,
+            "Amendamentul\t\t1"
+          ],
+          [
+            230,
+            "Amendamentul\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Amendamentul\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2069, 2129, 2183, 2344, 2356, 2368, 2380, 2434]
+    },
+    {
+      "language": "sk",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_sk.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_sk.docx",
+        "fetchedAt": "2026-10-27T20:18:43.864966+00:00",
+        "sha256": "69e647f6fe1eee976b7aa2c5879c341a6c806c931f7927fa0d97544d88fbc6f9",
+        "expression": "eli/dl/doc/A-10-2025-0150/sk",
+        "issued": "2025-08-22T14:38:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "NÁVRH LEGISLATÍVNEHO UZNESENIA EURÓPSKEHO PARLAMENTU"
+      ],
+      "ends": [
+        [
+          2526,
+          "DÔVODOVÁ SPRÁVA"
+        ],
+        [
+          2537,
+          "PRÍLOHA: VYHLÁSENIE O POSKYTNUTÝCH INFORMÁCIÁCH"
+        ],
+        [
+          2547,
+          "POSTUP GESTORSKÉHO VÝBORU"
+        ],
+        [
+          2596,
+          "ZÁVEREČNÉ HLASOVANIE PODĽA MIEN GESTORSKÝM VÝBOROM"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_sk.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_sk.docx",
+          "fetchedAt": "2026-10-27T20:23:53.966Z",
+          "sha256": "92f85b0272a06069f363ad2653b1ba61029842806dab43ef13f15e1d7eec186d"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          212,
+          "STANOVISKO VÝBORU PRE POĽNOHOSPODÁRSTVO A ROZVOJ VIDIEKA"
+        ],
+        "amendments": [
+          [
+            222,
+            "Pozmeňujúci návrh\t\t1"
+          ],
+          [
+            231,
+            "Pozmeňujúci návrh\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Pozmeňujúci návrh\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 981, 993, 1009, 1035, 1047, 1059, 1071, 1083, 1095, 1107, 1119, 1131, 1143, 1155, 1167, 1190, 1202, 1214, 1226, 1238, 1250, 1262, 1274, 1286, 1298, 1310, 1322, 1334, 1346, 1358, 1370, 1382, 1404, 1416, 1428, 1448, 1462, 1492, 1520, 1560, 1572, 1584, 1662, 1674, 1686, 1728, 1740, 1752, 1768, 1780, 1792, 1814, 1830, 1864, 1878, 1890, 1912, 1924, 1936, 1948, 2069, 2129, 2183, 2344, 2356, 2368, 2380, 2434]
+    },
+    {
+      "language": "sl",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_sl.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_sl.docx",
+        "fetchedAt": "2026-10-27T20:18:49.892887+00:00",
+        "sha256": "3505ff96d860e3faea5639d9481e8c40fd1c512c99afb19a1c86d1c4824fd5b3",
+        "expression": "eli/dl/doc/A-10-2025-0150/sl",
+        "issued": "2025-08-14T17:48:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        53,
+        "OSNUTEK ZAKONODAJNE RESOLUCIJE EVROPSKEGA PARLAMENTA"
+      ],
+      "ends": [
+        [
+          2526,
+          "OBRAZLOŽITEV"
+        ],
+        [
+          2538,
+          "PRILOGA: IZJAVA O PRISPEVKIH"
+        ],
+        [
+          2549,
+          "POSTOPEK V PRISTOJNEM ODBORU"
+        ],
+        [
+          2598,
+          "POIMENSKO GLASOVANJE PRI KONČNEM GLASOVANJU\nV PRISTOJNEM ODBORU"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_sl.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_sl.docx",
+          "fetchedAt": "2026-10-27T20:23:55.050Z",
+          "sha256": "3794df1e01c20e9685c55d2ec80832d3b998dd69d126d50cb9f0d4671567c682"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          210,
+          "MNENJE ODBORA ZA KMETIJSTVO IN RAZVOJ PODEŽELJA"
+        ],
+        "amendments": [
+          [
+            220,
+            "Predlog spremembe\t\t1"
+          ],
+          [
+            229,
+            "Predlog spremembe\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Predlog spremembe\t\t{number}",
+      "amendmentOrdinals": [69, 79, 89, 99, 109, 119, 129, 139, 149, 159, 169, 179, 189, 201, 213, 225, 237, 253, 265, 287, 299, 311, 323, 335, 347, 359, 371, 403, 435, 469, 479, 491, 521, 553, 583, 595, 609, 659, 671, 683, 695, 709, 723, 735, 747, 759, 771, 783, 795, 807, 819, 831, 843, 855, 867, 879, 897, 917, 931, 953, 967, 982, 994, 1010, 1036, 1048, 1060, 1072, 1084, 1096, 1108, 1120, 1132, 1144, 1156, 1168, 1191, 1203, 1215, 1227, 1239, 1251, 1263, 1275, 1287, 1299, 1311, 1323, 1335, 1347, 1359, 1371, 1383, 1405, 1417, 1429, 1449, 1463, 1493, 1521, 1561, 1573, 1585, 1663, 1675, 1687, 1729, 1741, 1753, 1769, 1781, 1793, 1815, 1831, 1865, 1879, 1891, 1913, 1925, 1937, 1949, 2070, 2130, 2184, 2345, 2357, 2369, 2381, 2435]
+    },
+    {
+      "language": "sv",
+      "documentId": "A-10-2025-0150",
+      "listId": "A-10-2025-0150-AM-001-129",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_sv.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2025-0150/A-10-2025-0150_sv.docx",
+        "fetchedAt": "2026-10-27T20:18:55.889759+00:00",
+        "sha256": "2f8459e87724acaa2b6296bec3784c613dcd184c96685e81ab93ae95259f43d1",
+        "expression": "eli/dl/doc/A-10-2025-0150/sv",
+        "issued": "2025-08-20T17:08:12+02:00",
+        "part": "word/document.xml"
+      },
+      "opening": [
+        52,
+        "FÖRSLAG TILL EUROPAPARLAMENTETS LAGSTIFTNINGSRESOLUTION"
+      ],
+      "ends": [
+        [
+          2518,
+          "MOTIVERING"
+        ],
+        [
+          2534,
+          "BILAGA: FÖRKLARING OM SYNPUNKTER"
+        ],
+        [
+          2546,
+          "ÄRENDETS GÅNG I DET ANSVARIGA UTSKOTTET"
+        ],
+        [
+          2595,
+          "SLUTOMRÖSTNING MED NAMNUPPROP I DET ANSVARIGA UTSKOTTET"
+        ]
+      ],
+      "opinion": {
+        "documentId": "A-10-2026-0058",
+        "source": {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_sv.docx",
+          "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0058/A-10-2026-0058_sv.docx",
+          "fetchedAt": "2026-10-27T20:23:57.218Z",
+          "sha256": "be7c27dfb91ea887a27330fc6d061276d68e57435c5c18cb80eb24f044a925f3"
+        },
+        "part": "word/document.xml",
+        "heading": [
+          214,
+          "YTTRANDE FRÅN UTSKOTTET FÖR JORDBRUK OCH LANDSBYGDENS UTVECKLING"
+        ],
+        "amendments": [
+          [
+            224,
+            "Ändringsförslag\t\t1"
+          ],
+          [
+            233,
+            "Ändringsförslag\t\t2"
+          ]
+        ]
+      },
+      "amendmentHeading": "Ändringsförslag\t\t{number}",
+      "amendmentOrdinals": [68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168, 178, 188, 200, 212, 224, 236, 252, 264, 286, 298, 310, 322, 334, 346, 358, 370, 402, 434, 468, 478, 490, 520, 552, 582, 594, 608, 658, 670, 682, 694, 708, 722, 734, 746, 758, 770, 782, 794, 806, 818, 830, 842, 854, 866, 878, 896, 916, 930, 952, 966, 980, 992, 1008, 1034, 1046, 1058, 1070, 1082, 1094, 1106, 1118, 1130, 1142, 1154, 1166, 1189, 1201, 1213, 1225, 1237, 1249, 1261, 1273, 1285, 1297, 1309, 1321, 1333, 1345, 1357, 1369, 1381, 1403, 1415, 1427, 1447, 1461, 1491, 1519, 1559, 1571, 1583, 1661, 1673, 1685, 1727, 1739, 1751, 1767, 1779, 1791, 1813, 1829, 1863, 1877, 1889, 1911, 1923, 1935, 1947, 2068, 2128, 2182, 2343, 2355, 2367, 2379, 2433]
+    }
+  ],
+  "opinionBoundaryVariants": [
+    {
+      "language": "bg",
+      "documentId": "A-10-2026-0085",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_bg.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_bg.docx",
+        "fetchedAt": "2026-10-27T20:24:39.869Z",
+        "sha256": "e466cc08bbc8b6c428c6147f329e8905ad451b60eb2861f4db9c2b860d887128"
+      },
+      "part": "word/document.xml",
+      "ordinal": 903,
+      "text": "СТАНОВИЩЕ НА КОМИСЯТА ПО РАЗВИТИЕ"
+    },
+    {
+      "language": "sv",
+      "documentId": "A-10-2026-0087",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_sv.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0087/A-10-2026-0087_sv.docx",
+        "fetchedAt": "2026-10-27T20:25:36.382Z",
+        "sha256": "995db725cb8e5a0dee287b220af2b3fd48597c2f7bef8dd33093728b67e81486"
+      },
+      "part": "word/document.xml",
+      "ordinal": 2518,
+      "text": "YTTRANDE FRÅN FISKERIUTSKOTTET"
+    },
+    {
+      "language": "hr",
+      "documentId": "A-10-2026-0085",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_hr.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_hr.docx",
+        "fetchedAt": "2026-10-27T20:24:50.841Z",
+        "sha256": "8ae0fa7d8623a942db7924a619bcedacd073083d82e2c841fb9296a263cbb023"
+      },
+      "part": "word/document.xml",
+      "ordinal": 1506,
+      "text": "MIŠLJENJE ODBOR ZA GRAĐANSKE SLOBODE, PRAVOSUĐE I UNUTARNJE POSLOVE"
+    },
+    {
+      "language": "mt",
+      "documentId": "A-10-2026-0085",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_mt.docx",
+        "resolvedUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0085/A-10-2026-0085_mt.docx",
+        "fetchedAt": "2026-10-27T20:24:56.169Z",
+        "sha256": "a26a90c3d55d71b46541da367ae91fde09f5853efb70ab63ed1fd825111c2b62"
+      },
+      "part": "word/document.xml",
+      "ordinal": 1063,
+      "text": "OPINION TAL-KUMITAT GĦALL-AMBJENT, IL-KLIMA U S-SIKUREZZA TAL-IKEL"
+    }
+  ]
+}
