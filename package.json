@@ -11,7 +11,7 @@
     "test": "node scripts/run-tests.mjs",
     "api:bump": "node scripts/api-version.mjs",
     "api:check": "node scripts/api-version.mjs --check",
-    "data:audit": "node scripts/data-gap-audit.mjs",
+    "data:audit": "node server/data-gap-audit-cli.mjs",
     "bench:amendments": "node scripts/amendment-benchmark.mjs",
     "bench:agenda": "node scripts/agenda-benchmark.mjs",
     "test:server": "node scripts/run-tests.mjs --server",

@@ -5,7 +5,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {auditIndex,dataGapAudit,reconcileQuestionFiles,compareGapAudits,failureClass} from './data-gap-audit.mjs';
-import {auditOptions} from '../scripts/data-gap-audit.mjs';
+import {auditOptions} from './data-gap-audit-cli.mjs';
 
 test('audit includes serving and working queues, including NULL and outside pending states',()=>{
   const db=new DatabaseSync(':memory:');

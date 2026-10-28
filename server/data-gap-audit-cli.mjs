@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {readFileSync} from 'node:fs';
-import {dataGapAudit,compareGapAudits} from '../server/data-gap-audit.mjs';
+import {readFileSync,realpathSync} from 'node:fs';
+import {dataGapAudit,compareGapAudits} from './data-gap-audit.mjs';
 
 export function auditOptions(args,env=process.env) {
   const options={indexFile:env.ACTIVITY_INDEX_DIR&&path.join(env.ACTIVITY_INDEX_DIR,'activities-v1.sqlite'),corpusFile:env.CORPUS_DIR&&path.join(env.CORPUS_DIR,'corpus-v1.sqlite'),pressFile:env.ACTIVITY_INDEX_DIR&&path.join(env.ACTIVITY_INDEX_DIR,'press-v1.sqlite')};
@@ -13,7 +13,7 @@ export function auditOptions(args,env=process.env) {
   }
   return options;
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href) {
+if(process.argv[1]&&import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     const {baselineFile,...options}=auditOptions(process.argv.slice(2)),report=dataGapAudit(options);
     if(baselineFile)report.comparison=compareGapAudits(report,JSON.parse(readFileSync(baselineFile,'utf8')));
