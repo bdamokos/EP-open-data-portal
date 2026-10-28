@@ -1,9 +1,10 @@
 import {array,tail} from './activity-index-model.mjs';
 
-export const ADOPTED_TEXT_DISCOVERY_VERSION=1;
+// Internal queue-admission revision, not a public response schema version.
+const discoveryRevision=1;
 const markerKey='adoptedTextDiscovery';
 const yearOf=now=>new Date(now).getUTCFullYear();
-const currentMarker=marker=>marker?.version===ADOPTED_TEXT_DISCOVERY_VERSION&&Number.isInteger(marker.throughYear)&&marker.throughYear>=2024;
+const currentMarker=marker=>marker?.version===discoveryRevision&&Number.isInteger(marker.throughYear)&&marker.throughYear>=2024;
 
 export function adoptedTextDiscoveryDue(store,now=store.clock()) {
   const marker=store.get(markerKey);
@@ -20,10 +21,10 @@ export function scheduleAdoptedTexts(worker,cycle) {
     if(store.get('working')?.generation!==cycle.generation)throw new Error('Adopted-text discovery requires a working generation.');
     const marker=store.get(markerKey),throughYear=yearOf(now);
     const firstYear=currentMarker(marker)?Math.max(2024,marker.throughYear+1):2024;
-    for(let year=firstYear;year<=throughYear;year++)store.enqueue(cycle.generation,`catalog:adopted-texts:v${ADOPTED_TEXT_DISCOVERY_VERSION}:${year}`,'catalog',{
+    for(let year=firstYear;year<=throughYear;year++)store.enqueue(cycle.generation,`catalog:adopted-texts:v${discoveryRevision}:${year}`,'catalog',{
       endpoint:'/adopted-texts',params:{year,'parliamentary-term':10,'work-type':'TEXT_ADOPTED'},offset:0,deltaOnly:true,
     },100);
-    store.set(markerKey,{version:ADOPTED_TEXT_DISCOVERY_VERSION,throughYear,scheduledAt:new Date(now).toISOString()});
+    store.set(markerKey,{version:discoveryRevision,throughYear,scheduledAt:new Date(now).toISOString()});
     return true;
   });
 }
