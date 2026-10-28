@@ -35,6 +35,17 @@ test('shared method labels distinguish electronic non-roll-call and both secret 
   for(const [method,label] of [['VOTE_HAND','Show of hands'],['VOTE_ELECTRONIC','Electronic vote (names not recorded)'],['VOTE_ELECTRONIC_ROLLCALL','Roll-call vote'],['VOTE_SECRET','Secret ballot'],['VOTE_SECRET_BALLOT','Secret ballot'],[null,''],['VOTE_UNKNOWN',''],['toString','']])assert.equal(voteMethodLabel(method),label);
 });
 
+test('week attendance groups each status once and compresses only consecutive dates',()=>{
+  const days=Array.from({length:4},(_,index)=>({...day(),date:'2026-10-'+(19+index)}));
+  assert.equal(memberAttendanceLine(days),'Attendance register: listed present 19–22 Oct');
+  assert.equal(memberAttendanceLine(days.map(value=>({...value,memberStatus:'listed-excused'}))),'Attendance register: excused 19–22 Oct');
+  assert.equal(memberAttendanceLine([days[2],days[0],{...days[1],memberStatus:'listed-excused'},{...days[3],memberStatus:'listed-excused'}]),'Attendance register: listed present 19 Oct, 21 Oct · excused 20 Oct, 22 Oct');
+  assert.equal(memberAttendanceLine([{...day(),date:'2026-10-31'},{...day(),date:'2026-11-01'}]),'Attendance register: listed present 31 Oct–1 Nov');
+  assert.equal(memberAttendanceLine(days.map((value,index)=>({...value,status:index<2?'partial':'unavailable',memberStatus:null}))),'Attendance register: unavailable 19–22 Oct');
+  assert.equal(memberAttendanceLine(days.map(value=>({...value,memberStatus:'not-listed'}))),'Attendance register: not listed 19–22 Oct');
+  assert.equal(memberAttendanceLine(days.map(value=>({...value,memberStatus:'conflicting'}))),'Attendance register: conflicting entries 19–22 Oct');
+});
+
 
 test('a not-listed member with no supplied excused list does not acquire a negative excused observation',()=>{
   assert.equal(memberAttendanceDetail({...day(),memberStatus:'not-listed',excusedSupplied:false}), 'Not listed as present.');

@@ -468,3 +468,17 @@ test('alignment navigation pushes once, preserves the snapshot and restores the 
   assert(requests.some(url=>url.searchParams.get('alignment')==='with'));
   assert.equal(requests[0].searchParams.has('alignment'),false,'the default request stays compatible; returning may reuse its cache');
 });
+
+test('expansion preserves outer scroll without a request and decision/back keep page position',async t=>{
+ const h=await harness(t),page=h.container.querySelector('main.explorer'),body=h.container.querySelector('.explorer-profile-body');
+ page.scrollTop=230;body.scrollTop=90;
+ const before=h.requests.filter(url=>url.pathname.startsWith('/api/member-votes/')).length;
+ await h.click(h.container.querySelector('.member-votes-subject h3 button'));
+ assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
+ assert.equal(h.requests.filter(url=>url.pathname.startsWith('/api/member-votes/')).length,before);
+ await h.click(h.container.querySelector('[data-vote-id]'));
+ assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
+ await h.click(button(h.container,'← Back to votes'));
+ assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
+ await h.go(-1);assert.equal(page.scrollTop,230);assert.equal(body.scrollTop,90);
+});
