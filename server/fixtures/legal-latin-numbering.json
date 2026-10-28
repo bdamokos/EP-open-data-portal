@@ -1,0 +1,33 @@
+{
+  "language": "fr",
+  "retrievedAt": "2026-10-28",
+  "guidance": [
+    "https://style-guide.europa.eu/fr/content/-/isg/topic?identifier=3.3.2-additions-and-numbering",
+    "https://style-guide.europa.eu/fr/content/-/isg/topic?identifier=annex-b-use-of-italics"
+  ],
+  "examples": [
+    {
+      "celex": "32005R2182",
+      "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/PDF/?uri=CELEX%3A32005R2182",
+      "location": "Inserted Article 171 quater headings",
+      "labels": ["Article 171 quater nonies", "Article 171 quater decies", "Article 171 quater undecies"]
+    },
+    {
+      "celex": "32022R0398",
+      "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=oj%3AJOL_2022_082_R_0001",
+      "location": "Article 1, point 4, inserted article headings",
+      "labels": ["Article 1 undecies bis", "Article 1 undecies ter", "Article 1 unvicies"]
+    },
+    {
+      "celex": "02014D0512-20251224",
+      "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX%3A02014D0512-20251224",
+      "location": "Inserted article heading",
+      "labels": ["Article 3 bis bis"]
+    },
+    {
+      "url": "https://eur-lex.europa.eu/legal-content/FR/TXT/PDF/?uri=oj%3AJOC_2021_404_R_0021",
+      "location": "Amendment 148, published 2021-10-06, page 771",
+      "labels": ["Article 1 — alinéa 1 — point 26 undecies (nouveau)"]
+    }
+  ]
+}

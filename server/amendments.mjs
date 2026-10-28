@@ -2,7 +2,7 @@ import { array, tail, procedureIds, documentFiles } from './activity-index-model
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 6;
+export const AMENDMENTS_VERSION = 7;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -47,7 +47,8 @@ export function distributionEvidenceFor(work,source) {
   return {version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:descriptors.length?'available':available?'empty':'unavailable',descriptors,source:source || null};
 }
 export function currentDocxDescriptor(list) {
-  const evidence=list?.distributionEvidence;
+  const own=list?.distributionEvidence;
+  const evidence=own?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION&&own.state!=='available'&&list?.reportWording?.reportId&&list.reportWording.reportId===list.targetDocumentId?list.reportWording.distributionEvidence:own;
   if(evidence?.version!==AMENDMENT_DISTRIBUTION_PROOF_VERSION||evidence.state!=='available')return null;
   const descriptors=array(evidence.descriptors).map(normalizedDocxDescriptor).filter(Boolean);
   return descriptors.find(file=>file.language==='en') || descriptors[0] || null;
