@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {XMLParser} from 'fast-xml-parser';
+import {advertisedRepresentation} from './amendment-benchmark-source-diagnostics.mjs';
 import {pathToFileURL} from 'node:url';
 
 // All source/projection/placement modules come from the measured checkout.
@@ -54,6 +55,20 @@ export function rawExistingLawReferences(buffer,runtime) {
   return result;
 }
 
+// A newly supported declared representation cannot rewrite a sealed406. Only
+// that exact absent URL/Accept/language observation is an acquisition gap;
+// every unrelated missing input still goes through InputCache's fatal check.
+export async function missingDeclaredRepresentation(cache,url,request) {
+  if(!cache.sealed||request.accept!=='application/zip;type=akn4eu'||cache.sealed.has(JSON.stringify([url,request])))return null;
+  const original={...request,accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'};
+  const key=JSON.stringify([url,original]);
+  if(!cache.sealed.has(key))return null;
+  const input=await cache.get(url,{...original,raw:true});
+  if(advertisedRepresentation(input)!==request.accept)return null;
+  const {body,...source}=input;
+  return Object.assign(new Error('The declared representation was not acquired in this snapshot.'),{code:'missing-declared-representation',source,request:{url,...request}});
+}
+
 export function sourceReplay(cache,runtime) {
   const observedFiles=new Map();
   const textWork=(work,language)=>{
@@ -81,7 +96,9 @@ export function sourceReplay(cache,runtime) {
   let sourceTime=Date.now();
   const clock=()=>sourceTime;
   const sources=new runtime.OfficialContextSources({directory:null,clock,fetchSource:async(url,options)=>{
-    const input=await cache.get(url,{accept:options.headers.Accept,language:options.headers['Accept-Language'],raw:true,signal:options.signal});
+    const request={accept:options.headers.Accept,...(options.headers['Accept-Language']?{language:options.headers['Accept-Language']}:{})};
+    const missing=await missingDeclaredRepresentation(cache,url,request);if(missing)throw missing;
+    const input=await cache.get(url,{...request,raw:true,signal:options.signal});
     sourceTime=Date.parse(input.fetchedAt);
     return new Response([204,304].includes(input.status)?null:input.body,{status:input.status,headers:input.headers});
   },run:operation=>operation()});

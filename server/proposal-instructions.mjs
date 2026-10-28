@@ -1,9 +1,10 @@
 // Commission proposal instruction verbs, checked against COM(2025)87 in each
-// language. Match only the document's language; preserve the complete raw text.
+// language, plus the observed DA/MT COM(2024)183 instructions. Match only the
+// document's language; preserve the complete raw text.
 const words={
   bg:['изменя','заменя','добавя|вмъква','заличава'],
   cs:['mění','nahrazuje','vkládá|doplňuje','zrušuje|vypouští'],
-  da:['ændres','erstattes|affattes','indsættes|tilføjes','udgår|slettes'],
+  da:['ændres|foretages\\s+følgende\\s+ændringer','erstattes|affattes','indsættes|tilføjes','udgår|slettes'],
   de:['geändert','ersetzt|erhält.*Fassung','eingefügt|angefügt','gestrichen'],
   el:['τροποποι','αντικαθίστα','προστίθε|παρεμβάλλ','διαγράφ|απαλείφ'],
   en:['\\bamend(?:ed|s)?\\b','\\breplace[ds]?\\b','\\binsert(?:ed|s)?\\b|\\badd(?:ed|s)?\\b','\\bdelete[ds]?\\b'],
@@ -17,7 +18,7 @@ const words={
   it:['modificat','sostituit','inserit|aggiunt','soppress|eliminat'],
   lt:['iš dalies keičiam','pakeičiam','papildom|įterpiam','išbraukiam'],
   lv:['groza','aizstāj','pievieno|iekļauj','svītro'],
-  mt:['emendat','sostitwit','jiddaħħal|miżjud','imħassar|jitħassar'],
+  mt:['emendat','sostitwit','jiddaħħal|miżjud|jiżdied','imħassar|jitħassar'],
   nl:['gewijzigd','vervangen','ingevoegd|toegevoegd','geschrapt'],
   pl:['zmienia','zastępuje|otrzymuje.*brzmienie','dodaje','skreśla|uchyla'],
   pt:['alterad','substituíd|passa a ter.*reda[cç][aã]o','aditad|inserid|acrescentad','suprimid'],
