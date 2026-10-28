@@ -1,0 +1,164 @@
+{
+  "examples": [
+    {
+      "documentId": "A-10-2026-0039",
+      "listId": "A-10-2026-0039-AM-001-291",
+      "number": 30,
+      "language": "sk",
+      "expected": "not-applicable",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_sk.docx",
+        "retrievedAt": "2026-10-28T09:18:56Z",
+        "sha256": "a707168055ae0261a91e55e61fac04cd19ee4433b95043150016bd5bdccc852b",
+        "bodyChild": 227
+      },
+      "comparisonRows": [
+        {
+          "row": 3,
+          "original": "a)\t7a. „lov vlečnou sieťou na lov pri dne“ sú rybolovné činnosti pomocou vlečnej siete, ktorá je určená na ťahanie vodou a na kontakt s morským dnom;",
+          "proposed": "7a.\t(Netýka sa slovenskej verzie.)"
+        },
+        {
+          "row": 4,
+          "original": "b)\t7b. „lov pelagickou vlečnou sieťou“ je lov benticko-pelagických druhov pomocou vlečnej siete, ktorá je určená na ťahanie vodou v blízkosti morského dna a je navrhnutá tak, aby neprišla do dlhšieho kontaktu s morským dnom;",
+          "proposed": "7b.\t(Netýka sa slovenskej verzie.)"
+        },
+        {
+          "row": 5,
+          "original": "c)\t7c. „lov lovnou šnúrou na lov pri dne“ sú rybolovné činnosti pomocou lovnej šnúry, na ktorej je pripevnený háčik alebo háčiky (bez ohľadu na to, či sú s návnadou alebo bez nej) a ktorá je nastražená tak, aby sa potopila na morskom dne alebo v jeho blízkosti, okrem iného vrátane dlhých šnúr, ručných šnúr, zvislých lovných šnúr, bezkontaktných lovných šnúr a šnúr s háčikmi a návnadou;",
+          "proposed": "7c.\t(Netýka sa slovenskej verzie.)"
+        }
+      ],
+      "originalText": "a)\t7a. „lov vlečnou sieťou na lov pri dne“ sú rybolovné činnosti pomocou vlečnej siete, ktorá je určená na ťahanie vodou a na kontakt s morským dnom;\nb)\t7b. „lov pelagickou vlečnou sieťou“ je lov benticko-pelagických druhov pomocou vlečnej siete, ktorá je určená na ťahanie vodou v blízkosti morského dna a je navrhnutá tak, aby neprišla do dlhšieho kontaktu s morským dnom;\nc)\t7c. „lov lovnou šnúrou na lov pri dne“ sú rybolovné činnosti pomocou lovnej šnúry, na ktorej je pripevnený háčik alebo háčiky (bez ohľadu na to, či sú s návnadou alebo bez nej) a ktorá je nastražená tak, aby sa potopila na morskom dne alebo v jeho blízkosti, okrem iného vrátane dlhých šnúr, ručných šnúr, zvislých lovných šnúr, bezkontaktných lovných šnúr a šnúr s háčikmi a návnadou;",
+      "proposedText": "7a.\t(Netýka sa slovenskej verzie.)\n7b.\t(Netýka sa slovenskej verzie.)\n7c.\t(Netýka sa slovenskej verzie.)"
+    },
+    {
+      "documentId": "A-10-2026-0039",
+      "listId": "A-10-2026-0039-AM-001-291",
+      "number": 53,
+      "language": "es",
+      "expected": "not-applicable",
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_es.docx",
+        "retrievedAt": "2026-10-28T09:18:38Z",
+        "sha256": "c472a22d30288a8f71b003b6acb6c2f9d3ab9267f85af82deebc6c546e8175a4",
+        "bodyChild": 390
+      },
+      "comparisonRows": [
+        {
+          "row": 3,
+          "original": "a)\ta más tardar 130 días antes de la reunión del Comité científico de la SPRFMO, una breve descripción de su plan de operaciones de pesca previsto, a efectos informativos, utilizando el modelo de descripción breve de los planes de operaciones de pesca15; la Comisión remitirá esta información a la Secretaría de la SPRFMO, a más tardar 120 días antes de la reunión del Comité científico de la SPRFMO;",
+          "proposed": "(No afecta a la versión española.)"
+        },
+        {
+          "row": 4,
+          "original": "__________________",
+          "proposed": "__________________"
+        },
+        {
+          "row": 5,
+          "original": "15 Disponible a través del siguiente enlace: https://www.sprfmo.int/science/",
+          "proposed": ""
+        }
+      ],
+      "originalText": "a)\ta más tardar 130 días antes de la reunión del Comité científico de la SPRFMO, una breve descripción de su plan de operaciones de pesca previsto, a efectos informativos, utilizando el modelo de descripción breve de los planes de operaciones de pesca15; la Comisión remitirá esta información a la Secretaría de la SPRFMO, a más tardar 120 días antes de la reunión del Comité científico de la SPRFMO;\n__________________\n15 Disponible a través del siguiente enlace: https://www.sprfmo.int/science/",
+      "proposedText": "(No afecta a la versión española.)\n__________________"
+    },
+    {
+      "documentId": "A-10-2026-0039",
+      "listId": "A-10-2026-0039-AM-001-291",
+      "number": 53,
+      "language": "bg",
+      "expected": null,
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_bg.docx",
+        "retrievedAt": "2026-10-28T09:18:30Z",
+        "sha256": "540ff9e6333c7a380bf0d16ee9fa2f1069fabfe3f2024927757097958ef19dae",
+        "bodyChild": 391
+      },
+      "comparisonRows": [
+        {
+          "row": 3,
+          "original": "а)\tне по-късно от 130 дни преди срещата на научния комитет на SPRFMO — кратко описание на предвидения оперативен риболовен план за информационни цели, като се използва образецът за кратко описание на оперативния риболовен план. Комисията препраща тази информация на секретариата на SPRFMO най-късно 120 дни преди заседанието на научния комитет на SPRFMO.",
+          "proposed": "(Не се отнася до българския текст.)"
+        },
+        {
+          "row": 4,
+          "original": "__________________",
+          "proposed": ""
+        },
+        {
+          "row": 5,
+          "original": "15 На разположение на адрес: https://www.sprfmo.int/science/",
+          "proposed": "15 На разположение на адрес: https://www.sprfmo.int/fisheries/conservation-and-management-measures/cmm-13-exploratory-fisheries/fisheries-operation-plans"
+        }
+      ],
+      "originalText": "а)\tне по-късно от 130 дни преди срещата на научния комитет на SPRFMO — кратко описание на предвидения оперативен риболовен план за информационни цели, като се използва образецът за кратко описание на оперативния риболовен план. Комисията препраща тази информация на секретариата на SPRFMO най-късно 120 дни преди заседанието на научния комитет на SPRFMO.\n__________________\n15 На разположение на адрес: https://www.sprfmo.int/science/",
+      "proposedText": "(Не се отнася до българския текст.)\n\n15 На разположение на адрес: https://www.sprfmo.int/fisheries/conservation-and-management-measures/cmm-13-exploratory-fisheries/fisheries-operation-plans"
+    },
+    {
+      "documentId": "A-10-2026-0039",
+      "listId": "A-10-2026-0039-AM-001-291",
+      "number": 53,
+      "language": "nl",
+      "expected": null,
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_nl.docx",
+        "retrievedAt": "2026-10-28T09:18:51Z",
+        "sha256": "2ff54fbe239518529d53a290187b39b1550ed8022c32d88716eee8d28305b95e",
+        "bodyChild": 391
+      },
+      "comparisonRows": [
+        {
+          "row": 3,
+          "original": "a)\tuiterlijk 130 dagen voor de vergadering van het wetenschappelijk comité van de SPRFMO, ter informatie, een beknopte beschrijving van hun voorgenomen visserijoperatieplan, met gebruikmaking van het model voor een beknopte beschrijving van het visserijoperatieplan15. De Commissie zendt deze informatie uiterlijk 120 dagen vóór de vergadering van het wetenschappelijk comité van de SPRFMO door aan het SPRFMO-secretariaat;",
+          "proposed": "(Niet van toepassing op de Nederlandse versie)"
+        },
+        {
+          "row": 4,
+          "original": "__________________",
+          "proposed": ""
+        },
+        {
+          "row": 5,
+          "original": "15 Te raadplegen op: https://www.sprfmo.int/science/.",
+          "proposed": "15 Te raadplegen op: https://www.sprfmo.int/fisheries/conservation-and-management-measures/cmm-13-exploratory-fisheries/fisheries-operation-plans."
+        }
+      ],
+      "originalText": "a)\tuiterlijk 130 dagen voor de vergadering van het wetenschappelijk comité van de SPRFMO, ter informatie, een beknopte beschrijving van hun voorgenomen visserijoperatieplan, met gebruikmaking van het model voor een beknopte beschrijving van het visserijoperatieplan15. De Commissie zendt deze informatie uiterlijk 120 dagen vóór de vergadering van het wetenschappelijk comité van de SPRFMO door aan het SPRFMO-secretariaat;\n__________________\n15 Te raadplegen op: https://www.sprfmo.int/science/.",
+      "proposedText": "(Niet van toepassing op de Nederlandse versie)\n\n15 Te raadplegen op: https://www.sprfmo.int/fisheries/conservation-and-management-measures/cmm-13-exploratory-fisheries/fisheries-operation-plans."
+    },
+    {
+      "documentId": "A-10-2026-0039",
+      "listId": "A-10-2026-0039-AM-001-291",
+      "number": 53,
+      "language": "sk",
+      "expected": null,
+      "source": {
+        "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0039/A-10-2026-0039_sk.docx",
+        "retrievedAt": "2026-10-28T09:18:56Z",
+        "sha256": "a707168055ae0261a91e55e61fac04cd19ee4433b95043150016bd5bdccc852b",
+        "bodyChild": 391
+      },
+      "comparisonRows": [
+        {
+          "row": 3,
+          "original": "a)\tnajneskôr 130 dní pred zasadnutím vedeckého výboru SPRFMO stručný opis svojho zamýšľaného plánu rybolovných operácií na informačné účely, pričom použijú vzor stručného opisu plánu rybolovných operácií15. Komisia zašle tieto informácie sekretariátu SPRFMO najneskôr 120 dní pred zasadnutím vedeckého výboru SPRFMO.",
+          "proposed": "a)\t(Netýka sa slovenskej verzie.)"
+        },
+        {
+          "row": 4,
+          "original": "__________________",
+          "proposed": "__________________"
+        },
+        {
+          "row": 5,
+          "original": "15 K dispozícii na adrese: https://www.sprfmo.int/science/",
+          "proposed": "15 K dispozícii na adrese: https://www.sprfmo.int/fisheries/conservation-and-management-measures/cmm-13-exploratory-fisheries/fisheries-operation-plans"
+        }
+      ],
+      "originalText": "a)\tnajneskôr 130 dní pred zasadnutím vedeckého výboru SPRFMO stručný opis svojho zamýšľaného plánu rybolovných operácií na informačné účely, pričom použijú vzor stručného opisu plánu rybolovných operácií15. Komisia zašle tieto informácie sekretariátu SPRFMO najneskôr 120 dní pred zasadnutím vedeckého výboru SPRFMO.\n__________________\n15 K dispozícii na adrese: https://www.sprfmo.int/science/",
+      "proposedText": "a)\t(Netýka sa slovenskej verzie.)\n__________________\n15 K dispozícii na adrese: https://www.sprfmo.int/fisheries/conservation-and-management-measures/cmm-13-exploratory-fisheries/fisheries-operation-plans"
+    }
+  ]
+}
