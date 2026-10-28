@@ -50,6 +50,21 @@ test('character, token and edit-distance budgets return an explicit fallback',()
   lossless('x'.repeat(characters),'x'.repeat(characters));
   lossless('.'.repeat(tokens),'.'.repeat(tokens));
 });
+test('a paragraph with 290 inserted tokens retains shared wording and highlights the addition',()=>{
+  // Like the recital that exposed the old 256-edit cap: 145 added words and spaces.
+  const original='The employment guidelines support Member States. '+ 'Existing policy remains. '.repeat(40);
+  const addition=Array.from({length:145},(_,index)=>'skill'+index+' ').join('');
+  const proposed=original.replace('Existing policy',addition+'Existing policy');
+  const result=lossless(original,proposed,'en');
+  assert.deepEqual(result.segments,[
+    {type:'equal',text:'The employment guidelines support Member States. '},
+    {type:'insert',text:addition},
+    {type:'equal',text:'Existing policy remains. '.repeat(40)},
+  ]);
+  assert(result.similarity>0.3);
+  // The reverse comparison must also highlight, rather than fall back.
+  lossless(proposed,original,'en');
+});
 test('seeded property cases reconstruct arbitrary Unicode and whitespace on both sides',()=>{
   let seed=0x12ab34cd;
   const random=n=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%n;};
