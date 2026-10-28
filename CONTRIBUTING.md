@@ -72,6 +72,22 @@ For each snapshot, keep an append-only `ratchet.md` and `baseline-current.json` 
 
 The hold-out is **measure only, never tune on these rows**. Select and freeze disjoint earlier decision weeks before measuring outcomes; keep its own ledger and baseline. Amendment PRs report both the main and hold-out snapshots against their current baselines. Improving the main sample fails the ratchet if any previously correct hold-out amendment is lost or any false placement appears. Hold-out findings are reported with official-document evidence; do not use these rows to choose or refine placement rules.
 
+### Language parity
+
+`--languages` evaluates every sampled list/number in all 24 languages, including missing editions and extraction failures. The fixed sample covers legislative and non-legislative reports, discharge reports, B/RC motions and second reading. It uses anonymous public metadata, declared distributions and Commission source files; every replay rebuilds wording and projections in-process. Python 3 is required for the independent ZIP/XML reader.
+
+Use a new directory for acquisition, then record the first ratchet row from a clean checkout of current `origin/main`:
+
+```sh
+npm run bench:amendments -- --languages --fetch --acquire-only --cache-dir /absolute/path/languages-YYYYMMDD
+npm run bench:amendments -- --languages --cache-dir /absolute/path/languages-YYYYMMDD --runtime-root /absolute/path/clean-main --record-language-baseline
+npm run bench:amendments -- --languages --cache-dir /absolute/path/languages-YYYYMMDD
+```
+
+The last command automatically compares with the latest row in that snapshot's append-only `ratchet.jsonl`; `--baseline PATH.json` selects an explicit report. Any loss of a previously correct language observation, missing row or false placement fails. `--record-language-baseline` appends a clean measured revision only after comparison passes. An oracle implementation change retains a baseline only when every raw expectation and verification assertion is identical; scoring changes require reviewed calibration. Keep this ledger separate from the identity benchmark and use the same sealed snapshot throughout a comparison.
+
+Reports give planned and published denominators, correct, placed-unverified, withheld reasons and false placements for each language. Parity pairs use the exact list ID and amendment number; outcome parity and independently verified semantic locations are counted separately. Insertion parity compares the existing predecessor boundary across published suffix/alphabet conventions; JSON separates withholding from weaker oracle coverage behind English. Shared withholding counts as outcome parity. Raw published comparison cells establish expected operations; literal source headings and XML paths establish supported section, recital and sibling-boundary checks independently of production labels and proposal trees. Complex quoted provisions, automatic numbering and unsupported boundaries remain unverified. These scores cover the sample, not all multilingual publications. Keep sources, reports and manual verification evidence outside Git and CI artifacts.
+
 ## Plenary agenda benchmark
 
 After `npm ci`, capture anonymous raw Open Data inputs once into a new directory outside Git:

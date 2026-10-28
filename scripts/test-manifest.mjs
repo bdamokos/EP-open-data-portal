@@ -2,6 +2,8 @@ export const testDirectories = ['src', 'server', 'scripts'];
 
 // Subprocess startup and isolated cache/restart checks are kept in the slow profile.
 export const slow = [
+  {file: 'scripts/amendment-oracle-localization.test.mjs', reason: 'Spawns Python for the independent Irish Word hyphen regression.'},
+  {file: 'scripts/amendment-language-benchmark.test.mjs', reason: 'Spawns Python for independent raw DOCX and language oracle checks.'},
   {file: 'scripts/agenda-benchmark.test.mjs', reason: 'Spawns isolated agenda replay processes to verify cold, warm and restart measurements.'},
   {file: 'server/amendment-extraction-thread.test.mjs', reason: 'Spawns Node to check natural process exit after extraction cancellation.'},
   {file: 'server/directory-loading.test.mjs', reason: 'Spawns Node to check directory loading and restart behaviour.'},

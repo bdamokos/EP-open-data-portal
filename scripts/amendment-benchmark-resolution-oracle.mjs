@@ -1,3 +1,5 @@
+import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
+import {oracleFold,oracleOpening} from './amendment-oracle-grammar.mjs';
 // Independent raw-row boundaries for benchmark assertions. Do not import the
 // server motion segmenter: its extent errors are precisely what this checks.
 const label=value=>{
@@ -66,21 +68,22 @@ export function rawResolutionPointUnits(text) {
 export function rawResolutionUnits(text,language) {
   const paragraphs=text?.paragraphs,sources=text?.paragraphSources;
   if(!Array.isArray(paragraphs)||sources?.length!==paragraphs.length)return {units:[],reason:'oracle-raw-structure-unavailable'};
-  // Native-script provision labels remain literal. English and Romanian report
-  // headings delimit their motion; other duplicated bodies remain unverified.
-  const openings={en:'The European Parliament',fr:'Le Parlement européen',es:'El Parlamento Europeo',de:'Das Europäische Parlament',bg:'Европейският парламент',el:'Το Ευρωπαϊκό Κοινοβούλιο',hr:'Europski parlament',cs:'Evropský parlament',ro:'Parlamentul European'};
-  const opening=openings[language];
-  const openers=paragraphs.flatMap((p,i)=>opening&&p.replace(/\s+/gu,' ').trim().replace(/[,;:]$/u,'').toLocaleLowerCase(language)===opening.toLocaleLowerCase(language)&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
-  const reportHeading=language==='en'?/^(?:\d+[.)]\s*)?MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION$/u:language==='ro'?/^(?:\d+[.)]\s*)?PROPUNERE DE REZOLUȚIE A PARLAMENTULUI EUROPEAN$/u:null;
+  // Native-script labels and literal published report headings stay separate
+  // from the runtime body selector.
+  const openers=paragraphs.flatMap((p,i)=>oracleOpening.test(oracleFold(p))&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
+  const headingKey=value=>oracleFold(value).replace(/^(?:\d+[.)]\s*)/u,'').replace(/[,;:]$/u,'').toLowerCase();
+  const reportHeadings=[LANGUAGE_SECTIONS[language]?.resolution,...(LANGUAGE_SECTIONS[language]?.resolutionAliases||[])].filter(Boolean);
+  const reportHeading=reportHeadings.length>0;
   // Scope a report independently of the placer's section hint. Plain TOC
   // entries and page suffixes cannot establish the published motion heading.
-  const headings=paragraphs.flatMap((p,i)=>reportHeading?.test(p.trim())&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
+  const headings=paragraphs.flatMap((p,i)=>reportHeadings.some(heading=>headingKey(p)===headingKey(heading))&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
   const scoped=Boolean(reportHeading)&&headings.length===1;
-  if(opening&&(!openers.length||!reportHeading&&openers.length!==1))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const requireOpening=openers.length>0||headings.length>0||['en','fr','es','de','bg','el','hr','cs','ro'].includes(language);
+  if(requireOpening&&(!openers.length||!reportHeading&&openers.length!==1))return {units:[],reason:'oracle-resolution-start-unverified'};
   const selectedOpening=scoped?openers.find(i=>i>headings[0]):openers[0];
-  if(opening&&!Number.isInteger(selectedOpening))return {units:[],reason:'oracle-resolution-start-unverified'};
-  const start=opening?selectedOpening+1:0,events=[],openerRows=new Set(openers);
-  const endings={fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
+  if(requireOpening&&!Number.isInteger(selectedOpening))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const start=Number.isInteger(selectedOpening)?selectedOpening+1:0,events=[],openerRows=new Set(openers);
+  const endings={da:'bilag|begrundelse',et:'lisa|seletuskiri',fi:'liite|perustelut',ga:'iarscríbhinn|ráiteas míniúcháin',hu:'melléklet|indokolás',it:'allegato|motivazione',lt:'priedas|aiškinamoji dalis',lv:'pielikums|paskaidrojums',mt:'anness|nota spjegattiva',nl:'bijlage|toelichting',pl:'załącznik|uzasadnienie',pt:'anexo|exposição de motivos',sk:'príloha|dôvodová správa',sl:'priloga|obrazložitev',sv:'bilaga|motivering',fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
   const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
@@ -92,7 +95,7 @@ export function rawResolutionUnits(text,language) {
       if(source?.complete!==true||source.container!=='body')continue;
     }
     const separator=/^[°\s/]+$/u.test(value)&&value.includes('°');
-    const translatedEnd=languageEnd?.test(value.split(/[\r\n]/u)[0]);
+    const translatedEnd=Object.values(LANGUAGE_SECTIONS[language]||{}).filter(v=>typeof v==='string').some(v=>headingKey(value)===headingKey(v))||languageEnd?.test(value.split(/[\r\n]/u)[0]);
     const section=(translatedEnd||/^(?:annex(?:es)?|explanatory statement|notes|footnotes|signatures?|section|chapter|anexă|expunere de motive|aviz)(?![\p{L}\p{N}_])/iu.test(value))&&!/[.;!?]$/u.test(value);
     const bold=wholeBold(paragraphs[i],format),heading=bold||Number.isInteger(format?.heading)&&format.heading>=1&&format.heading<=6;
     if(separator||section||heading) {

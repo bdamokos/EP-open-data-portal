@@ -1,0 +1,166 @@
+{
+  "source": {
+    "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_lt.docx",
+    "sha256": "d617d3e84a22d3489866229559c273accc5fcd1874908bf65f2d9ec752c814b6",
+    "retrievedAt": "2026-10-27T20:20:20.257394+00:00"
+  },
+  "targetLabel": "21 a nurodomoji dalis (nauja)",
+  "paragraphs": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[22]",
+      "text": "PASIŪLYMAS DĖL EUROPOS PARLAMENTO REZOLIUCIJOS",
+      "body": true,
+      "style": "Titre1"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[26]",
+      "text": "Europos Parlamentas,",
+      "body": true,
+      "style": "Normal12"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[27]",
+      "text": "–\tatsižvelgdamas į Sutarties dėl Europos Sąjungos veikimo (SESV) 310 straipsnio 6 dalį ir 325 straipsnio 5 dalį,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[28]",
+      "text": "–\tatsižvelgdamas į 2025 m. liepos 25 d. Komisijos ataskaitą „36-oji Europos Sąjungos finansinių interesų apsaugos metinė ataskaita. Kova su sukčiavimu 2024 m.“ (COM(2025)0426) (2024 m. FIA ataskaita),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[29]",
+      "text": "–\tatsižvelgdamas į Europos kovos su sukčiavimu tarnybos (OLAF) 2024 m. metinę ataskaitą1 ir OLAF priežiūros komiteto 2024 m. veiklos ataskaitą2,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[30]",
+      "text": "–\tatsižvelgdamas į 2025 m. kovo 3 d. paskelbtą Europos prokuratūros 2024 m. metinę ataskaitą,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[31]",
+      "text": "–\tatsižvelgdamas į 2020 m. gruodžio 16 d. Europos Parlamento ir Tarybos reglamentą (ES, Euratomas) 2020/2092 dėl bendro Sąjungos biudžeto apsaugos sąlygų režimo3 (Sąlygų reglamentas),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[32]",
+      "text": "–\tatsižvelgdamas į 2024 m. rugsėjo 23 d. Europos Parlamento ir Tarybos reglamentą (ES, Euratomas) 2024/2509 dėl Sąjungos bendrajam biudžetui taikomų finansinių taisyklių4 (toliau – Finansinis reglamentas),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[33]",
+      "text": "–\tatsižvelgdamas į Europos Parlamento ir Tarybos reglamentus (ES) 2024/16245 ir (ES) 2024/16206 ir Direktyvą (ES) 2024/16407, kurie visi buvo priimti 2024 m. gegužės 31 d. ir kurie visi yra susiję su finansų sistemos naudojimo pinigų plovimui ir teroristų finansavimui prevencija, be kita ko, įsteigiant Kovos su pinigų plovimu ir terorizmo finansavimu instituciją,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[34]",
+      "text": "–\tatsižvelgdamas į 2021 m. birželio 24 d. Europos Parlamento ir Tarybos reglamentą (ES) 2021/1060, kuriuo nustatomos bendros Europos regioninės plėtros fondo, „Europos socialinio fondo +“, Sanglaudos fondo, Teisingos pertvarkos fondo ir Europos jūrų reikalų, žvejybos ir akvakultūros fondo nuostatos ir šių fondų bei Prieglobsčio, migracijos ir integracijos fondo, Vidaus saugumo fondo ir Sienų valdymo ir vizų politikos finansinės paramos priemonės taisyklės8 (Bendrųjų nuostatų reglamentas),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[35]",
+      "text": "–\tatsižvelgdamas į 2019 m. spalio 23 d. Europos Parlamento ir Tarybos direktyvą (ES) 2019/1937 dėl asmenų, pranešančių apie Sąjungos teisės pažeidimus, apsaugos9 (Pranešėjų apsaugos direktyva) ir 2024 m. liepos 3 d. Komisijos ataskaitą dėl šios direktyvos įgyvendinimo ir taikymo (COM(2024)0269),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[36]",
+      "text": "–\tatsižvelgdamas į 2017 m. liepos 5 d. Europos Parlamento ir Tarybos direktyvą (ES) 2017/1371 dėl kovos su Sąjungos finansiniams interesams kenkiančiu sukčiavimu baudžiamosios teisės priemonėmis10 (FIA direktyva),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[37]",
+      "text": "–\tatsižvelgdamas į 2022 m. rugsėjo 16 d. Komisijos ataskaitą „Antroji 2017 m. liepos 5 d. Europos Parlamento ir Tarybos direktyvos (ES) 2017/1371 dėl kovos su Sąjungos finansiniams interesams kenkiančiu sukčiavimu baudžiamosios teisės priemonėmis įgyvendinimo ataskaita“ (COM(2022)0466),",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[38]",
+      "text": "–\tatsižvelgdamas į 2023 m. birželio 6 d. bendrą Europolo ir OLAF ataskaitą „Grėsmių priemonei „NextGenerationEU“ (NGEU) vertinimas“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[39]",
+      "text": "–\tatsižvelgdamas į Europos Audito Rūmų (EAR) metines ataskaitas dėl 2024 finansinių metų Sąjungos biudžeto vykdymo ir dėl 2024 finansiniais metais iš 9-ojo, 10-ojo ir 11-ojo Europos plėtros fondų finansuojamos veiklos11,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[40]",
+      "text": "–\tatsižvelgdamas į 2023 m. kovo 13 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 06/2023 „Interesų konfliktas ES sanglaudos ir žemės ūkio išlaidų srityse. Sistema sukurta, tačiau nepakanka skaidrumo ir trūksta nustatymo priemonių“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[41]",
+      "text": "–\tatsižvelgdamas į 2024 m. vasario 22 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 03/2024 „Teisinės valstybės principas ES. Nustatyta geresnė ES finansinių interesų apsaugos sistema, tačiau rizika išlieka“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[42]",
+      "text": "–\tatsižvelgdamas į 2025 m. gegužės 6 d. Europos Audito Rūmų apžvalgą Nr. 02/2025 „Orientavimasis į veiksmingumą, atskaitomybė ir skaidrumas. Ko reikia pasimokyti iš EGADP trūkumų“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[43]",
+      "text": "–\tatsižvelgdamas į 2025 m. kovo 24 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 08/2025 „Sukčiavimas PVM importo srityje. Taikant supaprastintas importo muitinės procedūras ES finansiniai interesai nepakankamai apsaugomi“ ir į Komisijos ataskaitą „PVM atotrūkis ES. 2024 m. ataskaita (VAT gap in the EU – 2024 report)“12,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[44]",
+      "text": "–\tatsižvelgdamas į 2025 m. kovo 10 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 09/2025 „EGADP išlaidų atitikties viešųjų pirkimų ir valstybės pagalbos taisyklėms užtikrinimo sistemos – Kokybė gerėja, bet vis dar yra nepakankama“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[45]",
+      "text": "–\tatsižvelgdamas į 2025 m. birželio 18 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 15/2025 „ES humanitarinė pagalba taikant nuotolinį valdymą – Galima išgelbėti gyvybių, tačiau šis metodas turi trūkumų“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[46]",
+      "text": "–\tatsižvelgdamas į 2025 m. lapkričio 20 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 22/2025 „Finansinės pataisos įgyvendinant sanglaudos politiką – Sudėtinga sistema ir kol kas tik vienas Komisijos priimtas sprendimas“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[47]",
+      "text": "–\tatsižvelgdamas į 2025 m. gruodžio 15 d. Europos Audito Rūmų specialiąją ataskaitą Nr. 26/2025 „Su sukčiavimu kovojančios ES įstaigos – Aiškūs įgaliojimai, tačiau keitimasis informacija ir Komisijos vykdoma priežiūra tebėra nepakankami“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[48]",
+      "text": "–\tatsižvelgdamas į specialiąją „Eurobarometro“ apklausą Nr. 548 „Piliečių požiūris į korupciją ES 2024 m.“,",
+      "body": true,
+      "style": "NormalHanging"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[91]",
+      "text": "21.\tpažymi, kad, remiantis 2024 m. FIA ataskaita, tiesioginio lėšų valdymo srityje 2020–2024 m. laikotarpiu OLAF buvo pagrindinis susigrąžintinų elementų, susijusių su sukčiavimu laikomais pažeidimais, nustatymo šaltinis, jai priskiriama 89,8 proc. atvejų ir 96,9 proc. visų susigrąžintų sumų, o Komisijos ex post kontrolės priemonėmis buvo nustatyta dar 6,0 proc. šio tipo susigrąžinimo pozicijų, t. y. 1,9 proc. susigrąžintų sumų; be to, pažymi, kad apie 95,7 proc. susigrąžinimo pozicijų, priskiriamų sukčiavimu nelaikomiems pažeidimams, buvo nustatyta Komisijai vykdant ex ante ir ex post kontrolę; atsižvelgdamas į tai, atkreipia dėmesį į 2024 m. FIA ataskaitoje pateikiamą nustatymo šaltinio ir susigrąžintinų sumų ryšio analizę, iš kurios matyti, kad dėl Komisijos ex post kontrolės ir OLAF tyrimų buvo susigrąžintos didžiausios sumos atitinkamai sukčiavimu nelaikomų ir sukčiavimu laikomų pažeidimų atvejais;",
+      "body": true,
+      "style": "NormalHanging12a"
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[92]",
+      "text": "22.\tpažymi, kad pastaraisiais metais ES įstaigų nustatytų pažeidimų skaičiaus padidėjimas buvo proporcingai mažesnis nei privačių pranešėjų ar nacionalinių valdžios institucijų atveju (2024 m. privačių pranešėjų pranešimų Europos prokuratūrai apie nusikalstamas veikas padaugėjo 85 proc., nacionalinių valdžios institucijų pranešimų – 13 proc., ES institucijų, organų, įstaigų ir agentūrų pranešimų – 5 proc., o 2023 m. privačių pranešėjų, nacionalinių valdžios institucijų ir ES institucijų, organų, įstaigų ir agentūrų pranešimų padaugėjo, palyginti su 2022 m. duomenimis, atitinkamai 30 proc., 24 proc. ir 5 proc.); pakartoja savo raginimą Komisijai ir kitoms ES valdžios institucijoms skatinti pažeidimų nustatymą palengvinant ataskaitų teikimo procesus ir stiprinant darbuotojų ir vadovybės informuotumo didinimo iniciatyvas bei vidaus komunikaciją; yra sunerimęs, nes toks žemas nustatymo lygis gali būti susirūpinimo dėl Komisijos gebėjimo prižiūrėti ES lėšas priežastis;",
+      "body": true,
+      "style": "NormalHanging12a"
+    }
+  ]
+}
