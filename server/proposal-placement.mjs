@@ -2,6 +2,7 @@ import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendme
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {latinSuffixRank} from './legal-latin-numbering.mjs';
+import {instructionOperation} from './proposal-instructions.mjs';
 
 const normal=value=>normaliseForMatching(value,{stripNumbering:false});
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -215,6 +216,58 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
   return {itemIndex:anchor.itemIndex,insertBefore,anchor:anchor.unit,basis:'preceding-sibling-subtree'};
 }
 
+const sameAddress=(left,right)=>!!left&&left.length===right.length&&left.every((segment,index)=>segment.kind===right[index].kind&&segment.value===right[index].value);
+
+// ISG 3.3.2: an English numeric subdivision inserted between Na and Nb
+// starts at Naa. This is a local, source-bounded family, not a suffix order.
+function quotedInteriorInsertion(selected,targetPath,proposedText,language) {
+  const {unit:owner,proposal,itemIndex}=selected,reference=targetPath?.underlying?.[0];
+  if(language!=='en'||targetPath?.language!==language||proposal.language!==language||targetPath.underlying?.length!==1||!reference?.document||!reference.raw)return null;
+  const inner=parseTargetLabel(reference.raw,language),label=inner.segments.at(-1);
+  if(!inner.complete||inner.segments.length<2||inner.segments.slice(0,-1).some(segment=>segment.isNew)||
+    label?.kind!=='paragraph'||!label.isNew||label.suffix!=='aa'||!/^\d+aa$/u.test(label.value))return null;
+  // The published target "2a a" already parses as 2aa. Require that same
+  // amendment's complete proposed cell to print 2aa, without an instruction.
+  if(!new RegExp(`^${escape(label.value)}\\.\\s+\\S`,'u').test(proposedText.trim())||instructionOperation(proposedText,language))return {reason:'conflicting_target_evidence'};
+  if(owner.scope!=='proposal'||!owner.instruction||!completeBoundary(proposal,owner))return {reason:'source_passage_incomplete'};
+  let chain=[];
+  const findOwner=(units,parents=[])=>{
+    for(const unit of units){if(unit===owner){chain=[...parents,unit];return true;}if(findOwner(unit.children,[...parents,unit]))return true;}
+    return false;
+  };
+  findOwner(proposal.units);
+  // Use the nearest enclosing act instruction, never a recital, document title
+  // or another amendment. Keep its literal citation rather than deriving a URL.
+  const actPattern=/^((?:Directive|Regulation|Decision) (?:\((?:EU|EC|EEC)\) )?(?:No )?\d{1,4}\/\d{1,4}(?:\/(?:EU|EC|EEC))?) is amended as follows:$/u;
+  const named=chain.map(unit=>({unit,match:actPattern.exec(unit.instruction?.raw.replace(/\s+/gu,' ').trim()??'')})).filter(value=>value.match).at(-1);
+  if(!named||named.match[1]!==reference.document.replace(/\s+/gu,' ').trim())return {reason:'conflicting_target_evidence'};
+  const quotes=owner.children.filter(unit=>unit.kind==='quotation'&&sameAddress(unit.instructionPath,owner.path));
+  if(quotes.length!==1)return {reason:'source_structure_unavailable'};
+  const quote=quotes[0];
+  if(!completeBoundary(proposal,quote)||proposal.gaps.some(gap=>gap.paragraph>=owner.extent.start&&gap.paragraph<owner.extent.end))return {reason:'source_passage_incomplete'};
+  const units=flat([quote]);
+  if(units.some(unit=>unit.label&&sameAddress(unit.underlyingPath,inner.segments)))return {reason:'duplicate_target_label'};
+  const prefix=inner.segments.slice(0,-1),base=String(label.number);
+  const matches=(unit,suffix)=>unit.scope==='quoted'&&unit.kind===label.kind&&unit.label?.value===base+suffix&&
+    sameAddress(unit.instructionPath,owner.path)&&sameAddress(unit.underlyingPath,[...prefix,{kind:label.kind,value:base+suffix}]);
+  const anchors=units.filter(unit=>matches(unit,'a')),following=units.filter(unit=>matches(unit,'b'));
+  if(anchors.length!==1||following.length!==1)return {reason:'relative_target_not_found'};
+  const anchor=anchors[0],next=following[0],parent=units.find(unit=>unit.children.includes(anchor));
+  if(!parent||parent.pathConflict||parent.children[parent.children.indexOf(anchor)+1]!==next||anchor.extent.end!==next.extent.start||
+    anchor.extent.start<quote.extent.start||next.extent.end>quote.extent.end)return {reason:'source_structure_unavailable'};
+  if(!completeBoundary(proposal,anchor)||!completeBoundary(proposal,next))return {reason:'source_passage_incomplete'};
+  // Consecutive body rows prove that the predecessor includes its complete
+  // continuation/child subtree and no omitted block lies at the boundary.
+  const rows=proposal.paragraphs.slice(anchor.extent.start,next.extent.start+1);
+  if(rows.length<2||rows.some((row,index)=>row.source.container!=='body'||index&&
+    (row.source.containerPath!==rows[index-1].source.containerPath||row.source.segment!==rows[index-1].source.segment||row.source.ordinal!==rows[index-1].source.ordinal+1)))return {reason:'source_structure_unavailable'};
+  return {itemIndex,insertBefore:next.extent.start,evidence:[
+    {basis:'quoted-target-path',label:reference.raw,document:reference.document,language,sourceUrl:targetPath.sourceUrl,fetchedAt:targetPath.fetchedAt},
+    {basis:'quoted-act-owner',anchor:named.unit.id,label:reference.document},
+    {basis:'quoted-interior-sibling-boundary',owner:owner.id,quotation:quote.id,anchor:anchor.id,following:next.id},
+  ]};
+}
+
 // A parser can lose a target's final levels while preserving its containing
 // provision. Wording is sufficient only when it selects complete source lines
 // inside the deepest unique ancestor and occurs once in the entire document.
@@ -288,7 +341,7 @@ function ancestorFallback(target,original,candidatesFor) {
   return null;
 }
 
-/** All addresses are proposal-level. Inner quoted provisions cannot be candidates. */
+/** Outer addresses select proposal units; explicit inner insertions stay inside their owner. */
 export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
@@ -354,6 +407,12 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
+    const quoted=candidates.length===1?quotedInteriorInsertion(candidates[0],targetPath,proposedText,language):null;
+    if(quoted){
+      if(quoted.reason)return unresolved(quoted.reason);
+      evidence.push(...quoted.evidence);
+      return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
+    }
     if(candidates.length)return unresolved('duplicate_target_label');
     const insertion=insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
