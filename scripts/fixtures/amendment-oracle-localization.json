@@ -4684,5 +4684,46 @@
     ],
     "xml": "<w:p><w:r><w:t>n</w:t></w:r><w:r><w:noBreakHyphen/><w:t>oibreoidh</w:t></w:r></w:p>",
     "text": "n‑oibreoidh"
+  },
+  "irishReportHeading": {
+    "source": {
+      "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0080/A-10-2026-0080_ga.docx",
+      "sha256": "5f784ba3364a71a9646425cc7cfbd50cbd8ddcfc45ac58572de6fc072dd6becf",
+      "retrievedAt": "2026-10-27T20:19:56.127193+00:00"
+    },
+    "paragraphs": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[22]",
+        "text": "TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA",
+        "style": "PageHeading",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[26]",
+        "text": "Tá Parlaimint na hEorpa,",
+        "style": "Normal12",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[71]",
+        "text": "2. á athdhearbhú go bhfuil dúshláin shuntasacha roimh chosaint leasanna airgeadais an Aontais i gcomhthéacs atá ag éirí níos casta agus ag athrú go tapa agus nach féidir a éifeachtacht a áirithiú ach amháin trí ghníomhaíochtaí comhpháirteacha agus comhordaithe ag údaráis bhreithiúnacha agus riaracháin, ag institiúidí agus eintitis an Aontais agus ag na Ballstáit; á chur i bhfáth nach mór comhroinnt chórasach faisnéise, anailís riosca chomhpháirteach agus comhordú oibríochtúil a áireamh sa chomhar; ag tathant ar na Ballstáit seasamh réamhghníomhach a ghlacadh maidir le leasanna airgeadais an Aontais a chosaint agus malartú faisnéise a neartú i measc na n-údarás náisiúnta agus le comhlachtaí agus gníomhaireachtaí an Aontais araon, chun rioscaí atá ag teacht chun cinn agus patrúin chalaoise a bhrath agus aghaidh a thabhairt orthu go pras; á mheabhrú nach mór do na geallsealbhóirí uile agus do na huirlisí uile a chuirtear ar fáil leis na rialacháin airgeadais ábhartha agus le hoibríochtaí OIPE rannchuidiú le leasanna airgeadais an Aontais a chosaint;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[72]",
+        "text": "3. á chur i bhfios go láidir gur bunchloch de chuid an Aontais é an smacht reachta agus go bhfuil sé bunriachtanach chun leasanna airgeadais an Aontais a chosaint i ngach Ballstát; á chur i bhfáth nach mór sásra coinníollachta an smachta reachta a chur i bhfeidhm i gcás ina ndéanann sáruithe difear díreach do bhuiséad an Aontais; á chur i bhfios go láidir nach mór cinntí chun leasanna airgeadais an Aontais a chosaint a bheith bunaithe ar thorthaí teicniúla agus dlíthiúla; á iarraidh ar an gCoimisiún a áirithiú go mbainfear úsáid chomhsheasmhach agus chomhréireach as an sásra, agus príomhfhreagracht na mBallstát as prionsabail an smachta reachta a chaomhnú agus as comhleanúnachas a áirithiú ar fud ionstraimí an Aontais á hurramú ag an am céanna;",
+        "style": "NormalHanging12a",
+        "body": true,
+        "uncertain": false,
+        "automatic": false
+      }
+    ]
   }
 }

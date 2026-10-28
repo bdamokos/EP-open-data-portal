@@ -53,7 +53,9 @@ export function parseBenchmarkTarget(wording) {
  const relative=resolution&&oracleRelative(raw,wording.language);
  const segments=relative?[relative]:oracleAddress(raw.split('\n')[0],wording.language,{resolution});
  if(segments&&resolution&&segments.length===1&&segments[0].kind==='recital'&&segments[0].number!==null&&new RegExp('^\\s*'+segments[0].value+'[.)]\\s','u').test(wording.proposedText||''))segments[0].kind='paragraph';
- return {raw,language:wording.language,complete:Boolean(segments),segments:segments||[],unparsed:segments?[]:['unsupported-oracle-grammar']};
+ const first=raw.split('\n')[0].split(/\s+[–—-]\s+|\s*[–—]\s*/u)[0];
+ const partial=!segments&&first!==raw.split('\n')[0]&&Boolean(oracleAddress(first,wording.language,{resolution}));
+ return {raw,language:wording.language,complete:Boolean(segments),segments:segments||[],...(partial?{partial:true}:{}),unparsed:segments?[]:['unsupported-oracle-grammar']};
 }
 
 // Fixed oracle policy, deliberately independent of the placer's normaliser.
@@ -90,6 +92,9 @@ function firstSubparagraphAddress(proposal,target){
   return {target:{...target,segments:target.segments.filter((_,i)=>i!==at)},bounds:{start:parent.extent.start,end}};
 }
 function locationOracle({proposal,text,target,wording,placement,labels}) {
+  // A recognized parent followed by an unsupported selector is still an
+  // explicit address. Do not discard that selector to claim quote fallback.
+  if(target.partial)return {status:'unverified',reason:'oracle-address-grammar-unavailable'};
   const span=placement.span;
   const source=proposal?proposal.paragraphs.map(p=>p.text).join('\n'):text.paragraphs.join('\n');
   const count=occurrences(oracleNormal(source,labels),oracleNormal(wording.originalText,labels));

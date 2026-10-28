@@ -79,3 +79,20 @@ for(const e of fixture.examples)test(e.language+': published new instruction fol
  assert.equal(rawProposalAssertion({...args,placement:{operation:'insert',insertBefore:before,insertAfter:before-1}}).status,'verified');
  assert.equal(rawProposalAssertion({...args,placement:{operation:'insert',insertBefore:before-1,insertAfter:before-2}}).status,'failed');
 });
+test('the second published Irish report-heading form scopes the resolution independently',async()=>{
+ const {rawSections,verifyLanguagePlacement}=await import('./amendment-language-oracle.mjs');
+ const rawText=fixture.irishReportHeading,sections=rawSections(rawText);
+ assert.equal(sections.find(row=>row.text.startsWith('2.')).sectionKind,'resolution');
+ const text={paragraphs:rawText.paragraphs.map(row=>row.text),paragraphSources:rawText.paragraphs.map(({path})=>({path}))};
+ const expected={language:'ga',operation:'insert',sectionKind:'resolution',targetLabel:'Mír 2 a (nua)'};
+ assert.equal(verifyLanguagePlacement({expected,rawText,text,placement:{status:'placed',operation:'insert',insertAfter:2,insertBefore:3}}).status,'verified');
+});
+test('an unsupported selector after a recognized source address cannot become a unique-quote success',async()=>{
+ const {parseBenchmarkTarget,verifyPlacement}=await import('./amendment-benchmark-model.mjs');
+ // A-10-2025-0150 publishes Annex VIII – indent 11 (AM119's underlying
+ // address). An unsupported child must remain explicit to the oracle.
+ const wording={language:'en',baseline:'motion-resolution',targetLabel:'Annex VIII – indent 11',originalText:'A unique source sentence.',proposedText:'Changed.'};
+ assert.equal(parseBenchmarkTarget(wording).partial,true);
+ const text={paragraphs:['A unique source sentence.'],paragraphSources:[{complete:true,container:'body'}]};
+ assert.equal(verifyPlacement({wording,text,placement:{status:'placed',operation:'replace',span:{start:0,end:0}}}).reason,'oracle-address-grammar-unavailable');
+});

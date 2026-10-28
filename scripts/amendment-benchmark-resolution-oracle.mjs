@@ -72,10 +72,11 @@ export function rawResolutionUnits(text,language) {
   // from the runtime body selector.
   const openers=paragraphs.flatMap((p,i)=>oracleOpening.test(oracleFold(p))&&sources[i]?.container==='body'&&sources[i]?.complete===true?[i]:[]);
   const headingKey=value=>oracleFold(value).replace(/^(?:\d+[.)]\s*)/u,'').replace(/[,;:]$/u,'').toLowerCase();
-  const reportHeading=LANGUAGE_SECTIONS[language]?.resolution;
+  const reportHeadings=[LANGUAGE_SECTIONS[language]?.resolution,...(LANGUAGE_SECTIONS[language]?.resolutionAliases||[])].filter(Boolean);
+  const reportHeading=reportHeadings.length>0;
   // Scope a report independently of the placer's section hint. Plain TOC
   // entries and page suffixes cannot establish the published motion heading.
-  const headings=paragraphs.flatMap((p,i)=>reportHeading&&headingKey(p)===headingKey(reportHeading)&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
+  const headings=paragraphs.flatMap((p,i)=>reportHeadings.some(heading=>headingKey(p)===headingKey(heading))&&sources[i]?.container==='body'&&wholeBold(p,text.paragraphFormats?.[i])?[i]:[]);
   const scoped=Boolean(reportHeading)&&headings.length===1;
   const requireOpening=openers.length>0||headings.length>0||['en','fr','es','de','bg','el','hr','cs','ro'].includes(language);
   if(requireOpening&&(!openers.length||!reportHeading&&openers.length!==1))return {units:[],reason:'oracle-resolution-start-unverified'};

@@ -108,7 +108,7 @@ export function oracleAddress(raw,language='en',{resolution=false}={}) {
     let match=new RegExp('^'+pattern+'(?=\\s|$)','iu').exec(rest);
     if(!match&&kind==='point'&&['nl'].includes(language))match=new RegExp('^('+token+')$','iu').exec(rest);
     if(!match)continue;
-    const rawValue=match[1],canonical=labelValue(rawValue,language),suffix=/^(\d+|[\p{Lu}]{1,3})([\p{Ll}]+)$/u.exec(canonical)||/^([a-z]{1,4})(?:\s+|-)([a-z]{1,3})$/iu.exec(rawValue)?.map((v,i)=>i===2&&language==='pt'?v.toLowerCase():v);
+    const rawValue=match[1],canonical=labelValue(rawValue,language),suffix=/^(\d+|[\p{Lu}]{1,3})([\p{Ll}]+)$/u.exec(canonical)||/^([a-z]{1,4})(?:\s+|-)(bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies|[a-z]{1,3})$/iu.exec(rawValue)?.map((v,i)=>i===2&&language==='pt'?v.toLowerCase():v);
     segments.push({kind,value:canonical,base:suffix?.[1]??canonical,suffix:suffix?.[2]??'',number:/^\d+$/u.test(suffix?.[1]??canonical)?Number(suffix?.[1]??canonical):null,isNew:false,negative:canonical.startsWith('-')});
     rest=rest.slice(match[0].length).trim();found=true;break;
    }

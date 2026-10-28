@@ -133,6 +133,7 @@ export const LANGUAGE_SECTIONS = {
     }
   },
   "ga": {
+    "resolutionAliases": ["TAIRISCINT I gCOMHAIR RÚN Ó PHARLAIMINT NA hEORPA"],
     "resolution": "TAIRISCINT LE HAGHAIDH RÚIN Ó PHARLAIMINT NA hEORPA",
     "decision": "TOGRA LE HAGHAIDH CINNIDH Ó PHARLAIMINT NA HEORPA",
     "classes": [

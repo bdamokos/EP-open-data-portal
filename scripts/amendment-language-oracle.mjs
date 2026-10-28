@@ -23,7 +23,7 @@ const sectionKey=value=>rawNormal(value||'').toLowerCase().replace(/[,;:]$/u,'')
 const vocabulary=Object.values(LANGUAGE_SECTIONS);
 const resolutions=new Set(vocabulary.flatMap(v=>v.classes).map(sectionKey));
 const proposals=new Set(vocabulary.map(v=>sectionKey(v.proposalClass)));
-const resolutionHeadings=new Set(vocabulary.map(v=>sectionKey(v.resolution)));
+const resolutionHeadings=new Set(vocabulary.flatMap(v=>[v.resolution,...(v.resolutionAliases||[])]).map(sectionKey));
 const decisionHeadings=new Set(vocabulary.map(v=>sectionKey(v.decision)));
 export function rawExpected(block,language) {
   // Committee comparisons print outer proposal and underlying act headings in
