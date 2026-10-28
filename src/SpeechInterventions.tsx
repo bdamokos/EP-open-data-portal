@@ -41,10 +41,12 @@ export function InterventionBadges({value,language='en',toggle}:{value?:Interven
   return <span className="intervention-badges" lang="en">{toggle?<button type="button" {...badgeProps} onClick={toggle.onClick} aria-expanded={toggle.expanded} aria-controls={toggle.controls}>{badgeContent}</button>:<span {...badgeProps}>{badgeContent}</span>}{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}>On behalf of {group.politicalGroup&&Object.hasOwn(GROUP_VOICE_GROUPS,group.id)?<a lang="" href={`?view=groups&gv-group=${group.id}&lang=${language}`} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(history.state,'',event.currentTarget.href);window.dispatchEvent(new PopStateEvent('popstate'));}}>{group.label}</a>:<span lang="">{group.label}</span>}</span>)}</span>;
 }
 
-export function InterventionStatistics({member,onItems,filter}:{member:number;onItems?:(items:Speech[])=>void;filter?:{selected:string;href:(category:SpeechCategory)=>string;select:(category:SpeechCategory)=>void}}) {
+export function InterventionStatistics({member,onItems,onStatus,filter}:{member:number;onItems?:(items:Speech[])=>void;onStatus?:(status:'loading'|'ready'|'unavailable')=>void;filter?:{selected:string;href:(category:SpeechCategory)=>string;select:(category:SpeechCategory)=>void}}) {
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=state.member===member?state:{data:null,loading:true,error:null};
+  const status=loading?'loading':error||!result?'unavailable':'ready';
+  useEffect(()=>onStatus?.(status),[onStatus,status]);
   const missingContributions=result&&((result.coverage.total!==null&&result.coverage.available<result.coverage.total)||(result.coverage.issues||[]).some(issue=>!['retained-corpus','total-unavailable'].includes(issue)));
   useEffect(()=>{
     let active=true;const controller=new AbortController();

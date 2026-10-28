@@ -421,6 +421,8 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
   const [speechSearchActive,setSpeechSearchActive]=useState(false);
+  const [statisticsStatus,setStatisticsStatus]=useState<'loading'|'ready'|'unavailable'>('loading');
+  const speechSearchInput=useRef<HTMLInputElement>(null);
   const [,setSpeechSearch]=useExplorerParam<string>('mep-speech-fts-search','');
   const [,setSpeechSearchRead]=useExplorerParam<string>('mep-speech-fts-read','');
   const [category,setCategory]=useExplorerParam<string>('mep-speech-category','',speechCategories.map(([key])=>key));
@@ -441,7 +443,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   useLayoutEffect(()=>{
     const intent=initialSpeech?{key:id+':'+initialSpeech,owner:document.activeElement}:null;
     speechOrigin.current=intent;
-    const cancel=(event:FocusEvent)=>{if(event.target!==intent?.owner)speechOrigin.current=null;};
+    const cancel=(event:FocusEvent)=>{if(event.target!==speechOrigin.current?.owner)speechOrigin.current=null;};
     document.addEventListener('focusin',cancel);
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
@@ -458,17 +460,17 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else heading?.scrollIntoView({block:'start'});
     setOffset(next);onOpen(null);
   };
-  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset]);
+  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}if(speechSearchActive)return;const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset,speechSearchActive]);
   return <section lang={lang}>
     <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2></div>
-    <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} filter={{selected:category,href:filterHref,select:selectCategory}}/>
-    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
-    {filtered&&<div className="explorer-section-title" lang="en"><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>{speechSearchActive&&<button onClick={()=>setCategory('')}>Clear category</button>}</div>}
-    <TextSearch key={'search:'+id} inline prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} onActiveChange={setSpeechSearchActive} summary={<>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</>}/>
+    <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} onStatus={setStatisticsStatus} filter={{selected:category,href:filterHref,select:selectCategory}}/>
+    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
+    {filtered&&<div className="explorer-section-title" lang="en"><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}>Clear category</button>}</div>}
+    <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={category&&statisticsStatus!=='ready'?(statisticsStatus==='loading'?'Loading category…':'Category unavailable.'):undefined} onActiveChange={setSpeechSearchActive} summary={<>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</>}/>
     {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading speeches…</p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
-    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
+    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">{statisticsStatus==='loading'?'Loading contributions…':statisticsStatus==='unavailable'?'Contributions unavailable.':'No matching contributions.'}</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
     {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Loading…</p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}

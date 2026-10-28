@@ -17,7 +17,7 @@ type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start
 export interface TextSearchProps {
   prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;addressee?:string;from?:string;to?:string;
   sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:ReactNode;disabledReason?:string;
-  className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;inline?:boolean;summary?:ReactNode;
+  className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;inline?:boolean;summary?:ReactNode;inputRef?:RefObject<HTMLInputElement|null>;
 }
 const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
 const kindLabel=(kind:Kind)=>kind==='speech'?'Speech':kind==='answer'?'Institutional answer':'Question';
@@ -46,7 +46,7 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   </section>;
 }
 
-export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false,inline=false,summary}:TextSearchProps) {
+export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false,inline=false,summary,inputRef}:TextSearchProps) {
   useGlobalSearchMemory(prefix);
   const [query,setQuery]=useTextSearchParam<string>(prefix+'-search','');
   const [textLanguage,setTextLanguage]=useTextSearchParam<string>(prefix+'-text-lang','');
@@ -64,7 +64,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   const [open,setOpen]=useState(closed!=='1'&&Boolean(query||read)),[draft,setDraft]=useState(query),[attempt,setAttempt]=useState(0);
   const [state,setState]=useState<{key:string;data:Response|null;loading:boolean;error:string|null}>({key:'',data:null,loading:false,error:null});
   const [variants,setVariants]=useState<Record<string,string>>({});
-  const input=useRef<HTMLInputElement>(null),toggle=useRef<HTMLButtonElement>(null),panel=useId();
+  const localInput=useRef<HTMLInputElement>(null),input=inputRef||localInput,toggle=useRef<HTMLButtonElement>(null),panel=useId();
   const callback=useRef(onActiveChange);callback.current=onActiveChange;
   const allowedKinds=kinds?.length?kinds:['speech','question','answer'];
   const actualKinds=allowedKinds.includes(field as Kind)?[field]:allowedKinds;
@@ -115,7 +115,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
     }).catch(error=>{if(current)setState(old=>({...old,loading:false,error:controller.signal.aborted?'This search took too long. Please retry.':error.message}));}).finally(()=>clearTimeout(timer));
     return()=>{current=false;controller.abort();clearTimeout(timer);};
   },[request,activeRequest,attempt]);
-  const data=showText&&!pendingDraft&&(!inline||query)&&state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=showText&&!pendingDraft&&(!inline||query)&&state.key===request?state.error:null;
+  const data=showText&&!disabledReason&&!scopeChanging&&!pendingDraft&&(!inline||query)&&state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=showText&&!disabledReason&&!pendingDraft&&(!inline||query)&&state.key===request?state.error:null;
   const selected=!showText||disabledReason||scopeChanging||pendingDraft?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
   function close(){if(inline){setDraft('');setQuery('');reset();setVariants({});input.current?.focus();return;}setOpen(false);setClosed(prefix==='global-fts'||query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   function reset(){setPage(0);setExactOffset(-1);if(global)setCatalogOffset(0);setRead('');}

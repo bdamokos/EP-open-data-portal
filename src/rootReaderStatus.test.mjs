@@ -21,7 +21,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   const query=new URLSearchParams({member:String(member.id),module,lang:language});if(activity)query.set('activity',activity);
   if(category)query.set('mep-speech-category',category);
   if(search)query.set('mep-speech-fts-search',search);
-  const window=new Window({url:'http://localhost/?'+query}),pending=[],unexpected=[],searches=[];
+  const window=new Window({url:'http://localhost/?'+query}),pending=[],unexpected=[],searches=[],revealed=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
       const parsed=super.parseFromString(...args),query=parsed.getElementsByTagNameNS.bind(parsed);
@@ -35,7 +35,8 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,loadModule;
-  t.mock.method(window.HTMLElement.prototype,'scrollIntoView',()=>{});
+  t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(){revealed.push(this.id);});
+  t.mock.method(window.HTMLElement.prototype,'scrollTo',function(){revealed.push(this.className);});
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of pending)if(!request.finished)request.resolve(Response.json({}));
@@ -70,7 +71,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   const finish=(route,data,status=200)=>act(async()=>{
     const request=pending.find(request=>request.route===route&&!request.finished);assert(request,'Missing request: '+route);request.finished=true;request.resolve(Response.json(data,{status}));
   });
-  return {window,container,pending,searches,click,finish,expireActivityReads,tick,wait:()=>tick(350)};
+  return {window,container,pending,searches,revealed,click,finish,expireActivityReads,tick,wait:()=>tick(350)};
 }
 const status=reader=>reader.querySelector('[role="status"][aria-live="polite"]');
 test('inline full-text results replace the list, combine with exact chair records and clear back to the selected list',async t=>{
@@ -94,9 +95,38 @@ test('inline full-text results replace the list, combine with exact chair record
   await act(async()=>{const url=new URL(location.href);url.searchParams.set('mep-speech-fts-search','energy');history.replaceState(null,'',url);window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
   await h.click(h.container.querySelector('.explorer-cloud-words button'));
-  await h.click(h.container.querySelector('.explorer-cloud-source'));
+  const cloudSource=h.container.querySelector('.explorer-cloud-source');cloudSource.focus();
+  const reveals=h.revealed.length;
+  await h.click(cloudSource);
   assert.equal(new URLSearchParams(location.search).has('mep-speech-fts-search'),false);
   assert.equal(h.container.querySelector('.explorer-speech-toggle').getAttribute('aria-expanded'),'true','cloud selection reveals its exact reader after leaving search');
+  assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));
+  assert(h.revealed.length>reveals,'the newly mounted reader is revealed');
+  await act(async()=>{const url=new URL(location.href);url.searchParams.set('mep-speech-fts-search','energy');history.replaceState(null,'',url);window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
+  cloudSource.focus();await h.click(cloudSource);
+  assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'),'selecting the same reader again creates a fresh focus intent');
+});
+
+for(const outcome of ['unavailable','empty'])test('category transcript search distinguishes pending metadata from '+outcome,async t=>{
+  let resolve,reject;
+  const summary=()=>new Promise((yes,no)=>{resolve=yes;reject=no;});
+  const h=await harness(t,{module:'speeches',items:[speechItem],summary,category:'chair',search:'energy'});
+  assert.equal(h.searches.length,0);
+  assert.match(h.container.querySelector('.explorer-text-search-inline').textContent,/Loading category…/);
+  assert.equal(h.container.querySelector('.explorer-search-count'),null);
+  await act(async()=>{if(outcome==='unavailable')reject(new Error('Statistics fixture unavailable.'));else resolve({memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0,unclassified:0,issues:[]},nextPage:null,sources:[]});});
+  if(outcome==='unavailable'){
+    assert.equal(h.searches.length,0);
+    assert.match(h.container.querySelector('.explorer-text-search-inline').textContent,/Category unavailable\./);
+    assert.equal(h.container.querySelector('.explorer-search-count'),null);
+  }else{
+    assert.equal(h.searches.length,1);assert.deepEqual(h.searches[0].sourceIds,[]);
+    assert.match(h.container.querySelector('.explorer-search-count').textContent,/0 matching documents/);
+  }
+  const clear=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Clear category');clear.focus();
+  await h.click(clear);
+  assert.equal(document.activeElement,h.container.querySelector('.explorer-text-search-inline input'));
+  assert.equal(new URLSearchParams(location.search).has('mep-speech-category'),false);
 });
 
 test('a statistics restart clamps a filtered page when fewer matching records remain',async t=>{
