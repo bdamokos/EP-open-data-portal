@@ -278,6 +278,10 @@ test('procedure reference popup preserves dossier and note title languages witho
   assert.equal(h.container.querySelector('.legal-reference-evidence'),null);
   assert.equal(h.container.querySelector('.legal-reference-source'),null);
   const note=h.container.querySelector('.legal-note-ref');
+  await h.click(note);
+  const footnote=h.container.querySelector('.legal-reference-actions a[href="#evidence-note-1"]');
+  assert.equal(footnote?.textContent,'Footnote 1');
+  assert.equal(h.container.querySelector('.legal-reference-evidence'),null);
   assert.equal(note.getAttribute('aria-label'),'Note 1: Titre français cité');assert.equal(note.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(note),'fr');
   t.diagnostic(JSON.stringify({assessment:'OPEN',accessibleName:note.getAttribute('aria-label'),mechanism:'aria-label',constituents:[{text:'Note 1: ',language:'en'},{text:'Titre français cité',language:'fr'}],effectiveLang:effectiveLanguage(note)}));
 });

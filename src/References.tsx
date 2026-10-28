@@ -13,7 +13,8 @@ export type ResolvedReference={key:string;kind:'act'|'document'|'procedure'|'que
   celex?:string|null;title?:string|null;titleLanguage?:string|null;date?:string|null;inForce?:boolean|null;procedure?:string|null;eurLexUrl?:string;
   id?:string|null;answerIds?:string[];source?:Source};
 type Summary={reference:string;title:string;language:string;summary:null|{id:string;stage:string;date:string;blocks:{kind:string;text:string}[];method:string|null;source:{url:string;fetchedAt:string}};source:{url:string;fetchedAt:string}};
-type OpenCard={key:string;text:string;trigger:HTMLElement;pinned:boolean};
+type Footnote={label:string;href:string};
+type OpenCard={key:string;text:string;trigger:HTMLElement;pinned:boolean;footnote?:Footnote};
 type OpenQuestion={id:string;trigger:HTMLElement};
 type Scope={references:Map<string,ResolvedReference>;noteKeys:Map<string,{linked:string[];cited:string[]}>;notePrefix:string;textLanguage:string|null;open:OpenCard|null;show:(card:OpenCard)=>void;hoverEnd:()=>void;cardId:string};
 const ReferenceScopeContext=createContext<Scope|null>(null);
@@ -92,14 +93,14 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
     {lookup.unavailable&&<p lang="en" className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" lang={open.trigger.closest('[lang]')?.getAttribute('lang')??''} role="dialog" aria-label={open.text} tabIndex={-1} style={position}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
-      <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
+      <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} footnote={open.footnote} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
       <button type="button" lang="en" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
     </div>}
     {question&&renderQuestion&&<div lang="en" className="legal-reference-question" ref={questionReader} role="region" aria-label="Referenced question" tabIndex={-1}><button type="button" className="legal-reference-text-button" onClick={()=>{returnToReference(question.trigger,wrapper.current);setQuestion(null);}}>Close referenced question</button>{renderQuestion(question.id)}</div>}
   </div></ReferenceScopeContext.Provider>;
 }
 
-function ReferenceCard({reference,text,textLanguage,language,onQuestion}:{reference:ResolvedReference;text:string;textLanguage:string;language:string;onQuestion?:(id:string)=>void}) {
+function ReferenceCard({reference,text,textLanguage,language,onQuestion,footnote}:{reference:ResolvedReference;text:string;textLanguage:string;language:string;onQuestion?:(id:string)=>void;footnote?:Footnote}) {
   const procedure=reference.kind==='procedure'?reference.procedure:reference.procedure||null;
   const [summaryOpen,setSummaryOpen]=useState(reference.kind==='procedure');
   useEffect(()=>setSummaryOpen(reference.kind==='procedure'),[reference.key]);
@@ -118,6 +119,7 @@ function ReferenceCard({reference,text,textLanguage,language,onQuestion}:{refere
       {procedure&&reference.kind!=='procedure'&&<button type="button" aria-expanded={summaryOpen} onClick={()=>setSummaryOpen(value=>!value)}>{summaryOpen?'Hide dossier summary':'Dossier summary'}</button>}
       {reference.eurLexUrl&&<a href={reference.eurLexUrl} target="_blank" rel="noreferrer">EUR-Lex ↗</a>}
       {procedure&&<a className="legal-reference-secondary" href={'?'+new URLSearchParams({view:'legislation','pl-mode':'dossier','dossier-ref':procedure})}>Dossier view</a>}
+      {footnote&&<a className="legal-reference-secondary" href={footnote.href}>Footnote {footnote.label}</a>}
     </div>
     {procedure&&summaryOpen&&<DossierSummary reference={procedure} language={language} showTitle={reference.kind==='procedure'}/>}
   </>;
@@ -140,12 +142,12 @@ function DossierSummary({reference,language,showTitle}:{reference:string;languag
   </section>;
 }
 
-function ReferenceButton({refKey,text,className='legal-ref',label}:{refKey:string;text:string;className?:string;label?:string}) {
+function ReferenceButton({refKey,text,footnote,className='legal-ref',label}:{refKey:string;text:string;footnote?:Footnote;className?:string;label?:string}) {
   const scope=useContext(ReferenceScopeContext)!,self=useRef<HTMLButtonElement>(null),expanded=Boolean(self.current)&&scope.open?.trigger===self.current;
   const hover=useRef<number>(0);
   return <button ref={self} type="button" className={className} aria-label={label} aria-haspopup="dialog" aria-expanded={expanded} aria-controls={expanded?scope.cardId:undefined}
-    onClick={event=>{window.clearTimeout(hover.current);scope.show({key:refKey,text,trigger:event.currentTarget,pinned:true});}}
-    onPointerEnter={event=>{if(event.pointerType!=='mouse'||!finePointer())return;const trigger=event.currentTarget;hover.current=window.setTimeout(()=>scope.show({key:refKey,text,trigger,pinned:false}),350);}}
+    onClick={event=>{window.clearTimeout(hover.current);scope.show({key:refKey,text,trigger:event.currentTarget,pinned:true,footnote});}}
+    onPointerEnter={event=>{if(event.pointerType!=='mouse'||!finePointer())return;const trigger=event.currentTarget;hover.current=window.setTimeout(()=>scope.show({key:refKey,text,trigger,pinned:false,footnote}),350);}}
     onPointerLeave={event=>{window.clearTimeout(hover.current);if(event.pointerType==='mouse')scope.hoverEnd();}}>{text}</button>;
 }
 const urlPattern=/\bhttps?:\/\/[^\s<>"]+[^\s<>".,;:)]/g;
@@ -159,7 +161,7 @@ function plain(text:string,linkify:boolean,key:string,language:string) {
 // A marker opens the reference its footnote identifies, when the footnote identifies exactly one.
 function NoteMark({anchor,notePrefix}:{anchor:NoteAnchor;notePrefix:string}) {
   const scope=useContext(ReferenceScopeContext),key=scope?noteIdentifies(scope,anchor.note):null;
-  if(key)return <sup className="legal-note-mark"><ReferenceButton refKey={key} text={anchor.label} className="legal-ref legal-note-ref" label={'Note '+anchor.label+': '+shortLabel(scope!.references.get(key),key)}/></sup>;
+  if(key)return <sup className="legal-note-mark"><ReferenceButton refKey={key} text={anchor.label} className="legal-ref legal-note-ref" footnote={{label:anchor.label,href:`#${notePrefix}-note-${anchor.note}`}} label={'Note '+anchor.label+': '+shortLabel(scope!.references.get(key),key)}/></sup>;
   return <sup className="legal-note-mark"><a lang="en" href={`#${notePrefix}-note-${anchor.note}`} aria-label={'Note '+anchor.label}>{anchor.label}</a></sup>;
 }
 const emphasisTags={bold:'b',italic:'i',underline:'u',strike:'s',superscript:'sup',subscript:'sub'} as const;
