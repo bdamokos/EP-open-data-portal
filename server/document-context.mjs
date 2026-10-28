@@ -21,7 +21,7 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
 import {amendmentLanguagePreference} from './language-order.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=30;
+export const DOCUMENT_CONTEXT_VERSION=31;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -172,7 +172,7 @@ export class DocumentContext {
         if(document.selectedText.textLanguage!==chosen.language)document={...document,selectedText:await this.readText(work,chosen.language)};
       }
     }
-    const differentLanguage=chosen&&(wordingSelected&&chosen.language===null||chosen.language!==document?.selectedText?.textLanguage);
+    const differentLanguage=document?.selectedText?.paragraphs?.length&&chosen&&(wordingSelected&&chosen.language===null||chosen.language!==document.selectedText.textLanguage);
     const referenceDecisions=array(indexed?.decisions).filter(decision=>array(decision.amendmentIds).some(id=>id===query.amendmentId||id===indexed.id)&&typeof decision.reference==='string'&&decision.source?.url&&decision.source?.fetchedAt);
     const references=[...new Set(referenceDecisions.map(decision=>decision.reference))];
     const unaffected=chosen&&amendmentLanguageScope(chosen);
