@@ -76,8 +76,15 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   const checkDossierUpdates=useDossierChecks();
   const dossiers=useDossiers(),dossierChecking=useDossierChecking();
   const membershipCheck=useMembershipCheck(),membership=useMembership(),groups=useGroups(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
-  const cards=[...items,...dossiers.items].map(item=>({item,hasNew:itemHasNew(item,now)||item.kind==='mep'&&(membershipEntries(membership,item.id,now).fresh.length>0||groupEntries(groups,item.id,now).fresh.length>0)}))
+  // Before the first manifest, persisted signals still identify unread MEPs.
+  const cards=[...items,...dossiers.items].map(item=>({item,hasNew:itemHasNew(item.kind==='mep'&&!saved.manifest?{...item,unresolved:{activity:true,answer:true}}:item,now)||item.kind==='mep'&&(membershipEntries(membership,item.id,now).fresh.length>0||groupEntries(groups,item.id,now).fresh.length>0)}))
     .sort((a,b)=>Number(b.hasNew)-Number(a.hasNew));
+  // Prioritise unread cards on entry, then keep this visit's reading order.
+  // Reading, expiry and background checks must not move cards under the user.
+  const cardOrder=useRef(new Map<string,number>());
+  const cardKey=(item:typeof cards[number]['item'])=>item.kind+':'+item.id+':'+item.savedAt;
+  for(const {item} of cards)if(!cardOrder.current.has(cardKey(item)))cardOrder.current.set(cardKey(item),cardOrder.current.size);
+  cards.sort((a,b)=>cardOrder.current.get(cardKey(a.item))!-cardOrder.current.get(cardKey(b.item))!);
   const key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(','),context=language+':'+key,request=useRef(0),active=useRef(false);
   const [attempt,setAttempt]=useState(0),[completion,setCompletion]=useState<{items:SavedItem[];message:string}|null>(null);
   useEffect(()=>{active.current=true;setChecking(false);setError('');setCompletion(null);return()=>{active.current=false;request.current++;};},[context]);
