@@ -571,6 +571,15 @@ export function resolveAmendmentPlacement(text, options = {}) {
     if (!matches.length) return unresolved(structure.incompleteLabels.has(ref.label) ? 'source_passage_incomplete' : 'target_not_found');
     const unit = matches[0];
     const source = text.paragraphs.slice(unit.start, unit.end + 1).join(' ');
+    const sourceKey = wordingNormal(source), originalKey = wordingNormal(options.originalText);
+    // B-10-2026-0424 prints dash-led citations, while its amendments print
+    // their numeric ordinals. Only the resolved citation's source marker is
+    // presentation; the complete preamble must establish that exact ordinal.
+    const numberedCitation = unit.kind === 'citation'
+      && /^([1-9]\d*)\.\s+/u.exec(whitespace(options.originalText))?.[1] === unit.label
+      && complete(structure.start, unit.end);
+    const wordingMatches = sourceKey === originalKey
+      || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;
     // Exact whole-unit wording independently proves a labelled paragraph or
     // recital's extent, even when the following boundary is unclassified.
     // Never use it to recover incomplete rows, duplicate labels or point scope.
@@ -579,7 +588,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       && wordingNormal(source) === wordingNormal(options.originalText);
     if (!wordingProvesExtent && (structure.invalid.has(unit.start) || structure.incompleteLabels.has(unit.label) || !complete(unit.start, unit.end))) return unresolved('source_passage_incomplete');
     if (!wordingProvesExtent && structure.uncertain.has(unit.start)) return unresolved('resolution_extent_uncertain');
-    if (wordingNormal(source) !== wordingNormal(options.originalText)) return unresolved('conflicting_target_evidence');
+    if (!wordingMatches) return unresolved('conflicting_target_evidence');
     if (referenceText) {
       const decision = placementReference(referenceText);
       if (!decision || decision.kind !== ref.kind || decision.label !== ref.label || decision.kind === 'point' && decision.paragraph !== ref.paragraph) return unresolved('conflicting_target_evidence');
