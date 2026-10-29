@@ -113,9 +113,9 @@ export class DocumentContext {
   }
   async collect(query,indexed,retained=null) {
     const sources=[],records=new Map();let metadataBytes=0;
-    const read=async(endpoint,id,{procedure=false}={})=>{
-      if(records.has(endpoint))return records.get(endpoint);
-      const saved=retained?.root.endpoint===endpoint?retained.root:null;
+    const read=async(endpoint,id,{procedure=false,live=false}={})=>{
+      if(!live&&records.has(endpoint))return records.get(endpoint);
+      const saved=!live&&retained?.root.endpoint===endpoint?retained.root:null;
       const record=saved?.record||await this.request(endpoint,{}, {staleWhileRevalidate:true});
       const serialized=JSON.stringify(record.payload);metadataBytes+=Buffer.byteLength(serialized);
       if(metadataBytes>this.limits.metadataBytes)throw new HttpError(502,'document_source_budget','The linked document records are too large to read together.');
@@ -156,7 +156,23 @@ export class DocumentContext {
       }
     }
     let document=null;
-    if(!query.adopted&&query.includeBody!==false)document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText:await this.readText(work,query.language),requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
+    if(!query.adopted&&query.includeBody!==false) {
+      let selectedWork=work,selectedRecord=record,selectedText=await this.readText(work,query.language);
+      if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
+        const fresh=await read(endpoint,query.id,{live:true});
+        if(canonicalType(fresh.work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
+        // A missing retained file may have been replaced. Retry the body only
+        // when its selected-edition declaration or source version changes.
+        const selectedFiles=value=>declaredDocxFiles(value).filter(file=>file.language===query.language);
+        if(JSON.stringify(selectedFiles(fresh.work))!==JSON.stringify(selectedFiles(work)))selectedText=await this.readText(fresh.work,query.language);
+        selectedWork=fresh.work;selectedRecord=fresh.record;
+      }catch(error) {
+        requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;
+        const refreshError=String(error.message).slice(0,350);
+        selectedRecord={...record,refreshError};retained.root.source.refreshError=refreshError;
+      }
+      document={...documentSummary(selectedWork,null),selectedDocumentId:query.id,selectedDocumentDate:selectedWork.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(selectedRecord.fetchedAt).toISOString(),sourceCache:{stale:Boolean(selectedRecord.stale),refreshInProgress:Boolean(selectedRecord.refreshInProgress),refreshError:selectedRecord.refreshError||null}};
+    }
     let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
     const wordingSelected=Object.hasOwn(query,'wordingLanguage');
     let candidates=amendment?.variants.filter(variant=>!wordingSelected||variant.listId===query.listId&&variant.language===query.wordingLanguage)||[];

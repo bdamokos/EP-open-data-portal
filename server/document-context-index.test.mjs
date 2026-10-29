@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {ActivityStore} from './activity-index-store.mjs';
 import {DocumentContext} from './document-context.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
+import {requestTimeout} from './request-budget.mjs';
 
 const now=Date.parse('2026-10-29T01:30:00Z'),stamp=new Date(now).toISOString();
 const motion='B-10-2026-0339',adopted='TA-10-2026-0271',motionKey='/plenary-documents/'+motion,adoptedKey='/adopted-texts/'+adopted;
@@ -124,4 +125,45 @@ test('a failed later refresh keeps the retained body metadata and its error with
   const result=await reader.query(query({id:adopted,adopted:false}),{store});
   assert.equal(result.document.sourceCache.refreshError,'EP API returned 500');assert.equal(result.sources[0].refreshError,'EP API returned 500');
   assert.deepEqual(store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? AND key=?').get(generation,adoptedKey),before);
+});
+
+for(const status of ['error','unavailable'])test('a failed retained body gets one metadata recovery and uses the changed declared file: '+status,async t=>{
+  const {store}=setup(t),replacement=work({is_realized_by:[{language:'en',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/replacement_en.docx'}]}]});
+  let requests=0;const bodies=[];
+  const reader=new DocumentContext({request:async endpoint=>{requests++;assert.equal(endpoint,adoptedKey);return {payload:{data:[replacement]},fetchedAt:stamp};},readText:async observed=>{
+    bodies.push(observed);return {status:bodies.length===1?status:'available',paragraphs:bodies.length===1?[]:['Replacement body'],textLanguage:'en'};
+  }});
+  const result=await reader.query(query({id:adopted,adopted:false}),{store});
+  assert.equal(requests,1);assert.equal(bodies.length,2);assert.deepEqual(bodies[1],replacement);assert.equal(result.document.selectedText.status,'available');
+  assert.equal(result.document.selectedDocumentId,adopted);assert.equal(result.sources.length,2);assert.equal(result.sources[0].representation,'retained-index-projection');assert.equal(result.sources[1].representation,undefined);
+});
+
+test('unchanged metadata does not repeat the failed distribution; failed metadata keeps the retained identity and body result',async t=>{
+  const {store}=setup(t);
+  for(const scenario of [{},{failure:new Error('Metadata source unavailable')},{extraLanguage:true}]) {
+    const {failure}=scenario;
+    let requests=0,bodies=0;
+    const updated=work();if(scenario.extraLanguage)updated.is_realized_by.push({language:'fr',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/new_fr.docx'}]});
+    const reader=new DocumentContext({request:async()=>{requests++;if(failure)throw failure;return {payload:{data:[updated]},fetchedAt:stamp};},readText:async()=>{bodies++;return {status:'error',paragraphs:[],textLanguage:'en'};}});
+    const result=await reader.query(query({id:adopted,adopted:false}),{store});
+    assert.equal(requests,1);assert.equal(bodies,1);assert.equal(result.document.selectedDocumentId,adopted);assert.equal(result.document.selectedText.status,'error');assert.equal(reader.cache.size,0);
+    if(failure)assert.equal(result.document.sourceCache.refreshError,failure.message);
+  }
+});
+
+test('a changed selected source version can recover a stable declared URL',async t=>{
+  const {store}=setup(t),updated=work();updated.is_realized_by[0].is_embodied_by[0].issued=stamp;let bodies=0;
+  const reader=new DocumentContext({request:async()=>({payload:{data:[updated]},fetchedAt:stamp}),readText:async observation=>{
+    bodies++;return {status:observation.is_realized_by[0].is_embodied_by[0].issued?'available':'error',paragraphs:[],textLanguage:'en'};
+  }});
+  const result=await reader.query(query({id:adopted,adopted:false}),{store});assert.equal(bodies,2);assert.equal(result.document.selectedText.status,'available');
+});
+
+test('retained-body metadata recovery preserves typed cancellation and exact source identity checks',async t=>{
+  const {store}=setup(t);
+  const timeout=new DocumentContext({request:async()=>{throw requestTimeout();},readText:async()=>({status:'unavailable',paragraphs:[]})});
+  await assert.rejects(timeout.query(query({id:adopted,adopted:false}),{store}),{code:'request_timeout'});
+  let bodies=0;
+  const wrong=new DocumentContext({request:async()=>({payload:{data:[work({id:'eli/dl/doc/TA-10-2026-9999',identifier:'TA-10-2026-9999'})]},fetchedAt:stamp}),readText:async()=>{bodies++;return {status:'error',paragraphs:[]};}});
+  const result=await wrong.query(query({id:adopted,adopted:false}),{store});assert.equal(bodies,1);assert.equal(result.document.selectedDocumentId,adopted);assert.equal(result.document.selectedText.status,'error');assert(result.document.sourceCache.refreshError);
 });
