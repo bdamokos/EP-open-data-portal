@@ -127,10 +127,12 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   const selected=useInsightData<LegislationResponse>(mode==='agenda'&&topic&&data?detailRoute:null),detail=selected.data?.detail,displayTopic=detail||selectedTopic,detailRef=useRef<HTMLElement>(null),agendaRef=useRef<HTMLElement>(null),detailNavRef=useRef<HTMLDivElement>(null);
   const focusEpoch=useRef(0),detailFocusEpoch=useRef(0);
   const documentFocus=useRef<{target:string;opener:HTMLButtonElement|null;opening:boolean;epoch:number;scope:string}|null>(null);
+  const documentMember=useRef<string|undefined>(undefined);
   const documentScope=JSON.stringify([mode,topic,language,displayTopic?.id]);
   const documentTarget=(event:string|null)=>readerId+(event?'-committee-'+encodeURIComponent(event):'-agenda');
   function toggleDocument(id:string,event:string|null,opener:HTMLButtonElement|null=null) {
     const opening=document!==id||documentEvent!==event,target=documentTarget(event);
+    if(opening)documentMember.current=detail?.people.find(person=>person.currentMep)?.id;
     // A restored journey may have remounted its original trigger.
     const trigger=opener||[...detailRef.current?.querySelectorAll<HTMLButtonElement>('button[aria-expanded="true"]')||[]].find(button=>button.getAttribute('aria-controls')===target)||null;
     documentFocus.current={target,opener:trigger,opening,epoch:focusEpoch.current,scope:documentScope};
@@ -144,7 +146,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   },[document,documentEvent,documentScope]);
   function renderDocumentReader(event:string|null) {
     const active=Boolean(document&&documentEvent===event);
-    return <div id={documentTarget(event)} hidden={!active} tabIndex={-1} role="region" aria-label={active?'Document '+document:undefined}>{active&&<><button className="insight-text-button" onClick={()=>toggleDocument(document!,event)}>Close document</button><InsightQuestionReader key={document} id={document!} member={documentMember} language={language} heading={'Document '+document}/></>}</div>;
+    return <div id={documentTarget(event)} hidden={!active} tabIndex={-1} role="region" aria-label={active?'Document '+document:undefined}>{active&&<><button className="insight-text-button" onClick={()=>toggleDocument(document!,event)}>Close document</button><InsightQuestionReader key={document} id={document!} member={documentMember.current} language={language} heading={'Document '+document}/></>}</div>;
   }
   useEffect(()=>{
     const changed=()=>{focusEpoch.current++;};
@@ -181,7 +183,6 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
     setSpeech(next.sourceId);
     if(scroll)requestAnimationFrame(()=>speechTop.current?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
   }
-  const documentMember=detail?.people.find(p=>p.currentMep)?.id;
   function chooseAgendaTopic(id:string){if(id!==topic)resetSearchPosition();if(data?.week)setAgendaPeriod('week:'+data.week);setTopic(id);setVote('');}
   function showAgenda(){
     const opener=agendaRef.current?.querySelector<HTMLButtonElement>('[aria-pressed=true]');
