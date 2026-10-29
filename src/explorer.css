@@ -73,6 +73,7 @@
 .explorer-speech-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .explorer-speech-heading strong { min-width: 0; }
 .explorer-speech-heading b { flex-shrink: 0; }
+.explorer-speech > .dossier-work-links { margin: 0; padding: 0 18px 16px; }
 .explorer-speech-detail { padding: 0 18px 22px; font-size: 18px; line-height: 1.55; }
 .explorer-speech-detail > h3 { margin-top: 24px; }
 .explorer-transcript { max-width: 78ch; font-family: var(--font-serif); }
@@ -196,6 +197,7 @@
   .explorer-section-title h2 { font-size: 22px; }
   .explorer-speech-toggle strong { font-size: 18px; }
   .explorer .explorer-speech-toggle { padding: 14px; }
+  .explorer-speech > .dossier-work-links { padding: 0 14px 14px; }
   .explorer-speech-detail { padding: 0 14px 18px; font-size: 16px; }
   .explorer-video { padding: 12px; }
   .explorer-video-actions button { flex-basis: 100px; font-size: 14px; padding: 8px; }
