@@ -38,6 +38,7 @@ const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
 const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
 export const observedOdpFetch=(url,options)=>observations.fetch(url,options);
 export const odpObservations=()=>observations.snapshot();
+export const odpHeaderStatus=()=>observations.headerSnapshot();
 export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
   const report=()=>log('[odp-monitor]',JSON.stringify(odpObservations()));
   report();const timer=setInterval(report,intervalMs);timer.unref();
