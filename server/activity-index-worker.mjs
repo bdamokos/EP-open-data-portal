@@ -17,6 +17,7 @@ import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PR
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
+import {activityGenerationTask} from './activity-generation-task.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
 import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
@@ -88,7 +89,7 @@ export class ActivityWorker {
   constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal'}={}) {
     this.store=store;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
-    this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;
+    this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
     this.recoveryMode=recoveryMode;
   }
@@ -599,16 +600,7 @@ export class ActivityWorker {
     this.store.updateCycle({catchupDay:today});return true;
   }
   finalize(generation) {
-    // A delta feed cannot establish withdrawal. Retain all saved records.
-    const procedures=new Map(this.store.sources(generation,'procedure').map(s=>[tail(s.key),s]));
-    const unresolved=[];
-    for(const source of this.store.iterateSources(generation,'document')) {
-      const result=documentRows(source.work,source.key,source.fetchedAt,procedures);
-      // Detail writes and exact procedure joins already update their own rows.
-      // Publication only gathers gap metadata; unchanged items need no rewrite.
-      unresolved.push(...result.unresolved);
-    }
-    this.store.publish(generation,unresolved);
+    return this.generationExecutor?this.generationExecutor('publish',{generation,signal:this.controller.signal}):this.store.finalize(generation);
   }
   async run() {
     if(this.stopped || this.running)return;
@@ -631,7 +623,7 @@ export class ActivityWorker {
     if(!due&&!pressDue || !this.store.acquire())return;
     this.running=true;this.requests=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
-    const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
+    const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
     try {
       if(pressDue)await this.followPress(due);
       if(!due || this.stopped)return;
@@ -645,7 +637,9 @@ export class ActivityWorker {
       // Core recovery changes items and their frozen Following summaries. It
       // must publish through a working generation, even between daily cycles.
       const recover=this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,active,this.clock());
-      const cycle=this.coreDue()||recover?this.store.beginCycle():null,generation=cycle?.generation || active;
+      const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
+      if(this.stopped)return;
+      this.store.assertWriter();
       if(cycle){scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);}
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
@@ -732,7 +726,7 @@ export class ActivityWorker {
               // don't copy the entire index again for every 25 recovered gaps.
               if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))break;
               if(adoptedTextRepairDue(this.store,generation))break;
-              if(this.catchUp(this.store.get('working')))continue;this.finalize(generation);
+              if(this.catchUp(this.store.get('working')))continue;await this.finalize(generation);
             }
           }
           const task=coreTask||nextGroupVoiceTask(this.store,generation);
@@ -760,6 +754,7 @@ export function activityIndex() {
   };
   const store=new ActivityStore(directory),press=new PressStore(directory);
   const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
+  worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
   service={store,worker,press};return service;
 }
 export function activityIndexStatus(){return activityIndex().store.status();}
