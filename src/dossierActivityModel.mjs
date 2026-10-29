@@ -47,17 +47,27 @@ export function dossierTimeline(items) {
   return [...groups.values()].sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.id.localeCompare(b.id));
 }
 
+function mergeCoverage(before,after,unavailableStatus=null) {
+  const checkedTargets=[...new Set([...(before.checkedTargets||[]),...(after.checkedTargets||[])])];
+  const uncheckedTargets=[...new Set([...(before.uncheckedTargets||[]),...(after.uncheckedTargets||[])])].filter(id=>!checkedTargets.includes(id));
+  const gaps=[...new Set([...before.gaps,...after.gaps])];
+  const otherPartial=[before,after].some(coverage=>coverage.checkedComplete===false||coverage.checkedComplete===undefined&&coverage.status==='partial'&&!coverage.uncheckedTargets?.length);
+  return {...after,status:unavailableStatus||(gaps.length||uncheckedTargets.length||otherPartial?'partial':'complete'),checkedComplete:!otherPartial&&!unavailableStatus,checkedTargets,uncheckedTargets,gaps,
+    retryable:Boolean(before.retryable||after.retryable),failedDebates:[...new Set([...(before.failedDebates||[]),...(after.failedDebates||[])])],
+    missingSpeechIds:[...new Set([...(before.missingSpeechIds||[]),...(after.missingSpeechIds||[])])],retained:Boolean(before.retained||after.retained),
+    sources:[...new Map([...before.sources,...after.sources].map(source=>[JSON.stringify(source),source])).values()]};
+}
+
 export function mergeDossierPage(previous,page) {
   if(!previous)return page;
   const items=new Map(previous.items.map(item=>[item.id,item]));for(const item of page.items)items.set(item.id,item);
-  const sources=new Map([...previous.coverage.sources,...page.coverage.sources].map(source=>[JSON.stringify(source),source]));
   const unavailable=previous.coverage.status==='unavailable'||page.coverage.status==='unavailable';
-  const status=unavailable?(items.size?'partial':'unavailable'):previous.coverage.status==='partial'||page.coverage.status==='partial'?'partial':'complete';
+  const coverage=mergeCoverage(previous.coverage,page.coverage,unavailable?(items.size?'partial':'unavailable'):null);
   const participants=new Map(previous.participants.map(person=>[person.id,person]));
   for(const person of page.participants){const old=participants.get(person.id);participants.set(person.id,{...person,roles:[...new Map([...(old?.roles||[]),...person.roles].map(role=>[role.id,role])).values()],speeches:[...new Map([...(old?.speeches||[]),...(person.speeches||[])].map(speech=>[speech.id,speech])).values()]});}
   const before=previous.participantCoverage,after=page.participantCoverage;
-  const participantCoverage=before&&after?{...after,status:before.status==='complete'&&after.status==='complete'?'complete':before.status==='unavailable'&&after.status==='unavailable'?'unavailable':'partial',retryable:Boolean(before.retryable||after.retryable),failedDebates:[...new Set([...(before.failedDebates||[]),...(after.failedDebates||[])])],retained:Boolean(before.retained||after.retained),gaps:[...new Set([...before.gaps,...after.gaps])],sources:[...new Map([...before.sources,...after.sources].map(source=>[JSON.stringify(source),source])).values()]}:after||before;
-  return {...page,items:[...items.values()],participants:[...participants.values()],participantCoverage,coverage:{...page.coverage,status,gaps:[...new Set([...previous.coverage.gaps,...page.coverage.gaps])],sources:[...sources.values()]}};
+  const participantCoverage=before&&after?mergeCoverage(before,after,before.status==='unavailable'||after.status==='unavailable'?before.status==='unavailable'&&after.status==='unavailable'?'unavailable':'partial':null):after||before;
+  return {...page,items:[...items.values()],participants:[...participants.values()],participantCoverage,coverage};
 }
 
 export function retainDossierContributors(previous,page) {

@@ -70,9 +70,9 @@ test('document-only role evidence stays separate from a recorded role date',asyn
 });
 test('saved speeches need exact debate children, preserve gaps and survive transcript absence',async t=>{
   const x=setup(t);const r=await x.service.query(x.q('speeches'));
-  assert.equal(r.items[0].id,SPEECH);assert.equal(r.items[0].jointDebate,true);assert.equal(r.items[0].stage,'RDG1');assert.equal(r.coverage.status,'partial');assert(!('xml' in r.items[0]));
+  assert.equal(r.items[0].id,SPEECH);assert.equal(r.items[0].jointDebate,true);assert.equal(r.items[0].stage,'RDG1');assert.equal(r.coverage.status,'complete');assert(!('xml' in r.items[0]));
   x.records.get('/events/'+DEBATE).payload.data[0].consists_of=[];
-  const empty=await x.service.query(x.q('speeches'));assert.equal(empty.items.length,0);assert.equal(empty.coverage.retryable,false);assert.equal(empty.coverage.status,'partial');
+  const empty=await x.service.query(x.q('speeches'));assert.equal(empty.items.length,0);assert.equal(empty.coverage.retryable,false);assert.equal(empty.coverage.status,'complete');
   x.records.delete('/events/'+DEBATE);const failed=await x.service.query(x.q('speeches'));assert.equal(failed.coverage.status,'unavailable');
   assert.equal((await x.service.query(x.q('roles'))).items.length,1,'a speech failure cannot blank roles');
 });
@@ -125,7 +125,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,5);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,6);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
@@ -158,12 +158,12 @@ test('no-role RSP discovers exact saved contributors independently of roles, sum
   x.store.db.exec('PRAGMA query_only=ON');
   const full=await x.service.query(query('roles'));
   assert.equal(full.coverage.status,'unavailable');assert.equal(full.coverage.observedCount,null);assert.equal(full.items.length,0);
-  assert.equal(full.participantCoverage.status,'partial');assert.equal(full.participants.length,1);
+  assert.equal(full.participantCoverage.status,'complete');assert.equal(full.participants.length,1);
   assert.equal(full.participants[0].id,rsp.personId);assert.equal(full.participants[0].name,'Gabriele Bischoff');assert.deepEqual(full.participants[0].roles,[]);
   assert.deepEqual(full.participants[0].speeches,[{id:speech.id,debateId:debate,date:speech.date,source:speech.source}]);
   assert(!x.calls.some(endpoint=>endpoint.includes('OJ-ITM')||endpoint.startsWith('/persons/')||endpoint.startsWith('/speeches/')));
   const person=await x.service.query(query('speeches',rsp.personId));assert.equal(person.items[0].id,speech.id);assert(!person.coverage.gaps.some(gap=>gap.includes('role')));
-  for(const section of ['amendments','votes']){const result=await x.service.query(query(section,rsp.personId));assert.deepEqual(result.items,[]);assert.equal(result.coverage.observedCount,null);assert.equal(result.coverage.status,'partial');assert(!result.coverage.gaps.some(gap=>gap.includes('role')));}
+  for(const section of ['amendments','votes']){const result=await x.service.query(query(section,rsp.personId));assert.deepEqual(result.items,[]);assert.equal(result.coverage.observedCount,null);assert.equal(result.coverage.status,'unavailable');assert(!result.coverage.gaps.some(gap=>gap.includes('role')));}
   const hash=full.snapshotId;
   x.store.db.exec('PRAGMA query_only=OFF');x.store.db.prepare('DELETE FROM items WHERE source_id=?').run(speech.id);
   const empty=await x.service.query(query('roles'));assert.equal(empty.participants.length,0);assert.notEqual(empty.snapshotId,hash);
@@ -182,4 +182,60 @@ test('contributor discovery is bounded and retains separate pages, exact people 
   const next=await x.service.query(x.q('roles',null,'target-offset=2'));assert.equal(next.participantCoverage.status,'unavailable');assert.equal(next.participantCoverage.retryable,true);assert.deepEqual(next.participantCoverage.failedDebates,[third]);assert.equal(next.pagination.next,null);
   raw.inverse_consists_of=[uri(otherDebate)];x.store.putSource(x.generation,'/speeches/'+SPEECH,'speech',raw,now,speechRows(raw,now));
   const conflict=await x.service.query(x.q('roles',null));assert.deepEqual(conflict.participants,[]);assert.match(conflict.participantCoverage.gaps.join(' '),/conflicting debate links/);
+});
+
+test('speech coverage completes its declared linked scope without requiring hypothetical contributions',async t=>{
+  const x=setup(t),response=await x.service.query(x.q('speeches'));
+  assert.equal(response.coverage.status,'complete');assert.deepEqual(response.coverage.gaps,[]);
+  assert.deepEqual(response.coverage.missingSpeechIds,[]);assert.equal(response.items.length,1);
+  const other=await x.service.query(x.q('speeches',OTHER));
+  assert.equal(other.coverage.status,'complete');assert.equal(other.coverage.observedCount,0);
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of=[];
+  const empty=await x.service.query(x.q('speeches'));
+  assert.equal(empty.coverage.status,'complete');assert.equal(empty.coverage.observedCount,0);assert.deepEqual(empty.coverage.gaps,[]);
+  x.work.consists_of=[];
+  const noDebates=await x.service.query(x.q('speeches'));
+  assert.equal(noDebates.coverage.status,'complete');assert.equal(noDebates.coverage.observedCount,0);
+});
+
+test('a concrete declared speech absent from retained sources keeps coverage partial',async t=>{
+  const x=setup(t),missing='MTG-PL-2026-09-15-OTH-9999999999999';
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(missing));
+  const response=await x.service.query(x.q('speeches'));
+  assert.equal(response.coverage.status,'partial');assert.deepEqual(response.coverage.missingSpeechIds,[missing]);
+  assert.equal(response.items.length,1);assert.match(response.coverage.gaps.join(' '),/linked contribution.*not saved/i);
+  assert(!response.coverage.gaps.some(gap=>gap.includes('Showing saved contributions')));
+});
+
+test('retained source freshness does not invent a coverage gap',async t=>{
+  const x=setup(t);
+  for(const endpoint of ['/procedures/'+PID,'/events/'+DEBATE])Object.assign(x.records.get(endpoint),{stale:true,refreshInProgress:true,refreshError:'Source refresh delayed'});
+  const response=await x.service.query(x.q('speeches'));
+  assert.equal(response.coverage.status,'complete');assert.deepEqual(response.coverage.gaps,[]);
+  assert(response.coverage.sources.every(item=>item.stale&&item.refreshInProgress&&item.refreshError));
+  assert.deepEqual(response.coverage.failedDebates,[]);assert.equal(response.coverage.retryable,false);
+});
+
+test('unknown relationship lists and absent targets are unavailable rather than phantom partial data',async t=>{
+  const x=setup(t);delete x.work.consists_of;
+  const unknown=await x.service.query(x.q('speeches'));
+  assert.equal(unknown.coverage.status,'unavailable');assert.equal(unknown.coverage.observedCount,null);
+  x.work.consists_of=[];
+  for(const section of ['amendments','votes']){
+    const response=await x.service.query(x.q(section));
+    assert.equal(response.coverage.status,'unavailable');assert.equal(response.coverage.observedCount,null);
+  }
+});
+
+test('known unscanned linked debates remain partial until their own page is checked',async t=>{
+  const x=setup(t);
+  for(const [id,day] of [['MTG-PL-2026-09-16-PVCRE-ITM-15','2026-09-16'],['MTG-PL-2026-09-17-PVCRE-ITM-16','2026-09-17']]){
+    x.work.consists_of.push({id:uri(id),activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE'});
+    x.records.set('/events/'+id,record('/events/'+id,{id:uri(id),activity_date:day,consists_of:[]}));
+  }
+  const first=await x.service.query(x.q('speeches'));
+  assert.equal(first.coverage.status,'partial');assert.deepEqual(first.pagination.next,{offset:0,targetOffset:2});
+  assert.deepEqual(first.coverage.uncheckedTargets,['MTG-PL-2026-09-17-PVCRE-ITM-16']);
+  const last=await x.service.query(x.q('speeches',MEMBER,'target-offset=2'));
+  assert.equal(last.coverage.status,'partial');assert.deepEqual(last.coverage.checkedTargets,['MTG-PL-2026-09-17-PVCRE-ITM-16']);assert.equal(last.coverage.observedCount,0);assert.equal(last.pagination.next,null);
 });

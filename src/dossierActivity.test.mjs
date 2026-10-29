@@ -14,7 +14,25 @@ const speech={kind:'speech',id:'MTG-PL-2026-09-15-OTH-1',date:'2026-09-15',start
 const amendment={kind:'amendment',id:'A-10-2026-0010-AM-3@list',date:'2026-09-08',dateBasis:'tabling',stage:'RDG1',source,tabling:{status:'recorded',date:'2026-09-08',observations:[{id:'tabling-event',date:'2026-09-08',stage:'RDG1',source}]},amendment:{id:'A-10-2026-0010-AM-3',number:3,listId:'A-10-2026-0010-AM-001-003',targetDocumentId:'A-10-2026-0010',documentDate:'2026-09-09',dateBasis:'individual-amendment-document',outcome:'ADOPTED',textIntegrity:'complete',listRelationship:'current',authors:[{personId:'257727',name:'Named member'},{personId:'2',name:'Exact coauthor'}],onBehalfOf:['ENVI','SEDE'],decisions:[{id:'MTG-PL-2026-09-16-DEC-196161',outcome:'ADOPTED'}],sources:[source]}};
 function ballot(id,position='for',outcome='ADOPTED') {return {kind:'vote',id,date:'2026-09-16',stage:null,source,vote:{id,uri:'https://data.europarl.europa.eu/'+id,sittingId:'MTG-PL-2026-09-16',date:'2026-09-16',title:'Official decision title',titles:{en:'Official decision title'},titleLanguage:'en',referenceTexts:{en:'Provisional agreement'},scope:{kind:'amendment'},actualPosition:{status:'recorded',position},outcome,method:'VOTE_ELECTRONIC_ROLLCALL',ballotStatus:'conducted',totals:{for:1,against:2,abstaining:3},context:{amendmentIds:[],componentIds:[]},parts:[],intention:{status:'not-reported',positions:[]}}};}
 const agreement=ballot('MTG-PL-2026-09-16-DEC-196161'),rejection=ballot('MTG-PL-2026-09-16-DEC-196519','against','REJECTED');
-function page(section,member='257727',items,extra={}) {return {version:5,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
+
+test('loading the known target batches clears only their pending coverage',()=>{
+  const batch=(checked,unchecked,{gaps=[],status=unchecked.length?'partial':'complete',checkedComplete=status==='complete'||Boolean(unchecked.length)}={})=>({items:[],participants:[],coverage:{status,checkedComplete,checkedTargets:checked,uncheckedTargets:unchecked,gaps,sources:[]},participantCoverage:{status,checkedComplete,checkedTargets:checked,uncheckedTargets:unchecked,gaps,sources:[]}});
+  const first=batch(['debate-one'],['debate-two']),last=batch(['debate-two'],['debate-one']);
+  const complete=mergeDossierPage(first,last);
+  for(const scope of [complete.coverage,complete.participantCoverage]){
+    assert.equal(scope.status,'complete');assert.deepEqual(scope.uncheckedTargets,[]);assert.deepEqual(scope.gaps,[]);
+    assert.deepEqual(scope.checkedTargets,['debate-one','debate-two']);
+  }
+  const failed=mergeDossierPage(batch(['debate-one'],['debate-two'],{gaps:['A linked debate is unavailable.']}),last);
+  assert.equal(failed.coverage.status,'partial');assert.equal(failed.participantCoverage.status,'partial');
+  assert.deepEqual(failed.coverage.gaps,['A linked debate is unavailable.']);
+  const unknown=mergeDossierPage(batch([],[],{status:'partial'}),last);
+  assert.equal(unknown.coverage.status,'partial','a real partial source without a target checklist must not be cleared');
+  const incomplete=mergeDossierPage(batch(['debate-one'],['debate-two'],{checkedComplete:false}),last);
+  assert.equal(incomplete.coverage.status,'partial','loading remaining pages cannot repair an incomplete checked source');
+});
+
+function page(section,member='257727',items,extra={}) {return {version:6,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
 
 async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727',handler) {
   const window=new Window({url:'http://localhost/'+query});
