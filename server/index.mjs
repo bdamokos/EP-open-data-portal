@@ -31,6 +31,7 @@ import {commissionFollowups,commissionFollowupsQuery} from './commission-followu
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
+import {startPlenaryWarmup} from './plenary-warmup.mjs';
 import { amendmentQuery } from './amendments.mjs';
 import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
@@ -49,7 +50,7 @@ import {LegalReferences,referencesQuery} from './legal-references.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 import {PressMentions,pressMentionsQuery} from './press-releases.mjs';
 const interventions=new SpeechInterventions();
-let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let insightService,pressMentions;
+let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let stopPlenaryWarmup=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
@@ -394,6 +395,7 @@ function shutDown(signal) {
   stopIndex();
   stopCorpus();
   stopBodyWarmup();
+  stopPlenaryWarmup();
   stopMonitoring();
   console.log(`[parliament-explorer] received ${signal}; shutting down`);
   const forceTimer = setTimeout(() => {
@@ -422,6 +424,10 @@ if (isEntryPoint) {
     stopIndex = startActivityIndex();
     stopCorpus = startCorpus();
     stopBodyWarmup = startCorporateBodyWarmup();
+    stopPlenaryWarmup = startPlenaryWarmup(async()=>{
+      insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
+      await insightService.warmPlenary();
+    });
   });
   startServer();
 }

@@ -15,6 +15,10 @@ import {savedQuery,savedStates} from './insights-saved.mjs';
 import {participationQuery,participation} from './insights-participation.mjs';
 import {historyCacheKey} from './history-readiness.mjs';
 import {ParliamentSearch,parliamentSearchQuery} from './parliament-search.mjs';
+import {odp} from './odp.mjs';
+import {MeetingsReader} from './meetings-reader.mjs';
+import {recentPlenaryWeeks} from './plenary-warmup.mjs';
+import {requestSignal,waitForRequest} from './request-budget.mjs';
 
 // Root integration supplies its already-owned store; this module never starts a worker.
 export function createInsights(store,options={}) {
@@ -38,7 +42,28 @@ export function createInsights(store,options={}) {
   const procedureProgress=new ProcedureProgress(officialSources);
   const views=new InsightViewCache({clock,...options.viewCache});
   const search=new ParliamentSearch(store,{clock});
-  return {async query(view,searchParams) {
+  const viewKey=(view,query)=>{
+    const version=view==='legislation'?INSIGHTS_VERSION+':'+LEGISLATION_VIEW_VERSION:INSIGHTS_VERSION;
+    const generation=store.status().servingGeneration;
+    return [version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query];
+  };
+  let warmReader;
+  return {async warmPlenary() {
+    const status=store.status();
+    if(!status.currentMeps||!status.servingGeneration)return;
+    if(!warmReader){
+      const request=(endpoint,params,settings)=> (options.request||odp)(endpoint,params,{...settings,priority:'background',signal:requestSignal()});
+      warmReader=new LegislationInsights(store,{...shared,request,meetings:new MeetingsReader({request,clock})});
+    }
+    const catalogue=await warmReader.catalogue(),weeks=recentPlenaryWeeks(catalogue,clock());
+    // The UI defaults to English/latest. Raw source records contain all languages.
+    for(const week of weeks.length?['latest',...weeks]:[]) {
+      const query=insightQuery(new URLSearchParams({week,lang:'en'}),{kind:'legislation',now:clock()}),key=viewKey('legislation',query);
+      await views.get(key,()=>warmReader.query(query,catalogue));
+      // Stale views return immediately to readers; warming waits for their refresh.
+      const pending=views.pending.get(views.key(key));if(pending)await waitForRequest(pending);
+    }
+  },async query(view,searchParams) {
     if(view==='search')return search.query(parliamentSearchQuery(searchParams));
     if(view==='dossier-activity')return dossierActivity.query(dossierActivityQuery(searchParams));
     if(view==='dossier-references')return dossierActivity.references(dossierReferencesQuery(searchParams));
@@ -51,8 +76,6 @@ export function createInsights(store,options={}) {
     if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration;return views.get([INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
-    const version=view==='legislation'?INSIGHTS_VERSION+':'+LEGISLATION_VIEW_VERSION:INSIGHTS_VERSION;
-    const generation=store.status().servingGeneration;
-    return views.get([version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query],()=>view==='questions'?questions.query(query):legislation.query(query));
+    return views.get(viewKey(view,query),()=>view==='questions'?questions.query(query):legislation.query(query));
   }};
 }

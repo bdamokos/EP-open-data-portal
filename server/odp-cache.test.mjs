@@ -127,3 +127,42 @@ test('accepted network records remain readable from disk after JSON number norma
     assert.equal(calls,1);
   `);
 });
+
+test('agenda sources survive restart, retain provenance on failed refresh and recover',async t=>{
+  await fixture(t,`
+    const endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities';
+    allowed=true;
+    const expected=await odp(endpoint,{limit:50,offset:0});
+    const file=path.join(directory,'plenary-agendas-v1',createHash('sha256').update(expected.url).digest('hex')+'.json');
+    assert.equal(JSON.parse(await (await import('node:fs/promises')).readFile(file,'utf8')).fetchedAt,expected.fetchedAt);
+    const cold=await import(${JSON.stringify(moduleUrl+'?agenda-cold')});
+    allowed=false;
+    assert.deepEqual(await cold.odp(endpoint,{limit:50,offset:0}),expected);assert.equal(calls,1);
+    await assert.rejects(cold.odp(endpoint,{limit:50,offset:0},{force:true}),/Synthetic upstream disabled/);
+    assert.deepEqual((await cold.odp(endpoint,{limit:50,offset:0},{cachedOnly:true})).payload,expected.payload);
+    assert.equal((await cold.odp(endpoint,{limit:50,offset:0},{cachedOnly:true})).fetchedAt,expected.fetchedAt);
+    allowed=true;networkPayload={data:[{identifier:'recovered'}]};
+    assert.equal((await cold.odp(endpoint,{limit:50,offset:0},{force:true})).payload.data[0].identifier,'recovered');
+  `);
+});
+
+test('agenda disk budget evicts older files without touching general sources and reads former locations',async t=>{
+  await fixture(t,`
+    const {mkdir,readdir,utimes}=await import('node:fs/promises');
+    const agendaDir=path.join(directory,'plenary-agendas-v1');await mkdir(agendaDir);
+    const oldTime=new Date(Date.now()-86400_000);
+    for(let i=0;i<5;i++){
+      const file=path.join(agendaDir,createHash('sha256').update('old-'+i).digest('hex')+'.json');
+      await writeFile(file,'{}');await truncate(file,8*1024*1024);await utimes(file,oldTime,oldTime);
+    }
+    const general=await save('/unrelated-source');
+    const legacy=await save('/meetings/MTG-PL-2026-09-16/foreseen-activities');
+    assert.deepEqual(await odp('/meetings/MTG-PL-2026-09-16/foreseen-activities'),legacy);
+    allowed=true;await odp('/meetings/MTG-PL-2026-10-07/foreseen-activities');
+    const sizes=await Promise.all((await readdir(agendaDir)).map(async name=>(await stat(path.join(agendaDir,name))).size));
+    assert(sizes.reduce((a,b)=>a+b,0)<=32*1024*1024);
+    assert.deepEqual(await odp('/unrelated-source'),general);
+    const cold=await import(${JSON.stringify(moduleUrl+'?agenda-legacy')});allowed=false;
+    assert.deepEqual(await cold.odp('/meetings/MTG-PL-2026-09-16/foreseen-activities'),legacy);
+  `);
+});
