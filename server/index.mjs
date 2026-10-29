@@ -22,7 +22,7 @@ import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
 import {motionAmendmentsQuery,motionAmendmentsPage} from './motion-amendments.mjs';
 import {votePeriods} from './vote-periods.mjs';
-import {memberVotes,memberVotesQuery} from './member-votes.mjs';
+import {memberVotes,memberVotesQuery,MEMBER_VOTES_PERIOD_RESPONSE_BYTES} from './member-votes.mjs';
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
@@ -328,7 +328,7 @@ async function handleApi(request,response,url,apiPrefix){
     else if (segments.length === 2 && segments[0] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await odpSpeech(segments[1], language);
     else throw new HttpError(404, "not_found", "Unknown explorer endpoint.");
     const policy=apiCachePolicy(request, url, result);
-    sendJson(request, response, 200, result, {...policy,...(!currentVersion?{cdnCacheControl:'no-store'}:{})});
+    sendJson(request, response, 200, result, {...policy,...(segments[0]==='member-votes'&&result?.pagination?.mode==='period'?{responseLimitBytes:MEMBER_VOTES_PERIOD_RESPONSE_BYTES}:{}),...(!currentVersion?{cdnCacheControl:'no-store'}:{})});
     return;
 }
 export async function handleRequest(request, response) {
