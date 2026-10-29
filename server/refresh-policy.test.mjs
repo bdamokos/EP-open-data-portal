@@ -186,6 +186,24 @@ test('mutable admission and reservation clocks roll back together when a batch f
   assert.equal(JSON.stringify(store.db.prepare('SELECT * FROM mutable_documents ORDER BY key').all()),before);
 });
 
+test('later mutable deadlines do not extend a long-running generation cohort',async t=>{
+  const {store,generation,worker,clock,advance}=setup(t),old='/parliamentary-questions/E-10-2026-000001',later='/parliamentary-questions/E-10-2026-000002';
+  for(const key of [old,later])store.putSource(generation,key,'document',projectDocument(document({id:'eli/dl/doc/'+key.split('/').at(-1),identifier:key.split('/').at(-1)})),new Date(clock()-(key===old?8:6)*DAY).toISOString());
+  store.setMembers([{id:'42',name:'Member'}]);store.publish(generation);worker.recoveryMode='backfill';worker.budget=1;
+  worker.fetchRecord=async endpoint=>{
+    assert.equal(endpoint,old,'a later deadline belongs to the next generation');
+    return {fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/'+endpoint.split('/').at(-1),identifier:endpoint.split('/').at(-1),creator:['person/42']})]}};
+  };
+  const task=worker.task.bind(worker);worker.task=async job=>job.key.startsWith('/parliamentary-questions/')?task(job):store.finishTask(job);
+  store.release();await worker.runIteration();const working=store.get('working').generation,start=Date.parse(store.get('working').startedAt);
+  advance(2*DAY);store.release();
+  const report=auditMutableAdmission(store.db,working,clock());assert.equal(report.cutoffAt,start);assert.equal(report.eligibleDue,0);
+  assert.equal(mutableRecoveryDue(store,working,clock()),false);
+  await worker.runIteration();assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(working,later),undefined);
+  assert.equal(mutableRecoveryDue(store,working,clock()),true,'the next generation can recover the now-overdue deadline');
+});
+
 test('mutable policy counts distinct observed official file languages and answer languages',()=>{
   const unanswered=projectDocument(document());
   assert.equal(documentRefreshState(unanswered).mutable,true);

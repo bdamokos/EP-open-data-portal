@@ -19,7 +19,17 @@ export function* mutableDocumentCandidates(db,generation,now) {
   }
 }
 
+// A long catch-up must not chase newly due weekly checks forever. Subsequent
+// deadlines can start the next ordinary generation after this cohort publishes.
+export function mutableBackfillCutoff(cycle,generation,now) {
+  if(cycle?.generation!==generation)return now;
+  const started=Date.parse(cycle.startedAt);
+  if(!Number.isFinite(started))throw new Error('Mutable backfill requires a valid working-generation start.');
+  return Math.min(now,started);
+}
+
 export function mutableRecoveryDue(store,generation,now=store.clock()) {
-  for(const row of mutableDocumentCandidates(store.db,generation,now))return true;
+  const cutoff=mutableBackfillCutoff(store.get('working'),generation,now);
+  for(const row of mutableDocumentCandidates(store.db,generation,cutoff))return true;
   return false;
 }

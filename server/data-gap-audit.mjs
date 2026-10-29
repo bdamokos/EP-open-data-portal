@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {adoptedTextProjectionVersion,spId,validateTA,validateReply} from './commission-followups-model.mjs';
-import {mutableDocumentCandidates} from './mutable-document-recovery.mjs';
+import {mutableDocumentCandidates,mutableBackfillCutoff} from './mutable-document-recovery.mjs';
 
 export function failureClass(message='') {
   const status=String(message).match(/(?:returned|HTTP|unavailable\s*\()\s*(404|410|429|5\d\d)/i)?.[1];
@@ -108,8 +108,9 @@ export function auditMutableDocuments(db,generation,now) {
 
 export function auditMutableAdmission(db,generation,now) {
   if(['mutable_documents','sources','tasks','amendment_jobs','refresh_gaps'].some(table=>!has(db,table)))return {state:'unavailable',reason:'required tables absent'};
-  const candidates=[...mutableDocumentCandidates(db,generation,now)].map(row=>({...row}));
-  return {state:'observed',eligibleDue:candidates.length,candidates,
+  const cutoffAt=mutableBackfillCutoff(meta(db,'working'),generation,now);
+  const candidates=[...mutableDocumentCandidates(db,generation,cutoffAt)].map(row=>({...row}));
+  return {state:'observed',policy:'backfill cohort',cutoffAt,eligibleDue:candidates.length,candidates,
     eligibleKeyDigest:createHash('sha256').update(JSON.stringify(candidates.map(row=>row.key).sort())).digest('hex'),
     oldestEligibleDueAt:candidates[0]?.nextCheck??null,
     note:'Admission candidates exclude existing task, gap and continuation owners. Leaving this set does not prove a successful refresh.'};
