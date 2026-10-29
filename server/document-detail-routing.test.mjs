@@ -228,6 +228,62 @@ test('a restarted worker resumes the incomplete same-generation cursor and reach
   assert.deepEqual(reads,['amendment:list:'+next,'/documents/'+next]);assert.equal(store.get('amendmentDocumentRouteRepair').complete,true);
 });
 
+for(const mode of ['busy','future','publish'])test('one worker iteration reaches later retained repairs '+mode,async t=>{
+  const busy=mode==='busy',blocked=mode!=='publish';
+  const {store,worker,generation:serving}=setup(t);
+  store.setMembers([{id:'101',name:'Member'}]);store.publish(serving);
+  const {generation}=store.beginCycle(),keys=[];
+  for(let n=1;n<=82;n++) {
+    const next=target+'-AM-'+String(n).padStart(3,'0')+'-'+String(n).padStart(3,'0');
+    keys.push('/plenary-documents/'+next);gap(store,generation,keys.at(-1));
+    if(n<80)continue;
+    const work=retained({id:'eli/dl/doc/'+next,identifier:next});work.relationshipEvidence.listReference='eli/dl/doc/'+next;
+    store.putSource(generation,'amendment:list:'+next,'amendment-list',work,older);
+  }
+  // A newer observation still cannot take over another route's future retry.
+  const held='/documents/'+keys[80].split('/').at(-1);
+  if(blocked)store.enqueue(generation,held,'document',{endpoint:held,offset:150},130);
+  store.db.prepare('UPDATE tasks SET retry_at=?,attempts=3,error=? WHERE generation=? AND key=?').run(now+3600000,'saved retry',generation,held);
+  const owner=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,held);
+  const gaps=store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? ORDER BY key').all(generation);
+  if(busy)for(let n=0;n<10;n++)store.enqueue(generation,'busy:'+n,'document',{endpoint:'/busy/'+n},120);
+  const dispatches=[];
+  worker.budget=3;
+  worker.task=async task=>{
+    if(task.key.startsWith('busy:')){worker.requests++;dispatches.push(store.get('amendmentDocumentRouteRepair'));}
+    store.finishTask(task);
+  };
+  store.release();await worker.runIteration();
+  assert.equal(store.get('amendmentDocumentRouteRepair').complete,true);
+  assert.equal(store.get('amendmentDocumentRouteRepair').resolved,blocked?2:3);
+  for(const index of [79,81]) {
+    const saved=store.source(generation,'/documents/'+keys[index].split('/').at(-1));
+    assert.equal(saved.fetchedAt,observedAt);assert.equal(saved.work.metadataObservation.basis,'expanded-target');
+    assert.equal(store.source(serving,'/documents/'+keys[index].split('/').at(-1)),undefined,'serving sources remain frozen');
+  }
+  assert.equal(store.get('active'),blocked?serving:generation);
+  if(blocked)assert.equal(store.source(generation,held),undefined);
+  assert.deepEqual(store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,held),owner);
+  assert.deepEqual(store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? ORDER BY key').all(generation),gaps.filter(row=>!(blocked?[keys[79],keys[81]]:keys.slice(79)).includes(row.key)));
+  assert.equal(worker.requests,busy?3:0,'local recovery consumes no request budget');
+  if(busy)assert.equal(dispatches[2].complete,true,'later repair finishes before the third ordinary dispatch');
+});
+
+test('an incomplete route scan stays due while every queued source owner waits in the future',async t=>{
+  const {store,worker,generation}=setup(t);
+  for(let n=1;n<=82;n++)gap(store,generation,'/plenary-documents/'+target+'-AM-'+String(n).padStart(3,'0')+'-'+String(n).padStart(3,'0'));
+  store.enqueue(generation,'busy','document',{endpoint:'/busy'},120);worker.budget=1;
+  worker.task=async task=>{if(task.key==='busy')worker.requests++;store.finishTask(task);};
+  store.release();await worker.runIteration();
+  const state=store.get('amendmentDocumentRouteRepair');assert.equal(state.complete,false);
+  assert(store.acquire());
+  for(const table of ['tasks','amendment_jobs','group_voice_jobs'])store.db.prepare(`UPDATE ${table} SET retry_at=? WHERE generation=? AND done<>1`).run(now+3600000,generation);
+  store.set('amendmentDocumentRouteRepair',{...state,complete:true});
+  assert.equal(worker.due(),false,'control excludes other work triggers');
+  store.set('amendmentDocumentRouteRepair',state);
+  assert.equal(worker.due(),true,'local scan does not wait for a source retry');
+});
+
 test('fresh nested metadata and dedicated list details cannot supply internal retained provenance',async t=>{
   const {store,worker,generation}=setup(t),forged={url:'https://example.org/foreign',fetchedAt:'2099-01-01T00:00:00Z'};
   const raw={id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/REPORT_PLENARY',parliamentary_term:'org/ep-10',document_date:'2025-07-01',metadataObservation:forged,inverse_foresees_change_of:[list({metadataObservation:forged})]};
