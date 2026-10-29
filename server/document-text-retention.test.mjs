@@ -34,6 +34,8 @@ test('an unchanged failed edition keeps its cooldown while a changed edition can
   const options={directory,clock:()=>now,download:async()=>{if(++downloads===1)throw Error('Edition unavailable');return {paragraphs:['Republished text'],formattingVersion:DOCX_FORMATTING_VERSION};}};
   const first=await documentText(item,'en',options),unchanged=await documentText(structuredClone(item),'en',options);
   assert.equal(first.status,'error');assert.equal(unchanged.nextRetryAt,first.nextRetryAt);assert.equal(downloads,1);
+  const unknown=await documentText(work(url,{byteSize:null,issued:null}),'en',options);
+  assert.equal(unknown.nextRetryAt,first.nextRetryAt);assert.equal(downloads,1,'omitting version metadata does not establish a changed edition');
   const recovered=await documentText(work(url,{byteSize:1001}),'en',options);
   assert.equal(recovered.status,'available');assert.deepEqual(recovered.paragraphs,['Republished text']);assert.equal(downloads,2);
   assert.deepEqual(recovered.sourceVersion,{byteSize:1001,issued:'2026-01-10T10:00:00+01:00'});

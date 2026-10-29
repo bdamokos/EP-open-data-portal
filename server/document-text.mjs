@@ -398,7 +398,8 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   // The URL can be reused for a republished edition. Its predecessor's failed
   // download must not suppress a newly declared issue time or size.
   const previousFailure=failures.get(key);
-  const failure=previousFailure&&JSON.stringify(previousFailure.source)===JSON.stringify(descriptor)?previousFailure:null;
+  const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
+  const failure=changedEdition?null:previousFailure;
   const present=record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
