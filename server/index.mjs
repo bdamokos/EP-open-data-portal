@@ -188,7 +188,7 @@ async function handleApi(request,response,url,apiPrefix){
       result=await decisionVotes(decisionVotesQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if(segments[0]==='commission-followups'&&segments.length===2) {
-      result=await commissionFollowups.query(commissionFollowupsQuery(segments[1],url.searchParams));
+      result=await commissionFollowups.query(commissionFollowupsQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if (segments[0] === 'member-vote-explanations' && segments.length===2) {
       result=await memberVoteExplanations.query(positiveId(segments[1]),memberVoteExplanationsQuery(url.searchParams));

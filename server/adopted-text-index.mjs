@@ -1,8 +1,10 @@
+import {createHash} from 'node:crypto';
+import {spId,validateTA,validateReply,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
 import {array,tail} from './activity-index-model.mjs';
 
 // Internal queue-admission revision, not a public response schema version.
 const discoveryRevision=1;
-export const adoptedTextProjectionVersion=1;
+export {adoptedTextProjectionVersion} from './commission-followups-model.mjs';
 const markerKey='adoptedTextDiscovery';
 const yearOf=now=>new Date(now).getUTCFullYear();
 const currentMarker=marker=>marker?.version===discoveryRevision&&Number.isInteger(marker.throughYear)&&marker.throughYear>=2024;
@@ -83,4 +85,81 @@ export function scheduleAdoptedTextRepairs(worker,cycle) {
     for(const key of keys)store.enqueue(cycle.generation,key,'document',{endpoint:key},101,true);
     return keys.length;
   });
+}
+
+// A bounded cursor keeps every declared relationship owned by the parent detail
+// task until its child admissions are durable. No requests run during admission.
+export function scheduleAdoptedFollowups(worker,task,work) {
+  const {store}=worker,generation=task.generation,relationships=work.followupRelationships;store.assertWriter();
+  if(!Array.isArray(relationships))return null;
+  const hash=createHash('sha256').update(JSON.stringify(relationships)).digest('hex');
+  const offset=task.body.followupHash===hash&&Number.isSafeInteger(task.body.followupOffset)&&task.body.followupOffset>=0?task.body.followupOffset:0;
+  const end=Math.min(relationships.length,offset+100),reserved=adoptedTextDeferredKeys(store,generation),now=worker.clock();
+  for(const value of relationships.slice(offset,end)) {
+    const id=spId(value);if(!id)continue;
+    const key='/external-documents/'+id;
+    if(adoptedTextOwnedElsewhere(store,generation,key,reserved))continue;
+    if(store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))continue;
+    if(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1)').get(generation,key))continue;
+    const saved=store.source(generation,key);
+    if(saved?.work.followupProjectionVersion===1&&Number.isFinite(Date.parse(saved.fetchedAt))&&now-Date.parse(saved.fetchedAt)<7*86400_000) {
+      try{validateReply({data:[saved.work]},id,work.identifier);continue;}catch{/* A conflicting projection needs normal verification. */}
+    }
+    store.enqueue(generation,key,'document',{endpoint:key,adoptedId:work.identifier},101,true);
+  }
+  return end<relationships.length?{...task.body,stage:'followups',followupHash:hash,followupOffset:end}:null;
+}
+
+
+// A retained relationship remains the discovery source after optional-checkpoint
+// overflow. Reconciliation itself has a persisted, bounded metadata-only cursor.
+const followupRepairKey='followupAdmissionRepair';
+const repairState=(store,generation)=>{
+  const saved=store.get(followupRepairKey);
+  const key=value=>typeof value==='string'&&/^\/adopted-texts\/TA-10-\d{4}-\d{4,6}$/.test(value);
+  const valid=saved?.version===1&&saved.generation===generation&&typeof saved.pending==='boolean'&&typeof saved.dirty==='boolean'&&
+    (saved.afterKey===''||key(saved.afterKey))&&(saved.rootKey===null||key(saved.rootKey))&&Number.isSafeInteger(saved.offset)&&saved.offset>=0&&
+    (saved.rootKey?/^[a-f0-9]{64}$/.test(saved.hash||'')&&saved.rootKey>saved.afterKey:saved.offset===0&&saved.hash===null)&&
+    Number.isSafeInteger(saved.oversizedRoots)&&saved.oversizedRoots>=0&&Array.isArray(saved.oversizedExamples)&&saved.oversizedExamples.length<=3&&saved.oversizedExamples.every(key);
+  return valid?saved:{version:1,generation,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]};
+};
+export function followupAdmissionRepairDue(store,generation,{restart=false}={}) {
+  if(!restart&&!repairState(store,generation).pending)return false;
+  return Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' LIMIT 1").get(generation));
+}
+export function markFollowupAdmissionRepair(store,generation) {
+  store.assertWriter();const state=repairState(store,generation);
+  store.set(followupRepairKey,state.pending?{...state,dirty:state.dirty||Boolean(state.afterKey||state.rootKey)}:{...state,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]});
+}
+export function scheduleFollowupAdmissionRepairs(worker,generation) {
+  const {store}=worker;store.assertWriter();let state=repairState(store,generation);
+  if(!state.pending)return 0;
+  const owned=adoptedTextDeferredKeys(store,generation);
+  for(const table of ['tasks','amendment_jobs','refresh_gaps'])for(const {key} of store.db.prepare(`SELECT key FROM ${table} WHERE generation=?${table==='refresh_gaps'?'':' AND (done IS NULL OR done<>1)'}`).iterate(generation))owned.add(key);
+  const rows=store.db.prepare("SELECT key,length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND key"+(state.rootKey?'>=':'>')+"? ORDER BY key LIMIT 100").iterate(generation,state.rootKey||state.afterKey);
+  let examined=0,bytes=0,admitted=0,roots=0,stopped=false;
+  for(const row of rows) {
+    roots++;
+    if(row.bytes>32*1024*1024){state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null,oversizedRoots:(state.oversizedRoots||0)+1,oversizedExamples:[...(state.oversizedExamples||[]),row.key].slice(0,3)};continue;}
+    if(bytes+row.bytes>32*1024*1024){stopped=true;break;}
+    bytes+=row.bytes;
+    const work=store.source(generation,row.key).work;
+    if(work?.adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(work.followupRelationships)){state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};continue;}
+    try{validateTA({data:[work]},row.key.slice('/adopted-texts/'.length));}catch{state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};continue;}
+    const hash=createHash('sha256').update(JSON.stringify(work.followupRelationships)).digest('hex');
+    let offset=state.rootKey===row.key&&state.hash===hash?state.offset:0;
+    for(;offset<work.followupRelationships.length&&examined<100;offset++,examined++) {
+      const id=spId(work.followupRelationships[offset]);if(!id)continue;
+      const key='/external-documents/'+id;if(owned.has(key))continue;
+      // These projected validation fields keep a large SP body out of the scan.
+      const saved=store.db.prepare("SELECT json_extract(body,'$.followupProjectionVersion') version,json_object('id',json_extract(body,'$.id'),'identifier',json_extract(body,'$.identifier'),'work_type',json_extract(body,'$.work_type'),'answers_to',json_extract(body,'$.answers_to'),'creator',json_extract(body,'$.creator')) identity FROM sources WHERE generation=? AND key=? AND kind='document'").get(generation,key);
+      if(saved?.version===1)try{validateReply({data:[JSON.parse(saved.identity)]},id,work.identifier);continue;}catch{/* A rejected projection still needs an exact task owner. */}
+      store.enqueue(generation,key,'document',{endpoint:key,adoptedId:work.identifier},101,true);owned.add(key);admitted++;
+    }
+    if(offset<work.followupRelationships.length){state={...state,rootKey:row.key,offset,hash};stopped=true;break;}
+    state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};
+    if(examined>=100){stopped=true;break;}
+  }
+  if(!stopped&&roots<100)state={...state,pending:Boolean(state.dirty),afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,...(state.dirty?{oversizedRoots:0,oversizedExamples:[]}:{} )};
+  store.assertWriter();store.set(followupRepairKey,state);return admitted;
 }

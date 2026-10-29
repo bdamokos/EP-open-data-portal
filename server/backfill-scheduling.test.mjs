@@ -91,7 +91,7 @@ for(const mode of ['backfill','normal'])test(mode+' worker preserves its budget 
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE generation=? AND key LIKE ? AND done=0').get(cycle.generation,'/busy/%').n>0,true);
   if(mode==='backfill') {
     assert(calls.includes('/adopted-texts'),JSON.stringify({calls,dispatches,schedule:store.get('backfillSchedule')}));assert(calls.includes(recovery));assert(calls.includes(adopted));
-    assert.equal(store.source(cycle.generation,adopted).work.adoptionProjectionVersion,1);
+    assert.equal(store.source(cycle.generation,adopted).work.adoptionProjectionVersion,2);
     assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery).n,0);
     assert(!dispatches.includes('/busy/000'),'coverage runs before the higher-priority backlog drains');
     worker.budget=1000;await worker.runIteration();

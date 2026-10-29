@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {auditIndex,dataGapAudit,reconcileQuestionFiles,compareGapAudits,failureClass} from './data-gap-audit.mjs';
+import {auditIndex,auditMutableDocuments,dataGapAudit,reconcileQuestionFiles,compareGapAudits,failureClass} from './data-gap-audit.mjs';
 import {auditOptions} from './data-gap-audit-cli.mjs';
 
 test('audit includes serving and working queues, including NULL and outside pending states',()=>{
@@ -37,6 +37,26 @@ test('baseline comparison uses exact missing identities and reports a changed de
   assert.equal(failureClass('EP document pagination repeated a page.'),'source-or-parser');
   assert.equal(failureClass('EP API returned 503'),'transient');
   assert.equal(failureClass('Unknown problem'),'unclassified');
+});
+
+test('mutable backlog audit measures due adopted share and oldest age without writes or invented types',()=>{
+  const db=new DatabaseSync(':memory:');
+  try {
+    assert.equal(auditMutableDocuments(db,1,1000),null);
+    db.exec('CREATE TABLE mutable_documents(generation,key,next_check);');
+    assert.equal(auditMutableDocuments(db,1,1000).dueAdoptedTexts,null,'an absent source table is unknown');
+    db.exec(`CREATE TABLE sources(generation,key,body);
+      INSERT INTO mutable_documents VALUES(1,'ta',200),(1,'ta-object',600),(1,'question',800),(1,'future',1200),(2,'other-generation',0);
+      INSERT INTO sources VALUES(1,'ta','{"work_type":"def/ep-document-types/TEXT_ADOPTED"}'),
+      (1,'ta-object','{"work_type":{"id":"https://data.europarl.europa.eu/def/ep-document-types/TEXT_ADOPTED"}}'),
+      (1,'question','{"work_type":"def/ep-document-types/QUESTION_WRITTEN"}');`);
+    const before=db.prepare('SELECT total_changes() n').get().n,result=auditMutableDocuments(db,1,1000);
+    assert.deepEqual(result,{count:4,due:3,oldestDueAt:200,dueAdoptedTexts:2,dueUnknownTypes:0,dueAdoptedTextShare:2/3,oldestDueAgeMs:800});
+    assert.equal(db.prepare('SELECT total_changes() n').get().n,before);
+    db.exec("INSERT INTO mutable_documents VALUES(1,'missing-source',900)");
+    const unknown=auditMutableDocuments(db,1,1000);assert.equal(unknown.dueAdoptedTexts,2);assert.equal(unknown.dueUnknownTypes,1);assert.equal(unknown.dueAdoptedTextShare,null);
+    const empty=auditMutableDocuments(db,3,1000);assert.equal(empty.due,0);assert.equal(empty.dueAdoptedTextShare,null);assert.equal(empty.oldestDueAgeMs,null);
+  } finally {db.close();}
 });
 
 test('exact-URL audit distinguishes missing ownership, queued work, empty completed extraction and policy exclusions without writes',async()=>{

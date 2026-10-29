@@ -18,7 +18,7 @@ export function nextBackfillTask(store,generation,ordinaryTask) {
   if(state.ordinary>=ordinaryBackfillQuantum) {
     const predicates=[
       "EXISTS(SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
-      "(task.kind='document' AND task.key GLOB '/adopted-texts/TA-10-*' OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
+      "(task.kind='document' AND (task.key GLOB '/adopted-texts/TA-10-*' OR task.key GLOB '/external-documents/SP-*') OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
     ];
     for(const lane of [state.nextLane,1-state.nextLane]) {
       const task=store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_order
@@ -76,7 +76,9 @@ export function documentRefreshState(work) {
   const hasAnswer=answers.some(answer=>answer && typeof answer==='object' && (answer.identifier || answer.id));
   const answered=question?(hasAnswer?true:work.answersObserved===true?false:null):null;
   const answerLanguagesComplete=!question || answered && answers.every(answer=>answer && typeof answer==='object' && documentRefreshState({...answer,work_type:'ANSWER'}).languageCount===24);
-  return {languageCount,answered,mutable:languageCount!==24 || question && (!answered || !answerLanguagesComplete)};
+  // A Commission reply can be declared after all adopted-text languages exist.
+  const adopted=tail(work.work_type)==='TEXT_ADOPTED';
+  return {languageCount,answered,mutable:adopted || languageCount!==24 || question && (!answered || !answerLanguagesComplete)};
 }
 export function updateDocumentRefresh(store,generation,key,work,fetchedAt) {
   if(documentRefreshState(work).mutable)store.db.prepare('INSERT OR REPLACE INTO mutable_documents VALUES (?,?,?)').run(generation,key,(Date.parse(fetchedAt)||0)+7*DAY);
@@ -121,7 +123,7 @@ export function scheduleMutable(worker,generation) {
   const store=worker.store,now=worker.clock();
   let adoptedDeferred;const eligible=[];
   for(const {key} of store.db.prepare('SELECT key FROM mutable_documents mutable WHERE generation=? AND next_check<=? AND NOT EXISTS (SELECT 1 FROM refresh_gaps gap WHERE gap.generation=mutable.generation AND gap.key=mutable.key) ORDER BY next_check,key').iterate(generation,now)) {
-    if(key.startsWith('/adopted-texts/')&&adoptedTextOwnedElsewhere(store,generation,key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
+    if((key.startsWith('/adopted-texts/')||key.startsWith('/external-documents/SP-'))&&adoptedTextOwnedElsewhere(store,generation,key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
     eligible.push(key);if(eligible.length>=MUTABLE_LIMIT)break;
   }
   for(const key of eligible) {
@@ -135,7 +137,7 @@ function dueRecoveryGaps(store,generation,now,limit) {
   if(limit<=0)return [];
   const today=localDay(now),result=[];let adoptedDeferred;
   for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key").iterate(generation,now)) {
-    if(gap.key.startsWith('/adopted-texts/')&&adoptedTextOwnedElsewhere(store,generation,gap.key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
+    if((gap.key.startsWith('/adopted-texts/')||gap.key.startsWith('/external-documents/SP-'))&&adoptedTextOwnedElsewhere(store,generation,gap.key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
     if(gap.kind==='motion-outcomes'&&today<sittingConfirmationDay(gap.sitting_id))continue;
     result.push(gap);if(result.length>=limit)break;
   }

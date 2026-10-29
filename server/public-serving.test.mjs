@@ -55,6 +55,7 @@ test('production runtime staging excludes examples, tests and declarations',asyn
     assert(files.includes('data-gap-audit-cli.mjs'));
     assert(files.includes('activity-generation-task.mjs'));assert(files.includes('activity-generation-worker.mjs'));
     assert(files.includes('document-context-index.mjs'));
+    assert(files.includes('commission-followups-index.mjs'));assert(files.includes('commission-followups-model.mjs'));
     const audit=await execFileAsync(t,process.execPath,[path.join(destination,'data-gap-audit-cli.mjs')],{cwd:directory,env:{...process.env,ACTIVITY_INDEX_DIR:'',CORPUS_DIR:''}});
     const report=JSON.parse(audit.stdout);assert.equal(report.schemaVersion,1);assert.equal(report.index.state,'unavailable');
   }finally{rmSync(directory,{recursive:true,force:true});}

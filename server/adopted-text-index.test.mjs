@@ -99,9 +99,9 @@ test('legacy adoption projections are repaired once; a new upstream omission is 
   worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[old]}});
   await worker.task({generation:cycle.generation,key:endpoint,kind:'document',body:{endpoint}});
   const saved=store.source(cycle.generation,endpoint).work;
-  assert.equal(saved.adoptionProjectionVersion,1);assert.equal(Object.hasOwn(saved,'adopts'),false);
+  assert.equal(saved.adoptionProjectionVersion,2);assert.equal(Object.hasOwn(saved,'adopts'),false);
   assert.equal(adoptedTextRepairDue(store,cycle.generation),false);assert.equal(scheduleAdoptedTextRepairs(worker,cycle),0);
-  assert.equal(projectDocument(saved).adoptionProjectionVersion,1);
+  assert.equal(projectDocument(saved).adoptionProjectionVersion,2);
   worker.finalize(cycle.generation);
   // A later legacy writer can complete compatible jobs but discard new fields.
   const rollback=store.beginCycle();store.putSource(rollback.generation,endpoint,'document',projectDocument(old),stamp);store.publish(rollback.generation);
@@ -121,9 +121,9 @@ test('legacy repair uses bounded batches and publishes them in one new generatio
   const task=worker.task.bind(worker);worker.task=async next=>next.key.startsWith('/adopted-texts/')?task(next):store.finishTask(next);
   store.release();await worker.runIteration();
   assert.equal(store.get('active'),cycle.generation);const working=store.get('working').generation;
-  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=1").get(working).n,100);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=2").get(working).n,100);
   await worker.runIteration();assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
-  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=1").get(working).n,101);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND json_extract(body,'$.adoptionProjectionVersion')=2").get(working).n,101);
 });
 
 for(const owner of ['amendment','deferred'])test('catalogue discovery preserves '+owner+' document retry ownership',async t=>{
