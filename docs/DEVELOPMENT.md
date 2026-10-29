@@ -25,6 +25,8 @@ For full-text search, add `CORPUS_ENABLED=true CORPUS_DIR="$PWD/var/corpus"`. A 
 
 When `ODP_CACHE_DIR` is set, portraits are also cached on disk in its `portraits-v1` subdirectory. Use one cache writer per directory and keep the cache mount when replacing a container.
 
+The serving process prewarms English agenda week lists and multilingual source records for the latest four plenary weeks, counting sitting weeks across recesses. It starts after HTTP listening and roster readiness, checks every five minutes without overlapping runs, and uses the shared background request admission. Agenda sources live in `plenary-agendas-v1`, bounded to 32 MiB and 160 records with least-recently-used eviction; older cache locations remain readable. Assembled lists share the existing 48-entry/64 MiB disk view cache. Warming does not load agenda-item details, documents, portraits or corpus text. Source refresh lifetimes and explicit coverage gaps remain unchanged.
+
 ## Data recovery and request pacing
 
 Run `npm run data:audit -- --reconcile` in the service environment to inventory both serving and working queues, retained gaps and exact question/answer distribution URLs without starting a writer. Alternatively supply `--index FILE --corpus FILE --press FILE`. Missing databases or tables are reported as unavailable. A queue is evidence of ownership; compare successive reports and service settings to establish progress. Keep reports outside Git.

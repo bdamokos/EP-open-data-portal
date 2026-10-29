@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='15';
+export const PROPOSAL_PARSER_VERSION='16';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -347,6 +347,20 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       // In annexes Commission NumPar lists are addressed as numbered points.
       if(item==='annex'&&/NumPar/i.test(style)){number.kind='point';number.level=0;}
       else {paragraph=make(baseContainer(),'paragraph',i,{segment:number,...(operation?{instruction:operation}:{})});points=[];last=paragraph;retain(last,i);inlineQuotation(last,i);continue;}
+    }
+    // A numeric amending instruction can introduce lettered instructions in
+    // the same Word style. Its explicit operation and consecutive child list
+    // establish the hierarchy even when the template repeats Point1.
+    if(number?.kind==='point'&&!number.numbering&&/^[a-z]$/u.test(number.value)&&operation) {
+      const owner=points.findLast(point=>point.unit.instruction?.operation==='amend'&&/:\s*$/u.test(point.unit.instruction.raw)&&
+        /^\d+$/u.test(point.unit.label.value)&&point.level===number.level&&point.style===style);
+      if(owner){
+        const child=points[points.indexOf(owner)+1];
+        if(!child&&number.value==='a'||child?.level===owner.level+1&&child.unit.instruction&&
+          /^[a-z]$/u.test(child.unit.label.value)&&number.value===String.fromCharCode(child.unit.label.value.charCodeAt(0)+1)){
+          number.level=owner.level+1;number.hierarchyBasis='amending-instruction';
+        }
+      }
     }
     if(number?.kind==='point') {
       const numberedParent=implicit(i);

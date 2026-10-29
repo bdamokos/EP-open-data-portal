@@ -2,6 +2,7 @@ import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
 import {readFile,writeFile} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
+import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
@@ -53,6 +54,10 @@ function sourceQueue(source) {
 export const upstreamStatus=()=>upstreamQueue.snapshot();
 const refreshFailures = new Map();
 const cacheDir = process.env.ODP_CACHE_DIR;
+// Agenda warming must not grow the general source directory indefinitely.
+const agendaDirectory=cacheDir&&path.join(cacheDir,'plenary-agendas-v1');
+const agendaBudget=agendaDirectory&&new CacheDiskBudget(agendaDirectory,{maxBytes:32*1024*1024,maxEntries:160,pattern:/^[a-f0-9]{64}\.json$/});
+const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
 const allowedLanguages = new Set(
   "bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv".split(
     " ",
@@ -87,7 +92,7 @@ const firstString = (value) =>
       : "";
 function filename(key) {
   return path.join(
-    cacheDir,
+    isAgendaKey(key)?agendaDirectory:cacheDir,
     createHash("sha256").update(key).digest("hex") + ".json",
   );
 }
@@ -123,9 +128,20 @@ function withSourceLock(key, operation) {
 async function readDiskSource(key, signal) {
   if (!cacheDir) return null;
   try {
-    const record = JSON.parse(await readSourceRecord(filename(key), signal));
+    const record = JSON.parse(await readSourceFile(key, signal));
     return record.url === key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data) ? record : null;
   } catch { signal?.throwIfAborted(); return null; }
+}
+async function readSourceFile(key,signal) {
+  const names=[filename(key)];
+  if(isAgendaKey(key))names.push(path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'));
+  const legacy=Buffer.from(key).toString('base64url')+'.json';
+  if(legacy.length<=255)names.push(path.join(cacheDir,legacy));
+  for(const file of names) {
+    try {return await readSourceRecord(file,signal);}
+    catch{signal?.throwIfAborted();}
+  }
+  throw new Error('Source record is not retained.');
 }
 // The latest of the memory record and a record just read from disk. Memory may
 // have advanced while the disk read was pending.
@@ -135,7 +151,12 @@ function newestSource(key, record) {
 }
 // Inside a lock the write itself is never cancelled: the lock is released only
 // once the file is published, and a cancelled caller merely stops waiting.
-const publishLocked = (key, serialized) => writeCacheFile(filename(key), serialized, {signal:null}).catch(() => {});
+const publishLocked = async (key, serialized) => {
+  try {
+    const file=filename(key);
+    if(await writeCacheFile(file,serialized,{signal:null})&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
+  }catch{/* Available source data must survive a failed reproducible disk write. */}
+};
 function publishSourceFile(key, record, serialized, signal) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
@@ -209,16 +230,13 @@ export async function odp(
   let stored = cache.get(key)?.record;
   if (!stored && cacheDir && !force) {
     try {
-      const oldName=Buffer.from(key).toString('base64url')+'.json';
-      const raw=await readSourceRecord(filename(key),signal).catch(error=>{
-        signal?.throwIfAborted();
-        return oldName.length<=255?readSourceRecord(path.join(cacheDir,oldName),signal):Promise.reject(error);
-      });
+      const raw=await readSourceFile(key,signal);
       signal?.throwIfAborted();
       const record=JSON.parse(raw);
       if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {
         stored=newestSource(key,record);
         if(stored===record)rememberSource(key,record);
+        if(isAgendaKey(key))agendaBudget.used(path.basename(filename(key)));
       }
     } catch { /* Missing or invalid reproducible cache. */ }
   }
