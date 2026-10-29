@@ -76,7 +76,9 @@ export function documentRefreshState(work) {
   const hasAnswer=answers.some(answer=>answer && typeof answer==='object' && (answer.identifier || answer.id));
   const answered=question?(hasAnswer?true:work.answersObserved===true?false:null):null;
   const answerLanguagesComplete=!question || answered && answers.every(answer=>answer && typeof answer==='object' && documentRefreshState({...answer,work_type:'ANSWER'}).languageCount===24);
-  return {languageCount,answered,mutable:languageCount!==24 || question && (!answered || !answerLanguagesComplete)};
+  // A Commission reply can be declared after all adopted-text languages exist.
+  const adopted=tail(work.work_type)==='TEXT_ADOPTED';
+  return {languageCount,answered,mutable:adopted || languageCount!==24 || question && (!answered || !answerLanguagesComplete)};
 }
 export function updateDocumentRefresh(store,generation,key,work,fetchedAt) {
   if(documentRefreshState(work).mutable)store.db.prepare('INSERT OR REPLACE INTO mutable_documents VALUES (?,?,?)').run(generation,key,(Date.parse(fetchedAt)||0)+7*DAY);

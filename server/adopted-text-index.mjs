@@ -123,17 +123,20 @@ const repairState=(store,generation)=>{
     Number.isSafeInteger(saved.oversizedRoots)&&saved.oversizedRoots>=0&&Array.isArray(saved.oversizedExamples)&&saved.oversizedExamples.length<=3&&saved.oversizedExamples.every(key);
   return valid?saved:{version:1,generation,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]};
 };
-export const followupAdmissionRepairDue=(store,generation)=>Boolean(repairState(store,generation).pending);
+export function followupAdmissionRepairDue(store,generation,{restart=false}={}) {
+  if(!restart&&!repairState(store,generation).pending)return false;
+  return Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND json_extract(body,'$.adoptionProjectionVersion')=? AND json_type(body,'$.followupRelationships')='array' AND json_array_length(body,'$.followupRelationships')>0 LIMIT 1").get(generation,adoptedTextProjectionVersion));
+}
 export function markFollowupAdmissionRepair(store,generation) {
   store.assertWriter();const state=repairState(store,generation);
-  store.set(followupRepairKey,state.pending?{...state,dirty:true}:{...state,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]});
+  store.set(followupRepairKey,state.pending?{...state,dirty:state.dirty||Boolean(state.afterKey||state.rootKey)}:{...state,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]});
 }
 export function scheduleFollowupAdmissionRepairs(worker,generation) {
   const {store}=worker;store.assertWriter();let state=repairState(store,generation);
   if(!state.pending)return 0;
   const owned=adoptedTextDeferredKeys(store,generation);
   for(const table of ['tasks','amendment_jobs','refresh_gaps'])for(const {key} of store.db.prepare(`SELECT key FROM ${table} WHERE generation=?${table==='refresh_gaps'?'':' AND (done IS NULL OR done<>1)'}`).iterate(generation))owned.add(key);
-  const rows=store.db.prepare("SELECT key,length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND json_extract(body,'$.adoptionProjectionVersion')=? AND json_type(body,'$.followupRelationships')='array' AND key"+(state.rootKey?'>=':'>')+"? ORDER BY key LIMIT 100").iterate(generation,adoptedTextProjectionVersion,state.rootKey||state.afterKey);
+  const rows=store.db.prepare("SELECT key,length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND json_extract(body,'$.adoptionProjectionVersion')=? AND json_type(body,'$.followupRelationships')='array' AND json_array_length(body,'$.followupRelationships')>0 AND key"+(state.rootKey?'>=':'>')+"? ORDER BY key LIMIT 100").iterate(generation,adoptedTextProjectionVersion,state.rootKey||state.afterKey);
   let examined=0,bytes=0,admitted=0,roots=0,stopped=false;
   for(const row of rows) {
     roots++;
@@ -147,8 +150,8 @@ export function scheduleFollowupAdmissionRepairs(worker,generation) {
       const id=spId(work.followupRelationships[offset]);if(!id)continue;
       const key='/external-documents/'+id;if(owned.has(key))continue;
       // These projected validation fields keep a large SP body out of the scan.
-      const saved=store.db.prepare("SELECT json_extract(body,'$.id') id,json_extract(body,'$.identifier') identifier,json_extract(body,'$.work_type') work_type,json_extract(body,'$.answers_to') answers_to,json_extract(body,'$.creator') creator,json_extract(body,'$.followupProjectionVersion') version FROM sources WHERE generation=? AND key=? AND kind='document'").get(generation,key);
-      if(saved?.version===1)try{validateReply({data:[{...saved,creator:saved.creator?.startsWith('[')?JSON.parse(saved.creator):saved.creator}]},id,work.identifier);continue;}catch{/* A rejected projection still needs an exact task owner. */}
+      const saved=store.db.prepare("SELECT json_extract(body,'$.followupProjectionVersion') version,json_object('id',json_extract(body,'$.id'),'identifier',json_extract(body,'$.identifier'),'work_type',json_extract(body,'$.work_type'),'answers_to',json_extract(body,'$.answers_to'),'creator',json_extract(body,'$.creator')) identity FROM sources WHERE generation=? AND key=? AND kind='document'").get(generation,key);
+      if(saved?.version===1)try{validateReply({data:[JSON.parse(saved.identity)]},id,work.identifier);continue;}catch{/* A rejected projection still needs an exact task owner. */}
       store.enqueue(generation,key,'document',{endpoint:key,adoptedId:work.identifier},101,true);owned.add(key);admitted++;
     }
     if(offset<work.followupRelationships.length){state={...state,rootKey:row.key,offset,hash};stopped=true;break;}

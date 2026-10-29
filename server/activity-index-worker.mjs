@@ -92,7 +92,7 @@ export class ActivityWorker {
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
-    this.recoveryMode=recoveryMode;
+    this.recoveryMode=recoveryMode;this.followupStartupRepair=true;
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
@@ -101,7 +101,7 @@ export class ActivityWorker {
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
     if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))return true;
-    if(followupAdmissionRepairDue(this.store,generation))return true;
+    if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
     if(amendmentParserUpgradeDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
@@ -353,7 +353,8 @@ export class ActivityWorker {
       const id=body.endpoint.slice('/external-documents/'.length),prior=this.store.source(generation,body.endpoint);
       const adoptedId=body.adoptedId||prior?.work.followupOf;
       if(spId('eli/dl/doc/'+id)!==id||!/^TA-10-\d{4}-\d{4,6}$/.test(adoptedId||''))throw new Error('Invalid follow-up task identity.');
-      const r=await this.request(body.endpoint),work=validateReply(r.payload,id,adoptedId);
+      const r=await this.request(body.endpoint);let work;
+      try{work=validateReply(r.payload,id,adoptedId);}catch(error){throw Object.assign(new Error('Invalid exact Commission follow-up identity, target or creator.'),{code:error.code,cause:error});}
       this.store.putSource(generation,body.endpoint,'document',projectFollowup(work,adoptedId),r.fetchedAt,[],{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});
       this.store.finishTask(task);
     } else if(task.kind==='document') {
@@ -662,6 +663,7 @@ export class ActivityWorker {
       if(this.stopped)return;
       this.store.assertWriter();
       if(cycle){scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);}
+      if(this.followupStartupRepair){markFollowupAdmissionRepair(this.store,generation);this.followupStartupRepair=false;}
       scheduleFollowupAdmissionRepairs(this,generation);
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);

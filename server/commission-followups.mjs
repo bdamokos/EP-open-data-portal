@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {odp,ODP_BASE,odpLanguage} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {languageCode} from './ep-links.mjs';
-import {sharedRequest,waitForRequest,requestSignal,createRequestBudget,runWithRequestSignal} from './request-budget.mjs';
+import {sharedRequest,waitForRequest,requestSignal,createRequestBudget,runWithRequestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
 export const COMMISSION_FOLLOWUPS_VERSION=2;
 export const COMMISSION_FOLLOWUPS_LIMITS=Object.freeze({reads:4,timeout:8000,metadataBytes:1024*1024,responseBytes:256*1024,entries:32,ttl:60_000});
@@ -20,7 +20,7 @@ export function commissionFollowupsQuery(id,params) {
 }
 
 export class CommissionFollowups {
-  constructor({request=odp,clock=Date.now,limits={}}={}){Object.assign(this,{request,clock});this.limits={...COMMISSION_FOLLOWUPS_LIMITS,...limits};this.pending=new Map();this.cache=new Map();}
+  constructor({request=odp,readCached=request===odp?odp:null,clock=Date.now,limits={}}={}){Object.assign(this,{request,readCached,clock});this.limits={...COMMISSION_FOLLOWUPS_LIMITS,...limits};this.pending=new Map();this.cache=new Map();}
   async query(query,{store=null}={}) {
     requestSignal()?.throwIfAborted();
     const retained=retainedCommissionFollowups(store,query,this.limits);
@@ -51,21 +51,38 @@ export class CommissionFollowups {
     const read=async(endpoint,validate)=>{
       requestSignal()?.throwIfAborted();
       if(retained?.budgetEndpoint===endpoint)throw Object.assign(invalid(),{code:'followup_metadata_budget'});
-      const saved=retained?.records.find(record=>record.endpoint===endpoint);
-      if(retained&&!saved)throw new HttpError(503,'followup_pending','Commission follow-up could not be checked.');
-      const record=saved?.record||await waitForRequest(this.request(endpoint,{}, {staleWhileRevalidate:true,validate}));
+      const saved=retained?.records.find(record=>record.endpoint===endpoint),root=endpoint==='/adopted-texts/'+id;
+      let record=saved?.record,projection=Boolean(saved),rejected=null;
+      if(record)try{validate(record.payload);}catch(error){rejected=error;}
+      const lossyRoot=root&&record&&(record.payload.data[0].adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(record.payload.data[0].followupRelationships));
+      // A richer already-retained raw record must not be suppressed by a lossy
+      // index projection. cachedOnly never refreshes or joins an upstream job.
+      if(retained&&this.readCached&&(!record||rejected||lossyRoot))try {
+        const cached=await waitForRequest(this.readCached(endpoint,{}, {cachedOnly:true,validate}));
+        requestSignal()?.throwIfAborted();const work=validate(cached.payload),at=new Date(cached.fetchedAt).valueOf();
+        const older=Boolean(saved)&&at<new Date(saved.record.fetchedAt).valueOf();
+        if(Number.isFinite(at)&&(!root||Array.isArray(work.inverse_answers_to)&&(!older||work.inverse_answers_to.length))) {
+          if(saved){bytes+=Buffer.byteLength(JSON.stringify(saved.record.payload));result.sources.push(saved.source);}
+          if(rejected)gap('record-unverified',root?null:endpoint.slice('/external-documents/'.length));
+          if(root&&older)gap('relationship-observation-stale');
+          record=cached;projection=false;rejected=null;
+        }
+      }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;}
+      if(rejected)throw rejected;
+      if(retained&&!record)throw new HttpError(503,'followup_pending','Commission follow-up could not be checked.');
+      if(!record)record=await waitForRequest(this.request(endpoint,{}, {staleWhileRevalidate:true,validate}));
       requestSignal()?.throwIfAborted();
       const raw=JSON.stringify(record.payload);bytes+=Buffer.byteLength(raw);
       if(bytes>this.limits.metadataBytes)throw Object.assign(invalid(),{code:'followup_metadata_budget'});
-      const source=saved?.source||{url:record.url||ODP_BASE+endpoint+'?format=application%2Fld%2Bjson',fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(raw).digest('hex')};
+      const source=projection?saved.source:{url:record.url||ODP_BASE+endpoint+'?format=application%2Fld%2Bjson',fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(raw).digest('hex'),...(retained?{representation:'retained-odp-cache-record'}:{})};
       result.sources.push(source);
-      return {work:validate(record.payload),source};
+      return {work:validate(record.payload),source,projection};
     };
     if(retained?.metadataBudget){result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
-    let work;
-    try {({work}=await read('/adopted-texts/'+id,payload=>validateTA(payload,id)));}
+    let work,projection;
+    try {({work,projection}=await read('/adopted-texts/'+id,payload=>validateTA(payload,id)));}
     catch(error){requestSignal()?.throwIfAborted();if(error.code!=='followup_metadata_budget')throw error;result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
-    const inverse=retained?(work.adoptionProjectionVersion===adoptedTextProjectionVersion?work.followupRelationships:undefined):work.inverse_answers_to;
+    const inverse=projection?(work.adoptionProjectionVersion===adoptedTextProjectionVersion?work.followupRelationships:undefined):work.inverse_answers_to;
     if(retained&&inverse==null)gap('lookup-failed');
     if(inverse==null)return result;
     if(!Array.isArray(inverse)){gap('malformed-relationships');return result;}

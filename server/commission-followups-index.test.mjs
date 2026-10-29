@@ -4,7 +4,7 @@ import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
-import {auditFollowupMetadata,compareGapAudits} from './data-gap-audit.mjs';
+import {auditFollowupMetadata,compareGapAudits,failureClass} from './data-gap-audit.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {CommissionFollowups} from './commission-followups.mjs';
 import {projectFollowup} from './commission-followups-model.mjs';
@@ -225,4 +225,76 @@ test('oversized retained roots are explicit repair-budget exceptions and do not 
   store.putSource(generation,rootKey,'document',projected(),stamp);
   assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),1);const state=store.get('followupAdmissionRepair');assert.equal(state.oversizedRoots,1);assert.deepEqual(state.oversizedExamples,['/adopted-texts/'+large]);assert.equal(state.pending,false);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE key=?').get(spKey).n,1);assert.equal(worker.requests,0);
+});
+
+
+for(const change of [{creator:{id:'org/EU_COMMISSION'}},{work_type:{id:'def/ep-document-types/ACT_FOLLOWUP'}},{answers_to:{id:ref(ta)}}])test('admission-repair validation preserves JSON-LD object types '+JSON.stringify(change),t=>{
+  const {store,worker,generation}=setup(t);save(store,generation);store.putSource(generation,spKey,'document',projectFollowup(reply(sp,change),ta),stamp);
+  assert.equal(auditFollowupMetadata(store.db,generation).counts.retained,1);assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),0);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks').get().n,0);
+});
+
+test('a JSON-looking creator string stays invalid and gains an exact repair owner',t=>{
+  const {store,worker,generation}=setup(t);save(store,generation);store.putSource(generation,spKey,'document',projectFollowup(reply(sp,{creator:'["org/EU_COMMISSION"]'}),ta),stamp);
+  assert.equal(auditFollowupMetadata(store.db,generation).counts.unowned,1);assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),1);assert.equal(auditFollowupMetadata(store.db,generation).counts.ownedMissing,1);
+});
+
+test('a restarted normal worker rechecks a completed scan after same-generation legacy source loss without rotating publication',async t=>{
+  const {store,worker,generation}=setup(t);save(store,generation);scheduleFollowupAdmissionRepairs(worker,generation);assert.equal(followupAdmissionRepairDue(store,generation),false);
+  store.putSource(generation,spKey,'document',{...projectFollowup(reply(),ta),followupProjectionVersion:0},stamp);store.publish(generation);store.set('lastSuccess',stamp);store.release();
+  const resumed=new ActivityWorker(store,{clock:()=>now,fetchRecord:async()=>({fetchedAt:stamp,payload:{data:[reply()]}})});
+  const real=resumed.task.bind(resumed);resumed.task=async task=>task.key===spKey?real(task):store.finishTask(task);
+  assert.equal(resumed.due(),true);await resumed.runIteration();assert.equal(resumed.requests,1);assert.equal(store.source(generation,spKey).work.followupProjectionVersion,1);assert.equal(store.get('active'),generation);assert.equal(store.get('working'),null);
+});
+
+
+test('a worker identity rejection remains a classified source/parser gap rather than transient absence',async t=>{
+  const {store,worker,generation}=setup(t);const task={generation,key:spKey,kind:'document',body:{endpoint:spKey,adoptedId:ta},priority:101,attempts:4};store.enqueue(generation,spKey,'document',task.body,101);
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[reply(sp,{creator:['org/EU_PARLIAMENT']})]}});
+  let failure;await assert.rejects(worker.task(task),error=>{failure=error;return error.code==='invalid_followup_source';});
+  assert.equal(failureClass(failure.message),'source-or-parser');assert(recordTaskGap(worker,task,failure));assert.equal(store.source(generation,spKey),undefined);
+});
+
+test('a lossy retained root and missing child can use the real ODP cache without an upstream start',async t=>{
+  const {store,generation}=setup(t),legacy={...projected(),adoptionProjectionVersion:1};delete legacy.followupRelationships;
+  store.putSource(generation,rootKey,'document',legacy,'1970-01-01T00:00:00Z');
+  const {odp,odpObservations}=await import('./odp.mjs');let starts=0;
+  t.mock.method(globalThis,'fetch',async url=>{starts++;return Response.json({data:[String(url).includes('/adopted-texts/')?adopted():reply()]});});
+  await odp(rootKey,{}, {force:true});await odp(spKey,{}, {force:true});const before=odpObservations().starts;
+  t.mock.method(globalThis,'fetch',()=>assert.fail('a cache-only fallback must not start or refresh a source'));
+  const service=new CommissionFollowups(),result=await service.query(query,{store});assert.equal(result.items[0].id,sp);assert.equal(result.items[0].files.length,4);
+  assert.equal(odpObservations().starts,before);assert.equal(starts,2);assert.equal(service.cache.size,0);
+  assert(result.sources.some(source=>source.representation==='retained-index-projection'));assert(result.sources.some(source=>source.representation==='retained-odp-cache-record'));
+});
+
+for(const empty of [true,false])test('an older cached '+(empty?'empty':'positive')+' observation preserves the newer unknown state accurately',async t=>{
+  const {store,generation}=setup(t),legacy={...projected(),adoptionProjectionVersion:1};delete legacy.followupRelationships;store.putSource(generation,rootKey,'document',legacy,stamp);
+  let cacheReads=0;const service=new CommissionFollowups({request:async()=>assert.fail('no upstream read'),readCached:async(endpoint,_params,options)=>{
+    cacheReads++;assert.equal(options.cachedOnly,true);assert.equal(options.force,undefined);const payload={data:[endpoint===rootKey?adopted(empty?[]:[ref(sp)]):reply()]};options.validate(payload);return {payload,fetchedAt:0};
+  }});
+  const result=await service.query(query,{store});assert.notEqual(result.status,'none-listed');assert.equal(service.cache.size,0);
+  if(empty){assert.equal(result.relationshipObservation,'unobserved');assert.equal(result.declaredCount,null);assert.equal(result.items.length,0);assert.equal(cacheReads,1);}
+  else{assert.equal(result.status,'partial');assert.equal(result.items[0].id,sp);assert(result.gaps.some(gap=>gap.reason==='relationship-observation-stale'));assert.equal(cacheReads,2);}
+});
+
+test('cache-only fallback rejects a conflicting cached target and propagates a local root deadline',async t=>{
+  const {store,generation}=setup(t);store.putSource(generation,rootKey,'document',projected(),stamp);
+  const reader=new CommissionFollowups({request:async()=>assert.fail('no upstream read'),readCached:async(_endpoint,_params,options)=>{
+    const payload={data:[reply(sp,{answers_to:ref('TA-10-2026-0001')})]};options.validate(payload);return {payload,fetchedAt:now};
+  }});
+  const missing=await reader.query(query,{store});assert.equal(missing.items.length,0);assert.equal(missing.status,'partial');assert(missing.gaps.some(gap=>gap.reason==='lookup-failed'));
+  store.putSource(generation,rootKey,'document',{...projected(),adoptionProjectionVersion:1},stamp);
+  const timed=new CommissionFollowups({request:async()=>assert.fail('no upstream read'),readCached:async()=>{throw Object.assign(Error('local deadline'),{code:'request_timeout',status:503});}});
+  await assert.rejects(timed.query(query,{store}),{code:'request_timeout'});assert.equal(timed.cache.size,0);
+});
+
+
+test('complete adopted-text languages still receive a bounded periodic relationship check for later replies',async t=>{
+  const {store,worker,generation,clock}=setup(t),languages='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
+  const files=languages.map(language=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/'+language+'.docx'}]}));
+  store.putSource(generation,rootKey,'document',{...projected([]),languageVersionsObserved:true,is_realized_by:files},stamp);
+  assert.equal(store.db.prepare('SELECT next_check FROM mutable_documents WHERE key=?').get(rootKey).next_check,now+7*86400_000);
+  store.release();clock.now+=8*86400_000;store.acquire();scheduleMutable(worker,generation);
+  const raw=store.db.prepare('SELECT * FROM tasks WHERE key=?').get(rootKey);assert(raw);
+  worker.fetchRecord=async()=>({fetchedAt:new Date(clock.now).toISOString(),payload:{data:[{...adopted(),is_realized_by:files}]}});
+  await worker.task({...raw,body:JSON.parse(raw.body)});assert.deepEqual(store.source(generation,rootKey).work.followupRelationships,[ref(sp)]);assert(store.db.prepare('SELECT 1 FROM tasks WHERE key=?').get(spKey));
 });
