@@ -102,9 +102,27 @@ test('cancelled former-frame messages cannot select or start its replacement',t=
   receive(next,{key:'method:play',isError:false});stopNext();
 });
 
-test('a later wrong adaptation pauses and fails without a second selection callback',t=>{
+test('verified initial audio releases the guard for repeated private-code player language changes',t=>{
   const tick=clock(t);
-  const h=harness();let requested=0,error;const stop=start(h,'hu',()=>requested++,e=>error=e);inventory(h);h.receive(adaptation('audio01 AUDIO'));tick(1);h.receive(adaptation('audio17 AUDIO'));assert.equal(requested,1);h.receive(adaptation('audio15 AUDIO'));assert.match(error,/could not be loaded/);assert.equal(requested,1);assert.equal(h.calls.filter(c=>c.data.name==='pause').length,1);stop();
+  const h=harness();let requested=0,error;const stop=start(h,'hu',()=>requested++,e=>error=e);
+  inventory(h);h.receive(adaptation('audio01 AUDIO'));tick(1);h.receive(adaptation('audio17 AUDIO'));assert.equal(requested,1);
+  const calls=h.calls.length;
+  for(const id of ['audio02 AUDIO','audio01 AUDIO','audio17 AUDIO','audio15 AUDIO']){h.receive(adaptation(id));h.receive(quality(id));}
+  h.receive(getter('availableAudio',null));tick(10_000);
+  assert.equal(error,undefined);assert.equal(requested,1);assert.equal(h.calls.length,calls,'no pause, setter, or polling after readiness');
+  assert.deepEqual(h.calls.slice(-2).map(c=>c.data),[{type:'off',name:'audioadaptation'},{type:'off',name:'audiodownloadqualitychanged'}],'readiness removes both event subscriptions');
+  stop();assert.equal(h.calls.length,calls,'later disposal is idempotent');
+});
+test('verified Original and ISO interpretation permit subsequent player-controlled changes',t=>{
+  const tick=clock(t);
+  for(const language of ['or','en']){
+    const h=harness();let requested=0,error;const stop=start(h,language,()=>requested++,e=>error=e);
+    inventory(h,['or','en','hu'],[['or','Original'],['en','English'],['hu','Magyar']]);h.receive(adaptation('Original audio0'));
+    if(language==='en'){tick(1);h.receive(quality('English audio0'));}
+    assert.equal(requested,1);const calls=h.calls.length;
+    for(const id of ['Magyar audio0','English audio0','Original audio0']){h.receive(quality(id));h.receive(adaptation(id));}
+    tick(10_000);assert.equal(error,undefined);assert.equal(requested,1);assert.equal(h.calls.length,calls);stop();
+  }
 });
 test('ready getters and initial English do not bypass delayed wrapper Original initialization',t=>{
   const tick=clock(t);
