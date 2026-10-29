@@ -15,7 +15,7 @@ import { ODP_BASE, boundedUpstream, backoffUpstream, observedOdpFetch } from './
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
-import {spId,validateTA,validateReply,projectFollowup} from './commission-followups-model.mjs';
+import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
@@ -372,7 +372,12 @@ export class ActivityWorker {
       if(!work)throw new Error('EP document detail was empty.');
       if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(work), proc=new Map();
-      if(adopted){validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=work.inverse_answers_to;}
+      if(adopted){
+        validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
+        if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=projectFollowupReferences(work.inverse_answers_to);
+        // TA replies are SP references, not embedded written-question answers.
+        projected.inverse_answers_to=[];
+      }
       for(const id of procedureIds(work)) {
         const endpoint='/procedures/'+id, existing=this.store.source(generation,endpoint);
         if(existing)proc.set(id,existing);

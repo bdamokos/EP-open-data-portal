@@ -85,6 +85,26 @@ export function auditFollowupMetadata(db,generation) {
     eligibleRelationDigest:createHash('sha256').update(JSON.stringify([...relations.keys()].sort())).digest('hex'),counts,missing};
 }
 
+export function auditMutableDocuments(db,generation,now) {
+  if(!has(db,'mutable_documents'))return null;
+  const result={...db.prepare(`SELECT COUNT(*) AS count,COALESCE(SUM(next_check<=?),0) AS due,
+    MIN(CASE WHEN next_check<=? THEN next_check END) AS oldestDueAt FROM mutable_documents WHERE generation=?`).get(now,now,generation),
+    dueAdoptedTexts:null,dueUnknownTypes:null,dueAdoptedTextShare:null};
+  result.oldestDueAgeMs=result.oldestDueAt==null?null:Math.max(0,now-result.oldestDueAt);
+  if(!has(db,'sources'))return result;
+  result.dueAdoptedTexts=0;result.dueUnknownTypes=0;
+  for(const row of db.prepare(`SELECT CASE
+    WHEN json_type(s.body,'$.work_type.id')='text' THEN json_extract(s.body,'$.work_type.id')
+    WHEN json_type(s.body,'$.work_type')='text' THEN json_extract(s.body,'$.work_type') END AS type
+    FROM mutable_documents m LEFT JOIN sources s ON s.generation=m.generation AND s.key=m.key
+    WHERE m.generation=? AND m.next_check<=?`).iterate(generation,now)) {
+    if(!row.type)result.dueUnknownTypes++;
+    else if(row.type.split('/').at(-1)==='TEXT_ADOPTED')result.dueAdoptedTexts++;
+  }
+  if(result.due>0&&result.dueUnknownTypes===0)result.dueAdoptedTextShare=result.dueAdoptedTexts/result.due;
+  return result;
+}
+
 export function auditIndex(db,now) {
   const active=meta(db,'active'),working=meta(db,'working'),amendmentSnapshot=meta(db,'amendmentSnapshotGeneration'),generations=[...new Set([active,working?.generation,amendmentSnapshot].filter(Number.isInteger))];
   const lease=has(db,'lease')?db.prepare('SELECT expires FROM lease WHERE id=1').get():null;
@@ -104,7 +124,7 @@ export function auditIndex(db,now) {
           COALESCE(SUM(COALESCE(json_extract(body,'$.adoptionProjectionVersion'),0)<>${adoptedTextProjectionVersion}),0) AS legacyProjection
           FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*'`).get(generation):null,
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
-        mutableDocuments:has(db,'mutable_documents')?db.prepare('SELECT COUNT(*) AS count,SUM(next_check<=?) AS due FROM mutable_documents WHERE generation=?').get(now,generation):null};
+        mutableDocuments:auditMutableDocuments(db,generation,now)};
     }),
     adoptedTextDiscovery:meta(db,'adoptedTextDiscovery'),followupAdmissionRepair:meta(db,'followupAdmissionRepair'),unresolvedJoins:(meta(db,'unresolved')||[]).length,
     nonRetryableCoverageWindows:has(db,'refresh_gaps')?db.prepare("SELECT COUNT(*) AS count FROM refresh_gaps WHERE generation=? AND kind='coverage'").get(active??0).count:null};

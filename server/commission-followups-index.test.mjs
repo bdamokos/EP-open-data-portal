@@ -7,7 +7,7 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {auditFollowupMetadata,compareGapAudits,failureClass} from './data-gap-audit.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {CommissionFollowups} from './commission-followups.mjs';
-import {projectFollowup} from './commission-followups-model.mjs';
+import {projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
 import {adoptedTextProjectionVersion,scheduleAdoptedTextRepairs,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 import {recordTaskGap,scheduleMutable,nextBackfillTask,gapRecoveryDue,scheduleGapRecovery} from './refresh-policy.mjs';
 import {cancelledRequest,runWithRequestSignal} from './request-budget.mjs';
@@ -44,6 +44,28 @@ test('normal adoption ingestion retains URI references and durably owns the exac
   const result=await reader().service.query(query,{store});assert.equal(result.status,'available');assert.equal(result.items[0].files.length,4);
   assert.equal(result.items[0].files[2].expressionId,reply().is_realized_by[1].id);assert.equal(result.items[0].files[2].manifestationId,reply().is_realized_by[1].is_embodied_by[0].id);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items').get().n,0,'a Commission response creates no MEP activity');
+});
+
+test('expanded SP references cannot inflate retained roots or become written-question answer observations',async t=>{
+  const {store,worker,generation}=setup(t),expanded={...reply(),document_date:'2026-10-28',title_dcterms:{en:'x'.repeat(1024*1024)}};
+  const exact='https://data.europarl.europa.eu/'+ref(sp);
+  store.enqueue(generation,rootKey,'document',{endpoint:rootKey});
+  worker.fetchRecord=async endpoint=>({fetchedAt:stamp,payload:{data:[endpoint===rootKey?adopted([{...expanded,id:exact}]):reply()]}});
+  await worker.task(store.nextTask(generation));
+  const root=store.source(generation,rootKey).work;
+  assert.deepEqual(root.followupRelationships,[{id:exact}]);assert.deepEqual(root.inverse_answers_to,[]);
+  assert(Buffer.byteLength(JSON.stringify(root))<1024*1024);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM source_observations WHERE family='answers'").get().n,0);
+  const child=store.nextTask(generation);assert.equal(child.key,spKey);assert.equal(child.body.adoptedId,ta);
+  await worker.task(child);const {service,requests}=reader(),result=await service.query(query,{store});
+  assert.equal(result.status,'available');assert.equal(result.items[0].id,sp);assert.equal(requests(),0);
+});
+
+test('reference thinning preserves unknown values and non-array relationship observations',()=>{
+  const unknown={id:'https://example.org/SP-unknown',title:'unrecognised'},malformed={id:42,extra:true};
+  const values=[ref(sp),{id:ref(sp),title:'expanded'},unknown,malformed,null,42,['nested']];
+  assert.deepEqual(projectFollowupReferences(values),[ref(sp),{id:ref(sp)},unknown,malformed,null,42,['nested']]);
+  for(const value of [null,undefined,'not-an-array',unknown,42])assert.equal(projectFollowupReferences(value),value);
 });
 
 test('large relationship admission advances a saved cursor and reopens with child ownership intact',async t=>{

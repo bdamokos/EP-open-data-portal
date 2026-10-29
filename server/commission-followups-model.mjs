@@ -9,6 +9,10 @@ const canonical=value=>{
 };
 const array=value=>Array.isArray(value)?value:value==null?[]:[value];
 export const spId=value=>{const ref=canonical(value);return /^eli\/dl\/doc\/SP-[A-Za-z0-9](?:[A-Za-z0-9-]{0,118}[A-Za-z0-9])?$/.test(ref||'')?ref.slice(11):null;};
+// Child metadata has its own validated source and owner. Keep the exact known
+// reference here; unknown values remain available for gap diagnosis.
+export const projectFollowupReferences=value=>Array.isArray(value)?value.map(ref=>
+  ref&&typeof ref==='object'&&!Array.isArray(ref)&&spId(ref)?{id:ref.id}:ref):value;
 const invalid=()=>new HttpError(502,'invalid_followup_source','Commission follow-up could not be checked.');
 const exactWork=(payload,id)=>{
   const nodes=payload?.data;
