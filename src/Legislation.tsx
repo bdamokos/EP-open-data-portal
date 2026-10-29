@@ -48,7 +48,7 @@ function sameAgendaRoute(loaded:string,requested:string,data:LegislationResponse
 function ContributorActivity({detail,headers,person}:{detail:NonNullable<LegislationResponse['detail']>;headers:SpeechHeaders;person:string}) {
   const counts=legislationActivity(detail,headers,person);
   return <ul className="insight-person-activity" lang="en" aria-label="Linked activity">
-    <li><strong>{counts.speeches??'—'}</strong> {counts.speeches===1?'speech':'speeches'}</li>
+    <li>{counts.speeches===null?'Speeches unavailable':<><strong>{counts.speeches}</strong> {counts.speeches===1?'speech':'speeches'}</>}</li>
     {counts.statements&&<li><strong>{counts.statements}</strong> {counts.statements===1?'written statement':'written statements'}</li>}
     {counts.amendments!==null&&counts.amendments>0&&<li aria-label={`At least ${counts.amendments} linked ${counts.amendments===1?'amendment':'amendments'}`}><strong>{counts.amendments}+</strong> {counts.amendments===1?'amendment':'amendments'}</li>}
   </ul>;
