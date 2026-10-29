@@ -47,7 +47,7 @@ export function documentFiles(work) {
   }));
 }
 export function projectDocument(w) {
-  const result = Object.fromEntries(['id','identifier','label','work_type','parliamentary_term','document_date','title_dcterms','workHadParticipation','creator','inverse_created_a_realization_of','adopts','adoptionProjectionVersion','followupRelationships','based_on','originalLanguage','foresees_change_of','itemNumberBegin','itemNumberEnd','numbering','is_about','isAboutSubjectMatter','isAboutDirectoryCode'].filter(k => w[k] !== undefined).map(k => [k,w[k]]));
+  const result = Object.fromEntries(['id','identifier','label','work_type','parliamentary_term','document_date','title_dcterms','workHadParticipation','creator','inverse_created_a_realization_of','adopts','adoptionProjectionVersion','followupRelationships','metadataObservation','based_on','originalLanguage','foresees_change_of','itemNumberBegin','itemNumberEnd','numbering','is_about','isAboutSubjectMatter','isAboutDirectoryCode'].filter(k => w[k] !== undefined).map(k => [k,w[k]]));
   result.languageVersionsObserved=w.languageVersionsObserved ?? (Object.hasOwn(w,'is_realized_by') && w.is_realized_by!=null);
   result.answersObserved=w.answersObserved ?? (Object.hasOwn(w,'inverse_answers_to') && w.inverse_answers_to!=null);
   if(tail(w.work_type)==='AMENDMENT_LIST')result.amendmentDistributionDeclared=typeof w.amendmentDistributionDeclared==='boolean'?w.amendmentDistributionDeclared:Object.hasOwn(w,'is_realized_by')&&w.is_realized_by!=null;
@@ -83,9 +83,9 @@ function evidence(endpoint, fetchedAt, path, role, additional = {}) {
 export function documentRows(work, endpoint, fetchedAt, procedures = new Map()) {
   if (!term10(work)) return { rows: [], unresolved: [] };
   const kind = tail(work.work_type);
-  // Adopted works establish text relationships, not individual MEP activity.
+  // Adopted works and amendment lists establish relationships, not MEP activity.
   // Missing dates must not prevent their metadata snapshot from publishing.
-  if(kind==='TEXT_ADOPTED')return {rows:[],unresolved:[]};
+  if(kind==='TEXT_ADOPTED'||kind==='AMENDMENT_LIST')return {rows:[],unresolved:[]};
   const sourceId = work.identifier || tail(work.id);
   if (!sourceId || !/^\d{4}-\d{2}-\d{2}$/.test(work.document_date || '')) throw new Error('Document identifier/date missing.');
   const titles = work.title_dcterms || Object.assign({}, ...array(work.is_realized_by).map(e => e.title || {}));
