@@ -10,9 +10,10 @@ export function retryAfterSeconds(value, now=Date.now()) {
 }
 // Concurrency is a resource bound. Only sources with published quotas set rateLimit.
 export class UpstreamQueue {
-  constructor({ interval=0, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000, rateLimit=null }={}) {
+  constructor({ interval=0, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000, rateLimit=null, adaptive=false }={}) {
     this.interval=interval;this.maximum=maximum;this.backgroundMaximum=backgroundMaximum;
     this.interactiveWaitMs=interactiveWaitMs;this.rateLimit=rateLimit;this.starts=[];
+    this.adaptive=adaptive;this.minimumInterval=interval;this.successes=0;
     this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.admitted=new Set();this.joiners=new Set();this.timer=null;
   }
   joinBackground(promise,{signal}={}) {
@@ -82,6 +83,20 @@ export class UpstreamQueue {
     return Object.assign(new HttpError(503,'upstream_busy',this.cooldownUntil>Date.now()?'Parliament is temporarily limiting requests. Please try again after the pause.':'Parliament requests are busy. Please try again.'),{retryAfter,retryAt:Date.now()+retryAfter*1000});
   }
   snapshot() {return {active:this.active,background:this.background,queued:this.waiters.length,joining:this.joiners.size,cooldownMs:Math.max(0,this.cooldownUntil-Date.now())};}
+  quotaSnapshot() {
+    this.readyAt('interactive');
+    const limit=this.rateLimit;
+    return {...this.snapshot(),intervalMs:this.interval,adaptive:this.adaptive,...(limit?{maximum:limit.maximum,windowMs:limit.windowMs,foregroundReserve:limit.foregroundReserve||0,startsInWindow:this.starts.length,remaining:Math.max(0,limit.maximum-this.starts.length),backgroundRemaining:Math.max(0,limit.maximum-(limit.foregroundReserve||0)-this.starts.length)}:{})};
+  }
+  recordResponse(status) {
+    if(!this.adaptive)return;
+    if(status===429||status===503) {
+      this.successes=0;this.interval=Math.min(60_000,Math.max(this.minimumInterval,Math.ceil(this.interval*1.5)));
+      this.nextStart=Math.max(this.nextStart,Date.now()+this.interval);this.drain();
+    } else if(status>=200&&status<300&&++this.successes>=50) {
+      this.successes=0;this.interval=Math.max(this.minimumInterval,Math.floor(this.interval*.95));
+    }
+  }
   backoff(seconds) {
     if(!Number.isFinite(seconds)||seconds<=0)return;
     this.cooldownUntil=Math.max(this.cooldownUntil,Date.now()+seconds*1000);
