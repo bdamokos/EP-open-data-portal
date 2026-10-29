@@ -3,6 +3,7 @@ import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
 import {mutableDocumentCandidates,mutableBackfillCutoff} from './mutable-document-recovery.mjs';
+import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteDeferredOwners} from './document-detail-routing.mjs';
 
 export const DAY=86_400_000, MUTABLE_LIMIT=100, GAP_LIMIT=25;
 const ordinaryBackfillQuantum=8;
@@ -79,7 +80,8 @@ export function documentRefreshState(work) {
   const answerLanguagesComplete=!question || answered && answers.every(answer=>answer && typeof answer==='object' && documentRefreshState({...answer,work_type:'ANSWER'}).languageCount===24);
   // A Commission reply can be declared after all adopted-text languages exist.
   const adopted=tail(work.work_type)==='TEXT_ADOPTED';
-  return {languageCount,answered,mutable:adopted || languageCount!==24 || question && (!answered || !answerLanguagesComplete)};
+  // Amendment-list checks belong to the dedicated metadata/wording collector.
+  return {languageCount,answered,mutable:tail(work.work_type)!=='AMENDMENT_LIST'&&(adopted || languageCount!==24 || question && (!answered || !answerLanguagesComplete))};
 }
 export function updateDocumentRefresh(store,generation,key,work,fetchedAt) {
   if(documentRefreshState(work).mutable)store.db.prepare('INSERT OR REPLACE INTO mutable_documents VALUES (?,?,?)').run(generation,key,(Date.parse(fetchedAt)||0)+7*DAY);
@@ -140,9 +142,10 @@ export function scheduleMutable(worker,generation) {
 
 function dueRecoveryGaps(store,generation,now,limit) {
   if(limit<=0)return [];
-  const today=localDay(now),result=[];let adoptedDeferred;
+  const today=localDay(now),result=[];let adoptedDeferred,documentDeferred;
   for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key").iterate(generation,now)) {
     if((gap.key.startsWith('/adopted-texts/')||gap.key.startsWith('/external-documents/SP-'))&&adoptedTextOwnedElsewhere(store,generation,gap.key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
+    if(amendmentListDocumentId(gap.key)&&documentRouteOwned(store,generation,gap.key,documentDeferred??=documentRouteDeferredOwners(store,generation),{ignoreGapKey:gap.key,allowDueLegacyGap:documentDetailEndpoint(gap.key)===gap.key,now}))continue;
     if(gap.kind==='motion-outcomes'&&today<sittingConfirmationDay(gap.sitting_id))continue;
     result.push(gap);if(result.length>=limit)break;
   }
