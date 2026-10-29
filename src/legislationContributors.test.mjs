@@ -57,11 +57,13 @@ test('plenary people put guests first, then the highest documented role and full
     {...person('shadow-opinion-large'),group:'Large'},
     {...person('shadow-small'),group:'Small'},
     {...person('multi-role'),group:'Large'},
+    {...person('co-rapporteur-small'),group:'Small'},
+    {...person('co-rapporteur-large'),group:'Large'},
   ];
-  const roles=[['shadow-large','RAPPORTEUR_SHADOW'],['rapporteur-small','RAPPORTEUR'],['opinion-large','RAPPORTEUR_OPINION'],['shadow-opinion-large','RAPPORTEUR_SHADOW_OPINION'],['shadow-small','RAPPORTEUR_SHADOW'],['multi-role','RAPPORTEUR'],['multi-role','SPEAKER'],['multi-role','RAPPORTEUR_SHADOW']].map(([id,role])=>({id,role}));
+  const roles=[['shadow-large','RAPPORTEUR_SHADOW'],['rapporteur-small','RAPPORTEUR'],['opinion-large','RAPPORTEUR_OPINION'],['shadow-opinion-large','RAPPORTEUR_SHADOW_OPINION'],['shadow-small','RAPPORTEUR_SHADOW'],['multi-role','RAPPORTEUR'],['multi-role','SPEAKER'],['multi-role','RAPPORTEUR_SHADOW'],['co-rapporteur-small','RAPPORTEUR_CO'],['co-rapporteur-large','RAPPORTEUR_SHADOW'],['co-rapporteur-large','RAPPORTEUR_CO'],['co-rapporteur-large','SPEAKER']].map(([id,role])=>({id,role}));
   const members=[{groupCode:'Small'},{groupCode:'Large'},{groupCode:'Large'}],before=structuredClone({people,roles,members});
   const ordered=orderLegislationPeople(people,roles,members);
-  assert.deepEqual(ordered.map(p=>p.id),['guest','multi-role','rapporteur-small','opinion-large','shadow-large','shadow-small','shadow-opinion-large','speaker-large','speaker-small']);
+  assert.deepEqual(ordered.map(p=>p.id),['guest','co-rapporteur-large','multi-role','co-rapporteur-small','rapporteur-small','opinion-large','shadow-large','shadow-small','shadow-opinion-large','speaker-large','speaker-small']);
   assert.deepEqual({people,roles,members},before);
   assert.deepEqual(orderLegislationPeople([...people].reverse(),[...roles].reverse(),members),ordered);
 });
