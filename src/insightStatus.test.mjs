@@ -5,13 +5,13 @@ import {SpeechCloudInsights,speechCloudQuery} from '../server/speech-cloud.mjs';
 import {sourceAvailability} from '../server/source-availability.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createElement,act} from 'react';
+import {createElement,act,useEffect,useState,Fragment} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 const deferred=()=>{let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};};
 
-async function harness(t,path,component,query,respond,props={}) {
+async function harness(t,path,component,query,respond,props={},withJourney=false) {
   const window=new Window({url:'http://localhost/'+query});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
     HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:class {observe(){} disconnect(){}},
@@ -24,11 +24,20 @@ async function harness(t,path,component,query,respond,props={}) {
   t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);calls.push(url);const result=await respond(url);return result instanceof Response?result:Response.json(result);});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const Component=(await loadModule(path))[component],{createRoot}=await import('react-dom/client');
+  const journey=withJourney?await loadModule('/src/dossierJourney.ts'):null,origin=location.href;
+  function JourneyShell() {
+    journey.useDossierJourney();
+    const [query,setQuery]=useState(location.search);
+    useEffect(()=>{const changed=()=>setQuery(location.search);window.addEventListener('popstate',changed);return()=>window.removeEventListener('popstate',changed);},[]);
+    return new URLSearchParams(query).get('pl-mode')==='dossier'
+      ?createElement('main',null,createElement('section',{'data-dossier-reference':'2025/0176(COD)','data-dossier-person':''},createElement('h3',null,'Dossier'),createElement('a',{id:'journey-return',href:origin,onClick:journey.dossierLinkClick},'Back')))
+      :createElement(Fragment,null,createElement(Component,{language:'en',onBack(){},...props}),createElement('a',{id:'journey-dossier',href:'/?view=legislation&pl-mode=dossier&dossier-ref=2025%2F0176%28COD%29',onClick:journey.dossierLinkClick},'Dossier'));
+  }
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(Component,{language:'en',onBack(){},...props})));
+  await act(async()=>root.render(withJourney?createElement(JourneyShell):createElement(Component,{language:'en',onBack(){},...props})));
   const status=()=>container.querySelector('[role="status"][aria-live="polite"][aria-atomic="true"]');
   assert(component==='Legislation'||status(),'the result status region is present before a result settles');
   const messages=[];
@@ -36,22 +45,29 @@ async function harness(t,path,component,query,respond,props={}) {
   observer.observe(status()||container,{childList:true,subtree:true,characterData:true});t.after(()=>observer.disconnect());
   const navigate=query=>act(async()=>{history.replaceState(null,'','/'+query);window.dispatchEvent(new window.PopStateEvent('popstate'));});
   const click=text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,'Missing button: '+text);button.click();});
-  return {window,container,calls,status,messages,navigate,click,tick};
+  const frames=()=>act(async()=>new Promise(resolve=>window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>window.requestAnimationFrame(resolve)))));
+  return {window,container,calls,status,messages,navigate,click,tick,journey,frames};
 }
 
-for(const fail of [false,true])test('cached agenda title and document links open before '+(fail?'a detail failure':'detail enrichment'),async t=>{
-  const selected=deferred(),sitting={id:'MTG-PL-2026-10-20',date:'2026-10-20',phase:'past'};
+function agendaFixture() {
+  const sitting={id:'MTG-PL-2026-10-20',date:'2026-10-20',phase:'past'};
   const topic={id:sitting.id+'-OJ-ITM-V-27',sittingId:sitting.id,title:'Protection of adults',titleLanguage:'en',date:sitting.date,kind:'PLENARY_VOTE',documentIds:['A-10-2025-0128'],procedureIds:[]};
   const base={view:'legislation',week:'2026-10-19',sitting,sittings:[sitting],agendaSittings:[sitting],topics:[topic],detail:null,coverage:{agendaComplete:true,agendaError:null,latestAvailable:true}};
   const publication={selectedDocumentId:topic.documentIds[0],selectedText:{status:'available',textLanguage:'en',availableTextLanguages:['en'],paragraphs:['Useful cached document text.']},files:[],answers:[]};
+  const detail={...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[{id:'1',name:'Known member',currentMep:true,country:'FR',group:'PPE',demographics:{country:'FR',group:'PPE',gender:'Unknown',age:'Unknown'}}],stats:{uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:sitting.date,dimensions:{country:[],group:[],gender:[],age:[]}},speeches:[],votes:[],selectedVote:null,voteCoverage:{available:false,truncated:false},coverage:{missingDocumentIds:[],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}};
+  return {topic,base,publication,detail};
+}
+
+for(const fail of [false,true])test('cached agenda title and document links open before '+(fail?'a detail failure':'detail enrichment'),async t=>{
+  const selected=deferred(),{topic,base,publication,detail}=agendaFixture();
   const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>url.pathname.includes('/document/')?publication:url.searchParams.has('topic')?selected.promise:base);
   await h.tick();
   const heading=h.container.querySelector('.insight-topic-detail h2');assert.equal(heading.textContent,topic.title);
+  assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,topic.id);
   assert(!h.container.textContent.includes('No contributors listed.'),'pending detail must not manufacture empty observations');
   const read=[...h.container.querySelectorAll('.insight-dossier-links button')].find(button=>button.textContent==='Read A-10-2025-0128');assert(read,'the primary document can open immediately');
   await act(async()=>read.click());await h.tick();assert.equal(read.getAttribute('aria-expanded'),'true');
   assert.match(h.container.querySelector('.insight-inline-reader').textContent,/Useful cached document text/);
-  const detail={...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[{id:'1',name:'Known member',currentMep:true,country:'FR',group:'PPE',demographics:{country:'FR',group:'PPE',gender:'Unknown',age:'Unknown'}}],stats:{uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:sitting.date,dimensions:{country:[],group:[],gender:[],age:[]}},speeches:[],votes:[],selectedVote:null,voteCoverage:{available:false,truncated:false},coverage:{missingDocumentIds:[],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}};
   await act(async()=>selected.resolve(fail?Response.json({error:{code:'fixture_unavailable'}},{status:503}):{...base,detail}));await h.tick();
   assert.equal(h.container.querySelector('.insight-topic-detail h2'),heading,'enrichment keeps the visible title and reader in place');
   assert.equal(read.getAttribute('aria-expanded'),'true','enrichment or failure must not close a reader already opened');
@@ -59,6 +75,38 @@ for(const fail of [false,true])test('cached agenda title and document links open
   assert.equal(h.calls.filter(url=>url.pathname.includes('/document/')).length,1,'enrichment must not restart a loaded reader with another member hint');
   assert(!h.container.textContent.includes('Agenda item unavailable'));
   if(fail)assert.match(h.container.querySelector('.insight-topic-detail [role="alert"]').textContent,/Details unavailable/);
+});
+
+for(const loaded of [true,false])test('dossier return restores an agenda reader '+(loaded?'with its captured member':'after a failed detail retry'),async t=>{
+  const {topic,base,publication,detail}=agendaFixture(),returned=deferred();let detailCalls=0;
+  const unavailable=()=>Response.json({error:{code:'fixture_unavailable'}},{status:503});
+  const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>{
+    if(url.pathname.includes('/document/'))return publication;
+    if(!url.searchParams.has('topic'))return base;
+    detailCalls++;
+    return loaded?{...base,detail}:detailCalls===1?unavailable():returned.promise;
+  },{},true);
+  await h.tick();await h.click('Read '+topic.documentIds[0]);await h.tick();
+  const documentCalls=()=>h.calls.filter(url=>url.pathname.includes('/document/'));
+  assert.equal(documentCalls()[0].searchParams.get('member'),loaded?'1':null);
+  h.container.querySelector('main').scrollTop=340;h.container.querySelector('.insight-topic-detail').scrollTop=95;
+  const clickLink=id=>act(async()=>{const link=h.container.querySelector(id);link.focus();link.click();});
+  await clickLink('#journey-dossier');await h.frames();
+  assert(!h.container.querySelector('.insight-topic-detail'),'the agenda component unmounted');
+  await clickLink('#journey-return');await h.tick();
+  if(!loaded){
+    assert.equal(h.journey.dossierJourneyRestoring(),true,'wait for the pending detail retry');
+    assert.equal(h.container.querySelector('main').scrollTop,0);
+    await act(async()=>returned.resolve(unavailable()));await h.tick();
+  }
+  await h.frames();await h.frames();
+  assert.equal(h.container.querySelector('[data-agenda-topic]').dataset.agendaTopic,topic.id);
+  assert.equal(h.journey.dossierJourneyRestoring(),false);
+  assert.equal(h.container.querySelector('main').scrollTop,340);
+  assert.equal(h.container.querySelector('.insight-topic-detail').scrollTop,95);
+  assert.equal(document.activeElement.id,'journey-dossier');
+  assert.match(h.container.querySelector('.insight-inline-reader').textContent,/Useful cached document text/);
+  assert.equal(documentCalls().length,1,'restoration reuses the original member-specific document response');
 });
 
 test('participation announces only settled filters and keeps focus while qualifying upcoming and missing activity',async t=>{

@@ -426,7 +426,7 @@ if (isEntryPoint) {
     stopBodyWarmup = startCorporateBodyWarmup();
     stopPlenaryWarmup = startPlenaryWarmup(async()=>{
       insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
-      await insightService.warmPlenary();
+      return insightService.warmPlenary();
     });
   });
   startServer();

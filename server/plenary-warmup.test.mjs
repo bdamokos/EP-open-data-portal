@@ -78,6 +78,16 @@ test('there are no periodic historical cache checks between plenary weeks',async
   t.mock.timers.tick(86400_000);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,2);
 });
 
+test('warm-up retries readiness after a minute and stops when no future week is known',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:clock()});
+  let calls=0;
+  const stop=startPlenaryWarmup(async()=>++calls===1?60_000:null);t.after(stop);
+  await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(59_999);assert.equal(calls,1);
+  t.mock.timers.tick(1);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,2);
+  t.mock.timers.tick(90*86400_000);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,2);
+});
+
 test('a completed week view does not expire after five minutes or six hours',async t=>{
   let now=clock(),calls=0;
   const fixture=JSON.parse(await readFile(new URL('./fixtures/insights-live-20261014.json',import.meta.url),'utf8'));

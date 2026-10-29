@@ -1,4 +1,4 @@
-import {agendaViewFreshMs,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
+import {agendaViewFreshMs} from './plenary-cache-policy.mjs';
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 const noStore = Object.freeze({cacheControl: 'no-store', cdnCacheControl: 'no-store'});
@@ -67,7 +67,10 @@ export function apiCachePolicy(request, url, payload, {now = Date.now()} = {}) {
   const resource = url.pathname.split('/')[2];
   if (resource === 'speech' && !payload?.xml) return noStore;
   if (['activities', 'latest-activities', 'speeches'].includes(resource)) return publicPolicy(HOUR);
-  if(url.pathname==='/api/insights/legislation'&&!payload?.detail&&agendaViewFreshMs(payload,now)===PLENARY_REFRESH_MS)return publicPolicy(HOUR);
+  if(url.pathname==='/api/insights/legislation'&&!payload?.detail){
+    const freshness=agendaViewFreshMs(payload,now);
+    if(Number.isFinite(freshness))return publicPolicy(freshness/1000);
+  }
 
   // Only positive reading responses qualify for the longer historical lifetime.
   // An old unanswered question can still acquire an answer and remains at 6 h.
