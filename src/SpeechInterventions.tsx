@@ -11,6 +11,7 @@ import {SpeakerName,SpeakerRoles,SpeakerRoleLine} from './SpeakerIdentity';
 import {speakerTerm} from './speakerPresentation.mjs';
 import {humanDate} from './InsightCharts';
 import {selectLanguageText} from './language.mjs';
+import {useSpeechVideo} from './SpeechPlayer';
 
 const labels:Record<Intervention['type'],string>={speech:'Speech',written:'Written statement',chair:'Chair',procedure:'Procedure','oral-explanation-of-vote':'Oral explanation of vote','catch-the-eye':'Catch the eye','blue-card-question':'Blue-card question','blue-card-intervention':'Blue-card intervention','blue-card-answer':'Blue-card answer','blue-card-reaction':'Blue-card reaction','blue-card':'Blue card',unclassified:'Unclassified'};
 export const speechCategories=[
@@ -83,12 +84,15 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
   </section>;
 }
 
-function ConnectedText({id,language}:{id:string;language:string}) {
-  const state=useSpeechData(id,language),body=state.transcript;
+function ConnectedText({speech,language}:{speech:SpeechSequenceRow;language:string}) {
+  const state=useSpeechData(speech.id,language),body=state.transcript;
+  const video=useSpeechVideo(speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT'&&speech.start&&speech.end?speech:null,language);
   const paragraphs=transcriptParagraphs(body?.xml??null).paragraphs;
   return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
+    {(body||video.toggle)&&<div className="intervention-connected-tools">{body&&<p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}{body.translationType==='machine'?' · Machine translation':''}</p>}{video.toggle}</div>}
+    {video.panel}
     {state.loading&&!body&&<p lang="en" role="status">Loading contribution…</p>}{state.error&&<p lang="en">{state.error} <button onClick={state.retry}>Retry</button></p>}
-    {body&&<><p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}{body.translationType==='machine'?' · Machine translation':''}</p>{paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>}</>}
+    {body&&(paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>)}
   </div>;
 }
 function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:number;loading:boolean;retry:()=>void}) {
@@ -130,7 +134,7 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
           {row.replyTo&&(()=>{const text=<>↳ {row.replyTo===exchange?.originalId?'To the original speech':'In reply'}</>,target=row.replyTo;
             // Opens the contribution being answered when it is part of the displayed sequence.
             return rows.some(other=>other.id===target)?<button type="button" className="intervention-reply" onClick={()=>toggleReading(target)} aria-expanded={reading===target} aria-controls={reading===target?readingId:undefined}>{text}</button>:<span className="intervention-reply">{text}</span>;})()}
-          {reading===row.id&&<div ref={readingRef} tabIndex={-1} id={readingId}><ConnectedText id={row.id} language={transcriptLanguage}/></div>}
+          {reading===row.id&&<div ref={readingRef} tabIndex={-1} id={readingId}><ConnectedText speech={row} language={transcriptLanguage}/></div>}
         </>}
       </div>
     </li>)}</ol>}

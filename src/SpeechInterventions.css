@@ -46,6 +46,9 @@
 .intervention-reply{display:block;font-size:.72rem;color:var(--ink-muted);margin:.2rem 0}
 .intervention-connected-text{margin:.65rem 0;padding:.65rem .85rem;border-left:2px solid var(--accent);background:var(--surface-2);color:var(--ink);font-size:.9rem;line-height:1.75;overflow-wrap:anywhere}
 .intervention-connected-text p{margin:.5rem 0}
+.intervention-connected-tools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.intervention-connected-tools>.intervention-caption{margin:0}
+.intervention-connected-text .explorer-video{padding:0;margin:.5rem 0 1rem}
 .intervention-context button:focus-visible,.intervention-statistics button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 .explorer .intervention-context-toggle{padding:.8rem 0;background:transparent;color:var(--accent)}
 .explorer .intervention-read{background:transparent;color:var(--ink);padding:.4rem .55rem;min-height:var(--control-height)}
