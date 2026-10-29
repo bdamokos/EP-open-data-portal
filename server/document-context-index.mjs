@@ -13,8 +13,12 @@ const expected=id=>'def/ep-document-types/'+(id.startsWith('TA-')?'TEXT_ADOPTED'
 
 // Copy one bounded read snapshot before any asynchronous source/body work.
 // Retained projections are usable observations, never a fresh source census.
-export function retainedDocumentContext(store,query,{adoptedCandidates,metadataBytes}) {
-  if(!store?.readSnapshot||!store.db||!query.adopted&&!query.id.startsWith('TA-'))return null;
+export function retainedDocumentContext(store,query,{adoptedCandidates,metadataBytes},{amendment=null}={}) {
+  const variants=amendment?.variants?.length?amendment.variants:amendment?[amendment]:[];
+  const exactAmendment=typeof query.amendmentId==='string'&&amendment?.targetDocumentId===query.id&&
+    (amendment.id===query.amendmentId||array(amendment.officialIds).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.amendmentId))&&
+    variants.some(variant=>typeof variant.listId==='string'&&variant.listId.startsWith(query.id+'-AM-')&&(!query.listId||variant.listId===query.listId));
+  if(!store?.readSnapshot||!store.db||!query.adopted&&!query.id.startsWith('TA-')&&!exactAmendment)return null;
   return store.readSnapshot(()=>{
     const generations=[...new Set([store.get('working')?.generation,amendmentGeneration(store),store.get('active')].filter(Number.isInteger))];
     const endpoint=(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
@@ -33,6 +37,10 @@ export function retainedDocumentContext(store,query,{adoptedCandidates,metadataB
       if(!work)continue;
       if(work.identifier!==query.id||canonicalEPReference(work.id)!=='eli/dl/doc/'+query.id||typeOf(work)!==expected(query.id))return null;
       if(query.id.startsWith('TA-'))try{validateAdoptedText(endpoint,work);}catch{return null;}
+      else if(!query.adopted) {
+        const terms=array(work.parliamentary_term);
+        if(!terms.length||terms.some(value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')!=='org/ep-10'))return null;
+      }
       const root=observation(endpoint,work,saved.fetchedAt,generation);if(!root)return null;
       if(!query.adopted) {
         const declared=array(work.is_realized_by).filter(expression=>languageCode(expression.language)===query.language)

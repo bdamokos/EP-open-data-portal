@@ -23,7 +23,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=37;
+export const DOCUMENT_CONTEXT_VERSION=38;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -71,7 +71,7 @@ export class DocumentContext {
     const candidate=query.amendmentId&&store?this.findAmendment(store,{document:query.id,id:query.amendmentId,language:query.language}):null;
     const exactIdentity=candidate?.id===query.amendmentId||array(candidate?.officialIds).some(value=>ref(value)==='eli/dl/doc/'+query.amendmentId);
     const indexed=exactIdentity&&candidate?.targetDocumentId===query.id?candidate:null;
-    const retained=retainedDocumentContext(store,query,this.limits);
+    const retained=retainedDocumentContext(store,query,this.limits,{amendment:indexed});
     const key=createHash('sha256').update(JSON.stringify([query,indexed,retained])).digest('hex');const cached=this.cache.get(key);
     if(cached&&cached.until>this.clock())return cached.value;
     if(cached){this.bytes-=cached.bytes;this.cache.delete(key);}
@@ -162,7 +162,8 @@ export class DocumentContext {
       if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
         const fresh=await read(endpoint,query.id,{live:true});
         if(canonicalType(fresh.work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
-        validateAdoptedText(endpoint,fresh.work);
+        if(query.id.startsWith('TA-'))validateAdoptedText(endpoint,fresh.work);
+        else if(array(fresh.work.parliamentary_term).some(value=>canonicalType(value)!=='org/ep-10'))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested parliamentary term.');
         // A missing retained file may have been replaced. Retry the body only
         // when its selected-edition declaration or source version changes.
         const selectedFiles=value=>declaredDocxFiles(value).filter(file=>file.language===query.language);

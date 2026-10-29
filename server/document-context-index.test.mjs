@@ -25,6 +25,71 @@ function setup(t) {
   return {store,generation:cycle.generation,active:first.generation};
 }
 
+for(const [id,type] of [['A-10-2026-0257','REPORT_PLENARY'],[motion,'RESOLUTION_MOTION'],['RC-10-2026-0476','RESOLUTION_MOTION_JOINT']])test('an exact indexed amendment reads retained '+type+' metadata without waiting on upstream',async t=>{
+  const {store,generation}=setup(t),endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/'+type,adopts:undefined,amendmentLinksVersion:3,inverse_foresees_change_of:['eli/dl/doc/'+listId]};
+  store.putSource(generation,endpoint,'document',metadata,stamp);
+  const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'Old source paragraph.',proposedText:'Amended paragraph.',gaps:[],sourceFreshness:{status:'fresh'}};
+  const selected=query({id,adopted:false,amendmentId,listId});let requests=0;
+  const body={status:'available',paragraphs:['1. Old source paragraph.'],textLanguage:'en',fetchedAt:stamp};
+  const reader=new DocumentContext({findAmendment:()=>indexed,request:async()=>{requests++;throw Error('Cold upstream metadata must not block retained context');},readText:async observed=>{assert.deepEqual(observed,JSON.parse(JSON.stringify(metadata)));return body;}});
+  const before=store.db.prepare('SELECT total_changes() n').get().n;
+  const result=await reader.query(selected,{store});
+  assert.equal(requests,0);assert.deepEqual(result.document.selectedText,body);
+  assert.equal(result.amendment.basis,'index');assert.equal(result.amendment.variants[0].originalText,indexed.originalText);
+  assert.equal(result.sources[0].representation,'retained-index-projection');assert.equal(result.sources[0].fetchedAt,stamp);
+  assert.equal(result.sources[0].generation,generation);assert.equal(result.sources[0].epoch,store.get('marksEpoch'));
+  assert.equal(result.document.sourceCache.stale,true);assert.equal(reader.cache.size,0);
+  assert.equal(store.db.prepare('SELECT total_changes() n').get().n,before);
+  const control=new DocumentContext({findAmendment:()=>indexed,request:async()=>({payload:{data:[metadata]},fetchedAt:stamp}),readText:async()=>body});
+  const original=await control.query(selected,{store:{}});
+  assert.deepEqual(result.target,original.target);assert.deepEqual(result.placement,original.placement);
+});
+
+for(const missing of ['no-amendment','wrong-amendment','wrong-target','wrong-list','unknown-edition','competing-edition','wrong-term'])test('ordinary source recovery remains for retained report context: '+missing,async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined,amendmentLinksVersion:3,inverse_foresees_change_of:[]};
+  const saved=structuredClone(metadata);
+  if(missing==='unknown-edition')saved.languageVersionsObserved=false;
+  if(missing==='competing-edition')saved.is_realized_by[0].is_embodied_by.push({...saved.is_realized_by[0].is_embodied_by[0],is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/competing.docx'});
+  if(missing==='wrong-term')saved.parliamentary_term='org/ep-9';
+  store.putSource(generation,endpoint,'document',saved,stamp);
+  const indexed={id:missing==='wrong-amendment'?id+'-AM-87':amendmentId,targetDocumentId:missing==='wrong-target'?'A-10-2026-0258':id,listId,language:'en',textIntegrity:'complete',originalText:'Old paragraph',proposedText:'New paragraph',gaps:[]};
+  if(missing==='wrong-list')indexed.listId=id+'-AM-164-166';
+  let requests=0;
+  const reader=new DocumentContext({findAmendment:()=>missing==='no-amendment'?null:indexed,request:async route=>{requests++;assert.equal(route,endpoint);return {payload:{data:[metadata]},fetchedAt:stamp};},readText:async observed=>{assert.deepEqual(observed,metadata);return {status:'available',paragraphs:['Source body'],textLanguage:'en'};}});
+  const result=await reader.query(query({id,adopted:false,amendmentId,listId}),{store});
+  assert.equal(requests,1);assert.equal(result.sources[0].representation,undefined);
+});
+
+test('a missing retained report file still checks fresh metadata and opens only its changed exact edition',async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined};
+  store.putSource(generation,endpoint,'document',metadata,stamp);
+  const fresh=structuredClone(metadata);fresh.is_realized_by[0].is_embodied_by[0].is_exemplified_by='https://data.europarl.europa.eu/distribution/fixture/replaced_en.docx';
+  const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'Old paragraph',proposedText:'New paragraph',gaps:[]};
+  let requests=0,bodies=0;
+  const reader=new DocumentContext({findAmendment:()=>indexed,request:async route=>{requests++;assert.equal(route,endpoint);return {payload:{data:[fresh]},fetchedAt:stamp};},readText:async observed=>{bodies++;return observed.is_realized_by[0].is_embodied_by[0].is_exemplified_by.endsWith('replaced_en.docx')?{status:'available',paragraphs:['Recovered body'],textLanguage:'en'}:{status:'unavailable',paragraphs:[]};}});
+  const result=await reader.query(query({id,adopted:false,amendmentId,listId}),{store});
+  assert.equal(requests,1);assert.equal(bodies,2);assert.deepEqual(result.document.selectedText.paragraphs,['Recovered body']);
+  assert.equal(store.source(generation,endpoint).fetchedAt,stamp);assert.deepEqual(store.source(generation,endpoint).work,JSON.parse(JSON.stringify(metadata)));
+});
+
+for(const conflict of ['identity','type','term'])test('retained report body recovery rejects conflicting fresh '+conflict,async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined};
+  store.putSource(generation,endpoint,'document',metadata,stamp);const before=store.source(generation,endpoint);
+  const fresh=structuredClone(metadata);fresh.is_realized_by[0].is_embodied_by[0].is_exemplified_by='https://data.europarl.europa.eu/distribution/fixture/replaced_en.docx';
+  if(conflict==='identity')fresh.identifier='A-10-2026-0258';
+  if(conflict==='type')fresh.work_type='def/ep-document-types/TEXT_ADOPTED';
+  if(conflict==='term')fresh.parliamentary_term='org/ep-9';
+  let bodies=0;
+  const reader=new DocumentContext({findAmendment:()=>({id:amendmentId,targetDocumentId:id,listId,language:'en'}),request:async()=>({payload:{data:[fresh]},fetchedAt:stamp}),readText:async()=>{bodies++;return {status:'unavailable',paragraphs:[]};}});
+  const result=await reader.query(query({id,adopted:false,amendmentId,listId}),{store});
+  assert.equal(bodies,1);assert.equal(result.document.selectedDocumentId,id);assert.equal(result.document.selectedText.status,'unavailable');
+  assert(result.document.sourceCache.refreshError);assert.deepEqual(store.source(generation,endpoint),before);
+});
+
 test('exact retained adoption choices avoid source requests and body reads while keeping coverage partial and provenance explicit',async t=>{
   const {store,generation,active}=setup(t);let requests=0,bodies=0;
   const reader=new DocumentContext({request:async()=>{requests++;throw Error('Source unavailable');},readText:async()=>{bodies++;throw Error('Body remains lazy');}});
