@@ -205,6 +205,12 @@ test('a concrete declared speech absent from retained sources keeps coverage par
   assert.equal(response.coverage.status,'partial');assert.deepEqual(response.coverage.missingSpeechIds,[missing]);
   assert.equal(response.items.length,1);assert.match(response.coverage.gaps.join(' '),/linked contribution.*not saved/i);
   assert(!response.coverage.gaps.some(gap=>gap.includes('Showing saved contributions')));
+  x.store.putSource(x.generation,'/speeches/'+missing,'document',{id:uri(missing)},now);
+  assert.deepEqual((await x.service.query(x.q('speeches'))).coverage.missingSpeechIds,[missing]);
+  const raw={id:uri(missing),activity_id:missing,activity_date:'2026-09-15',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+OTHER]}],inverse_consists_of:[uri(DEBATE)]};
+  x.store.putSource(x.generation,'/speeches/'+missing,'speech',raw,now,speechRows(raw,now));
+  const recovered=await x.service.query(x.q('speeches'));
+  assert.equal(recovered.coverage.status,'complete');assert.deepEqual(recovered.coverage.missingSpeechIds,[]);assert.equal(recovered.items.length,1);
 });
 
 test('retained source freshness does not invent a coverage gap',async t=>{
@@ -223,7 +229,7 @@ test('unknown relationship lists and absent targets are unavailable rather than 
   x.work.consists_of=[];
   for(const section of ['amendments','votes']){
     const response=await x.service.query(x.q(section));
-    assert.equal(response.coverage.status,'unavailable');assert.equal(response.coverage.observedCount,null);
+    assert.equal(response.coverage.status,'unavailable');assert.equal(response.coverage.observedCount,null);assert.equal(response.coverage.retryable,false);
   }
 });
 
@@ -238,4 +244,27 @@ test('known unscanned linked debates remain partial until their own page is chec
   assert.deepEqual(first.coverage.uncheckedTargets,['MTG-PL-2026-09-17-PVCRE-ITM-16']);
   const last=await x.service.query(x.q('speeches',MEMBER,'target-offset=2'));
   assert.equal(last.coverage.status,'partial');assert.deepEqual(last.coverage.checkedTargets,['MTG-PL-2026-09-17-PVCRE-ITM-16']);assert.equal(last.coverage.observedCount,0);assert.equal(last.pagination.next,null);
+});
+
+test('unobserved amendment relationships do not invent missing amendments',async t=>{
+  const x=setup(t),coverage={observationComplete:false,targetGaps:['Amendment relationships have not been observed.']};
+  const service=new DossierActivity(x.store,{reader:x.service.reader,readAmendments:()=>({items:[],total:0,coverage})});
+  const unknown=await service.query(x.q('amendments'));
+  assert.equal(unknown.coverage.status,'unavailable');assert.equal(unknown.coverage.observedCount,null);
+  const work=x.records.get('/plenary-documents/'+DOC).payload.data[0];
+  work.inverse_foresees_change_of=['eli/dl/doc/A-10-2026-9999-AM-001-003'];
+  assert.equal((await service.query(x.q('amendments'))).coverage.status,'unavailable');
+  work.inverse_foresees_change_of=['eli/dl/doc/'+DOC+'-AM-001-003'];
+  const missing=await service.query(x.q('amendments'));
+  assert.equal(missing.coverage.status,'partial');assert.equal(missing.coverage.observedCount,0);
+  Object.assign(coverage,{observationComplete:true,targetGaps:[]});
+  work.inverse_foresees_change_of=[];
+  const empty=await service.query(x.q('amendments'));
+  assert.equal(empty.coverage.status,'complete');assert.equal(empty.coverage.observedCount,0);
+});
+
+test('an invalid declared debate is a concrete source gap',async t=>{
+  const x=setup(t);x.work.consists_of.push({id:'eli/dl/event/bad-debate',had_activity_type:'def/ep-activities/PLENARY_DEBATE'});
+  const response=await x.service.query(x.q('speeches'));
+  assert.equal(response.coverage.status,'partial');assert.match(response.coverage.gaps.join(' '),/invalid identifier/);
 });

@@ -86,4 +86,4 @@ export function retainDossierContributors(previous,page) {
   return {...page,participants:[...people.values()],pagination:{...page.pagination,next:page.pagination.next||previous.pagination.next},participantCoverage:{...coverage,status:'partial',retained:true,sources:[...new Map([...(previous.participantCoverage?.sources||[]),...coverage.sources].map(source=>[JSON.stringify(source),source])).values()]}};
 }
 
-export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length&&!coverage.discovery?.pending&&!coverage.discovery?.refreshGaps&&!coverage.discovery?.capacityGaps.length?'No linked records.':coverage.status==='unavailable'?'Records unavailable.':'No records available yet.';
+export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length?'No linked records.':coverage.status==='unavailable'?'Records unavailable.':'No records available yet.';

@@ -167,7 +167,7 @@ export class DossierActivity {
       if(!children.size)return {rows:[],missing:[]};
       const ids=[...children.keys()],slots=ids.map(()=>'?').join(',');
       const indexed=new Set(this.store.db.prepare('SELECT DISTINCT source_id FROM items WHERE generation=? AND source_id IN ('+slots+')').all(result.generation,...ids).map(row=>row.source_id));
-      const sources=new Set(this.store.db.prepare('SELECT key FROM sources WHERE generation=? AND key IN ('+slots+')').all(result.generation,...ids.map(id=>'/speeches/'+id)).map(row=>row.key));
+      const sources=new Set(this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='speech' AND key IN ("+slots+')').all(result.generation,...ids.map(id=>'/speeches/'+id)).map(row=>row.key));
       const missing=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id));
       const rows=this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+slots+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...ids,DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
       return {rows,missing};
@@ -207,14 +207,15 @@ export class DossierActivity {
     const candidates=[...new Set([...retained,...array(work.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY').flatMap(event=>refs(event.based_on_a_realization_of)).map(tail)].filter(id=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(id)))].sort();
     const targets=candidates.slice(0,DOSSIER_ACTIVITY_LIMITS.documents);
     if(candidates.length>targets.length)coverage.gaps.push('Some amendment targets are outside this checked scope.');
-    if(targetOffset>=targets.length){coverage.status='unavailable';coverage.gaps.push('No checked amendment target is linked in this procedure observation.');return;}
-    const target=targets[targetOffset];let record;
+    if(targetOffset>=targets.length){coverage.status='unavailable';coverage.retryable=false;coverage.gaps.push('No checked amendment target is linked in this procedure observation.');return;}
+    const target=targets[targetOffset];let record,targetWork;
     coverage.checkedTargets=[target];coverage.uncheckedTargets=targets.filter(id=>id!==target);
     result.checkedTarget=target;
     try {
       record=await this.reader.record('/plenary-documents/'+target);
       const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/doc/'+target);
       if(nodes.length!==1||!refs(nodes[0].inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))throw new HttpError(502,'dossier_amendment_target','The exact amendment target is unavailable.');
+      targetWork=nodes[0];
     }catch(error){
       if(isLocalRequestFailure(error))throw error;
       coverage.status='unavailable';coverage.gaps.push('Amendment target '+target+' is unavailable.');
@@ -240,7 +241,9 @@ export class DossierActivity {
         items.push({kind:'amendment',id:row.id+'@'+(variant.listId||'aggregate'),date:tabling.date||date(variant.documentDate)||date(variant.date),dateBasis:tabling.date?'tabling':'document',stage:stages.length===1?stages[0]:null,tabling,amendment,source:source(from,from.language||null)});
       }
     }
-    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':'partial';
+    const declared=refs(targetWork.inverse_foresees_change_of).some(value=>value.match(/^eli\/dl\/doc\/((?:A|B|RC)-10-\d{4}-\d{4,6})-AM-\d{1,5}(?:-\d{1,5})?$/)?.[1]===target);
+    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':data.total>0||declared?'partial':'unavailable';
+    if(coverage.status==='unavailable')coverage.retryable=false;
     coverage.gaps.push(...array(data.coverage.targetGaps||data.coverage.gaps).filter(gap=>typeof gap==='string'));
     coverage.discovery=data.coverage.discovery||null;
     result.checkedTarget=target;
@@ -251,7 +254,7 @@ export class DossierActivity {
     const {coverage}=result,{offset,member,language}=query;
     const events=array(work.consists_of).filter(event=>tail(event.had_activity_type)==='PLENARY_VOTE_RESULTS'&&/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(canonical(event.id)));
     const sittings=[...new Set(events.map(event=>tail(event.id).match(/^MTG-PL-\d{4}-\d{2}-\d{2}/)[0]))].sort();
-    if(offset>=sittings.length){coverage.status='unavailable';coverage.gaps.push('No plenary decision event is linked in this procedure observation.');return;}
+    if(offset>=sittings.length){coverage.status='unavailable';coverage.retryable=false;coverage.gaps.push('No plenary decision event is linked in this procedure observation.');return;}
     const sitting=sittings[offset],snapshot=await this.votes.snapshot({sitting,week:null,language,snapshot:null}),allowed=new Set(events.map(event=>canonical(event.id)));
     coverage.checkedTargets=[sitting];coverage.uncheckedTargets=sittings.filter(id=>id!==sitting);
     const items=snapshot.days.flatMap(day=>projectMemberSitting(day,member,language).items).filter(vote=>{

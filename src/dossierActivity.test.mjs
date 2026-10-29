@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
-import {dossierAmendmentVotes,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors} from './dossierActivityModel.mjs';
+import {dossierAmendmentVotes,dossierVoteCards,dossierHref,dossierTimeline,mergeDossierPage,retainDossierContributors,dossierEmptyLabel} from './dossierActivityModel.mjs';
 import {dataTimeoutFor} from './client.mjs';
 import {readFile} from 'node:fs/promises';
 import {contrast,paintedBackground,themeCss,tokenValue} from './test-support/themeStyles.mjs';
@@ -170,25 +170,32 @@ test('same-generation partial and complete resolver snapshots revalidate when re
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-references')).length,2);
 });
 
-test('complete target reads still label incomplete broader amendment discovery',async t=>{
+test('complete target reads are not made partial by unrelated discovery failures',async t=>{
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
     return Response.json(page('amendments','257727',[amendment],{coverage:{status:'complete',gaps:[],sources:[source],discovery:{pending:false,refreshGaps:true,capacityGaps:['Discovery limit reached.']}}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
   const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
-  assert(coverage,'discovery gaps keep a coverage label');
-  assert.match(coverage.querySelector('p').textContent,/Some amendment sources unavailable/);
-  assert.equal(coverage.querySelector('details'),null);
+  assert.equal(coverage,null,'unrelated discovery failures do not downgrade this complete target');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);
 });
 
-test('a discovery capacity limit alone is partial coverage, not unavailable sources',async t=>{
+test('global discovery capacity does not invent a gap in a complete dossier target',async t=>{
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
     return Response.json(page('amendments','257727',[amendment],{coverage:{status:'complete',gaps:[],sources:[source],discovery:{pending:false,refreshGaps:false,capacityGaps:['Discovery limit reached.']}}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage p').textContent,/Amendments · Partial coverage$/);
+  assert.equal(h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage'),null);
+  assert.equal(dossierEmptyLabel({status:'complete',gaps:[],discovery:{pending:true,refreshGaps:true,capacityGaps:['Historical capacity limit.']}}),'No linked records.');
+});
+
+test('an unestablished target is unavailable without an unsupported retry promise',async t=>{
+  const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[],{coverage:{status:'unavailable',retryable:false,gaps:['No checked amendment target is linked in this procedure observation.'],sources:[source]}})):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Records unavailable/);
+  assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
 });
 
 test('coverage retains a short partial label when a later amendment target fails',async t=>{
