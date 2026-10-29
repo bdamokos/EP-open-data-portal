@@ -348,6 +348,10 @@ test('published numeric citation columns match the resolved dash-led source cita
   }
   assert.deepEqual(text,before,'comparison keeps the exact source text and coordinates');
   const example=fixture.examples.find(row=>row.targetLabel==='Citation 3');
+  const established={...example,originalText:example.originalText.replace('3.\t','3.\t– '),language:fixture.language};
+  assert.equal(resolveAmendmentPlacement(text,established).status,'placed','established comparisons keep their existing marker handling');
+  const incomplete=structuredClone(text);incomplete.paragraphSources[1].segment=99;
+  assert.equal(resolveAmendmentPlacement(incomplete,established).status,'placed','the new preamble requirement is confined to the additional numeric-marker comparison');
   for(const sourceChange of [{complete:false},{ordinal:200},{segment:99},{container:'table-cell'}]) {
     const broken=structuredClone(text);Object.assign(broken.paragraphSources[1],sourceChange);
     assert.equal(resolveAmendmentPlacement(broken,{...example,language:fixture.language}).status,'unresolved','an incomplete preamble cannot establish the citation ordinal');
