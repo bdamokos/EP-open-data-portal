@@ -9,6 +9,8 @@ import {AMENDMENT_AUTHOR_NAMES_VERSION,memberNameFields,alternateAuthorDescripto
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, docxRetrievedAfterIssue, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
+import {reconcileAmendmentDocumentGap} from './document-route-recovery.mjs';
+import {sanitizeFreshDocument} from './document-detail-routing.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
 import {amendmentSourceStore} from './amendment-source-store.mjs';
@@ -102,6 +104,7 @@ function reportWordingEvidence(worker,generation,target,list,distributionEvidenc
     {reportId:target,distributionEvidence:distributionEvidenceFor(report.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:report.fetchedAt,language:null})}:null;
 }
 function saveVerifiedList(worker,generation,target,candidate,list,evidence,{parserUpgrade=false}={}) {
+  list=sanitizeFreshDocument(list);
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
   const reportWording=reportWordingEvidence(worker,generation,target,list,distributionEvidence);
@@ -113,7 +116,10 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
   // Expanded parent metadata must not postpone the occasional exact check.
   const metadataCheckedAt=evidence.basis==='list-detail'?evidence.fetchedAt:prior?.work.metadataCheckedAt || prior?.work.relationshipEvidence?.fetchedAt || evidence.fetchedAt;
   const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
-  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',{...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(reportWording?{reportWording}:{}),lastConfirmedAt,metadataCheckedAt,...(prior?.work.sourceRetentionRetryAt?{sourceRetentionRetryAt:prior.work.sourceRetentionRetryAt}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})},prior?.fetchedAt || evidence.fetchedAt);
+  const projected={...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(reportWording?{reportWording}:{}),lastConfirmedAt,metadataCheckedAt,...(prior?.work.sourceRetentionRetryAt?{sourceRetentionRetryAt:prior.work.sourceRetentionRetryAt}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})};
+  const retainedAt=prior?.fetchedAt || evidence.fetchedAt;
+  worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',projected,retainedAt);
+  reconcileAmendmentDocumentGap(worker,generation,candidate.id,{work:projected,fetchedAt:retainedAt});
 }
 function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sittingIds=[]}={}) {
   const id=idOf(work),linked=linkedListCandidates(work),verified=new Set(),unresolved=[];
@@ -919,6 +925,7 @@ export async function amendmentTask(worker,task) {
     const sitting=store.source(generation,motionSourceKey(body.sittingId));if(sitting&&!await beginRebuild(worker,task,{kind:'sitting',sittingId:body.sittingId}))return;
   } else throw new Error('Unknown amendment task.');
   store.finishTask(task);
+  if(task.kind==='amendment-list-detail')reconcileAmendmentDocumentGap(worker,generation,body.listId);
   store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='amendment-gap'").run(generation,'amendment:gap:'+task.key);
 }
 export function failAmendmentTask(worker,task,error) {
