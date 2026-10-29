@@ -4,40 +4,14 @@ import {HttpError} from './http-utils.mjs';
 import {languageCode} from './ep-links.mjs';
 import {sharedRequest,waitForRequest,requestSignal,createRequestBudget,runWithRequestSignal} from './request-budget.mjs';
 
-export const COMMISSION_FOLLOWUPS_VERSION=1;
+export const COMMISSION_FOLLOWUPS_VERSION=2;
 export const COMMISSION_FOLLOWUPS_LIMITS=Object.freeze({reads:4,timeout:8000,metadataBytes:1024*1024,responseBytes:256*1024,entries:32,ttl:60_000});
-const origin='https://data.europarl.europa.eu/';
-const canonical=value=>{
-  const text=typeof value==='string'?value:value?.id;
-  return typeof text==='string'?text.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
-};
+import {spId,validateTA,validateReply,followupReaderLink,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
+import {retainedCommissionFollowups} from './commission-followups-index.mjs';
+export {followupReaderLink} from './commission-followups-model.mjs';
 const array=value=>Array.isArray(value)?value:value==null?[]:[value];
-const spId=value=>{const ref=canonical(value);return /^eli\/dl\/doc\/SP-[A-Za-z0-9](?:[A-Za-z0-9-]{0,118}[A-Za-z0-9])?$/.test(ref||'')?ref.slice(11):null;};
 const invalid=()=>new HttpError(502,'invalid_followup_source','Commission follow-up could not be checked.');
-const exactWork=(payload,id)=>{
-  const nodes=payload?.data;
-  if(!Array.isArray(nodes)||nodes.length!==1||canonical(nodes[0]?.id)!=='eli/dl/doc/'+id||nodes[0]?.identifier!==id)throw invalid();
-  return nodes[0];
-};
-const validateTA=(payload,id)=>{const work=exactWork(payload,id);if(canonical(work.work_type)!=='def/ep-document-types/TEXT_ADOPTED')throw invalid();return work;};
-const validateReply=(payload,id,ta)=>{
-  const work=exactWork(payload,id);
-  if(canonical(work.work_type)!=='def/ep-document-types/ACT_FOLLOWUP'||canonical(work.answers_to)!=='eli/dl/doc/'+ta||!array(work.creator).some(value=>canonical(value)==='org/EU_COMMISSION'))throw invalid();
-  return work;
-};
 const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value?value:null;
-const media={PDF:'application/pdf',HTML:'text/html',DOCX:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
-
-export function followupReaderLink(manifestation) {
-  const value=manifestation?.is_exemplified_by;
-  if(typeof value!=='string'||value.length>2048||/[\s\\%?#\u0000-\u001f\u007f]/.test(value))return null;
-  const match=value.match(/^(?:https:\/\/data\.europarl\.europa\.eu\/|\/?)distribution\/doc\/([A-Za-z0-9][A-Za-z0-9_-]*\.(pdf|html|docx))$/);
-  if(!match)return null;
-  const format=match[2].toUpperCase();
-  if(manifestation.format!=null&&!['http://publications.europa.eu/resource/authority/file-type/'+format,'https://publications.europa.eu/resource/authority/file-type/'+format].includes(manifestation.format))return null;
-  if(manifestation.media_type!=null&&!['https://www.iana.org/assignments/media-types/'+media[format],'http://www.iana.org/assignments/media-types/'+media[format],media[format]].includes(manifestation.media_type))return null;
-  return {url:origin+'distribution/doc/'+match[1],format};
-}
 
 export function commissionFollowupsQuery(id,params) {
   if(!/^TA-10-\d{4}-\d{4,6}$/.test(id))throw new HttpError(400,'invalid_document','Choose an adopted text.');
@@ -47,9 +21,10 @@ export function commissionFollowupsQuery(id,params) {
 
 export class CommissionFollowups {
   constructor({request=odp,clock=Date.now,limits={}}={}){Object.assign(this,{request,clock});this.limits={...COMMISSION_FOLLOWUPS_LIMITS,...limits};this.pending=new Map();this.cache=new Map();}
-  async query(query) {
+  async query(query,{store=null}={}) {
     requestSignal()?.throwIfAborted();
-    const key=JSON.stringify(query),saved=this.cache.get(key);
+    const retained=retainedCommissionFollowups(store,query,this.limits);
+    const key=createHash('sha256').update(JSON.stringify({query,retained})).digest('hex'),saved=this.cache.get(key);
     if(saved?.until>this.clock())return saved.value;
     this.cache.delete(key);
     let job=this.pending.get(key);
@@ -57,7 +32,7 @@ export class CommissionFollowups {
       job=sharedRequest(async signal=>{
         const budget=createRequestBudget(this.limits.timeout);
         let value;
-        try {value=await runWithRequestSignal(budget.signal,()=>this.collect(query));}finally{budget.dispose();}
+        try {value=await runWithRequestSignal(budget.signal,()=>this.collect(query,retained));}finally{budget.dispose();}
         signal.throwIfAborted();
         if(!value.gaps.length&&!value.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError)){
           while(this.cache.size>=this.limits.entries)this.cache.delete(this.cache.keys().next().value);
@@ -69,24 +44,29 @@ export class CommissionFollowups {
     }
     return waitForRequest(job);
   }
-  async collect({id,language}) {
+  async collect({id,language},retained=null) {
     const result={version:COMMISSION_FOLLOWUPS_VERSION,documentId:id,requestedLanguage:language,status:'unavailable',relationshipObservation:'unobserved',declaredCount:null,checkedCount:0,truncated:false,items:[],gaps:[],sources:[]};
     let bytes=0;
     const gap=(reason,reply=null)=>{if(!result.gaps.some(g=>g.reason===reason&&g.id===reply))result.gaps.push({id:reply,reason});};
     const read=async(endpoint,validate)=>{
       requestSignal()?.throwIfAborted();
-      const record=await waitForRequest(this.request(endpoint,{}, {staleWhileRevalidate:true,validate}));
+      if(retained?.budgetEndpoint===endpoint)throw Object.assign(invalid(),{code:'followup_metadata_budget'});
+      const saved=retained?.records.find(record=>record.endpoint===endpoint);
+      if(retained&&!saved)throw new HttpError(503,'followup_pending','Commission follow-up could not be checked.');
+      const record=saved?.record||await waitForRequest(this.request(endpoint,{}, {staleWhileRevalidate:true,validate}));
       requestSignal()?.throwIfAborted();
       const raw=JSON.stringify(record.payload);bytes+=Buffer.byteLength(raw);
       if(bytes>this.limits.metadataBytes)throw Object.assign(invalid(),{code:'followup_metadata_budget'});
-      const source={url:record.url||ODP_BASE+endpoint+'?format=application%2Fld%2Bjson',fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(raw).digest('hex')};
+      const source=saved?.source||{url:record.url||ODP_BASE+endpoint+'?format=application%2Fld%2Bjson',fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(raw).digest('hex')};
       result.sources.push(source);
       return {work:validate(record.payload),source};
     };
+    if(retained?.metadataBudget){result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
     let work;
     try {({work}=await read('/adopted-texts/'+id,payload=>validateTA(payload,id)));}
     catch(error){requestSignal()?.throwIfAborted();if(error.code!=='followup_metadata_budget')throw error;result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
-    const inverse=work.inverse_answers_to;
+    const inverse=retained?(work.adoptionProjectionVersion===adoptedTextProjectionVersion?work.followupRelationships:undefined):work.inverse_answers_to;
+    if(retained&&inverse==null)gap('lookup-failed');
     if(inverse==null)return result;
     if(!Array.isArray(inverse)){gap('malformed-relationships');return result;}
     result.relationshipObservation='observed';result.declaredCount=inverse.length;

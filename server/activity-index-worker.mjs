@@ -15,6 +15,7 @@ import { ODP_BASE, boundedUpstream, backoffUpstream, observedOdpFetch } from './
 import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
+import {spId,validateTA,validateReply,projectFollowup} from './commission-followups-model.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
@@ -28,7 +29,7 @@ import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask} from './refresh-policy.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -346,20 +347,38 @@ export class ActivityWorker {
         }
       }
       this.store.finishTask(task);
+    } else if(task.kind==='document'&&body.endpoint.startsWith('/external-documents/')) {
+      const id=body.endpoint.slice('/external-documents/'.length),prior=this.store.source(generation,body.endpoint);
+      const adoptedId=body.adoptedId||prior?.work.followupOf;
+      if(spId('eli/dl/doc/'+id)!==id||!/^TA-10-\d{4}-\d{4,6}$/.test(adoptedId||''))throw new Error('Invalid follow-up task identity.');
+      const r=await this.request(body.endpoint),work=validateReply(r.payload,id,adoptedId);
+      this.store.putSource(generation,body.endpoint,'document',projectFollowup(work,adoptedId),r.fetchedAt,[],{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});
+      this.store.finishTask(task);
     } else if(task.kind==='document') {
+      if(body.stage==='followups'&&body.endpoint.startsWith('/adopted-texts/')) {
+        const saved=this.store.source(generation,body.endpoint);
+        if(saved?.work.adoptionProjectionVersion===adoptedTextProjectionVersion) {
+          adoptedTextRecord(body.endpoint,[saved.work]);validateTA({data:[saved.work]},saved.work.identifier);
+          const next=scheduleAdoptedFollowups(this,task,saved.work);
+          if(next)this.store.taskProgress(task,next);else this.store.finishTask(task);
+          return;
+        }
+      }
       const r=await this.request(body.endpoint),adopted=body.endpoint.startsWith('/adopted-texts/');
       const work=adopted?adoptedTextRecord(body.endpoint,r.payload.data):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
       if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(work), proc=new Map();
-      if(adopted)projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
+      if(adopted){validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=work.inverse_answers_to;}
       for(const id of procedureIds(work)) {
         const endpoint='/procedures/'+id, existing=this.store.source(generation,endpoint);
         if(existing)proc.set(id,existing);
         if(tail(work.work_type)==='REPORT_PLENARY')this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
       }
       const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
-      this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});this.store.finishTask(task);
+      this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});
+      const followups=adopted?scheduleAdoptedFollowups(this,task,projected):null;
+      if(followups)this.store.taskProgress(task,followups);else this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
       scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);
     } else if(task.kind==='motion-outcomes') {

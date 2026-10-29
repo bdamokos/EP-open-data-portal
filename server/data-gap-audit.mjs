@@ -1,5 +1,6 @@
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
+import {adoptedTextProjectionVersion,spId,validateTA,validateReply} from './commission-followups-model.mjs';
 
 export function failureClass(message='') {
   const status=String(message).match(/(?:returned|HTTP|unavailable\s*\()\s*(404|410|429|5\d\d)/i)?.[1];
@@ -51,6 +52,39 @@ function inspect(filename,read) {
   } catch(error) {return {state:'unavailable',reason:error.code||'read failed'};}
   finally {if(db){if(db.isTransaction)db.exec('ROLLBACK');db.close();}}
 }
+
+export function auditFollowupMetadata(db,generation) {
+  if(!has(db,'sources'))return {state:'unavailable',reason:'source table absent'};
+  const owned=new Set();
+  for(const table of ['tasks','amendment_jobs','refresh_gaps'])if(has(db,table))for(const row of db.prepare(`SELECT key FROM ${table} WHERE generation=?${table==='refresh_gaps'?'':' AND (done IS NULL OR done<>1)'}`).iterate(generation))owned.add(row.key);
+  const continuation=db.prepare("SELECT body FROM sources WHERE generation=? AND key='amendment:continuations'").get(generation);
+  if(continuation){const saved=JSON.parse(continuation.body);for(const task of [...(saved.tasks||[]),...(saved.discovery||[])])if(task.done!==1)owned.add(task.key);}
+  const counts={legacyRoots:0,unobservedRoots:0,malformedRoots:0,unrecognisedRelationships:0,observedRoots:0,retained:0,ownedMissing:0,unowned:0};
+  const relations=new Map();
+  for(const row of db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*'").iterate(generation)) {
+    const work=JSON.parse(row.body);
+    if(work.adoptionProjectionVersion!==adoptedTextProjectionVersion){counts.legacyRoots++;continue;}
+    try{validateTA({data:[work]},row.key.slice('/adopted-texts/'.length));}catch{counts.malformedRoots++;continue;}
+    if(work.followupRelationships==null){counts.unobservedRoots++;continue;}
+    if(!Array.isArray(work.followupRelationships)){counts.malformedRoots++;continue;}
+    counts.observedRoots++;
+    for(const value of work.followupRelationships){const id=spId(value);if(id)relations.set(JSON.stringify([work.identifier,id]),{adoptedId:work.identifier,id,key:'/external-documents/'+id});else counts.unrecognisedRelationships++;}
+  }
+  const missing=[],retainedSources=new Map();
+  for(const [identity,relation] of [...relations].sort(([a],[b])=>a.localeCompare(b))) {
+    if(!retainedSources.has(relation.key)){
+      const row=db.prepare("SELECT body FROM sources WHERE generation=? AND key=? AND kind='document'").get(generation,relation.key);
+      retainedSources.set(relation.key,row?JSON.parse(row.body):null);
+    }
+    const work=retainedSources.get(relation.key);let retained=false;
+    if(work?.followupProjectionVersion===1)try{validateReply({data:[work]},relation.id,relation.adoptedId);retained=true;}catch{/* Keep mismatches missing. */}
+    if(retained){counts.retained++;continue;}
+    const state=owned.has(relation.key)?'ownedMissing':'unowned';counts[state]++;missing.push({identity,...relation,state});
+  }
+  return {state:'observed',policy:'metadata of exact SP relationships declared by current adopted-text projections',eligibleRelations:relations.size,
+    eligibleRelationDigest:createHash('sha256').update(JSON.stringify([...relations.keys()].sort())).digest('hex'),counts,missing};
+}
+
 export function auditIndex(db,now) {
   const active=meta(db,'active'),working=meta(db,'working'),amendmentSnapshot=meta(db,'amendmentSnapshotGeneration'),generations=[...new Set([active,working?.generation,amendmentSnapshot].filter(Number.isInteger))];
   const lease=has(db,'lease')?db.prepare('SELECT expires FROM lease WHERE id=1').get():null;
@@ -63,11 +97,11 @@ export function auditIndex(db,now) {
       const continuation=has(db,'sources')?db.prepare("SELECT body FROM sources WHERE generation=? AND key='amendment:continuations'").get(generation):null;
       const saved=continuation?JSON.parse(continuation.body):null;
       return {generation,queues:Object.fromEntries(['tasks','amendment_jobs','group_voice_jobs'].map(table=>[table,queues(db,table,now,generation)])),
-        refreshGaps:gaps,gapRecords,savedSourceGaps:sourceGaps,
+        refreshGaps:gaps,gapRecords,savedSourceGaps:sourceGaps,followupMetadata:auditFollowupMetadata(db,generation),
         adoptedTexts:has(db,'sources')?db.prepare(`SELECT COUNT(*) AS retained,
           COALESCE(SUM(json_type(body,'$.adopts') IS NOT NULL AND json_type(body,'$.adopts')<>'null'),0) AS withAdoptionObservation,
           COALESCE(SUM(json_type(body,'$.adopts') IS NULL OR json_type(body,'$.adopts')='null'),0) AS withoutAdoptionObservation,
-          COALESCE(SUM(COALESCE(json_extract(body,'$.adoptionProjectionVersion'),0)<>1),0) AS legacyProjection
+          COALESCE(SUM(COALESCE(json_extract(body,'$.adoptionProjectionVersion'),0)<>${adoptedTextProjectionVersion}),0) AS legacyProjection
           FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*'`).get(generation):null,
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
         mutableDocuments:has(db,'mutable_documents')?db.prepare('SELECT COUNT(*) AS count,SUM(next_check<=?) AS due FROM mutable_documents WHERE generation=?').get(now,generation):null};
@@ -125,8 +159,11 @@ export function compareGapAudits(current,baseline) {
   };
   const active=report=>report.index?.generations?.find(g=>g.generation===report.index.activeGeneration)?.gapRecords;
   const questionFiles=compare(baseline.questionFiles?.missing,current.questionFiles?.missing,'url');
+  const followups=report=>report.index?.generations?.find(g=>g.generation===report.index.activeGeneration)?.followupMetadata;
   return {baselineAt:baseline.observedAt,currentAt:current.observedAt,
     indexGaps:compare(active(baseline),active(current),'key'),corpusTasks:compare(baseline.corpus?.pendingTasks,current.corpus?.pendingTasks,'key'),questionFiles,
+    followupMetadata:compare(followups(baseline)?.missing,followups(current)?.missing,'identity'),
+    sameFollowupMetadataUniverse:followups(baseline)?.eligibleRelationDigest&&followups(current)?.eligibleRelationDigest?followups(baseline).eligibleRelationDigest===followups(current).eligibleRelationDigest:null,
     sameQuestionFileUniverse:baseline.questionFiles?.eligibleUrlDigest&&current.questionFiles?.eligibleUrlDigest?baseline.questionFiles.eligibleUrlDigest===current.questionFiles.eligibleUrlDigest:null,
     note:'Resolved means absent from the current missing set; confirm retained data and source scope before calling it recovered. New publications can add gaps while older gaps recover.'};
 }

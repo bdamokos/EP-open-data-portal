@@ -1,8 +1,10 @@
+import {createHash} from 'node:crypto';
+import {spId,validateReply,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
 import {array,tail} from './activity-index-model.mjs';
 
 // Internal queue-admission revision, not a public response schema version.
 const discoveryRevision=1;
-export const adoptedTextProjectionVersion=1;
+export {adoptedTextProjectionVersion} from './commission-followups-model.mjs';
 const markerKey='adoptedTextDiscovery';
 const yearOf=now=>new Date(now).getUTCFullYear();
 const currentMarker=marker=>marker?.version===discoveryRevision&&Number.isInteger(marker.throughYear)&&marker.throughYear>=2024;
@@ -83,4 +85,27 @@ export function scheduleAdoptedTextRepairs(worker,cycle) {
     for(const key of keys)store.enqueue(cycle.generation,key,'document',{endpoint:key},101,true);
     return keys.length;
   });
+}
+
+// A bounded cursor keeps every declared relationship owned by the parent detail
+// task until its child admissions are durable. No requests run during admission.
+export function scheduleAdoptedFollowups(worker,task,work) {
+  const {store}=worker,generation=task.generation,relationships=work.followupRelationships;store.assertWriter();
+  if(!Array.isArray(relationships))return null;
+  const hash=createHash('sha256').update(JSON.stringify(relationships)).digest('hex');
+  const offset=task.body.followupHash===hash&&Number.isSafeInteger(task.body.followupOffset)&&task.body.followupOffset>=0?task.body.followupOffset:0;
+  const end=Math.min(relationships.length,offset+100),reserved=adoptedTextDeferredKeys(store,generation),now=worker.clock();
+  for(const value of relationships.slice(offset,end)) {
+    const id=spId(value);if(!id)continue;
+    const key='/external-documents/'+id;
+    if(adoptedTextOwnedElsewhere(store,generation,key,reserved))continue;
+    if(store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))continue;
+    if(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1)').get(generation,key))continue;
+    const saved=store.source(generation,key);
+    if(saved?.work.followupProjectionVersion===1&&Number.isFinite(Date.parse(saved.fetchedAt))&&now-Date.parse(saved.fetchedAt)<7*86400_000) {
+      try{validateReply({data:[saved.work]},id,work.identifier);continue;}catch{/* A conflicting projection needs normal verification. */}
+    }
+    store.enqueue(generation,key,'document',{endpoint:key,adoptedId:work.identifier},101,true);
+  }
+  return end<relationships.length?{...task.body,stage:'followups',followupHash:hash,followupOffset:end}:null;
 }

@@ -18,7 +18,7 @@ export function nextBackfillTask(store,generation,ordinaryTask) {
   if(state.ordinary>=ordinaryBackfillQuantum) {
     const predicates=[
       "EXISTS(SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
-      "(task.kind='document' AND task.key GLOB '/adopted-texts/TA-10-*' OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
+      "(task.kind='document' AND (task.key GLOB '/adopted-texts/TA-10-*' OR task.key GLOB '/external-documents/SP-*') OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
     ];
     for(const lane of [state.nextLane,1-state.nextLane]) {
       const task=store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_order
