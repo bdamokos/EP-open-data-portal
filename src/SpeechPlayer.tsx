@@ -44,9 +44,9 @@ export function ParliamentFrame({ src, speechId, lang, audio, original, mapping,
   return <>
     {phase==='preparing' && <p role="status" lang="en">Preparing {original ? 'original' : audioLanguageName(lang)} audio…</p>}
     {phase==='error' ? <div className="explorer-notice" role="alert" lang="en"><p>{error}</p><button onClick={()=>{returnFocusRef.current?.();setPhase('preparing');setAttempt(x=>x+1);}}>Retry player</button></div> : <>
-      {phase==='ready' && <p className="explorer-video-caption" lang="en">{original ? 'Original audio' : `${audioLanguageName(lang)} audio`} · European Parliament</p>}
+      {phase==='ready' && <p className="explorer-video-caption" lang="en">European Parliament</p>}
       {manual && <p role="status" lang="en">{manual}</p>}
-      <div className="explorer-player-frame" lang="en" style={{visibility:phase==='ready' ? 'visible' : 'hidden'}} aria-hidden={phase!=='ready'}><iframe ref={frame} key={attempt} title={`European Parliament speech video · ${original ? 'original audio' : audioLanguageName(lang)}`} src={src} allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" tabIndex={phase==='ready' ? 0 : -1} data-speech-id={speechId} /></div>
+      <div className="explorer-player-frame" lang="en" style={{visibility:phase==='ready' ? 'visible' : 'hidden'}} aria-hidden={phase!=='ready'}><iframe ref={frame} key={attempt} title="European Parliament speech video" src={src} allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" tabIndex={phase==='ready' ? 0 : -1} data-speech-id={speechId} /></div>
 
     </>}
   </>;
