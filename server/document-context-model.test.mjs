@@ -333,6 +333,28 @@ test('English reference grammar is not silently applied to another or unknown so
 
 const motion = paragraphs => document(['Cover', 'The European Parliament,', '– having regard to public sources,', ...paragraphs], {textLanguage:'en'});
 const placement = (text, options) => resolveAmendmentPlacement(text, {language:'en', ...options});
+test('published numeric citation columns match the resolved dash-led source citation', () => {
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-citation-excerpts.json',import.meta.url)));
+  const text={...fixture,structureStatus:'extracted',textLanguage:fixture.language};
+  const before=structuredClone(text);
+  for(const example of fixture.examples) {
+    const options={...example,language:fixture.language,baseline:'motion-resolution',referenceText:example.targetLabel};
+    const result=resolveAmendmentPlacement(text,options);
+    assert.equal(result.status,'placed',example.amendmentId+': '+result.reason);
+    assert.equal(result.operation,'replace');
+    assert.deepEqual(result.span,{start:example.expectedIndex,end:example.expectedIndex});
+    assert.equal(resolveAmendmentPlacement(text,{...options,originalText:example.originalText.replace(/,$/u,';')}).reason,'conflicting_target_evidence','internal punctuation stays meaningful');
+    assert.equal(resolveAmendmentPlacement(text,{...options,referenceText:'Citation 1'}).reason,'conflicting_target_evidence','the decision must name the same citation');
+  }
+  assert.deepEqual(text,before,'comparison keeps the exact source text and coordinates');
+  const example=fixture.examples.find(row=>row.targetLabel==='Citation 3');
+  for(const sourceChange of [{complete:false},{ordinal:200},{segment:99},{container:'table-cell'}]) {
+    const broken=structuredClone(text);Object.assign(broken.paragraphSources[1],sourceChange);
+    assert.equal(resolveAmendmentPlacement(broken,{...example,language:fixture.language}).status,'unresolved','an incomplete preamble cannot establish the citation ordinal');
+  }
+  const paragraph=document(['The European Parliament,','1. – Meaningful dash-led wording;','2. Next;'],{textLanguage:'en'});
+  assert.equal(placement(paragraph,{targetLabel:'Paragraph 1',originalText:'1. Meaningful dash-led wording;',proposedText:'1. Changed;'}).reason,'conflicting_target_evidence','ordinary paragraph wording retains its dash');
+});
 test('units retain complete extents, parents, citations, headings and suffixed recital identities', () => {
   const units=segmentMotionUnits(motion(['A. whereas first;', 'Ba. whereas inserted;', 'AO. whereas last;', 'OPERATIVE SECTION', '19. Main provision:', '(a) first point', 'continued point', '(b) second point', '20. Next provision;']), 'en');
   assert.deepEqual(units.find(unit=>unit.label==='19'), {kind:'paragraph',label:'19',parent:6,start:7,end:10,level:1});
