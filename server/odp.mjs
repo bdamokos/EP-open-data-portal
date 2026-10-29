@@ -1,10 +1,11 @@
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
-import {readFile,writeFile} from "node:fs/promises";
+import {readFile,writeFile,unlink} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
+import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash,randomUUID } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
@@ -58,6 +59,32 @@ const cacheDir = process.env.ODP_CACHE_DIR;
 const agendaDirectory=cacheDir&&path.join(cacheDir,'plenary-agendas-v1');
 const agendaBudget=agendaDirectory&&new CacheDiskBudget(agendaDirectory,{maxBytes:32*1024*1024,maxEntries:160,pattern:/^[a-f0-9]{64}\.json$/});
 const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
+let agendaRevision='initial',agendaRevisionLoaded,agendaPublications=Promise.resolve();
+async function loadAgendaRevision() {
+  agendaRevisionLoaded??=(async()=>{
+    if(!agendaDirectory)return;
+    try {const saved=JSON.parse(await readFile(path.join(agendaDirectory,'revision.json'),'utf8'));if(/^[a-f0-9-]{36}$/.test(saved.revision))agendaRevision=saved.revision;}catch{}
+  })();
+  await agendaRevisionLoaded;
+}
+export async function agendaCacheRevision() {
+  await loadAgendaRevision();await agendaPublications;return agendaRevision;
+}
+function publishAgenda(record,publish) {
+  const job=agendaPublications.then(async()=>{
+    await loadAgendaRevision();
+    const previous=newestSource(record.url,await readDiskSource(record.url));
+    if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(record.payload)) {
+      // Persist invalidation before replacing bytes. Derived readers wait for
+      // this whole publication, so a restart cannot reuse the previous view.
+      const revision=randomUUID();
+      if(agendaDirectory)await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify({revision}),{signal:null}).catch(()=>{});
+      agendaRevision=revision;
+    }
+    await publish();
+  });
+  agendaPublications=job.catch(()=>{});return job;
+}
 const allowedLanguages = new Set(
   "bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv".split(
     " ",
@@ -154,14 +181,21 @@ function newestSource(key, record) {
 const publishLocked = async (key, serialized) => {
   try {
     const file=filename(key);
-    if(await writeCacheFile(file,serialized,{signal:null})&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
-  }catch{/* Available source data must survive a failed reproducible disk write. */}
+    const published=await writeCacheFile(file,serialized,{signal:null});
+    if(published&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
+    return published;
+  }catch{return false;/* Available source data survives a failed reproducible disk write. */}
 };
 function publishSourceFile(key, record, serialized, signal) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
     if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
-    await publishLocked(key, serialized);
+    const published=await publishLocked(key, serialized);
+    if(published&&isAgendaKey(key)) {
+      const legacy=Buffer.from(key).toString('base64url')+'.json';
+      const old=[path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),...(legacy.length<=255?[path.join(cacheDir,legacy)]:[])];
+      for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
+    }
   }), signal ?? null);
 }
 async function readSourceRecord(file, signal) {
@@ -220,6 +254,11 @@ export async function odp(
   { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
+  // All agenda consumers share one policy, including live-status and vote reads.
+  // Explicit maintenance refreshes still use force; cache age alone never
+  // re-downloads a completed week's agenda.
+  const agendaMs=agendaFreshMs(endpoint),settledAfter=agendaSettledAfter(endpoint);
+  if(agendaMs!==null)ttl=Math.max(ttl,agendaMs);
   const url = new URL(ODP_BASE + endpoint);
   for (const [key, value] of Object.entries({
     ...params,
@@ -246,11 +285,12 @@ export async function odp(
   }
   if(cachedOnly) {
     if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
-    return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
+    return {...stored,stale:stored.fetchedAt<settledAfter || Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
   }
   if (
     !force &&
     stored &&
+    stored.fetchedAt >= settledAfter &&
     Date.now() - stored.fetchedAt < ttl &&
     (!daily || dayOf(stored.fetchedAt) === today())
   )
@@ -343,10 +383,11 @@ export async function odp(
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
-        if (retain) rememberSource(key, record, serialized);
-        if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
-          await publishSourceFile(key,record,serialized,budget.signal);
-        }
+        const publish=async()=>{
+          if (retain) rememberSource(key, record, serialized);
+          if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal);
+        };
+        if(retain&&isAgendaKey(key))await publishAgenda(record,publish);else await publish();
         budget.signal?.throwIfAborted();
         return record;
       } catch(error) {

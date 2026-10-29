@@ -166,3 +166,91 @@ test('agenda disk budget evicts older files without touching general sources and
     assert.deepEqual(await cold.odp('/meetings/MTG-PL-2026-09-16/foreseen-activities'),legacy);
   `);
 });
+
+test('all consumers reuse an aged completed-week agenda across restart without source rechecks',async t=>{
+  await fixture(t,`
+    const endpoint='/meetings/MTG-PL-2024-07-17/foreseen-activities';
+    allowed=true;const expected=await odp(endpoint);assert.equal(calls,1);allowed=false;
+    const time=Date.now();Date.now=()=>time+60*86400_000;
+    const cold=await import(${JSON.stringify(moduleUrl+'?settled-agenda')});
+    const retained=await cold.odp(endpoint,{}, {ttl:60_000,staleWhileRevalidate:true});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(retained,expected);assert.equal(calls,1);
+  `);
+});
+
+test('a shorter live-reader TTL cannot recheck the active agenda before one hour',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-10-20T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-10-20/foreseen-activities';
+    allowed=true;const expected=await odp(endpoint,{}, {ttl:60_000});assert.equal(calls,1);
+    allowed=false;time+=5*60_000;
+    assert.deepEqual(await odp(endpoint,{}, {ttl:60_000}),expected);assert.equal(calls,1);
+    time+=55*60_000+1;allowed=true;networkPayload={data:[{identifier:'hourly update'}]};
+    assert.equal((await odp(endpoint,{}, {ttl:60_000})).payload.data[0].identifier,'hourly update');assert.equal(calls,2);
+  `);
+});
+
+test('a preliminary agenda gets one post-week read, retains bytes on failure, then settles',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-11-01T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-11-11/foreseen-activities';
+    allowed=true;const preliminary=await odp(endpoint),fetchMock=globalThis.fetch;
+    time=Date.parse('2026-11-16T12:00:00Z');
+    const cold=await import(${JSON.stringify(moduleUrl+'?preliminary-agenda')});
+    let fail;globalThis.fetch=async()=>{calls++;return new Promise((resolve,reject)=>fail=()=>reject(Error('Final source unavailable')));};
+    const retained=await cold.odp(endpoint,{}, {staleWhileRevalidate:true});
+    assert.equal(retained.stale,true);assert.deepEqual(retained.payload,preliminary.payload);
+    await new Promise(resolve=>setImmediate(resolve));
+    const pending=assert.rejects(cold.odp(endpoint,{}, {force:true}),/Final source unavailable/);fail();await pending;
+    assert.equal((await cold.odp(endpoint,{}, {cachedOnly:true})).fetchedAt,preliminary.fetchedAt);
+    assert.equal((await cold.odp(endpoint,{}, {cachedOnly:true})).stale,true);
+    globalThis.fetch=fetchMock;networkPayload={data:[{identifier:'final agenda'}]};time+=60*60_000+1;
+    const final=await cold.odp(endpoint);assert.equal(final.payload.data[0].identifier,'final agenda');
+    const count=calls;time+=60*86400_000;allowed=false;
+    const restarted=await import(${JSON.stringify(moduleUrl+'?final-agenda')});
+    assert.deepEqual(await restarted.odp(endpoint),final);assert.equal(calls,count);
+  `);
+});
+
+test('actual agenda changes invalidate retained records and views; unchanged reads do not',async t=>{
+  await fixture(t,`
+    const {readFile}=await import('node:fs/promises');
+    const inputs=JSON.parse(await readFile(new URL('./fixtures/insights-live-20261014.json',${JSON.stringify(moduleUrl)}),'utf8'));
+    const endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities',params={limit:50,offset:0};
+    let agenda=structuredClone(inputs.foreseen.payload);
+    const meeting=inputs.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+    globalThis.fetch=async value=>{
+      calls++;const url=new URL(value);
+      return Response.json(url.pathname.endsWith('/meetings')?{data:url.searchParams.get('year')==='2026'?[meeting]:[]}:agenda);
+    };
+    const {LegislationInsights}=await import(${JSON.stringify(moduleUrl.replace('odp.mjs','insights-legislation.mjs'))});
+    const {createInsights}=await import(${JSON.stringify(moduleUrl.replace('odp.mjs','insights.mjs'))});
+    const {agendaCacheRevision}=await import(${JSON.stringify(moduleUrl)});
+    const store={get:()=>null,status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({get:()=>undefined})}};
+    const reader=new LegislationInsights(store),service=createInsights(store),query=new URLSearchParams('week=2026-10-05');
+    await reader.record(endpoint,params);const before=await service.query('legislation',query),revision=await agendaCacheRevision();
+    const topic=before.topics[0];assert(topic);
+    await odp(endpoint,params,{force:true});assert.equal(await agendaCacheRevision(),revision,'identical source content does not invalidate derived caches');
+    const corrected=agenda.data.find(node=>node.activity_id===topic.id);corrected.activity_label.en='Corrected exact agenda title';
+    await odp(endpoint,params,{force:true});assert.notEqual(await agendaCacheRevision(),revision);
+    assert.equal((await reader.record(endpoint,params)).payload.data.find(node=>node.activity_id===topic.id).activity_label.en,'Corrected exact agenda title');
+    const after=await service.query('legislation',query);assert.equal(after.topics.find(node=>node.id===topic.id).title,'Corrected exact agenda title');
+    const cold=await import(${JSON.stringify(moduleUrl+'?revision-restart')});assert.equal(await cold.agendaCacheRevision(),await agendaCacheRevision());
+    const restarted=createInsights(store);assert.equal((await restarted.query('legislation',query)).topics.find(node=>node.id===topic.id).title,'Corrected exact agenda title');
+    const count=calls;await service.query('legislation',query);assert.equal(calls,count,'retained correction needs no periodic source read');
+  `);
+});
+
+test('bounded agenda eviction cannot restore a superseded flat-cache observation',async t=>{
+  await fixture(t,`
+    const endpoint='/meetings/MTG-PL-2024-07-17/foreseen-activities';
+    const old=await save(endpoint),flat=path.join(directory,createHash('sha256').update(old.url).digest('hex')+'.json');
+    allowed=true;networkPayload={data:[{identifier:'accepted correction'}]};
+    const corrected=await odp(endpoint,{}, {force:true});assert.equal(corrected.payload.data[0].identifier,'accepted correction');
+    await assert.rejects(stat(flat),error=>error.code==='ENOENT');
+    await rm(path.join(directory,'plenary-agendas-v1',createHash('sha256').update(old.url).digest('hex')+'.json'));
+    const cold=await import(${JSON.stringify(moduleUrl+'?evicted-migration')});
+    assert.equal((await cold.odp(endpoint)).payload.data[0].identifier,'accepted correction');assert.equal(calls,2);
+  `);
+});
