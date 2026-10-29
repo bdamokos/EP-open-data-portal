@@ -29,7 +29,7 @@ import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
 import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask} from './refresh-policy.mjs';
-import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups} from './adopted-text-index.mjs';
+import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -101,6 +101,7 @@ export class ActivityWorker {
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
     if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))return true;
+    if(followupAdmissionRepairDue(this.store,generation))return true;
     if(amendmentParserUpgradeDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
@@ -118,7 +119,7 @@ export class ActivityWorker {
         const body=JSON.parse(task.body);
         return Boolean(task.attempts>0 || task.retry_at>0 || Number(body.offset)>0 || body.stage && body.stage!=='results' || ['results','decisions','splits','sources'].some(key=>body[key]?.length) || !['document','procedure','motion-outcomes'].includes(task.kind));
       };
-      const pending=new Map([...(saved.tasks || []),...(saved.discovery || []).map(task=>({...task,body:JSON.stringify(task.kind==='motion-outcomes'?{sittingId:task.sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]}:{endpoint:task.endpoint}),attempts:0,retry_at:0,error:null}))].map(task=>[task.key,{...task,generation,done:0}]));
+      const pending=new Map([...(saved.tasks || []),...(saved.discovery || []).map(task=>({...task,body:JSON.stringify(task.kind==='motion-outcomes'?{sittingId:task.sittingId,stage:'results',offset:0,results:[],decisions:[],splits:[],sources:[]}:{endpoint:task.endpoint,...(task.adoptedId!==undefined?{adoptedId:task.adoptedId}:{})}),attempts:0,retry_at:0,error:null}))].map(task=>[task.key,{...task,generation,done:0}]));
       for(const {key} of this.store.db.prepare('SELECT gap.key FROM refresh_gaps gap LEFT JOIN refresh_gap_admissions admitted ON admitted.generation=gap.generation AND admitted.key=gap.key WHERE gap.generation=? AND admitted.key IS NULL').all(generation))pending.delete(key);
       // Agenda verification stays in the durable canonical queue so its pending
       // coverage and recovery survive the bounded amendment continuation log.
@@ -156,10 +157,11 @@ export class ActivityWorker {
       // untouched until this checkpoint admits them. The reserve above keeps
       // every displaced cursor within these 200 full snapshot slots.
       snapshots.push(...untouched.splice(0,CONTINUATION_LIMIT-snapshots.length));
-      const discovery=untouched.splice(0,CONTINUATION_LIMIT).map(({key,kind,body,priority})=>({key,kind,...(kind==='motion-outcomes'?{sittingId:JSON.parse(body).sittingId}:{endpoint:JSON.parse(body).endpoint}),priority})),overflow=untouched;
+      const discovery=untouched.splice(0,CONTINUATION_LIMIT).map(({key,kind,body,priority})=>({key,kind,...(kind==='motion-outcomes'?{sittingId:JSON.parse(body).sittingId}:{endpoint:JSON.parse(body).endpoint,...(JSON.parse(body).adoptedId!==undefined?{adoptedId:JSON.parse(body).adoptedId}:{})}),priority})),overflow=untouched;
       const deferredCount=overflow.length+incomingTotal-incoming.length;
       const capacityGap=deferredCount?{count:(saved.capacityGap?.count || 0)+deferredCount,message:'Additional untouched amendment discovery exceeded the bounded checkpoint and is deferred to normal catalogue refresh.'}:saved.capacityGap || null;
       if(deferredCount)invalidateAmendmentLinks(this.store,generation);
+      if(includeCore&&deferredCount&&this.store.db.prepare("SELECT 1 FROM tasks WHERE generation=? AND key GLOB '/external-documents/SP-*' AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation))markFollowupAdmissionRepair(this.store,generation);
       if(snapshots.length || discovery.length || completed.size || capacityGap)this.store.db.prepare('INSERT OR REPLACE INTO sources VALUES (?,?,?,?,?,1)').run(generation,CONTINUATIONS_KEY,'amendment-continuations',JSON.stringify({tasks:snapshots,discovery,completed:[...completed.values()].slice(-CONTINUATION_LIMIT),...(capacityGap?{capacityGap}:{})}),new Date(this.clock()).toISOString());
       else this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,CONTINUATIONS_KEY);
       if(includeCore)this.store.db.prepare("DELETE FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND key NOT LIKE 'outside:agenda-membership:%'").run(generation);
@@ -660,6 +662,7 @@ export class ActivityWorker {
       if(this.stopped)return;
       this.store.assertWriter();
       if(cycle){scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);}
+      scheduleFollowupAdmissionRepairs(this,generation);
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);

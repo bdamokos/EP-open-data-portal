@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {spId,validateReply,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
+import {spId,validateTA,validateReply,adoptedTextProjectionVersion} from './commission-followups-model.mjs';
 import {array,tail} from './activity-index-model.mjs';
 
 // Internal queue-admission revision, not a public response schema version.
@@ -108,4 +108,53 @@ export function scheduleAdoptedFollowups(worker,task,work) {
     store.enqueue(generation,key,'document',{endpoint:key,adoptedId:work.identifier},101,true);
   }
   return end<relationships.length?{...task.body,stage:'followups',followupHash:hash,followupOffset:end}:null;
+}
+
+
+// A retained relationship remains the discovery source after optional-checkpoint
+// overflow. Reconciliation itself has a persisted, bounded metadata-only cursor.
+const followupRepairKey='followupAdmissionRepair';
+const repairState=(store,generation)=>{
+  const saved=store.get(followupRepairKey);
+  const key=value=>typeof value==='string'&&/^\/adopted-texts\/TA-10-\d{4}-\d{4,6}$/.test(value);
+  const valid=saved?.version===1&&saved.generation===generation&&typeof saved.pending==='boolean'&&typeof saved.dirty==='boolean'&&
+    (saved.afterKey===''||key(saved.afterKey))&&(saved.rootKey===null||key(saved.rootKey))&&Number.isSafeInteger(saved.offset)&&saved.offset>=0&&
+    (saved.rootKey?/^[a-f0-9]{64}$/.test(saved.hash||'')&&saved.rootKey>saved.afterKey:saved.offset===0&&saved.hash===null)&&
+    Number.isSafeInteger(saved.oversizedRoots)&&saved.oversizedRoots>=0&&Array.isArray(saved.oversizedExamples)&&saved.oversizedExamples.length<=3&&saved.oversizedExamples.every(key);
+  return valid?saved:{version:1,generation,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]};
+};
+export const followupAdmissionRepairDue=(store,generation)=>Boolean(repairState(store,generation).pending);
+export function markFollowupAdmissionRepair(store,generation) {
+  store.assertWriter();const state=repairState(store,generation);
+  store.set(followupRepairKey,state.pending?{...state,dirty:true}:{...state,pending:true,afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,oversizedRoots:0,oversizedExamples:[]});
+}
+export function scheduleFollowupAdmissionRepairs(worker,generation) {
+  const {store}=worker;store.assertWriter();let state=repairState(store,generation);
+  if(!state.pending)return 0;
+  const owned=adoptedTextDeferredKeys(store,generation);
+  for(const table of ['tasks','amendment_jobs','refresh_gaps'])for(const {key} of store.db.prepare(`SELECT key FROM ${table} WHERE generation=?${table==='refresh_gaps'?'':' AND (done IS NULL OR done<>1)'}`).iterate(generation))owned.add(key);
+  const rows=store.db.prepare("SELECT key,length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND json_extract(body,'$.adoptionProjectionVersion')=? AND json_type(body,'$.followupRelationships')='array' AND key"+(state.rootKey?'>=':'>')+"? ORDER BY key LIMIT 100").iterate(generation,adoptedTextProjectionVersion,state.rootKey||state.afterKey);
+  let examined=0,bytes=0,admitted=0,roots=0,stopped=false;
+  for(const row of rows) {
+    roots++;
+    if(row.bytes>32*1024*1024){state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null,oversizedRoots:(state.oversizedRoots||0)+1,oversizedExamples:[...(state.oversizedExamples||[]),row.key].slice(0,3)};continue;}
+    if(bytes+row.bytes>32*1024*1024){stopped=true;break;}
+    bytes+=row.bytes;
+    const work=store.source(generation,row.key).work;try{validateTA({data:[work]},row.key.slice('/adopted-texts/'.length));}catch{state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};continue;}
+    const hash=createHash('sha256').update(JSON.stringify(work.followupRelationships)).digest('hex');
+    let offset=state.rootKey===row.key&&state.hash===hash?state.offset:0;
+    for(;offset<work.followupRelationships.length&&examined<100;offset++,examined++) {
+      const id=spId(work.followupRelationships[offset]);if(!id)continue;
+      const key='/external-documents/'+id;if(owned.has(key))continue;
+      // These projected validation fields keep a large SP body out of the scan.
+      const saved=store.db.prepare("SELECT json_extract(body,'$.id') id,json_extract(body,'$.identifier') identifier,json_extract(body,'$.work_type') work_type,json_extract(body,'$.answers_to') answers_to,json_extract(body,'$.creator') creator,json_extract(body,'$.followupProjectionVersion') version FROM sources WHERE generation=? AND key=? AND kind='document'").get(generation,key);
+      if(saved?.version===1)try{validateReply({data:[{...saved,creator:saved.creator?.startsWith('[')?JSON.parse(saved.creator):saved.creator}]},id,work.identifier);continue;}catch{/* A rejected projection still needs an exact task owner. */}
+      store.enqueue(generation,key,'document',{endpoint:key,adoptedId:work.identifier},101,true);owned.add(key);admitted++;
+    }
+    if(offset<work.followupRelationships.length){state={...state,rootKey:row.key,offset,hash};stopped=true;break;}
+    state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};
+    if(examined>=100){stopped=true;break;}
+  }
+  if(!stopped&&roots<100)state={...state,pending:Boolean(state.dirty),afterKey:'',rootKey:null,offset:0,hash:null,dirty:false,...(state.dirty?{oversizedRoots:0,oversizedExamples:[]}:{} )};
+  store.assertWriter();store.set(followupRepairKey,state);return admitted;
 }

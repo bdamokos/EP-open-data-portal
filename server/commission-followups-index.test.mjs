@@ -8,8 +8,8 @@ import {auditFollowupMetadata,compareGapAudits} from './data-gap-audit.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {CommissionFollowups} from './commission-followups.mjs';
 import {projectFollowup} from './commission-followups-model.mjs';
-import {adoptedTextProjectionVersion,scheduleAdoptedTextRepairs,scheduleAdoptedFollowups} from './adopted-text-index.mjs';
-import {recordTaskGap,scheduleMutable,nextBackfillTask} from './refresh-policy.mjs';
+import {adoptedTextProjectionVersion,scheduleAdoptedTextRepairs,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
+import {recordTaskGap,scheduleMutable,nextBackfillTask,gapRecoveryDue,scheduleGapRecovery} from './refresh-policy.mjs';
 import {cancelledRequest,runWithRequestSignal} from './request-budget.mjs';
 
 const now=Date.parse('2026-10-29T04:10:00Z'),stamp=new Date(now).toISOString();
@@ -169,4 +169,60 @@ test('lost writer fencing rejects child admission without changing queued owners
 for(const relationships of [null,'malformed'])test('retained unknown or malformed relationship shape never becomes none-listed '+relationships,async t=>{
   const {store,generation}=setup(t);save(store,generation,relationships);const {service,requests}=reader();
   const result=await service.query(query,{store});assert.equal(requests(),0);assert.equal(result.declaredCount,null);assert.equal(result.relationshipObservation,'unobserved');assert.notEqual(result.status,'none-listed');assert(result.gaps.length);
+});
+
+
+for(const owner of ['amendment','deferred'])test('mutable and gap admission preserve an existing '+owner+' SP retry',t=>{
+  const {store,worker,generation}=setup(t),old=new Date(now-8*86400_000).toISOString();
+  store.putSource(generation,spKey,'document',projectFollowup(reply(),ta),old);
+  const saved={generation,key:spKey,kind:'document',body:JSON.stringify({endpoint:spKey,adoptedId:ta,offset:750}),priority:101,done:0,attempts:3,retry_at:now+3600000,error:'Saved source failure'};
+  if(owner==='amendment')store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(...Object.values(saved));
+  else store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:[saved],discovery:[],completed:[]},stamp);
+  scheduleMutable(worker,generation);assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE key=?').get(spKey),undefined);
+  store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,spKey,'document',saved.body,101,saved.error,3,stamp,now-1,null);
+  assert.equal(gapRecoveryDue(store,generation),false);assert.equal(scheduleGapRecovery(worker,generation),0);
+  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE key=?').get(spKey).retry_at,now-1);
+  const after=owner==='amendment'?store.db.prepare('SELECT * FROM amendment_jobs WHERE key=?').get(spKey):store.source(generation,'amendment:continuations').work.tasks[0];
+  assert.equal(after.attempts,3);assert.equal(after.retry_at,saved.retry_at);assert.equal(JSON.parse(after.body).adoptedId,ta);
+});
+
+test('compressed checkpoint and reopen preserve an unsourced SP target, while exact retained roots re-admit checkpoint overflow',async t=>{
+  const {store,worker,generation}=setup(t),links=Array.from({length:401},(_,i)=>ref('SP-'+i));
+  store.putSource(generation,rootKey,'document',projected(links),stamp);
+  for(let i=0;i<200;i++)store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(generation,'occupied:'+i,'document',JSON.stringify({endpoint:'/busy/'+i}),200,0,0,0,null);
+  let body={};do{const next=scheduleAdoptedFollowups(worker,{generation,body},projected(links));body=next;}while(body);
+  worker.checkpointContinuations(generation);
+  const checkpoint=store.source(generation,'amendment:continuations').work;assert.equal(checkpoint.discovery.length,200);
+  assert(checkpoint.discovery.every(task=>task.adoptedId===ta));
+  const audit=auditFollowupMetadata(store.db,generation);assert.equal(audit.counts.unowned,1,'bounded checkpoint cannot erase its retained exact discovery source');
+  const dropped=audit.missing.find(row=>row.state==='unowned');assert(followupAdmissionRepairDue(store,generation));assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),1);
+  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM tasks WHERE key=?').get(dropped.key).body).adoptedId,ta);assert.equal(worker.requests,0);
+  const descriptor=checkpoint.discovery[0];
+  // Replay this actual compact descriptor after the other fixture jobs settle.
+  store.db.exec('DELETE FROM amendment_jobs');store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:[],discovery:[descriptor],completed:[]},stamp);
+  const dir=path.dirname(store.filename);store.close();const reopened=new ActivityStore(dir,{clock:()=>now});reopened.acquire();t.after(()=>reopened.close());
+  const resumed=new ActivityWorker(reopened,{clock:()=>now,fetchRecord:async endpoint=>({fetchedAt:stamp,payload:{data:[reply(endpoint.slice('/external-documents/'.length))]}})});
+  resumed.checkpointContinuations(generation,{includeCore:false});const raw=reopened.db.prepare('SELECT * FROM amendment_jobs WHERE key=?').get(descriptor.key);assert.equal(JSON.parse(raw.body).adoptedId,ta);
+  await resumed.task({...raw,body:JSON.parse(raw.body),amendmentJob:true});assert.equal(reopened.source(generation,descriptor.key).work.followupOf,ta);
+});
+
+
+test('bounded admission reconciliation resumes its persisted cursor, resets invalid state and keeps existing future owners',t=>{
+  const {store,worker,generation}=setup(t),links=Array.from({length:205},(_,i)=>ref('SP-repair-'+i));store.putSource(generation,rootKey,'document',projected(links),stamp);
+  store.set('followupAdmissionRepair',{version:1,generation,pending:true,afterKey:'bad',rootKey:null,offset:Infinity});
+  assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),100);assert.equal(store.get('followupAdmissionRepair').offset,100);
+  const first='/external-documents/SP-repair-0';store.db.prepare('UPDATE tasks SET attempts=3,retry_at=? WHERE key=?').run(now+3600000,first);
+  const resumed=new ActivityWorker(store,{clock:()=>now,fetchRecord:async()=>assert.fail('admission does not fetch')});
+  assert.equal(scheduleFollowupAdmissionRepairs(resumed,generation),100);assert.equal(store.get('followupAdmissionRepair').offset,200);
+  assert.equal(scheduleFollowupAdmissionRepairs(resumed,generation),5);assert.equal(followupAdmissionRepairDue(store,generation),false);
+  const row=store.db.prepare('SELECT attempts,retry_at FROM tasks WHERE key=?').get(first);assert.equal(row.attempts,3);assert.equal(row.retry_at,now+3600000);
+  markFollowupAdmissionRepair(store,generation);assert.equal(followupAdmissionRepairDue(store,generation),true);assert.equal(scheduleFollowupAdmissionRepairs(resumed,generation),0);assert.equal(store.get('followupAdmissionRepair').offset,100);
+});
+
+test('oversized retained roots are explicit repair-budget exceptions and do not block a later usable root',t=>{
+  const {store,worker,generation}=setup(t),large='TA-10-2026-0001';
+  store.putSource(generation,'/adopted-texts/'+large,'document',{...projected(),id:ref(large),identifier:large,padding:'x'.repeat(32*1024*1024)},stamp);
+  store.putSource(generation,rootKey,'document',projected(),stamp);
+  assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),1);const state=store.get('followupAdmissionRepair');assert.equal(state.oversizedRoots,1);assert.deepEqual(state.oversizedExamples,['/adopted-texts/'+large]);assert.equal(state.pending,false);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE key=?').get(spKey).n,1);assert.equal(worker.requests,0);
 });
