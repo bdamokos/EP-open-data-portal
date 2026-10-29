@@ -96,12 +96,13 @@ for(const change of ['issued','byteSize','both'])test('real text-cache recovery 
   assert.deepEqual(store.source(generation,endpoint),before);assert.equal(reader.cache.size,0);
 });
 
-test('a recovered report root drives exact list discovery and body/wording language fallback together',async t=>{
+for(const embedded of [false,true])test('a recovered report root drives exact list discovery and body/wording language fallback: '+(embedded?'expanded list':'linked list'),async t=>{
   const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
   const file=language=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/recovered-root_'+language+'.docx'}]});
   const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined,amendmentLinksVersion:3,inverse_foresees_change_of:[],is_realized_by:[file('en')]};
   const fresh={...metadata,inverse_foresees_change_of:['eli/dl/doc/'+listId],is_realized_by:[file('fr')]};
   const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+id,is_realized_by:[file('fr')]};
+  if(embedded)fresh.inverse_foresees_change_of=[list];
   store.putSource(generation,endpoint,'document',metadata,stamp);
   const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'English paragraph.',proposedText:'Changed paragraph.',baseline:'motion-resolution',gaps:[]};
   const paragraphs=['Le Parlement européen,','1. Texte original;','2. Suite;'];
@@ -113,11 +114,17 @@ test('a recovered report root drives exact list discovery and body/wording langu
       readText:async observed=>{bodyRoots.push(observed);return observed.is_realized_by[0].language==='en'?{status:'error',paragraphs:[],textLanguage:'en',availableTextLanguages:['en']}:text;}});
     reader.readList=async(_list,file)=>({source:{url:file.url,language:'fr',fetchedAt:stamp},extraction:{amendments:[{number:86,originalText:'1. Texte original;',proposedText:'1. Texte modifié;',targetLabel:'Paragraphe 1',authors:[],baseline:'motion-resolution'}]}});
     const result=await reader.query(selected,{store:retained?store:{}});results.push(result);
-    assert.deepEqual(requests,[endpoint,'/documents/'+listId]);assert.deepEqual(bodyRoots.at(-1),fresh);
+    assert.deepEqual(requests,embedded?[endpoint]:[endpoint,'/documents/'+listId]);assert.deepEqual(bodyRoots.at(-1),fresh);
     assert.equal(result.document.selectedText.textLanguage,'fr');assert.equal(result.wordingLanguageFallback.language,'fr');
     assert.equal(result.target.status,'found');assert.equal(result.placement.status,'placed');
+    const variant=result.amendment.variants.find(row=>row.language==='fr');
+    const expectedSource=embedded?result.sources[retained?1:0]:result.sources.find(source=>source.url.endsWith('/documents/'+listId));
+    assert.deepEqual(variant.metadataSource,expectedSource);
+    assert.equal(Object.hasOwn(variant.metadataSource,'epoch'),false);assert.equal(Object.hasOwn(variant.metadataSource,'generation'),false);
+    if(retained){assert.equal(result.sources[0].representation,'retained-index-projection');assert.equal(result.sources[0].epoch,store.get('marksEpoch'));assert.equal(result.sources[0].generation,generation);assert.equal(reader.cache.size,0);}
   }
   assert.deepEqual(results[0].target,results[1].target);assert.deepEqual(results[0].placement,results[1].placement);
+  assert.deepEqual(results[0].amendment.variants.find(row=>row.language==='fr').metadataSource,results[1].amendment.variants.find(row=>row.language==='fr').metadataSource);
   assert.deepEqual(store.source(generation,endpoint).work,JSON.parse(JSON.stringify(metadata)));
 });
 
