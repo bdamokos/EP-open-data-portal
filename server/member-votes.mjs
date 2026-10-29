@@ -9,7 +9,7 @@ import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalR
 import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 
-export const MEMBER_VOTES_VERSION=7;
+export const MEMBER_VOTES_VERSION=8;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
 const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
 const dayOffset=(value,days)=>new Date(Date.parse(value+'T12:00:00Z')+days*86400_000).toISOString().slice(0,10);
@@ -21,7 +21,7 @@ const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('h
 const errorInfo=error=>({code:error?.code||'vote_source_unavailable',message:error?.message||'Parliament source could not be read.'});
 
 export function memberVotesQuery(search,{now=Date.now()}={}) {
-  const allowed=['lang','week','sitting','limit','offset','decision','snapshot','positions','alignment'];
+  const allowed=['lang','week','sitting','limit','offset','decision','snapshot','positions','alignment','view'];
   for(const key of search.keys())if(!allowed.includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated member-vote parameter.');
   const language=odpLanguage(search.get('lang')??'en'),today=brusselsDay(now);
   const sitting=search.get('sitting'),week=search.get('week');
@@ -34,7 +34,9 @@ export function memberVotesQuery(search,{now=Date.now()}={}) {
   if(!['all','recorded'].includes(positions))throw new HttpError(400,'invalid_positions','Choose all or recorded member positions.');
   if(search.has('decision')&&(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(decision||'')||!validDate(decision.slice(7,17))))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
   if(search.has('snapshot')&&!/^[a-f0-9]{64}$/.test(snapshot||''))throw new HttpError(400,'invalid_snapshot','Use the snapshot identifier returned by this endpoint.');
-  return {language,positions,alignment,sitting:sitting||null,week:sitting?null:week||'latest',limit:integer('limit',25,1,100),offset:integer('offset',0,0,10000),decision:decision||null,snapshot:snapshot||null};
+  const view=search.get('view')??'page';
+  if(!['page','period'].includes(view))throw new HttpError(400,'invalid_view','Choose page or period view.');
+  return {language,positions,alignment,view,sitting:sitting||null,week:sitting?null:week||'latest',limit:integer('limit',25,1,100),offset:integer('offset',0,0,10000),decision:decision||null,snapshot:snapshot||null};
 }
 
 // Period snapshots are independent of the requested member, language, and page.
@@ -206,9 +208,10 @@ export class MemberVotes extends VoteSourceReader {
     const positions=query.positions||'all',alignment=query.alignment||'all';
     const alignmentCounts=coverage.status==='unavailable'?null:items.reduce((counts,item)=>{counts[memberVoteAlignment(item)]++;return counts;},{with:0,against:0,abstained:0,unclassified:0});
     const filtered=items.filter(item=>(positions!=='recorded'||item.actualPosition.status==='recorded')&&(alignment==='all'||item.alignment===alignment));
-    const page=filtered.slice(query.offset,query.offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
+    const periodView=query.view==='period',offset=periodView?0:query.offset;
+    const page=periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
     const subjects=projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
-    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{offset:query.offset,limit:query.limit,returned:page.length,observedTotal:items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:query.offset+page.length<filtered.length?query.offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{...(periodView?{mode:'period'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:offset+page.length<filtered.length?offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   }
 }
 
