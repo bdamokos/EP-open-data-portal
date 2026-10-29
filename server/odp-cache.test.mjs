@@ -212,3 +212,32 @@ test('a preliminary agenda gets one post-week read, retains bytes on failure, th
     assert.deepEqual(await restarted.odp(endpoint),final);assert.equal(calls,count);
   `);
 });
+
+test('actual agenda changes invalidate retained records and views; unchanged reads do not',async t=>{
+  await fixture(t,`
+    const {readFile}=await import('node:fs/promises');
+    const inputs=JSON.parse(await readFile(new URL('./fixtures/insights-live-20261014.json',${JSON.stringify(moduleUrl)}),'utf8'));
+    const endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities',params={limit:50,offset:0};
+    let agenda=structuredClone(inputs.foreseen.payload);
+    const meeting=inputs.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+    globalThis.fetch=async value=>{
+      calls++;const url=new URL(value);
+      return Response.json(url.pathname.endsWith('/meetings')?{data:url.searchParams.get('year')==='2026'?[meeting]:[]}:agenda);
+    };
+    const {LegislationInsights}=await import(${JSON.stringify(moduleUrl.replace('odp.mjs','insights-legislation.mjs'))});
+    const {createInsights}=await import(${JSON.stringify(moduleUrl.replace('odp.mjs','insights.mjs'))});
+    const {agendaCacheRevision}=await import(${JSON.stringify(moduleUrl)});
+    const store={get:()=>null,status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({get:()=>undefined})}};
+    const reader=new LegislationInsights(store),service=createInsights(store),query=new URLSearchParams('week=2026-10-05');
+    await reader.record(endpoint,params);const before=await service.query('legislation',query),revision=await agendaCacheRevision();
+    const topic=before.topics[0];assert(topic);
+    await odp(endpoint,params,{force:true});assert.equal(await agendaCacheRevision(),revision,'identical source content does not invalidate derived caches');
+    const corrected=agenda.data.find(node=>node.activity_id===topic.id);corrected.activity_label.en='Corrected exact agenda title';
+    await odp(endpoint,params,{force:true});assert.notEqual(await agendaCacheRevision(),revision);
+    assert.equal((await reader.record(endpoint,params)).payload.data.find(node=>node.activity_id===topic.id).activity_label.en,'Corrected exact agenda title');
+    const after=await service.query('legislation',query);assert.equal(after.topics.find(node=>node.id===topic.id).title,'Corrected exact agenda title');
+    const cold=await import(${JSON.stringify(moduleUrl+'?revision-restart')});assert.equal(await cold.agendaCacheRevision(),await agendaCacheRevision());
+    const restarted=createInsights(store);assert.equal((await restarted.query('legislation',query)).topics.find(node=>node.id===topic.id).title,'Corrected exact agenda title');
+    const count=calls;await service.query('legislation',query);assert.equal(calls,count,'retained correction needs no periodic source read');
+  `);
+});

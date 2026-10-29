@@ -5,7 +5,7 @@ import {languagePreference} from './language-order.mjs';
 import {calendarYears,calendarMonday} from './plenary-calendar.mjs';
 import {meetingsReader,MeetingsReader,missingSitting,latestCatalogueSitting,requireLatestSitting} from './meetings-reader.mjs';
 import { HttpError } from './http-utils.mjs';
-import { odp } from './odp.mjs';
+import { odp,agendaCacheRevision } from './odp.mjs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,demographicStats,memberPeople } from './insights-model.mjs';
 import { savedMetadata,brusselsDay } from './insights-store.mjs';
@@ -65,14 +65,15 @@ export class LegislationInsights {
       }
     }
     const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key),agendaMs=agendaFreshMs(endpoint,this.clock());
+    const revision=agendaMs===null?null:await agendaCacheRevision();
     if(old&&sourceIsTransient(old.value))this.cache.delete(key);
-    else if(old&&(agendaMs===null||old.value.fetchedAt>=agendaSettledAfter(endpoint,this.clock()))&&this.clock()-(agendaMs===null?old.at:old.value.fetchedAt)<(agendaMs??LEGISLATION_LIMITS.cacheMs))return old.value;
+    else if(old&&(agendaMs===null||old.revision===revision&&old.value.fetchedAt>=agendaSettledAfter(endpoint,this.clock()))&&this.clock()-(agendaMs===null?old.at:old.value.fetchedAt)<(agendaMs??LEGISLATION_LIMITS.cacheMs))return old.value;
     const failed=this.failures.get(key);if(failed&&this.clock()-failed.at<60_000)throw failed.error;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true,...(agendaMs===null?{}:{ttl:agendaMs})});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
       if(Buffer.byteLength(JSON.stringify(value.payload))>LEGISLATION_LIMITS.rawBytes)throw new HttpError(502,'insights_source_size','Parliament source exceeds the bounded insight response size.');
       // Let the ODP cache expose recovery on the next read instead of pinning an SWR snapshot.
-      if(sourceIsTransient(value))this.cache.delete(key);else this.cache.set(key,{at:this.clock(),value});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
+      if(sourceIsTransient(value))this.cache.delete(key);else this.cache.set(key,{at:this.clock(),value,revision});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
     }).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error});while(this.failures.size>24)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,job);return waitForRequest(job);
   }

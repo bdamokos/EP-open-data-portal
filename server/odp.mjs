@@ -5,7 +5,7 @@ import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash,randomUUID } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
@@ -59,6 +59,32 @@ const cacheDir = process.env.ODP_CACHE_DIR;
 const agendaDirectory=cacheDir&&path.join(cacheDir,'plenary-agendas-v1');
 const agendaBudget=agendaDirectory&&new CacheDiskBudget(agendaDirectory,{maxBytes:32*1024*1024,maxEntries:160,pattern:/^[a-f0-9]{64}\.json$/});
 const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
+let agendaRevision='initial',agendaRevisionLoaded,agendaPublications=Promise.resolve();
+async function loadAgendaRevision() {
+  agendaRevisionLoaded??=(async()=>{
+    if(!agendaDirectory)return;
+    try {const saved=JSON.parse(await readFile(path.join(agendaDirectory,'revision.json'),'utf8'));if(/^[a-f0-9-]{36}$/.test(saved.revision))agendaRevision=saved.revision;}catch{}
+  })();
+  await agendaRevisionLoaded;
+}
+export async function agendaCacheRevision() {
+  await loadAgendaRevision();await agendaPublications;return agendaRevision;
+}
+function publishAgenda(record,publish) {
+  const job=agendaPublications.then(async()=>{
+    await loadAgendaRevision();
+    const previous=newestSource(record.url,await readDiskSource(record.url));
+    if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(record.payload)) {
+      // Persist invalidation before replacing bytes. Derived readers wait for
+      // this whole publication, so a restart cannot reuse the previous view.
+      const revision=randomUUID();
+      if(agendaDirectory)await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify({revision}),{signal:null}).catch(()=>{});
+      agendaRevision=revision;
+    }
+    await publish();
+  });
+  agendaPublications=job.catch(()=>{});return job;
+}
 const allowedLanguages = new Set(
   "bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv".split(
     " ",
@@ -350,10 +376,11 @@ export async function odp(
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
-        if (retain) rememberSource(key, record, serialized);
-        if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
-          await publishSourceFile(key,record,serialized,budget.signal);
-        }
+        const publish=async()=>{
+          if (retain) rememberSource(key, record, serialized);
+          if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal);
+        };
+        if(retain&&isAgendaKey(key))await publishAgenda(record,publish);else await publish();
         budget.signal?.throwIfAborted();
         return record;
       } catch(error) {
