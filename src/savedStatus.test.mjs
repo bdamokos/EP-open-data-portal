@@ -55,7 +55,7 @@ const dispatch=async(h,node,extra={},type='click')=>{const event=new h.window.Mo
 const speech={id:'late',title:'Late speech',titleLanguage:'fr',date:'2026-01-01',kind:'activity',recordKind:'speech',category:'plenary-contributions',mark:6};
 async function newSpeech(h){await h.render('en',true);await h.check();h.setStatus({generation:6});h.setDetail([['old',0,5],['late',0,6]],[speech]);await h.check();await settle();}
 
-test('Following puts unread cards first across members, questions and dossiers and retains expanded rows when reordered',async t=>{
+test('Following starts unread-first and keeps cards and expanded rows in place while reading',async t=>{
  const now=Date.now(),fresh={...speech,discoveredAt:now,readAt:null};
  const h=await harness(t,[member({title:'Quiet member'}),member({id:'43',title:'Expired member',entries:[{...fresh,discoveredAt:now-24*3600_000}]}),{kind:'question',id:'E-10-2026-003031',memberId:'42',title:'Unread question',savedAt:2,entries:[{...fresh,kind:'answer'}]},member({id:'44',title:'Unread member',entries:[fresh]})],true,[{kind:'dossier',id:'2025/0407(COD)',title:'Unread dossier',savedAt:3,entries:[{...fresh,eventKind:'stage'}],observations:{},gaps:{},lastAttempt:now}]);
  await h.render();
@@ -63,27 +63,33 @@ test('Following puts unread cards first across members, questions and dossiers a
  assert.deepEqual(titles(),['Unread question','Unread member','Unread dossier','Quiet member','Expired member']);
  const question=cards(h)[0],disclosure=rows(question)[0];
  await dispatch(h,disclosure);
- assert.deepEqual(titles(),['Unread member','Unread dossier','Quiet member','Expired member','Unread question']);
- assert.equal(cards(h).at(-1),question,'sorting preserves the mounted card');
+ assert.deepEqual(titles(),['Unread question','Unread member','Unread dossier','Quiet member','Expired member']);
+ assert.equal(cards(h)[0],question,'reading preserves the mounted card and its position');
  assert.equal(disclosure.getAttribute('aria-expanded'),'true');
  assert.match(question.textContent,/Inline 42 late/);
- await h.click('Mark all read',cards(h)[0]);
- assert.equal(titles()[0],'Unread dossier');
+ await h.click('Mark all read',cards(h)[1]);
+ assert.deepEqual(titles(),['Unread question','Unread member','Unread dossier','Quiet member','Expired member']);
+ await h.render('fr');
+ assert.equal(cards(h)[0],question,'language changes retain the current reading order');
+ await h.clear();await h.render();
+ assert.deepEqual(titles(),['Unread dossier','Quiet member','Expired member','Unread question','Unread member'],'a new visit prioritises remaining unread cards');
  const directory=ids=>({members:ids.map(id=>({id,firstName:'Member',lastName:String(id),countryCode:'MT',groupCode:null,memberships:[],imageUrl:'/assets/portrait-placeholder.svg'})),committees:[],index:{complete:true,error:null}});
  await act(async()=>{h.controls.coverageStore.observe(directory([42,43,44]),h.controls.savedStore.snapshot().items);h.controls.coverageStore.observe(directory([42,43,44,45]),h.controls.savedStore.snapshot().items);});
  assert.equal(h.container.querySelector('.explorer-saved-items').nextElementSibling,h.container.querySelector('.explorer-follow-suggestions'));
  assert.match(h.container.querySelector('.explorer-follow-suggestions').textContent,/Member 45/);
 });
 
-for(const kind of ['membership','group'])test(`Following promotes ${kind}-only updates and restores stable order after marking read`,async t=>{
+for(const kind of ['membership','group'])test(`Following keeps order for arriving ${kind} updates and marking them read`,async t=>{
  const h=await harness(t,[member({id:'43',title:'Quiet member'}),member({title:'Updated member'})],true);
  h.setStatus({epoch:membershipEpoch,[kind==='membership'?'membershipReady':'groupsReady']:true});
  await h.render();await h.check();
  assert.equal(cards(h)[0].querySelector('h3').textContent,'Quiet member');
  h.setStatus({generation:6});await h.check();
+ assert.equal(cards(h)[0].querySelector('h3').textContent,'Quiet member','updates do not reorder an open page');
+ await h.render('en',false,false);await h.render();
  assert.equal(cards(h)[0].querySelector('h3').textContent,'Updated member');
  await h.click('Mark all read',cards(h)[0]);
- assert.equal(cards(h)[0].querySelector('h3').textContent,'Quiet member');
+ assert.equal(cards(h)[0].querySelector('h3').textContent,'Updated member');
 });
 
 test('Following affiliations use exact roster IDs, retain saved titles and omit former or loading affiliations',async t=>{
@@ -274,7 +280,7 @@ test('visible Following auto-resolves; inline read leaves the other MEP new and 
 test('Profile marks nothing; modified and middle clicks preserve href and mark only that entry',async t=>{
  const h=await harness(t,[member(),member({id:'43',title:'Second member'})]);await newSpeech(h);await h.click('Profile',cards(h)[0]);assert.equal(h.item().entries[0].readAt,null);assert.deepEqual(h.opened,[[42,undefined]]);
  const row=rows(cards(h)[0])[0];const event=await dispatch(h,row,{ctrlKey:true});assert.equal(event.defaultPrevented,false);assert.equal(row.getAttribute('aria-expanded'),'false');assert(Number.isFinite(h.item().entries[0].readAt));
- const other=rows(cards(h)[0])[0];const middle=await dispatch(h,other,{button:1},'auxclick');assert.equal(middle.defaultPrevented,false);assert(Number.isFinite(h.controls.savedStore.snapshot().items[1].entries[0].readAt));
+ const other=rows(cards(h)[1])[0];const middle=await dispatch(h,other,{button:1},'auxclick');assert.equal(middle.defaultPrevented,false);assert(Number.isFinite(h.controls.savedStore.snapshot().items[1].entries[0].readAt));
 });
 test('one expiry timer drops the badge and moves expired entries to Earlier updates without a storage write',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);
