@@ -7,7 +7,7 @@ import {memberVotes,MEMBER_VOTES_PERIOD_RESPONSE_BYTES} from './member-votes.mjs
 import {config} from './config.mjs';
 
 test('only full-period vote reads have room for responses beyond the ordinary JSON ceiling',async t=>{
-  const payload='x'.repeat(config.jsonResponseLimitBytes+1024);
+  const payload='x'.repeat(Math.max(8*1024*1024,config.jsonResponseLimitBytes+1024));
   t.mock.method(memberVotes,'query',async(_member,query)=>({pagination:query.view==='period'?{mode:'period'}:{},payload}));
   async function read(view,method='GET'){
     const chunks=[];
