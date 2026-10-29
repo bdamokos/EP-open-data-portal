@@ -11,7 +11,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
   store.assertWriter();store.generationTaskActive=true;
   const elapsed=loopTimer('activity-generation');
   try {
-    return await new Promise((resolve,reject)=>{
+    const value=await new Promise((resolve,reject)=>{
       let thread,result,failure,complete=false;
       try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{workerData:{directory:path.dirname(store.filename),owner:store.owner,operation,generation}});}
       catch(error){reject(error);return;}
@@ -32,5 +32,10 @@ export async function activityGenerationTask(store,operation,{generation,signal,
       signal?.addEventListener('abort',abort,{once:true});
       if(signal?.aborted)abort();
     });
+    // SQLite commit and thread exit can consume part of the transaction's
+    // final lease. Resume only after a live-owner renewal at the current clock;
+    // an expired or replaced owner must reacquire on a later ordinary tick.
+    if(!store.renew())throw new Error('Activity-index writer lease was lost.');
+    return value;
   } finally {store.generationTaskActive=false;elapsed({operation});}
 }

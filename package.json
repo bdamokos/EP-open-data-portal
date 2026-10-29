@@ -13,6 +13,7 @@
     "api:check": "node scripts/api-version.mjs --check",
     "data:audit": "node server/data-gap-audit-cli.mjs",
     "bench:amendments": "node scripts/amendment-benchmark.mjs",
+    "bench:council-languages": "node scripts/amendment-council-language-benchmark.mjs",
     "bench:agenda": "node scripts/agenda-benchmark.mjs",
     "test:server": "node scripts/run-tests.mjs --server",
     "test:frontend": "node scripts/run-tests.mjs --frontend",

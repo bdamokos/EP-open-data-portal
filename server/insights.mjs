@@ -1,3 +1,5 @@
+import {amendmentGeneration} from './amendments-store.mjs';
+import {topicAmendmentsCacheable} from './topic-involvement.mjs';
 import {SpeechWordInsights,speechWordsQuery} from './insights-speech-words.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {OfficialContextSources,getSharedOfficialContextSources} from './official-context.mjs';
@@ -41,7 +43,7 @@ export function createInsights(store,options={}) {
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
   const procedureProgress=new ProcedureProgress(officialSources);
-  const views=new InsightViewCache({clock,...options.viewCache});
+  const views=new InsightViewCache({clock,...options.viewCache,cacheable:topicAmendmentsCacheable});
   const search=new ParliamentSearch(store,{clock});
   const isLatest=query=>query.week==='latest'||!query.week&&!query.sitting;
   const viewKey=async(view,query,catalogue)=>{
@@ -49,7 +51,7 @@ export function createInsights(store,options={}) {
     const generation=store.status().servingGeneration;
     // Calendar content selects "latest". Retrieval times alone do not change it.
     const selection=view==='legislation'&&isLatest(query)?catalogue.coverage.years.map(year=>[year.year,year.state,year.stopReason,year.error,year.sources.map(source=>[source.url,source.contentHash,source.stale,source.refreshInProgress,source.refreshError])]):null;
-    return [version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query,...(selection?[selection]:[]),...(view==='legislation'?[await agendaCacheRevision()]:[])];
+    return [version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query,...(view==='legislation'&&query.topic?[amendmentGeneration(store)]:[]),...(selection?[selection]:[]),...(view==='legislation'?[await agendaCacheRevision()]:[])];
   };
   let warmReader;
   return {async warmPlenary() {

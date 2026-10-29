@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 import {Worker} from 'node:worker_threads';
+import {EventEmitter} from 'node:events';
 import {setTimeout as delay} from 'node:timers/promises';
 import {ActivityStore} from './activity-index-store.mjs';
 import {documentRows} from './activity-index-model.mjs';
@@ -111,6 +112,40 @@ test('lease takeover after dispatch still fences the preparation thread and pres
   await assert.rejects(run(t,store,'begin',{createWorker}).promise,/lease/);
   assert.equal(store.get('active'),2);assert.equal(store.get('previous'),1);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),2);
   assert.equal(store.db.prepare('SELECT owner FROM lease').get().owner,other.owner);other.assertWriter();
+});
+
+for(const operation of ['begin','publish'])test(operation+' renews a live logical lease after delayed commit/exit before returning to preparation',async t=>{
+  let now=Date.now();const {store}=fixture(t,{clock:()=>now});
+  const generation=operation==='publish'?store.beginCycle().generation:undefined;
+  const createWorker=()=>{
+    const thread=new EventEmitter();thread.terminate=async()=>0;
+    queueMicrotask(()=>{
+      const value=operation==='begin'?store.beginCycle():store.finalize(generation);
+      now+=55_000;
+      thread.emit('message',{type:'complete',value});thread.emit('exit',0);
+    });return thread;
+  };
+  await run(t,store,operation,{generation,createWorker}).promise;
+  assert.equal(store.db.prepare('SELECT expires FROM lease').get().expires,now+90_000);
+  now+=45_000;store.assertWriter();
+});
+
+for(const replaced of [false,true])test('completed helper cannot revive an '+(replaced?'expired and replaced':'expired')+' lease',async t=>{
+  let now=Date.now();const {directory,store}=fixture(t,{clock:()=>now}),other=new ActivityStore(directory,{clock:()=>now});t.after(()=>other.close());
+  let owner;
+  const createWorker=()=>{
+    const thread=new EventEmitter();thread.terminate=async()=>0;
+    queueMicrotask(()=>{
+      const value=store.beginCycle();now+=91_000;
+      if(replaced)assert(other.acquire());
+      owner=store.db.prepare('SELECT * FROM lease').get();
+      thread.emit('message',{type:'complete',value});thread.emit('exit',0);
+    });return thread;
+  };
+  await assert.rejects(run(t,store,'begin',{createWorker}).promise,/lease/);
+  assert.deepEqual(store.db.prepare('SELECT * FROM lease').get(),owner);
+  assert.equal(store.get('active'),2);assert.equal(store.get('working').generation,3);
+  assert.equal(store.generationTaskActive,false);
 });
 
 test('HTTP starts and stays responsive while generation rotation holds the writer lock; shutdown rolls it back',loopback,async t=>{

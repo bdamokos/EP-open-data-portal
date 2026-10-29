@@ -1,3 +1,4 @@
+import {amendmentReadVersion} from './amendments-store.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
@@ -44,7 +45,7 @@ function fixture({flags={},fail,memberCountryCode='IT',metadata=new Map([['1',{'
     assert(Object.hasOwn(payloads,endpoint),'Unexpected source request: '+endpoint);
     const record=makeRecord(endpoint);return endpoint==='/meetings'?{...record,payload:{data:record.payload.data.filter(n=>Number(n.activity_date.slice(0,4))===params.year)}}:record;
   };
-  const store={clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:memberCountryCode})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
+  const store={clock:()=>Date.now(),get:key=>key==='amendmentReadVersion'?amendmentReadVersion:null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false}),db:{prepare:sql=>({get:()=>sql.includes('SELECT COUNT(*) AS n FROM amendments')?{n:0}:sql.includes('FROM amendment_read_flags')?{rows:0,wording:0,proposer:0,splits:0,freshness:0}:undefined,all:()=>sql.includes('FROM members')?[{id:'1',body:JSON.stringify({id:'1',name:'Synthetic member',countryCode:memberCountryCode})}]:sql.includes('FROM sources')?[{key:documentEndpoint,body:JSON.stringify(document),fetched_at:new Date(clock()).toISOString()}]:[]})}};
   const options={clock,request,loadMetadata:async()=>metadata};
   const legislation=new LegislationInsights(store,options);
   const readEvent=async id=>{assert.equal(id,eventId);return makeRecord(eventEndpoint);};
@@ -359,4 +360,21 @@ test('participation retains country acquisition states through the public cache 
  const retained=await participation(legislation,store,participantQuery(),{clock,readEvent});
  assert.equal(retained.countries.find(row=>row.code==='IT').delegationSize,1);
  assert.equal(policy('participation',retained).cdnCacheControl,'no-store');
+});
+
+test('legislation handler retries unavailable amendment counts without waiting for its view cache',async()=>{
+  const {store,options,calls}=fixture(),get=store.get;
+  let ready=false;
+  store.get=key=>key==='amendmentReadVersion'&&!ready?null:get(key);
+  const service=createInsights(store,{...options,viewCache:{directory:null}}),params=new URLSearchParams({sitting:sittingId,topic:debateId});
+  const failed=await service.query('legislation',params);
+  assert.equal(failed.detail.amendments.documents[0].status,'unavailable');
+  assert.equal(policy('legislation',failed).cdnCacheControl,'no-store');
+  const before=calls.length;ready=true;
+  const recovered=await service.query('legislation',params);
+  assert.equal(recovered.detail.amendments.generation,failed.detail.amendments.generation);
+  assert.equal(recovered.detail.amendments.documents[0].status,undefined);
+  assert(recovered.detail.amendments.documents[0].coverage);
+  assert.equal(calls.length,before,'Retrying saved counts adds no upstream reads');
+  assert.match(policy('legislation',recovered).cdnCacheControl,/max-age=21600/);
 });

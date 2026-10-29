@@ -7,10 +7,10 @@ import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,cacheable=()=>true}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,cacheable});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
-    if(this.cache.has(key))return this.cache.get(key);
+    if(this.cache.has(key)){const record=this.cache.get(key);return this.cacheable(record.value)?record:null;}
     if(!this.directory)return null;
     const reads=this.diskReads.get(key)||new Set(),read={superseded:false};
     this.diskReads.set(key,reads);reads.add(read);
@@ -19,7 +19,7 @@ export class InsightViewCache {
       const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();
       // A publication while this read was pending wins even if memory evicted it.
       if(read.superseded)return this.cache.get(key)||null;
-      if(record.key!==key||!Number.isFinite(record.at)||!record.value)return null;
+      if(record.key!==key||!Number.isFinite(record.at)||!record.value||!this.cacheable(record.value))return null;
       this.remember(key,record);return record;
     }catch{return null;}
     finally {reads.delete(read);if(!reads.size)this.diskReads.delete(key);}
@@ -33,7 +33,9 @@ export class InsightViewCache {
   }
   async save(key,value) {
     requestSignal()?.throwIfAborted();
-    const record={key,at:this.clock(),value};this.remember(key,record);
+    const record={key,at:this.clock(),value};
+    if(!this.cacheable(value))return record;
+    this.remember(key,record);
     if(!this.directory||Buffer.byteLength(JSON.stringify(record))>4*1024*1024)return record;
     const name=path.join(this.directory,key+'.json');
     try {await writeCacheFile(name,JSON.stringify(record));await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
@@ -54,7 +56,8 @@ export class InsightViewCache {
     const key=this.key(value);let old=await this.stored(key);
     requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
-    old ||= this.cache.get(key)||null;
+    const memory=this.cache.get(key);
+    if(!old&&memory&&this.cacheable(memory.value))old=memory;
     // Validate both retained records and replacements. A rejected old record
     // is a cache miss; a rejected refresh leaves the last good record intact.
     if(old&&validate)try{validate(old.value);}catch{old=null;}

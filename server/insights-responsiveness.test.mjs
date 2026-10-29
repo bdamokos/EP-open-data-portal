@@ -48,7 +48,7 @@ function savedStore() {
   return {clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false,sourceCounts:{document:1}}),db:{prepare(sql){
     if(sql.includes('FROM group_history_snapshots'))return {get:()=>undefined};
     if(sql.includes('FROM refresh_gaps'))return {all:()=>[]};
-    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {all:()=>[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
+    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {iterate:()=>[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
     if(sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:1})};
     if(sql.startsWith('SELECT key,body'))return {all:()=>[{key:'/parliamentary-questions/'+work.identifier,body:JSON.stringify(work),fetched_at:'2026-10-02T10:00:00Z'}]};
     if(sql.startsWith('SELECT id,body'))return {all:()=>[{id:'1',body:JSON.stringify({id:'1',countryCode:'FR'})}]};
@@ -57,6 +57,18 @@ function savedStore() {
 }
 const clock=()=>Date.parse('2026-10-19T12:00:00Z');
 const settled=promise=>promise.then(value=>({value}),error=>({error}));
+
+test('independent saved metadata and question bodies load together before analysis',async()=>{
+  let releaseMetadata,releaseBodies;
+  const metadata=new Promise(resolve=>{releaseMetadata=resolve;}),bodies=new Promise(resolve=>{releaseBodies=resolve;}),started=[];
+  const service=new QuestionInsights(savedStore(),{clock,
+    loadMetadata:()=>{started.push('metadata');return metadata;},
+    loadQuestionBodies:()=>{started.push('bodies');return bodies;}});
+  const result=service.query(insightQuery(new URLSearchParams('days=90'),{now:clock()}));
+  try {await yieldTurn();assert.deepEqual(started,['metadata','bodies']);}
+  finally {releaseMetadata(new Map());releaseBodies(new Map());}
+  assert.equal((await result).questions[0].id,'E-10-2026-000001');
+});
 
 test('a staggered language view survives the first view owner expiring during shared analysis',async t=>{
   t.mock.timers.enable({apis:['setTimeout']});

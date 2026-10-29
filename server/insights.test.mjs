@@ -9,6 +9,7 @@ import { ActivityStore } from './activity-index-store.mjs';
 import { projectDocument,documentRows } from './activity-index-model.mjs';
 import { analyzeQuestions,questionFromSource,demographicStats,ageAt,personId } from './insights-model.mjs';
 import { QuestionInsights,insightQuery,savedMetadata } from './insights-store.mjs';
+import {indexAvailability} from './availability-evidence.mjs';
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/activity-index-live-20261013.json',import.meta.url)));
 const question=fixture.documents.find(d=>d.endpoint.startsWith('/parliamentary-questions'));
 const now=()=>Date.parse('2026-10-14T11:00:00Z');
@@ -121,7 +122,7 @@ test('explorers reuse saved demographic metadata across date windows and refresh
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
-test('undated question coverage uses only the existing partial index and preserves date/type scope',async t=>{
+test('question counts and ordered windows use the existing partial index and preserve date/type scope',async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'undated-question-index-'));
   const store=new ActivityStore(directory,{clock:now});
   t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
@@ -146,8 +147,14 @@ test('undated question coverage uses only the existing partial index and preserv
   t.mock.method(store.db,'prepare',sql=>{
     const statement=prepare(sql);
     if(sql.includes('INDEXED BY question_window')) {
-      const get=statement.get.bind(statement);
-      statement.get=(...args)=>{queries.push({sql,args});return get(...args);};
+      if(sql.startsWith("SELECT json_extract(body,'$.work_type')")) {
+        const iterate=statement.iterate.bind(statement);
+        statement.iterate=function*(...args){const record={sql,args,method:'iterate',result:[]};queries.push(record);for(const row of iterate(...args)){record.result.push(row);yield row;}};
+      }
+      for(const method of ['get','all']) {
+        const execute=statement[method].bind(statement);
+        statement[method]=(...args)=>{const result=execute(...args);queries.push({sql,args,method,result});return result;};
+      }
     }
     return statement;
   });
@@ -156,10 +163,15 @@ test('undated question coverage uses only the existing partial index and preserv
     .query(insightQuery(new URLSearchParams('days=90&lang=hu'),{now:now()}));
   assert.equal(result.coverage.undatedQuestions,11);assert.equal(result.counts.indexedMatchingQuestions,3);
   assert.equal(result.counts.totalQuestions,null);assert.equal(result.coverage.indexComplete,false);
-  assert.equal(queries.length,1,'only the undated count is pinned to this index');
+  assert.equal(queries.length,4,'both counts, the ordered window and coverage history use the question index');
+  for(const {sql,args,method,result} of queries) {
+    const original=sql.replace(' INDEXED BY question_window',' NOT INDEXED');
+    const expected=method==='iterate'?prepare(original).all(...args).slice(0,result.length):prepare(original)[method](...args);
+    assert.deepEqual(expected,result,'the indexed read preserves the source-scan order, including the streamed prefix');
+    const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
+    assert.match(plan,/SEARCH sources USING INDEX question_window/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
+  }
   const {sql,args}=queries[0];
-  const original=sql.replace(' INDEXED BY question_window',' NOT INDEXED');
-  assert.equal(prepare(original).get(...args).n,result.coverage.undatedQuestions);
   const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
   assert.match(plan,/SEARCH sources USING INDEX question_window \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
   const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='sources'").get().rootpage;
@@ -167,6 +179,105 @@ test('undated question coverage uses only the existing partial index and preserv
   assert(!program.some(row=>row.opcode==='Column'&&tableCursors.has(row.p1)),'undated count must not read source-table columns');
   assert(!program.some(row=>row.opcode==='Function'&&/json_extract/.test(row.p4)),'undated count must not parse source JSON');
   store.db.exec('PRAGMA query_only=OFF');
+});
+
+test('country facets count shared questions and distinct current authors while retaining alternative countries',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'question-country-facets-')),store=new ActivityStore(directory,{clock:now});
+  t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+  store.acquire();const {generation}=store.beginCycle();
+  store.setMembers([{id:'1',countryCode:'FR'},{id:'2',countryCode:'DE'},{id:'3',countryCode:'DE'},{id:'4'}]);
+  const rows=[['Water safety',['1','2','3','99']],['Digital safety',['2','4']],['Water quality',['3']]];
+  for(const [i,[title,authors]] of rows.entries()) {
+    const id='E-10-2026-00000'+(i+1),key='/parliamentary-questions/'+id;
+    store.putSource(generation,key,'document',{identifier:id,work_type:'def/QUESTION_WRITTEN',document_date:'2026-10-01',title_dcterms:{en:title},creator:authors.map(id=>'person/'+id)},fixture.verifiedAt);
+  }
+  const metadata=new Map([['2',{'api:country-of-representation':'FR'}],['99',{'api:country-of-representation':'FR'}]]);
+  const service=new QuestionInsights(store,{clock:now,loadMetadata:async()=>metadata,loadQuestionBodies:async()=>new Map()});
+  store.db.exec('PRAGMA query_only=ON');
+  const query=s=>service.query(insightQuery(new URLSearchParams('days=30&'+s),{now:now()}));
+  const result=await query('country=FR');
+  assert.equal(result.counts.selectedQuestions,2);
+  assert.deepEqual(result.facets.countries.filter(c=>c.count),[{code:'FR',count:2,authors:2},{code:'DE',count:2,authors:1}]);
+  assert.deepEqual(result.facets.countries.find(c=>c.code==='HU'),{code:'HU',count:0,authors:0});
+  const water=await query('country=FR&word=water');
+  assert.equal(water.counts.selectedQuestions,1);
+  assert.deepEqual(water.facets.countries.filter(c=>c.count),[{code:'FR',count:1,authors:2},{code:'DE',count:2,authors:1}]);
+  assert.equal(water.selectedStats.uniqueCurrentMeps,2);
+  assert.equal(water.coverage.indexComplete,false);assert.equal(water.counts.totalQuestions,null);
+});
+
+test('indexed question coverage preserves historical, path, subtype and retrieval-date evidence',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'question-frontier-index-')),store=new ActivityStore(directory,{clock:now});
+  t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+  store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',countryCode:'FR'}]);
+  const insert=store.db.prepare('INSERT INTO sources VALUES (?,?,?,?,?,1)');let sequence=0;
+  const save=(subtype,date,{prefix='/parliamentary-questions/',kind='document',g=generation,fetchedAt='2026-10-14T10:00:00Z'}={})=>{
+    const id='E-10-2026-'+String(++sequence).padStart(6,'0');
+    insert.run(g,prefix+id,kind,JSON.stringify({identifier:id,work_type:subtype,document_date:date,title_dcterms:{en:'Water safety'},creator:['person/42']}),fetchedAt);
+  };
+  save('def/QUESTION_WRITTEN','2026-10-13',{fetchedAt:'2026-10-12T22:30:00Z'}); // Brussels next day.
+  save('def/QUESTION_WRITTEN','2026-10-14',{fetchedAt:'2026-10-12T22:30:00Z'}); // Future at retrieval.
+  save('def/QUESTION_WRITTEN_PRIORITY','2026-08-15'); // History outside the selected week.
+  save('def/QUESTION_WRITTEN_PRIORITY','2026-10-11',{prefix:'/Parliamentary-Questions/'}); // Preserve LIKE case behavior.
+  save('def/QUESTION_WRITTEN_PRIORITY','2026-10-15'); // Future today.
+  save('def/QUESTION_ORAL','2026-10-12');
+  save('def/QUESTION_ORAL','2026-02-30');
+  save('def/QUESTION_ORAL',null);
+  save('def/QUESTION_ORAL','2026-10-14',{prefix:'/different-source/'});
+  save('def/QUESTION_ORAL','2026-10-14',{prefix:'/parliamentary-questions-old/'});
+  save('def/QUESTION_ORAL','2026-10-14',{kind:'catalog'});
+  save('def/QUESTION_ORAL','2026-10-14',{g:generation+1});
+  save('def/question_oral','2026-10-14');
+  save('QUESTION_ORAL','2026-10-14');
+  save('def/QUESTION_WRITTEN_ANSWER','2026-10-14');
+  save('def/REPORT_PLENARY','2026-10-14');
+  const original=store.db.prepare("SELECT json_extract(body,'$.work_type') subtype,json_extract(body,'$.document_date') date,fetched_at fetchedAt FROM sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'");
+  store.db.exec('PRAGMA query_only=ON');
+  async function verify(frontiers) {
+    const service=new QuestionInsights(store,{clock:now,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()}),observations=original.all(generation);
+    for(const days of ['7','term']) {
+      const query=insightQuery(new URLSearchParams({days}),{now:now()}),result=await service.query(query);
+      const expected=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'].map(subtype=>indexAvailability(store,{
+        sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation,
+        records:observations.filter(row=>String(row.subtype).endsWith('/'+subtype))
+      }));
+      assert.deepEqual(result.availability,expected,'coverage must match the original broad document read in each date window');
+      assert.deepEqual(result.availability.map(row=>row.latestObservedDate),frontiers);
+      assert.equal(result.coverage.indexComplete,false);assert.equal(result.counts.totalQuestions,null);
+    }
+  }
+  await verify(['2026-10-13','2026-10-11','2026-10-12']);
+  store.db.exec('PRAGMA query_only=OFF');
+  store.db.prepare("DELETE FROM sources WHERE generation=? AND json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL'").run(generation);
+  store.db.exec('PRAGMA query_only=ON');
+  await verify(['2026-10-13','2026-10-11',null]);
+});
+
+test('coverage closes its newest-first read early and retains future observations across Brussels midnight',async t=>{
+  let time=Date.parse('2026-10-14T21:59:00Z');
+  const clock=()=>time,directory=mkdtempSync(path.join(os.tmpdir(),'question-frontier-midnight-')),store=new ActivityStore(directory,{clock});
+  t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+  store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',countryCode:'FR'}]);
+  const insert=store.db.prepare('INSERT INTO sources VALUES (?,?,?,?,?,1)');let sequence=0;
+  for(const subtype of ['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'])for(const date of ['2026-10-15','2026-10-14',...Array(10).fill('2026-10-13')]) {
+    const id='E-10-2026-'+String(++sequence).padStart(6,'0');
+    insert.run(generation,'/parliamentary-questions/'+id,'document',JSON.stringify({identifier:id,work_type:'def/'+subtype,document_date:date,title_dcterms:{en:'Water safety'},creator:['person/42']}),'2026-10-14T22:30:00Z');
+  }
+  const prepare=store.db.prepare.bind(store.db);let visited=0,closed=false;
+  t.mock.method(store.db,'prepare',sql=>{
+    const statement=prepare(sql);
+    if(sql.startsWith("SELECT json_extract(body,'$.work_type')")) {
+      const iterate=statement.iterate.bind(statement);
+      statement.iterate=function*(...args){try{for(const row of iterate(...args)){visited++;yield row;}}finally{closed=true;}};
+    }
+    return statement;
+  });
+  store.db.exec('PRAGMA query_only=ON');
+  const query=insightQuery(new URLSearchParams('days=7'),{now:time});
+  const result=await new QuestionInsights(store,{clock,loadMetadata:async()=>{time=Date.parse('2026-10-14T22:31:00Z');return new Map();},loadQuestionBodies:async()=>new Map()}).query(query);
+  assert.equal(visited,6,'three future and three current observations suffice; older bodies are never read');
+  assert.equal(closed,true,'breaking the read closes the SQLite iterator');
+  assert.deepEqual(result.availability.map(row=>row.latestObservedDate),Array(3).fill('2026-10-15'));
 });
 
 test('subject filters validate exact place IDs and reject labels, unknown and repeated IDs',()=>{

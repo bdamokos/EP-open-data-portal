@@ -63,7 +63,7 @@ test('question authors use the response generation even when publication changes
   const store={clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:generation,complete:false,sourceCounts:{document:1}}),db:{prepare(sql){
     if(sql.includes('FROM group_history_snapshots'))return {get(g){reads++;assert.equal(g,1);return {body:JSON.stringify({members})};}};
     if(sql.includes('FROM refresh_gaps'))return {all:()=>[]};
-    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {all:()=>[{subtype:question.work_type,date:question.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
+    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {iterate:()=>[{subtype:question.work_type,date:question.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
     if(sql.startsWith('SELECT COUNT'))return {get:()=>({n:1})};
     if(sql.startsWith('SELECT key,body'))return {all:()=>[{key:'/parliamentary-questions/'+question.identifier,body:JSON.stringify(question),fetched_at:'2026-10-23T10:00:00Z'}]};
     if(sql.startsWith('SELECT id,body'))return {all:()=>[{id:'124846',body:JSON.stringify({name:'Pina Picierno',groupCode:'Renew'})}]};
