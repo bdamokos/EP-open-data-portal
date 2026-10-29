@@ -266,14 +266,17 @@ test('detail renders exact split wording, sibling context and only exact request
   const first=vote(1,{parts:[part(1,{contentByLanguage:{fr:{sourceLiteral:'Littéral exact de la première partie',text:null}},contextComponents:[component]})],outcome:'REJECTED',rollCallRequesters:[
     {id:'requester-1',uri:'https://example.test/requester',type:'REQUEST_ROLLCALL',scopeByLanguage:{},organizationLabels:{fr:'Demandeur exact'},organizationReferences:[],organizationAliasReferences:[],binding:'exact-decision-was_motivated_by',evidencePaths:[]},
   ]});
-  const sibling=vote(2,{parts:[part(2)],outcome:'ADOPTED'});
+  const sibling=vote(2,{parts:[part(2,{contextComponents:[part(1),part(2)]})],outcome:'ADOPTED'});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:first.id},handler:url=>Response.json(responseFor(url,{items:[first,sibling]}))});
   const detail=visiblePane(h.container);
   assert.equal(detail.querySelector('.member-votes-part p').textContent,'Littéral exact de la première partie');assert.equal(detail.querySelector('.member-votes-part p').lang,'fr');
   assert.match(detail.querySelector('.member-votes-related').textContent,/Littéral exact de la deuxième partie/);
   assert.match(detail.querySelector('.member-votes-siblings').textContent,/Part 2 · Adopted/);
   assert.match(detail.querySelector('.member-votes-requester').textContent,/Roll call requested by Demandeur exact/);assert(!detail.textContent.includes('Unbound requester'));
-  await h.click('Part 2 · Adopted');assert.equal(h.state.decisionId,sibling.id);
+  assert.equal(detail.querySelector('.member-votes-related summary').textContent,'Split vote · Paragraph 4');
+  assert.deepEqual([...detail.querySelectorAll('.member-votes-related h4')].map(node=>node.textContent),['Part 1','Part 2']);
+  await h.click('Paragraph 4 · Part 2 · Adopted');assert.equal(h.state.decisionId,sibling.id);
+  assert.deepEqual([...visiblePane(h.container).querySelectorAll('.member-votes-related h4')].map(node=>node.textContent),['Part 1','Part 2']);
 });
 
 test('amendment wording loads only after decision selection and requires an explicit exact published variant before context',async t=>{

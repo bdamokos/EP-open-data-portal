@@ -9,6 +9,7 @@ export function validateMemberVotesResponse(data:unknown,request:{memberId:numbe
 export function groupMemberVotes(data:MemberVotesResponse):MemberVoteGroup[];
 export function displayVoteTitle(title:string|null|undefined):string;
 export function memberVoteLabel(vote:MemberVote,language?:string):string;
+export function memberVoteParentLabel(vote:MemberVote,language?:string):string|null;
 export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>):string;
 export function memberVotePositionSummary(items:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>[]):string;
 export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>):string;

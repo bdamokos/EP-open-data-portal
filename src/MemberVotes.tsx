@@ -15,7 +15,7 @@ import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {MemberVoteExplanations} from './MemberVoteExplanations';
@@ -107,7 +107,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
   const requestIds=new Set(vote.parts.map(part=>part.requestId));
   const siblingVotes=data.items.filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
-  const contexts=vote.parts.flatMap(part=>part.contextComponents).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index&&!vote.parts.some(part=>part.componentId===component.componentId));
+  const contexts=vote.parts.flatMap(part=>[...part.contextComponents,part].sort((a,b)=>/^\d+$/.test(String(a.number))&&/^\d+$/.test(String(b.number))?Number(a.number)-Number(b.number):0)).filter((component,index,all)=>all.findIndex(other=>other.componentId===component.componentId)===index);
   return <article className="member-votes-detail">
     <header><p className="member-votes-eyebrow">{dateLabel(vote.date)}</p>{subject&&<VoteSubjectTitle subject={subject} vote={vote} language={language}/>}<h2 tabIndex={-1}>{memberVoteLabel(vote,language)}</h2></header>
     <section className="member-votes-strip" aria-label="Member position and Parliament result"><Position vote={vote} memberName={memberName}/><Result vote={vote}/>
@@ -117,11 +117,11 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
     {targets.map(target=><Wording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext} showHeading={targets.length!==1||memberVoteLabel(vote,language)!=='Amendment '+(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p>Amendment wording unavailable here.</p>}
     {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
-    {subject?.wholeTextDecisions.some(whole=>whole.id!==vote.id)&&<details className="member-votes-related"><summary>Final vote on the whole text</summary>{subject.wholeTextDecisions.filter(whole=>whole.id!==vote.id).map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>)}</details>}
-    {contexts.length>0&&<details className="member-votes-related"><summary>Other parts of this split vote</summary>{contexts.map(component=>{
+    {contexts.length>0&&<details className="member-votes-related"><summary>Split vote{memberVoteParentLabel(vote,language)?' · '+memberVoteParentLabel(vote,language):''}</summary>{contexts.map(component=>{
       const text=selectLanguageText(Object.fromEntries(Object.entries(component.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
       return <div key={component.componentId}><h4>{component.number!==null?'Part '+component.number:'Another part'}</h4>{text.text?<p lang={text.language}>{text.text}</p>:<p>Part wording unavailable here.</p>}</div>;
     })}</details>}
+    {subject?.wholeTextDecisions.some(whole=>whole.id!==vote.id)&&<details className="member-votes-related"><summary>Final vote on the whole text</summary>{subject.wholeTextDecisions.filter(whole=>whole.id!==vote.id).map(whole=><WholeText key={whole.id} vote={whole} memberName={memberName} onDecision={onDecision}/>)}</details>}
     {siblingVotes.length>0&&<section className="member-votes-siblings"><h3>Other decisions shown for this split vote</h3>{siblingVotes.map(item=><button type="button" key={item.id} onClick={()=>onDecision(item.id)}>{memberVoteLabel(item,language)} · {memberVoteOutcome(item)}</button>)}</section>}
     {(vote.ballotStatus==='not-conducted'||voteMethodLabel(vote.method))&&<p className="member-votes-muted">{vote.ballotStatus==='not-conducted'?'Not put to a vote':voteMethodLabel(vote.method)}</p>}
     {requesterLabels.length>0&&<p className="member-votes-requester">Roll call requested by {requesterLabels.map((label,index)=><span key={index} lang={label.language}>{index>0?', ':''}{label.text}</span>)}.</p>}
