@@ -21,6 +21,7 @@ import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
 import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
+import {validateAdoptedText} from './adopted-text-index.mjs';
 
 export const DOCUMENT_CONTEXT_VERSION=36;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
@@ -161,6 +162,7 @@ export class DocumentContext {
       if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
         const fresh=await read(endpoint,query.id,{live:true});
         if(canonicalType(fresh.work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
+        validateAdoptedText(endpoint,fresh.work);
         // A missing retained file may have been replaced. Retry the body only
         // when its selected-edition declaration or source version changes.
         const selectedFiles=value=>declaredDocxFiles(value).filter(file=>file.language===query.language);

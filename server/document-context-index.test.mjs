@@ -163,7 +163,9 @@ test('retained-body metadata recovery preserves typed cancellation and exact sou
   const {store}=setup(t);
   const timeout=new DocumentContext({request:async()=>{throw requestTimeout();},readText:async()=>({status:'unavailable',paragraphs:[]})});
   await assert.rejects(timeout.query(query({id:adopted,adopted:false}),{store}),{code:'request_timeout'});
-  let bodies=0;
-  const wrong=new DocumentContext({request:async()=>({payload:{data:[work({id:'eli/dl/doc/TA-10-2026-9999',identifier:'TA-10-2026-9999'})]},fetchedAt:stamp}),readText:async()=>{bodies++;return {status:'error',paragraphs:[]};}});
-  const result=await wrong.query(query({id:adopted,adopted:false}),{store});assert.equal(bodies,1);assert.equal(result.document.selectedDocumentId,adopted);assert.equal(result.document.selectedText.status,'error');assert(result.document.sourceCache.refreshError);
+  for(const invalid of [work({id:'eli/dl/doc/TA-10-2026-9999',identifier:'TA-10-2026-9999'}),work({parliamentary_term:'org/ep-9',is_realized_by:[{language:'en',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/conflicting_en.docx'}]}]})]) {
+    let bodies=0;
+    const wrong=new DocumentContext({request:async()=>({payload:{data:[invalid]},fetchedAt:stamp}),readText:async()=>{bodies++;return {status:'error',paragraphs:[]};}});
+    const result=await wrong.query(query({id:adopted,adopted:false}),{store});assert.equal(bodies,1);assert.equal(result.document.selectedDocumentId,adopted);assert.equal(result.document.selectedText.status,'error');assert(result.document.sourceCache.refreshError);
+  }
 });
