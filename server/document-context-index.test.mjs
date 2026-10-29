@@ -90,6 +90,33 @@ for(const conflict of ['identity','type','term'])test('retained report body reco
   assert(result.document.sourceCache.refreshError);assert.deepEqual(store.source(generation,endpoint),before);
 });
 
+test('a different selected wording language still discovers newly published body languages without changing the requested body',async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined};
+  store.putSource(generation,endpoint,'document',metadata,stamp);
+  const fresh=structuredClone(metadata);fresh.is_realized_by.push({language:'hu',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/report_hu.docx'}]});
+  const indexed={id:amendmentId,targetDocumentId:id,listId,language:'hu',textIntegrity:'complete',originalText:'Régi bekezdés.',proposedText:'Új bekezdés.',gaps:[],sourceFreshness:{status:'fresh'}};
+  let requests=0;
+  const reader=new DocumentContext({findAmendment:()=>indexed,request:async route=>{requests++;assert.equal(route,endpoint);return {payload:{data:[fresh]},fetchedAt:stamp};},readText:async(observed,language)=>{
+    const hu=language==='hu'&&observed.is_realized_by.some(expression=>expression.language==='hu');
+    return {status:'available',paragraphs:[hu?'Régi bekezdés.':'English paragraph.'],textLanguage:hu?'hu':'en',availableTextLanguages:observed.is_realized_by.map(expression=>expression.language)};
+  }});
+  const result=await reader.query(query({id,adopted:false,amendmentId,listId,wordingLanguage:'hu'}),{store});
+  assert.equal(requests,1);assert.equal(result.sources[0].representation,undefined);
+  assert.equal(result.document.selectedText.textLanguage,'en');assert.deepEqual(result.document.selectedText.availableTextLanguages,['en','hu']);
+  assert.equal(result.target.evidence.wordingLanguage,'hu');assert.equal(result.wordingLanguageFallback,null);
+});
+
+test('an explicitly pinned matching language can reuse metadata from a multilingual indexed list',async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  store.putSource(generation,endpoint,'document',{...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined},stamp);
+  const variant={listId,textIntegrity:'complete',originalText:'Old paragraph',proposedText:'New paragraph',gaps:[],sourceFreshness:{status:'fresh'}};
+  const indexed={id:amendmentId,targetDocumentId:id,variants:[{...variant,language:'en'},{...variant,language:'hu'}]};
+  const reader=new DocumentContext({findAmendment:()=>indexed,request:async()=>assert.fail('Pinned matching language needs no metadata request'),readText:async()=>({status:'available',paragraphs:['Old paragraph'],textLanguage:'en'})});
+  const result=await reader.query(query({id,adopted:false,amendmentId,listId,wordingLanguage:'en'}),{store});
+  assert.equal(result.sources[0].representation,'retained-index-projection');assert.equal(result.document.selectedText.textLanguage,'en');
+});
+
 test('exact retained adoption choices avoid source requests and body reads while keeping coverage partial and provenance explicit',async t=>{
   const {store,generation,active}=setup(t);let requests=0,bodies=0;
   const reader=new DocumentContext({request:async()=>{requests++;throw Error('Source unavailable');},readText:async()=>{bodies++;throw Error('Body remains lazy');}});

@@ -15,9 +15,11 @@ const expected=id=>'def/ep-document-types/'+(id.startsWith('TA-')?'TEXT_ADOPTED'
 // Retained projections are usable observations, never a fresh source census.
 export function retainedDocumentContext(store,query,{adoptedCandidates,metadataBytes},{amendment=null}={}) {
   const variants=amendment?.variants?.length?amendment.variants:amendment?[amendment]:[];
+  const selected=variants.filter(variant=>typeof variant.listId==='string'&&variant.listId.startsWith(query.id+'-AM-')&&
+    (!query.listId||variant.listId===query.listId)&&(!Object.hasOwn(query,'wordingLanguage')||variant.language===query.wordingLanguage));
   const exactAmendment=typeof query.amendmentId==='string'&&amendment?.targetDocumentId===query.id&&
     (amendment.id===query.amendmentId||array(amendment.officialIds).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.amendmentId))&&
-    variants.some(variant=>typeof variant.listId==='string'&&variant.listId.startsWith(query.id+'-AM-')&&(!query.listId||variant.listId===query.listId));
+    selected.length>0&&selected.every(variant=>variant.language===query.language);
   if(!store?.readSnapshot||!store.db||!query.adopted&&!query.id.startsWith('TA-')&&!exactAmendment)return null;
   return store.readSnapshot(()=>{
     const generations=[...new Set([store.get('working')?.generation,amendmentGeneration(store),store.get('active')].filter(Number.isInteger))];
