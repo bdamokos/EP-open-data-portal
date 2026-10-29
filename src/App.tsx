@@ -287,7 +287,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
       {answer && authored ? <p>Answer to this MEP’s question.</p> : document.data!.roles.length ? <p>Role: <span lang="">{document.data!.roles.join(", ")}</span></p> : <p>Not linked to this MEP.</p>}
       <PublicationText sourceId={sourceId!} member={member} lang={lang} heading={answer ? 'Answer' : /^[EPO]-/.test(sourceId!) ? 'Question' : 'Document text'} includeAnswers={!answer && /^[EPO]-/.test(sourceId!)} showDownloads={showDownloads} />
       {answer && document.data!.id!==sourceId && <PublicationText sourceId={document.data!.id} member={member} lang={lang} heading="Linked question" showDownloads={showDownloads} />}
-      <PublicationFiles files={matched.files} lang={lang} />
+      {showDownloads&&<PublicationFiles files={matched.files} lang={lang} />}
     </>}
     {document.data && !matched && <p>Linked item unavailable.</p>}
     {contribution.data && <>{!speechAuthor&&<p>Not linked to this MEP.</p>}<Detail speech={contribution.data} lang={lang} /></>}
@@ -296,6 +296,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
 export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
   const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`);
   const selected=state.data?.selectedItems.find(item=>item.sourceId===sourceId);
+  const showDownloads=!/^[EPHO]-10-\d{4}-\d{6}(?:-ASW)?$/.test(sourceId);
   const scope=JSON.stringify([member,sourceId,lang]);
   const [motion,setMotion]=useState(()=>({scope,query:new URLSearchParams()}));
   const motionQuery=motion.scope===scope?motion.query:new URLSearchParams();
@@ -307,8 +308,8 @@ export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpen
     <Status scope={`following-detail:${scope}`} pending={state.loading} message={state.error?'Activity temporarily unavailable.':selected?'Activity loaded.':state.data?'This activity is unavailable.':null}/>
     {state.loading&&!selected&&<p role="status">Loading…</p>}
     {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
-    {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange} showDownloads={false}/>:
-      !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete} showDownloads={false}/>}
+    {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange} showDownloads={showDownloads}/>:
+      !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete} showDownloads={showDownloads}/>}
     {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       event.preventDefault();onOpenProfile();
