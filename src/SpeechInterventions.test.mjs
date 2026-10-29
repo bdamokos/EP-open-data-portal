@@ -33,7 +33,7 @@ test('every contribution opens from its header while type badges remain informat
   const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:records[0].id,language:'en',preload:false})));
-  const toggle=container.querySelector('.intervention-context-toggle');assert.match(toggle.textContent,/^Speech in context/);
+  const toggle=container.querySelector('.intervention-context-toggle');assert.match(toggle.textContent,/^View speech in context/);
   await act(async()=>toggle.click());
   assert.equal(container.querySelectorAll('.intervention-badges button').length,0);
   const entries=[...container.querySelectorAll('.intervention-sequence>li')];assert.equal(entries.length,types.length);

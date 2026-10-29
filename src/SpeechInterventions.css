@@ -31,9 +31,8 @@
 .intervention-sequence{list-style:none;padding:0!important;margin:1rem 0!important}
 .intervention-sequence>li{display:grid;grid-template-columns:1.7rem minmax(0,1fr);gap:.55rem;padding:0 0 .9rem;position:relative}
 .intervention-sequence>li:not(:last-child):before{content:'';position:absolute;left:.8rem;top:1.6rem;bottom:.1rem;border-left:1px solid var(--line)}
-.intervention-sequence-node{display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--surface-2);color:var(--ink-muted)}
-.is-exchange>.intervention-sequence-node{background:var(--surface-2);color:var(--accent)}
-.is-current>.intervention-sequence-node{outline:2px solid var(--focus);outline-offset:2px}
+.intervention-sequence-node{display:grid;place-items:center;width:1.7rem;height:1.7rem;color:var(--ink-muted)}
+.is-exchange>.intervention-sequence-node{color:var(--accent)}
 .intervention-sequence>li:has(.intervention-read)>.intervention-sequence-node{margin-top:calc((var(--control-height) - 1.7rem)/2)}
 .intervention-sequence-entry{min-width:0}
 .intervention-sequence-entry>.intervention-caption:first-child{margin:0;padding-block:.225rem}
