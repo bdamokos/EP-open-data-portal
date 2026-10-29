@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {proposalNumber,proposalLanguage} from './proposal-labels.mjs';
 
-export const PUBLIC_LEGAL_XHTML_VERSION='6';
+export const PUBLIC_LEGAL_XHTML_VERSION='7';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const uniqueLinks=links=>[...new Set(links.map(link=>link.url))];
 const clean=value=>value.replace(/\s+/gu,' ').trim();
@@ -122,7 +122,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     const cells=rows[0].children.filter(n=>n.name==='td');
     if(cells.length!==2)return null;
     const lead=clean(text(cells[0]));
-    return /^[‘“]?\([\p{L}\d]+\)$/u.test(lead)?{lead,body:cells[1]}:null;
+    return /^[‘“]?(?:\([\p{L}\d]+\)|[\p{L}\d]+[.)])$/u.test(lead)?{lead,body:cells[1]}:null;
   }
   function walk(node,parent,{inArticle=false}={}) {
     if(node.name==='#text'||noteNodes.has(node))return;
@@ -176,7 +176,7 @@ export function parsePublicLegalXhtml(input,{language='en',sourceUrl=null,identi
     const row=listRows(node);
     if(row) {
       if(parent.kind==='recital'){parent.label.prefix=row.lead+' ';let first=true;for(const child of row.body.children){if(first&&child.name==='p'){paragraph(parent,child,row.lead+' ');first=false;}else walk(child,parent);}return;}
-      const quoted=/^[‘“]/u.test(row.lead),value=row.lead.replace(/^[‘“]?\(|\)$/gu,'');
+      const quoted=/^[‘“]/u.test(row.lead),value=row.lead.replace(/^[‘“]?\(?|[.)]$/gu,'');
       let ownerParent=parent;
       if(inArticle&&!consolidated){ownerParent=parent.children.find(u=>u.implicit)||unit(parent,'paragraph','1',{implicit:true});}
       if(quoted)ownerParent=unit(ownerParent,'quotation',null,{scope:'quoted',instructionPath:ownerParent.path,underlyingPath:[],boundaryBasis:'quotation-mark'});

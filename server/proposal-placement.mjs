@@ -372,20 +372,19 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       evidence.push({basis:'implicit-paragraph',anchor:body[0].id});
     }
   }
-  // The first printed subparagraph comprises a provision's lead and its
-  // directly nested points. The parser need not invent an unlabelled container
-  // for that address; its next outdented subparagraph supplies the boundary.
+  // A subparagraph's directly nested points share the provision's address.
+  // Its next continuation supplies the boundary without adding a path label.
   let subparagraphBounds=null;
   const subparagraph=target.segments.findIndex((segment,index)=>segment.kind==='subparagraph'&&index<target.segments.length-1);
   if(subparagraph>=0){
     const label=target.segments[subparagraph],parents=items.flatMap((item,itemIndex)=>
       item.kind==='annex'&&!target.segments.some(segment=>segment.kind==='annex')?[]:
         proposalCandidates(item.proposal,target.segments.slice(0,subparagraph)).map(unit=>({unit,itemIndex,proposal:item.proposal})));
-    if(label.number!==1||label.suffix||label.isNew)return unresolved('source_structure_unavailable');
+    if(!label.number||label.suffix||label.isNew)return unresolved('source_structure_unavailable');
     if(parents.length===1){
       const {unit,itemIndex,proposal}=parents[0],points=unit.children.filter(child=>child.kind==='point');
       const boundary=unit.children.find(child=>child.kind==='subparagraph')?.extent.start??unit.extent.end;
-      if(!unit.pathConflict&&['paragraph','point'].includes(unit.kind)&&unit.content.length
+      if(label.number===1&&!unit.pathConflict&&['paragraph','point'].includes(unit.kind)&&unit.content.length
         &&/:\s*$/u.test(proposal.paragraphs[unit.content.at(-1)].text)&&points.length
         &&points.every(point=>point.extent.start<boundary&&point.extent.end<=boundary)
         &&unit.children.every(child=>child.extent.start>=boundary||child.kind==='point')){
@@ -393,8 +392,24 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
         target={...target,segments:target.segments.filter((_,index)=>index!==subparagraph)};
         evidence.push({basis:'first-subparagraph-points',anchor:unit.id});
       }
+      // XHTML retains native, directly owned unnumbered paragraphs in source
+      // order. A later colon introduction owns only the following list, up to
+      // the next direct paragraph; nested Roman children stay with their point.
+      if(label.number>1&&proposal.sourceKind==='xhtml'&&unit.complete&&!unit.pathConflict&&['paragraph','point'].includes(unit.kind)){
+        const continuations=unit.children.filter(child=>child.kind==='subparagraph');
+        const index=label.number-(unit.content.length?2:1),intro=continuations[index];
+        const end=continuations[index+1]?.extent.start??unit.extent.end;
+        const list=intro&&points.filter(point=>point.extent.start>=intro.extent.end&&point.extent.start<end);
+        if(intro&&intro.content.length===1&&/:\s*$/u.test(proposal.paragraphs[intro.content[0]].text)&&list.length
+          &&list[0].extent.start===intro.extent.end&&list.every((point,index)=>point.extent.end<=end&&(!index||list[index-1].extent.end===point.extent.start))
+          &&list.at(-1).extent.end===end){
+          subparagraphBounds={itemIndex,start:intro.extent.start,end};
+          target={...target,segments:target.segments.filter((_,index)=>index!==subparagraph)};
+          evidence.push({basis:'xhtml-subparagraph-points',anchor:unit.id});
+        }
+      }
     }
-    if(!subparagraphBounds&&operation==='insert')return unresolved('source_structure_unavailable');
+    if(!subparagraphBounds&&(label.number>1||operation==='insert'))return unresolved('source_structure_unavailable');
   }
   // An uncontained annex paragraph can share an act address. The item identity
   // still establishes that an address without Annex cannot select it.
