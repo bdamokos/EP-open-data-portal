@@ -8,7 +8,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.localStorage.setItem(v2?'ep.following.v2':'ep.bookmarks.v1',JSON.stringify({version:v2?2:1,items}));
  window.localStorage.setItem('ep.following.dossiers.v1',JSON.stringify({version:1,items:dossiers}));
- const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null;
+ const requests=[],opened=[],waiting=[];let root,loadModule,fail='',conflict=0,defer=false,inflight=0,maxInflight=0,memberGate=null,statusGate=null,manifestGate=null;
  let status={epoch:'one',generation:5,marksReady:true,indexComplete:true,publishedAt:null};
  let ids=[['old',0,5]],entries=[],questionAnswers=[],membershipLists={incoming:{status:'fresh'},outgoing:{status:'fresh'}},invalidMembership=false;
  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const finish of waiting.splice(0))finish();t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
@@ -23,7 +23,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
   if(route==='following-groups')return Response.json({epoch:status.epoch,generation:status.generation,members:{'42':{coverage:'complete',stale:false}},events:status.generation>=6?[{id:'42:group:2026-06-17:7035',mep:'42',type:'group-changed',date:'2026-06-17',mark:6,from:{org:'org/7038',groupId:'org/SD',code:'S&D'},to:{org:'org/7035',groupId:'org/RENEW',code:'Renew'}}]:[]});
   if(route==='following-dossiers')return Response.json({epoch:status.epoch,generation:status.generation,indexComplete:true,items:[]});
   if(route==='following-membership')return Response.json({epoch:invalidMembership?'invalid':status.epoch,generation:status.generation,lists:membershipLists,members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},events:status.generation>=6?[{id:'42-m-1:end',mep:'42',type:'mandate-ended',subtype:null,date:'2026-04-13',mark:6}]:[]});
-  if(route==='following-manifest')return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});
+  if(route==='following-manifest'){const gate=manifestGate;manifestGate=null;if(gate){gate.started();await gate.wait;}return Response.json({epoch:status.epoch,generation:status.generation,rosterBasis:'publication',indexComplete:true,members:Object.fromEntries([...items.filter(x=>x.kind==='mep'),member()].map(x=>[x.id,[status.generation,3,1,0]]))});}
   if(route==='following-member'){
    const response=Response.json({epoch:status.epoch,generation:status.generation,member:url.searchParams.get('member'),status:'available',rosterBasis:'publication',ids,entries,truncated:0});
    const gate=memberGate;memberGate=null;if(gate){gate.started();await gate.wait;}
@@ -47,7 +47,8 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
  const holdNextStatus=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);statusGate={started,wait};return {ready,release};};
- return {tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
+ const holdNextManifest=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);manifestGate={started,wait};return {ready,release};};
+ return {holdNextManifest,tick,setMembershipLists:lists=>membershipLists=lists,invalidMembership:value=>invalidMembership=value,window,container,controls,requests,opened,holdNextDetail,holdNextStatus,setQuestionAnswers:answers=>questionAnswers=answers,render,click,check,background,setStatus:extra=>Object.assign(status,extra),setDetail:(next,rich=[])=>{ids=next;entries=rich;},fail:route=>fail=route,conflict:()=>conflict++,item:()=>controls.savedStore.snapshot().items[0],clear:()=>act(async()=>root.render(null)),defer:()=>defer=true,finish:()=>act(async()=>{for(const finish of waiting.splice(0))finish();}),max:()=>maxInflight};
 }
 const cards=h=>[...h.container.querySelectorAll('.explorer-saved-items>article')];
 const rows=card=>[...card.querySelectorAll('.explorer-saved-disclosure')];
@@ -90,6 +91,22 @@ for(const kind of ['membership','group'])test(`Following keeps order for arrivin
  assert.equal(cards(h)[0].querySelector('h3').textContent,'Updated member');
  await h.click('Mark all read',cards(h)[0]);
  assert.equal(cards(h)[0].querySelector('h3').textContent,'Updated member');
+});
+
+for(const kind of ['activity','answer'])test(`Following restores persisted ${kind} priority before a delayed reload manifest`,async t=>{
+ const now=Date.now(),seen={activity:5,answer:2};
+ const h=await harness(t,[member({id:'43',title:'Quiet member',seen:{activity:5,answer:3}}),member({id:'44',title:'Expired signal',seen,signals:{[kind]:[[kind==='activity'?6:3,now-24*3600_000]]}}),member({title:'Unread member',seen,signals:{[kind]:[[kind==='activity'?6:3,now-1000]]}})],true);
+ h.setStatus({generation:6});h.setDetail([['late',kind==='answer'?1:0,kind==='answer'?3:6]],[{...speech,kind}]);
+ const gate=h.holdNextManifest();await h.render();
+ const titles=()=>cards(h).map(card=>card.querySelector('h3').textContent);
+ assert.deepEqual(titles(),['Unread member','Quiet member','Expired signal']);
+ const check=h.background();await gate.ready;
+ assert.deepEqual(titles(),['Unread member','Quiet member','Expired signal'],'pending manifest keeps the restored order');
+ await act(async()=>gate.release());await check;await settle();
+ assert.deepEqual(titles(),['Unread member','Quiet member','Expired signal'],'manifest and details keep the restored order');
+ assert(rows(cards(h)[0]).length>0,'the persisted signal materialises into a readable update');
+ await dispatch(h,rows(cards(h)[0])[0]);
+ assert.deepEqual(titles(),['Unread member','Quiet member','Expired signal'],'opening the restored update keeps the card in place');
 });
 
 test('Following affiliations use exact roster IDs, retain saved titles and omit former or loading affiliations',async t=>{

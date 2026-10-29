@@ -76,7 +76,8 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   const checkDossierUpdates=useDossierChecks();
   const dossiers=useDossiers(),dossierChecking=useDossierChecking();
   const membershipCheck=useMembershipCheck(),membership=useMembership(),groups=useGroups(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
-  const cards=[...items,...dossiers.items].map(item=>({item,hasNew:itemHasNew(item,now)||item.kind==='mep'&&(membershipEntries(membership,item.id,now).fresh.length>0||groupEntries(groups,item.id,now).fresh.length>0)}))
+  // Before the first manifest, persisted signals still identify unread MEPs.
+  const cards=[...items,...dossiers.items].map(item=>({item,hasNew:itemHasNew(item.kind==='mep'&&!saved.manifest?{...item,unresolved:{activity:true,answer:true}}:item,now)||item.kind==='mep'&&(membershipEntries(membership,item.id,now).fresh.length>0||groupEntries(groups,item.id,now).fresh.length>0)}))
     .sort((a,b)=>Number(b.hasNew)-Number(a.hasNew));
   // Prioritise unread cards on entry, then keep this visit's reading order.
   // Reading, expiry and background checks must not move cards under the user.
