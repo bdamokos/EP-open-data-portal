@@ -666,14 +666,19 @@ export class ActivityWorker {
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
   async runIteration() {
+    if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due();
     if(!due&&!pressDue || !this.store.acquire())return;
+    // Lease loss cancels one iteration. Only stop() shuts down the service;
+    // a later tick must acquire ownership again before it can resume work.
+    this.controller=new AbortController();
     this.running=true;this.requests=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
-    const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
+    const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
       if(pressDue)await this.followPress(due);
       if(!due || this.stopped)return;
+      this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
@@ -686,6 +691,7 @@ export class ActivityWorker {
       const recover=this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||amendmentDocumentRouteVerificationPending(this.store,active));
       const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
+      this.controller.signal.throwIfAborted();
       this.store.assertWriter();
       if(cycle){
         reconcileAmendmentDocumentGaps(this,generation,{restart:this.amendmentRouteStartupRepair});this.amendmentRouteStartupRepair=false;
@@ -763,7 +769,7 @@ export class ActivityWorker {
       }
       initializeOutsideAgendaUpgrade(this.store,generation,new Date(this.clock()).toISOString());
       initializeGroupVoices(this,generation,freshSpeechLoad?[]:speechWindows(day(this.clock())));
-      while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && this.monotonic()<this.runDeadline) {
+      while(!this.stopped && !this.controller.signal.aborted && this.requests<this.budget && this.clock()-started<this.maxDuration && this.monotonic()<this.runDeadline) {
         const taskIteration=loopTimer('activity-task',{threshold:5000});
         try {
           const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
@@ -791,11 +797,12 @@ export class ActivityWorker {
           }
           const task=coreTask||nextGroupVoiceTask(this.store,generation);
           if(!task)break;
-          try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+          try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}catch(error){if(this.stopped||this.controller.signal.aborted)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}
       }
-      if(cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
+      if(!this.stopped)this.controller.signal.throwIfAborted();
+      if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
