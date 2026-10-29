@@ -34,8 +34,10 @@
 .intervention-sequence-node{display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--surface-2);color:var(--ink-muted)}
 .is-exchange>.intervention-sequence-node{background:var(--surface-2);color:var(--accent)}
 .is-current>.intervention-sequence-node{outline:2px solid var(--focus);outline-offset:2px}
-.intervention-sequence-entry{min-width:0;padding:.1rem 0}
-.intervention-read{display:flex;align-items:baseline;flex-wrap:wrap;gap:.3rem .7rem;border:0;background:transparent;padding:0;color:var(--accent);text-align:left;max-width:100%}
+.intervention-sequence>li:has(.intervention-read)>.intervention-sequence-node{margin-top:calc((var(--control-height) - 1.7rem)/2)}
+.intervention-sequence-entry{min-width:0}
+.intervention-sequence-entry>.intervention-caption:first-child{margin:0;padding-block:.225rem}
+.intervention-read{display:flex;align-items:baseline;align-content:center;flex-wrap:wrap;gap:.3rem .7rem;border:0;background:transparent;padding:.4rem .55rem;color:var(--accent);text-align:left;max-width:100%}
 .intervention-read>span{font-size:.88rem;font-weight:650;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
 .intervention-read small{font-size:.72rem;color:var(--ink-muted)}
 .intervention-reply{display:block;font-size:.72rem;color:var(--ink-muted);margin:.2rem 0}
@@ -43,7 +45,7 @@
 .intervention-connected-text p{margin:.5rem 0}
 .intervention-context button:focus-visible,.intervention-statistics button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 .explorer .intervention-context-toggle{padding:.8rem 0;background:transparent;color:var(--accent)}
-.explorer .intervention-read{background:transparent;color:var(--accent);padding:0;min-height:44px}
+.explorer .intervention-read{background:transparent;color:var(--accent);padding:.4rem .55rem;min-height:var(--control-height)}
 .explorer .intervention-sequence-heading button{background:var(--surface);color:var(--accent);padding:.4rem .65rem;font-size:.78rem}
 .explorer .intervention-stats-heading h3{font-size:1rem;margin:0}
 .explorer .intervention-read small{font-size:.72rem;color:var(--ink-muted)}
