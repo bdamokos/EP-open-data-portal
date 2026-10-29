@@ -5,10 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
-import {documentRefreshState} from './refresh-policy.mjs';
+import {documentRefreshState,scheduleGapRecovery} from './refresh-policy.mjs';
 import {projectDocument} from './activity-index-model.mjs';
 import {distributionEvidenceFor} from './amendments.mjs';
-import {documentDetailEndpoint,validateAmendmentListMetadata,retainedAmendmentListObservation} from './document-detail-routing.mjs';
+import {documentDetailEndpoint,validateAmendmentListMetadata,retainedAmendmentListObservation,sanitizeFreshDocument} from './document-detail-routing.mjs';
+import {nextAmendmentTask} from './amendments-store.mjs';
 import {reconcileAmendmentDocumentGap,reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending} from './document-route-recovery.mjs';
 
 const now=Date.parse('2026-10-29T08:00:00Z'),stamp=new Date(now).toISOString(),failedAt='2026-10-29T04:00:00.000Z',observedAt='2026-10-29T05:39:00.000Z',older='2026-10-26T00:00:00.000Z';
@@ -134,4 +135,115 @@ test('route scan bounds candidate keys and source bytes, keeps its cursor, and f
   assert.equal(store.get('amendmentDocumentRouteRepair').afterKey,'/plenary-documents/'+target+'-AM-025-025');
   assert.equal(store.get('amendmentDocumentRouteRepair').complete,false);assert.equal(reconcileAmendmentDocumentGaps(worker,generation),0);assert.equal(store.get('amendmentDocumentRouteRepair').complete,true);
   store.release();assert.throws(()=>reconcileAmendmentDocumentGap(worker,generation,id),/lease/i);
+});
+
+for(const owner of ['canonical-gap','canonical-task','amendment-job','deferred-task','admission'])test('legacy execution and admission respect a '+owner+' owner on the correct route',async t=>{
+  const {store,worker,generation}=setup(t),future=now+24*3600000;
+  gap(store,generation,legacy,{retry:now-1});
+  if(owner==='canonical-gap')gap(store,generation,endpoint,{retry:future});
+  if(owner==='canonical-task') {
+    store.enqueue(generation,endpoint,'document',{endpoint,offset:150});
+    store.db.prepare('UPDATE tasks SET retry_at=?,attempts=3,error=? WHERE key=?').run(future,'retained failure',endpoint);
+  }
+  if(owner==='amendment-job')store.db.prepare('INSERT INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(generation,'amendment:discover:'+target+':'+id,'amendment-list-detail',JSON.stringify({listId:id,targetDocumentId:target}),115,0,3,future,'retained failure');
+  if(owner==='deferred-task')store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:[{key:endpoint,kind:'document',body:JSON.stringify({endpoint,offset:150}),retry_at:future}],discovery:[],completed:[]},older);
+  if(owner==='admission')store.db.prepare('INSERT INTO refresh_gap_admissions VALUES (?,?)').run(generation,endpoint);
+  const snapshot=()=>JSON.stringify({gaps:store.db.prepare('SELECT * FROM refresh_gaps ORDER BY key').all(),admissions:store.db.prepare('SELECT * FROM refresh_gap_admissions ORDER BY key').all(),foreignTasks:store.db.prepare('SELECT * FROM tasks WHERE key<>? ORDER BY key').all(legacy),jobs:store.db.prepare('SELECT * FROM amendment_jobs ORDER BY key').all(),checkpoint:store.source(generation,'amendment:continuations')});
+  const before=snapshot();assert.equal(scheduleGapRecovery(worker,generation),0);assert.equal(snapshot(),before);
+  // Simulate an already-admitted old-route job; its body and attempts survive.
+  store.db.prepare('UPDATE tasks SET done=0,retry_at=0,attempts=4,error=? WHERE key=?').run('old failure',legacy);
+  const task={...store.db.prepare('SELECT * FROM tasks WHERE key=?').get(legacy),body:{endpoint:legacy,feedDiscovery:true}};
+  await worker.task(task);
+  assert.equal(worker.requests,0);assert.equal(snapshot(),before);
+  const after=store.db.prepare('SELECT * FROM tasks WHERE key=?').get(legacy);
+  assert.equal(after.done,0);assert.equal(after.attempts,4);assert.equal(after.body,JSON.stringify(task.body));assert.equal(after.error,'old failure');
+  assert.equal(after.retry_at,owner==='admission'?now+30_000:future);
+});
+
+test('two mature alias gaps admit the canonical route and execute without a mutual ownership block',async t=>{
+  const {store,worker,generation}=setup(t);gap(store,generation,legacy,{retry:now-2});gap(store,generation,endpoint,{retry:now-1});
+  assert.equal(scheduleGapRecovery(worker,generation),1);
+  const task=store.nextTask(generation);assert.equal(task.key,endpoint);
+  worker.fetchRecord=async route=>{assert.equal(route,endpoint);return {fetchedAt:stamp,payload:{data:[list()]}};};
+  await worker.task(task);assert.equal(worker.requests,1);assert.equal(store.source(generation,endpoint).work.identifier,id);
+  assert.equal(store.db.prepare('SELECT key FROM refresh_gaps').get().key,legacy);
+});
+
+test('a checkpointed legacy retry excludes its own admission and amendment job only',async t=>{
+  const {store,worker,generation}=setup(t);gap(store,generation,legacy,{retry:now-1});
+  assert.equal(scheduleGapRecovery(worker,generation),1);worker.checkpointContinuations(generation);
+  const task=nextAmendmentTask(store,generation);assert.equal(task.key,legacy);assert.equal(task.amendmentJob,true);
+  worker.fetchRecord=async route=>{assert.equal(route,endpoint);return {fetchedAt:stamp,payload:{data:[list()]}};};
+  await worker.task(task);assert.equal(worker.requests,1);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gap_admissions').get().n,0);
+});
+
+test('an already queued canonical task can complete while a duplicate legacy task waits for it',async t=>{
+  const {store,worker,generation}=setup(t);
+  store.enqueue(generation,legacy,'document',{endpoint:legacy},85);store.enqueue(generation,endpoint,'document',{endpoint},50);
+  const legacyTask=store.nextTask(generation);assert.equal(legacyTask.key,legacy);
+  await worker.task(legacyTask);assert.equal(worker.requests,0);
+  worker.fetchRecord=async route=>{assert.equal(route,endpoint);return {fetchedAt:stamp,payload:{data:[list()]}};};
+  const canonicalTask=store.nextTask(generation);assert.equal(canonicalTask.key,endpoint);
+  await worker.task(canonicalTask);assert.equal(worker.requests,1);assert.equal(store.source(generation,endpoint).work.identifier,id);
+});
+
+test('canonical bodies count toward the cumulative scan budget before either body is loaded',t=>{
+  const {store,worker,generation}=setup(t),keys=[];
+  for(let n=1;n<=2;n++) {
+    const next=target+'-AM-'+String(n).padStart(3,'0')+'-'+String(n).padStart(3,'0');gap(store,generation,'/plenary-documents/'+next);
+    const work=retained({id:'eli/dl/doc/'+next,identifier:next});work.relationshipEvidence.listReference='eli/dl/doc/'+next;
+    store.putSource(generation,'amendment:list:'+next,'amendment-list',work,older);
+    store.putSource(generation,'/documents/'+next,'document',{...list(),identifier:next,padding:'x'.repeat(5*1024*1024)},older);
+    keys.push('amendment:list:'+next,'/documents/'+next);
+  }
+  // A checkpoint body is not copied into JS just to read its owner keys.
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:[],discovery:[],padding:'x'.repeat(5*1024*1024)},older);
+  const read=store.source.bind(store),reads=[];let bytes=0;
+  store.source=(gen,key)=>{
+    assert.notEqual(key,'amendment:continuations');
+    reads.push(key);bytes+=store.db.prepare('SELECT length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND key=?').get(gen,key)?.bytes||0;
+    return read(gen,key);
+  };
+  assert.equal(reconcileAmendmentDocumentGaps(worker,generation),1);assert.deepEqual(reads,keys.slice(0,2));assert(bytes<=8*1024*1024);assert.equal(store.get('amendmentDocumentRouteRepair').complete,false);
+  bytes=0;assert.equal(reconcileAmendmentDocumentGaps(worker,generation),1);assert.deepEqual(reads,keys);assert(bytes<=8*1024*1024);
+});
+
+test('an oversized canonical body is skipped without blocking later keys or reading it',t=>{
+  const {store,worker,generation}=setup(t);gap(store,generation);store.putSource(generation,'amendment:list:'+id,'amendment-list',retained(),older);
+  store.putSource(generation,endpoint,'document',{padding:'x'.repeat(8*1024*1024)},older);
+  store.source=()=>assert.fail('oversized candidate body read');
+  assert.equal(reconcileAmendmentDocumentGaps(worker,generation),0);assert.equal(store.get('amendmentDocumentRouteRepair').oversized,1);assert.equal(store.get('amendmentDocumentRouteRepair').complete,true);
+});
+
+test('a restarted worker resumes the incomplete same-generation cursor and reaches candidate 26',t=>{
+  const {store,worker,generation}=setup(t);let next;
+  for(let n=1;n<=26;n++){next=target+'-AM-'+String(n).padStart(3,'0')+'-'+String(n).padStart(3,'0');gap(store,generation,'/plenary-documents/'+next);}
+  const work=retained({id:'eli/dl/doc/'+next,identifier:next});work.relationshipEvidence.listReference='eli/dl/doc/'+next;
+  store.putSource(generation,'amendment:list:'+next,'amendment-list',work,older);
+  assert.equal(reconcileAmendmentDocumentGaps(worker,generation,{restart:true}),0);
+  const read=store.source.bind(store),reads=[];store.source=(gen,key)=>{reads.push(key);return read(gen,key);};
+  const restarted=new ActivityWorker(store,{clock:()=>now,recoveryMode:'backfill',fetchRecord:async()=>assert.fail('unexpected source request')});
+  assert.equal(reconcileAmendmentDocumentGaps(restarted,generation,{restart:restarted.amendmentRouteStartupRepair}),1);
+  assert.deepEqual(reads,['amendment:list:'+next,'/documents/'+next]);assert.equal(store.get('amendmentDocumentRouteRepair').complete,true);
+});
+
+test('fresh nested metadata and dedicated list details cannot supply internal retained provenance',async t=>{
+  const {store,worker,generation}=setup(t),forged={url:'https://example.org/foreign',fetchedAt:'2099-01-01T00:00:00Z'};
+  const raw={id:'eli/dl/doc/'+target,identifier:target,work_type:'def/ep-document-types/REPORT_PLENARY',parliamentary_term:'org/ep-10',document_date:'2025-07-01',metadataObservation:forged,inverse_foresees_change_of:[list({metadataObservation:forged})]};
+  const original=JSON.stringify(raw),clean=sanitizeFreshDocument(raw);
+  assert.equal(JSON.stringify(raw),original);assert.equal(clean.metadataObservation,undefined);assert.equal(clean.inverse_foresees_change_of[0].metadataObservation,undefined);
+  store.enqueue(generation,'/plenary-documents/'+target,'document',{endpoint:'/plenary-documents/'+target});
+  worker.fetchRecord=async()=>({fetchedAt:stamp,payload:{data:[raw]}});
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.source(generation,'/plenary-documents/'+target).work.metadataObservation,undefined);
+  assert.equal(store.source(generation,'/plenary-documents/'+target).work.inverse_foresees_change_of[0].metadataObservation,undefined);
+  assert.equal(store.source(generation,'amendment:list:'+id).work.metadataObservation,undefined);
+  // A URI-only declaration exercises the separate list-detail ingestion path.
+  store.putSource(generation,'/plenary-documents/'+target,'document',projectDocument({...raw,inverse_foresees_change_of:['eli/dl/doc/'+id]}),older);
+  store.db.prepare('INSERT OR REPLACE INTO amendment_jobs VALUES (?,?,?,?,?,?,?,?,?)').run(generation,'amendment:discover:'+target+':'+id,'amendment-list-detail',JSON.stringify({listId:id,targetDocumentId:target}),115,0,0,0,null);
+  worker.fetchRecord=async route=>{assert.equal(route,endpoint);return {fetchedAt:stamp,payload:{data:[list({metadataObservation:forged})]}};};
+  await worker.task(nextAmendmentTask(store,generation));
+  assert.equal(store.source(generation,'amendment:list:'+id).work.metadataObservation,undefined);
+  assert.deepEqual(projectDocument({...list(),metadataObservation:forged}).metadataObservation,forged);
 });

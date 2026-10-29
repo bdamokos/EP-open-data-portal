@@ -15,20 +15,51 @@ export function validateAmendmentListMetadata(payload,id) {
   return work;
 }
 
-export function documentRouteOwned(store,generation,endpoint,deferred,{ignoreGapKey=null}={}) {
-  const id=amendmentListDocumentId(endpoint);if(!id)return false;
+// Read owner identities and clocks only, never the retained task bodies.
+export function documentRouteDeferredOwners(store,generation) {
+  const owners=new Map();
+  for(const bucket of ['tasks','discovery'])for(const row of store.db.prepare(`SELECT json_extract(entry.value,'$.key') key,COALESCE(json_extract(entry.value,'$.retry_at'),0) retryAt
+    FROM sources source,json_each(source.body,'$.${bucket}') entry WHERE source.generation=? AND source.key='amendment:continuations'
+    AND COALESCE(json_extract(entry.value,'$.done'),0)<>1`).iterate(generation))if(typeof row.key==='string')owners.set(row.key,Math.max(owners.get(row.key)||0,row.retryAt));
+  return owners;
+}
+
+export function documentRouteBlocker(store,generation,endpoint,deferred,{ignoreGapKey=null,executingTask=null,allowDueGaps=false,allowDueLegacyGap=false,now=store.clock()}={}) {
+  const id=amendmentListDocumentId(endpoint);if(!id)return null;
   const keys=['/plenary-documents/'+id,'/documents/'+id];
+  const executingTable=executingTask?.amendmentJob?'amendment_jobs':'tasks';
+  for(const table of ['tasks','amendment_jobs']) {
+    const own=row=>executingTask?.generation===generation&&executingTable===table&&executingTask.key===row.key;
+    for(const key of keys) {
+      const row=store.db.prepare(`SELECT key,retry_at FROM ${table} WHERE generation=? AND key=? AND (done IS NULL OR done<>1)`).get(generation,key);
+      if(row&&!own(row))return {key:row.key,retryAt:row.retry_at};
+    }
+    for(const row of store.db.prepare(`SELECT key,retry_at FROM ${table} WHERE generation=? AND key GLOB ? AND (done IS NULL OR done<>1)`).iterate(generation,'amendment:discover:*:'+id))if(!own(row))return {key:row.key,retryAt:row.retry_at};
+  }
   for(const key of keys) {
-    if(key!==ignoreGapKey&&store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key))return true;
-    if(store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key))return true;
-    for(const table of ['tasks','amendment_jobs'])if(store.db.prepare(`SELECT 1 FROM ${table} WHERE generation=? AND key=? AND (done IS NULL OR done<>1)`).get(generation,key))return true;
+    if(key!==executingTask?.key&&store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key))return {key,retryAt:0};
+    if(key===ignoreGapKey)continue;
+    const gap=store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+    // Once an unadmitted alias gap is due, the same canonical request can run.
+    // Admission gives the canonical route precedence when both gaps are due.
+    if(gap&&!(gap.retry_at<=now&&(allowDueGaps||allowDueLegacyGap&&key===keys[0])))return {key,retryAt:gap.retry_at};
   }
-  for(const table of ['tasks','amendment_jobs'])if(store.db.prepare(`SELECT 1 FROM ${table} WHERE generation=? AND key GLOB ? AND (done IS NULL OR done<>1) LIMIT 1`).get(generation,'amendment:discover:*:'+id))return true;
-  if(!deferred) {
-    const saved=store.source(generation,'amendment:continuations')?.work||{};
-    deferred=new Set([...(saved.tasks||[]),...(saved.discovery||[])].map(task=>task.key));
+  deferred??=documentRouteDeferredOwners(store,generation);
+  for(const key of deferred.keys())if(keys.includes(key)||key.startsWith('amendment:discover:')&&key.endsWith(':'+id))return {key,retryAt:deferred instanceof Map?deferred.get(key):0};
+  return null;
+}
+export const documentRouteOwned=(...args)=>Boolean(documentRouteBlocker(...args));
+
+// Fresh public input cannot supply the provenance reserved for stored copies.
+// Stored reprojection deliberately retains it through projectDocument.
+export function sanitizeFreshDocument(work) {
+  const result=structuredClone(work),pending=[result];
+  while(pending.length) {
+    const value=pending.pop();if(!value||typeof value!=='object')continue;
+    delete value.metadataObservation;
+    for(const child of Object.values(value))if(child&&typeof child==='object')pending.push(child);
   }
-  return [...deferred].some(key=>keys.includes(key)||key.startsWith('amendment:discover:')&&key.endsWith(':'+id));
+  return result;
 }
 
 export function retainedAmendmentListObservation(source,id,failedAt,{now=Date.now()}={}) {

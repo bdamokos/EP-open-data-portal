@@ -10,6 +10,7 @@ import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs'
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, docxRetrievedAfterIssue, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
 import {reconcileAmendmentDocumentGap} from './document-route-recovery.mjs';
+import {sanitizeFreshDocument} from './document-detail-routing.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
 import { runAmendmentWorkSlice } from './amendment-work-slices.mjs';
 import {amendmentSourceStore} from './amendment-source-store.mjs';
@@ -103,6 +104,7 @@ function reportWordingEvidence(worker,generation,target,list,distributionEvidenc
     {reportId:target,distributionEvidence:distributionEvidenceFor(report.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:report.fetchedAt,language:null})}:null;
 }
 function saveVerifiedList(worker,generation,target,candidate,list,evidence,{parserUpgrade=false}={}) {
+  list=sanitizeFreshDocument(list);
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
   const reportWording=reportWordingEvidence(worker,generation,target,list,distributionEvidence);

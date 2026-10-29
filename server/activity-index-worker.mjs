@@ -17,7 +17,7 @@ import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PR
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
 import {mutableRecoveryDue} from './mutable-document-recovery.mjs';
-import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,validateAmendmentListMetadata} from './document-detail-routing.mjs';
+import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteBlocker,documentRouteDeferredOwners,sanitizeFreshDocument,validateAmendmentListMetadata} from './document-detail-routing.mjs';
 import {reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending} from './document-route-recovery.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
@@ -267,7 +267,7 @@ export class ActivityWorker {
       for(const w of nodes){const id=w.identifier || tail(w.id);if(!safeId(id))throw new Error('EP document identifier was invalid.');
         if(body.endpoint!='/committee-documents' && !/^[A-Z]+-10-/.test(id))continue;
         const endpoint=documentDetailEndpoint(body.endpoint+'/'+id), old=this.store.source(generation,endpoint);
-        if(amendmentListDocumentId(endpoint)&&documentRouteOwned(this.store,generation,endpoint,documentDeferred??=adoptedTextDeferredKeys(this.store,generation)))continue;
+        if(amendmentListDocumentId(endpoint)&&documentRouteOwned(this.store,generation,endpoint,documentDeferred??=documentRouteDeferredOwners(this.store,generation)))continue;
         this.store.markSeen(generation,endpoint);
         // Existing adopted records use the bounded repair path, never catalogue
         // fan-out. New IDs can also already have an optional/deferred owner.
@@ -346,7 +346,7 @@ export class ActivityWorker {
         } else if (body.endpoint==='/committee-documents' || /^[A-Z]+-10-/.test(e.id)) {
           // Answer feed IDs resolve through their parent question, never a guessed standalone answer endpoint.
           const resolved=documentDetailEndpoint(endpoint.replace(/-ASW$/,''));
-          if(amendmentListDocumentId(resolved)&&documentRouteOwned(this.store,generation,resolved,documentDeferred??=adoptedTextDeferredKeys(this.store,generation)))continue;
+          if(amendmentListDocumentId(resolved)&&documentRouteOwned(this.store,generation,resolved,documentDeferred??=documentRouteDeferredOwners(this.store,generation)))continue;
           if(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,resolved,adoptedDeferred))continue;
           const prior=this.store.source(generation,resolved);
           const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
@@ -373,12 +373,19 @@ export class ActivityWorker {
         }
       }
       const endpoint=documentDetailEndpoint(body.endpoint),listId=amendmentListDocumentId(endpoint);
+      if(listId&&body.endpoint!==endpoint) {
+        const blocker=documentRouteBlocker(this.store,generation,endpoint,undefined,{ignoreGapKey:task.key,executingTask:task,allowDueGaps:true,now:this.clock()});
+        if(blocker) {
+          this.store.assertWriter();
+          this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(Math.max(this.clock()+30_000,blocker.retryAt||0),generation,task.key);
+          return;
+        }
+      }
       const r=await this.request(endpoint),adopted=endpoint.startsWith('/adopted-texts/');
       const work=adopted?adoptedTextRecord(endpoint,r.payload.data):listId?validateAmendmentListMetadata(r.payload,listId):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
       if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED',...(listId?['AMENDMENT_LIST']:[])].includes(tail(work.work_type))){this.store.finishTask(task);return;}
-      const projected=projectDocument(work), proc=new Map();
-      delete projected.metadataObservation; // Internal retained provenance is never supplied by an upstream field.
+      const projected=projectDocument(sanitizeFreshDocument(work)), proc=new Map();
       if(adopted){
         validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
         if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=projectFollowupReferences(work.inverse_answers_to);
