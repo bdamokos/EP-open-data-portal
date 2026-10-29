@@ -1,4 +1,4 @@
-import {legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
+import {legislationActivity,legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
 import {PersonName,usePersonName} from './PersonName';
 import {selectLanguageText} from './language.mjs';
 import {matchesCountry} from './countries.mjs';
@@ -44,6 +44,14 @@ function sameAgendaRoute(loaded:string,requested:string,data:LegislationResponse
   if(previous.searchParams.get('week')!=='latest'||next.searchParams.get('week')!==data.week)return false;
   previous.searchParams.set('week',data.week);
   return previous.href===next.href;
+}
+function ContributorActivity({detail,headers,person}:{detail:NonNullable<LegislationResponse['detail']>;headers:SpeechHeaders;person:string}) {
+  const counts=legislationActivity(detail,headers,person);
+  return <ul className="insight-person-activity" lang="en" aria-label="Linked activity">
+    <li><strong>{counts.speeches??'—'}</strong> {counts.speeches===1?'speech':'speeches'}</li>
+    {counts.statements&&<li><strong>{counts.statements}</strong> {counts.statements===1?'written statement':'written statements'}</li>}
+    <li><strong>{counts.amendments?counts.amendments+'+':'—'}</strong> {counts.amendments===1?'amendment':'amendments'}</li>
+  </ul>;
 }
 function ContributorAnalysis({stats,language}:{stats:InsightStats;language:string}) {
   if(stats.denominator<=0&&!(stats.groupContributions?.total))return null;
@@ -121,15 +129,18 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
   useEffect(()=>{if(navigation)setAgendaSittings(navigation.sittings);},[navigation]);
   const requestedWeek=params.get('week'),requestedSitting=params.get('sitting');
   const selectedPeriod=requestedWeek==='latest'&&data?(data.week?'week:'+data.week:'sitting:'+data.sitting.id):requestedWeek?'week:'+requestedWeek:'sitting:'+(requestedSitting||data?.sitting.id||'');
-  const topicSitting=data?.topics.find(item=>item.id===topic)?.sittingId||data?.sitting.id||sitting||'';
+  const selectedTopic=data?.topics.find(item=>item.id===topic);
+  const topicSitting=selectedTopic?.sittingId||data?.sitting.id||sitting||'';
   const detailRoute=agendaItemRoute(language,topicSitting,topic);
-  const selected=useInsightData<LegislationResponse>(mode==='agenda'&&topic&&data?detailRoute:null),detail=selected.data?.detail,detailRef=useRef<HTMLElement>(null),agendaRef=useRef<HTMLElement>(null),detailNavRef=useRef<HTMLDivElement>(null);
+  const selected=useInsightData<LegislationResponse>(mode==='agenda'&&topic&&data?detailRoute:null),detail=selected.data?.detail,displayTopic=detail||selectedTopic,detailRef=useRef<HTMLElement>(null),agendaRef=useRef<HTMLElement>(null),detailNavRef=useRef<HTMLDivElement>(null);
   const focusEpoch=useRef(0),detailFocusEpoch=useRef(0);
   const documentFocus=useRef<{target:string;opener:HTMLButtonElement|null;opening:boolean;epoch:number;scope:string}|null>(null);
-  const documentScope=JSON.stringify([mode,topic,language,detail?.id]);
+  const [documentMember,setDocumentMember]=useDossierReaderState<string|undefined>('agenda-document-member',undefined);
+  const documentScope=JSON.stringify([mode,topic,language,displayTopic?.id]);
   const documentTarget=(event:string|null)=>readerId+(event?'-committee-'+encodeURIComponent(event):'-agenda');
   function toggleDocument(id:string,event:string|null,opener:HTMLButtonElement|null=null) {
     const opening=document!==id||documentEvent!==event,target=documentTarget(event);
+    if(opening)setDocumentMember(detail?.people.find(person=>person.currentMep)?.id);
     // A restored journey may have remounted its original trigger.
     const trigger=opener||[...detailRef.current?.querySelectorAll<HTMLButtonElement>('button[aria-expanded="true"]')||[]].find(button=>button.getAttribute('aria-controls')===target)||null;
     documentFocus.current={target,opener:trigger,opening,epoch:focusEpoch.current,scope:documentScope};
@@ -161,7 +172,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
     // one in-flight read so clicking can join it without another request.
     if(item.id!==topic&&data)pendingHover.current=prefetchInsightData([agendaItemRoute(language,item.sittingId||data.sitting.id,item.id)]);
   }
-  useEffect(()=>{setSpeech(dossierJourneyRestoring()?dossierReaderValue('agenda-speech',detail?.speeches[0]?.sourceId||null):detail?.speeches[0]?.sourceId||null);setDocument(dossierJourneyRestoring()?dossierReaderValue('agenda-document',null):null);setDocumentEvent(dossierJourneyRestoring()?dossierReaderValue('agenda-document-event',null):null);if(!dossierJourneyRestoring()&&detail&&innerWidth<=1000&&focusEpoch.current===detailFocusEpoch.current){detailRef.current?.focus({preventScroll:true});detailNavRef.current?.scrollIntoView({block:'start'});}},[detail?.id]);
+  useEffect(()=>{setSpeech(dossierJourneyRestoring()?dossierReaderValue('agenda-speech',detail?.speeches[0]?.sourceId||null):detail?.speeches[0]?.sourceId||null);setDocument(dossierJourneyRestoring()?dossierReaderValue('agenda-document',null):null);setDocumentEvent(dossierJourneyRestoring()?dossierReaderValue('agenda-document-event',null):null);if(!dossierJourneyRestoring()&&displayTopic&&innerWidth<=1000&&focusEpoch.current===detailFocusEpoch.current){detailRef.current?.focus({preventScroll:true});detailNavRef.current?.scrollIntoView({block:'start'});}},[displayTopic?.id]);
   const [speakerNames,setSpeakerNames]=useState<Record<string,string>>({}),[speechHeaders,setSpeechHeaders]=useState<SpeechHeaders>({});
   useEffect(()=>{setSpeakerNames({});setSpeechHeaders({});},[detail?.id]);
   const rememberSpeechSpeakers=useCallback((speeches:{id:string;people:SpeechSpeaker[]}[])=>{setSpeechHeaders(previous=>mergeSpeechSpeakers(previous,speeches));},[]);
@@ -180,7 +191,6 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
     setSpeech(next.sourceId);
     if(scroll)requestAnimationFrame(()=>speechTop.current?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
   }
-  const documentMember=detail?.people.find(p=>p.currentMep)?.id;
   function chooseAgendaTopic(id:string){if(id!==topic)resetSearchPosition();if(data?.week)setAgendaPeriod('week:'+data.week);setTopic(id);setVote('');}
   function showAgenda(){
     const opener=agendaRef.current?.querySelector<HTMLButtonElement>('[aria-pressed=true]');
@@ -197,8 +207,9 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
     {navigation&&mode==='cloud'&&<SittingCloud latestAvailable={navigation.coverage.latestAvailable} sitting={sitting} agendaPeriod={agendaPeriod} sittings={navigation.sittings} language={language} onSearchScopeChange={resetSearchPosition}/>}
     {navigation&&mode==='participation'&&<Participation latestAvailable={navigation.coverage.latestAvailable} language={language} sittings={navigation.sittings} onTopic={(sitting,topic)=>{resetSearchPosition();setAgendaPeriod('');setSitting(sitting);setTopic(topic);setVote('');setCountry(null);setMode('agenda');}}/>}
     {data&&mode==='agenda'&&<div className="insight-agenda-view" data-topic-selected={Boolean(topic)}><div className="insight-agenda-navigation" lang="en" ref={detailNavRef}><button className="insight-text-button" onClick={showAgenda}>Back to agenda</button><label className="insight-agenda-select" lang="en">Agenda item<select value={topic} onChange={event=>event.target.value?chooseAgendaTopic(event.target.value):showAgenda()}><option value="">All agenda items</option>{data.week?data.agendaSittings?.map(day=><optgroup lang={language} key={day.id} label={humanDate(day.date,language)}>{data.topics.filter(item=>item.sittingId===day.id).map(item=><option lang={compoundLanguage(item.kind==='PLENARY_VOTE'?voteLabel.language:'en',item.titleLanguage)} key={item.id} value={item.id}>{item.kind==='PLENARY_VOTE'?voteLabel.text:'Debate'} · {item.title}</option>)}</optgroup>):data.topics.map(item=><option lang={compoundLanguage(item.kind==='PLENARY_VOTE'?voteLabel.language:'en',item.titleLanguage)} key={item.id} value={item.id}>{item.kind==='PLENARY_VOTE'?voteLabel.text:'Debate'} · {item.title}</option>)}</select></label></div><div className="insight-legislation-grid"><aside ref={agendaRef} className="insight-agenda" lang="en" aria-label="Sitting agenda">{(data.agendaSittings||[data.sitting]).map(day=><div key={day.id}>{data.week&&<h3 lang={language}>{humanDate(day.date,language)}</h3>}{data.topics.filter(item=>!data.week||item.sittingId===day.id).map(t=><button key={t.id} aria-pressed={topic===t.id} onPointerEnter={event=>{if(event.pointerType!=='touch')preloadAgendaTopic(t);}} onPointerLeave={cancelHover} onFocus={()=>preloadAgendaTopic(t)} onBlur={cancelHover} onClick={()=>chooseAgendaTopic(t.id)}><ScheduledNow id={t.id}/><small lang={t.kind==='PLENARY_VOTE'?voteLabel.language:'en'}>{t.kind==='PLENARY_VOTE'?voteLabel.text:'Debate'}</small><strong lang={t.titleLanguage??''}>{t.title}</strong></button>)}{data.week&&'agendaError' in day&&day.agendaError&&<p>Agenda unavailable.</p>}{!data.topics.some(item=>!data.week||item.sittingId===day.id)&&!('agendaError' in day&&day.agendaError)&&<p>{day.phase==='upcoming'?'Agenda not yet published.':'Agenda unavailable.'}</p>}</div>)}</aside>
-    <section className="insight-topic-detail" lang="en" data-agenda-topic={detail?.id||''} data-agenda-pending={selected.loading?'true':undefined} ref={detailRef} tabIndex={-1}><InsightStatus loading={selected.loading&&!detail} error={selected.error} retry={selected.retry}/>{!detail?<h2>{topic?(selected.error?'Agenda item unavailable':'Loading…'):'Choose an agenda item'}</h2>:<><div className="insight-eyebrow"><span lang={detail.kind==='PLENARY_VOTE'?voteLabel.language:'en'}>{detail.kind==='PLENARY_VOTE'?voteLabel.text:'Debate'}</span> · <span lang={language}>{humanDate(detail.date,language)}</span></div><h2 lang={detail.titleLanguage??''}>{detail.title}</h2><div className="insight-dossier-links">{detail.procedures.filter(p=>p.websiteUrl).map(p=><a key={p.id} href={p.websiteUrl!} target="_blank" rel="noreferrer">Dossier {p.reference} ↗</a>)}{detail.documentIds.filter(id=>/^(?:A|B|RC)-|^[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-/.test(id)).map(id=><button key={id} aria-expanded={document===id&&!documentEvent} aria-controls={documentTarget(null)} onClick={event=>toggleDocument(id,null,event.currentTarget)}>{document===id&&!documentEvent?'Hide':'Read'} {id}</button>)}</div>
+    <section className="insight-topic-detail" lang="en" data-agenda-topic={displayTopic?.id||''} data-agenda-pending={selected.loading?'true':undefined} ref={detailRef} tabIndex={-1}><InsightStatus loading={selected.loading&&!detail} error={selected.error} retry={selected.retry} errorMessage={selectedTopic?'Details unavailable.':undefined}/>{!displayTopic?<h2>{topic?(selected.error?'Agenda item unavailable':'Loading…'):'Choose an agenda item'}</h2>:<><div className="insight-eyebrow"><span lang={displayTopic.kind==='PLENARY_VOTE'?voteLabel.language:'en'}>{displayTopic.kind==='PLENARY_VOTE'?voteLabel.text:'Debate'}</span> · <span lang={language}>{humanDate(displayTopic.date,language)}</span></div><h2 lang={displayTopic.titleLanguage??''}>{displayTopic.title}</h2><div className="insight-dossier-links">{(detail?.procedures||[]).filter(p=>p.websiteUrl).map(p=><a key={p.id} href={p.websiteUrl!} target="_blank" rel="noreferrer">Dossier {p.reference} ↗</a>)}{displayTopic.documentIds.filter(id=>/^(?:A|B|RC)-|^[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-/.test(id)).map(id=><button key={id} aria-expanded={document===id&&!documentEvent} aria-controls={documentTarget(null)} onClick={event=>toggleDocument(id,null,event.currentTarget)}>{document===id&&!documentEvent?'Hide':'Read'} {id}</button>)}</div>
       {renderDocumentReader(null)}
+      {detail&&<>
       {detail.procedures.filter(p=>/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(p.reference||'')).slice(0,2).map(procedure=><ProcedureContext key={procedure.id} reference={procedure.reference!} language={language} onTopic={topic=>{setOfficialTopic(topic.id);setTrendTopic(topic.id);setTrendWeek('');setTrendSearch('');setTrendDossier(null);chooseMode('trends');}}/>)}
       {detail.phase==='upcoming'&&<p className="insight-upcoming-label">Scheduled for <span lang={language}>{humanDate(detail.date,language)}</span></p>}
       <div className="insight-contribution-scope"><div className="insight-controls insight-detail-country"><CountryFilter country={country} onChange={chooseCountry} language={language}/></div>{country&&<div className="insight-active-filters"><button onClick={()=>chooseCountry(null)}>MEPs elected in <span lang={language}>{countryName(country,language)}</span> ×</button><span>{shownPeople.length} of {contributors!.people.length} contributors · {shownSpeeches.length} of {detail.speeches.length} listed speeches</span></div>}</div>
@@ -220,7 +231,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
             <button aria-label="Next speech" aria-disabled={speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1,true)}>Next <span aria-hidden="true">›</span></button>
           </nav></>}
       </section>}
-      <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div><InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.text:null,officeLanguage:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.language:null}))} language={language} onMember={props.onMember} roles={contributors!.roles} renderSecondary={person=><DossierWorkLinks references={detail.procedures.filter(p=>p.reference).map(p=>({id:p.id,reference:p.reference!}))} person={person.id} language={language}/>}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No contributors listed.'}</p>}</section>
+      <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div>{shownPeople.length>0&&<p className="insight-secondary" lang="en">Saved activity linked to this topic. + means partial coverage; — means unavailable.</p>}<InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.text:null,officeLanguage:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.language:null}))} language={language} onMember={props.onMember} roles={contributors!.roles} renderSecondary={person=><><ContributorActivity detail={detail} headers={speechHeaders} person={person.id}/><DossierWorkLinks references={detail.procedures.filter(p=>p.reference).map(p=>({id:p.id,reference:p.reference!}))} person={person.id} language={language}/></>}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No contributors listed.'}</p>}</section>
       {!shownSpeeches.length&&detail.speeches.length>0&&country&&<p className="insight-secondary">No listed speeches match this country filter.</p>}
       {detail.committeeWork.length>0&&<section className="insight-committee-work"><h3>Committee work</h3><ol>{detail.committeeWork.map(event=><li key={event.id}><time lang={language}>{humanDate(event.date,language)}</time><div><strong>{committeeAction(event.kind)}</strong>{event.committees?.map(c=><p key={c.code}>{c.websiteUrl?<a lang="" href={c.websiteUrl} target="_blank" rel="noreferrer">{c.code} · {c.name.replace(/^Committee on /,'')} ↗</a>:c.code}</p>)}<div className="insight-document-links">{event.documentIds.map(id=><button key={id} aria-expanded={document===id&&documentEvent===event.id} aria-controls={documentTarget(event.id)} onClick={click=>toggleDocument(id,event.id,click.currentTarget)}>{document===id&&documentEvent===event.id?'Hide':'Read'} {id}</button>)}{!event.documentIds.length&&detail.procedures.find(p=>p.id===event.procedureId)?.websiteUrl&&<a href={detail.procedures.find(p=>p.id===event.procedureId)!.websiteUrl!} target="_blank" rel="noreferrer">Dossier ↗</a>}</div>{renderDocumentReader(event.id)}</div></li>)}</ol></section>}
       {!country&&detail.kind!=='PLENARY_VOTE'&&<ContributorAnalysis stats={contributors!.stats} language={language}/>}
@@ -228,6 +239,6 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
         detail.coverage.speechAssociations.truncated&&'Selected debates only',
         sourceRecordsUnavailable&&'Some records unavailable',
       ].filter(Boolean).join(' · ')}</p>}
-    </>}</section></div></div>}
+    </>}</>}</section></div></div>}
   </InsightShell>;
 }

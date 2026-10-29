@@ -17,6 +17,8 @@ import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PR
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
 import {mutableRecoveryDue} from './mutable-document-recovery.mjs';
+import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteBlocker,documentRouteDeferredOwners,sanitizeFreshDocument,validateAmendmentListMetadata} from './document-detail-routing.mjs';
+import {reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending,amendmentDocumentRouteVerificationPending,scheduleAmendmentDocumentRouteVerification} from './document-route-recovery.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
@@ -93,7 +95,7 @@ export class ActivityWorker {
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
-    this.recoveryMode=recoveryMode;this.followupStartupRepair=true;
+    this.recoveryMode=recoveryMode;this.followupStartupRepair=true;this.amendmentRouteStartupRepair=true;
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
@@ -101,7 +103,8 @@ export class ActivityWorker {
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
-    if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())))return true;
+    if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))return true;
+    if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())||amendmentDocumentRouteVerificationPending(this.store,generation)))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
     if(amendmentParserUpgradeDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
@@ -261,10 +264,11 @@ export class ActivityWorker {
       if(!nodes.length){this.store.finishTask({...task,body:{...body,availabilityCheck}});return;}
       const signatures=nodes.map(w=>w.identifier || tail(w.id)).join('|');
       if(signatures===body.lastPage)throw new Error('EP document pagination repeated a page.');
-      const adoptedDeferred=body.endpoint==='/adopted-texts'?adoptedTextDeferredKeys(this.store,generation):null;
+      const adoptedDeferred=body.endpoint==='/adopted-texts'?adoptedTextDeferredKeys(this.store,generation):null;let documentDeferred;
       for(const w of nodes){const id=w.identifier || tail(w.id);if(!safeId(id))throw new Error('EP document identifier was invalid.');
         if(body.endpoint!='/committee-documents' && !/^[A-Z]+-10-/.test(id))continue;
-        const endpoint=body.endpoint+'/'+id, old=this.store.source(generation,endpoint);
+        const endpoint=documentDetailEndpoint(body.endpoint+'/'+id), old=this.store.source(generation,endpoint);
+        if(amendmentListDocumentId(endpoint)&&documentRouteOwned(this.store,generation,endpoint,documentDeferred??=documentRouteDeferredOwners(this.store,generation)))continue;
         this.store.markSeen(generation,endpoint);
         // Existing adopted records use the bounded repair path, never catalogue
         // fan-out. New IDs can also already have an optional/deferred owner.
@@ -333,7 +337,7 @@ export class ActivityWorker {
       if(!customFeeds.has(body.endpoint) && Date.parse(start)<this.clock()-28*DAY)this.recoverFeedWindow(generation,body.endpoint,start);
       const r=await this.request(body.endpoint+'/feed',customFeeds.has(body.endpoint)?{timeframe:'custom','start-date':start}:{},{xml:true});
       const entries=feedDocuments(r.xml,body.endpoint);
-      const adoptedDeferred=body.endpoint==='/adopted-texts'?adoptedTextDeferredKeys(this.store,generation):null;
+      const adoptedDeferred=body.endpoint==='/adopted-texts'?adoptedTextDeferredKeys(this.store,generation):null;let documentDeferred;
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
@@ -342,11 +346,12 @@ export class ActivityWorker {
           if(prior && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated)))this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
         } else if (body.endpoint==='/committee-documents' || /^[A-Z]+-10-/.test(e.id)) {
           // Answer feed IDs resolve through their parent question, never a guessed standalone answer endpoint.
-          const resolved=endpoint.replace(/-ASW$/,'');
+          const resolved=documentDetailEndpoint(endpoint.replace(/-ASW$/,''));
+          if(amendmentListDocumentId(resolved)&&documentRouteOwned(this.store,generation,resolved,documentDeferred??=documentRouteDeferredOwners(this.store,generation)))continue;
           if(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,resolved,adoptedDeferred))continue;
           const prior=this.store.source(generation,resolved);
           const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
-          if(!gap && (!prior || (body.endpoint==='/adopted-texts'||documentRefreshState(prior.work).mutable) && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
+          if(!gap && (!prior || (body.endpoint==='/adopted-texts'||amendmentListDocumentId(resolved)||documentRefreshState(prior.work).mutable) && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
         }
       }
       this.store.finishTask(task);
@@ -368,28 +373,42 @@ export class ActivityWorker {
           return;
         }
       }
-      const r=await this.request(body.endpoint),adopted=body.endpoint.startsWith('/adopted-texts/');
-      const work=adopted?adoptedTextRecord(body.endpoint,r.payload.data):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
+      const endpoint=documentDetailEndpoint(body.endpoint),listId=amendmentListDocumentId(endpoint);
+      if(listId&&body.endpoint!==endpoint) {
+        const blocker=documentRouteBlocker(this.store,generation,endpoint,undefined,{ignoreGapKey:task.key,executingTask:task,allowDueGaps:true,now:this.clock()});
+        if(blocker) {
+          this.store.assertWriter();
+          this.store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(Math.max(this.clock()+30_000,blocker.retryAt||0),generation,task.key);
+          return;
+        }
+      }
+      const requestedAt=this.clock(),r=await this.request(endpoint),adopted=endpoint.startsWith('/adopted-texts/');
+      const work=adopted?adoptedTextRecord(endpoint,r.payload.data):listId?validateAmendmentListMetadata(r.payload,listId):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
-      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED'].includes(tail(work.work_type))){this.store.finishTask(task);return;}
-      const projected=projectDocument(work), proc=new Map();
+      if(body.amendmentRouteVerification) {
+        const proof=body.amendmentRouteVerification,at=Date.parse(r.fetchedAt),failed=Date.parse(proof.previousFailure?.failedAt);
+        if(!listId||proof.version!==1||proof.endpoint!==endpoint||proof.previousFailure?.endpoint!==task.key||body.endpoint!==task.key||proof.previousFailure.status!==404||r.stale||!Number.isFinite(at)||!Number.isFinite(failed)||at<requestedAt||at<=failed||at>this.clock())throw new Error('Corrected amendment route did not return fresh exact metadata.');
+      }
+      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED',...(listId?['AMENDMENT_LIST']:[])].includes(tail(work.work_type))){this.store.finishTask(task);return;}
+      const projected=projectDocument(sanitizeFreshDocument(work)), proc=new Map();
       if(adopted){
         validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
         if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=projectFollowupReferences(work.inverse_answers_to);
         // TA replies are SP references, not embedded written-question answers.
         projected.inverse_answers_to=[];
       }
+      if(listId)projected.inverse_answers_to=[];
       for(const id of procedureIds(work)) {
         const endpoint='/procedures/'+id, existing=this.store.source(generation,endpoint);
         if(existing)proc.set(id,existing);
         if(tail(work.work_type)==='REPORT_PLENARY')this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
       }
-      const {rows}=documentRows(projected,body.endpoint,r.fetchedAt,proc);
-      this.store.putSource(generation,body.endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});
+      const {rows}=documentRows(projected,endpoint,r.fetchedAt,proc);
+      this.store.putSource(generation,endpoint,'document',projected,r.fetchedAt,rows,{acquisition:acquisitionMode(this.store,task),sourceUrl:r.url});
       const followups=adopted?scheduleAdoptedFollowups(this,task,projected):null;
       if(followups)this.store.taskProgress(task,followups);else this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
-      scheduleAmendments(this,generation,projected,r.fetchedAt,body.endpoint);
+      scheduleAmendments(this,generation,projected,r.fetchedAt,endpoint);
     } else if(task.kind==='motion-outcomes') {
       await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
@@ -647,14 +666,19 @@ export class ActivityWorker {
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
   async runIteration() {
+    if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due();
     if(!due&&!pressDue || !this.store.acquire())return;
+    // Lease loss cancels one iteration. Only stop() shuts down the service;
+    // a later tick must acquire ownership again before it can resume work.
+    this.controller=new AbortController();
     this.running=true;this.requests=0;const started=this.clock();
     this.runDeadline=this.monotonic()+this.maxDuration;
-    const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
+    const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
       if(pressDue)await this.followPress(due);
       if(!due || this.stopped)return;
+      this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
@@ -664,11 +688,15 @@ export class ActivityWorker {
       }
       // Core recovery changes items and their frozen Following summaries. It
       // must publish through a working generation, even between daily cycles.
-      const recover=this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock()));
+      const recover=this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||amendmentDocumentRouteVerificationPending(this.store,active));
       const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
+      this.controller.signal.throwIfAborted();
       this.store.assertWriter();
-      if(cycle){scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);}
+      if(cycle){
+        reconcileAmendmentDocumentGaps(this,generation,{restart:this.amendmentRouteStartupRepair});this.amendmentRouteStartupRepair=false;
+        scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);
+      }
       if(this.followupStartupRepair){markFollowupAdmissionRepair(this.store,generation);this.followupStartupRepair=false;}
       scheduleFollowupAdmissionRepairs(this,generation);
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
@@ -741,14 +769,21 @@ export class ActivityWorker {
       }
       initializeOutsideAgendaUpgrade(this.store,generation,new Date(this.clock()).toISOString());
       initializeGroupVoices(this,generation,freshSpeechLoad?[]:speechWindows(day(this.clock())));
-      while(!this.stopped && this.requests<this.budget && this.clock()-started<this.maxDuration && this.monotonic()<this.runDeadline) {
+      while(!this.stopped && !this.controller.signal.aborted && this.requests<this.budget && this.clock()-started<this.maxDuration && this.monotonic()<this.runDeadline) {
         const taskIteration=loopTimer('activity-task',{threshold:5000});
         try {
           const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
           if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
+          // An iteration may spend 90 minutes on source jobs. Advance one
+          // bounded local batch per dispatch rather than waiting for its end.
+          if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
+          if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
           const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
           const coreTask=this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;
+          // Future jobs need no request; keep scanning across the async disk
+          // checkpoint until the cursor completes or this run reaches a bound.
+          if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)))continue;
           // Publish a finished core generation before spending budget on optional metadata.
           if(!coreTask&&cycle&&this.store.get('working')){
             const counts=this.store.taskCounts(generation);
@@ -762,11 +797,12 @@ export class ActivityWorker {
           }
           const task=coreTask||nextGroupVoiceTask(this.store,generation);
           if(!task)break;
-          try {await this.task(task);this.finishOutsideGap(task);}catch(error){if(this.stopped)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
+          try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}catch(error){if(this.stopped||this.controller.signal.aborted)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}
       }
-      if(cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
+      if(!this.stopped)this.controller.signal.throwIfAborted();
+      if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}

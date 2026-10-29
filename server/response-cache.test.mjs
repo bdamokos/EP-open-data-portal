@@ -9,6 +9,20 @@ const request = {method: 'GET', headers: {}};
 const policy = (path, value = {}, options = {}) => apiCachePolicy({...request, ...options}, new URL(path, 'https://example.test'), value, {now});
 const seconds = value => Number(value.cdnCacheControl.match(/max-age=(\d+)/)?.[1]);
 
+test('current plenary week lists use an hourly CDN lifetime',()=>{
+  const value={detail:null,agendaSittings:[{date:'2026-10-14'}],coverage:{agendaComplete:true,sources:[]}};
+  assert.equal(seconds(policy('/api/insights/legislation?week=latest',value)),3600);
+  value.agendaSittings=[{date:'2026-10-07'}];
+  assert.equal(seconds(policy('/api/insights/legislation?week=2026-10-05',value)),21600);
+});
+
+test('preliminary and unresolved agenda selections retain their shorter CDN lifetimes',()=>{
+  const value={detail:null,agendaSittings:[{date:'2026-10-07'}],coverage:{agendaComplete:true,sources:[{apiUrl:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/foreseen-activities',fetchedAt:'2026-10-08T12:00:00Z'}]}};
+  assert.equal(seconds(policy('/api/insights/legislation?week=2026-10-05',value)),60,'a preliminary observation still needs its final read');
+  assert.equal(seconds(policy('/api/insights/legislation?week=latest',{detail:null,selectionUnavailable:true})),300);
+  assert.equal(policy('/api/insights/legislation?week=latest',{...value,stale:true}).cdnCacheControl,'no-store');
+});
+
 test('unavailable parliamentary service dates remain an explicit uncached profile gap',()=>{
   assert.equal(policy('/api/profile/43',{parliamentaryService:{complete:false,currentSince:null,error:'Some parliamentary service dates are unavailable or inconsistent.'}}).cdnCacheControl,'no-store');
 });
@@ -70,7 +84,7 @@ test('flat transport preserves the finite cache allowlist and excludes retired n
       'speech-words', 'procedure-context', 'group-voices'].map(view => 'insights/' + view)];
   for (const suffix of paths) {
     const payload = {index: {complete: true}, xml: '<speech>Retained text</speech>'};
-    const expected = /^(activities|speeches|latest-activities)\//.test(suffix) ? 3600 : 21600;
+    const expected = suffix==='insights/legislation'?60:/^(activities|speeches|latest-activities)\//.test(suffix) ? 3600 : 21600;
     assert.equal(seconds(policy('/api/' + suffix, payload)), expected, suffix);
     for (const prefix of ['/api/poc/', '/api/explorer/']) {
       assert.deepEqual(policy(prefix + suffix, payload), {cacheControl: 'no-store', cdnCacheControl: 'no-store'}, prefix + suffix);
@@ -214,7 +228,8 @@ test('vote-period calendar is admitted while stale, failed and unavailable sourc
 
 test('demographic acquisition gaps and failed refreshes reach the origin while observed omissions keep the normal lifetime',()=>{
  for(const path of ['/api/insights/questions','/api/insights/legislation']) {
-  for(const field of [{status:'missing_acquisition'},{status:'fetch_failed'},{status:'available',lastAttempt:{status:'fetch_failed'}}])assert.equal(policy(path,{stats:{demographicEvidence:{'42':{bday:field}}}}).cdnCacheControl,'no-store');
-  assert.equal(seconds(policy(path,{stats:{demographicEvidence:{'42':{bday:{status:'source_omission',lastAttempt:{status:'success'}}}}}})),21600);
+  const payload=field=>{const value={stats:{demographicEvidence:{'42':{bday:field}}}};return path.endsWith('/legislation')?{detail:value}:value;};
+  for(const field of [{status:'missing_acquisition'},{status:'fetch_failed'},{status:'available',lastAttempt:{status:'fetch_failed'}}])assert.equal(policy(path,payload(field)).cdnCacheControl,'no-store');
+  assert.equal(seconds(policy(path,payload({status:'source_omission',lastAttempt:{status:'success'}}))),21600);
  }
 });

@@ -284,3 +284,7 @@
 .insight-record-meta button.insight-place[aria-pressed=true] {background:var(--accent-soft);}
 
 .insight-record-meta:has(button.insight-place) {align-items:center;}
+
+.insight-person-activity {list-style:none;padding:0;margin:8px 0 2px;font-size:13px;line-height:1.55;color:var(--ink-muted);}
+.insight-person-activity li {margin:0;}
+.insight-person-activity strong {font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums;}

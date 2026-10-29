@@ -1,3 +1,4 @@
+import {topicAmendments} from './topic-involvement.mjs';
 import {contributionGroup,groupContributions} from './group-aggregation.mjs';
 import {oralAvailability,indexAvailability} from './availability-evidence.mjs';
 import {generationGroupOn,datedPerson} from './group-attribution.mjs';
@@ -5,7 +6,7 @@ import {languagePreference} from './language-order.mjs';
 import {calendarYears,calendarMonday} from './plenary-calendar.mjs';
 import {meetingsReader,MeetingsReader,missingSitting,latestCatalogueSitting,requireLatestSitting} from './meetings-reader.mjs';
 import { HttpError } from './http-utils.mjs';
-import { odp } from './odp.mjs';
+import { odp,agendaCacheRevision } from './odp.mjs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,demographicStats,memberPeople } from './insights-model.mjs';
 import { savedMetadata,brusselsDay } from './insights-store.mjs';
@@ -14,9 +15,10 @@ import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {retainedSpeechMetadata} from './corpus-speeches.mjs';
+import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v9-availability-group-contributions';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v12-topic-count-recovery';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -63,15 +65,16 @@ export class LegislationInsights {
         if(saved)return {url:saved.sourceUrl,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.activity]},...sourceCacheState(saved)};
       }
     }
-    const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key);
+    const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key),agendaMs=agendaFreshMs(endpoint,this.clock());
+    const revision=agendaMs===null?null:await agendaCacheRevision();
     if(old&&sourceIsTransient(old.value))this.cache.delete(key);
-    else if(old&&this.clock()-old.at<LEGISLATION_LIMITS.cacheMs)return old.value;
+    else if(old&&(agendaMs===null||old.revision===revision&&old.value.fetchedAt>=agendaSettledAfter(endpoint,this.clock()))&&this.clock()-(agendaMs===null?old.at:old.value.fetchedAt)<(agendaMs??LEGISLATION_LIMITS.cacheMs))return old.value;
     const failed=this.failures.get(key);if(failed&&this.clock()-failed.at<60_000)throw failed.error;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
-    const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
+    const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true,...(agendaMs===null?{}:{ttl:agendaMs})});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
       if(Buffer.byteLength(JSON.stringify(value.payload))>LEGISLATION_LIMITS.rawBytes)throw new HttpError(502,'insights_source_size','Parliament source exceeds the bounded insight response size.');
       // Let the ODP cache expose recovery on the next read instead of pinning an SWR snapshot.
-      if(sourceIsTransient(value))this.cache.delete(key);else this.cache.set(key,{at:this.clock(),value});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
+      if(sourceIsTransient(value))this.cache.delete(key);else this.cache.set(key,{at:this.clock(),value,revision});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;
     }).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error});while(this.failures.size>24)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
     this.pending.set(key,job);return waitForRequest(job);
   }
@@ -196,7 +199,7 @@ export class LegislationInsights {
       }
       const selectedVote=query.vote?votes.find(v=>v.id===query.vote):votes[0]||null;
       if(query.vote&&!selectedVote)throw new HttpError(404,'vote_not_found','That roll-call is not joined to this agenda topic.');
-      detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...roles.map(r=>({id:r.id,date:r.date})),...speechRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
+      detail={...localize(topic),phase,procedures,committeeWork:[...new Map(committeeWork.map(e=>[e.id,e])).values()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12),roles,speeches,people,amendments:this.store.readSnapshot(()=>topicAmendments(this.store,topic.documentIds,people)),stats:{...demographicStats(participantIds,members,metadata,sitting.activity_date),groupContributions:groupContributions([...roles.map(r=>({id:r.id,date:r.date})),...speechRows.map(r=>({id:String(r.mepId),date:r.date}))],groupOn)},
         votes:votes.map(v=>({id:v.id,date:v.date,title:displayTitle(v.titles,query.language,v.id),subject:displayTitle(v.subjects,query.language,null),scope:v.scope,outcome:v.outcome,namedVotersAvailable:v.namedVotersAvailable,aggregateTotals:v.aggregateTotals,uniqueNamedVoters:v.uniqueNamedVoters})),
         selectedVote,finalVotePatterns:finalVotePatterns(votes,members,metadata,groupOn),voteCoverage,
         coverage:{missingDocumentIds:missingDocuments,roleRowsTruncated:rows.length>=LEGISLATION_LIMITS.roleRows,speechAssociations:{status:speechSources.length?'exact-bounded-joins':phase==='upcoming'?'not-yet-held':'source-unavailable',context:phase==='upcoming'?'previous-debates':'debates',count:speechSources.length?speeches.length:null,exactChildReferences:contributionIds.size,childrenWithoutSavedContributionRows:selectedContributions.filter(id=>!speeches.some(s=>s.sourceId===id)).length,truncated:contributionsTruncated||debateCandidates.size>LEGISLATION_LIMITS.debateEvents,sources:speechSources,reason:speechSources.length?'Speakers are joined only from exact actual-debate child IDs to saved contribution rows. Document-backed debates can precede the selected sitting. Unmatched child refs include chair/non-contribution activities and unresolved records; they are not a count of missing speeches. This bounded selection is not a full corpus.':'No exact debate association was resolved within the selected source bounds. Whole-day activities/procedure-event listing timed out in verification. No title matching or inferred counterpart IDs are used.'},gaps}};
