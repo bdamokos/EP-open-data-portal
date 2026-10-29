@@ -27,7 +27,7 @@ import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projec
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
-import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart} from './refresh-policy.mjs';
+import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask} from './refresh-policy.mjs';
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
@@ -717,7 +717,8 @@ export class ActivityWorker {
           const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
           if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
-          const coreTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+          const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+          const coreTask=this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;
           // Publish a finished core generation before spending budget on optional metadata.
           if(!coreTask&&cycle&&this.store.get('working')){
             const counts=this.store.taskCounts(generation);

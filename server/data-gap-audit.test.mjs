@@ -33,6 +33,9 @@ test('baseline comparison uses exact missing identities and reports a changed de
   assert.equal(failureClass('EP API returned 429'),'throttled');
   assert.equal(failureClass('EP API returned 404'),'missing-at-source');
   assert.equal(failureClass('Invalid DOCX archive'),'source-or-parser');
+  assert.equal(failureClass('Dated amendment roster contains invalid or repeated identities.'),'source-or-parser');
+  assert.equal(failureClass('EP document pagination repeated a page.'),'source-or-parser');
+  assert.equal(failureClass('EP API returned 503'),'transient');
   assert.equal(failureClass('Unknown problem'),'unclassified');
 });
 
