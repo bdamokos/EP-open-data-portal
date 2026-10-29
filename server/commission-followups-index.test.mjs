@@ -298,3 +298,35 @@ test('complete adopted-text languages still receive a bounded periodic relations
   worker.fetchRecord=async()=>({fetchedAt:new Date(clock.now).toISOString(),payload:{data:[{...adopted(),is_realized_by:files}]}});
   await worker.task({...raw,body:JSON.parse(raw.body)});assert.deepEqual(store.source(generation,rootKey).work.followupRelationships,[ref(sp)]);assert(store.db.prepare('SELECT 1 FROM tasks WHERE key=?').get(spKey));
 });
+
+test('due checks parse no root JSON and repair bounds apply before filtering empty or legacy metadata',t=>{
+  const {store,worker,generation}=setup(t);
+  for(let i=0;i<101;i++){
+    const id='TA-10-2026-'+String(i).padStart(4,'0');store.putSource(generation,'/adopted-texts/'+id,'document',{...projected([]),id:ref(id),identifier:id,adoptionProjectionVersion:i%2?1:2,padding:'x'.repeat(64000)},stamp);
+  }
+  const parse=JSON.parse;let roots=0,bytes=0;
+  t.mock.method(JSON,'parse',(text,...args)=>{if(typeof text==='string'&&text.includes('"padding":')){roots++;bytes+=Buffer.byteLength(text);}return parse(text,...args);});
+  assert.equal(followupAdmissionRepairDue(store,generation),true);assert.equal(roots,0);
+  assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),0);assert.equal(roots,100);assert(bytes<32*1024*1024);assert.equal(followupAdmissionRepairDue(store,generation),true);assert.equal(roots,100);
+  assert.equal(scheduleFollowupAdmissionRepairs(worker,generation),0);assert.equal(roots,101);assert.equal(followupAdmissionRepairDue(store,generation),false);
+});
+
+for(const change of [{work_type:'TEXT_ADOPTED'},{identifier:'TA-10-2026-0001'},{id:'https://example.org/TA-10-2026-0271'}])test('an invalid retained root keeps provenance and cannot start an ordinary request '+JSON.stringify(change),async t=>{
+  const {store,generation}=setup(t);store.putSource(generation,rootKey,'document',{...projected(),...change},stamp);
+  let requests=0;const service=new CommissionFollowups({request:async()=>{requests++;return {payload:{data:[adopted([])]},fetchedAt:now};}});
+  const result=await service.query(query,{store});assert.equal(requests,0);assert.equal(result.status,'unavailable');assert.equal(result.relationshipObservation,'unobserved');assert.equal(result.declaredCount,null);assert(result.gaps.some(gap=>gap.reason==='record-unverified'));assert.equal(result.sources[0].epoch,store.get('marksEpoch'));assert.equal(result.sources[0].generation,generation);assert.equal(service.cache.size,0);
+});
+
+test('an unverified retained root may use validated cache-only fallback but never ordinary metadata lookup',async t=>{
+  const {store,generation}=setup(t);store.putSource(generation,rootKey,'document',{...projected(),work_type:'TEXT_ADOPTED'},stamp);
+  const service=new CommissionFollowups({request:async()=>assert.fail('no upstream request'),readCached:async(endpoint,_params,options)=>{
+    assert.equal(options.cachedOnly,true);const payload={data:[endpoint===rootKey?adopted():reply()]};options.validate(payload);return {payload,fetchedAt:now};
+  }});
+  const result=await service.query(query,{store});assert.equal(result.items[0].id,sp);assert.equal(result.status,'partial');assert(result.gaps.some(gap=>gap.reason==='record-unverified'));assert(result.sources.some(source=>source.representation==='retained-index-projection'));assert.equal(service.cache.size,0);
+});
+
+test('an unknown retained retrieval date stays explicit and cannot become an upstream lookup or an invented epoch date',async t=>{
+  const {store,generation}=setup(t);store.putSource(generation,rootKey,'document',projected(),'invalid date');
+  const service=new CommissionFollowups({request:async()=>assert.fail('no upstream lookup'),readCached:async()=>({payload:{data:[adopted([])]},fetchedAt:now})});
+  const result=await service.query(query,{store});assert.equal(result.status,'unavailable');assert.equal(result.declaredCount,null);assert.equal(result.sources[0].fetchedAt,null);assert(result.gaps.some(gap=>gap.reason==='record-unverified'));assert.equal(service.cache.size,0);
+});

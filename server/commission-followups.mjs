@@ -53,14 +53,15 @@ export class CommissionFollowups {
       if(retained?.budgetEndpoint===endpoint)throw Object.assign(invalid(),{code:'followup_metadata_budget'});
       const saved=retained?.records.find(record=>record.endpoint===endpoint),root=endpoint==='/adopted-texts/'+id;
       let record=saved?.record,projection=Boolean(saved),rejected=null;
-      if(record)try{validate(record.payload);}catch(error){rejected=error;}
-      const lossyRoot=root&&record&&(record.payload.data[0].adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(record.payload.data[0].followupRelationships));
+      if(record)try{validate(record.payload);if(saved?.invalidDate)throw invalid();}catch(error){rejected=error;}
+      const lossyRoot=root&&record&&(record.payload.data[0]?.adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(record.payload.data[0]?.followupRelationships));
       // A richer already-retained raw record must not be suppressed by a lossy
       // index projection. cachedOnly never refreshes or joins an upstream job.
       if(retained&&this.readCached&&(!record||rejected||lossyRoot))try {
         const cached=await waitForRequest(this.readCached(endpoint,{}, {cachedOnly:true,validate}));
-        requestSignal()?.throwIfAborted();const work=validate(cached.payload),at=new Date(cached.fetchedAt).valueOf();
-        const older=Boolean(saved)&&at<new Date(saved.record.fetchedAt).valueOf();
+        requestSignal()?.throwIfAborted();const work=validate(cached.payload),at=cached.fetchedAt==null?NaN:new Date(cached.fetchedAt).valueOf();
+        const indexedAt=saved?.source.fetchedAt==null?NaN:new Date(saved.source.fetchedAt).valueOf();
+        const older=Boolean(saved)&&(!Number.isFinite(indexedAt)||at<indexedAt);
         if(Number.isFinite(at)&&(!root||Array.isArray(work.inverse_answers_to)&&(!older||work.inverse_answers_to.length))) {
           if(saved){bytes+=Buffer.byteLength(JSON.stringify(saved.record.payload));result.sources.push(saved.source);}
           if(rejected)gap('record-unverified',root?null:endpoint.slice('/external-documents/'.length));
@@ -68,6 +69,11 @@ export class CommissionFollowups {
           record=cached;projection=false;rejected=null;
         }
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;}
+      if(rejected&&retained&&root){
+        bytes+=Buffer.byteLength(JSON.stringify(record.payload));
+        if(bytes>this.limits.metadataBytes)throw Object.assign(invalid(),{code:'followup_metadata_budget'});
+        result.sources.push(saved.source);return {work:null,source:saved.source,projection:true,unverified:true};
+      }
       if(rejected)throw rejected;
       if(retained&&!record)throw new HttpError(503,'followup_pending','Commission follow-up could not be checked.');
       if(!record)record=await waitForRequest(this.request(endpoint,{}, {staleWhileRevalidate:true,validate}));
@@ -79,9 +85,10 @@ export class CommissionFollowups {
       return {work:validate(record.payload),source,projection};
     };
     if(retained?.metadataBudget){result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
-    let work,projection;
-    try {({work,projection}=await read('/adopted-texts/'+id,payload=>validateTA(payload,id)));}
+    let work,projection,unverified;
+    try {({work,projection,unverified}=await read('/adopted-texts/'+id,payload=>validateTA(payload,id)));}
     catch(error){requestSignal()?.throwIfAborted();if(error.code!=='followup_metadata_budget')throw error;result.truncated=true;result.status='partial';gap('metadata-budget');return result;}
+    if(unverified){gap('record-unverified');gap('lookup-failed');return result;}
     const inverse=projection?(work.adoptionProjectionVersion===adoptedTextProjectionVersion?work.followupRelationships:undefined):work.inverse_answers_to;
     if(retained&&inverse==null)gap('lookup-failed');
     if(inverse==null)return result;

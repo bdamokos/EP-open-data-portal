@@ -125,7 +125,7 @@ const repairState=(store,generation)=>{
 };
 export function followupAdmissionRepairDue(store,generation,{restart=false}={}) {
   if(!restart&&!repairState(store,generation).pending)return false;
-  return Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND json_extract(body,'$.adoptionProjectionVersion')=? AND json_type(body,'$.followupRelationships')='array' AND json_array_length(body,'$.followupRelationships')>0 LIMIT 1").get(generation,adoptedTextProjectionVersion));
+  return Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' LIMIT 1").get(generation));
 }
 export function markFollowupAdmissionRepair(store,generation) {
   store.assertWriter();const state=repairState(store,generation);
@@ -136,14 +136,16 @@ export function scheduleFollowupAdmissionRepairs(worker,generation) {
   if(!state.pending)return 0;
   const owned=adoptedTextDeferredKeys(store,generation);
   for(const table of ['tasks','amendment_jobs','refresh_gaps'])for(const {key} of store.db.prepare(`SELECT key FROM ${table} WHERE generation=?${table==='refresh_gaps'?'':' AND (done IS NULL OR done<>1)'}`).iterate(generation))owned.add(key);
-  const rows=store.db.prepare("SELECT key,length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND json_extract(body,'$.adoptionProjectionVersion')=? AND json_type(body,'$.followupRelationships')='array' AND json_array_length(body,'$.followupRelationships')>0 AND key"+(state.rootKey?'>=':'>')+"? ORDER BY key LIMIT 100").iterate(generation,adoptedTextProjectionVersion,state.rootKey||state.afterKey);
+  const rows=store.db.prepare("SELECT key,length(CAST(body AS BLOB)) bytes FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*' AND key"+(state.rootKey?'>=':'>')+"? ORDER BY key LIMIT 100").iterate(generation,state.rootKey||state.afterKey);
   let examined=0,bytes=0,admitted=0,roots=0,stopped=false;
   for(const row of rows) {
     roots++;
     if(row.bytes>32*1024*1024){state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null,oversizedRoots:(state.oversizedRoots||0)+1,oversizedExamples:[...(state.oversizedExamples||[]),row.key].slice(0,3)};continue;}
     if(bytes+row.bytes>32*1024*1024){stopped=true;break;}
     bytes+=row.bytes;
-    const work=store.source(generation,row.key).work;try{validateTA({data:[work]},row.key.slice('/adopted-texts/'.length));}catch{state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};continue;}
+    const work=store.source(generation,row.key).work;
+    if(work?.adoptionProjectionVersion!==adoptedTextProjectionVersion||!Array.isArray(work.followupRelationships)){state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};continue;}
+    try{validateTA({data:[work]},row.key.slice('/adopted-texts/'.length));}catch{state={...state,afterKey:row.key,rootKey:null,offset:0,hash:null};continue;}
     const hash=createHash('sha256').update(JSON.stringify(work.followupRelationships)).digest('hex');
     let offset=state.rootKey===row.key&&state.hash===hash?state.offset:0;
     for(;offset<work.followupRelationships.length&&examined<100;offset++,examined++) {
