@@ -95,6 +95,7 @@ test('inline full-text results replace the list, combine with exact chair record
   await act(async()=>{const url=new URL(location.href);url.searchParams.set('mep-speech-fts-search','energy');history.replaceState(null,'',url);window.dispatchEvent(new h.window.PopStateEvent('popstate'));});
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
   await h.click(h.container.querySelector('.explorer-cloud-words button'));
+  await h.tick(0);
   const cloudSource=h.container.querySelector('.explorer-cloud-source');cloudSource.focus();
   const reveals=h.revealed.length;
   await h.click(cloudSource);
@@ -113,7 +114,7 @@ test('inline full-text results replace the list, combine with exact chair record
   assert.equal(new URLSearchParams(location.search).has('mep-speech-fts-search'),false,'cloud navigation cancels the uncommitted draft');
   assert.equal(h.container.querySelector('.explorer-text-search-inline input').value,'');
   assert.equal(h.searches.length,searches,'the cancelled debounce cannot restart search');
-  assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));
+  assert.equal(document.activeElement===h.container.querySelector('.explorer-speech-toggle'),true);
 });
 
 for(const outcome of ['unavailable','empty'])test('category transcript search distinguishes pending metadata from '+outcome,async t=>{
