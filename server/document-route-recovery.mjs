@@ -3,6 +3,16 @@ import {AMENDMENT_DISTRIBUTION_PROOF_VERSION,distributionEvidenceFor} from './am
 import {amendmentListDocumentId,documentRouteOwned,documentRouteDeferredOwners,retainedAmendmentListObservation} from './document-detail-routing.mjs';
 
 const marker='amendmentDocumentRouteRepair',metadataBytes=8*1024*1024;
+const verificationMarker='amendmentDocumentRouteVerification',taskBytes=16*1024;
+const verificationState=(store,generation)=>{
+  const value=store.get(verificationMarker);
+  return value?.version===1&&value.generation===generation&&typeof value.complete==='boolean'&&typeof value.afterKey==='string'&&value.afterKey.length<=180&&['admitted','blocked','oversized'].every(key=>Number.isSafeInteger(value[key])&&value[key]>=0)
+    ?value:{version:1,generation,afterKey:'',complete:false,admitted:0,blocked:0,oversized:0};
+};
+const legacyVerificationGaps=`generation=? AND kind='document' AND key GLOB '/plenary-documents/*-AM-*-*'
+  AND error='EP API returned 404 at '||key||'.' AND json_extract(body,'$.endpoint')=key
+  AND json_extract(body,'$.stage') IS NULL AND json_extract(body,'$.offset') IS NULL
+  AND json_type(body,'$.amendmentRouteVerification') IS NULL`;
 const stateFor=(store,generation)=>{
   const value=store.get(marker);
   return value?.version===1&&value.generation===generation&&typeof value.complete==='boolean'&&typeof value.afterKey==='string'&&value.afterKey.length<=180&&Number.isSafeInteger(value.resolved)&&value.resolved>=0&&Number.isSafeInteger(value.oversized)&&value.oversized>=0
@@ -45,6 +55,42 @@ export function reconcileAmendmentDocumentGap(worker,generation,id,source=null,{
 
 export function amendmentDocumentRouteRepairPending(store,generation) {
   return !stateFor(store,generation).complete&&Boolean(store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind='document' AND key GLOB '/plenary-documents/*-AM-*-*' LIMIT 1").get(generation));
+}
+
+export function amendmentDocumentRouteVerificationPending(store,generation) {
+  return !verificationState(store,generation).complete&&Boolean(store.db.prepare('SELECT 1 FROM refresh_gaps WHERE '+legacyVerificationGaps+' LIMIT 1').get(generation));
+}
+
+// A failed collection URL has never checked the correct detail route. In
+// backfill mode, admit that distinct check once through the existing gap owner.
+// Keep the historical gap and its clocks until a real request succeeds/fails.
+export function scheduleAmendmentDocumentRouteVerification(worker,generation) {
+  const {store}=worker;
+  if(worker.recoveryMode!=='backfill'||store.get('working')?.generation!==generation)return 0;
+  return store.transaction(()=>{
+    store.assertWriter();const state=verificationState(store,generation);if(state.complete)return 0;
+    const rows=store.db.prepare(`SELECT key,priority,attempts,failed_at,retry_at,length(CAST(body AS BLOB)) bytes,
+      CASE WHEN length(CAST(body AS BLOB))<=${taskBytes} THEN body END body FROM refresh_gaps
+      WHERE ${legacyVerificationGaps} AND key>? ORDER BY key LIMIT 25`).all(generation,state.afterKey);
+    const deferred=documentRouteDeferredOwners(store,generation);let admitted=0;
+    for(const row of rows) {
+      state.afterKey=row.key;
+      if(row.bytes>taskBytes){state.oversized++;continue;}
+      const id=amendmentListDocumentId(row.key);
+      if(!id||!Number.isFinite(Date.parse(row.failed_at))||Date.parse(row.failed_at)>worker.clock()||documentRouteOwned(store,generation,row.key,deferred,{ignoreGapKey:row.key})){state.blocked++;continue;}
+      const body={...JSON.parse(row.body),amendmentRouteVerification:{version:1,endpoint:'/documents/'+id,
+        previousFailure:{endpoint:row.key,status:404,failedAt:row.failed_at,retryAt:row.retry_at,attempts:row.attempts}}};
+      // Only a completed legacy row can be reused; pending/deferred owners were
+      // excluded above. New-route attempts start at zero, with old history kept.
+      const changed=store.db.prepare(`INSERT INTO tasks(generation,key,kind,body,priority,done,attempts,retry_at,error) VALUES (?,?,'document',?,?,0,0,0,NULL)
+        ON CONFLICT(generation,key) DO UPDATE SET kind='document',body=excluded.body,priority=excluded.priority,done=0,attempts=0,retry_at=0,error=NULL WHERE tasks.done=1`)
+        .run(generation,row.key,JSON.stringify(body),row.priority).changes;
+      if(!changed){state.blocked++;continue;}
+      store.db.prepare('INSERT INTO refresh_gap_admissions VALUES (?,?)').run(generation,row.key);
+      admitted++;
+    }
+    state.complete=rows.length<25;state.admitted+=admitted;store.set(verificationMarker,state);return admitted;
+  });
 }
 
 // Bound keys before reading any retained body, and retain the cursor across

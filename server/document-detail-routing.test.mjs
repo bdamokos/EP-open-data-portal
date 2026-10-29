@@ -231,6 +231,7 @@ test('a restarted worker resumes the incomplete same-generation cursor and reach
 for(const mode of ['busy','future','publish'])test('one worker iteration reaches later retained repairs '+mode,async t=>{
   const busy=mode==='busy',blocked=mode!=='publish';
   const {store,worker,generation:serving}=setup(t);
+  worker.recoveryMode='normal';
   store.setMembers([{id:'101',name:'Member'}]);store.publish(serving);
   const {generation}=store.beginCycle(),keys=[];
   for(let n=1;n<=82;n++) {
@@ -271,6 +272,7 @@ for(const mode of ['busy','future','publish'])test('one worker iteration reaches
 
 test('an incomplete route scan stays due while every queued source owner waits in the future',async t=>{
   const {store,worker,generation}=setup(t);
+  worker.recoveryMode='normal';
   for(let n=1;n<=82;n++)gap(store,generation,'/plenary-documents/'+target+'-AM-'+String(n).padStart(3,'0')+'-'+String(n).padStart(3,'0'));
   store.enqueue(generation,'busy','document',{endpoint:'/busy'},120);worker.budget=1;
   worker.task=async task=>{if(task.key==='busy')worker.requests++;store.finishTask(task);};
