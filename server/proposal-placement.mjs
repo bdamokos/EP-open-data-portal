@@ -409,7 +409,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
         }
       }
     }
-    if(!subparagraphBounds&&operation==='insert')return unresolved('source_structure_unavailable');
+    if(!subparagraphBounds&&(label.number>1||operation==='insert'))return unresolved('source_structure_unavailable');
   }
   // An uncontained annex paragraph can share an act address. The item identity
   // still establishes that an address without Annex cannot select it.

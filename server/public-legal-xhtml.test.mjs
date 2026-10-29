@@ -31,13 +31,16 @@ for(const edition of fixture.editions)test(`native ${edition.language} Council l
 test('a later XHTML list requires its own complete colon introduction and subparagraph ordinal',()=>{
   const edition=fixture.editions.find(row=>row.language==='en'),amendment=edition.amendments.find(row=>row.number===8);
   const intro='The database shall contain the following information:';
+  const replacement={...amendment,targetLabel:'Article 9 – paragraph 1 – subparagraph 2 – point d',originalText:amendment.predecessorRows[0],proposedText:'Changed wording.'};
   for(const xhtml of [edition.xhtml.replace(intro,intro.slice(0,-1)+'.'),edition.xhtml.replace(intro,intro+'<img src="unresolved.tif"/>')]){
     assert.equal(place(edition,parse(edition,xhtml),amendment).reason,'source_structure_unavailable');
+    assert.equal(place(edition,parse(edition,xhtml),replacement).reason,'source_structure_unavailable');
   }
   for(const ordinal of [1,3,4])assert.equal(place(edition,parse(edition),{...amendment,targetLabel:amendment.targetLabel.replace('subparagraph 2','subparagraph '+ordinal)}).reason,'source_structure_unavailable');
   const proposal=parse(edition);
   proposal.sourceKind='docx';
   assert.equal(place(edition,proposal,amendment).reason,'source_structure_unavailable');
+  assert.equal(place(edition,proposal,replacement).reason,'source_structure_unavailable');
 });
 
 test('unsupported objects in the complete predecessor subtree still withhold insertion',()=>{
