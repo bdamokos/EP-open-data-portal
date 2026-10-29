@@ -79,7 +79,7 @@ export function historyStatus(store) {
 }
 
 export function acquisitionMode(store,task,{corpus=false}={}) {
-  if(task.attempts||task.body?.recoveryId||task.body?.feedRecovery)return 'recovery';
+  if(task.attempts||task.body?.recoveryId||task.body?.feedRecovery||task.body?.amendmentRouteVerification?.version===1)return 'recovery';
   if(corpus&&!store.get('backfilledAt'))return 'backfill';
   const working=store.get('working');
   if(working?.initial)return 'backfill';

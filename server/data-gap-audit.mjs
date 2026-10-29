@@ -137,7 +137,7 @@ export function auditIndex(db,now) {
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
         mutableDocuments:auditMutableDocuments(db,generation,now),mutableAdmission:auditMutableAdmission(db,generation,now)};
     }),
-    adoptedTextDiscovery:meta(db,'adoptedTextDiscovery'),followupAdmissionRepair:meta(db,'followupAdmissionRepair'),amendmentDocumentRouteRepair:meta(db,'amendmentDocumentRouteRepair'),unresolvedJoins:(meta(db,'unresolved')||[]).length,
+    adoptedTextDiscovery:meta(db,'adoptedTextDiscovery'),followupAdmissionRepair:meta(db,'followupAdmissionRepair'),amendmentDocumentRouteRepair:meta(db,'amendmentDocumentRouteRepair'),amendmentDocumentRouteVerification:meta(db,'amendmentDocumentRouteVerification'),unresolvedJoins:(meta(db,'unresolved')||[]).length,
     nonRetryableCoverageWindows:has(db,'refresh_gaps')?db.prepare("SELECT COUNT(*) AS count FROM refresh_gaps WHERE generation=? AND kind='coverage'").get(active??0).count:null};
 }
 export function auditCorpus(db,now) {
