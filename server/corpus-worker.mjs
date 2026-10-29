@@ -96,6 +96,7 @@ export class CorpusWorker {
   async checkpoint() {
     await yieldToEventLoop();
     if(this.stopped)throw new Error('Corpus worker stopped.');
+    this.controller.signal.throwIfAborted();
     this.store.assertWriter();
   }
   async extractSpeech(activity,sourceUrl,fetchedAt) {
@@ -184,12 +185,15 @@ export class CorpusWorker {
       const params={'parliamentary-term':10,'activity-type':SPEECH_TYPES,'sort-by':'sitting-date:desc,numbering:desc','sitting-date':body.start,'sitting-date-end':body.end,...(!metadataOnly?{'include-output':'xml_fragment'}:{}),limit:body.limit,offset:body.offset};
       let record;
       await this.pace();
+      this.controller.signal.throwIfAborted();
       try{record=await this.fetchRecord('/speeches',params,{signal:this.controller.signal});}
       catch(error){
+        this.controller.signal.throwIfAborted();
         // A page of long debates can exceed the response bound; retry smaller pages.
         if(/exceeded/.test(error.message) && body.limit>1){this.store.taskProgress(task,{...body,limit:Math.max(1,Math.floor(body.limit/2))});return;}
         throw error;
       }
+      this.controller.signal.throwIfAborted();
       if(body.offset===0 && Number(record.payload.meta?.total)>=10000)throw new Error('Speech window exceeds the search result limit.');
       const url=new URL(ODP_BASE+'/speeches');for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
       const graph=new Map(record.payload.data.map(node=>[node.id,node]));
@@ -222,7 +226,9 @@ export class CorpusWorker {
       if(!SPEECH_ID.test(body.id))throw new Error('Invalid speech identifier.');
       const metadataOnly=task.kind==='speech-metadata-detail',params=metadataOnly?{}:{'include-output':'xml_fragment'};
       await this.pace();
+      this.controller.signal.throwIfAborted();
       const record=await this.fetchRecord('/speeches/'+body.id,params,{signal:this.controller.signal});
+      this.controller.signal.throwIfAborted();
       const activity=record.payload.data.find(node=>node.activity_id===body.id);
       if(!activity)throw new Error(`Speech ${body.id} has no matching detail record.`);
       const url=new URL(ODP_BASE+'/speeches/'+body.id);for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,value);
@@ -236,6 +242,7 @@ export class CorpusWorker {
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       await this.pace();
+      this.controller.signal.throwIfAborted();
       const signal=this.controller.signal;
       const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
       signal.throwIfAborted();
@@ -250,26 +257,35 @@ export class CorpusWorker {
     try {await this.runIteration();}finally {iteration();}
   }
   async runIteration() {
-    if(!this.due() || !this.store.acquire())return;
+    if(this.stopped || this.running || !this.due() || !this.store.acquire())return;
+    const controller=new AbortController();this.controller=controller;
     this.running=true;const started=this.clock();let requests=0;
-    const heartbeat=setInterval(()=>{if(!this.store.renew()){this.stopped=true;this.controller.abort();}},20_000);heartbeat.unref();
+    const heartbeat=setInterval(()=>{
+      try {if(!this.store.renew())controller.abort(new Error('Corpus writer lease was lost.'));}
+      catch(error){controller.abort(error);}
+    },20_000);heartbeat.unref();
     try {
+      this.store.assertWriter();
       this.store.set('phase',this.store.get('backfilledAt')?'refreshing':'backfilling');
       if(this.discoveryDue())await this.discover();
-      while(!this.stopped && requests<this.budget && this.clock()-started<this.maxDuration) {
+      while(!this.stopped && !controller.signal.aborted && requests<this.budget && this.clock()-started<this.maxDuration) {
         const taskIteration=loopTimer('corpus-task',{threshold:5000});
         try {
-          if(await this.store.diskBytes()>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
+          const diskBytes=await this.store.diskBytes();
+          controller.signal.throwIfAborted();this.store.assertWriter();
+          if(diskBytes>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
           const task=this.store.nextTask();
           if(!task)break;
           requests++;
           try{await this.task(task);}
-          catch(error){if(this.stopped)break;this.store.failTask(task,error,error.retryAfter||0);}
+          catch(error){if(this.stopped||controller.signal.aborted)break;this.store.failTask(task,error,error.retryAfter||0);}
         } finally {taskIteration();}
       }
       // A budget can end immediately after the last task. Settle that run now;
       // the next idle tick should not need a writer just to publish readiness.
-      if(!this.stopped&&!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
+      if(this.stopped)return;
+      controller.signal.throwIfAborted();this.store.assertWriter();
+      if(!this.store.db.prepare('SELECT 1 FROM tasks WHERE done=0 LIMIT 1').get()) {
         if(this.store.get('discoveredPublished')) {
           if(!this.store.get('backfilledAt'))this.store.set('backfilledAt',new Date(this.clock()).toISOString());
           this.store.set('phase','ready');
@@ -277,7 +293,7 @@ export class CorpusWorker {
       }
       this.store.set('lastRunAt',new Date(this.clock()).toISOString());
     } catch(error) {if(!this.stopped)throw error;}
-    finally {clearInterval(heartbeat);this.store.release();this.running=false;}
+    finally {clearInterval(heartbeat);try{this.store.release();}finally{this.running=false;}}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }
