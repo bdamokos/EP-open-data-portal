@@ -103,6 +103,7 @@ export class ActivityWorker {
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
+    if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))return true;
     if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
     if(amendmentParserUpgradeDue(this.store,generation))return true;
@@ -763,9 +764,15 @@ export class ActivityWorker {
         try {
           const size=(await Promise.all(['','-wal','-shm'].map(suffix=>stat(this.store.filename+suffix).then(s=>s.size).catch(()=>0)))).reduce((a,b)=>a+b,0);
           if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
+          // An iteration may spend 90 minutes on source jobs. Advance one
+          // bounded local batch per dispatch rather than waiting for its end.
+          if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
           const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
           const coreTask=this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;
+          // Future jobs need no request; keep scanning across the async disk
+          // checkpoint until the cursor completes or this run reaches a bound.
+          if(!coreTask&&cycle&&amendmentDocumentRouteRepairPending(this.store,generation))continue;
           // Publish a finished core generation before spending budget on optional metadata.
           if(!coreTask&&cycle&&this.store.get('working')){
             const counts=this.store.taskCounts(generation);
@@ -774,7 +781,6 @@ export class ActivityWorker {
               // don't copy the entire index again for every 25 recovered gaps.
               if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())))break;
               if(adoptedTextRepairDue(this.store,generation))break;
-              if(amendmentDocumentRouteRepairPending(this.store,generation))break;
               if(this.catchUp(this.store.get('working')))continue;await this.finalize(generation);
             }
           }
