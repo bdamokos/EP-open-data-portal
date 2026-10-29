@@ -9,6 +9,13 @@ const request = {method: 'GET', headers: {}};
 const policy = (path, value = {}, options = {}) => apiCachePolicy({...request, ...options}, new URL(path, 'https://example.test'), value, {now});
 const seconds = value => Number(value.cdnCacheControl.match(/max-age=(\d+)/)?.[1]);
 
+test('current plenary week lists use an hourly CDN lifetime',()=>{
+  const value={detail:null,agendaSittings:[{date:'2026-10-14'}],coverage:{agendaComplete:true,sources:[]}};
+  assert.equal(seconds(policy('/api/insights/legislation?week=latest',value)),3600);
+  value.agendaSittings=[{date:'2026-10-07'}];
+  assert.equal(seconds(policy('/api/insights/legislation?week=2026-10-05',value)),21600);
+});
+
 test('unavailable parliamentary service dates remain an explicit uncached profile gap',()=>{
   assert.equal(policy('/api/profile/43',{parliamentaryService:{complete:false,currentSince:null,error:'Some parliamentary service dates are unavailable or inconsistent.'}}).cdnCacheControl,'no-store');
 });

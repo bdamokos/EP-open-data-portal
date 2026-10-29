@@ -3,6 +3,7 @@ import {createReadStream} from "node:fs";
 import {readFile,writeFile} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
+import {agendaFreshMs} from './plenary-cache-policy.mjs';
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
@@ -220,6 +221,11 @@ export async function odp(
   { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
+  // All agenda consumers share one policy, including live-status and vote reads.
+  // Explicit maintenance refreshes still use force; cache age alone never
+  // re-downloads a completed week's agenda.
+  const agendaMs=agendaFreshMs(endpoint);
+  if(agendaMs!==null)ttl=Math.max(ttl,agendaMs);
   const url = new URL(ODP_BASE + endpoint);
   for (const [key, value] of Object.entries({
     ...params,

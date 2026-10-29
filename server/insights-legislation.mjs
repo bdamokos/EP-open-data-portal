@@ -14,9 +14,10 @@ import {speakerNameIsSpecific} from './speech-speakers.mjs';
 import {CURRENT_TERM_START} from './analysis-period.mjs';
 import {requestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {retainedSpeechMetadata} from './corpus-speeches.mjs';
+import {agendaFreshMs} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v9-availability-group-contributions';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v10-retained-agendas';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -63,12 +64,12 @@ export class LegislationInsights {
         if(saved)return {url:saved.sourceUrl,fetchedAt:Date.parse(saved.fetchedAt),payload:{data:[saved.activity]},...sourceCacheState(saved)};
       }
     }
-    const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key);
+    const key=JSON.stringify([endpoint,params]);const old=this.cache.get(key),agendaMs=agendaFreshMs(endpoint,this.clock());
     if(old&&sourceIsTransient(old.value))this.cache.delete(key);
-    else if(old&&this.clock()-old.at<LEGISLATION_LIMITS.cacheMs)return old.value;
+    else if(old&&this.clock()-(agendaMs===null?old.at:old.value.fetchedAt)<(agendaMs??LEGISLATION_LIMITS.cacheMs))return old.value;
     const failed=this.failures.get(key);if(failed&&this.clock()-failed.at<60_000)throw failed.error;
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
-    const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
+    const job=sharedRequest(async()=>{const value=await this.request(endpoint,params,{priority:'interactive',staleWhileRevalidate:true,...(agendaMs===null?{}:{ttl:agendaMs})});requestSignal()?.throwIfAborted();if(!Array.isArray(value.payload?.data))throw new HttpError(502,'insights_source_shape','Parliament returned an unreadable insight source.');
       if(Buffer.byteLength(JSON.stringify(value.payload))>LEGISLATION_LIMITS.rawBytes)throw new HttpError(502,'insights_source_size','Parliament source exceeds the bounded insight response size.');
       // Let the ODP cache expose recovery on the next read instead of pinning an SWR snapshot.
       if(sourceIsTransient(value))this.cache.delete(key);else this.cache.set(key,{at:this.clock(),value});this.failures.delete(key);while(this.cache.size>LEGISLATION_LIMITS.cacheEntries)this.cache.delete(this.cache.keys().next().value);return value;

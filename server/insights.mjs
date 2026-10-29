@@ -19,6 +19,7 @@ import {odp} from './odp.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
 import {recentPlenaryWeeks} from './plenary-warmup.mjs';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
+import {agendaViewFreshMs,nextPlenaryWarmup} from './plenary-cache-policy.mjs';
 
 // Root integration supplies its already-owned store; this module never starts a worker.
 export function createInsights(store,options={}) {
@@ -50,19 +51,21 @@ export function createInsights(store,options={}) {
   let warmReader;
   return {async warmPlenary() {
     const status=store.status();
-    if(!status.currentMeps||!status.servingGeneration)return;
+    if(!status.currentMeps||!status.servingGeneration)return 60_000;
     if(!warmReader){
       const request=(endpoint,params,settings)=> (options.request||odp)(endpoint,params,{...settings,priority:'background',signal:requestSignal()});
       warmReader=new LegislationInsights(store,{...shared,request,meetings:new MeetingsReader({request,clock})});
     }
-    const catalogue=await warmReader.catalogue(),weeks=recentPlenaryWeeks(catalogue,clock());
+    const catalogue=await warmReader.catalogue(),weeks=recentPlenaryWeeks(catalogue,clock()),values=[];
     // The UI defaults to English/latest. Raw source records contain all languages.
     for(const week of weeks.length?['latest',...weeks]:[]) {
       const query=insightQuery(new URLSearchParams({week,lang:'en'}),{kind:'legislation',now:clock()}),key=viewKey('legislation',query);
-      await views.get(key,()=>warmReader.query(query,catalogue));
+      const value=await views.get(key,()=>warmReader.query(query,catalogue),{freshMs:value=>agendaViewFreshMs(value,clock())});
       // Stale views return immediately to readers; warming waits for their refresh.
-      const pending=views.pending.get(views.key(key));if(pending)await waitForRequest(pending);
+      const pending=views.pending.get(views.key(key)),refreshed=pending?await waitForRequest(pending):null;
+      values.push(refreshed?.value||value);
     }
+    return nextPlenaryWarmup(catalogue,values,clock());
   },async query(view,searchParams) {
     if(view==='search')return search.query(parliamentSearchQuery(searchParams));
     if(view==='dossier-activity')return dossierActivity.query(dossierActivityQuery(searchParams));
@@ -76,6 +79,6 @@ export function createInsights(store,options={}) {
     if(view==='participation'){const query=participationQuery(searchParams),generation=store.status().servingGeneration;return views.get([INSIGHTS_VERSION,LEGISLATION_VIEW_VERSION,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,brusselsDay(clock()),query],()=>participation(legislation,store,query,{clock,readEvent:options.readEvent}));}
     if(!['questions','legislation'].includes(view))throw new HttpError(404,'insight_not_found','Unknown insight view.');
     const query=insightQuery(searchParams,{kind:view,now:options.clock?.()??Date.now()});
-    return views.get(viewKey(view,query),()=>view==='questions'?questions.query(query):legislation.query(query));
+    return views.get(viewKey(view,query),()=>view==='questions'?questions.query(query):legislation.query(query),view==='legislation'&&!query.topic&&!query.vote?{freshMs:value=>agendaViewFreshMs(value,clock())}:{});
   }};
 }

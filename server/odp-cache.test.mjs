@@ -166,3 +166,27 @@ test('agenda disk budget evicts older files without touching general sources and
     assert.deepEqual(await cold.odp('/meetings/MTG-PL-2026-09-16/foreseen-activities'),legacy);
   `);
 });
+
+test('all consumers reuse an aged completed-week agenda across restart without source rechecks',async t=>{
+  await fixture(t,`
+    const endpoint='/meetings/MTG-PL-2024-07-17/foreseen-activities';
+    allowed=true;const expected=await odp(endpoint);assert.equal(calls,1);allowed=false;
+    const time=Date.now();Date.now=()=>time+60*86400_000;
+    const cold=await import(${JSON.stringify(moduleUrl+'?settled-agenda')});
+    const retained=await cold.odp(endpoint,{}, {ttl:60_000,staleWhileRevalidate:true});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(retained,expected);assert.equal(calls,1);
+  `);
+});
+
+test('a shorter live-reader TTL cannot recheck the active agenda before one hour',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-10-20T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-10-20/foreseen-activities';
+    allowed=true;const expected=await odp(endpoint,{}, {ttl:60_000});assert.equal(calls,1);
+    allowed=false;time+=5*60_000;
+    assert.deepEqual(await odp(endpoint,{}, {ttl:60_000}),expected);assert.equal(calls,1);
+    time+=55*60_000+1;allowed=true;networkPayload={data:[{identifier:'hourly update'}]};
+    assert.equal((await odp(endpoint,{}, {ttl:60_000})).payload.data[0].identifier,'hourly update');assert.equal(calls,2);
+  `);
+});

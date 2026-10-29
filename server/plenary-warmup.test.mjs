@@ -57,12 +57,37 @@ test('warm-up retains missing agendas as explicit gaps',async()=>{
   assert.equal(result.coverage.agendaComplete,false);assert.match(result.coverage.agendaError,/Temporarily unavailable/);assert.deepEqual(result.topics,[]);
 });
 
-test('warm-up ticks do not overlap and shutdown stops future ticks',async t=>{
-  t.mock.timers.enable({apis:['setInterval']});
+test('warm-up wakes only when data is due, never overlaps, and stops on shutdown',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:clock()});
   let finish,calls=0;
-  const stop=startPlenaryWarmup(()=>{calls++;return new Promise(resolve=>finish=resolve);},{intervalMs:100});
+  const stop=startPlenaryWarmup(()=>{calls++;return new Promise(resolve=>finish=resolve);});
   assert.equal(calls,1);t.mock.timers.tick(1000);assert.equal(calls,1);
-  finish();await new Promise(resolve=>setImmediate(resolve));
+  finish(100);await new Promise(resolve=>setImmediate(resolve));
   t.mock.timers.tick(100);assert.equal(calls,2);
-  stop();finish();await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(1000);assert.equal(calls,2);
+  stop();finish(100);await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(1000);assert.equal(calls,2);
+});
+
+test('there are no periodic historical cache checks between plenary weeks',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:clock()});
+  let calls=0;
+  const stop=startPlenaryWarmup(async()=>{calls++;return 10*86400_000;});t.after(stop);
+  await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(9*86400_000);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,1);
+  t.mock.timers.tick(86400_000);await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,2);
+});
+
+test('a completed week view does not expire after five minutes or six hours',async t=>{
+  let now=clock(),calls=0;
+  const fixture=JSON.parse(await readFile(new URL('./fixtures/insights-live-20261014.json',import.meta.url),'utf8'));
+  const store={get:()=>null,status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({get:()=>undefined})}};
+  const service=createInsights(store,{clock:()=>now,viewCache:{directory:null},request:async(endpoint,{year}={})=>{
+    calls++;
+    return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:now,payload:endpoint==='/meetings'?{data:year===2026?fixture.meetings.payload.data.filter(s=>s.activity_id==='MTG-PL-2026-10-07'):[]}:fixture.foreseen.payload};
+  }});
+  const params=new URLSearchParams('week=2026-10-05'),first=await service.query('legislation',params),count=calls;
+  now+=7*60*60_000;
+  const second=await service.query('legislation',params);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls,count);assert.equal(second.viewCache.stale,false);assert.equal(second.viewCache.refreshInProgress,false);
+  assert.equal(second.viewCache.computedAt,first.viewCache.computedAt);assert.deepEqual(second.topics,first.topics);
 });

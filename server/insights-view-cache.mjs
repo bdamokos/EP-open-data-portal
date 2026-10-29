@@ -61,7 +61,8 @@ export class InsightViewCache {
     const checkedLoad=async()=>{const result=await load();validate?.(result);return result;};
     const failure=this.failures.get(key);
     if(old) {
-      const stale=this.clock()-old.at>(old.value?.coverage?.catalogue&&calendarNeedsRefresh(old.value.coverage.catalogue)?Math.min(freshMs,60_000):freshMs);
+      const lifetime=typeof freshMs==='function'?freshMs(old.value):freshMs;
+      const stale=this.clock()-old.at>(old.value?.coverage?.catalogue&&calendarNeedsRefresh(old.value.coverage.catalogue)?Math.min(lifetime,60_000):lifetime);
       const retryAt=failure?Math.max(failure.at+60_000,failure.retryAt||0):null;
       if(stale&&(!failure||this.clock()>retryAt))void this.refresh(key,checkedLoad).catch(()=>{});
       return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null,...(includeRetryAt?{retryAt}: {})}};
