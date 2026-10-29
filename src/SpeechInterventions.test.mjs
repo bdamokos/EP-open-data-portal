@@ -7,6 +7,53 @@ import {readFileSync} from 'node:fs';
 import {speechSummary} from '../server/odp.mjs';
 import {SpeechInterventions} from '../server/speech-intervention-service.mjs';
 
+test('every contribution opens from its header while type badges remain informational',async t=>{
+  const window=new Window({url:'http://localhost/'});
+  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let loadModule,root;
+  t.after(async()=>{
+    if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();
+    for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
+  });
+  const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/speech-interventions-live-20261015.json',import.meta.url)));
+  const available=fixture.activities.map(speechSummary);
+  const types=['speech','chair','written','blue-card-question','blue-card-answer','blue-card-reaction','blue-card-intervention'];
+  const records=types.map(type=>{
+    const row=available.find(row=>row.intervention.type===type);assert(row,`Missing ${type} fixture`);
+    return {...row,replyTo:null,exchangeId:null};
+  });
+  t.mock.method(globalThis,'fetch',async url=>{
+    if(String(url).includes('speech-context/'))return Response.json({speechId:records[0].id,debates:[{id:fixture.parent.activity_id,titles:{en:'Debate'},records,exchanges:[],coverage:{complete:true}}]});
+    const row=records.find(row=>String(url).includes(row.id));assert(row);
+    return Response.json({id:row.id,xml:null,textLanguage:'en'});
+  });
+  loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {SpeechContextPanel}=await loadModule('/src/SpeechInterventions.tsx');
+  const {createRoot}=await import('react-dom/client');const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(SpeechContextPanel,{id:records[0].id,language:'en',preload:false})));
+  const toggle=container.querySelector('.intervention-context-toggle');assert.match(toggle.textContent,/^View speech in context/);
+  await act(async()=>toggle.click());
+  assert.equal(container.querySelectorAll('.intervention-badges button').length,0);
+  const entries=[...container.querySelectorAll('.intervention-sequence>li')];assert.equal(entries.length,types.length);
+  for(const [index,entry] of entries.entries()) {
+    const button=entry.querySelector('.intervention-read');
+    assert.equal(entry.querySelectorAll('button').length,1,`${types[index]} has one disclosure`);
+    assert.equal(button.type,'button');assert.equal(button.getAttribute('aria-expanded'),'false');
+    assert.equal(button.querySelector('.intervention-read-chevron').getAttribute('aria-hidden'),'true');
+    // Names, times and the opening indicator belong to the same target.
+    assert(button.querySelector('.intervention-read-label > span'));assert(button.querySelector('small'));
+    await act(async()=>button.click());
+    assert.equal(button.getAttribute('aria-expanded'),'true');
+    const reader=document.getElementById(button.getAttribute('aria-controls'));assert(reader);
+    assert.equal(document.activeElement,reader);assert(reader.querySelector('.intervention-connected-text'));
+    assert.equal(container.querySelectorAll('.intervention-read[aria-expanded=true]').length,1);
+    await act(async()=>button.click());
+    assert.equal(button.getAttribute('aria-expanded'),'false');assert.equal(container.querySelector('.intervention-connected-text'),null);
+  }
+});
+
 test('procedural notes explain later contributions without speech controls, while trailing notes are omitted',async t=>{
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};

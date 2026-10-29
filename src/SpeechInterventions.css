@@ -31,27 +31,26 @@
 .intervention-sequence{list-style:none;padding:0!important;margin:1rem 0!important}
 .intervention-sequence>li{display:grid;grid-template-columns:1.7rem minmax(0,1fr);gap:.55rem;padding:0 0 .9rem;position:relative}
 .intervention-sequence>li:not(:last-child):before{content:'';position:absolute;left:.8rem;top:1.6rem;bottom:.1rem;border-left:1px solid var(--line)}
-.intervention-sequence-node{display:grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--surface-2);color:var(--ink-muted)}
-.is-exchange>.intervention-sequence-node{background:var(--surface-2);color:var(--accent)}
-.is-current>.intervention-sequence-node{outline:2px solid var(--focus);outline-offset:2px}
+.intervention-sequence-node{display:grid;place-items:center;width:1.7rem;height:1.7rem;color:var(--ink-muted)}
+.is-exchange>.intervention-sequence-node{color:var(--accent)}
 .intervention-sequence>li:has(.intervention-read)>.intervention-sequence-node{margin-top:calc((var(--control-height) - 1.7rem)/2)}
 .intervention-sequence-entry{min-width:0}
 .intervention-sequence-entry>.intervention-caption:first-child{margin:0;padding-block:.225rem}
-.intervention-read{display:flex;align-items:baseline;align-content:center;flex-wrap:wrap;gap:.3rem .7rem;border:0;background:transparent;padding:.4rem .55rem;color:var(--accent);text-align:left;max-width:100%}
-.intervention-read>span{font-size:.88rem;font-weight:650;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.intervention-read{display:flex;align-items:center;justify-content:space-between;gap:.75rem;border:0;background:transparent;padding:.4rem .55rem;color:var(--ink);text-align:left;width:100%;max-width:100%}
+.intervention-read-label{display:flex;align-items:baseline;flex-wrap:wrap;gap:.3rem .7rem;min-width:0}
+.intervention-read-label>span{font-size:.88rem;font-weight:650;overflow-wrap:anywhere}
 .intervention-read small{font-size:.72rem;color:var(--ink-muted)}
+.intervention-read-chevron{width:1rem;height:1rem;flex:none;color:var(--accent)}
+.intervention-read[aria-expanded=true]>.intervention-read-chevron{transform:rotate(180deg)}
+.intervention-read:is(:hover,:focus-visible) .intervention-read-label>span{text-decoration:underline;text-underline-offset:3px}
 .intervention-reply{display:block;font-size:.72rem;color:var(--ink-muted);margin:.2rem 0}
 .intervention-connected-text{margin:.65rem 0;padding:.65rem .85rem;border-left:2px solid var(--accent);background:var(--surface-2);color:var(--ink);font-size:.9rem;line-height:1.75;overflow-wrap:anywhere}
 .intervention-connected-text p{margin:.5rem 0}
 .intervention-context button:focus-visible,.intervention-statistics button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 .explorer .intervention-context-toggle{padding:.8rem 0;background:transparent;color:var(--accent)}
-.explorer .intervention-read{background:transparent;color:var(--accent);padding:.4rem .55rem;min-height:var(--control-height)}
+.explorer .intervention-read{background:transparent;color:var(--ink);padding:.4rem .55rem;min-height:var(--control-height)}
 .explorer .intervention-sequence-heading button{background:var(--surface);color:var(--accent);padding:.4rem .65rem;font-size:.78rem}
 .explorer .intervention-stats-heading h3{font-size:1rem;margin:0}
 .explorer .intervention-read small{font-size:.72rem;color:var(--ink-muted)}
-.explorer button.intervention-badge{min-height:var(--control-height);padding:9px 12px;font-size:var(--control-font-size);line-height:var(--control-line-height);border-color:var(--line-strong);border-radius:var(--radius-sm);color:var(--ink-muted);background:var(--surface-2);cursor:pointer}
-.explorer button.intervention-badge.is-blue{color:var(--accent);background:var(--surface-2)}
-.explorer button.intervention-badge:hover{border-color:var(--accent);text-decoration:underline;text-underline-offset:3px}
-.explorer button.intervention-badge[aria-expanded=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .explorer button.intervention-reply{font-size:14px;min-height:var(--control-height);padding:0;background:transparent;color:var(--accent);text-align:left;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 @media(max-width:620px){.intervention-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.intervention-stats-grid>div:first-child{grid-column:1/-1}.intervention-statistics{padding:.85rem}.intervention-sequence>li{gap:.5rem}.intervention-sequence-heading h4{font-size:.95rem}}
