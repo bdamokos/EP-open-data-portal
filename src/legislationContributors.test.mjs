@@ -93,3 +93,13 @@ test('chairing removes only that dated speech contribution and retains a separat
   const before=structuredClone(input),result=legislationContributors(input,mergeSpeechSpeakers({},[header('intro','1')]));
   assert.equal(result.people.length,1);assert.equal(result.stats.groupContributions.total,1);assert.deepEqual(result.stats.groupContributions.rows,[{label:'Renew',count:1}]);assert.deepEqual(input,before);
 });
+
+test('card activity deduplicates exact speech IDs, separates statements and excludes chairing',async()=>{
+  const {legislationActivity}=await import('./legislationContributors.mjs');
+  const p=person('1'),other=person('2'),input=detail([p,other],[speech('oral',[p]),speech('oral',[p]),speech('written',[p],'PLENARY_DEBATE_WRITTEN_STATEMENT'),speech('chair',[p]),speech('other',[other])]);
+  input.amendments={counts:{'1':3,'2':0}};
+  const headers=mergeSpeechSpeakers({},[header('chair','1')]);
+  assert.deepEqual(legislationActivity(input,headers,'1'),{speeches:1,statements:1,amendments:3});
+  assert.deepEqual(legislationActivity(input,headers,'2'),{speeches:1,statements:null,amendments:null});
+  assert.deepEqual(legislationActivity(input,headers,'unseen'),{speeches:null,statements:null,amendments:null});
+});
