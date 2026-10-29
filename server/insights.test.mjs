@@ -121,7 +121,7 @@ test('explorers reuse saved demographic metadata across date windows and refresh
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
-test('undated question coverage uses only the existing partial index and preserves date/type scope',async t=>{
+test('question counts and ordered windows use the existing partial index and preserve date/type scope',async t=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'undated-question-index-'));
   const store=new ActivityStore(directory,{clock:now});
   t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
@@ -146,8 +146,10 @@ test('undated question coverage uses only the existing partial index and preserv
   t.mock.method(store.db,'prepare',sql=>{
     const statement=prepare(sql);
     if(sql.includes('INDEXED BY question_window')) {
-      const get=statement.get.bind(statement);
-      statement.get=(...args)=>{queries.push({sql,args});return get(...args);};
+      for(const method of ['get','all']) {
+        const execute=statement[method].bind(statement);
+        statement[method]=(...args)=>{const result=execute(...args);queries.push({sql,args,method,result});return result;};
+      }
     }
     return statement;
   });
@@ -156,10 +158,14 @@ test('undated question coverage uses only the existing partial index and preserv
     .query(insightQuery(new URLSearchParams('days=90&lang=hu'),{now:now()}));
   assert.equal(result.coverage.undatedQuestions,11);assert.equal(result.counts.indexedMatchingQuestions,3);
   assert.equal(result.counts.totalQuestions,null);assert.equal(result.coverage.indexComplete,false);
-  assert.equal(queries.length,1,'only the undated count is pinned to this index');
+  assert.equal(queries.length,3,'both counts and the ordered window use the question index');
+  for(const {sql,args,method,result} of queries) {
+    const original=sql.replace(' INDEXED BY question_window',' NOT INDEXED');
+    assert.deepEqual(prepare(original)[method](...args),result,'the indexed read preserves the full source-scan result and order');
+    const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
+    assert.match(plan,/SEARCH sources USING INDEX question_window/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
+  }
   const {sql,args}=queries[0];
-  const original=sql.replace(' INDEXED BY question_window',' NOT INDEXED');
-  assert.equal(prepare(original).get(...args).n,result.coverage.undatedQuestions);
   const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
   assert.match(plan,/SEARCH sources USING INDEX question_window \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
   const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='sources'").get().rootpage;
@@ -167,6 +173,31 @@ test('undated question coverage uses only the existing partial index and preserv
   assert(!program.some(row=>row.opcode==='Column'&&tableCursors.has(row.p1)),'undated count must not read source-table columns');
   assert(!program.some(row=>row.opcode==='Function'&&/json_extract/.test(row.p4)),'undated count must not parse source JSON');
   store.db.exec('PRAGMA query_only=OFF');
+});
+
+test('country facets count shared questions and distinct current authors while retaining alternative countries',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'question-country-facets-')),store=new ActivityStore(directory,{clock:now});
+  t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+  store.acquire();const {generation}=store.beginCycle();
+  store.setMembers([{id:'1',countryCode:'FR'},{id:'2',countryCode:'DE'},{id:'3',countryCode:'DE'},{id:'4'}]);
+  const rows=[['Water safety',['1','2','3','99']],['Digital safety',['2','4']],['Water quality',['3']]];
+  for(const [i,[title,authors]] of rows.entries()) {
+    const id='E-10-2026-00000'+(i+1),key='/parliamentary-questions/'+id;
+    store.putSource(generation,key,'document',{identifier:id,work_type:'def/QUESTION_WRITTEN',document_date:'2026-10-01',title_dcterms:{en:title},creator:authors.map(id=>'person/'+id)},fixture.verifiedAt);
+  }
+  const metadata=new Map([['2',{'api:country-of-representation':'FR'}],['99',{'api:country-of-representation':'FR'}]]);
+  const service=new QuestionInsights(store,{clock:now,loadMetadata:async()=>metadata,loadQuestionBodies:async()=>new Map()});
+  store.db.exec('PRAGMA query_only=ON');
+  const query=s=>service.query(insightQuery(new URLSearchParams('days=30&'+s),{now:now()}));
+  const result=await query('country=FR');
+  assert.equal(result.counts.selectedQuestions,2);
+  assert.deepEqual(result.facets.countries.filter(c=>c.count),[{code:'FR',count:2,authors:2},{code:'DE',count:2,authors:1}]);
+  assert.deepEqual(result.facets.countries.find(c=>c.code==='HU'),{code:'HU',count:0,authors:0});
+  const water=await query('country=FR&word=water');
+  assert.equal(water.counts.selectedQuestions,1);
+  assert.deepEqual(water.facets.countries.filter(c=>c.count),[{code:'FR',count:1,authors:2},{code:'DE',count:2,authors:1}]);
+  assert.equal(water.selectedStats.uniqueCurrentMeps,2);
+  assert.equal(water.coverage.indexComplete,false);assert.equal(water.counts.totalQuestions,null);
 });
 
 test('subject filters validate exact place IDs and reject labels, unknown and repeated IDs',()=>{
