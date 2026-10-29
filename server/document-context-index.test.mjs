@@ -12,7 +12,7 @@ const now=Date.parse('2026-10-29T01:30:00Z'),stamp=new Date(now).toISOString();
 const motion='B-10-2026-0339',adopted='TA-10-2026-0271',motionKey='/plenary-documents/'+motion,adoptedKey='/adopted-texts/'+adopted;
 // Synthetic metadata uses the exact public identifier shapes; no runtime cache.
 const root={id:'eli/dl/doc/'+motion,identifier:motion,work_type:'def/ep-document-types/RESOLUTION_MOTION',inverse_created_a_realization_of:['eli/dl/proc/2026-0001']};
-const work=(extra={})=>({id:'eli/dl/doc/'+adopted,identifier:adopted,work_type:'def/ep-document-types/TEXT_ADOPTED',parliamentary_term:'org/ep-10',title_dcterms:{en:'Retained adoption'},document_date:null,adoptionProjectionVersion:1,adopts:['eli/dl/doc/'+motion],is_realized_by:[],...extra});
+const work=(extra={})=>({id:'eli/dl/doc/'+adopted,identifier:adopted,work_type:'def/ep-document-types/TEXT_ADOPTED',parliamentary_term:'org/ep-10',title_dcterms:{en:'Retained adoption'},document_date:null,adoptionProjectionVersion:1,adopts:['eli/dl/doc/'+motion],languageVersionsObserved:true,is_realized_by:[{language:'en',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/adopted_en.docx'}]}],...extra});
 const query=(extra={})=>({id:motion,language:'en',adopted:true,includeBody:true,...extra});
 const limits={adoptedCandidates:8,metadataBytes:16*1024*1024};
 function setup(t) {
@@ -67,10 +67,23 @@ test('missing or unverified retained adoption relationships keep ordinary exact 
 
 test('candidate validation rejects conflicting identity, type, term, target and invalid retrieval date',t=>{
   const {store,generation}=setup(t);
-  for(const patch of [{identifier:'TA-10-2026-0272'},{id:'eli/dl/doc/TA-10-2026-0272'},{work_type:'def/ep-document-types/REPORT_PLENARY'},{parliamentary_term:'org/ep-9'},{adopts:['eli/dl/doc/B-10-2026-0340']},{adopts:null},{}]) {
+  for(const patch of [{identifier:'TA-10-2026-0272'},{id:'eli/dl/doc/TA-10-2026-0272'},{work_type:'def/ep-document-types/REPORT_PLENARY'},{work_type:'https://other.example/TEXT_ADOPTED'},{work_type:'TEXT_ADOPTED'},{parliamentary_term:'org/ep-9'},{adopts:['eli/dl/doc/B-10-2026-0340']},{adopts:null},{}]) {
     store.putSource(generation,adoptedKey,'document',work(patch),Object.keys(patch).length?stamp:'invalid');
     assert.equal(retainedDocumentContext(store,query(),limits),null,JSON.stringify(patch));
   }
+});
+
+for(const patch of [{languageVersionsObserved:false,is_realized_by:[]},{is_realized_by:[]},{is_realized_by:[{language:'fr',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/adopted_fr.docx'}]}]},
+  {is_realized_by:[{language:'en',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://other.example/adopted.docx'}]}]},
+  {is_realized_by:[{language:'en',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/adopted_en.docx'},{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/competing_en.docx'}]}]},
+])test('incomplete selected-edition metadata recovers through the ordinary source read: '+JSON.stringify(patch),async t=>{
+  const {store,generation}=setup(t);let requests=0;
+  store.putSource(generation,adoptedKey,'document',work(patch),stamp);
+  const reader=new DocumentContext({request:async endpoint=>{requests++;assert.equal(endpoint,adoptedKey);return {payload:{data:[work()]},fetchedAt:stamp};},readText:async observed=>{
+    assert.deepEqual(observed.is_realized_by,work().is_realized_by);return {status:'available',paragraphs:['Recovered selected edition'],textLanguage:'en'};
+  }});
+  const result=await reader.query(query({id:adopted,adopted:false}),{store});assert.equal(requests,1);assert.equal(result.document.selectedText.status,'available');
+  assert.equal(result.sources[0].representation,undefined);
 });
 
 test('retained discovery bounds candidates and metadata without treating the retained set as complete',async t=>{

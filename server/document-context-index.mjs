@@ -1,7 +1,9 @@
 import {createHash} from 'node:crypto';
 import {amendmentGeneration} from './amendments-store.mjs';
 import {canonicalEPReference} from './amendments.mjs';
-import {array} from './activity-index-model.mjs';
+import {array,tail,documentFiles} from './activity-index-model.mjs';
+import {languageCode} from './ep-links.mjs';
+import {allowedDownload} from './document-text.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 import {HttpError} from './http-utils.mjs';
 import {ODP_BASE} from './odp.mjs';
@@ -32,7 +34,15 @@ export function retainedDocumentContext(store,query,{adoptedCandidates,metadataB
       if(work.identifier!==query.id||canonicalEPReference(work.id)!=='eli/dl/doc/'+query.id||typeOf(work)!==expected(query.id))return null;
       if(query.id.startsWith('TA-'))try{validateAdoptedText(endpoint,work);}catch{return null;}
       const root=observation(endpoint,work,saved.fetchedAt,generation);if(!root)return null;
-      if(!query.adopted)return {root,related:[],truncated:false};
+      if(!query.adopted) {
+        const declared=array(work.is_realized_by).filter(expression=>languageCode(expression.language)===query.language)
+          .flatMap(expression=>array(expression.is_embodied_by).filter(file=>tail(file.format)==='DOCX'));
+        const file=documentFiles(work).find(file=>file.language===query.language&&file.format==='DOCX');
+        // Unknown, missing or competing selected-edition declarations need a
+        // fresh metadata read; retained absence must not suppress recovery.
+        if(work.languageVersionsObserved!==true||declared.length!==1||!file||!allowedDownload(file.url))return null;
+        return {root,related:[],truncated:false};
+      }
       const reference='eli/dl/doc/'+query.id;
       const rows=store.db.prepare(`SELECT key,body,fetched_at FROM sources source WHERE generation=? AND kind='document'
         AND key GLOB '/adopted-texts/TA-10-*' AND EXISTS(SELECT 1 FROM json_each(source.body,'$.adopts') adoption
@@ -42,6 +52,7 @@ export function retainedDocumentContext(store,query,{adoptedCandidates,metadataB
       for(const row of rows.slice(0,adoptedCandidates)) {
         const adopted=JSON.parse(row.body);
         try{validateAdoptedText(row.key,adopted);}catch{continue;}
+        if(typeOf(adopted)!==expected(adopted.identifier))continue;
         if(!array(adopted.adopts).some(value=>canonicalEPReference(value)===reference))continue;
         const saved=observation(row.key,adopted,row.fetched_at,generation);if(saved)related.push(saved);
       }
