@@ -241,3 +241,16 @@ test('actual agenda changes invalidate retained records and views; unchanged rea
     const count=calls;await service.query('legislation',query);assert.equal(calls,count,'retained correction needs no periodic source read');
   `);
 });
+
+test('bounded agenda eviction cannot restore a superseded flat-cache observation',async t=>{
+  await fixture(t,`
+    const endpoint='/meetings/MTG-PL-2024-07-17/foreseen-activities';
+    const old=await save(endpoint),flat=path.join(directory,createHash('sha256').update(old.url).digest('hex')+'.json');
+    allowed=true;networkPayload={data:[{identifier:'accepted correction'}]};
+    const corrected=await odp(endpoint,{}, {force:true});assert.equal(corrected.payload.data[0].identifier,'accepted correction');
+    await assert.rejects(stat(flat),error=>error.code==='ENOENT');
+    await rm(path.join(directory,'plenary-agendas-v1',createHash('sha256').update(old.url).digest('hex')+'.json'));
+    const cold=await import(${JSON.stringify(moduleUrl+'?evicted-migration')});
+    assert.equal((await cold.odp(endpoint)).payload.data[0].identifier,'accepted correction');assert.equal(calls,2);
+  `);
+});

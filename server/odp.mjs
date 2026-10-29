@@ -1,6 +1,6 @@
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
-import {readFile,writeFile} from "node:fs/promises";
+import {readFile,writeFile,unlink} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
@@ -181,14 +181,21 @@ function newestSource(key, record) {
 const publishLocked = async (key, serialized) => {
   try {
     const file=filename(key);
-    if(await writeCacheFile(file,serialized,{signal:null})&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
-  }catch{/* Available source data must survive a failed reproducible disk write. */}
+    const published=await writeCacheFile(file,serialized,{signal:null});
+    if(published&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
+    return published;
+  }catch{return false;/* Available source data survives a failed reproducible disk write. */}
 };
 function publishSourceFile(key, record, serialized, signal) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
     if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
-    await publishLocked(key, serialized);
+    const published=await publishLocked(key, serialized);
+    if(published&&isAgendaKey(key)) {
+      const legacy=Buffer.from(key).toString('base64url')+'.json';
+      const old=[path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),...(legacy.length<=255?[path.join(cacheDir,legacy)]:[])];
+      for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
+    }
   }), signal ?? null);
 }
 async function readSourceRecord(file, signal) {

@@ -15,7 +15,7 @@ async function harness(t,path,component,query,respond,props={}) {
   const window=new Window({url:'http://localhost/'+query});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,
     HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:class {observe(){} disconnect(){}},
-    requestAnimationFrame:window.requestAnimationFrame.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
+    requestAnimationFrame:window.requestAnimationFrame.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;
@@ -38,6 +38,24 @@ async function harness(t,path,component,query,respond,props={}) {
   const click=text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(button,'Missing button: '+text);button.click();});
   return {window,container,calls,status,messages,navigate,click,tick};
 }
+
+for(const fail of [false,true])test('cached agenda title and document links open before '+(fail?'a detail failure':'detail enrichment'),async t=>{
+  const selected=deferred(),reading=deferred(),sitting={id:'MTG-PL-2026-10-20',date:'2026-10-20',phase:'past'};
+  const topic={id:sitting.id+'-OJ-ITM-V-27',sittingId:sitting.id,title:'Protection of adults',titleLanguage:'en',date:sitting.date,kind:'PLENARY_VOTE',documentIds:['A-10-2025-0128'],procedureIds:[]};
+  const base={view:'legislation',week:'2026-10-19',sitting,sittings:[sitting],agendaSittings:[sitting],topics:[topic],detail:null,coverage:{agendaComplete:true,agendaError:null,latestAvailable:true}};
+  const h=await harness(t,'/src/Legislation.tsx','Legislation','?view=legislation&agenda-period=week%3A2026-10-19&agenda-topic='+topic.id,url=>url.pathname.includes('/document/')?reading.promise:url.searchParams.has('topic')?selected.promise:base);
+  await h.tick();
+  const heading=h.container.querySelector('.insight-topic-detail h2');assert.equal(heading.textContent,topic.title);
+  assert(!h.container.textContent.includes('No contributors listed.'),'pending detail must not manufacture empty observations');
+  const read=[...h.container.querySelectorAll('.insight-dossier-links button')].find(button=>button.textContent==='Read A-10-2025-0128');assert(read,'the primary document can open immediately');
+  await act(async()=>read.click());assert.equal(read.getAttribute('aria-expanded'),'true');
+  const detail={...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats:{uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,denominator:0,referenceDate:sitting.date,dimensions:{country:[],group:[],gender:[],age:[]}},speeches:[],votes:[],selectedVote:null,voteCoverage:{available:false,truncated:false},coverage:{missingDocumentIds:[],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}};
+  await act(async()=>selected.resolve(fail?Response.json({error:{code:'fixture_unavailable'}},{status:503}):{...base,detail}));await h.tick();
+  assert.equal(h.container.querySelector('.insight-topic-detail h2'),heading,'enrichment keeps the visible title and reader in place');
+  assert.equal(read.getAttribute('aria-expanded'),'true','enrichment or failure must not close a reader already opened');
+  assert(!h.container.textContent.includes('Agenda item unavailable'));
+  if(fail)assert.match(h.container.querySelector('.insight-topic-detail [role="alert"]').textContent,/Details unavailable/);
+});
 
 test('participation announces only settled filters and keeps focus while qualifying upcoming and missing activity',async t=>{
   const response=deferred();
