@@ -28,6 +28,19 @@ test('cache-only author enrichment never starts a download and returns saved tex
   assert.deepEqual(saved.paragraphs,['Saved text']);assert.deepEqual(saved.authorBylineParagraphs,['Zoë Member, Alex Common']);assert.equal(calls,1);
 });
 
+test('an unchanged failed edition keeps its cooldown while a changed edition can recover at the same URL',async t=>{
+  const directory=await fixture(t),url='https://data.europarl.europa.eu/distribution/fixture/failed-edition-cooldown.docx',item=work(url);
+  const now=Date.parse('2026-10-29T16:00:00Z');let downloads=0;
+  const options={directory,clock:()=>now,download:async()=>{if(++downloads===1)throw Error('Edition unavailable');return {paragraphs:['Republished text'],formattingVersion:DOCX_FORMATTING_VERSION};}};
+  const first=await documentText(item,'en',options),unchanged=await documentText(structuredClone(item),'en',options);
+  assert.equal(first.status,'error');assert.equal(unchanged.nextRetryAt,first.nextRetryAt);assert.equal(downloads,1);
+  const unknown=await documentText(work(url,{byteSize:null,issued:null}),'en',options);
+  assert.equal(unknown.nextRetryAt,first.nextRetryAt);assert.equal(downloads,1,'omitting version metadata does not establish a changed edition');
+  const recovered=await documentText(work(url,{byteSize:1001}),'en',options);
+  assert.equal(recovered.status,'available');assert.deepEqual(recovered.paragraphs,['Republished text']);assert.equal(downloads,2);
+  assert.deepEqual(recovered.sourceVersion,{byteSize:1001,issued:'2026-01-10T10:00:00+01:00'});
+});
+
 test('settled texts are never re-read, recent ones weekly, and a changed file listing at once', () => {
   const source = {byteSize: 1000, issued: '2026-01-10T10:00:00+01:00'}, item = work('https://data.europarl.europa.eu/distribution/doc/a.docx');
   const at = days => new Date(Date.parse('2026-01-10') + days * DAY).toISOString();

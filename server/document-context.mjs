@@ -23,7 +23,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=37;
+export const DOCUMENT_CONTEXT_VERSION=40;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -71,7 +71,7 @@ export class DocumentContext {
     const candidate=query.amendmentId&&store?this.findAmendment(store,{document:query.id,id:query.amendmentId,language:query.language}):null;
     const exactIdentity=candidate?.id===query.amendmentId||array(candidate?.officialIds).some(value=>ref(value)==='eli/dl/doc/'+query.amendmentId);
     const indexed=exactIdentity&&candidate?.targetDocumentId===query.id?candidate:null;
-    const retained=retainedDocumentContext(store,query,this.limits);
+    const retained=retainedDocumentContext(store,query,this.limits,{amendment:indexed});
     const key=createHash('sha256').update(JSON.stringify([query,indexed,retained])).digest('hex');const cached=this.cache.get(key);
     if(cached&&cached.until>this.clock())return cached.value;
     if(cached){this.bytes-=cached.bytes;this.cache.delete(key);}
@@ -126,7 +126,7 @@ export class DocumentContext {
       sources.push(source);const result={work:nodes[0],record,source};records.set(endpoint,result);return result;
     };
     const endpoint=(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
-    const {work,record}=await read(endpoint,query.id);
+    let {work,record,source:rootSource}=await read(endpoint,query.id);
     if(canonicalType(work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
     const related={status:'not-requested',items:[],gaps:[]};
     if(query.adopted&&retained?.related.length) {
@@ -158,24 +158,27 @@ export class DocumentContext {
     }
     let document=null;
     if(!query.adopted&&query.includeBody!==false) {
-      let selectedWork=work,selectedRecord=record,selectedText=await this.readText(work,query.language);
+      let selectedText=await this.readText(work,query.language);
       if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
         const fresh=await read(endpoint,query.id,{live:true});
         if(canonicalType(fresh.work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
-        validateAdoptedText(endpoint,fresh.work);
+        if(query.id.startsWith('TA-'))validateAdoptedText(endpoint,fresh.work);
+        else if(array(fresh.work.parliamentary_term).some(value=>canonicalType(value)!=='org/ep-10'))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested parliamentary term.');
         // A missing retained file may have been replaced. Retry the body only
         // when its selected-edition declaration or source version changes.
         const selectedFiles=value=>declaredDocxFiles(value).filter(file=>file.language===query.language);
         if(JSON.stringify(selectedFiles(fresh.work))!==JSON.stringify(selectedFiles(work)))selectedText=await this.readText(fresh.work,query.language);
-        selectedWork=fresh.work;selectedRecord=fresh.record;
+        // Body, linked amendment discovery and any language fallback must all
+        // use this same validated root observation.
+        ({work,record,source:rootSource}=fresh);
       }catch(error) {
         requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;
         const refreshError=String(error.message).slice(0,350);
-        selectedRecord={...record,refreshError};retained.root.source.refreshError=refreshError;
+        record={...record,refreshError};retained.root.source.refreshError=refreshError;
       }
-      document={...documentSummary(selectedWork,null),selectedDocumentId:query.id,selectedDocumentDate:selectedWork.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(selectedRecord.fetchedAt).toISOString(),sourceCache:{stale:Boolean(selectedRecord.stale),refreshInProgress:Boolean(selectedRecord.refreshInProgress),refreshError:selectedRecord.refreshError||null}};
+      document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
     }
-    let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
+    let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read,rootSource):null;
     const wordingSelected=Object.hasOwn(query,'wordingLanguage');
     let candidates=amendment?.variants.filter(variant=>!wordingSelected||variant.listId===query.listId&&variant.language===query.wordingLanguage)||[];
     const listIds=[...new Set(candidates.map(variant=>variant.listId))];
@@ -191,7 +194,7 @@ export class DocumentContext {
     // Only a missing publication language permits a translation of this exact
     // list/number. An unreadable or competing same-language source stays a gap.
     if(document&&exactList&&requestedWording&&textLanguages.length&&!textLanguages.includes(requestedWording)&&!candidates.some(variant=>['commission-proposal','council-position','present-text'].includes(variant.baseline))) {
-      const fallback=await this.amendment({...query,listId:exactList,matchingTextLanguages:textLanguages},null,work,sources,read);
+      const fallback=await this.amendment({...query,listId:exactList,matchingTextLanguages:textLanguages},null,work,sources,read,rootSource);
       const readable=fallback.variants.filter(variant=>variant.wordingStatus==='available');
       if(readable.length===1) {
         chosen=readable[0];
@@ -239,7 +242,7 @@ export class DocumentContext {
     if(proposal&&document)document={...document,selectedText:undefined};
     return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),wordingLanguageFallback,document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }
-  async amendment(query,indexed,work,sources,read) {
+  async amendment(query,indexed,work,sources,read,rootSource) {
     const base={id:query.amendmentId,status:'unavailable',basis:null,variants:[],gaps:[]};
     const variants=indexed?.variants?.length?indexed.variants:indexed?[indexed]:[];
     const selectedVariants=variants.filter(row=>(!query.listId||row.listId===query.listId)&&typeof row.listId==='string');
@@ -258,7 +261,7 @@ export class DocumentContext {
     for(const candidate of candidates) {
       const listId=tail(ref(candidate)),fingerprint=JSON.stringify(candidate);
       if(observed.has(listId)){if(observed.get(listId)!==fingerprint)base.gaps.push('conflicting-list-metadata');continue;}observed.set(listId,fingerprint);
-      let list=candidate,metadataSource=sources[0];
+      let list=candidate,metadataSource=rootSource;
       if(typeof candidate==='string'||!Object.hasOwn(candidate,'is_realized_by')||query.matchingTextLanguages&&!declaredDocxFiles(candidate).some(file=>query.matchingTextLanguages.includes(file.language)))try {const result=await read('/documents/'+listId,listId);list=result.work;metadataSource=result.source;}catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;base.gaps.push('amendment-list-unavailable');continue;}
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const wordingSelected=Object.hasOwn(query,'wordingLanguage')||Boolean(query.matchingTextLanguages);
