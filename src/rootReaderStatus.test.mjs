@@ -31,7 +31,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
       return parsed;
     }
   }
-  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:ReaderDOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1440,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:id=>clearTimeout(id),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,loadModule;
@@ -65,6 +65,8 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
   // Module loading uses real timers; only mounted application deadlines are advanced.
   t.mock.timers.enable({apis:['setTimeout']});
+  t.mock.method(window,'setTimeout',(callback,delay,...args)=>setTimeout(callback,delay,...args));
+  t.mock.method(window,'clearTimeout',timer=>clearTimeout(timer));
   const tick=async(ms=350)=>{await act(async()=>{});await act(async()=>{t.mock.timers.tick(ms);});};
   await act(async()=>root.render(createElement(App)));
   const click=node=>{assert(node,'Missing control');return act(async()=>node.click());};
@@ -74,6 +76,15 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
   return {window,container,pending,searches,revealed,click,finish,expireActivityReads,tick,wait:()=>tick(350)};
 }
 const status=reader=>reader.querySelector('[role="status"][aria-live="polite"]');
+test('an uncancelled inline draft commits when the controlled window debounce expires',async t=>{
+  const h=await harness(t,{module:'speeches',items:[speechItem]});
+  const field=h.container.querySelector('.explorer-text-search-inline input');
+  await act(async()=>{Object.getOwnPropertyDescriptor(h.window.HTMLInputElement.prototype,'value').set.call(field,'energy');field.dispatchEvent(new h.window.InputEvent('input',{bubbles:true,inputType:'insertText',data:'energy'}));});
+  await h.tick(299);assert.equal(h.searches.length,0);
+  await h.tick(1);assert.equal(h.searches.length,1);assert.equal(h.searches[0].query,'energy');
+  assert.equal(new URLSearchParams(location.search).get('mep-speech-fts-search'),'energy');
+});
+
 test('inline full-text results replace the list, combine with exact chair records and clear back to the selected list',async t=>{
   const records=[{id:speechId,date:'2026-03-25',titles:{en:'Chair contribution'},kind:'PLENARY_DEBATE_SPEECH',intervention:{type:'chair',onBehalfOf:[]}},{id:speechId+'2',date:'2026-03-25',titles:{en:'Ordinary speech'},kind:'PLENARY_DEBATE_SPEECH',intervention:{type:'speech',onBehalfOf:[]}}];
   const summary={memberId:String(member.id),items:records,counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:2,total:2,unclassified:0,issues:[]},nextPage:null,sources:[]};
@@ -98,7 +109,9 @@ test('inline full-text results replace the list, combine with exact chair record
   await h.tick(0);
   const cloudSource=h.container.querySelector('.explorer-cloud-source');cloudSource.focus();
   const reveals=h.revealed.length;
+  const committedSearches=h.searches.length;
   await h.click(cloudSource);
+  assert.equal(h.searches.length,committedSearches,'cloud navigation must not fetch the old committed query');
   assert.equal(new URLSearchParams(location.search).has('mep-speech-fts-search'),false);
   assert.equal(h.container.querySelector('.explorer-speech-toggle').getAttribute('aria-expanded'),'true','cloud selection reveals its exact reader after leaving search');
   assert.equal(document.activeElement,h.container.querySelector('.explorer-speech-toggle'));

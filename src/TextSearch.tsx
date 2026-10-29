@@ -1,4 +1,4 @@
-import {useEffect,useId,useRef,useState,type RefObject,type ReactNode} from 'react';
+import {useEffect,useId,useImperativeHandle,useRef,useState,type RefObject,type ReactNode} from 'react';
 import {sourcePageUrl} from './SourceLink';
 import {API_ROOT} from './api';
 import {PersonName,usePersonName} from './PersonName';
@@ -17,7 +17,7 @@ type StoredText=Hit&{body:string;highlightedBody?:string;highlightRanges?:{start
 export interface TextSearchProps {
   prefix:string;label:string;language:string;kinds?:Kind[];member?:number|string;country?:string;addressee?:string;from?:string;to?:string;
   sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:ReactNode;disabledReason?:string;
-  className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;inline?:boolean;summary?:ReactNode;inputRef?:RefObject<HTMLInputElement|null>;
+  className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;inline?:boolean;summary?:ReactNode;inputRef?:RefObject<HTMLInputElement|null>;resetRef?:RefObject<(()=>void)|null>;
 }
 const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
 const kindLabel=(kind:Kind)=>kind==='speech'?'Speech':kind==='answer'?'Institutional answer':'Question';
@@ -46,7 +46,7 @@ function StoredReader({identity,query,expectedHash,sourceUrl,language}:{identity
   </section>;
 }
 
-export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false,inline=false,summary,inputRef}:TextSearchProps) {
+export function TextSearch({prefix,label,language,kinds,member,country,addressee,from,to,sourceIds,scopeIdentity,group='document',dateBasis='document',scopeNote,disabledReason,className='',onActiveChange,global=false,inline=false,summary,inputRef,resetRef}:TextSearchProps) {
   useGlobalSearchMemory(prefix);
   const [query,setQuery]=useTextSearchParam<string>(prefix+'-search','');
   const [textLanguage,setTextLanguage]=useTextSearchParam<string>(prefix+'-text-lang','');
@@ -65,6 +65,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   const [state,setState]=useState<{key:string;data:Response|null;loading:boolean;error:string|null}>({key:'',data:null,loading:false,error:null});
   const [variants,setVariants]=useState<Record<string,string>>({});
   const localInput=useRef<HTMLInputElement>(null),input=inputRef||localInput,toggle=useRef<HTMLButtonElement>(null),panel=useId();
+  const debounceTimer=useRef<number|null>(null);
   const callback=useRef(onActiveChange);callback.current=onActiveChange;
   const allowedKinds=kinds?.length?kinds:['speech','question','answer'];
   const actualKinds=allowedKinds.includes(field as Kind)?[field]:allowedKinds;
@@ -87,8 +88,9 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   useEffect(()=>{if(open&&!inline){const frame=window.requestAnimationFrame(()=>input.current?.focus({preventScroll:true}));return()=>window.cancelAnimationFrame(frame);}},[open,inline]);
   useEffect(()=>{
     if(!pendingDraft)return;
-    const timer=window.setTimeout(()=>{setClosed('');setQuery(draft.trim());setPage(0);setExactOffset(-1);setRead('');setVariants({});},300);
-    return()=>window.clearTimeout(timer);
+    const timer=window.setTimeout(()=>{debounceTimer.current=null;setClosed('');setQuery(draft.trim());setPage(0);setExactOffset(-1);setRead('');setVariants({});},300);
+    debounceTimer.current=timer;
+    return()=>{window.clearTimeout(timer);if(debounceTimer.current===timer)debounceTimer.current=null;};
   },[pendingDraft,draft,setClosed,setQuery,setPage,setExactOffset,setRead]);
   const request=JSON.stringify({query,kinds:actualKinds,language:searchedLanguage==='all'?undefined:searchedLanguage,uiLanguage:language,member,country,addressee,from:dateFrom,to:dateTo,sourceIds,group,dateBasis,sort,limit:20,offset});
   const searchIdentity=JSON.stringify({...JSON.parse(request),offset:0});
@@ -117,7 +119,9 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
   },[request,activeRequest,attempt]);
   const data=showText&&!disabledReason&&!scopeChanging&&!pendingDraft&&(!inline||query)&&state.key===request?state.data:null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=showText&&!disabledReason&&!pendingDraft&&(!inline||query)&&state.key===request?state.error:null;
   const selected=!showText||disabledReason||scopeChanging||pendingDraft?null:parseTextReadKey(read),allHits=data?.results.flatMap(r=>r.hits)||[],selectedHit=allHits.find(hit=>textReadKey(hit)===read);
-  function close(){if(inline){setDraft('');setQuery('');reset();setVariants({});input.current?.focus();return;}setOpen(false);setClosed(prefix==='global-fts'||query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
+  function clearSearch(){if(debounceTimer.current!==null)window.clearTimeout(debounceTimer.current);debounceTimer.current=null;setDraft('');setClosed('');setQuery('');reset();setVariants({});}
+  useImperativeHandle(resetRef,()=>clearSearch);
+  function close(){if(inline){clearSearch();input.current?.focus();return;}setOpen(false);setClosed(prefix==='global-fts'||query?'1':'');setRead('');window.requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));}
   function reset(){setPage(0);setExactOffset(-1);if(global)setCatalogOffset(0);setRead('');}
   function submit(event:React.FormEvent){event.preventDefault();const next=draft.trim();setClosed('');if(!textLanguage)setTextLanguage(searchedLanguage);setQuery(next);reset();setVariants({});if(next===query)setAttempt(v=>v+1);}
 
