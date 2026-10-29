@@ -6,7 +6,7 @@ export function failureClass(message='') {
   if(status==='429')return 'throttled';
   if(status==='404'||status==='410')return 'missing-at-source';
   if(status?.startsWith('5')||/timeout|timed out|ECONN|ENET|fetch failed/i.test(message))return 'transient';
-  if(/invalid|malformed|archive|parse|unsupported|ambiguous/i.test(message))return 'source-or-parser';
+  if(/invalid|malformed|archive|parse|unsupported|ambiguous|conflicting|pagination repeated/i.test(message))return 'source-or-parser';
   return 'unclassified';
 }
 
