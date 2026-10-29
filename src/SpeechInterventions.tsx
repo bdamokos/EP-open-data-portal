@@ -1,10 +1,11 @@
+import {useSpeechTranslation} from './SpeechTranslation';
 import {AvailabilityNote,PartialValue} from './AvailabilityNote';
 import {sourceAvailability} from '../server/source-availability.mjs';
 import {brusselsDay} from '../server/analysis-period.mjs';
 import {transcriptParagraphs,TranscriptText} from './Transcript';
 import {GROUP_VOICE_GROUPS} from './groupVoiceTerms.mjs';
 import {useEffect,useId,useRef,useState} from 'react';
-import {api,prefetchData,useData,useSpeechData} from './data';
+import {api,prefetchData,useData} from './data';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './explorerTypes';
 import './SpeechInterventions.css';
 import {SpeakerName,SpeakerRoles,SpeakerRoleLine} from './SpeakerIdentity';
@@ -85,12 +86,12 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
 }
 
 function ConnectedText({speech,language}:{speech:SpeechSequenceRow;language:string}) {
-  const state=useSpeechData(speech.id,language),body=state.transcript;
-  const video=useSpeechVideo(speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT'&&speech.start&&speech.end?speech:null,language);
+  const translation=useSpeechTranslation(speech.id,language),state=translation.state,body=state.transcript;
+  const video=useSpeechVideo(speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT'&&speech.start&&speech.end?speech:null,language,translation.originalAudio);
   const paragraphs=transcriptParagraphs(body?.xml??null).paragraphs;
   return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
-    {(body||video.toggle)&&<div className="intervention-connected-tools">{body&&<p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}{body.translationType==='machine'?' · Machine translation':''}</p>}{video.toggle}</div>}
-    {video.panel}
+    {(body||video.toggle||translation.control)&&<div className="intervention-connected-tools">{body&&<p className="intervention-caption" lang="en">{body.textLanguage?.toUpperCase()}</p>}{translation.control}{video.toggle}</div>}
+    {video.panel}{translation.originalGap&&<p lang="en">Original text unavailable.</p>}
     {state.loading&&!body&&<p lang="en" role="status">Loading contribution…</p>}{state.error&&<p lang="en">{state.error} <button onClick={state.retry}>Retry</button></p>}
     {body&&(paragraphs.length?paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>):<p lang="en">Transcript unavailable.</p>)}
   </div>;

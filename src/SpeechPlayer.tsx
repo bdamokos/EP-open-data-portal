@@ -27,7 +27,7 @@ export function ParliamentFrame({ src, speechId, returnFocus }: { src:string;spe
   </>;
 }
 
-export function useSpeechVideo(speech:Speech|null,lang:string) {
+export function useSpeechVideo(speech:Speech|null,lang:string,defaultOriginal=false) {
   const section=useRef<HTMLElement>(null),toggle=useRef<HTMLButtonElement>(null),audioControl=useRef<HTMLSelectElement>(null);
   const panelId='speech-video-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const opener=useRef<{speechId:string;lang:string}|null>(null);
@@ -80,7 +80,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string) {
   </section>;
   if(!speech)return {toggle:null,panel:null};
   if(!playable)return {toggle:<span className="explorer-video-gap" lang="en"><strong>{written?'Written statement · no video':'Video unavailable'}</strong></span>,panel:null};
-  return {toggle:<button ref={toggle} className="explorer-video-toggle" lang="en" title={current?'Close this speech’s video':'Open this speech’s video'} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current?close():start(false)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span>Video</span></button>,panel};
+  return {toggle:<button ref={toggle} className="explorer-video-toggle" lang="en" title={current?'Close this speech’s video':'Open this speech’s video'} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current?close():start(defaultOriginal)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span>Video</span></button>,panel};
 }
 
 export function SpeechPlayer({speech,lang}:{speech:Speech;lang:string}) {
