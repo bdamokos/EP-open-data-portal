@@ -153,6 +153,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
       <SpeechContextPanel key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage} preload={Boolean(state.data)&&!state.loading}/>
       <div className="explorer-speech-transcript-heading" lang="en"><h3 lang={lang}>{c.transcript}</h3><div className="explorer-reader-tools">{video.toggle}{text.paragraphs.length>0&&<FindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div></div>
       {video.panel}
+      {translation.control&&<div className="explorer-text-meta" lang="en">{translation.control}</div>}
       {translation.originalGap&&<p lang="en">Original text unavailable.</p>}
       {state.loading && !body && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
@@ -161,7 +162,6 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
           {body===state.data&&state.data?.textCache?.stale && <small lang="en">Showing saved transcript.{state.data.textCache.refreshInProgress ? " A refresh is running in the background." : state.data.textCache.refreshError ? " The last refresh failed." : ""}</small>}
           <div className="explorer-text-meta" lang="en">
             {body.textLanguage ? <span lang="">{body.textLanguage.toUpperCase()}</span> : text.paragraphs.length ? null : "Text unavailable"}
-            {translation.control}
             {body.textLanguage && body.textLanguage !== translation.selected
               ? " · Requested-language text unavailable"
               : ""}

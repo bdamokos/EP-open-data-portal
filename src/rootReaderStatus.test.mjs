@@ -293,7 +293,7 @@ test('retained transcript renders before metadata and survives a failed metadata
   await h.wait();
   const text=reader.querySelector('.explorer-transcript');assert(text);
   assert.equal(text.lang,'en');assert.equal(text.querySelector('i').textContent,'editorial note');
-  assert.match(reader.querySelector('.explorer-text-meta').textContent,/Parliament machine translation/);
+  assert.match(reader.querySelector('.explorer-text-meta').textContent,/Machine translation/);
   assert.equal(status(reader).textContent,'Transcript loaded.');
   assert(reader.querySelector('[aria-label="Find in speech"]'));
   assert(h.pending.some(request=>request.route===`speech/${speechId}?lang=en`&&!request.finished),'metadata is still pending');
@@ -374,4 +374,20 @@ test('member question retries the selected source language locally and keeps sav
   await h.click(reopened.querySelector('.reader-retry button'));await h.finish(route,documentResult('fr'));await h.wait();
   assert.equal(reopened.querySelector('.reader-retry'),null);assert.equal(reopened.querySelector('.explorer-transcript').lang,'fr');assertOrdinaryText(reopened);assertDownloads(reopened,'fr');
   assert.equal(document.activeElement,heading);assert.equal(status(reopened).textContent,'Question: Text loaded.');
+});
+
+test('main speech reader retains the translation return control through an unavailable original',async t=>{
+  const h=await harness(t,{module:'speeches',items:[speechItem]});
+  await h.click(h.container.querySelector('.explorer-speech-toggle'));
+  const translated={id:speechId,xml:'<speech xml:lang="fr-t-en-mtec"><p>Exact English translation.</p></speech>',textLanguage:'en',translationType:'machine'};
+  await h.finish(`speech/${speechId}?lang=en`,translated);await h.wait();
+  const reader=h.container.querySelector('.explorer-speech-detail');
+  const button=label=>[...reader.querySelectorAll('button')].find(node=>node.textContent===label);
+  await h.click(button('Show original (French)'));await h.wait();
+  assert(button('Show translation (English)'),'return control remains available during loading');
+  await h.finish(`speech/${speechId}?lang=fr`,translated);await h.wait();
+  assert(reader.textContent.includes('Original text unavailable.'));
+  assert.equal(reader.querySelector('.explorer-transcript'),null);
+  await h.click(button('Show translation (English)'));await h.wait();
+  assert.equal(reader.querySelector('.explorer-transcript').textContent,'Exact English translation.');
 });
