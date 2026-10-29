@@ -27,7 +27,7 @@ export function mergeSpeechSpeakers(previous, speeches) {
 // Group sizes describe the full current roster, never this debate or a country subset.
 export function orderLegislationPeople(people, roles, members=[]) {
   const ranks=new Map(),sizes=new Map();
-  const roleRanks={RAPPORTEUR:0,RAPPORTEUR_OPINION:1,RAPPORTEUR_SHADOW:2,RAPPORTEUR_SHADOW_OPINION:3};
+  const roleRanks={RAPPORTEUR:0,RAPPORTEUR_CO:0,RAPPORTEUR_OPINION:1,RAPPORTEUR_SHADOW:2,RAPPORTEUR_SHADOW_OPINION:3};
   for(const {id,role} of roles)ranks.set(id,Math.min(ranks.get(id)??4,roleRanks[role]??4));
   for(const member of members)if(member.groupCode)sizes.set(member.groupCode,(sizes.get(member.groupCode)||0)+1);
   const rank=person=>person.currentMep?ranks.get(person.id)??4:-1;
