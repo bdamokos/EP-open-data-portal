@@ -16,9 +16,26 @@ import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {cachedEnglishQuestionBodies} from './insights-phrases.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {validAddresseeFilter,matchesAddressee,addresseeLabel} from './question-addressees.mjs';
+import {sourceAvailability} from './source-availability.mjs';
 export {brusselsDay} from './analysis-period.mjs';
 
 export const INSIGHTS_LIMITS = Object.freeze({ termStart:CURRENT_TERM_START,questions:5000,page:50,offset:5000,cacheEntries:4,cacheBytes:32*1024*1024,cacheMs:60_000 });
+const questionSubtypes=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'];
+function questionCoverageRecords(store,generation,types) {
+  const today=brusselsDay(store.clock()),settled=new Set(),records=[];
+  const rows=store.db.prepare("SELECT json_extract(body,'$.work_type') subtype,json_extract(body,'$.document_date') date,fetched_at fetchedAt FROM sources INDEXED BY question_window WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%' AND "+types+" ORDER BY json_extract(body,'$.document_date') DESC,key").iterate(generation);
+  for(const row of rows) {
+    const subtype=questionSubtypes.find(type=>String(row.subtype).endsWith('/'+type));
+    if(!subtype||settled.has(subtype))continue;
+    // Use the shared chronology rules. Keep admissible future dates as well,
+    // so a day change during async preparation can still advance coverage.
+    if(!sourceAvailability({sourceKey:subtype,records:[row],today:row.date}).latestObservedDate)continue;
+    records.push(row);
+    if(row.date<=today)settled.add(subtype);
+    if(settled.size===questionSubtypes.length)break;
+  }
+  return records;
+}
 function strictDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 }
@@ -104,21 +121,22 @@ export class QuestionInsights {
     const job=sharedRequest(async signal=>{
       // Use the existing store, not a second ActivityStore or worker. All statements are SELECTs.
       const params=[status.servingGeneration,query.start,query.end];
-      const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
+      const types="(json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
+      const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND "+types;
       const frozen=this.store.readSnapshot(()=>({
         undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
         count:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where).get(...params).n,
         rows:this.store.db.prepare('SELECT key,body,fetched_at FROM sources INDEXED BY question_window WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
         gaps:savedGaps(this.store,status.servingGeneration,'questions'),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),
-        frontiers:this.store.db.prepare("SELECT json_extract(body,'$.work_type') subtype,json_extract(body,'$.document_date') date,fetched_at fetchedAt FROM sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'").all(status.servingGeneration)
+        frontiers:questionCoverageRecords(this.store,status.servingGeneration,types)
       }));
       const {count,rows,members,undatedQuestions}=frozen;
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const [metadata,bodies]=await Promise.all([this.loadMetadata({members,store:this.store}),this.loadQuestionBodies(sources)]);
       const analysis=await analyzeQuestionsAsync(sources.map(questionFromSource).filter(Boolean),{bodies,signal});
       const geography=countryQuestions(analysis,members,metadata);
-      const availability=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'].map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:frozen.gaps,limited:count>rows.length,checkedAt:frozen.checkedAt,revision:frozen.revision,
+      const availability=questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:frozen.gaps,limited:count>rows.length,checkedAt:frozen.checkedAt,revision:frozen.revision,
         records:frozen.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}));
       const value={...analysis,...geography,members,metadata,status,undatedQuestions,availability,groupOn,groupCodes,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
       const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography}));

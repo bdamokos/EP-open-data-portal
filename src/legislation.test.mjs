@@ -10,7 +10,7 @@ const votes=['final-text','amendment','procedural'].map((scope,i)=>({id:'test-'+
 const topic={id:'test-topic',title:'Test agenda item',date:'2026-10-07',kind:'PLENARY_VOTE',documentIds:['A-10-2026-0237']};
 function legislation(params) {
   return {view:'legislation',sitting:{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'},sittings:[{id:'MTG-PL-2026-10-07',phase:'past',date:'2026-10-07'}],topics:[topic],coverage:{agendaError:null},detail:params.has('topic')?{
-    ...topic,phase:'past',procedures:[{id:'2025-2117',reference:'2025/2117(INI)'}],committeeWork:[],amendments:{counts:{'1':3}},roles:people.map(person=>({...person,role:'RAPPORTEUR'})),people,stats,
+    ...topic,phase:'past',procedures:[{id:'2025-2117',reference:'2025/2117(INI)'}],committeeWork:[],amendments:{counts:{'1':3,'2':0,'3':null}},roles:people.map(person=>({...person,role:'RAPPORTEUR'})),people,stats,
     speeches:people.slice(0,3).map((person,index)=>({start:`2026-10-07T07:0${index}:00Z`,sourceId:'test-speech-'+person.id,people:[person],kind:'PLENARY_DEBATE_WRITTEN_STATEMENT'})),
     votes:votes.map(vote=>({...vote,title:vote.titles.en,subject:vote.subjects.en})),selectedVote:votes.find(vote=>vote.id===params.get('vote'))||votes[0],
     voteCoverage:{truncated:false},coverage:{missingDocumentIds:['A-10-2026-0237'],roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}
@@ -46,8 +46,12 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const container=document.createElement('div');document.body.append(container);
   root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));
-  assert.match(container.querySelector('.insight-person-activity').textContent,/— speeches1 written statement3\+ amendments/);
+  assert.match(container.querySelector('.insight-person-activity').textContent,/Speeches unavailable1 written statement3\+ amendments/);
   assert.equal(calls.filter(url=>url.pathname.includes('amendments')).length,0,'card counts need no per-person requests');
+  assert.equal(container.querySelector('.insight-participants>.insight-secondary'),null,'No activity disclaimer is displayed');
+  const activities=[...container.querySelectorAll('.insight-participants .insight-person-activity')];
+  assert.equal(activities[0].querySelector('[aria-label="At least 3 linked amendments"]').textContent,'3+ amendments');
+  for(const activity of activities.slice(1))assert.doesNotMatch(activity.textContent,/amendment/,'Zero, null and missing amendment observations stay hidden');
   const find=selector=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);return node;};
   const button=text=>{const node=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(node,'Missing '+text);return node;};
   const click=async text=>act(async()=>button(text).click());
