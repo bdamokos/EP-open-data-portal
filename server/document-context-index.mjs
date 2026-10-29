@@ -25,7 +25,7 @@ export function retainedDocumentContext(store,query,{adoptedCandidates,metadataB
       if(bytes>metadataBytes)throw new HttpError(502,'document_source_budget','The linked document records are too large to read together.');
       const refreshError=store.db.prepare('SELECT error FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key)?.error||null;
       const source={url:ODP_BASE+key+'?format=application%2Fld%2Bjson',fetchedAt:new Date(fetchedAt).toISOString(),stale:true,refreshInProgress:false,refreshError,
-        contentHash:createHash('sha256').update(serialized).digest('hex'),representation:'retained-index-projection',generation,epoch:store.get('epoch')};
+        contentHash:createHash('sha256').update(serialized).digest('hex'),representation:'retained-index-projection',generation,epoch:store.get('marksEpoch')};
       return {endpoint:key,work,source,record:{payload,fetchedAt:source.fetchedAt,url:source.url,stale:true,refreshInProgress:false,refreshError}};
     };
     for(const generation of generations) {

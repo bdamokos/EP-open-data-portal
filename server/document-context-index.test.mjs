@@ -36,6 +36,8 @@ test('exact retained adoption choices avoid source requests and body reads while
   assert.deepEqual(result.related.items[0].relationship,{from:adopted,field:'adopts',to:motion});
   const source=result.related.items[0].source;
   assert.equal(source.fetchedAt,stamp);assert.equal(source.generation,generation);assert.equal(source.representation,'retained-index-projection');assert.equal(source.stale,true);
+  const epoch=store.get('marksEpoch');assert.match(epoch,/^[0-9a-f-]{36}$/i);
+  assert.equal(source.epoch,epoch);assert(result.sources.every(source=>source.epoch===epoch),'root and related observations retain the database epoch');
   assert.equal(source.contentHash,createHash('sha256').update(JSON.stringify({data:[work()]})).digest('hex'));
   assert.equal(reader.cache.size,0,'retained partial discovery receives no fresh computed TTL');
   assert.equal(store.db.prepare('SELECT total_changes() n').get().n,before);assert.equal(store.get('active'),active);assert.equal(store.db.isTransaction,false);
@@ -108,6 +110,19 @@ test('a changed retained observation gets its own pending read and is copied bef
   const second=await reader.query(query({id:adopted,adopted:false}),{store});release();const original=await first;
   assert.equal(bodies,2);assert.deepEqual(original.document.selectedText.paragraphs,['Retained adoption']);assert.deepEqual(second.document.selectedText.paragraphs,['New retained observation']);
   assert.notEqual(original.sources[0].contentHash,second.sources[0].contentHash);
+});
+
+test('equal retained generations in rebuilt stores do not share a pending body across database epochs',async t=>{
+  const initial=setup(t),rebuilt=setup(t);let release,started,bodies=0;
+  assert.equal(initial.generation,rebuilt.generation);assert.notEqual(initial.store.get('marksEpoch'),rebuilt.store.get('marksEpoch'));
+  const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+  const reader=new DocumentContext({request:async()=>{throw Error('No request');},readText:async()=>{
+    if(++bodies===1){started();await gate;}return {status:'available',paragraphs:['Retained body'],textLanguage:'en'};
+  }});
+  const first=reader.query(query({id:adopted,adopted:false}),{store:initial.store});await entered;
+  const second=reader.query(query({id:adopted,adopted:false}),{store:rebuilt.store});
+  await new Promise(resolve=>setImmediate(resolve));release();const [before,after]=await Promise.all([first,second]);
+  assert.equal(bodies,2);assert.equal(before.sources[0].epoch,initial.store.get('marksEpoch'));assert.equal(after.sources[0].epoch,rebuilt.store.get('marksEpoch'));
 });
 
 test('new working metadata leads older extension metadata without mixing generations or reviving an invalid new root',t=>{
