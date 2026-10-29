@@ -709,7 +709,10 @@ test('calendar jump controls keep the direct select, accessible icons and year g
  const row=h.container.querySelector('.member-votes-week-navigation');assert.deepEqual([...row.children].map(node=>node.tagName),['BUTTON','BUTTON','SELECT','BUTTON','BUTTON']);
  assert.deepEqual([...row.querySelectorAll('optgroup')].map(node=>node.label),['2026','2025']);
  assert.match(row.querySelector('option').textContent,/4 sitting days/);
- for(const name of ['First plenary week','Previous plenary week','Next plenary week','Latest plenary week'])assert.equal(button(h.container,name).querySelector('span').getAttribute('aria-hidden'),'true');
+ for(const name of ['First plenary week','Previous plenary week','Next plenary week','Latest plenary week']){
+  const icon=button(h.container,name).querySelector('svg');assert(icon,'Missing navigation icon: '+name);
+  assert.equal(icon.getAttribute('aria-hidden'),'true');assert.equal(icon.getAttribute('focusable'),'false');
+ }
  assert.equal(button(h.container,'Latest plenary week').disabled,true);assert.equal(button(h.container,'First plenary week').disabled,false);
  await h.click('First plenary week');assert.equal(h.state.week,'2025-12-15');assert.equal(button(h.container,'First plenary week').disabled,true);assert.equal(button(h.container,'Previous plenary week').disabled,true);
  await h.click('Latest plenary week');assert.equal(h.state.week,WEEK);assert.equal(button(h.container,'Latest plenary week').disabled,true);
