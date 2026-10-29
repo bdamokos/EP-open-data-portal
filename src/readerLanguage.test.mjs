@@ -348,3 +348,38 @@ test('speech readers preserve source italics and notes inside timed paragraphs, 
   assert.equal(connected.querySelectorAll('p')[2].textContent,body.querySelectorAll('p')[1].textContent);
   assert.equal(connected.querySelectorAll('i').length,4,'parentheses in spoken text do not acquire italics');
 });
+
+test('inline original toggle preserves source text, returns to translation, and defaults only new videos to floor audio',async t=>{
+  const h=await harness(t,(route,params)=>route.startsWith('speech-media/')?{available:false,status:'audio-unavailable'}:route.startsWith('speech/')?{...speech(params.get('lang')),start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z',translationType:params.get('lang')==='fr'?'original':'machine',xml:params.get('lang')==='fr'?'<speech xml:lang="fr"><p>Texte original exact.</p></speech>':'<speech xml:lang="fr-t-en-mtec"><p>English translation.</p></speech>'}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
+  const button=label=>[...h.container.querySelectorAll('button')].find(node=>node.textContent===label);
+  await h.click(button('Show original (French)'));
+  assert.equal(h.container.querySelector('.insight-reader-text').textContent,'Texte original exact.');
+  assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
+  assert.equal(h.container.querySelector('.text-language-note'),null);
+  await h.click(button('Video'));
+  assert(h.requests.includes(`speech-media/${speechId}?lang=en&audio=or`));
+  await h.click(button('Show translation (English)'));
+  assert.equal(h.container.querySelector('.insight-reader-text').textContent,'English translation.');
+  assert.equal(h.container.querySelector('.explorer-video select').value,'original','open video is not retuned');
+  await h.click(button('Close video'));await h.click(button('Video'));
+  assert(h.requests.includes(`speech-media/${speechId}?lang=en`));
+});
+
+test('original toggle withholds a translated fallback and keeps a return path',async t=>{
+  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech('en'),xml:'<speech xml:lang="fr-t-en-mtec"><p>Fallback English.</p></speech>'}:undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}));
+  const button=label=>[...h.container.querySelectorAll('button')].find(node=>node.textContent===label);
+  await h.click(button('Show original (French)'));
+  assert.equal(h.container.querySelector('.insight-reader-text'),null);
+  assert(h.container.textContent.includes('Original text unavailable.'));
+  await h.click(button('Show translation (English)'));
+  assert.equal(h.container.querySelector('.insight-reader-text').textContent,'Fallback English.');
+});
+
+test('machine text without a source annotation keeps the original-language gap explicit',async t=>{
+  const h=await harness(t,route=>route.startsWith('speech/')?speech('en'):undefined);
+  await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}));
+  assert(h.container.textContent.includes('Original language unavailable'));
+  assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent.startsWith('Show original')));
+});

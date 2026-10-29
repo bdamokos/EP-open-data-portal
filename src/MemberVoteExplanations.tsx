@@ -1,5 +1,6 @@
+import {useSpeechTranslation} from './SpeechTranslation';
 import {useId,useState} from 'react';
-import {useData,useSpeechData} from './data';
+import {useData} from './data';
 import {transcriptParagraphs,TranscriptText} from './Transcript';
 import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
 import {useSpeechVideo} from './SpeechPlayer';
@@ -21,13 +22,13 @@ const retryableGap=(code:string)=>/-source-(?:unavailable|stale)$/.test(code)||[
 ].includes(code);
 
 function ExplanationReader({item,language}:{item:Explanation;language:string}) {
-  const [selected,setSelected]=useState(language),state=useSpeechData(item.id,selected),body=state.transcript;
+  const [selected,setSelected]=useState(language),translation=useSpeechTranslation(item.id,selected,language),state=translation.state,body=state.transcript;
   const paragraphs=transcriptParagraphs(body?.xml||null).paragraphs;
-  const video=useSpeechVideo(state.data?.id===item.id?state.data:item.speech,language);
+  const video=useSpeechVideo(state.data?.id===item.id?state.data:item.speech,language,translation.originalAudio);
   return <div className="vote-explanation-reader">
     <div className="vote-explanation-tools"><TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} onChange={setSelected} visibleLabel={false}
-      note={<TextLanguageFallback requested={selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{body?.translationType==='machine'&&<small>Machine translation</small>}{video.toggle}</div>
-    {video.panel}
+      note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.control}{video.toggle}</div>
+    {video.panel}{translation.originalGap&&<p>Original text unavailable.</p>}
     {state.loading&&!body&&<p role="status">Loading explanation…</p>}
     {state.error&&<p role="alert">Transcript unavailable. <button type="button" disabled={state.loading} onClick={state.retry}>Retry transcript</button></p>}
     {paragraphs.length>0?<div lang={body?.textLanguage||''}>{paragraphs.map((paragraph,index)=><p key={index}><TranscriptText paragraph={paragraph}/></p>)}</div>:body&&!state.loading&&<p>Transcript unavailable.</p>}
