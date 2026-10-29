@@ -403,7 +403,7 @@ test('direct sitting/context/TA selection restores exactly; another MEP receives
   await h.click(h.container.querySelector('[data-member-id="2"] button'));
   await h.click(button(h.container,'Votes'));
   const first=h.requests.find(url=>url.pathname==='/api/member-votes/2');assert(first);
-  assert.deepEqual(Object.fromEntries(first.searchParams),{week:'latest',positions:'all',lang:'en',offset:'0',limit:'50'});
+  assert.deepEqual(Object.fromEntries(first.searchParams),{week:'latest',view:'period',positions:'all',lang:'en',offset:'0',limit:'50'});
   assert.equal(params().get('mv-decision'),null);assert.equal(params().get('mv-sitting'),null);assert.equal(params().get('mv-document'),null);
   assert.equal(params().get('ma-document'),null);
   await h.go(-3);assert.equal(location.href,original);assert.equal(params().get('member'),'1');
