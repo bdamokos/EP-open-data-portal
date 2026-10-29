@@ -1,4 +1,5 @@
 import {amendmentGeneration} from './amendments-store.mjs';
+import {topicAmendmentsCacheable} from './topic-involvement.mjs';
 import {SpeechWordInsights,speechWordsQuery} from './insights-speech-words.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {OfficialContextSources,getSharedOfficialContextSources} from './official-context.mjs';
@@ -42,7 +43,7 @@ export function createInsights(store,options={}) {
   const catalog=options.eurovocCatalog||new EurovocCatalog(officialSources,{clock,...options.eurovoc});
   const procedureContext=new ProcedureContext(officialSources,catalog),topicTrends=new TopicTrends(store,catalog,{clock});
   const procedureProgress=new ProcedureProgress(officialSources);
-  const views=new InsightViewCache({clock,...options.viewCache});
+  const views=new InsightViewCache({clock,...options.viewCache,cacheable:topicAmendmentsCacheable});
   const search=new ParliamentSearch(store,{clock});
   const isLatest=query=>query.week==='latest'||!query.week&&!query.sitting;
   const viewKey=async(view,query,catalogue)=>{

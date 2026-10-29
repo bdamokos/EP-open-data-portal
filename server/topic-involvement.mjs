@@ -3,6 +3,8 @@ import {resolvedAmendmentAuthorId} from './amendments.mjs';
 
 export const TOPIC_AMENDMENT_LIMITS=Object.freeze({documents:6,rows:500});
 
+export const topicAmendmentsCacheable=value=>!value?.detail?.amendments?.documents?.some(document=>document.status==='unavailable'||document.coverage===null);
+
 // Read the same checked attribution as the amendment catalogue. Never discover
 // new sources or walk pages while rendering a topic's participant cards.
 export function topicAmendments(store,documentIds,people,{readPage=amendmentsPage}={}) {
@@ -25,7 +27,7 @@ export function topicAmendments(store,documentIds,people,{readPage=amendmentsPag
       documents.push({id:document,total:page.total,checked:page.items.length,coverage:page.coverage,sources:[...sources.values()]});
     } catch {
       // An optional count must not hide the agenda or its speech readers.
-      documents.push({id:document,total:null,checked:0,coverage:null});
+      documents.push({id:document,total:null,checked:0,coverage:null,status:'unavailable'});
     }
   }
   for(const [id,ids] of seen)counts[id]=ids.size;

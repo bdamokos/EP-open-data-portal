@@ -35,3 +35,47 @@ test('an unavailable target preserves other exact observations and their attribu
   assert.equal(result.documents.length,2);assert.equal(result.documents[0].coverage,null);
   assert.deepEqual(result.documents[1].sources,[source]);
 });
+
+test('failed topic counts bypass memory, disk and HTTP caches and recover in the same generation',async t=>{
+  const {InsightViewCache}=await import('./insights-view-cache.mjs');
+  const {topicAmendmentsCacheable}=await import('./topic-involvement.mjs');
+  const {apiCachePolicy}=await import('./response-cache.mjs');
+  const {mkdtemp,rm,readdir,readFile}=await import('node:fs/promises');
+  const directory=await mkdtemp('/tmp/topic-count-cache-');t.after(()=>rm(directory,{recursive:true,force:true}));
+  const cache=new InsightViewCache({directory,cacheable:topicAmendmentsCacheable});
+  let failed=true,reads=0;
+  const load=()=>{reads++;return {view:'legislation',detail:{amendments:topicAmendments(store,[target],people,{readPage:()=>{
+    if(failed)throw new Error('Temporary unavailable target');
+    return {items:[row('a')],total:1,coverage:{complete:false}};
+  }})}};};
+  const key=['legislation','same-generation',target],first=await cache.get(key,load);
+  assert.equal(first.detail.amendments.documents[0].status,'unavailable');
+  const policy=apiCachePolicy({method:'GET'},new URL('https://example.test/api/insights/legislation'),first);
+  assert.equal(policy.cacheControl,'no-store');assert.equal(policy.cdnCacheControl,'no-store');
+  assert.equal(cache.cache.size,0);assert.deepEqual(await readdir(directory),[]);
+  failed=false;
+  const recovered=await cache.get(key,load);
+  assert.equal(recovered.detail.amendments.generation,first.detail.amendments.generation);
+  assert.equal(recovered.detail.amendments.counts['1'],1);assert.equal(reads,2);
+  const persisted=JSON.parse(await readFile(directory+'/'+cache.key(key)+'.json','utf8'));
+  assert.equal(persisted.value.detail.amendments.counts['1'],1);
+  await cache.get(key,()=>assert.fail('Available counts retain normal memory caching'));
+  const restarted=new InsightViewCache({directory,cacheable:topicAmendmentsCacheable});
+  await restarted.get(key,()=>assert.fail('Available counts retain normal disk caching'));
+});
+
+for(const layer of ['memory','disk'])test('previous unavailable topic counts in '+layer+' do not mask a recovered read',async t=>{
+  const {InsightViewCache}=await import('./insights-view-cache.mjs');
+  const {topicAmendmentsCacheable}=await import('./topic-involvement.mjs');
+  const {mkdtemp,rm,writeFile}=await import('node:fs/promises');
+  const directory=await mkdtemp('/tmp/topic-count-retained-');t.after(()=>rm(directory,{recursive:true,force:true}));
+  const cache=new InsightViewCache({directory,cacheable:topicAmendmentsCacheable}),key=['legislation',target],hash=cache.key(key);
+  // A retained pre-fix response has no explicit unavailable status.
+  const legacy={view:'legislation',detail:{amendments:{counts:{'1':null},generation:0,documents:[{id:target,coverage:null}]}}};
+  const record={key:hash,at:Date.now(),value:legacy};
+  if(layer==='memory')cache.remember(hash,record);
+  else await writeFile(directory+'/'+hash+'.json',JSON.stringify(record));
+  let reads=0;const recovered={view:'legislation',detail:{amendments:{counts:{'1':1},generation:0,documents:[{id:target,coverage:{complete:false}}]}}};
+  const result=await cache.get(key,()=>{reads++;return recovered;});
+  assert.equal(reads,1);assert.equal(result.detail.amendments.counts['1'],1);
+});
