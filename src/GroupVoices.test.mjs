@@ -63,7 +63,7 @@ test('contribution titles open the exact speech inline without leaving group fil
   assert.match(panel.querySelector('.insight-reader-text').textContent,new RegExp('Exact inline transcript for '+id));
   assert(h.calls.some(url=>url.pathname===`/api/speech-transcript/${id}`&&url.searchParams.get('lang')==='fr'));
   assert.equal(h.calls.some(url=>url.pathname===`/api/speech/${id}`),!websiteUrl,'Only an unavailable saved transcript needs the speech fallback.');
-  const source=panel.querySelector('a.insight-source-document');assert.equal(Boolean(source),websiteUrl);if(source)assert.equal(source.target,'_blank');
+  assert.equal(panel.querySelector('a.insight-source-document'),null);
   await h.click(button);assert.equal(h.container.querySelector('.insight-inline-reader'),null);assert.equal(document.activeElement,button);assert.equal(button.getAttribute('aria-expanded'),'false');
   await h.click(button);assert.match(h.container.querySelector('.insight-reader-text').textContent,new RegExp(id));
   await h.restore(`/?view=groups&lang=fr&gv-group=ESN&gv-tab=${tab}&gv-subject=foreign`);assert.equal(h.container.querySelector('.insight-inline-reader'),null);assert.equal(location.search.includes('gv-group=ESN'),true);

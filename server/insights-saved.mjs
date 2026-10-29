@@ -23,6 +23,9 @@ export function savedQuery(search) {
   return {language:odpLanguage(search.get('lang')||'en'),questions:list('questions',/^[EPHO]-10-\d{4}-\d{6}$/)};
 }
 export function savedStates(store,query) {
+  return store.readSnapshot(()=>savedSnapshot(store,query));
+}
+function savedSnapshot(store,query) {
   const status=store.status(),generation=status.servingGeneration;
   if(!generation)throw new HttpError(503,'insights_loading','Saved Parliament data is not ready.');
   const questions=query.questions.map(id=>{

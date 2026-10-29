@@ -54,6 +54,44 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   return {...module,window,root,container,calls,registry,render,find,button,click,flushFrames,input,select,submit,searches,texts,loadModule:path=>loadModule(path)};
 }
 
+test('inline transcript search debounces typing, preserves member scope and clears without stealing focus',async t=>{
+  const view=await setup(t),active=[];
+  await view.render({inline:true,member:42,kinds:['speech'],from:'2024-07-16',summary:'Term 10 · 24 contributions',onActiveChange:value=>active.push(value)});
+  await view.flushFrames();
+  const input=view.find('input[type="search"]');
+  assert.notEqual(document.activeElement,input,'mounting the inline field must not steal profile focus');
+  assert.match(view.find('.explorer-search-summary').textContent,/Term 10 · 24 contributions/);
+  assert.equal(view.searches().length,0);
+  input.focus();
+  await view.input('input[type="search"]','ener');
+  await view.input('input[type="search"]','energy');
+  assert.equal(view.searches().length,0,'typing does not send a request per keystroke');
+  await act(async()=>{await new Promise(resolve=>setTimeout(resolve,350));});
+  assert.equal(view.searches().length,1);
+  assert.equal(view.searches()[0].body.query,'energy');assert.equal(view.searches()[0].body.member,42);
+  assert.deepEqual(view.searches()[0].body.kinds,['speech']);assert.equal(view.searches()[0].body.from,'2024-07-16');
+  assert.equal(active.at(-1),true);assert.equal(document.activeElement,input);
+  await view.click('Read speech');assert.match(view.find('.explorer-search-body').textContent,/énergie & policy/);
+  await view.click('Clear speech search');
+  assert.equal(input.value,'');assert.equal(view.container.querySelector('.explorer-search-result,.explorer-search-body'),null);
+  assert.equal(view.searches().length,1);assert.equal(active.at(-1),false);assert.equal(document.activeElement,input);
+});
+
+test('inline search ignores an older response after the next phrase or member takes over',async t=>{
+  const pending=[];
+  const view=await setup(t,{respond:call=>call.url.pathname.endsWith('/corpus/search')?new Promise(resolve=>pending.push({...call,resolve})):undefined});
+  await view.render({inline:true,member:42,kinds:['speech']});
+  await view.input('input[type="search"]','first');await view.submit();
+  await view.input('input[type="search"]','second');await view.submit();
+  assert.equal(pending[0].options.signal.aborted,true);
+  await act(async()=>pending[1].resolve(Response.json({...results(pending[1].body),results:[{...results().results[0],title:'Current transcript match'}]})));
+  await act(async()=>pending[0].resolve(Response.json({...results(pending[0].body),results:[{...results().results[0],title:'Stale transcript match'}]})));
+  assert.match(view.container.textContent,/Current transcript match/);assert.doesNotMatch(view.container.textContent,/Stale transcript match/);
+  await view.render({inline:true,member:99,kinds:['speech']});
+  assert.equal(view.container.querySelector('.explorer-search-result'),null);
+  assert.equal(pending.at(-1).body.member,99);
+});
+
 test('a finished local backfill keeps the search scoped to available texts',async t=>{
   const view=await setup(t,{query:'fixture-fts-search=absent',respond:({url,body})=>{
     if(url.pathname.endsWith('/corpus/search'))return Response.json({...results(body,[]),total:0,coverage:{complete:true,backfillComplete:true,authoritativeComplete:false}});

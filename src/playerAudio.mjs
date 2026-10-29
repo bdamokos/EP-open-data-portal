@@ -60,6 +60,7 @@ function representation(data) {
 
 // Both the content map and live getters must agree. A setter response is not
 // selection proof; only the requested representation event releases playback.
+// Once verified, the official player's controls own subsequent audio choices.
 export function requestPlayerAudio(target, language, { mapping, eventTarget=globalThis, onRequested, onError, intervalMs=500, timeoutMs=25_000, delayMs=500, repairDelayMs=2_000 }={}) {
   if (!target || !/^[a-z]{2}$/.test(language) || !validAudioMapping(mapping)) throw new Error('Invalid player audio request.');
   let finished=false, verified=false, tracks=null, labels=null, selected=null, initial=null, sent=false, delay, repairTimer, repairPhase=null, probe=null, latestRepresentation=null;
@@ -71,7 +72,7 @@ export function requestPlayerAudio(target, language, { mapping, eventTarget=glob
     for(const name of EVENTS) {try {post({type:'off',name});} catch { /* detached frame */ }}
   };
   const fail=()=>{if(!finished){stop();onError?.('Audio could not be loaded. Try again or choose Original audio.');}};
-  const success=()=>{if(!finished && !verified){verified=true;clearInterval(poll);clearTimeout(deadline);clearTimeout(delay);clearTimeout(repairTimer);onRequested?.();}};
+  const success=()=>{if(!finished && !verified){verified=true;stop();onRequested?.();}};
   const selectAfterInitial=()=>{
     if(finished || sent || !selected || !initial || !matchesAudioRepresentation(initial.label,latestRepresentation))return;
     clearTimeout(repairTimer);
@@ -111,7 +112,6 @@ export function requestPlayerAudio(target, language, { mapping, eventTarget=glob
     const data=event.data;
     const id=representation(data);
     if(id){
-      if(verified){if(!matchesAudioRepresentation(selected.label,id)){try{post({type:'method',name:'pause'});}catch{/* frame closing */}fail();}return;}
       if(repairPhase==='probe'){
         if(matchesAudioRepresentation(probe.label,id)){repairPhase='original';try{post({type:'set',name:'audio',value:'or'});}catch{fail();}}
         return;

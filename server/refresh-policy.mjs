@@ -1,8 +1,39 @@
 import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
 import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
+import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
+import {mutableDocumentCandidates,mutableBackfillCutoff} from './mutable-document-recovery.mjs';
+import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteDeferredOwners} from './document-detail-routing.mjs';
 
 export const DAY=86_400_000, MUTABLE_LIMIT=100, GAP_LIMIT=25;
+const ordinaryBackfillQuantum=8;
+
+// Reserve a bounded share of dispatches, not extra requests. Canonical tasks
+// retain their priority, cursor and retry ownership; only due tasks can run.
+// Persist the turn so small budgets and restarts cannot reset the allowance.
+export function nextBackfillTask(store,generation,ordinaryTask) {
+  store.assertWriter();
+  if(!ordinaryTask)return ordinaryTask;
+  const saved=store.get('backfillSchedule');
+  const state=saved?.generation===generation&&Number.isInteger(saved.ordinary)&&saved.ordinary>=0&&saved.ordinary<=ordinaryBackfillQuantum&&[0,1].includes(saved.nextLane)
+    ?saved:{generation,ordinary:0,nextLane:0};
+  if(state.ordinary>=ordinaryBackfillQuantum) {
+    const predicates=[
+      "EXISTS(SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
+      "(task.kind='document' AND (task.key GLOB '/adopted-texts/TA-10-*' OR task.key GLOB '/external-documents/SP-*') OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
+    ];
+    for(const lane of [state.nextLane,1-state.nextLane]) {
+      const task=store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_order
+        WHERE task.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=? AND ${predicates[lane]}
+        ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
+      if(!task)continue;
+      store.set('backfillSchedule',{generation,ordinary:0,nextLane:1-lane});
+      return {...task,body:JSON.parse(task.body)};
+    }
+  }
+  store.set('backfillSchedule',{...state,ordinary:Math.min(ordinaryBackfillQuantum,state.ordinary+1)});
+  return ordinaryTask;
+}
 export const feedStart=(store,now)=>new Date(Date.parse(store.get('lastSuccess') || store.get('working')?.startedAt || new Date(now).toISOString())-2*DAY).toISOString().slice(0,10);
 const official=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
 const localDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
@@ -47,7 +78,10 @@ export function documentRefreshState(work) {
   const hasAnswer=answers.some(answer=>answer && typeof answer==='object' && (answer.identifier || answer.id));
   const answered=question?(hasAnswer?true:work.answersObserved===true?false:null):null;
   const answerLanguagesComplete=!question || answered && answers.every(answer=>answer && typeof answer==='object' && documentRefreshState({...answer,work_type:'ANSWER'}).languageCount===24);
-  return {languageCount,answered,mutable:languageCount!==24 || question && (!answered || !answerLanguagesComplete)};
+  // A Commission reply can be declared after all adopted-text languages exist.
+  const adopted=tail(work.work_type)==='TEXT_ADOPTED';
+  // Amendment-list checks belong to the dedicated metadata/wording collector.
+  return {languageCount,answered,mutable:tail(work.work_type)!=='AMENDMENT_LIST'&&(adopted || languageCount!==24 || question && (!answered || !answerLanguagesComplete))};
 }
 export function updateDocumentRefresh(store,generation,key,work,fetchedAt) {
   if(documentRefreshState(work).mutable)store.db.prepare('INSERT OR REPLACE INTO mutable_documents VALUES (?,?,?)').run(generation,key,(Date.parse(fetchedAt)||0)+7*DAY);
@@ -90,21 +124,49 @@ export function refreshPolicySchema(store) {
 
 export function scheduleMutable(worker,generation) {
   const store=worker.store,now=worker.clock();
-  for(const {key} of store.db.prepare('SELECT key FROM mutable_documents mutable WHERE generation=? AND next_check<=? AND NOT EXISTS (SELECT 1 FROM refresh_gaps gap WHERE gap.generation=mutable.generation AND gap.key=mutable.key) ORDER BY next_check,key LIMIT ?').all(generation,now,MUTABLE_LIMIT)) {
-    store.enqueue(generation,key,'document',{endpoint:key},84,true);
-    store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);
+  const admitted=store.transaction(()=>{
+    store.assertWriter();const eligible=[];
+    const cutoff=worker.recoveryMode==='backfill'?mutableBackfillCutoff(store.get('working'),generation,now):now;
+    for(const {key} of mutableDocumentCandidates(store.db,generation,cutoff)) {
+      eligible.push(key);if(eligible.length>=MUTABLE_LIMIT)break;
+    }
+    let count=0;
+    for(const key of eligible)if(store.enqueue(generation,key,'document',{endpoint:key},84,true)) {
+      store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);count++;
+    }
+    return count;
+  });
+  if(worker.recoveryMode!=='backfill')scheduleGapRecovery(worker,generation);
+  return admitted;
+}
+
+function dueRecoveryGaps(store,generation,now,limit) {
+  if(limit<=0)return [];
+  const today=localDay(now),result=[];let adoptedDeferred,documentDeferred;
+  for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key").iterate(generation,now)) {
+    if((gap.key.startsWith('/adopted-texts/')||gap.key.startsWith('/external-documents/SP-'))&&adoptedTextOwnedElsewhere(store,generation,gap.key,adoptedDeferred??=adoptedTextDeferredKeys(store,generation)))continue;
+    if(amendmentListDocumentId(gap.key)&&documentRouteOwned(store,generation,gap.key,documentDeferred??=documentRouteDeferredOwners(store,generation),{ignoreGapKey:gap.key,allowDueLegacyGap:documentDetailEndpoint(gap.key)===gap.key,now}))continue;
+    if(gap.kind==='motion-outcomes'&&today<sittingConfirmationDay(gap.sitting_id))continue;
+    result.push(gap);if(result.length>=limit)break;
   }
-  store.transaction(()=>{
+  return result;
+}
+export const gapRecoveryDue=(store,generation,now=store.clock())=>dueRecoveryGaps(store,generation,now,1).length>0;
+
+export function scheduleGapRecovery(worker,generation) {
+  const store=worker.store,now=worker.clock(),backfill=worker.recoveryMode==='backfill';
+  return store.transaction(()=>{
+    store.assertWriter();
     const today=localDay(now),prior=store.get('slowGapAdmissions');
-    let count=prior?.day===today?prior.count:0;
-    for(const gap of store.db.prepare("SELECT * FROM refresh_gaps gap WHERE generation=? AND kind<>'coverage' AND retry_at<=? AND NOT EXISTS (SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=gap.generation AND admitted.key=gap.key) ORDER BY retry_at,key LIMIT ?").all(generation,now,Math.max(0,GAP_LIMIT-count))) {
-      if(gap.kind==='motion-outcomes' && today<sittingConfirmationDay(gap.sitting_id))continue;
+    let count=backfill?0:prior?.day===today?prior.count:0;
+    for(const gap of dueRecoveryGaps(store,generation,now,Math.max(0,GAP_LIMIT-count))) {
       if(!store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true}))continue;
       store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
       if(gap.kind==='motion-outcomes')store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(now+7*DAY,generation,gap.sitting_id);
       count++;
     }
-    store.set('slowGapAdmissions',{day:today,count});
+    if(!backfill)store.set('slowGapAdmissions',{day:today,count});
+    return count;
   });
 }
 

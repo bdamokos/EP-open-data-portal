@@ -1,0 +1,3116 @@
+{
+  "attribution": "European Commission, COM(2025)836 final, English. Selected complete amending-instruction groups and their following numeric boundaries; other provisions are omitted.",
+  "language": "en",
+  "celex": "52025PC0836",
+  "sourceUrl": "https://publications.europa.eu/resource/cellar/c8c51d1a-c572-11f0-8da2-01aa75ed71a1.0001.01/DOC_1",
+  "sourceHash": "2fafd9ec8c9742b3135341689c6a0a13414c228d0614959b6515ba1be55d3aba",
+  "retrievedAt": "2026-10-27T16:48:59.535Z",
+  "coverage": {
+    "complete": false
+  },
+  "structureStatus": "extracted",
+  "sourceParagraphIndices": [
+    153,
+    154,
+    155,
+    156,
+    179,
+    180,
+    181,
+    182,
+    183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    229,
+    230,
+    231,
+    232,
+    233,
+    234,
+    235,
+    236,
+    237,
+    244,
+    245,
+    246,
+    247,
+    248,
+    249,
+    250,
+    251,
+    252,
+    253,
+    254,
+    255,
+    256,
+    257,
+    258,
+    259,
+    260,
+    261,
+    262,
+    263,
+    264,
+    265,
+    266,
+    267,
+    268,
+    269,
+    270,
+    271,
+    272,
+    273,
+    274,
+    275,
+    276,
+    277,
+    278,
+    279,
+    280,
+    281,
+    282,
+    283,
+    284,
+    285,
+    286,
+    287,
+    288,
+    289,
+    290,
+    291,
+    292,
+    293,
+    294,
+    295,
+    296,
+    297,
+    298,
+    299,
+    300
+  ],
+  "paragraphs": [
+    "HAVE ADOPTED THIS REGULATION:",
+    "Article 1",
+    "Amendments to Regulation (EU) 2024/1689",
+    "Regulation (EU) 2024/1689 is amended as follows:",
+    "(6)\tin Article 6(4), paragraph 4 is replaced by the following:",
+    "‘4. A provider who considers that an AI system referred to in Annex III is not high-risk shall document its assessment before that system is placed on the market or put into service. Upon request of national competent authorities, the provider shall provide the documentation of the assessment.’;",
+    "(7)\tArticle 10 is amended as follows:",
+    "(a)\tparagraph 1 is replaced by the following:",
+    "‘1. High-risk AI systems which make use of techniques involving the training of AI models with data shall be developed on the basis of training, validation and testing data sets that meet the quality criteria referred to in paragraphs 2, 3 and 4 of this Article and in Article 4a(1) whenever such data sets are used.’;",
+    "(b)\tparagraph 5 is deleted;",
+    "(c)\tparagraph 6 is replaced by the following:",
+    "‘6. For the development of high-risk AI systems not using techniques involving the training of AI models, paragraphs 2, 3 and 4 of this Article and Article 4a(1) shall apply only to the testing data sets.’;",
+    "(8)\tin Article 11(1), the second subparagraph is replaced by the following:",
+    "‘That technical documentation shall be drawn up in such a way as to demonstrate that the high-risk AI system complies with the requirements set out in this Section and to provide national competent authorities and notified bodies with the necessary information in a clear and comprehensive form to assess the compliance of the AI system with those requirements. It shall contain, at a minimum, the elements set out in Annex IV. SMCs and SMEs, including start-ups, may provide the elements of the technical documentation specified in Annex IV in a simplified manner. To that end, the Commission shall establish a simplified technical documentation form targeted at the needs of SMCs and SMEs, including start-ups. Where an SMC or SME, including a start-up, opts to provide the information required in Annex IV in a simplified manner, it shall use the form referred to in this paragraph. Notified bodies shall accept the form for the purposes of the conformity assessment.’;",
+    "(9)\tin Article 17, paragraph 2 is replaced by the following:",
+    "‘2. The implementation of the aspects referred to in paragraph 1 shall be proportionate to the size of the provider’s organisation, in particular, if the provider is an SMC or an SME, including a start-up. Providers shall, in any event, respect the degree of rigour and the level of protection required to ensure the compliance of their high-risk AI systems with this Regulation.’;",
+    "(16)\tin Article 56(6), the first subparagraph is replaced by the following:",
+    "‘6. The Commission and the Board shall regularly monitor and evaluate the achievement of the objectives of the codes of practice by the participants and their contribution to the proper application of this Regulation. The Commission, taking utmost account of the opinion of the Board, shall assess whether the codes of practice cover the obligations provided for in Articles 53 and 55, and shall regularly monitor and evaluate the achievement of their objectives. The Commission shall publish its assessment of the adequacy of the codes of practice.’;",
+    "(17)\tArticle 57 is amended as follows:",
+    "(a)\tthe following paragraph 3a is inserted:",
+    "‘The AI Office may also establish an AI regulatory sandbox at Union level for AI systems covered by Article 75(1). Such an AI regulatory sandbox shall be implemented in close cooperation with relevant competent authorities, in particular when Union legislation other than this Regulation is supervised in the AI regulatory sandbox, and shall provide priority access to SMEs.’;",
+    "(b)\tparagraph 5 is replaced by the following:",
+    "‘5. AI regulatory sandboxes established under this Article shall provide for a controlled environment that fosters innovation and facilitates the development, training, testing and validation of innovative AI systems for a limited time before their being placed on the market or put into service pursuant to a specific sandbox plan agreed between the providers or prospective providers and the competent authority, ensuring that appropriate safeguards are in place. Such sandboxes may include testing in real world conditions supervised therein. When applicable, the sandbox plan shall incorporate in a single document the real-world testing plan.’;",
+    "(c)\tparagraph 9, point (e) is replaced by the following:",
+    "‘(e) facilitating and accelerating access to the Union market for AI systems, in particular when provided by SMCs and SMEs, including start-ups.’;",
+    "(d)\tparagraph 13 is replaced by the following:",
+    "’13. The AI regulatory sandboxes shall be designed and implemented in such a way that they facilitate cross-border cooperation between national competent authorities.’;",
+    "(e)\tparagraph 14 is replaced by the following:",
+    "’14. National competent authorities shall coordinate their activities and cooperate within the framework of the Board. They shall support the joint establishment and operation of AI regulatory sandboxes, including in different sectors.’;",
+    "(18)\tArticle 58, paragraph 1, is replaced by the following:",
+    "‘1. In order to avoid fragmentation across the Union, the Commission shall adopt implementing acts specifying the detailed arrangements for the establishment, development, implementation, operation, governance, and supervision of the AI regulatory sandboxes. The implementing acts shall include common principles on the following issues:",
+    "(a) eligibility and selection criteria for participation in the AI regulatory sandbox;",
+    "(b) procedures for the application, participation, monitoring, exiting from and termination of the AI regulatory sandbox, including the sandbox plan and the exit report;",
+    "(c) the terms and conditions applicable to the participants;",
+    "(d) the detailed rules applicable to the governance of AI regulatory sandboxes covered under Article 57, including as regards the exercise of the tasks of the competent authorities and the coordination and cooperation at national and EU level.’;",
+    "(19)\tArticle 60 is amended as follows:",
+    "(a)\tin paragraph 1, the first subparagraph is replaced by the following:",
+    "‘Testing of high-risk AI systems in real world conditions outside AI regulatory sandboxes may be conducted by providers or prospective providers of high-risk AI systems listed in Annex III or covered by Union harmonisation legislation listed in Section A of Annex I, in accordance with this Article and the real-world testing plan referred to in this Article, without prejudice to the prohibitions under Article 5.’;",
+    "(b)\tparagraph 2 is replaced by the following:",
+    "‘2. Providers or prospective providers may conduct testing of high-risk AI systems referred to in Annex III or covered by Union harmonisation legislation listed in Section A of Annex I in real world conditions at any time before the placing on the market or the putting into service of the AI system on their own or in partnership with one or more deployers or prospective deployers.’;",
+    "(20)\tthe following Article 60a is inserted:",
+    "‘Article 60a",
+    "Testing of high-risk AI systems covered by Union harmonisation legislation listed in Section B of Annex I in real-world conditions outside AI regulatory sandboxes",
+    "1.\tTesting of high-risk AI systems in real world conditions outside AI regulatory sandboxes may be conducted by providers or prospective providers of AI enabled products covered by Union harmonisation legislation listed in Section B of Annex I, in accordance with this Article and a voluntary real-world testing agreement, without prejudice to the prohibitions under Article 5.",
+    "(22)\tArticle 69 is amended as follows:",
+    "(a)\tparagraph 2 is replaced by the following:",
+    "‘2. The Member States may be required to pay fees for the advice and support provided by the experts at a rate equivalent to the remuneration fees applicable to the Commission pursuant to the implementing act referred to in Article 68(1).’;",
+    "(b)\tparagraph 3 is deleted.",
+    "(23)\tin Article 70, paragraph 8 is replaced by the following:",
+    "‘8. National competent authorities may provide guidance and advice on the implementation of this Regulation, in particular to SMCs and SMEs, including start-ups, taking into account the guidance and advice of the Board and the Commission, as appropriate. Whenever national competent authorities intend to provide guidance and advice with regard to an AI system in areas covered by other Union law, the national competent authorities under that Union law shall be consulted, as appropriate.’;",
+    "(24)\tin Article 72, paragraph 3 is replaced by the following:",
+    "‘3. The post-market monitoring system shall be based on a post-market monitoring plan. The post-market monitoring plan shall be part of the technical documentation referred to in Annex IV. The Commission shall adopt guidance on the post-market monitoring plan.’;",
+    "(25)\tArticle 75 is amended as follows:",
+    "(a)\tthe heading of Article 75 is replaced by the following:",
+    "‘Market surveillance and control of AI systems and mutual assistance’;",
+    "(b)\tparagraph 1 is replaced by the following:",
+    "‘1. Where an AI system is based on a general-purpose AI model, with the exclusion of AI systems related to products covered by the Union harmonisation legislation listed in Annex I, and that model and that system are developed by the same provider, the AI Office shall be exclusively competent for the supervision and enforcement of that system with the obligations of this Regulation in accordance with the tasks and responsibilities assigned by it to market surveillance authorities. The AI Office shall also be exclusively competent for the supervision and enforcement of the obligations under this Regulation in relation to AI system that constitute or that are integrated into a designated very large online platform or very large online search engine within the meaning of Regulation (EU) 2022/2065.",
+    "When exercising its tasks of supervision and enforcement under the first subparagraph, the AI Office shall have all the powers of a market surveillance authority provided for in this Section and in Regulation (EU) 2019/1020. The AI Office shall be empowered to take appropriate measures and decisions to adequately exercise its supervisory and enforcement powers. Article 14 of Regulation (EU) 2019/1020 shall apply mutatis mutandis.",
+    "The authorities involved in the application of this Regulation shall cooperate actively in the exercise of these powers, in particular where enforcement actions need to be taken in the territory of a Member State.’;",
+    "(c)\tthe following paragraphs 1a to 1c are inserted:",
+    "‘1a. The Commission shall adopt an implementing act to define the enforcement powers and the procedures for the exercise of those powers of the AI Office, including its ability to impose penalties, such as fines or other administrative sanctions, in accordance with the conditions and ceilings identified in Article 99, in relation to AI systems referenced to in paragraphs 1 and 1a of this Article that are found to be non-compliant with this Regulation, in the context of its monitoring and supervision tasks under this Article.’",
+    "‘1b. Article 18 of Regulation (EU) 2019/1020 shall apply mutatis mutandis to providers of AI systems referred to in paragraph 1, without prejudice to more specific procedural rights provided for in this Regulation.’",
+    "‘1c. The Commission shall organise and carry out pre-market conformity assessments and tests of AI systems referred to in paragraph 1 that are classified as high-risk and subject to third-party conformity assessment under Article 43 before such AI systems are placed on the market or put into service. These tests and assessments shall verify that the systems comply with the relevant requirements of this Regulation and may be placed on the market or put into service in the Union in accordance with this Regulation. The Commission may entrust the performance of these tests or assessments to notified bodies designated under this Regulation, in which case the notified body shall act on behalf of the Commission. Article 34(1) and (2) shall apply mutatis mutandis to the Commission when exercising its powers under this paragraph.",
+    "The fees for testing and assessment activities shall be levied on the provider of a high-risk AI system who has applied for third-party conformity assessment to the Commission. The costs related to the services entrusted by the Commission to the notified bodies in accordance with this Article shall be directly paid by the provider to the notified body.’;",
+    "(26)\tArticle 77 is amended as follows:",
+    "(a)\tthe heading is replaced by the following:",
+    "‘Powers of authorities protecting fundamental rights and cooperation with market surveillance authorities’",
+    "(b)\tparagraph 1 is replaced by the following:",
+    "‘1. National public authorities or bodies which supervise or enforce the respect of obligations under Union law protecting fundamental rights, including the right to non-discrimination, shall have the power to make a request and access any information or documentation created or maintained from the relevant market surveillance authority under this Regulation in accessible language and format where access to that information or documentation is necessary for effectively fulfilling their mandates within the limits of their jurisdiction.’;",
+    "(c)\tthe following paragraph 1a and 1b are inserted:",
+    "‘1a. Subject to the conditions specified in this Article, the market surveillance authority shall grant the relevant public authority or body referred to in paragraph 1 access to such information or documentation, including by requesting such information or documentation from the provider or the deployer, where necessary.’",
+    "‘1b. Market surveillance authorities and public authorities or bodies referred to in paragraph 1 shall cooperate closely and provide each other with mutual assistance necessary for fulfilling their respective mandates, with a view to ensuring coherent application of this Regulation and Union law protecting fundamental rights and streamlining procedures. This shall include, in particular, exchange of information where necessary for the effective supervision or enforcement of this Regulation and the respective other Union legislation.’;",
+    "(27)\tArticle 95, paragraph 4 is replaced by the following:",
+    "‘4. The AI Office and the Member States shall take into account the specific interests and needs of SMCs and SMEs, including start-ups, when encouraging and facilitating the drawing up of codes of conduct.’;",
+    "(28)\tin Article 96(1), the second subparagraph is replaced by the following:",
+    "‘When issuing such guidelines, the Commission shall pay particular attention to the needs of SMCs and SMEs including start-ups, of local public authorities and of the sectors most likely to be affected by this Regulation.’;",
+    "(29)\tArticle 99 is amended as follows:",
+    "(a)\tparagraph 1 is replaced by the following:",
+    "‘1. In accordance with the terms and conditions laid down in this Regulation, Member States shall lay down the rules on penalties and other enforcement measures, which may also include warnings and non-monetary measures, applicable to infringements of this Regulation by operators, and shall take all measures necessary to ensure that they are properly and effectively implemented, thereby taking into account the guidelines issued by the Commission pursuant to Article 96. The penalties provided for shall be effective, proportionate and dissuasive. The Member States shall take into account the interests of SMCs and SMEs, including start-ups, and their economic viability when imposing penalties.’;",
+    "(b)\tparagraph 6 is replaced by the following:",
+    "‘6. In the case of SMCs and SMEs, including start-ups, each fine referred to in this Article shall be up to the percentages or amount referred to in paragraphs 3, 4 and 5, whichever thereof is lower.’;",
+    "(30)\tArticle 111 is amended as follows:",
+    "(a)\tparagraph 2 is replaced by the following:",
+    "‘2. Without prejudice to the application of Article 5 as referred to in Article 113(3), third paragraph, point (a), this Regulation shall apply to operators of high-risk AI systems, other than the systems referred to in paragraph 1 of this Article, that have been placed on the market or put into service before the date of application of Chapter III and corresponding obligations referred to in Article 113, only if, as from that date, those systems are subject to significant changes in their designs. In any case, the providers and deployers of high-risk AI systems intended to be used by public authorities shall take the necessary steps to comply with the requirements and obligations laid down in this Regulation by 2 August 2030.’;",
+    "(b)\tthe following paragraph 4 is added:",
+    "‘4. Providers of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content, that have been placed on the market before 2 August 2026 shall take the necessary steps in order to comply with Article 50(2) by 2 February 2027.’;",
+    "(31)\tArticle 113 is amended as follows:",
+    "(a)\tin the third paragraph, point (d) is added:",
+    "‘(d) Chapter III, Sections 1, 2, and 3, shall apply following the adoption of a decision of the Commission confirming that adequate measures in support of compliance with Chapter III are available, from the following dates:",
+    "(i) 6 months after the adoption of that decision as regards AI systems classified as high-risk pursuant to Article 6(2) and Annex III, and",
+    "(ii) 12 months after the adoption of the decision as regards AI systems classified as high-risk pursuant to Article 6(1) and Annex I.",
+    "In the absence of the adoption of the decision within the meaning of subparagraph 1, or where the dates below are earlier than those that follow the adoption of that decision, Chapter III, Sections 1, 2, and 3, shall apply:",
+    "(i) on 2 December 2027 as regards AI systems classified as high-risk pursuant to Article 6(2) and Annex III, and",
+    "(ii) on 2 August 2028 as regards AI systems classified as high-risk pursuant to Article 6(1) and Annex I.’;",
+    "(b)\tin the third paragraph, point (e) is added:",
+    "‘ 3. Articles 102 to 110 shall apply from [the date of entry into application of this Regulation].’;",
+    "(32)\tin Annex VIII, section B is deleted;",
+    "(33)\tthe following Annex XIV is added:",
+    "‘Annex XIV",
+    "The list of codes, categories and corresponding types of AI systems for the purpose of the notification procedure referred to in Article 30 specifying the scope of the designation as notified bodies",
+    "1.\tIntroduction"
+  ],
+  "paragraphSources": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[157]",
+      "ordinal": 156,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[158]",
+      "ordinal": 157,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[159]",
+      "ordinal": 158,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[160]",
+      "ordinal": 159,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[183]",
+      "ordinal": 182,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[184]",
+      "ordinal": 183,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[185]",
+      "ordinal": 184,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[186]",
+      "ordinal": 185,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[187]",
+      "ordinal": 186,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[188]",
+      "ordinal": 187,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[189]",
+      "ordinal": 188,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[190]",
+      "ordinal": 189,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[191]",
+      "ordinal": 190,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[192]",
+      "ordinal": 191,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[193]",
+      "ordinal": 192,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[194]",
+      "ordinal": 193,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[214]",
+      "ordinal": 213,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[215]",
+      "ordinal": 214,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[216]",
+      "ordinal": 215,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[217]",
+      "ordinal": 216,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[218]",
+      "ordinal": 217,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[219]",
+      "ordinal": 218,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[220]",
+      "ordinal": 219,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[221]",
+      "ordinal": 220,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[222]",
+      "ordinal": 221,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[223]",
+      "ordinal": 222,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[224]",
+      "ordinal": 223,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[225]",
+      "ordinal": 224,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[226]",
+      "ordinal": 225,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[227]",
+      "ordinal": 226,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[228]",
+      "ordinal": 227,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[229]",
+      "ordinal": 228,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[230]",
+      "ordinal": 229,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[231]",
+      "ordinal": 230,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[232]",
+      "ordinal": 231,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[233]",
+      "ordinal": 232,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[234]",
+      "ordinal": 233,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[235]",
+      "ordinal": 234,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[236]",
+      "ordinal": 235,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[237]",
+      "ordinal": 236,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[238]",
+      "ordinal": 237,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[239]",
+      "ordinal": 238,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[240]",
+      "ordinal": 239,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[241]",
+      "ordinal": 240,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[248]",
+      "ordinal": 247,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[249]",
+      "ordinal": 248,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[250]",
+      "ordinal": 249,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[251]",
+      "ordinal": 250,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[252]",
+      "ordinal": 251,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[253]",
+      "ordinal": 252,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[254]",
+      "ordinal": 253,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[255]",
+      "ordinal": 254,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[256]",
+      "ordinal": 255,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[257]",
+      "ordinal": 256,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[258]",
+      "ordinal": 257,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[259]",
+      "ordinal": 258,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[260]",
+      "ordinal": 259,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[261]",
+      "ordinal": 260,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[262]",
+      "ordinal": 261,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[263]",
+      "ordinal": 262,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[264]",
+      "ordinal": 263,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[265]",
+      "ordinal": 264,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[266]",
+      "ordinal": 265,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[267]",
+      "ordinal": 266,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[268]",
+      "ordinal": 267,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[269]",
+      "ordinal": 268,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[270]",
+      "ordinal": 269,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[271]",
+      "ordinal": 270,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[272]",
+      "ordinal": 271,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[273]",
+      "ordinal": 272,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[274]",
+      "ordinal": 273,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[275]",
+      "ordinal": 274,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[276]",
+      "ordinal": 275,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[277]",
+      "ordinal": 276,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[278]",
+      "ordinal": 277,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[279]",
+      "ordinal": 278,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[280]",
+      "ordinal": 279,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[281]",
+      "ordinal": 280,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[282]",
+      "ordinal": 281,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[283]",
+      "ordinal": 282,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[284]",
+      "ordinal": 283,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[285]",
+      "ordinal": 284,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[286]",
+      "ordinal": 285,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[287]",
+      "ordinal": 286,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[288]",
+      "ordinal": 287,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[289]",
+      "ordinal": 288,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[290]",
+      "ordinal": 289,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[291]",
+      "ordinal": 290,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[292]",
+      "ordinal": 291,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[293]",
+      "ordinal": 292,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[294]",
+      "ordinal": 293,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[295]",
+      "ordinal": 294,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[296]",
+      "ordinal": 295,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[297]",
+      "ordinal": 296,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[298]",
+      "ordinal": 297,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[299]",
+      "ordinal": 298,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[300]",
+      "ordinal": 299,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[301]",
+      "ordinal": 300,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[302]",
+      "ordinal": 301,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 3,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[304]",
+      "ordinal": 303,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 4,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[306]",
+      "ordinal": 305,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 5,
+      "complete": true
+    }
+  ],
+  "paragraphProperties": [
+    {
+      "styleId": "Formuledadoption",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Titrearticle",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point0",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point2",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Point1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "Normal",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    },
+    {
+      "styleId": "ManualNumPar1",
+      "numberingLabel": "",
+      "numberingComplete": true,
+      "notesComplete": true
+    }
+  ],
+  "paragraphFormats": [
+    {
+      "align": "justify"
+    },
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "kind": "italic"
+        }
+      ]
+    },
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 39,
+          "kind": "italic"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 3.54,
+      "hanging": 3.54
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "center",
+      "indent": 8.27,
+      "hanging": 2.36,
+      "marks": [
+        {
+          "start": 1,
+          "end": 12,
+          "kind": "italic"
+        }
+      ]
+    },
+    {
+      "align": "center",
+      "indent": 8.27,
+      "hanging": 2.36,
+      "marks": [
+        {
+          "start": 0,
+          "end": 162,
+          "kind": "bold"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36,
+      "marks": [
+        {
+          "start": 1,
+          "end": 68,
+          "kind": "bold"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36,
+      "marks": [
+        {
+          "start": 749,
+          "end": 765,
+          "kind": "italic"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36,
+      "marks": [
+        {
+          "start": 1,
+          "end": 105,
+          "kind": "bold"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 8.27,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "justify",
+      "indent": 5.9,
+      "hanging": 2.36
+    },
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 10,
+          "kind": "bold"
+        }
+      ]
+    },
+    {
+      "align": "center",
+      "marks": [
+        {
+          "start": 0,
+          "end": 198,
+          "kind": "bold"
+        }
+      ]
+    },
+    {
+      "align": "justify",
+      "indent": 3.54,
+      "hanging": 3.54
+    }
+  ],
+  "amendments": [
+    {
+      "id": "A-10-2026-0073-AM-100",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-097-102/A-10-2026-0073-AM-097-102_en.docx",
+      "sourceHash": "0d1608a1d5db0fc15f8ebc45358916a93c5606e929cb9d1ce4f7f2e6be5556ea",
+      "retrievedAt": "2026-10-27T00:34:55.142Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 30 – point a\nRegulation (EU) 2024/1689 — Article 111 – paragraph 2",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 30 – point a",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 30"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 111 – paragraph 2",
+            "labels": [
+              {
+                "raw": "Article 111"
+              },
+              {
+                "raw": "paragraph 2"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-097-102/A-10-2026-0073-AM-097-102_en.docx",
+        "fetchedAt": "2026-10-27T00:34:55.142Z"
+      },
+      "originalText": "2.\tWithout prejudice to the application of Article 5 as referred to in Article 113(3), third paragraph, point (a), this Regulation shall apply to operators of high-risk AI systems, other than the systems referred to in paragraph 1 of this Article, that have been placed on the market or put into service before the date of application of Chapter III and corresponding obligations referred to in Article 113, only if, as from that date, those systems are subject to significant changes in their designs. In any case, the providers and deployers of high-risk AI systems intended to be used by public authorities shall take the necessary steps to comply with the requirements and obligations laid down in this Regulation by 2 August 2030.;",
+      "proposedText": "2.\tWithout prejudice to the application of Article 5 as referred to in Article 113(3), third paragraph, point (a), this Regulation shall apply to operators of high-risk AI systems, other than the systems referred to in paragraph 1 of this Article, that have been placed on the market or put into service before the date of application of Chapter III and corresponding obligations referred to in Article 113, only if, as from that date, those systems are subject to substantial modification in their designs. In any case, the providers and deployers of high-risk AI systems intended to be used by public authorities shall take the necessary steps to comply with the requirements and obligations laid down in this Regulation by 2 August 2030.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[287]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-101",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-097-102/A-10-2026-0073-AM-097-102_en.docx",
+      "sourceHash": "0d1608a1d5db0fc15f8ebc45358916a93c5606e929cb9d1ce4f7f2e6be5556ea",
+      "retrievedAt": "2026-10-27T00:34:55.142Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 30 – point b\nRegulation (EU) 2024/1689 — Article 111 - paragraph 4",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 30 – point b",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 30"
+              },
+              {
+                "raw": "point b"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 111 - paragraph 4",
+            "labels": [
+              {
+                "raw": "Article 111 - paragraph 4"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-097-102/A-10-2026-0073-AM-097-102_en.docx",
+        "fetchedAt": "2026-10-27T00:34:55.142Z"
+      },
+      "originalText": "4.\tProviders of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content, that have been placed on the market before 2 August 2026 shall take the necessary steps in order to comply with Article 50(2) by 2 February 2027.;",
+      "proposedText": "4.\tProviders of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content shall take the necessary steps in order to comply with Article 50(2) by 2 August 2027.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[289]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-105",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-103-107/A-10-2026-0073-AM-103-107_en.docx",
+      "sourceHash": "68f5d6ff768a51cd776b2a0471887b31d73c91b1bed5fde431f52452445497d6",
+      "retrievedAt": "2026-10-27T00:34:56.645Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 30 – point a\nRegulation (EU) 2024/1689 — Article 111 – paragraph 2",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 30 – point a",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 30"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 111 – paragraph 2",
+            "labels": [
+              {
+                "raw": "Article 111"
+              },
+              {
+                "raw": "paragraph 2"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-103-107/A-10-2026-0073-AM-103-107_en.docx",
+        "fetchedAt": "2026-10-27T00:34:56.645Z"
+      },
+      "originalText": "2.\tWithout prejudice to the application of Article 5 as referred to in Article 113(3), third paragraph, point (a), this Regulation shall apply to operators of high-risk AI systems, other than the systems referred to in paragraph 1 of this Article, that have been placed on the market or put into service before the date of application of Chapter III and corresponding obligations referred to in Article 113, only if, as from that date, those systems are subject to significant changes in their designs. In any case, the providers and deployers of high-risk AI systems intended to be used by public authorities shall take the necessary steps to comply with the requirements and obligations laid down in this Regulation by 2 August 2030.;",
+      "proposedText": "2.\tWithout prejudice to the application of Article 5 as referred to in Article 113(3), third paragraph, point (a), this Regulation shall apply to providers and deployers of high-risk AI systems, other than the systems referred to in paragraph 1 of this Article, that have been placed on the market or put into service before 2 August 2026 only if, as from that date, those systems are subject to significant changes in their designs. In any case, they shall be brought into compliance with this Regulation by 31 December 2030.",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[287]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-106",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-103-107/A-10-2026-0073-AM-103-107_en.docx",
+      "sourceHash": "68f5d6ff768a51cd776b2a0471887b31d73c91b1bed5fde431f52452445497d6",
+      "retrievedAt": "2026-10-27T00:34:56.645Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 30 – point b\nRegulation (EU) 2024/1689 — Article 111 – paragraph 4",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 30 – point b",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 30"
+              },
+              {
+                "raw": "point b"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 111 – paragraph 4",
+            "labels": [
+              {
+                "raw": "Article 111"
+              },
+              {
+                "raw": "paragraph 4"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-103-107/A-10-2026-0073-AM-103-107_en.docx",
+        "fetchedAt": "2026-10-27T00:34:56.645Z"
+      },
+      "originalText": "(b)\tthe following paragraph 4 is added:\n‘4. Providers of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content, that have been placed on the market before 2 August 2026 shall take the necessary steps in order to comply with Article 50(2) by 2 February 2027.;’",
+      "proposedText": "deleted",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[288]",
+        "/w:document[1]/w:body[1]/w:p[289]"
+      ],
+      "expectedOperation": "delete"
+    },
+    {
+      "id": "A-10-2026-0073-AM-116",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+      "sourceHash": "d0638f2dd3bd894b17dc3738d3624dcbb4bb333f0387061a3f1593bc1374e26b",
+      "retrievedAt": "2026-10-27T00:34:59.654Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 7 – point a\nRegulation (EU) 2024/1689 — Article 10 – paragraph 1",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 7 – point a",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 7"
+              },
+              {
+                "raw": "point a"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 10 – paragraph 1",
+            "labels": [
+              {
+                "raw": "Article 10"
+              },
+              {
+                "raw": "paragraph 1"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "fetchedAt": "2026-10-27T00:34:59.654Z"
+      },
+      "originalText": "1.\tHigh-risk AI systems which make use of techniques involving the training of AI models with data shall be developed on the basis of training, validation and testing data sets that meet the quality criteria referred to in paragraphs 2, 3 and 4 of this Article and in Article 4a(1) whenever such data sets are used.;",
+      "proposedText": "1.\tHigh-risk AI systems which make use of techiques involving the training of AI-models with data shall be developed on the basis of training, validation adn testing data sets that meet the quality criteria referred to in paragraphs 2, 3, 4 of this Article. Where Article 4a(1) applies on an exceptional basis, such processing shall remain strictly separate from the general training, validation, and testing datasets and workflows and shall not be relied upon as a legal basis for broader processing of personal data.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[187]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-130",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-128-132/A-10-2026-0073-AM-128-132_en.docx",
+      "sourceHash": "db144805014537fc303d5c674d374551727ef6713ea734ff5c19f078e80f434d",
+      "retrievedAt": "2026-10-27T00:35:02.660Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 30 – point b\nRegulation (EU) 2024/1689 — Article 111 – paragraph 4",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 30 – point b",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 30"
+              },
+              {
+                "raw": "point b"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 111 – paragraph 4",
+            "labels": [
+              {
+                "raw": "Article 111"
+              },
+              {
+                "raw": "paragraph 4"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-128-132/A-10-2026-0073-AM-128-132_en.docx",
+        "fetchedAt": "2026-10-27T00:35:02.660Z"
+      },
+      "originalText": "4.\tProviders of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content, that have been placed on the market before 2 August 2026 shall take the necessary steps in order to comply with Article 50(2) by 2 February 2027.;",
+      "proposedText": "4.\tProviders of AI systems, including general-purpose AI systems, generating synthetic audio, image, video content shall take the necessary steps in order to comply with Article 50(2) by 2 February 2027.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[289]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-49",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 17 – point a",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "The AI Office may also establish an AI regulatory sandbox at Union level for AI systems covered by Article 75(1). Such an AI regulatory sandbox shall be implemented in close cooperation with relevant competent authorities, in particular when Union legislation other than this Regulation is supervised in the AI regulatory sandbox, and shall provide priority access to SMEs.;",
+      "proposedText": "(3a)\tThe AI Office may also establish an AI regulatory sandbox at Union level for AI systems covered by Article 75(1). Such an AI regulatory sandbox shall be implemented in close cooperation with relevant competent authorities, in particular when Union legislation other than this Regulation is supervised in the AI regulatory sandbox, and shall provide priority access to SMEs, including startups.;\nThe AI Office shall ensure that, to the extent innovative AI systems referred to in paragraph 5 involve the processing of personal data or otherwise fall under the supervisory remit of other national authorities or competent authorities providing or supporting access to data, the national data protection authorities, the EDPB and those other national or competent authorities are associated with the operation of the AI regulatory sandbox established at Union level and involved in the supervision of those aspects to the extent that they relate to their respective tasks and powers, in accordance with Regulation (EU) 2016/679, Regulation (EU) 2018/1725 and Directive (EU)2018/680.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[218]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-50",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 17 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "5.\tAI regulatory sandboxes established under this Article shall provide for a controlled environment that fosters innovation and facilitates the development, training, testing and validation of innovative AI systems for a limited time before their being placed on the market or put into service pursuant to a specific sandbox plan agreed between the providers or prospective providers and the competent authority, ensuring that appropriate safeguards are in place. Such sandboxes may include testing in real world conditions supervised therein. When applicable, the sandbox plan shall incorporate in a single document the real-world testing plan.;",
+      "proposedText": "5.\tAI regulatory sandboxes established under this Article shall provide for a controlled environment that fosters innovation and facilitates the development, training, testing and validation of innovative AI systems for a limited time before their being placed on the market or put into service pursuant to a specific sandbox plan agreed between the providers or prospective providers and the competent authorities, ensuring that appropriate safeguards are in place. Such sandboxes may include testing in real world conditions supervised therein. When applicable, the sandbox plan shall incorporate in a single document the real-world testing plan.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[220]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-51",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 17 – point e",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "14.\tNational competent authorities shall coordinate their activities and cooperate within the framework of the Board. They shall support the joint establishment and operation of AI regulatory sandboxes, including in different sectors.;",
+      "proposedText": "14.\tNational competent authorities shall coordinate their activities and cooperate within the framework of the Board. They shall support the joint establishment and operation of AI regulatory sandboxes, including in different sectors.;\nWhen discussions are held within the framework of the Board, the European Data Protection Supervisor and the AI office shall, as part of their roles within the Board, also provide their feedback and exchange best practices on matters related to the establishment and operation of AI regulatory sandboxes established under their respective competences.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[226]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-53",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 19 – point a",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "Testing of high-risk AI systems in real world conditions outside AI regulatory sandboxes may be conducted by providers or prospective providers of high-risk AI systems listed in Annex III or covered by Union harmonisation legislation listed in Section A of Annex I, in accordance with this Article and the real-world testing plan referred to in this Article, without prejudice to the prohibitions under Article 5.;",
+      "proposedText": "1.\tTesting of high-risk AI systems in real world conditions outside AI regulatory sandboxes may be conducted by providers or prospective providers of high-risk AI systems listed in Annex III, in accordance with this Article and the real-world testing plan referred to in this Article, without prejudice to the prohibitions under Article 5.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[235]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-54",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 19 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "2.\tProviders or prospective providers may conduct testing of high-risk AI systems referred to in Annex III or covered by Union harmonisation legislation listed in Section A of Annex I in real world conditions at any time before the placing on the market or the putting into service of the AI system on their own or in partnership with one or more deployers or prospective deployers.;",
+      "proposedText": "2.\tProviders or prospective providers may conduct testing of high-risk AI systems referred to in Annex III in real world conditions at any time before the placing on the market or the putting into service of the AI system on their own or in partnership with one or more deployers or prospective deployers.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[237]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-58",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 22 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "(b)\tparagraph 3 is deleted.",
+      "proposedText": "deleted",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[251]"
+      ],
+      "expectedOperation": "delete"
+    },
+    {
+      "id": "A-10-2026-0073-AM-60",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "Where an AI system is based on a general-purpose AI model, with the exclusion of AI systems related to products covered by the Union harmonisation legislation listed in Annex I, and that model and that system are developed by the same provider, the AI Office shall be exclusively competent for the supervision and enforcement of that system with the obligations of this Regulation in accordance with the tasks and responsibilities assigned by it to market surveillance authorities. The AI Office shall also be exclusively competent for the supervision and enforcement of the obligations under this Regulation in relation to AI system that constitute or that are integrated into a designated very large online platform or very large online search engine within the meaning of Regulation (EU) 2022/2065.",
+      "proposedText": "1.\tWhere an AI system is based on a general-purpose AI model, with the exclusion of AI systems related to products covered by the Union harmonisation legislation listed in Annex I and AI systems referred to in Annex III, point 2, and that model and that system are developed by the same provider or by providers belonging to the same group of undertakings, the AI Office shall have powers to supervise and enforce the obligations of this Regulation in accordance with the tasks and responsibilities assigned by it to market surveillance authorities. The AI Office shall also have powers to supervise and enforce the obligations under this Regulation in relation to AI systems that constitute or that are integrated into a designated very large online platform or very large online search engine within the meaning of Regulation (EU) 2022/2065. Where the Commission has not initiated proceedings for the same infringement, the competent authority of a Member State in which the main establishment of the provider of very large online platform or of very large online search engine is located, or where their legal representative is established, may have the powers to supervise and enforce the obligations under this Regulation.\nNotwithstanding the first subparagraph, the supervision and enforcement powers of the AI Office, do not include AI systems placed on the market, put into service or used by Union institutions, bodies, offices or agencies, which are under the supervision of the European Data Protection Supervisor pursuant to Article 74(9) of this Regulation.",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[260]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-61",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "When exercising its tasks of supervision and enforcement under the first subparagraph, the AI Office shall have all the powers of a market surveillance authority provided for in this Section and in Regulation (EU) 2019/1020. The AI Office shall be empowered to take appropriate measures and decisions to adequately exercise its supervisory and enforcement powers. Article 14 of Regulation (EU) 2019/1020 shall apply mutatis mutandis.",
+      "proposedText": "When exercising its tasks of supervision and enforcement under the first subparagraph, the AI Office shall have all the powers of a market surveillance authority provided for in this Section and in Regulation (EU) 2019/1020. The AI Office shall take appropriate measures and decisions to adequately exercise its supervisory and enforcement powers. Article 14 of Regulation (EU) 2019/1020 shall apply mutatis mutandis.",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[261]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-63",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25 – point c",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "The Commission shall organise and carry out pre-market conformity assessments and tests of AI systems referred to in paragraph 1 that are classified as high-risk and subject to third-party conformity assessment under Article 43 before such AI systems are placed on the market or put into service. These tests and assessments shall verify that the systems comply with the relevant requirements of this Regulation and may be placed on the market or put into service in the Union in accordance with this Regulation. The Commission may entrust the performance of these tests or assessments to notified bodies designated under this Regulation, in which case the notified body shall act on behalf of the Commission. Article 34(1) and (2) shall apply mutatis mutandis to the Commission when exercising its powers under this paragraph.",
+      "proposedText": "1c.\tThe Commission shall, subject to Article 28(8), ensure that pre-market conformity assessments and tests of AI systems referred to in paragraph 1 that are classified as high-risk and subject to third-party conformity assessment under Article 43 are carried out before such AI systems are placed on the market or put into service. These tests and assessments shall verify that the systems comply with the relevant requirements of this Regulation and may be placed on the market or put into service in the Union in accordance with this Regulation. The Commission shall entrust the performance of these tests or assessments to notified bodies designated under this Regulation, in which case the notified body shall act on behalf of the Commission. Article 34(1) and (2) shall apply mutatis mutandis to the Commission when exercising its powers under this paragraph.",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[266]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-64",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 26 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "1.\tNational public authorities or bodies which supervise or enforce the respect of obligations under Union law protecting fundamental rights, including the right to non-discrimination, shall have the power to make a request and access any information or documentation created or maintained from the relevant market surveillance authority under this Regulation in accessible language and format where access to that information or documentation is necessary for effectively fulfilling their mandates within the limits of their jurisdiction.;",
+      "proposedText": "1.\tNational public authorities or bodies which supervise or enforce the respect of obligations under Union law protecting fundamental rights, including the right to non-discrimination, shall have the power to make a request and access any information or documentation created or maintained from the relevant market surveillance authority under this Regulation in accessible language and machine-readable format by electronic means where access to that information or documentation is necessary for effectively fulfilling their mandates within the limits of their jurisdiction. This paragraph is without prejudice to the tasks, powers and independence of the relevant national public authorities or bodies under their mandates in accordance with Union and national law;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[272]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-66",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 26 – point c",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "1a.\tSubject to the conditions specified in this Article, the market surveillance authority shall grant the relevant public authority or body referred to in paragraph 1 access to such information or documentation, including by requesting such information or documentation from the provider or the deployer, where necessary.",
+      "proposedText": "1a.\tSubject to the conditions specified in this Article, the market surveillance authority shall grant the relevant public authority or body referred to in paragraph 1 access to such information or documentation, including by requesting such information or documentation from the provider or the deployer, where necessary and without undue delay.",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[274]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-67",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 26 – point c",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "1b.\tMarket surveillance authorities and public authorities or bodies referred to in paragraph 1 shall cooperate closely and provide each other with mutual assistance necessary for fulfilling their respective mandates, with a view to ensuring coherent application of this Regulation and Union law protecting fundamental rights and streamlining procedures. This shall include, in particular, exchange of information where necessary for the effective supervision or enforcement of this Regulation and the respective other Union legislation.;",
+      "proposedText": "1b.\tMarket surveillance authorities and public authorities or bodies referred to in paragraph 1 shall cooperate closely and provide each other with mutual assistance necessary for fulfilling their respective mandates, with a view to ensuring coherent application of this Regulation and Union law protecting fundamental rights and streamlining procedures while respecting their respective competences, tasks, powers and independence. This shall include, in particular, exchange of information where necessary for the effective supervision or enforcement of this Regulation and the respective other Union legislation.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[275]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-73",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 29 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "6.\tIn the case of SMCs and SMEs, including start-ups, each fine referred to in this Article shall be up to the percentages or amount referred to in paragraphs 3, 4 and 5, whichever thereof is lower.;",
+      "proposedText": "6.\tIn the case of and SMEs, including start-ups, each fine referred to in this Article shall be up to the percentages or amount referred to in paragraphs 3, 4 and 5, whichever thereof is lower.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[284]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-76",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 30 – point b",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "4.\tProviders of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content, that have been placed on the market before 2 August 2026 shall take the necessary steps in order to comply with Article 50(2) by 2 February 2027.;",
+      "proposedText": "4.\tProviders of AI systems, including general-purpose AI systems, generating synthetic audio, image, video or text content, that have been placed on the market before 2 August 2026 shall take the necessary steps in order to comply with Article 50(2) by 2 November 2026.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[289]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-77",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 31 – point a",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "Chapter III, Sections 1, 2, and 3, shall apply following the adoption of a decision of the Commission confirming that adequate measures in support of compliance with Chapter III are available, from the following dates:",
+      "proposedText": "Chapter III, Sections 1, 2, and 3, with the exception of Article 6(5), shall apply;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[292]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-78",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 31 – point a",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "(i)\t6 months after the adoption of that decision as regards AI systems classified as high-risk pursuant to Article 6(2) and Annex III, and",
+      "proposedText": "deleted",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[293]"
+      ],
+      "expectedOperation": "delete"
+    },
+    {
+      "id": "A-10-2026-0073-AM-79",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 31 – point a",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "(ii)\t12 months after the adoption of the decision as regards AI systems classified as high-risk pursuant to Article 6(1) and Annex I.",
+      "proposedText": "deleted",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[294]"
+      ],
+      "expectedOperation": "delete"
+    },
+    {
+      "id": "A-10-2026-0073-AM-80",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 31 – point a",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "In the absence of the adoption of the decision within the meaning of subparagraph 1, or where the dates below are earlier than those that follow the adoption of that decision, Chapter III, Sections 1, 2, and 3, shall apply:",
+      "proposedText": "deleted",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[295]"
+      ],
+      "expectedOperation": "delete"
+    },
+    {
+      "id": "A-10-2026-0073-AM-96",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-090-096/A-10-2026-0073-AM-090-096_en.docx",
+      "sourceHash": "b9df5c62d3367f548d0a9373cad2d8f89286bc97bcb6f903a47db30ff2d7ca75",
+      "retrievedAt": "2026-10-27T00:34:53.640Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25 – point b\nRegulation (EU) 2024/1689 — Article 75 – paragraph 1 – subparagraph 1",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 25 – point b",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 25"
+              },
+              {
+                "raw": "point b"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 75 – paragraph 1 – subparagraph 1",
+            "labels": [
+              {
+                "raw": "Article 75"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "subparagraph 1"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-090-096/A-10-2026-0073-AM-090-096_en.docx",
+        "fetchedAt": "2026-10-27T00:34:53.640Z"
+      },
+      "originalText": "Where an AI system is based on a general-purpose AI model, with the exclusion of AI systems related to products covered by the Union harmonisation legislation listed in Annex I, and that model and that system are developed by the same provider, the AI Office shall be exclusively competent for the supervision and enforcement of that system with the obligations of this Regulation in accordance with the tasks and responsibilities assigned by it to market surveillance authorities. The AI Office shall also be exclusively competent for the supervision and enforcement of the obligations under this Regulation in relation to AI system that constitute or that are integrated into a designated very large online platform or very large online search engine within the meaning of Regulation (EU) 2022/2065.",
+      "proposedText": "Where an AI system is based on a general-purpose AI model, with the exclusion of AI systems related to products covered by the Union harmonisation legislation listed in Annex I, and the model and the system are developed by the same provider, the AI Office shall have powers to monitor and supervise compliance of that AI system with obligations under this Regulation. To carry out its monitoring and supervision tasks, the AI Office shall have all relevant powers of a market surveillance authority provided for in this Section and Regulation (EU) 2019/1020.",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[260]"
+      ],
+      "expectedOperation": "replace"
+    },
+    {
+      "id": "A-10-2026-0073-AM-97",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-097-102/A-10-2026-0073-AM-097-102_en.docx",
+      "sourceHash": "0d1608a1d5db0fc15f8ebc45358916a93c5606e929cb9d1ce4f7f2e6be5556ea",
+      "retrievedAt": "2026-10-27T00:34:55.142Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25 – point b\nRegulation (EU) 2024/1689 — Article 75 – paragraph 1 – subparagraph 3",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 25 – point b",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 25"
+              },
+              {
+                "raw": "point b"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 75 – paragraph 1 – subparagraph 3",
+            "labels": [
+              {
+                "raw": "Article 75"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "subparagraph 3"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-097-102/A-10-2026-0073-AM-097-102_en.docx",
+        "fetchedAt": "2026-10-27T00:34:55.142Z"
+      },
+      "originalText": "The authorities involved in the application of this Regulation shall cooperate actively in the exercise of these powers, in particular where enforcement actions need to be taken in the territory of a Member State.;",
+      "proposedText": "The authorities involved in the application of this Regulation shall cooperate actively in the exercise of this Regulation.;",
+      "expectedSourcePaths": [
+        "/w:document[1]/w:body[1]/w:p[262]"
+      ],
+      "expectedOperation": "replace"
+    }
+  ],
+  "negatives": [
+    {
+      "id": "A-10-2026-0073-AM-119",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-119-121/A-10-2026-0073-AM-119-121_en.docx",
+      "sourceHash": "14d8bd8609da352822908288b5e83736d1608fbe95ea9f146b4f43ad8667efa0",
+      "retrievedAt": "2026-10-27T00:35:01.156Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25\nRegulation 2024/1689 — Article 75",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 25",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 25"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation 2024/1689",
+            "raw": "Article 75",
+            "labels": [
+              {
+                "raw": "Article 75"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-119-121/A-10-2026-0073-AM-119-121_en.docx",
+        "fetchedAt": "2026-10-27T00:35:01.156Z"
+      },
+      "originalText": "(25)\t[...]",
+      "proposedText": "deleted"
+    },
+    {
+      "id": "A-10-2026-0073-AM-36",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 6",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "(6)\tin Article 6, paragraph 4 is replaced by the following:\n‘\n4.\tA provider who considers that an AI system referred to in Annex III is not high-risk shall document its assessment before that system is placed on the market or put into service. Upon request of national competent authorities, the provider shall provide the documentation of the assessment.;\n’",
+      "proposedText": "deleted"
+    },
+    {
+      "id": "A-10-2026-0073-AM-70",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+      "sourceHash": "d8686eb34bf6f47196fdc1fd040ff5f2c6a19fc712eca16086508650408544bd",
+      "retrievedAt": "2026-10-27T00:34:50.633Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 28",
+      "targetPath": {
+        "proposal": [],
+        "underlying": [],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-001-083/A-10-2026-0073-AM-001-083_en.docx",
+        "fetchedAt": "2026-10-27T00:34:50.633Z"
+      },
+      "originalText": "(a) the application of the requirements and obligations referred to in Articles 8 to 15 and in Article 25;",
+      "proposedText": "-1.\t(a) the application of the requirements and obligations referred to in Articles 8 to 15 and in Articles 25 and 26;"
+    },
+    {
+      "id": "A-10-2026-0073-AM-88",
+      "language": "en",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-084-089/A-10-2026-0073-AM-084-089_en.docx",
+      "sourceHash": "916bfad8d3c97157f30d7298935ba03b78225ea17b02369a2cf6d80df7842cdf",
+      "retrievedAt": "2026-10-27T00:34:52.137Z",
+      "targetLabel": "Article 1 – paragraph 1 – point 25\nRegulation (EU) 2024/1689 — Article 75",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 25",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 25"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 75",
+            "labels": [
+              {
+                "raw": "Article 75"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-084-089/A-10-2026-0073-AM-084-089_en.docx",
+        "fetchedAt": "2026-10-27T00:34:52.137Z"
+      },
+      "originalText": "(25)\t[...]",
+      "proposedText": "deleted"
+    }
+  ]
+}

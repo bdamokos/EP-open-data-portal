@@ -113,6 +113,14 @@ test('a shared GET stays pending through busy backoff then caches recovered data
   await tick(1);assert.deepEqual(await pending,{items:['ready']});assert.equal(calls,2);assert(settled);
 });
 
+test('a gateway busy response keeps agenda loading through the declared retry delay',async t=>{
+  const tick=clock(t);let calls=0,settled=false;
+  const pending=readJson('insights/legislation?topic=known',{timeoutMs:35000,fetchImpl:async()=>++calls===1?{ok:false,status:503,headers:new Headers({'Retry-After':'2'}),json:async()=>({error:{code:'busy'}})}:response(200)});
+  pending.then(()=>{settled=true;});await flush();
+  await tick(1999);assert.equal(calls,1);assert.equal(settled,false);
+  await tick(1);assert.deepEqual(await pending,{items:['ready']});assert.equal(calls,2);
+});
+
 test('busy exhaustion stops after three attempts and preserves the service message and code',async t=>{
   const tick=clock(t);let calls=0;
   const read=readJson('x',{fetchImpl:async()=>{calls++;return response(503);}});

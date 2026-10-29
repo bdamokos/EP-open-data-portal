@@ -16,7 +16,7 @@ import {serveStatic} from './static-files.mjs';
 import {apiCachePolicy,portraitCachePolicy} from './response-cache.mjs';
 import {API_VERSION} from './api-version.mjs';
 import {plenaryLive} from './plenary-live.mjs';
-import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus} from './odp.mjs';
+import {odpDirectory,odpProfileWithMemberships,odpSpeeches,odpSpeech,odpLanguage,odpPortrait,startCorporateBodyWarmup,upstreamStatus,odpHeaderStatus,startOdpMonitoring} from './odp.mjs';
 import {questionStatuses} from './question-status.mjs';
 import {recentActivities,activityDocument} from './activities.mjs';
 import {motionComparison} from './motion-comparison.mjs';
@@ -31,6 +31,7 @@ import {commissionFollowups,commissionFollowupsQuery} from './commission-followu
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
+import {startPlenaryWarmup} from './plenary-warmup.mjs';
 import { amendmentQuery } from './amendments.mjs';
 import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
@@ -49,12 +50,16 @@ import {LegalReferences,referencesQuery} from './legal-references.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 import {PressMentions,pressMentionsQuery} from './press-releases.mjs';
 const interventions=new SpeechInterventions();
-let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let insightService,pressMentions;
+let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let stopPlenaryWarmup=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
   if(!officialContext){const sources=getSharedOfficialContextSources(),catalog=new EurovocCatalog(sources);officialContext={sources,catalog,procedures:new ProcedureContext(sources,catalog),progress:new ProcedureProgress(sources),references:new LegalReferences(sources)};}
   return officialContext;
+}
+function indexedRead(read) {
+  const store=activityIndex().store;
+  return store.readSnapshot(()=>read(store));
 }
 function positiveId(value) {
   const raw = String(value || "");
@@ -184,7 +189,7 @@ async function handleApi(request,response,url,apiPrefix){
       result=await decisionVotes(decisionVotesQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if(segments[0]==='commission-followups'&&segments.length===2) {
-      result=await commissionFollowups.query(commissionFollowupsQuery(segments[1],url.searchParams));
+      result=await commissionFollowups.query(commissionFollowupsQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if (segments[0] === 'member-vote-explanations' && segments.length===2) {
       result=await memberVoteExplanations.query(positiveId(segments[1]),memberVoteExplanationsQuery(url.searchParams));
@@ -194,11 +199,11 @@ async function handleApi(request,response,url,apiPrefix){
     }
     else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
       const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});
-      result=failures?amendmentFailures(activityIndex().store,query):amendmentsPage(activityIndex().store,query);
+      result=indexedRead(store=>failures?amendmentFailures(store,query):amendmentsPage(store,query));
     }
     else if (segments[0] === 'outside' && segments.length === 2) {
-      const query=outsideQuery(url.searchParams), store=activityIndex().store;
-      result=segments[1]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[1],query);
+      const query=outsideQuery(url.searchParams);
+      result=indexedRead(store=>segments[1]==='directory'?outsideDirectory(store,query):outsideSpeaker(store,segments[1],query));
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'procedure-progress') {
       result=await official().progress.query(procedureProgressQuery(url.searchParams));
@@ -286,7 +291,7 @@ async function handleApi(request,response,url,apiPrefix){
       if(category!==null && !Object.hasOwn(CATEGORIES,category))throw new HttpError(400,'invalid_category','Unknown activity category.');
       const sourceId=url.searchParams.get('source-id');
       if(sourceId!==null && !/^[A-Z0-9-]{1,100}$/.test(sourceId))throw new HttpError(400,'invalid_source_id','Invalid source identifier.');
-      result=questionStatuses(activityIndex().store,latestActivities(positiveId(segments[1]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)}));
+      result=indexedRead(store=>questionStatuses(store,latestActivities(positiveId(segments[1]),{language,category,sourceId,limit:integer('limit',10,50),offset:integer('offset',0,1000000)})));
     }
     else if (segments.length === 2 && segments[0] === 'speech-context') {
       requireQuery(url.searchParams,['lang']);
@@ -361,7 +366,7 @@ export async function handleRequest(request, response) {
     }
     throw new HttpError(404, "not_found", "The requested resource does not exist");
   } catch (error) {
-    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),eventLoopDelay:eventLoopDelay?.snapshot(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
+    if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),odpHeaders:odpHeaderStatus(),eventLoopDelay:eventLoopDelay?.snapshot(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
     if(response.destroyed||response.writableEnded)return;
     if (!response.headersSent) {
       sendError(request, response, error);
@@ -390,6 +395,8 @@ function shutDown(signal) {
   stopIndex();
   stopCorpus();
   stopBodyWarmup();
+  stopPlenaryWarmup();
+  stopMonitoring();
   console.log(`[parliament-explorer] received ${signal}; shutting down`);
   const forceTimer = setTimeout(() => {
     process.exitCode = 1;
@@ -412,8 +419,15 @@ if (isEntryPoint) {
   });
   process.on("SIGINT", () => shutDown("SIGINT"));
   process.on("SIGTERM", () => shutDown("SIGTERM"));
+  server.once('listening',()=>{
+    stopMonitoring=startOdpMonitoring();
+    stopIndex = startActivityIndex();
+    stopCorpus = startCorpus();
+    stopBodyWarmup = startCorporateBodyWarmup();
+    stopPlenaryWarmup = startPlenaryWarmup(async()=>{
+      insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
+      return insightService.warmPlenary();
+    });
+  });
   startServer();
-  stopIndex = startActivityIndex();
-  stopCorpus = startCorpus();
-  stopBodyWarmup = startCorporateBodyWarmup();
 }

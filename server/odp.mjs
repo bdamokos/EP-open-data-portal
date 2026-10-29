@@ -1,13 +1,16 @@
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
-import {readFile,writeFile} from "node:fs/promises";
+import {readFile,writeFile,unlink} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
+import {CacheDiskBudget} from './cache-disk-budget.mjs';
+import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash,randomUUID } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { transcriptLanguage } from "./transcript-language.mjs";
 import { speechWebsite, languageCode } from "./ep-links.mjs";
 import { UpstreamQueue, retryAfterSeconds } from './upstream-queue.mjs';
+import {OdpObservations,odpPacing} from './odp-observability.mjs';
 import {speechSpeakerDetails} from './speech-speakers.mjs';
 import {SpeakerIdentities} from './speaker-identity.mjs';
 import {PortraitCache} from './portrait-cache.mjs';
@@ -32,7 +35,17 @@ const pending = new Map();
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
 // API v2 paths/IDs/queries. Reserve 50 starts for readers as a local fairness rule.
 export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:50});
-const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT});
+const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
+const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
+const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
+export const observedOdpFetch=(url,options)=>observations.fetch(url,options);
+export const odpObservations=()=>observations.snapshot();
+export const odpHeaderStatus=()=>observations.headerSnapshot();
+export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
+  const report=()=>log('[odp-monitor]',JSON.stringify(odpObservations()));
+  report();const timer=setInterval(report,intervalMs);timer.unref();
+  return ()=>{clearInterval(timer);report();};
+}
 const sourceQueues=new Map([['odp',upstreamQueue]]);
 function sourceQueue(source) {
   if(!['odp','website','documents','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
@@ -42,6 +55,36 @@ function sourceQueue(source) {
 export const upstreamStatus=()=>upstreamQueue.snapshot();
 const refreshFailures = new Map();
 const cacheDir = process.env.ODP_CACHE_DIR;
+// Agenda warming must not grow the general source directory indefinitely.
+const agendaDirectory=cacheDir&&path.join(cacheDir,'plenary-agendas-v1');
+const agendaBudget=agendaDirectory&&new CacheDiskBudget(agendaDirectory,{maxBytes:32*1024*1024,maxEntries:160,pattern:/^[a-f0-9]{64}\.json$/});
+const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
+let agendaRevision='initial',agendaRevisionLoaded,agendaPublications=Promise.resolve();
+async function loadAgendaRevision() {
+  agendaRevisionLoaded??=(async()=>{
+    if(!agendaDirectory)return;
+    try {const saved=JSON.parse(await readFile(path.join(agendaDirectory,'revision.json'),'utf8'));if(/^[a-f0-9-]{36}$/.test(saved.revision))agendaRevision=saved.revision;}catch{}
+  })();
+  await agendaRevisionLoaded;
+}
+export async function agendaCacheRevision() {
+  await loadAgendaRevision();await agendaPublications;return agendaRevision;
+}
+function publishAgenda(record,publish) {
+  const job=agendaPublications.then(async()=>{
+    await loadAgendaRevision();
+    const previous=newestSource(record.url,await readDiskSource(record.url));
+    if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(record.payload)) {
+      // Persist invalidation before replacing bytes. Derived readers wait for
+      // this whole publication, so a restart cannot reuse the previous view.
+      const revision=randomUUID();
+      if(agendaDirectory)await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify({revision}),{signal:null}).catch(()=>{});
+      agendaRevision=revision;
+    }
+    await publish();
+  });
+  agendaPublications=job.catch(()=>{});return job;
+}
 const allowedLanguages = new Set(
   "bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv".split(
     " ",
@@ -76,7 +119,7 @@ const firstString = (value) =>
       : "";
 function filename(key) {
   return path.join(
-    cacheDir,
+    isAgendaKey(key)?agendaDirectory:cacheDir,
     createHash("sha256").update(key).digest("hex") + ".json",
   );
 }
@@ -112,9 +155,20 @@ function withSourceLock(key, operation) {
 async function readDiskSource(key, signal) {
   if (!cacheDir) return null;
   try {
-    const record = JSON.parse(await readSourceRecord(filename(key), signal));
+    const record = JSON.parse(await readSourceFile(key, signal));
     return record.url === key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data) ? record : null;
   } catch { signal?.throwIfAborted(); return null; }
+}
+async function readSourceFile(key,signal) {
+  const names=[filename(key)];
+  if(isAgendaKey(key))names.push(path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'));
+  const legacy=Buffer.from(key).toString('base64url')+'.json';
+  if(legacy.length<=255)names.push(path.join(cacheDir,legacy));
+  for(const file of names) {
+    try {return await readSourceRecord(file,signal);}
+    catch{signal?.throwIfAborted();}
+  }
+  throw new Error('Source record is not retained.');
 }
 // The latest of the memory record and a record just read from disk. Memory may
 // have advanced while the disk read was pending.
@@ -124,12 +178,24 @@ function newestSource(key, record) {
 }
 // Inside a lock the write itself is never cancelled: the lock is released only
 // once the file is published, and a cancelled caller merely stops waiting.
-const publishLocked = (key, serialized) => writeCacheFile(filename(key), serialized, {signal:null}).catch(() => {});
+const publishLocked = async (key, serialized) => {
+  try {
+    const file=filename(key);
+    const published=await writeCacheFile(file,serialized,{signal:null});
+    if(published&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
+    return published;
+  }catch{return false;/* Available source data survives a failed reproducible disk write. */}
+};
 function publishSourceFile(key, record, serialized, signal) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
     if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
-    await publishLocked(key, serialized);
+    const published=await publishLocked(key, serialized);
+    if(published&&isAgendaKey(key)) {
+      const legacy=Buffer.from(key).toString('base64url')+'.json';
+      const old=[path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),...(legacy.length<=255?[path.join(cacheDir,legacy)]:[])];
+      for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
+    }
   }), signal ?? null);
 }
 async function readSourceRecord(file, signal) {
@@ -188,6 +254,11 @@ export async function odp(
   { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
+  // All agenda consumers share one policy, including live-status and vote reads.
+  // Explicit maintenance refreshes still use force; cache age alone never
+  // re-downloads a completed week's agenda.
+  const agendaMs=agendaFreshMs(endpoint),settledAfter=agendaSettledAfter(endpoint);
+  if(agendaMs!==null)ttl=Math.max(ttl,agendaMs);
   const url = new URL(ODP_BASE + endpoint);
   for (const [key, value] of Object.entries({
     ...params,
@@ -198,16 +269,13 @@ export async function odp(
   let stored = cache.get(key)?.record;
   if (!stored && cacheDir && !force) {
     try {
-      const oldName=Buffer.from(key).toString('base64url')+'.json';
-      const raw=await readSourceRecord(filename(key),signal).catch(error=>{
-        signal?.throwIfAborted();
-        return oldName.length<=255?readSourceRecord(path.join(cacheDir,oldName),signal):Promise.reject(error);
-      });
+      const raw=await readSourceFile(key,signal);
       signal?.throwIfAborted();
       const record=JSON.parse(raw);
       if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {
         stored=newestSource(key,record);
         if(stored===record)rememberSource(key,record);
+        if(isAgendaKey(key))agendaBudget.used(path.basename(filename(key)));
       }
     } catch { /* Missing or invalid reproducible cache. */ }
   }
@@ -217,11 +285,12 @@ export async function odp(
   }
   if(cachedOnly) {
     if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
-    return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
+    return {...stored,stale:stored.fetchedAt<settledAfter || Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
   }
   if (
     !force &&
     stored &&
+    stored.fetchedAt >= settledAfter &&
     Date.now() - stored.fetchedAt < ttl &&
     (!daily || dayOf(stored.fetchedAt) === today())
   )
@@ -250,7 +319,7 @@ export async function odp(
         const response = await upstreamQueue.runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
           release=releaseSlot;
-          return fetch(url, {
+          return observedOdpFetch(url, {
           headers: {
             Accept: "application/ld+json",
             "User-Agent":
@@ -314,10 +383,11 @@ export async function odp(
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
-        if (retain) rememberSource(key, record, serialized);
-        if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) {
-          await publishSourceFile(key,record,serialized,budget.signal);
-        }
+        const publish=async()=>{
+          if (retain) rememberSource(key, record, serialized);
+          if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal);
+        };
+        if(retain&&isAgendaKey(key))await publishAgenda(record,publish);else await publish();
         budget.signal?.throwIfAborted();
         return record;
       } catch(error) {
@@ -1009,7 +1079,7 @@ async function feed(endpoint, params, entity) {
   const url = new URL(ODP_BASE + endpoint);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return boundedUpstream(async()=>{
-    const r = await fetch(url, {
+    const r = await observedOdpFetch(url, {
       headers: {
         Accept: "application/atom+xml",
         "User-Agent":

@@ -20,8 +20,10 @@ import {documentContextPlacement} from './document-context-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
 import {commissionReferences} from './commission-proposal-identity.mjs';
 import {amendmentLanguagePreference} from './language-order.mjs';
+import {retainedDocumentContext} from './document-context-index.mjs';
+import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=34;
+export const DOCUMENT_CONTEXT_VERSION=37;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -69,13 +71,14 @@ export class DocumentContext {
     const candidate=query.amendmentId&&store?this.findAmendment(store,{document:query.id,id:query.amendmentId,language:query.language}):null;
     const exactIdentity=candidate?.id===query.amendmentId||array(candidate?.officialIds).some(value=>ref(value)==='eli/dl/doc/'+query.amendmentId);
     const indexed=exactIdentity&&candidate?.targetDocumentId===query.id?candidate:null;
-    const key=createHash('sha256').update(JSON.stringify([query,indexed])).digest('hex');const cached=this.cache.get(key);
+    const retained=retainedDocumentContext(store,query,this.limits);
+    const key=createHash('sha256').update(JSON.stringify([query,indexed,retained])).digest('hex');const cached=this.cache.get(key);
     if(cached&&cached.until>this.clock())return cached.value;
     if(cached){this.bytes-=cached.bytes;this.cache.delete(key);}
     let job=this.pending.get(key);
     if(!job) {
       job=sharedRequest(async signal=>{
-        const value=await this.collect(query,indexed);signal.throwIfAborted();
+        const value=await this.collect(query,indexed,retained);signal.throwIfAborted();
         const bytes=Buffer.byteLength(JSON.stringify(value));
         // Retained stale/error sources are readable, but never acquire a new TTL.
         const proposalUnverified=value.baseline&&value.baseline.status!=='available';
@@ -109,23 +112,31 @@ export class DocumentContext {
     }
     return waitForRequest(job);
   }
-  async collect(query,indexed) {
+  async collect(query,indexed,retained=null) {
     const sources=[],records=new Map();let metadataBytes=0;
-    const read=async(endpoint,id,{procedure=false}={})=>{
-      if(records.has(endpoint))return records.get(endpoint);
-      const record=await this.request(endpoint,{}, {staleWhileRevalidate:true});
+    const read=async(endpoint,id,{procedure=false,live=false}={})=>{
+      if(!live&&records.has(endpoint))return records.get(endpoint);
+      const saved=!live&&retained?.root.endpoint===endpoint?retained.root:null;
+      const record=saved?.record||await this.request(endpoint,{}, {staleWhileRevalidate:true});
       const serialized=JSON.stringify(record.payload);metadataBytes+=Buffer.byteLength(serialized);
       if(metadataBytes>this.limits.metadataBytes)throw new HttpError(502,'document_source_budget','The linked document records are too large to read together.');
       const nodes=array(record.payload?.data).filter(node=>procedure?String(node?.id||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/proc/'+id:ref(node?.id)==='eli/dl/doc/'+id&&workId(node)===id);
       if(nodes.length!==1)throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document.');
-      const source={url:record.url||ODP_BASE+endpoint,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(serialized).digest('hex')};
+      const source=saved?.source||{url:record.url||ODP_BASE+endpoint,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null,contentHash:createHash('sha256').update(serialized).digest('hex')};
       sources.push(source);const result={work:nodes[0],record,source};records.set(endpoint,result);return result;
     };
     const endpoint=(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
     const {work,record}=await read(endpoint,query.id);
     if(canonicalType(work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
     const related={status:'not-requested',items:[],gaps:[]};
-    if(query.adopted) {
+    if(query.adopted&&retained?.related.length) {
+      related.status='partial';related.gaps.push('adopted-discovery-incomplete');
+      if(retained.truncated)related.gaps.push('adopted-candidate-budget');
+      for(const {work,source} of retained.related) {
+        sources.push(source);
+        related.items.push({...documentSummary(work,null),relationship:{from:work.identifier,field:'adopts',to:query.id},source});
+      }
+    } else if(query.adopted) {
       related.status='available';const procedures=procedureIds(work),candidates=new Set();
       if(!procedures.length){related.status='unavailable';related.gaps.push('procedure-link-unavailable');}
       else if(procedures.length>this.limits.procedures){related.status='unavailable';related.gaps.push('procedure-budget');}
@@ -146,7 +157,24 @@ export class DocumentContext {
       }
     }
     let document=null;
-    if(!query.adopted&&query.includeBody!==false)document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText:await this.readText(work,query.language),requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
+    if(!query.adopted&&query.includeBody!==false) {
+      let selectedWork=work,selectedRecord=record,selectedText=await this.readText(work,query.language);
+      if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
+        const fresh=await read(endpoint,query.id,{live:true});
+        if(canonicalType(fresh.work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
+        validateAdoptedText(endpoint,fresh.work);
+        // A missing retained file may have been replaced. Retry the body only
+        // when its selected-edition declaration or source version changes.
+        const selectedFiles=value=>declaredDocxFiles(value).filter(file=>file.language===query.language);
+        if(JSON.stringify(selectedFiles(fresh.work))!==JSON.stringify(selectedFiles(work)))selectedText=await this.readText(fresh.work,query.language);
+        selectedWork=fresh.work;selectedRecord=fresh.record;
+      }catch(error) {
+        requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;
+        const refreshError=String(error.message).slice(0,350);
+        selectedRecord={...record,refreshError};retained.root.source.refreshError=refreshError;
+      }
+      document={...documentSummary(selectedWork,null),selectedDocumentId:query.id,selectedDocumentDate:selectedWork.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(selectedRecord.fetchedAt).toISOString(),sourceCache:{stale:Boolean(selectedRecord.stale),refreshInProgress:Boolean(selectedRecord.refreshInProgress),refreshError:selectedRecord.refreshError||null}};
+    }
     let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
     const wordingSelected=Object.hasOwn(query,'wordingLanguage');
     let candidates=amendment?.variants.filter(variant=>!wordingSelected||variant.listId===query.listId&&variant.language===query.wordingLanguage)||[];

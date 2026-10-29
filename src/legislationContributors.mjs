@@ -1,4 +1,14 @@
 import {contributorOffice} from './speakerRoles.mjs';
+
+export function legislationActivity(detail,headers,personId) {
+  const speeches=new Set(),statements=new Set();
+  for(const speech of detail.speeches) {
+    if(!speech.people.some(person=>person.id===personId)||headers[speech.sourceId]?.[personId]?.role==='Chairing the sitting')continue;
+    if(speech.kind==='PLENARY_DEBATE_SPEECH')speeches.add(speech.sourceId);
+    if(speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT')statements.add(speech.sourceId);
+  }
+  return {speeches:speeches.size||null,statements:statements.size||null,amendments:detail.amendments?.counts[personId]||null};
+}
 // Evidence belongs to a speech, never permanently to a person who chaired it.
 export function mergeSpeechSpeakers(previous, speeches) {
   const next={...previous};let changed=false;
@@ -27,7 +37,7 @@ export function mergeSpeechSpeakers(previous, speeches) {
 // Group sizes describe the full current roster, never this debate or a country subset.
 export function orderLegislationPeople(people, roles, members=[]) {
   const ranks=new Map(),sizes=new Map();
-  const roleRanks={RAPPORTEUR:0,RAPPORTEUR_OPINION:1,RAPPORTEUR_SHADOW:2,RAPPORTEUR_SHADOW_OPINION:3};
+  const roleRanks={RAPPORTEUR:0,RAPPORTEUR_CO:0,RAPPORTEUR_OPINION:1,RAPPORTEUR_SHADOW:2,RAPPORTEUR_SHADOW_OPINION:3};
   for(const {id,role} of roles)ranks.set(id,Math.min(ranks.get(id)??4,roleRanks[role]??4));
   for(const member of members)if(member.groupCode)sizes.set(member.groupCode,(sizes.get(member.groupCode)||0)+1);
   const rank=person=>person.currentMep?ranks.get(person.id)??4:-1;

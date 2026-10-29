@@ -64,7 +64,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
       const error = Object.assign(new Error(data?.error?.message || `The data service is unavailable (${response.status}).`), {
         status: response.status, code: data?.error?.code, retryAt: at ?? undefined,
       });
-      const transient = response.status === 503 && ['upstream_busy', 'odp_rate_limited', 'request_timeout'].includes(error.code);
+      const transient = response.status === 503 && ['busy', 'upstream_busy', 'odp_rate_limited', 'request_timeout'].includes(error.code);
       const delay = at === null ? null : Math.max(250, at - now);
       if (!transient || delay === null || delay > 3000 || waited + delay > 6000 || attempt >= 2 || getPriority() === 'low') throw error;
       waited += delay;

@@ -151,7 +151,6 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
       <SpeechContextPanel key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage} preload={Boolean(state.data)&&!state.loading}/>
       <div className="explorer-speech-transcript-heading" lang="en"><h3 lang={lang}>{c.transcript}</h3><div className="explorer-reader-tools">{video.toggle}{text.paragraphs.length>0&&<FindInText key={speech.id+':'+transcriptLanguage} label="Find in speech" target={transcriptText}/>}</div></div>
       {video.panel}
-      {speech.websiteUrl && <p className="explorer-source-link" lang="en"><a href={speech.websiteUrl} target="_blank" rel="noreferrer">Speech on Parliament’s website ↗</a></p>}
       {state.loading && !body && <p role="status" lang="en">Loading transcript…</p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
       {body && (
@@ -211,7 +210,7 @@ function CoAuthors({authors,lang,member}:{authors?:CoAuthor[];lang:string;member
   if(!people.length)return null;
   return <details className="explorer-coauthors" lang="en"><summary>{people.some(person=>person.role==='QUESTION_AUTHOR') ? 'Question authors' : 'MEP authors'} · {people.length}</summary><ul>{people.map(person=><li key={person.id} lang="">{person.id===member ? <strong><PersonName id={person.id} label={person.name}/></strong> : <a href={coAuthorProfileUrl(lang,person.id)}><PersonName id={person.id} label={person.name}/></a>}</li>)}</ul></details>;
 }
-function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string} }) {
+function PublicationText({ sourceId, member, lang, heading, headingDate, includeAnswers = false,question, showDownloads = true }: { sourceId: string; member: number; lang: string; heading: string; headingDate?:string|null; includeAnswers?: boolean;question?:{id:string;title?:string};showDownloads?:boolean }) {
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=state.data?.selectedDocumentId===sourceId ? state.data.selectedText : null;
@@ -224,13 +223,13 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
     <div className="explorer-reader-heading"><h3>{headingDate ? <>Answer · <span lang={lang}>{date(headingDate,lang)}</span></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang="en">Read question</span></a>}{text&&<TextLanguagePicker available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={text.translationType==='original'?'Original text':undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}>Amendments to this document</AmendmentTrailLink>}
     {state.loading&&!text&&<p role="status">Loading text…</p>}{failed&&!state.loading&&<ReaderRetry message={'Text temporarily unavailable.'} language={lang} retry={state.retry} retryAt={retryAt}/>}
-    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><AuthorMention text={paragraph.slice(from,to)} offset={from} final={final} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&!failed&&<p>Text unavailable.</p>}
-    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/><details className="explorer-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details></>}
-    {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")} headingDate={answer.date}/>)}
+    {text?.status==='available'?<ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading="Referenced question" includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><AuthorMention text={paragraph.slice(from,to)} offset={from} final={final} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div></ReferenceScope>:text&&!failed&&<p>Text unavailable.</p>}
+    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>{showDownloads&&<details className="explorer-reader-download"><summary>Document & download</summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details>}</>}
+    {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={"Answer"+(answer.date?" · "+date(answer.date,lang):"")} headingDate={answer.date} showDownloads={showDownloads}/>)}
     {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p>No answer published.</p>}
   </section>;
 }
-function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange'] }) {
+function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionChange, showDownloads = true }: { item: JoinedActivity; lang: string; member: number; memberName?:string; motionQuery:URLSearchParams; onMotionChange:MemberMotionReaderProps['onJourneyChange']; showDownloads?:boolean }) {
   const hasText=item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer';
   const motion=/^(?:B|RC)-10-\d{4}-\d{4,6}$/.test(item.sourceId);
   const [documentOpen,setDocumentOpen]=useDossierReaderState('activity-document:'+item.sourceId,false);
@@ -248,8 +247,8 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
     </Suspense>}
     {(item.category==='written-questions' || item.category==='oral-questions' || item.recordKind==='answer') && <>
       {item.recordKind!=='answer'&&<SaveButton language={lang} item={{kind:'question',id:item.sourceId,title:item.title,titleLanguage:item.titleLanguage,memberId:String(member),date:item.date,baseline:item.answerIds?{answerIds:item.answerIds}:undefined}}/>}
-      <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} />
-      {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" />}
+      <PublicationText sourceId={item.sourceId} member={member} lang={lang} heading={item.recordKind==='answer' ? 'Answer' : 'Question'} includeAnswers={item.recordKind!=='answer'} question={item.recordKind==='answer'&&item.relatedQuestionId?{id:item.relatedQuestionId,title:item.relatedQuestionTitle}:undefined} showDownloads={showDownloads} />
+      {item.recordKind==='answer' && item.relatedQuestionId && <PublicationText sourceId={item.relatedQuestionId} member={member} lang={lang} heading="Linked question" showDownloads={showDownloads} />}
     </>}
     {!hasText && (motion?<details className="explorer-reader-download" lang="en" onToggle={event=>setDocumentOpen(event.currentTarget.open)}><summary>{item.relatedJointMotions?.length?'Original motion · document and authors':'Document and authors'}</summary>
       {document.loading&&<p role="status">Loading document details…</p>}
@@ -264,7 +263,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
 
   </div>;
 }
-function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId: string | null; member: number; lang: string; complete: boolean }) {
+function LinkedActivityFallback({ sourceId, member, lang, complete, showDownloads = true }: { sourceId: string | null; member: number; lang: string; complete: boolean; showDownloads?:boolean }) {
   const [check, setCheck] = useState(false);
   const speech=Boolean(sourceId?.startsWith("MTG-PL-"));
   const document=useData<PublicationDocument>(check && sourceId && !speech ? `document/${sourceId}?member=${member}&lang=${lang}` : null);
@@ -286,9 +285,9 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
       <h3 lang={matchedTitle.language}>{matchedTitle.text}</h3>
       {matched.date && <p><span lang={lang}>{date(matched.date,lang)}</span>{answer ? " · Answer" : ""}</p>}
       {answer && authored ? <p>Answer to this MEP’s question.</p> : document.data!.roles.length ? <p>Role: <span lang="">{document.data!.roles.join(", ")}</span></p> : <p>Not linked to this MEP.</p>}
-      <PublicationText sourceId={sourceId!} member={member} lang={lang} heading={answer ? 'Answer' : /^[EPO]-/.test(sourceId!) ? 'Question' : 'Document text'} includeAnswers={!answer && /^[EPO]-/.test(sourceId!)} />
-      {answer && document.data!.id!==sourceId && <PublicationText sourceId={document.data!.id} member={member} lang={lang} heading="Linked question" />}
-      <PublicationFiles files={matched.files} lang={lang} />
+      <PublicationText sourceId={sourceId!} member={member} lang={lang} heading={answer ? 'Answer' : /^[EPO]-/.test(sourceId!) ? 'Question' : 'Document text'} includeAnswers={!answer && /^[EPO]-/.test(sourceId!)} showDownloads={showDownloads} />
+      {answer && document.data!.id!==sourceId && <PublicationText sourceId={document.data!.id} member={member} lang={lang} heading="Linked question" showDownloads={showDownloads} />}
+      {showDownloads&&<PublicationFiles files={matched.files} lang={lang} />}
     </>}
     {document.data && !matched && <p>Linked item unavailable.</p>}
     {contribution.data && <>{!speechAuthor&&<p>Not linked to this MEP.</p>}<Detail speech={contribution.data} lang={lang} /></>}
@@ -297,6 +296,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete }: { sourceId
 export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpenProfile}:{member:number|string;sourceId:string;lang:string;profileHref:string;onOpenProfile:()=>void}) {
   const state=useData<JoinedActivityPage>(`latest-activities/${member}?lang=${lang}&limit=1&source-id=${encodeURIComponent(sourceId)}`);
   const selected=state.data?.selectedItems.find(item=>item.sourceId===sourceId);
+  const showDownloads=!/^[EPHO]-10-\d{4}-\d{6}(?:-ASW)?$/.test(sourceId);
   const scope=JSON.stringify([member,sourceId,lang]);
   const [motion,setMotion]=useState(()=>({scope,query:new URLSearchParams()}));
   const motionQuery=motion.scope===scope?motion.query:new URLSearchParams();
@@ -308,8 +308,8 @@ export function FollowingActivityDetail({member,sourceId,lang,profileHref,onOpen
     <Status scope={`following-detail:${scope}`} pending={state.loading} message={state.error?'Activity temporarily unavailable.':selected?'Activity loaded.':state.data?'This activity is unavailable.':null}/>
     {state.loading&&!selected&&<p role="status">Loading…</p>}
     {state.error&&<ErrorView message={state.error} retry={state.retry}/>}
-    {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange}/>:
-      !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete}/>}
+    {selected?<JoinedDetails key={`${scope}:${selected.id}`} item={selected} member={Number(member)} lang={lang} motionQuery={motionQuery} onMotionChange={onMotionChange} showDownloads={showDownloads}/>:
+      !state.loading&&state.data&&<LinkedActivityFallback key={scope} sourceId={sourceId} member={Number(member)} lang={lang} complete={state.data.cache.complete} showDownloads={showDownloads}/>}
     {!selected&&!state.loading&&<p><a href={profileHref} onClick={event=>{
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       event.preventDefault();onOpenProfile();
@@ -420,6 +420,13 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const c=interfaceCopy(lang);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
+  const [speechSearchActive,setSpeechSearchActive]=useState(false);
+  const [speechSearchReset,setSpeechSearchReset]=useState(0);
+  const [statisticsStatus,setStatisticsStatus]=useState<'loading'|'ready'|'unavailable'>('loading');
+  const speechSearchInput=useRef<HTMLInputElement>(null);
+  const resetSpeechSearch=useRef<(()=>void)|null>(null);
+  const [,setSpeechSearch]=useExplorerParam<string>('mep-speech-fts-search','');
+  const [,setSpeechSearchRead]=useExplorerParam<string>('mep-speech-fts-read','');
   const [category,setCategory]=useExplorerParam<string>('mep-speech-category','',speechCategories.map(([key])=>key));
   const [categoryOffset,setCategoryOffset]=useState(0);
   const filtered=category?enrichedSpeeches.filter(speech=>matchesSpeechCategory(speech,category as SpeechCategory)):null;
@@ -438,7 +445,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   useLayoutEffect(()=>{
     const intent=initialSpeech?{key:id+':'+initialSpeech,owner:document.activeElement}:null;
     speechOrigin.current=intent;
-    const cancel=(event:FocusEvent)=>{if(event.target!==intent?.owner)speechOrigin.current=null;};
+    const cancel=(event:FocusEvent)=>{if(event.target!==speechOrigin.current?.owner)speechOrigin.current=null;};
     document.addEventListener('focusin',cancel);
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
@@ -455,15 +462,17 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     if(body&&body.scrollHeight>body.clientHeight)body.scrollTo({top:0});else heading?.scrollIntoView({block:'start'});
     setOffset(next);onOpen(null);
   };
-  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset]);
+  useEffect(()=>{if(!initialSpeech){focusedSpeech.current=null;return;}if(speechSearchActive)return;const key=id+':'+initialSpeech;if(focusedSpeech.current===key)return;const target=document.getElementById('speech-'+initialSpeech);if(!target)return;const origin=speechOrigin.current,active=document.activeElement;if(origin?.key===key&&(active===origin.owner||active===document.body&&!origin.owner?.isConnected)){revealSpeech(target);target.querySelector<HTMLButtonElement>('.explorer-speech-toggle')?.focus({preventScroll:true});}focusedSpeech.current=key;},[id,initialSpeech,state.data,pinned.data,enrichedSpeeches,category,categoryOffset,speechSearchActive,speechSearchReset]);
   return <section lang={lang}>
-    <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2><TextSearch prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16"/></div>
-    <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} filter={{selected:category,href:filterHref,select:selectCategory}}/>
-    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
-    <div className="explorer-section-title" lang="en">{filtered?<h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>:<span>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</span>}</div>
+    <div className="explorer-section-title"><h2 lang={lang} ref={resultsHeading} id={'speech-results-'+id} tabIndex={-1}>{c.speeches}</h2></div>
+    <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} onStatus={setStatisticsStatus} filter={{selected:category,href:filterHref,select:selectCategory}}/>
+    <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};resetSpeechSearch.current?.();setSpeechSearchReset(value=>value+1);setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
+    {filtered&&<div className="explorer-section-title" lang="en"><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}>{speechCategories.find(([key])=>key===category)?.[1]} · {filtered.length} loaded</h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}>Clear category</button>}</div>}
+    <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} resetRef={resetSpeechSearch} prefix="mep-speech-fts" label="Search this MEP’s speeches" language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={category&&statisticsStatus!=='ready'?(statisticsStatus==='loading'?'Loading category…':'Category unavailable.'):undefined} onActiveChange={setSpeechSearchActive} summary={<>Term 10{state.data ? ` · ${state.data.indexedTotal} contributions` : ""}</>}/>
+    {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang="en">Loading speeches…</p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
-    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">No matching contributions.</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
+    {filtered&&!filtered.length?<p className="explorer-notice" lang="en">{statisticsStatus==='loading'?'Loading contributions…':statisticsStatus==='unavailable'?'Contributions unavailable.':'No matching contributions.'}</p>:!filtered&&state.data && !items.length && <p className="explorer-notice" lang="en">{state.data.cache.complete ? "No plenary contributions." : "No plenary contributions loaded yet."}</p>}
     {!filtered&&initialSpeech && pinned.loading && <p role="status" lang="en">Loading…</p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
@@ -473,6 +482,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
     {filtered?<div className="explorer-category-top" lang="en">{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}>Newer</button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}>Older</button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}>Clear filter</button></div>:state.data && <div className="explorer-category-top" lang="en">{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}>Newer</button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}>Older</button>}<button onClick={state.retry}>Refresh list</button></div>}
+    </>}
   </section>;
 }
 export default function App() {

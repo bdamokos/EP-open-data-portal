@@ -84,7 +84,8 @@ test('settled readers announce concise status once and keep document bodies out 
     assert.equal(h.container.querySelector('.insight-reader-text').closest('[aria-live],[role="status"],[role="alert"]'),null);
     for(const region of h.container.querySelectorAll('[aria-live],[role="status"],[role="alert"]'))assert(!region.textContent.includes(body));
     assert.equal(document.activeElement,h.trigger,'completion must not move focus');
-    assert(h.container.querySelector(kind==='question'?'.insight-reader-source a':'.insight-source-document'),'source access remains available');
+    if(kind==='question')assert(h.container.querySelector('.insight-reader-source a'));
+    else assert.equal(h.container.querySelector('.insight-source-document'),null);
     await h.render(h.reader(kind,{highlight:'reader'}));await h.wait();
     assert.deepEqual(announcements,[expected],'unrelated rerenders must not repeat the completed announcement');
   });
@@ -123,7 +124,8 @@ test('unavailable text stays explicit with source access, and failed document re
     await h.render(h.reader(kind));
     await h.finish(kind==='question'?`document/${questionId}?lang=en`:`speech/${speechId}?lang=en`,kind==='question'?question(questionId,'en','unavailable'):speech(speechId,'en',false));await h.wait();
     assert.equal(h.status().textContent,kind==='question'?'Question: Text unavailable.':'Transcript unavailable.');
-    assert(h.container.querySelector('a[href]'),'unavailable text retains its original source or download route');
+    if(kind==='question')assert(h.container.querySelector('a[href]'),'unavailable documents retain their download route');
+    else assert.equal(h.container.querySelector('.insight-source-document'),null);
     assert.equal(document.activeElement,h.trigger);
   });
   await t.test('cached document refresh failure',async t=>{
@@ -271,16 +273,16 @@ test('a background-refresh snapshot stays locally recoverable through completion
 });
 
 
-test('retained speech refresh failures retry locally without losing body, language or source access',async t=>{
+test('retained speech refresh failures retry locally without losing body or language',async t=>{
   for(const stored of [false,true])await t.test(stored?'retained corpus':'retained detail',async t=>{
     let now=Date.now();t.mock.method(Date,'now',()=>now);
     const h=await harness(t,{stored}),route=`speech/${speechId}?lang=fr`,savedRoute=`speech-transcript/${speechId}?lang=fr`,response=stored?{id:speechId,available:true,xml:speech(speechId,'fr').xml,textLanguage:'fr',availableTextLanguages:['en','fr'],metadata:speech(speechId,'fr')}:speech(speechId,'fr');
     await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));await h.finish(stored?savedRoute:route,response);
     await h.render(null);now+=31_000;await h.render(h.reader('speech',{language:'hu',transcriptLanguage:'fr'}));
-    const text=h.container.querySelector('.insight-reader-text');assert(text);const source=h.container.querySelector('.insight-source-document');assert(source);
+    const text=h.container.querySelector('.insight-reader-text');assert(text);assert.equal(h.container.querySelector('.insight-source-document'),null);
     await h.finish(stored?savedRoute:route,Response.json({error:{code:'upstream_busy',message:'Refresh failed.',retryAt:now+4_000}},{status:503}));
     const retry=h.container.querySelector('.reader-retry button');assert(retry);assert.equal(retry.disabled,true);assert.equal(retry.lang,'hu');
-    assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.lang,'fr');assert.equal(text.textContent,body);assert.equal(h.container.querySelector('.insight-source-document'),source);
+    assert.equal(h.container.querySelector('.insight-reader-text'),text);assert.equal(text.lang,'fr');assert.equal(text.textContent,body);assert.equal(h.container.querySelector('.insight-source-document'),null);
     // Advance each countdown callback with its matching wall clock, then the exact deadline.
     for(const ms of [1000,1000,1000,999]){now+=ms;await h.tick(ms);}
     assert.equal(retry.disabled,true);await act(async()=>retry.click());

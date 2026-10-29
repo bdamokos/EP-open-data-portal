@@ -21,6 +21,7 @@ const incomplete={...person,hasMembership:person.hasMembership.slice(0,1)};
 function fixture(t) {
   const directory=mkdtempSync(path.join(tmpdir(),'group-history-repair-'));
   const store=new ActivityStore(directory,{clock});assert(store.acquire());
+  store.set('adoptedTextDiscovery',{version:1,throughYear:2026});
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
   const serving=store.beginCycle().generation;
   store.setMembers([{id,name:'Vangelis MEIMARAKIS',groupCode:'PPE'}]);
