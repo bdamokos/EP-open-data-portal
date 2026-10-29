@@ -16,6 +16,7 @@ import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmen
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
+import {mutableRecoveryDue} from './mutable-document-recovery.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
@@ -100,7 +101,7 @@ export class ActivityWorker {
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
-    if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))return true;
+    if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
     if(amendmentParserUpgradeDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
@@ -663,7 +664,7 @@ export class ActivityWorker {
       }
       // Core recovery changes items and their frozen Following summaries. It
       // must publish through a working generation, even between daily cycles.
-      const recover=this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,active,this.clock());
+      const recover=this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock()));
       const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
       this.store.assertWriter();
@@ -703,7 +704,7 @@ export class ActivityWorker {
           scheduleGroupHistory(this.store,cycle.generation);this.store.updateCycle({groupHistoryScheduled:true});
         }
         await runHistoryReadiness(this,cycle.generation);
-        if(!this.store.get('working').mutableScheduled) {
+        if(!this.store.get('working').mutableScheduled||this.recoveryMode==='backfill') {
           scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
         }
         // Upgrade a saved, endlessly retrying generation without issuing one
@@ -754,7 +755,7 @@ export class ActivityWorker {
             if(counts.total===counts.completed){
               // Keep this snapshot open for the next bounded admission batch;
               // don't copy the entire index again for every 25 recovered gaps.
-              if(this.recoveryMode==='backfill'&&gapRecoveryDue(this.store,generation,this.clock()))break;
+              if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())))break;
               if(adoptedTextRepairDue(this.store,generation))break;
               if(this.catchUp(this.store.get('working')))continue;await this.finalize(generation);
             }

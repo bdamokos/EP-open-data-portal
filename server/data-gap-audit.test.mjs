@@ -39,6 +39,13 @@ test('baseline comparison uses exact missing identities and reports a changed de
   assert.equal(failureClass('Unknown problem'),'unclassified');
 });
 
+test('mutable admission comparison tracks exact candidates without treating admission as retained-data success',()=>{
+  const report=keys=>({index:{activeGeneration:1,generations:[{generation:1,mutableAdmission:{candidates:keys.map(key=>({key,nextCheck:200}))}}]}});
+  const result=compareGapAudits(report(['same','new']),report(['same','queued']));
+  assert.deepEqual(result.mutableAdmissionCandidates,{state:'observed',previous:2,current:2,resolved:['queued'],newlyMissing:['new'],retained:1});
+  assert.match(result.note,/queued, not refreshed/);
+});
+
 test('mutable backlog audit measures due adopted share and oldest age without writes or invented types',()=>{
   const db=new DatabaseSync(':memory:');
   try {

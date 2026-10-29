@@ -1,6 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {adoptedTextProjectionVersion,spId,validateTA,validateReply} from './commission-followups-model.mjs';
+import {mutableDocumentCandidates} from './mutable-document-recovery.mjs';
 
 export function failureClass(message='') {
   const status=String(message).match(/(?:returned|HTTP|unavailable\s*\()\s*(404|410|429|5\d\d)/i)?.[1];
@@ -105,6 +106,15 @@ export function auditMutableDocuments(db,generation,now) {
   return result;
 }
 
+export function auditMutableAdmission(db,generation,now) {
+  if(['mutable_documents','sources','tasks','amendment_jobs','refresh_gaps'].some(table=>!has(db,table)))return {state:'unavailable',reason:'required tables absent'};
+  const candidates=[...mutableDocumentCandidates(db,generation,now)].map(row=>({...row}));
+  return {state:'observed',eligibleDue:candidates.length,candidates,
+    eligibleKeyDigest:createHash('sha256').update(JSON.stringify(candidates.map(row=>row.key).sort())).digest('hex'),
+    oldestEligibleDueAt:candidates[0]?.nextCheck??null,
+    note:'Admission candidates exclude existing task, gap and continuation owners. Leaving this set does not prove a successful refresh.'};
+}
+
 export function auditIndex(db,now) {
   const active=meta(db,'active'),working=meta(db,'working'),amendmentSnapshot=meta(db,'amendmentSnapshotGeneration'),generations=[...new Set([active,working?.generation,amendmentSnapshot].filter(Number.isInteger))];
   const lease=has(db,'lease')?db.prepare('SELECT expires FROM lease WHERE id=1').get():null;
@@ -124,7 +134,7 @@ export function auditIndex(db,now) {
           COALESCE(SUM(COALESCE(json_extract(body,'$.adoptionProjectionVersion'),0)<>${adoptedTextProjectionVersion}),0) AS legacyProjection
           FROM sources WHERE generation=? AND kind='document' AND key GLOB '/adopted-texts/TA-10-*'`).get(generation):null,
         continuations:saved?{tasks:saved.tasks?.length??0,discovery:saved.discovery?.length??0,capacityGap:saved.capacityGap??null}:null,
-        mutableDocuments:auditMutableDocuments(db,generation,now)};
+        mutableDocuments:auditMutableDocuments(db,generation,now),mutableAdmission:auditMutableAdmission(db,generation,now)};
     }),
     adoptedTextDiscovery:meta(db,'adoptedTextDiscovery'),followupAdmissionRepair:meta(db,'followupAdmissionRepair'),unresolvedJoins:(meta(db,'unresolved')||[]).length,
     nonRetryableCoverageWindows:has(db,'refresh_gaps')?db.prepare("SELECT COUNT(*) AS count FROM refresh_gaps WHERE generation=? AND kind='coverage'").get(active??0).count:null};
@@ -180,12 +190,14 @@ export function compareGapAudits(current,baseline) {
   const active=report=>report.index?.generations?.find(g=>g.generation===report.index.activeGeneration)?.gapRecords;
   const questionFiles=compare(baseline.questionFiles?.missing,current.questionFiles?.missing,'url');
   const followups=report=>report.index?.generations?.find(g=>g.generation===report.index.activeGeneration)?.followupMetadata;
+  const mutable=report=>report.index?.generations?.find(g=>g.generation===report.index.activeGeneration)?.mutableAdmission?.candidates;
   return {baselineAt:baseline.observedAt,currentAt:current.observedAt,
     indexGaps:compare(active(baseline),active(current),'key'),corpusTasks:compare(baseline.corpus?.pendingTasks,current.corpus?.pendingTasks,'key'),questionFiles,
     followupMetadata:compare(followups(baseline)?.missing,followups(current)?.missing,'identity'),
+    mutableAdmissionCandidates:compare(mutable(baseline),mutable(current),'key'),
     sameFollowupMetadataUniverse:followups(baseline)?.eligibleRelationDigest&&followups(current)?.eligibleRelationDigest?followups(baseline).eligibleRelationDigest===followups(current).eligibleRelationDigest:null,
     sameQuestionFileUniverse:baseline.questionFiles?.eligibleUrlDigest&&current.questionFiles?.eligibleUrlDigest?baseline.questionFiles.eligibleUrlDigest===current.questionFiles.eligibleUrlDigest:null,
-    note:'Resolved means absent from the current missing set; confirm retained data and source scope before calling it recovered. New publications can add gaps while older gaps recover.'};
+    note:'Resolved means absent from the current set; confirm retained data and source scope before calling it recovered. Mutable admission candidates can leave the set because they are queued, not refreshed. New publications can add gaps while older gaps recover.'};
 }
 export function dataGapAudit({indexFile,corpusFile,pressFile,now=Date.now(),reconcile=false}={}) {
   return {schemaVersion:1,observedAt:new Date(now).toISOString(),recoveryPaths:RECOVERY_PATHS,
