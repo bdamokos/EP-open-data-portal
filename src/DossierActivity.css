@@ -15,8 +15,13 @@
 .dossier-filters{margin:20px 0}
 .dossier-filters button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
 .dossier-filters small{display:block;color:var(--ink-muted);font-size:12px}
-.dossier-section-status{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;margin-block:18px}
-.dossier-section-status>section{border-left:2px solid var(--line);padding-left:12px;min-width:0}
+.dossier-section-status{display:flex;flex-wrap:wrap;gap:12px 24px;margin-block:18px}
+.dossier-section-status>section{min-width:0;max-width:100%}
+.dossier-section-status>section:not(:has(*)){display:none}
+.dossier-coverage{color:var(--ink-muted);font-size:14px;overflow-wrap:anywhere}
+.dossier-coverage summary{cursor:pointer}
+.dossier-coverage ul{margin:8px 0;padding-left:20px;max-width:70ch}
+.dossier-coverage li{margin-block:6px}
 .dossier-coverage p{font-size:14px;margin:4px 0}
 .dossier-source{font-size:13px;color:var(--ink-muted);overflow-wrap:anywhere}
 .dossier-source p{margin:4px 0;overflow-wrap:anywhere}
