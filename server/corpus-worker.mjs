@@ -293,7 +293,7 @@ export class CorpusWorker {
       }
       this.store.set('lastRunAt',new Date(this.clock()).toISOString());
     } catch(error) {if(!this.stopped)throw error;}
-    finally {clearInterval(heartbeat);this.store.release();this.running=false;}
+    finally {clearInterval(heartbeat);try{this.store.release();}finally{this.running=false;}}
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }

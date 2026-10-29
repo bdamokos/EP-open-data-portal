@@ -116,3 +116,19 @@ test('corpus disk-check completion cannot dispatch after a lease takeover',async
   assert.equal(store.get('lastRunAt'),lastRunBefore);assert.deepEqual(store.task(key),before);assert.deepEqual(store.task(futureKey),future);
   other.assertWriter();
 });
+
+test('a failed corpus lease release does not block a later tick from resuming saved work',async t=>{
+  const {store,worker,key,futureKey,future}=fixture(t),release=store.release.bind(store);
+  let releases=0,calls=0;
+  t.mock.method(store,'release',()=>{if(++releases===1)throw Error('Fixture release failed');release();});
+  worker.task=async task=>{
+    if(++calls===1)store.taskProgress(task,{...task.body,offset:500});
+    else {assert.equal(task.body.offset,500);store.finishTask(task);}
+  };
+  await assert.rejects(worker.run(),/Fixture release failed/);
+  assert.equal(worker.running,false);assert.equal(worker.stopped,false);
+  assert.equal(store.task(key).body.offset,500);assert.equal(store.task(key).done,0);
+  assert.deepEqual(store.task(futureKey),future);
+  await worker.run();assert.equal(calls,2);assert.equal(store.task(key).done,1);
+  assert.deepEqual(store.task(futureKey),future);
+});
