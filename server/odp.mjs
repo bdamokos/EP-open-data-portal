@@ -3,7 +3,7 @@ import {createReadStream} from "node:fs";
 import {readFile,writeFile} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
-import {agendaFreshMs} from './plenary-cache-policy.mjs';
+import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
@@ -224,7 +224,7 @@ export async function odp(
   // All agenda consumers share one policy, including live-status and vote reads.
   // Explicit maintenance refreshes still use force; cache age alone never
   // re-downloads a completed week's agenda.
-  const agendaMs=agendaFreshMs(endpoint);
+  const agendaMs=agendaFreshMs(endpoint),settledAfter=agendaSettledAfter(endpoint);
   if(agendaMs!==null)ttl=Math.max(ttl,agendaMs);
   const url = new URL(ODP_BASE + endpoint);
   for (const [key, value] of Object.entries({
@@ -252,11 +252,12 @@ export async function odp(
   }
   if(cachedOnly) {
     if(!stored)throw new HttpError(404,'odp_cache_miss','This source record is not retained.');
-    return {...stored,stale:Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
+    return {...stored,stale:stored.fetchedAt<settledAfter || Date.now()-stored.fetchedAt>=ttl || daily&&dayOf(stored.fetchedAt)!==today()};
   }
   if (
     !force &&
     stored &&
+    stored.fetchedAt >= settledAfter &&
     Date.now() - stored.fetchedAt < ttl &&
     (!daily || dayOf(stored.fetchedAt) === today())
   )

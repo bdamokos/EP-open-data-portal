@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {agendaFreshMs,agendaViewFreshMs,nextPlenaryWarmup,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
+import {agendaFreshMs,agendaSettledAfter,agendaViewFreshMs,nextPlenaryWarmup,PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
 import {InsightViewCache} from './insights-view-cache.mjs';
 
 const now=Date.parse('2026-10-20T12:00:00Z');
@@ -13,6 +13,16 @@ test('completed weeks have no age expiry; current and future agendas use at leas
   assert.equal(agendaFreshMs('/procedures/2026-0001',now),null);
   assert.equal(agendaViewFreshMs(view('2026-10-07'),now),Infinity);
   assert.equal(agendaViewFreshMs(view('2026-10-20'),now),PLENARY_REFRESH_MS);
+});
+
+test('indefinite retention requires a post-week observation, including across DST',()=>{
+  const endpoint='/meetings/MTG-PL-2026-10-20/foreseen-activities',later=Date.parse('2026-10-26T12:00:00Z');
+  assert.equal(agendaSettledAfter(endpoint,now),-Infinity);
+  assert.equal(agendaSettledAfter(endpoint,later),Date.parse('2026-10-25T23:00:00Z'));
+  const preliminary=view('2026-10-20');preliminary.coverage.sources=[{apiUrl:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:new Date(now).toISOString()}];
+  assert.equal(agendaViewFreshMs(preliminary,later),60_000);
+  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-20']),[preliminary],later),PLENARY_REFRESH_MS);
+  preliminary.coverage.sources[0].fetchedAt=new Date(later).toISOString();assert.equal(agendaViewFreshMs(preliminary,later),Infinity);
 });
 
 test('outside plenary warm-up waits for a known next week and does not poll old weeks',()=>{

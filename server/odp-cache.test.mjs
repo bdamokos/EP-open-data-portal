@@ -190,3 +190,25 @@ test('a shorter live-reader TTL cannot recheck the active agenda before one hour
     assert.equal((await odp(endpoint,{}, {ttl:60_000})).payload.data[0].identifier,'hourly update');assert.equal(calls,2);
   `);
 });
+
+test('a preliminary agenda gets one post-week read, retains bytes on failure, then settles',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-11-01T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-11-11/foreseen-activities';
+    allowed=true;const preliminary=await odp(endpoint),fetchMock=globalThis.fetch;
+    time=Date.parse('2026-11-16T12:00:00Z');
+    const cold=await import(${JSON.stringify(moduleUrl+'?preliminary-agenda')});
+    let fail;globalThis.fetch=async()=>{calls++;return new Promise((resolve,reject)=>fail=()=>reject(Error('Final source unavailable')));};
+    const retained=await cold.odp(endpoint,{}, {staleWhileRevalidate:true});
+    assert.equal(retained.stale,true);assert.deepEqual(retained.payload,preliminary.payload);
+    await new Promise(resolve=>setImmediate(resolve));
+    const pending=assert.rejects(cold.odp(endpoint,{}, {force:true}),/Final source unavailable/);fail();await pending;
+    assert.equal((await cold.odp(endpoint,{}, {cachedOnly:true})).fetchedAt,preliminary.fetchedAt);
+    assert.equal((await cold.odp(endpoint,{}, {cachedOnly:true})).stale,true);
+    globalThis.fetch=fetchMock;networkPayload={data:[{identifier:'final agenda'}]};time+=60*60_000+1;
+    const final=await cold.odp(endpoint);assert.equal(final.payload.data[0].identifier,'final agenda');
+    const count=calls;time+=60*86400_000;allowed=false;
+    const restarted=await import(${JSON.stringify(moduleUrl+'?final-agenda')});
+    assert.deepEqual(await restarted.odp(endpoint),final);assert.equal(calls,count);
+  `);
+});
