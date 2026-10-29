@@ -23,7 +23,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=38;
+export const DOCUMENT_CONTEXT_VERSION=39;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id);
 const ref=value=>canonicalEPReference(value);
@@ -126,7 +126,7 @@ export class DocumentContext {
       sources.push(source);const result={work:nodes[0],record,source};records.set(endpoint,result);return result;
     };
     const endpoint=(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
-    const {work,record}=await read(endpoint,query.id);
+    let {work,record}=await read(endpoint,query.id);
     if(canonicalType(work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
     const related={status:'not-requested',items:[],gaps:[]};
     if(query.adopted&&retained?.related.length) {
@@ -158,7 +158,7 @@ export class DocumentContext {
     }
     let document=null;
     if(!query.adopted&&query.includeBody!==false) {
-      let selectedWork=work,selectedRecord=record,selectedText=await this.readText(work,query.language);
+      let selectedText=await this.readText(work,query.language);
       if(retained?.root&&['error','unavailable'].includes(selectedText?.status))try {
         const fresh=await read(endpoint,query.id,{live:true});
         if(canonicalType(fresh.work.work_type)!==expectedType(query.id))throw new HttpError(502,'invalid_document_source','Parliament did not return the requested document type.');
@@ -168,13 +168,15 @@ export class DocumentContext {
         // when its selected-edition declaration or source version changes.
         const selectedFiles=value=>declaredDocxFiles(value).filter(file=>file.language===query.language);
         if(JSON.stringify(selectedFiles(fresh.work))!==JSON.stringify(selectedFiles(work)))selectedText=await this.readText(fresh.work,query.language);
-        selectedWork=fresh.work;selectedRecord=fresh.record;
+        // Body, linked amendment discovery and any language fallback must all
+        // use this same validated root observation.
+        work=fresh.work;record=fresh.record;
       }catch(error) {
         requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error)||error?.code==='document_source_budget')throw error;
         const refreshError=String(error.message).slice(0,350);
-        selectedRecord={...record,refreshError};retained.root.source.refreshError=refreshError;
+        record={...record,refreshError};retained.root.source.refreshError=refreshError;
       }
-      document={...documentSummary(selectedWork,null),selectedDocumentId:query.id,selectedDocumentDate:selectedWork.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(selectedRecord.fetchedAt).toISOString(),sourceCache:{stale:Boolean(selectedRecord.stale),refreshInProgress:Boolean(selectedRecord.refreshInProgress),refreshError:selectedRecord.refreshError||null}};
+      document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
     }
     let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read):null;
     const wordingSelected=Object.hasOwn(query,'wordingLanguage');

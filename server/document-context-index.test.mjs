@@ -8,6 +8,7 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {DocumentContext} from './document-context.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {requestTimeout} from './request-budget.mjs';
+import {documentText} from './document-text.mjs';
 
 const now=Date.parse('2026-10-29T01:30:00Z'),stamp=new Date(now).toISOString();
 const motion='B-10-2026-0339',adopted='TA-10-2026-0271',motionKey='/plenary-documents/'+motion,adoptedKey='/adopted-texts/'+adopted;
@@ -73,6 +74,51 @@ test('a missing retained report file still checks fresh metadata and opens only 
   const result=await reader.query(query({id,adopted:false,amendmentId,listId}),{store});
   assert.equal(requests,1);assert.equal(bodies,2);assert.deepEqual(result.document.selectedText.paragraphs,['Recovered body']);
   assert.equal(store.source(generation,endpoint).fetchedAt,stamp);assert.deepEqual(store.source(generation,endpoint).work,JSON.parse(JSON.stringify(metadata)));
+});
+
+for(const change of ['issued','byteSize','both'])test('real text-cache recovery retries a changed report edition at the same URL: '+change,async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const url='https://data.europarl.europa.eu/distribution/fixture/recovery-'+change+'.docx';
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined,
+    is_realized_by:[{language:'en',is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url,issued:'2026-10-01T10:00:00Z',byteSize:100}]}]};
+  store.putSource(generation,endpoint,'document',metadata,stamp);
+  const fresh=structuredClone(metadata),edition=fresh.is_realized_by[0].is_embodied_by[0];
+  if(change!=='byteSize')edition.issued=stamp;
+  if(change!=='issued')edition.byteSize=200;
+  const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'Old paragraph',proposedText:'New paragraph',gaps:[]};
+  let requests=0,downloads=0;
+  const reader=new DocumentContext({findAmendment:()=>indexed,request:async route=>{assert.equal(route,endpoint);requests++;return {payload:{data:[fresh]},fetchedAt:stamp};},
+    readText:(observed,language)=>documentText(observed,language,{directory:null,clock:()=>now,download:async()=>{downloads++;if(!requests)throw Error('Original edition is unavailable');return {paragraphs:['Recovered body']};}})});
+  const before=store.source(generation,endpoint);
+  const result=await reader.query(query({id,adopted:false,amendmentId,listId,wordingLanguage:'en'}),{store});
+  assert.equal(requests,1);assert.equal(downloads,2);assert.equal(result.document.selectedText.status,'available');
+  assert.deepEqual(result.document.selectedText.paragraphs,['Recovered body']);assert.deepEqual(result.document.selectedText.sourceVersion,{byteSize:edition.byteSize,issued:edition.issued});
+  assert.deepEqual(store.source(generation,endpoint),before);assert.equal(reader.cache.size,0);
+});
+
+test('a recovered report root drives exact list discovery and body/wording language fallback together',async t=>{
+  const {store,generation}=setup(t),id='A-10-2026-0257',endpoint='/plenary-documents/'+id,listId=id+'-AM-001-163',amendmentId=id+'-AM-86';
+  const file=language=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/fixture/recovered-root_'+language+'.docx'}]});
+  const metadata={...work(),id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/REPORT_PLENARY',adopts:undefined,amendmentLinksVersion:3,inverse_foresees_change_of:[],is_realized_by:[file('en')]};
+  const fresh={...metadata,inverse_foresees_change_of:['eli/dl/doc/'+listId],is_realized_by:[file('fr')]};
+  const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+id,is_realized_by:[file('fr')]};
+  store.putSource(generation,endpoint,'document',metadata,stamp);
+  const indexed={id:amendmentId,targetDocumentId:id,listId,language:'en',textIntegrity:'complete',originalText:'English paragraph.',proposedText:'Changed paragraph.',baseline:'motion-resolution',gaps:[]};
+  const paragraphs=['Le Parlement européen,','1. Texte original;','2. Suite;'];
+  const text={status:'available',textLanguage:'fr',availableTextLanguages:['fr'],paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true}))};
+  const selected=query({id,adopted:false,amendmentId,listId,wordingLanguage:'en'}),results=[];
+  for(const retained of [true,false]) {
+    const requests=[],bodyRoots=[];
+    const reader=new DocumentContext({findAmendment:()=>indexed,request:async route=>{requests.push(route);assert([endpoint,'/documents/'+listId].includes(route));return {payload:{data:[route===endpoint?fresh:list]},fetchedAt:stamp};},
+      readText:async observed=>{bodyRoots.push(observed);return observed.is_realized_by[0].language==='en'?{status:'error',paragraphs:[],textLanguage:'en',availableTextLanguages:['en']}:text;}});
+    reader.readList=async(_list,file)=>({source:{url:file.url,language:'fr',fetchedAt:stamp},extraction:{amendments:[{number:86,originalText:'1. Texte original;',proposedText:'1. Texte modifié;',targetLabel:'Paragraphe 1',authors:[],baseline:'motion-resolution'}]}});
+    const result=await reader.query(selected,{store:retained?store:{}});results.push(result);
+    assert.deepEqual(requests,[endpoint,'/documents/'+listId]);assert.deepEqual(bodyRoots.at(-1),fresh);
+    assert.equal(result.document.selectedText.textLanguage,'fr');assert.equal(result.wordingLanguageFallback.language,'fr');
+    assert.equal(result.target.status,'found');assert.equal(result.placement.status,'placed');
+  }
+  assert.deepEqual(results[0].target,results[1].target);assert.deepEqual(results[0].placement,results[1].placement);
+  assert.deepEqual(store.source(generation,endpoint).work,JSON.parse(JSON.stringify(metadata)));
 });
 
 for(const conflict of ['identity','type','term'])test('retained report body recovery rejects conflicting fresh '+conflict,async t=>{

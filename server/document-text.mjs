@@ -392,10 +392,13 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
       if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
       memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
-    },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
+    },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
     pending.set(key,job);return job;
   };
-  const failure=failures.get(key);
+  // The URL can be reused for a republished edition. Its predecessor's failed
+  // download must not suppress a newly declared issue time or size.
+  const previousFailure=failures.get(key);
+  const failure=previousFailure&&JSON.stringify(previousFailure.source)===JSON.stringify(descriptor)?previousFailure:null;
   const present=record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
