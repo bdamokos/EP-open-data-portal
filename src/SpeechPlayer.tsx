@@ -1,5 +1,4 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { requestPlayerAudio, requestPlayerPlayback } from './playerAudio.mjs';
 import { useData } from './data';
 import { speechEmbedUrl, speechFrameKey, replayNeedsMediaRefresh } from './media.mjs';
 import type { Speech, SpeechMedia } from './explorerTypes';
@@ -9,15 +8,8 @@ function audioLanguageName(language:string) {
   catch { return language.toUpperCase(); }
 }
 
-export function ParliamentFrame({ src, speechId, lang, audio, original, mapping, returnFocus }: { src:string;speechId:string;lang:string;audio:string;original:boolean;mapping:NonNullable<SpeechMedia['audioMapping']>;returnFocus?:()=>void }) {
+export function ParliamentFrame({ src, speechId, returnFocus }: { src:string;speechId:string;lang:string;audio:string;original:boolean;mapping:NonNullable<SpeechMedia['audioMapping']>;returnFocus?:()=>void }) {
   const frame=useRef<HTMLIFrameElement>(null);
-  // The parent remounts on a changed channel map. Fetch dates alone must not
-  // restart audio selection inside an already-playing iframe.
-  const mappingRef=useRef(mapping);
-  const [phase,setPhase]=useState('preparing');
-  const [error,setError]=useState<string|null>(null);
-  const [manual,setManual]=useState<string|null>(null);
-  const [attempt,setAttempt]=useState(0);
   const returnFocusRef=useRef(returnFocus);returnFocusRef.current=returnFocus;
   useLayoutEffect(()=>{
     const element=frame.current;
@@ -27,28 +19,11 @@ export function ParliamentFrame({ src, speechId, lang, audio, original, mapping,
       // complete so navigation or another chosen focus target wins instead.
       queueMicrotask(()=>{if(!element.isConnected&&document.activeElement===document.body)returnFocusRef.current?.();});
     };
-  },[attempt]);
-  useEffect(()=>{
-    setError(null);setManual(null);setPhase('preparing');
-    const target=frame.current?.contentWindow;
-    if(!target) {setError('Parliament’s player could not be opened.');setPhase('error');return;}
-    let disposed=false;let stopPlay: (()=>void)|undefined;
-    const stopAudio=requestPlayerAudio(target,audio,{mapping:mappingRef.current,eventTarget:window,onRequested:()=>{
-      if(disposed)return;
-      setPhase('ready');
-      stopPlay=requestPlayerPlayback(target,{eventTarget:window,onRequested:()=>{},onError:message=>{if(!disposed)setManual(message);}});
-    },onError:message=>{if(!disposed){stopPlay?.();if(document.activeElement===frame.current)returnFocusRef.current?.();setError(message);setPhase('error');}}});
-    return ()=>{disposed=true;stopAudio();stopPlay?.();};
-  },[src,audio,attempt]);
-  useEffect(()=>{if(phase==='ready')frame.current?.parentElement?.scrollIntoView({block:'nearest'});},[phase]);
+  },[]);
+  useEffect(()=>{frame.current?.parentElement?.scrollIntoView({block:'nearest'});},[]);
   return <>
-    {phase==='preparing' && <p role="status" lang="en">Preparing {original ? 'original' : audioLanguageName(lang)} audio…</p>}
-    {phase==='error' ? <div className="explorer-notice" role="alert" lang="en"><p>{error}</p><button onClick={()=>{returnFocusRef.current?.();setPhase('preparing');setAttempt(x=>x+1);}}>Retry player</button></div> : <>
-      {phase==='ready' && <p className="explorer-video-caption" lang="en">European Parliament</p>}
-      {manual && <p role="status" lang="en">{manual}</p>}
-      <div className="explorer-player-frame" lang="en" style={{visibility:phase==='ready' ? 'visible' : 'hidden'}} aria-hidden={phase!=='ready'}><iframe ref={frame} key={attempt} title="European Parliament speech video" src={src} allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" tabIndex={phase==='ready' ? 0 : -1} data-speech-id={speechId} /></div>
-
-    </>}
+    <p className="explorer-video-caption" lang="en">European Parliament</p>
+    <div className="explorer-player-frame" lang="en"><iframe ref={frame} title="European Parliament speech video" src={src} allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" data-speech-id={speechId} /></div>
   </>;
 }
 

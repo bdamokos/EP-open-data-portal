@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { speechEmbedUrl, speechFrameKey, replayNeedsMediaRefresh } from './media.mjs';
 const id='MTG-PL-2026-10-07-OTH-2017097993206';
-const example = () => ({ speechId:id,status:'matched',available:true,requestedAudio:'hu',initialAudio:'or',requiresAudioCheck:true,availableAudioLanguages:['or','hu'],audioVerification:'official-content-map-runtime-check-required',selectionMethod:'iframe-inventory-and-adaptation',selectionVerifiedLanguages:[],audioMapping:{schemaVersion:1,channels:[{slot:0,language:'or',providerCode:'qbf'},{slot:16,language:'hu',providerCode:'qaw'}],source:{recordingId:'20261007-0900-PLENARY'}},recording:{id:'20261007-0900-PLENARY'},clip:{startUtc:'2026-10-07T09:19:15Z',endUtc:'2026-10-07T09:20:55Z'},embedUrl:'https://webstreaming.europarl.europa.eu/ep/embed/embed.html?event=20261007-0900-PLENARY&language=hu&audio=or&analytics=false&autoplay=false&start=2026-10-07T09:19:15Z&end=2026-10-07T09:20:55Z' });
+const example = () => ({ speechId:id,status:'matched',available:true,requestedAudio:'hu',initialAudio:'hu',requiresAudioCheck:false,availableAudioLanguages:['or','hu'],audioVerification:'official-content-map',selectionMethod:'official-embed-parameter',selectionVerifiedLanguages:[],audioMapping:{schemaVersion:1,channels:[{slot:0,language:'or',providerCode:'qbf'},{slot:16,language:'hu',providerCode:'qaw'}],source:{recordingId:'20261007-0900-PLENARY'}},recording:{id:'20261007-0900-PLENARY'},clip:{startUtc:'2026-10-07T09:19:15Z',endUtc:'2026-10-07T09:20:55Z'},embedUrl:'https://webstreaming.europarl.europa.eu/ep/embed/embed.html?event=20261007-0900-PLENARY&language=hu&audio=hu&analytics=false&autoplay=true&start=2026-10-07T09:19:15Z&end=2026-10-07T09:20:55Z' });
 test('replay remounts without refreshing matched media; timestamp-only refresh keeps the frame',()=>{
   const media=example(), key=attempt=>speechFrameKey(id,'hu','hu',attempt,media.audioMapping);
   const initial=key(0);assert.notEqual(key(1),initial);
@@ -25,12 +25,12 @@ test('requires the returned clip, recording and privacy parameters',()=>{
   }
 });
 test('original is a separate explicit request, even without a decoded inventory claim',()=>{
-  const original=example();original.requestedAudio='or';original.availableAudioLanguages=['or'];
+  const original=example();original.requestedAudio='or';original.initialAudio='or';original.embedUrl=original.embedUrl.replace('audio=hu','audio=or');original.availableAudioLanguages=['or'];
   assert(speechEmbedUrl(original,id,'hu','or'));assert.equal(speechEmbedUrl(original,id,'hu','hu'),null);
 });
 
 test('a track menu alone does not establish selected interpretation',()=>{const m=example();m.audioVerification='official-player-menu';assert.equal(speechEmbedUrl(m,id,'hu','hu'),null);});
 
-test('runtime guard requires content map, recording provenance and paused original entry',()=>{
-  for(const change of [m=>m.requiresAudioCheck=false,m=>m.selectionMethod='query',m=>delete m.audioMapping,m=>m.audioMapping.source.recordingId='other',m=>m.embedUrl=m.embedUrl.replace('autoplay=false','autoplay=true'),m=>m.embedUrl=m.embedUrl.replace('audio=or','audio=hu'),m=>m.audioMapping.channels=m.audioMapping.channels.filter(c=>c.language!=='hu')]) {const m=example();change(m);assert.equal(speechEmbedUrl(m,id,'hu','hu'),null);}
+test('runtime guard requires content map, recording provenance and requested audio entry',()=>{
+  for(const change of [m=>m.requiresAudioCheck=true,m=>m.selectionMethod='query',m=>delete m.audioMapping,m=>m.audioMapping.source.recordingId='other',m=>m.embedUrl=m.embedUrl.replace('autoplay=true','autoplay=false'),m=>m.embedUrl=m.embedUrl.replace('audio=hu','audio=or'),m=>m.audioMapping.channels=m.audioMapping.channels.filter(c=>c.language!=='hu')]) {const m=example();change(m);assert.equal(speechEmbedUrl(m,id,'hu','hu'),null);}
 });
