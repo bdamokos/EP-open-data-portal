@@ -158,7 +158,7 @@ for(const language of ['en','hu','fr']) {
     assert.equal(body.textContent,'Texte français du discours.');assert.equal(effectiveLanguage(body.querySelector('p')),'fr');
     assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
-    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),'en');assert.match(detail.querySelector('.explorer-text-meta').textContent,/Parliament machine translation/);
+    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),'en');assert.match(detail.querySelector('.explorer-text-meta').textContent,/Machine translation/);
     assert.equal(effectiveLanguage(exactText(detail,'small','Showing saved transcript.')),'en');
     assert.equal(detail.querySelector('.explorer-source-link a'),null);
     assert.equal(effectiveLanguage(detail.querySelector('button[aria-label="Find in speech"]')),'en');
@@ -248,11 +248,11 @@ test('oral-question deep links show the body first and retain header, note and l
 
 const readableXml='<speech><p>Exact transcript text.</p><p>Second source paragraph.</p></speech>';
 const transcriptCases=[
-  {name:'readable known language',xml:readableXml,textLanguage:'fr',translationType:'machine',prefix:'FR',provenance:'Parliament machine translation',readable:true},
+  {name:'readable known language',xml:readableXml,textLanguage:'fr',translationType:'machine',prefix:'FR',provenance:'Machine translation',readable:true},
   {name:'readable unknown language and unspecified provenance',xml:readableXml,textLanguage:null,translationType:'unspecified',prefix:'',readable:true},
   {name:'readable unknown language and original provenance',xml:readableXml,textLanguage:null,translationType:'original',prefix:'',provenance:'Original text',readable:true},
-  {name:'readable unknown language and machine provenance',xml:readableXml,textLanguage:null,translationType:'machine',prefix:'',provenance:'Parliament machine translation',readable:true},
-  {name:'readable unknown language with an XML machine marker',xml:readableXml.replace('<speech>','<speech xml:lang="en-t-hu-mtec">'),textLanguage:null,translationType:'unspecified',prefix:'',provenance:'Parliament machine translation',readable:true},
+  {name:'readable unknown language and machine provenance',xml:readableXml,textLanguage:null,translationType:'machine',prefix:'',provenance:'Machine translation',readable:true},
+  {name:'readable unknown language with an XML machine marker',xml:readableXml.replace('<speech>','<speech xml:lang="en-t-hu-mtec">'),textLanguage:null,translationType:'unspecified',prefix:'',provenance:'Machine translation',readable:true},
   {name:'unavailable transcript',xml:null,textLanguage:null,translationType:'unspecified',prefix:'Text unavailable'},
   {name:'empty transcript with supplied language',xml:'<speech/>',textLanguage:'en',translationType:'original',prefix:'EN',provenance:'Original text'},
   // Happy DOM exposes a parser-error document directly; the browser fixture

@@ -1,3 +1,3 @@
 .speech-translation {display:inline-flex;align-items:baseline;flex-wrap:wrap;gap:.25em;font-size:.85rem}
-.speech-translation button {border:0;background:none;padding:0;color:var(--accent,#245b91);font:inherit;text-decoration:underline;text-underline-offset:.15em;cursor:pointer}
+.speech-translation button {border:0;background:none;padding:0;color:var(--accent);font:inherit;text-decoration:underline;text-underline-offset:.15em;cursor:pointer}
 .speech-translation button:focus-visible {outline:2px solid currentColor;outline-offset:3px}
