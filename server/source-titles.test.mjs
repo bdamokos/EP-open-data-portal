@@ -43,7 +43,7 @@ test('saved raw question sources produce clean titles while retaining incomplete
   const work=source(),store={clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false,sourceCounts:{document:1}}),db:{prepare(sql){
     if(sql.includes('FROM group_history_snapshots'))return {get:()=>undefined};
     if(sql.includes('FROM refresh_gaps'))return {all:()=>[]};
-    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {all:()=>[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
+    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {iterate:()=>[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
     if(sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:1})};
     if(sql.startsWith('SELECT key,body'))return {all:()=>[{key,body:JSON.stringify(work),fetched_at:fetchedAt}]};
     if(sql.startsWith('SELECT id,body'))return {all:()=>[{id:'197701',body:JSON.stringify({id:'197701',name:'Fixture author',countryCode:'EL'})}]};
