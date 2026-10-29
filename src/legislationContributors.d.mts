@@ -3,6 +3,7 @@ import type {InsightStats} from './InsightTypes';
 import type {SpeechSpeaker as DetailedSpeechSpeaker,SpeakerRoleLabel} from './explorerTypes';
 import type {DirectoryMember} from './explorerTypes';
 type Detail=NonNullable<LegislationResponse['detail']>;
+export function legislationActivity(detail:Detail,headers:SpeechHeaders,personId:string):{speeches:number|null;statements:number|null;amendments:number|null};
 export type SpeechSpeaker=Pick<DetailedSpeechSpeaker,'id'|'roleLanguage'|'roleLabels'|'roleSource'>&{name:string|null;role:string|null};
 export type SpeechHeaders=Record<string,Record<string,Omit<SpeechSpeaker,'id'>>>;
 export function mergeSpeechSpeakers(previous:SpeechHeaders,speeches:{id:string;people:SpeechSpeaker[]}[]):SpeechHeaders;

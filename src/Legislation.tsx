@@ -1,4 +1,4 @@
-import {legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
+import {legislationActivity,legislationContributors,legislationOffice,mergeSpeechSpeakers,orderLegislationPeople,type SpeechHeaders,type SpeechSpeaker} from './legislationContributors.mjs';
 import {PersonName,usePersonName} from './PersonName';
 import {selectLanguageText} from './language.mjs';
 import {matchesCountry} from './countries.mjs';
@@ -44,6 +44,14 @@ function sameAgendaRoute(loaded:string,requested:string,data:LegislationResponse
   if(previous.searchParams.get('week')!=='latest'||next.searchParams.get('week')!==data.week)return false;
   previous.searchParams.set('week',data.week);
   return previous.href===next.href;
+}
+function ContributorActivity({detail,headers,person}:{detail:NonNullable<LegislationResponse['detail']>;headers:SpeechHeaders;person:string}) {
+  const counts=legislationActivity(detail,headers,person);
+  return <ul className="insight-person-activity" lang="en" aria-label="Linked activity">
+    <li><strong>{counts.speeches??'—'}</strong> {counts.speeches===1?'speech':'speeches'}</li>
+    {counts.statements&&<li><strong>{counts.statements}</strong> {counts.statements===1?'written statement':'written statements'}</li>}
+    <li><strong>{counts.amendments?counts.amendments+'+':'—'}</strong> {counts.amendments===1?'amendment':'amendments'}</li>
+  </ul>;
 }
 function ContributorAnalysis({stats,language}:{stats:InsightStats;language:string}) {
   if(stats.denominator<=0&&!(stats.groupContributions?.total))return null;
@@ -223,7 +231,7 @@ export function Legislation(props:InsightProps&{members?:DirectoryMember[]}) {
             <button aria-label="Next speech" aria-disabled={speechIndex===shownSpeeches.length-1} onClick={()=>pageSpeech(1,true)}>Next <span aria-hidden="true">›</span></button>
           </nav></>}
       </section>}
-      <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div><InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.text:null,officeLanguage:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.language:null}))} language={language} onMember={props.onMember} roles={contributors!.roles} renderSecondary={person=><DossierWorkLinks references={detail.procedures.filter(p=>p.reference).map(p=>({id:p.id,reference:p.reference!}))} person={person.id} language={language}/>}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No contributors listed.'}</p>}</section>
+      <section className="insight-participants"><div className="insight-section-heading"><h3>Who is involved</h3><span>{shownPeople.length?<>{shownPeople.length} {shownPeople.length===1?'person':'people'}</>:country?'No matches':'No records yet'}</span></div>{shownPeople.length>0&&<p className="insight-secondary" lang="en">Saved activity linked to this topic. + means partial coverage; — means unavailable.</p>}<InsightPeople previewCount={6} people={shownPeople.map(p=>({...p,name:!p.currentMep&&speakerNames[p.id]?speakerNames[p.id]:p.name,office:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.text:null,officeLanguage:!p.currentMep?legislationOffice(detail,speechHeaders,p.id,language)?.language:null}))} language={language} onMember={props.onMember} roles={contributors!.roles} renderSecondary={person=><><ContributorActivity detail={detail} headers={speechHeaders} person={person.id}/><DossierWorkLinks references={detail.procedures.filter(p=>p.reference).map(p=>({id:p.id,reference:p.reference!}))} person={person.id} language={language}/></>}/>{!shownPeople.length&&<p>{country?'No listed contributors match this country filter.':'No contributors listed.'}</p>}</section>
       {!shownSpeeches.length&&detail.speeches.length>0&&country&&<p className="insight-secondary">No listed speeches match this country filter.</p>}
       {detail.committeeWork.length>0&&<section className="insight-committee-work"><h3>Committee work</h3><ol>{detail.committeeWork.map(event=><li key={event.id}><time lang={language}>{humanDate(event.date,language)}</time><div><strong>{committeeAction(event.kind)}</strong>{event.committees?.map(c=><p key={c.code}>{c.websiteUrl?<a lang="" href={c.websiteUrl} target="_blank" rel="noreferrer">{c.code} · {c.name.replace(/^Committee on /,'')} ↗</a>:c.code}</p>)}<div className="insight-document-links">{event.documentIds.map(id=><button key={id} aria-expanded={document===id&&documentEvent===event.id} aria-controls={documentTarget(event.id)} onClick={click=>toggleDocument(id,event.id,click.currentTarget)}>{document===id&&documentEvent===event.id?'Hide':'Read'} {id}</button>)}{!event.documentIds.length&&detail.procedures.find(p=>p.id===event.procedureId)?.websiteUrl&&<a href={detail.procedures.find(p=>p.id===event.procedureId)!.websiteUrl!} target="_blank" rel="noreferrer">Dossier ↗</a>}</div>{renderDocumentReader(event.id)}</div></li>)}</ol></section>}
       {!country&&detail.kind!=='PLENARY_VOTE'&&<ContributorAnalysis stats={contributors!.stats} language={language}/>}

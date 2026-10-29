@@ -1,4 +1,14 @@
 import {contributorOffice} from './speakerRoles.mjs';
+
+export function legislationActivity(detail,headers,personId) {
+  const speeches=new Set(),statements=new Set();
+  for(const speech of detail.speeches) {
+    if(!speech.people.some(person=>person.id===personId)||headers[speech.sourceId]?.[personId]?.role==='Chairing the sitting')continue;
+    if(speech.kind==='PLENARY_DEBATE_SPEECH')speeches.add(speech.sourceId);
+    if(speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT')statements.add(speech.sourceId);
+  }
+  return {speeches:speeches.size||null,statements:statements.size||null,amendments:detail.amendments?.counts[personId]||null};
+}
 // Evidence belongs to a speech, never permanently to a person who chaired it.
 export function mergeSpeechSpeakers(previous, speeches) {
   const next={...previous};let changed=false;
