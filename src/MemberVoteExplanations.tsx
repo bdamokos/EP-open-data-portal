@@ -26,7 +26,7 @@ function ExplanationReader({item,language}:{item:Explanation;language:string}) {
   const paragraphs=transcriptParagraphs(body?.xml||null).paragraphs;
   const video=useSpeechVideo(state.data?.id===item.id?state.data:item.speech,language,translation.originalAudio);
   return <div className="vote-explanation-reader">
-    <div className="vote-explanation-tools"><TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} onChange={setSelected} visibleLabel={false}
+    <div className="vote-explanation-tools"><TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} onChange={value=>{translation.reset();setSelected(value);}} visibleLabel={false}
       note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.control}{video.toggle}</div>
     {video.panel}{translation.originalGap&&<p>Original text unavailable.</p>}
     {state.loading&&!body&&<p role="status">Loading explanation…</p>}

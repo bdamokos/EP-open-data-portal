@@ -27,7 +27,7 @@ export function useSpeechTranslation(id:string,requested:string,interfaceLanguag
       :source?<button type="button" onClick={()=>setChoice({key,source,translation:body?.textLanguage||requested,original:true})}>Show original ({name(source)})</button>
       :<span>Original language unavailable</span>}
   </span>:null;
-  return {state:{...state,transcript:exactOriginal?body:null},selected,control,
+  return {state:{...state,transcript:exactOriginal?body:null},selected,control,reset:()=>setChoice(null),
     originalAudio:original||requested!==interfaceLanguage&&body?.translationType==='original',
     originalGap:original&&!state.loading&&!exactOriginal};
 }

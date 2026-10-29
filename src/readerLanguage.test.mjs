@@ -364,6 +364,9 @@ test('inline original toggle preserves source text, returns to translation, and 
   assert.equal(h.container.querySelector('.explorer-video select').value,'original','open video is not retuned');
   await h.click(button('Close video'));await h.click(button('Video'));
   assert(h.requests.includes(`speech-media/${speechId}?lang=en`));
+  await h.click(button('Show original (French)'));
+  await h.change(h.container.querySelector('.insight-reader-heading select'),'en');
+  assert.equal(h.container.querySelector('.insight-reader-text').lang,'en','dropdown clears the inline override even when the parent language was already English');
 });
 
 test('original toggle withholds a translated fallback and keeps a return path',async t=>{
