@@ -1,0 +1,122 @@
+{
+  "source": {
+    "declaredUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_en.docx",
+    "source": {
+      "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe/B-10-2026-0424/B-10-2026-0424_en.docx",
+      "fetchedAt": "2026-10-27T17:08:03.604Z",
+      "status": 200,
+      "ok": true,
+      "bytes": 50652,
+      "sha256": "c8b80d0e3dee9c142dfaa4966bfdb255bd3cf4c8fcc45820bd184fe49e876bb8",
+      "error": null,
+      "headers": {
+        "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "etag": "\"6abe21df-c5dc\"",
+        "last-modified": "Thu, 01 Oct 2026 09:03:27 GMT"
+      }
+    },
+    "xmlSha256": "afae3615618532f3b27ae6f29dca9f6bc748e81c1f4e5b92fa7da37c41243866"
+  },
+  "language": "en",
+  "paragraphs": [
+    "The European Parliament,",
+    "–\thaving regard to Article 2 of the Treaty on European Union (TEU),",
+    "–\thaving regard to Articles 67, 83, 84, 85, 87 and 317 of the Treaty on the Functioning of the European Union,",
+    "–\thaving regard to the Charter of Fundamental Rights of the European Union,",
+    "–\thaving regard to Articles 137 and 138 of Regulation (EU, Euratom) 2024/2509 of the European Parliament and of the Council of 23 September 2024 on the financial rules applicable to the general budget of the Union (the Financial Regulation),"
+  ],
+  "paragraphSources": [
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[18]",
+      "ordinal": 20,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 10,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[19]",
+      "ordinal": 21,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 10,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[20]",
+      "ordinal": 22,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 10,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[21]",
+      "ordinal": 23,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 10,
+      "complete": true
+    },
+    {
+      "path": "/w:document[1]/w:body[1]/w:p[22]",
+      "ordinal": 24,
+      "container": "body",
+      "containerPath": "/w:document[1]/w:body[1]",
+      "segment": 10,
+      "complete": true
+    }
+  ],
+  "paragraphFormats": [
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    },
+    {
+      "indent": 2.36,
+      "hanging": 2.36
+    }
+  ],
+  "examples": [
+    {
+      "amendmentId": "B-10-2026-0424-AM-113",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-113-122/B-10-2026-0424-AM-113-122_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-113-122/B-10-2026-0424-AM-113-122_en.docx",
+        "fetchedAt": "2026-10-27T00:49:32.100Z",
+        "sha256": "71b3e9e76af07a69ccba0e1f1b1dc1d996edce7d00b975e5f789ebfa7f99a587",
+        "status": 200
+      },
+      "targetLabel": "Citation 3",
+      "originalText": "3.\thaving regard to the Charter of Fundamental Rights of the European Union,",
+      "proposedText": "3.\thaving regard to the Charter of Fundamental Rights of the European Union, in particular Article 21 on non-discrimination, as well as Article 10 on the freedom of thought, conscience and religion;",
+      "expectedIndex": 3
+    },
+    {
+      "amendmentId": "B-10-2026-0424-AM-73",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRe_Amd/B-10-2026-0424-AM-073-082/B-10-2026-0424-AM-073-082_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRe_Amd/B-10-2026-0424-AM-073-082/B-10-2026-0424-AM-073-082_en.docx",
+        "fetchedAt": "2026-10-27T00:49:23.059Z",
+        "sha256": "23faa1d090cb582dee3b98654708834b9be5afc417f7ecd840bd04dfe993a2cf",
+        "status": 200
+      },
+      "targetLabel": "Citation 2",
+      "originalText": "2.\thaving regard to Articles 67, 83, 84, 85, 87 and 317 of the Treaty on the Functioning of the European Union,",
+      "proposedText": "2.\thaving regard to Articles 10 and 19 of the Treaty on the Functioning of the European Union, concerning policies and activities to combat discrimination based on sex, racial or ethnic origin, religion or belief, disability, age or sexual orientation,",
+      "expectedIndex": 2
+    }
+  ]
+}
