@@ -160,6 +160,21 @@ test('evicting a warmed correction cannot reveal its superseded general-cache so
   `);
 });
 
+test('a forced foreground refresh after restart preserves the warmed source location and correction',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-10-19T12:00:00Z');Date.now=()=>time;
+    allowed=true;networkPayload={data:[{identifier:'first observation'}]};
+    await odp('/procedures/2026-0002',{}, {cacheGroup:'plenary',priority:'background'});
+    time+=1000;networkPayload={data:[{identifier:'corrected observation'}]};
+    const cold=await import(${JSON.stringify(moduleUrl+'?plenary-force-after-restart')});
+    const corrected=await cold.odp('/procedures/2026-0002',{}, {force:true});
+    allowed=false;const restarted=await import(${JSON.stringify(moduleUrl+'?plenary-force-correction')});
+    assert.deepEqual(await restarted.odp('/procedures/2026-0002'),corrected);
+    assert.equal((await readdir(directory)).filter(name=>/^[a-f0-9]{64}\\.json$/.test(name)).length,0);
+    assert.equal(calls,2);
+  `);
+});
+
 test('ODP memory has a byte limit and replacing a record releases its previous byte charge',async t=>{
   await fixture(t,`
     const text='é'.repeat(3*1024*1024);

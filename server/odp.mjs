@@ -1,6 +1,6 @@
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
-import {readFile,writeFile,unlink} from "node:fs/promises";
+import {readFile,writeFile,unlink,stat} from "node:fs/promises";
 import {writeCacheFile} from './cache-publication.mjs';
 import {CacheDiskBudget} from './cache-disk-budget.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
@@ -271,15 +271,19 @@ export async function odp(
     url.searchParams.set(key, String(value));
   const key = url.href;
   cacheGroup=cacheGroup==='plenary'?'plenary':cache.get(key)?.cacheGroup||null;
+  // A maintenance refresh skips saved bytes, but keeps their storage budget.
+  if(force&&cacheDir&&!cacheGroup&&!isAgendaKey(key)) {
+    try {if((await stat(filename(key,'plenary'))).isFile())cacheGroup='plenary';}catch{}
+  }
   let stored = cache.get(key)?.record;
   if (!stored && cacheDir && !force) {
     try {
       const saved=await readSourceFile(key,signal);
       signal?.throwIfAborted();
+      cacheGroup=saved.cacheGroup||cacheGroup;
       const record=JSON.parse(saved.raw);
       if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {
         stored=newestSource(key,record);
-        cacheGroup=saved.cacheGroup||cacheGroup;
         if(stored===record)rememberSource(key,record,undefined,cacheGroup);
         if(isAgendaKey(key))agendaBudget.used(path.basename(filename(key)));
         else if(saved.cacheGroup==='plenary')plenaryBudget.used(path.basename(filename(key,'plenary')));
