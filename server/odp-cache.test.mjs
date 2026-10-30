@@ -129,14 +129,16 @@ test('foreground reads and stale refreshes reuse bounded plenary sources without
 
 test('a warm-up joining a foreground source keeps their shared publication in the bounded directory',async t=>{
   await fixture(t,`
-    let finish;
-    globalThis.fetch=async()=>{calls++;return new Promise(resolve=>finish=()=>resolve(Response.json({data:[]})));};
+    let finish,started;
+    const fetching=new Promise(resolve=>started=resolve);
+    globalThis.fetch=async()=>{calls++;const response=new Promise(resolve=>finish=()=>resolve(Response.json({data:[]})));started();return response;};
     const params={'sitting-date':'2026-10-26'},foreground=odp('/speeches',params);
-    for(let i=0;i<100&&!finish;i++)await new Promise(resolve=>setImmediate(resolve));
+    await Promise.race([fetching,foreground]);
     assert(finish);
     const background=odp('/speeches',params,{cacheGroup:'plenary',priority:'background'});
     const {upstreamStatus}=await import(${JSON.stringify(moduleUrl)});
-    for(let i=0;i<100&&upstreamStatus().background!==1;i++)await new Promise(resolve=>setTimeout(resolve,1));
+    const deadline=Date.now()+5000;
+    while(upstreamStatus().background!==1&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
     assert.equal(upstreamStatus().background,1);finish();
     assert.deepEqual(await foreground,await background);assert.equal(calls,1);
     assert.equal((await readdir(directory)).filter(name=>/^[a-f0-9]{64}\\.json$/.test(name)).length,0);
