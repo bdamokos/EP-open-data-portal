@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='16';
+export const PROPOSAL_PARSER_VERSION='17';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -39,8 +39,9 @@ function heading(text,language,style) {
   }
   return null;
 }
-function leadingNumber(text,language,style,numbering=null,activePoints=[]) {
-  const line=cleanLead(text);
+function leadingNumber(text,language,style,numbering=null,activePoints=[],recastPrefix=null) {
+  const source=text.trimStart(),prefix=recastPrefix?.text;
+  const line=cleanLead(prefix&&source.startsWith(prefix)?source.slice(prefix.length).trimStart():text);
   const dottedLabel=(stylePoint.test(style)||/^Text\d/i.test(style)||/Roman|Letter/i.test(numbering?.format??''))?
     line.match(/^([\p{L}]|[ivxlcdm]{2,8})\.\s+/u):null;
   if(!/^[\d(•–—-]/u.test(line)&&! /^[\p{L}]{1,8}[)\]]/u.test(line)&&!dottedLabel)return null;
@@ -232,7 +233,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
     if(nonnormative.has(area.kind)&&area.kind!=='frontmatter') {retain(area,i);continue;}
     const pointLevel=style.match(stylePoint)?.[1];
     if(quote&&!opening.test(trim)){
-      const number=leadingNumber(trim,language,style,p.properties?.numbering,points),operation=instruction(lead,language);
+      const number=leadingNumber(trim,language,style,p.properties?.numbering,points,p.properties?.recastLabelPrefix),operation=instruction(lead,language);
       // A consecutive instruction in the same outer list independently ends
       // a replacement whose source omitted a closing mark. A verb inside a
       // quoted provision, without the outer list sequence, is insufficient.
@@ -248,7 +249,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       }
     }
     if(quote&&pointLevel!==undefined&&Number(pointLevel)<=quote.ownerLevel&&!opening.test(trim)&&
-      leadingNumber(trim,language,style,p.properties?.numbering,points)&&instruction(lead,language)){
+      leadingNumber(trim,language,style,p.properties?.numbering,points,p.properties?.recastLabelPrefix)&&instruction(lead,language)){
       quote.root.closingBoundaryBasis='instruction-style';closeQuote(i);
     }
     if(quote&&headed?.kind==='annex'&&/Annexetitre/i.test(style)&&!opening.test(trim)){quote.root.closingBoundaryBasis='source-heading';closeQuote(i);}
@@ -269,7 +270,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       quote={owner,ownerLevel:level,root:scope,last:scope,container:scope,paragraph:null,points:[],underlyingPath:context,marks:[],implicit:!opening.test(trim)};
     }
     if(quote) {
-      const q=quote,number=leadingNumber(trim,language,style,p.properties?.numbering,q.points);let target;
+      const q=quote,number=leadingNumber(trim,language,style,p.properties?.numbering,q.points,p.properties?.recastLabelPrefix);let target;
       if(number?.kind==='point'&&number.level===0&&/^\d/.test(number.value)&&(q.container.kind==='article'||q.container.kind==='quotation'&&q.owner.instruction?.underlyingTargets.some(target=>target.kind==='paragraph'&&target.value===number.value)))number.kind='paragraph';
       if(headed&&['article','annex','chapter','section','title'].includes(headed.kind)) {
         target=make(q.root,headed.kind,i,{segment:headed,scope:'quoted',instructionPath:q.owner.path,underlyingPath:[headed]});q.container=target;q.paragraph=null;q.points=[];q.underlyingPath=[headed];
@@ -290,7 +291,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       retain(target,i);q.last=target;
       const delimiter=q.marks[0];
       if(observedQuotation(text,q,i)){
-        const next=paragraphs[i+1],nextStyle=next?.properties?.styleId??'',nextNumber=next&&leadingNumber(next.text,language,nextStyle,next.properties?.numbering,q.points);
+        const next=paragraphs[i+1],nextStyle=next?.properties?.styleId??'',nextNumber=next&&leadingNumber(next.text,language,nextStyle,next.properties?.numbering,q.points,next.properties?.recastLabelPrefix);
         // The Dutch source closes Article 130 bis in point (b), then continues
         // the same article's numbered paragraphs before its final delimiter.
         // Their decimal syntax differs from the outer amending-point list.
@@ -329,7 +330,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
       }
       continue;
     }
-    const number=leadingNumber(trim,language,style,p.properties?.numbering,points);
+    const number=leadingNumber(trim,language,style,p.properties?.numbering,points,p.properties?.recastLabelPrefix);
     if((/Considrant/i.test(style)||area.kind!=='body'&&/^\(?\d+\)/u.test(trim))&&number?.kind==='point') {
       if(area.kind!=='preamble')region('preamble',i,false);
       last=make(area,'recital',i,{segment:{...number,kind:'recital'}});retain(last,i);continue;

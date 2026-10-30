@@ -17,6 +17,10 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(chosen.baseline==='present-text'&&chosen.baselineSource?.category==='present-text'&&chosen.baselineSource.conflicted===false&&(items?.length||baseline))return resolveExistingLawPlacement(items||[],chosen,baseline);
   const council=chosen.baseline==='council-position';
   const proposalKind=['commission-proposal','council-position'].includes(chosen.baseline)&&chosen.baselineSource?.category===chosen.baseline&&chosen.baselineSource.conflicted===false;
+  const consultation=chosen.baseline==='commission-proposal'&&(chosen.documentReferences||[]).some(r=>(r.field==='DocRef'||/^DocAmend\d?$/.test(r.field))&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''));
+  // CNS source support covers the provision body. A separated note payload
+  // has another legal scope; keep it readable without claiming its placement.
+  if(proposalKind&&consultation&&[chosen.originalText,chosen.proposedText].some(text=>typeof text==='string'&&/(?:^|\n)_{3,}[ \t]*(?:\n|$)/u.test(text)))return unresolved('proposal_note_scope_unavailable');
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
     ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
