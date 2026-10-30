@@ -37,7 +37,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     const query=new URLSearchParams({reference,lang:language,section,offset:String(cursor.offset),'target-offset':String(cursor.targetOffset),limit:'25'});if(person)query.set('member',person);
     api<DossierActivityResponse>('insights/dossier-activity?'+query,controller.signal).then(page=>{
       if(!live)return;
-      if(page.version!==5||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
+      if(page.version!==6||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
       if(previous.current&&(previous.current.generation!==page.generation||previous.current.amendmentGeneration!==page.amendmentGeneration)){
         pages.current.clear();
         if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:'partial',gaps:[...page.coverage.gaps,'This dossier was updated. Reopen it to load earlier pages.']}};
@@ -50,7 +50,8 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     }).catch(error=>{if(live){failedCursor.current=cursor;setState({data:previous.current,loading:false,error:error.message||'Section unavailable.'});}});
     return()=>{live=false;controller.abort();};
   },[key,active,request]);
-  const unavailable=[...pages.current.values()].find(page=>page.participantCoverage?.retryable||page.participantCoverage?.status==='unavailable')||[...pages.current.values()].find(page=>page.coverage.retryable||page.coverage.status==='unavailable');
+  const canRetry=(coverage:DossierCoverage|undefined)=>coverage?.retryable===true||coverage?.retryable!==false&&coverage?.status==='unavailable';
+  const unavailable=[...pages.current.values()].find(page=>canRetry(page.participantCoverage))||[...pages.current.values()].find(page=>canRetry(page.coverage));
   return {...(scoped?state:{data:null,loading:active,error:null}),pages:[...pages.current.values()],retryableUnavailable:Boolean(unavailable),retry:()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable?{offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}:lastCursor.current),attempt:value.attempt+1})),more:()=>{if(state.data?.pagination.next&&!state.loading)setRequest(value=>({key,cursor:state.data!.pagination.next!,attempt:value.attempt+1}));}};
 }
 
@@ -62,8 +63,8 @@ function Coverage({coverage,section,pages}:{coverage:DossierCoverage;section:Dos
   const targets=new Map<string,DossierActivityResponse>();for(const page of pages)if(page.checkedTarget)targets.set(page.checkedTarget,mergeDossierPage(targets.get(page.checkedTarget)||null,page));
   // Gaps stay attributed to the exact target whose read failed.
   const gaps=targets.size?[...targets.entries()].flatMap(([target,page])=>page.coverage.gaps.map(gap=>target+' · '+gap)):coverage.gaps;
-  const discovery=coverage.discovery,discoveryGap=Boolean(discovery&&(discovery.pending||discovery.refreshGaps||discovery.capacityGaps.length));
-  if(coverage.status==='complete'&&!gaps.length&&!discoveryGap)return null;
+  const discovery=coverage.discovery;
+  if(coverage.status==='complete'&&!gaps.length)return null;
   return <details className="dossier-coverage"><summary>{section==='people'?'People':labels[section]} availability</summary><p>{section==='people'?'People':labels[section]} · {coverage.status==='unavailable'?'Records unavailable':coverage.status==='partial'||gaps.length?'Partial coverage':discovery?.pending?'Still checking for more amendments':discovery?.refreshGaps?'Some amendment sources unavailable':'Partial coverage'}</p>{gaps.length>0&&<ul>{[...new Set(gaps)].map(gap=><li key={gap}>{gap}</li>)}</ul>}{discovery?.pending&&<p>Checking for more amendment sources.</p>}{discovery?.refreshGaps&&<p>Some amendment sources could not be refreshed.</p>}{Boolean(discovery?.capacityGaps.length)&&<p>Some amendment sources have not been checked.</p>}</details>;
 }
 function Role({item,language}:{item:DossierRole;language:string}) {
