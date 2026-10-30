@@ -1,7 +1,8 @@
 .document-pages { margin-block: 1rem; max-width: 100%; }
 .document-pages-view { margin-block-start: 1rem; }
 .document-pages-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block-end: .75rem; }
-.document-pages-tools input { width: 5rem; }
+.document-pages-tools label { flex: 0 0 auto; }
+.document-pages-tools input { width: 5rem; box-sizing: border-box; }
 .document-page-scroll { max-width: 100%; max-height: 80vh; overflow: auto; }
 .document-page-scroll canvas { display: block; max-width: 100%; height: auto; }
 .document-page-enlarged canvas { max-width: none; }
