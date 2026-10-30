@@ -17,6 +17,7 @@ import {WordingDiff} from './components/WordingDiff';
 import {AmendmentNamedVotes} from './AmendmentNamedVotes';
 import {voteMethodLabel} from './voteMethod.mjs';
 import {sourcePageUrl} from './SourceLink';
+import FinalTextCheck from './FinalTextCheck';
 
 const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 
@@ -173,6 +174,7 @@ export function AmendmentCard({item,language,onMember,showOutcome=true}:{item:Am
     {(decisions.length>0||splitParts.length>0)?<div className="explorer-amendment-voting">{splitParts.length>0&&<ol className="explorer-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language}/>)}</ol>}{whole.length>0&&<ul className="explorer-amendment-decisions">{whole.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} compact={decisions.length===1&&!splitParts.length}/>)}</ul>}</div>:!committee&&<p className="explorer-amendment-secondary">Outcome unavailable.</p>}
     {!item.conflicted&&<details className="explorer-amendment-wording"><summary>Compare original and proposed text</summary><AmendmentWording item={item}/></details>}
     {selection&&<details className="explorer-amendment-context" open={contextOpen} onToggle={event=>setContextOpen(event.currentTarget.open)}><summary ref={contextSummary}>Read in context</summary>{contextOpen&&<Suspense fallback={<p role="status">Loading document…</p>}><DocumentContextReader language={language} request={{...selection,onBack:()=>{setContextOpen(false);contextSummary.current?.focus({preventScroll:true});}}}/></Suspense>}</details>}
+    {committee&&selection?.amendmentId&&selection.listId&&<FinalTextCheck documentId={selection.documentId} amendmentId={selection.amendmentId} listId={selection.listId} wordingLanguage={selection.wordingLanguage??null} language={language}/>}
     <details className="explorer-amendment-evidence"><summary>Sources{!committee&&item.gaps?.length?' · '+item.gaps.length+(item.gaps.length===1?' gap':' gaps'):''}</summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={title.text===item.title?title.language:''}>{title.text}</p>}{item.scope!=='committee'&&<p className="explorer-amendment-reference">{item.id}</p>}<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language),metadataLanguage(item)?metadataLanguage(item).toUpperCase():null])}</p>
       {item.officialIds?.length?<p className="explorer-amendment-reference">Official references: {item.officialIds.join(', ')}</p>:null}
       <AmendmentSources sources={item.sources||[]} language={language}/>

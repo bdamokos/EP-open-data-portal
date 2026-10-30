@@ -200,6 +200,7 @@ export class AmendmentFinalText {
         if(adopts===null){result.gaps.push('adopted-relationships-unavailable');continue;}
         if(type(work)!=='TEXT_ADOPTED'||procedures(work)?.join()!==procedureId){result.gaps.push('adopted-identity-conflict');continue;}
         for(const parentId of adopts.filter(id=>documents.includes(id)&&/^A-\d{1,2}-\d{4}-\d{4,6}$/u.test(id))) {
+          if(type(root)==='REPORT_PLENARY'&&parentId!==query.id)continue;
           const report=await read('/plenary-documents/'+parentId,parentId);
           if(type(report)!=='REPORT_PLENARY'||procedures(report)?.join()!==procedureId)continue;
           const reportTargets=relationships(report,'adopts');

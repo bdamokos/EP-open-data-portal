@@ -35,7 +35,7 @@ test('closed disclosure does not fetch; opening requests the exact list, amendme
   const h=await harness(t,()=>response());await h.render(selection);assert.equal(h.requests.length,0);assert.equal(h.container.textContent,'In the final text?');
   await h.toggle();assert.equal(h.requests.length,1);const url=h.requests[0].url;
   assert.equal(decodeURIComponent(url.pathname),'/api/document-context/AGRI-PR-773115');
-  for(const [key,value]of Object.entries({amendment:selection.amendmentId,list:selection.listId,'wording-lang':'en',lang:'en','final-text':'1'}))assert.equal(url.searchParams.get(key),value);
+  for(const [key,value]of Object.entries({amendment:selection.amendmentId,list:selection.listId,'wording-lang':'en',lang:'en','final-text':'1',scope:'committee'}))assert.equal(url.searchParams.get(key),value);
   assert(h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Final EU act'));assert(h.container.textContent.includes('11 Mar 2026'));assert(h.container.textContent.includes('Article 9(4)'));
   assert(h.container.textContent.includes('Compare wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Read text'));
   for(const link of h.container.querySelectorAll('a'))assert(!/publications\.europa\.eu\/resource|data\.europarl\.europa\.eu\/api/u.test(link.href));
@@ -57,14 +57,14 @@ test('selection changes remount closed and late responses cannot cross document,
 test('mismatched responses are discarded and retry preserves a successful readable comparison',async t=>{
   let count=0;
   const h=await harness(t,()=>{count++;if(count===1)return response({...selection,wordingLanguage:'fr'});if(count===3)return new Response('{}',{status:502});return response();});
-  await h.render(selection);await h.toggle();assert(!h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Unavailable'));
-  await h.click('Retry');assert(h.container.textContent.includes('Same wording'));
-  await h.click('Check again');assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Unavailable'));
-  await h.click('Retry');assert(h.container.textContent.includes('Same wording'));assert.equal(h.requests.length,4);
+  await h.render(selection);await h.toggle();assert(!h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Could not load comparison.'));
+  await h.click('Try again');assert(h.container.textContent.includes('Same wording'));
+  await h.click('Check again');assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Could not refresh comparison.'));
+  await h.click('Try again');assert(h.container.textContent.includes('Same wording'));assert.equal(h.requests.length,4);
 });
 
 test('published vote is separate from wording and unavailable destinations offer no invented outcome',async t=>{
   const h=await harness(t,()=>response(selection,{vote:{status:'available',stage:'committee',scope:'individual-amendment',outcome:'REJECTED',decisions:[{id:'published-decision'}]},stages:[{destination,wording:{...wording,status:'unavailable',mapping:null,passages:null}}]}));
-  await h.render(selection);await h.toggle();assert(h.container.textContent.includes('Published vote: rejected'));assert(h.container.textContent.includes('Unavailable'));
+  await h.render(selection);await h.toggle();assert(h.container.textContent.includes('Committee vote: rejected'));assert(h.container.textContent.includes('Unavailable'));
   assert(!h.container.textContent.includes('Same wording'));assert(!h.container.textContent.includes('Not yet'));assert(!h.container.textContent.includes('Compare wording'));
 });

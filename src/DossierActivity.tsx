@@ -129,7 +129,7 @@ export function DossierActivity({reference,language='en',onProcedure}:{reference
 }
 
 export function DossierAmendmentLinks({references,person,language='en',stage,count}:{references:Pick<DossierReference,'id'|'reference'>[];person:string|number;language?:string;stage:'committee'|'plenary';count:number}) {
-  const exact=references.filter(row=>fullDossierReference(row.reference)),label=stage==='committee'?'Committee amendments':'Plenary amendments';
+  const exact=references.filter(row=>fullDossierReference(row.reference)),label=stage+' '+(count===1?'amendment':'amendments');
   const content=<><strong>{count}+</strong> {label}</>,accessible=`At least ${count} ${label.toLowerCase()}`;
   const link=(row:typeof exact[number])=><a key={row.reference} aria-label={accessible+(exact.length>1?' · '+row.reference:'')} href={dossierHref(row.reference,person,language,location.href,{section:'amendments',stage})} onClick={dossierLinkClick}>{content}{exact.length>1?' · '+row.reference:''}</a>;
   return <span className="dossier-amendment-links">{exact.length===1?link(exact[0]):exact.length>1?<details><summary aria-label={accessible}>{content} · choose a procedure</summary>{exact.map(link)}</details>:<span aria-label={accessible}>{content}</span>}</span>;

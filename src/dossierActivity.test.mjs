@@ -444,6 +444,6 @@ test('amendment-only dossier participants render separate stage links and surviv
     return Response.json(page('roles',null,[],{participants:++reads===1?[{id:'1',name:'Amendment author',roles:[],amendments:[evidence],amendmentCounts:{committee:1,plenary:null}}]:[],participantCoverage:{status:reads===1?'partial':'unavailable',retryable:true,uncheckedTargets:['AGRI-AM-773343'],gaps:[],sources:[source]}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ Committee amendments/);assert.doesNotMatch(h.container.querySelector('.dossier-participants').textContent,/Plenary amendments/);
-  await h.click('Retry people');assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ Committee amendments/);
+  assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);assert.doesNotMatch(h.container.querySelector('.dossier-participants').textContent,/plenary amendments/);
+  await h.click('Retry people');assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);
 });

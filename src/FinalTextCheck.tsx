@@ -35,6 +35,7 @@ function Session({selection}:{selection:FinalTextSelection}) {
   const [open,setOpen]=useState(false),[retry,setRetry]=useState(0);
   const [state,setState]=useState<{data:FinalTextResponse|null;loading:boolean;error:boolean}>({data:null,loading:false,error:false});
   const params=new URLSearchParams({lang:selection.language,amendment:selection.amendmentId,list:selection.listId,'wording-lang':selection.wordingLanguage??'unknown','final-text':'1'});
+  if(selection.amendmentId.startsWith('committee:'))params.set('scope','committee');
   const route='document-context/'+encodeURIComponent(selection.documentId)+'?'+params;
   useEffect(()=>{
     if(!open)return;
@@ -53,10 +54,10 @@ function Session({selection}:{selection:FinalTextSelection}) {
     <summary>In the final text?</summary>
     {open&&<div className="final-text-check__body" aria-busy={state.loading}>
       {state.loading&&!data&&<p role="status">Loading…</p>}
-      {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">Published vote: {data.vote.outcome.toLowerCase().replaceAll('_',' ')}</p>}
+      {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">{data.vote.stage==='committee'?'Committee vote':data.vote.stage==='plenary'?'Plenary vote':'Vote'}: {data.vote.outcome.toLowerCase().replaceAll('_',' ')}</p>}
       {data&&(data.stages.length?data.stages.map(stage=><Stage key={stage.destination.kind+':'+stage.destination.id} stage={stage} source={data.selection.source}/>):<p>Unavailable</p>)}
-      {state.error&&<p role="status">Unavailable</p>}
-      {(state.error||data)&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}>{state.error?'Retry':'Check again'}</button>}
+      {state.error&&<p role="status">{data?'Could not refresh comparison.':'Could not load comparison.'}</p>}
+      {(state.error||data)&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}>{state.error?'Try again':'Check again'}</button>}
     </div>}
   </details>;
 }

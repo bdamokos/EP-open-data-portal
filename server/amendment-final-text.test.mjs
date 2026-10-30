@@ -151,6 +151,22 @@ test('no explicit final act correspondence leaves the resolution-only publicatio
   const result=await h.service.query(h.query);assert.equal(result.wording.status,'unavailable');assert.equal(result.destination.kind,'parliament-adopted-text');assert.equal(h.counts().finalReads,0);
 });
 
+test('another report on the same procedure cannot supply the adopted text for a plenary amendment',async()=>{
+  const h=serviceHarness(),root='A-10-2025-0152',list=root+'-AM-001-001',id=root+'-AM-1';
+  const priorRoot=h.query.id,priorList=h.query.listId;
+  const work=structuredClone(h.records['/committee-documents/'+priorRoot]);
+  Object.assign(work,{id:'eli/dl/doc/'+root,identifier:root,work_type:'def/ep-document-types/REPORT_PLENARY',inverse_foresees_change_of:['eli/dl/doc/'+list]});
+  const published=structuredClone(h.records['/documents/'+priorList]);
+  Object.assign(published,{id:'eli/dl/doc/'+list,identifier:list,foresees_change_of:'eli/dl/doc/'+root});
+  h.records['/plenary-documents/'+root]=work;h.records['/documents/'+list]=published;
+  h.records['/procedures/2024-0318'].created_a_realization_of.push('eli/dl/doc/'+root);
+  Object.assign(h.query,{id:root,listId:list,amendmentId:id});
+  h.context.documentId=root;h.context.amendment.id=id;h.selected.listId=list;
+  const result=await h.service.query(h.query);
+  assert.equal(result.wording.status,'unavailable');assert(result.gaps.includes('adopted-text-unavailable'));
+  assert.equal(h.counts().finalReads,0);
+});
+
 test('unknown and empty relationships have distinct gaps and cannot fetch an act',async()=>{
   for(const [value,gap] of [[undefined,'root-list-relationships-unavailable'],[[],'list-not-linked-to-root']]){
     const h=serviceHarness();h.records['/committee-documents/'+h.query.id].inverse_foresees_change_of=value;

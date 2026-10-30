@@ -46,11 +46,11 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const container=document.createElement('div');document.body.append(container);
   root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));
-  assert.match(container.querySelector('.insight-person-activity').textContent,/1 written statement3\+ Plenary amendments/);
+  assert.match(container.querySelector('.insight-person-activity').textContent,/1 written statement3\+ plenary amendments/);
   assert.equal(calls.filter(url=>url.pathname.includes('amendments')).length,0,'card counts need no per-person requests');
   assert.equal(container.querySelector('.insight-participants>.insight-secondary'),null,'No activity disclaimer is displayed');
   const activities=[...container.querySelectorAll('.insight-participants .insight-person-activity')];
-  assert.equal(activities[0].querySelector('[aria-label="At least 3 plenary amendments"]').textContent,'3+ Plenary amendments');
+  assert.equal(activities[0].querySelector('[aria-label="At least 3 plenary amendments"]').textContent,'3+ plenary amendments');
   for(const activity of activities.slice(1))assert.doesNotMatch(activity.textContent,/amendment/,'Zero, null and missing amendment observations stay hidden');
   const find=selector=>{const node=container.querySelector(selector);assert(node,'Missing '+selector);return node;};
   const button=text=>{const node=[...container.querySelectorAll('button')].find(node=>node.textContent===text);assert(node,'Missing '+text);return node;};
