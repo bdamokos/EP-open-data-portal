@@ -22,6 +22,7 @@ import './DocumentContextReader.css';
 export type DocumentContextReaderProps={
   request:DocumentContextRequest;
   language:string;
+  showOriginalLink?:boolean;
   selectedDocumentId?:string|null;
   onSelectedDocumentIdChange?:(id:string|null)=>void;
 };
@@ -88,7 +89,7 @@ function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,sour
   return <>{nodes}</>;
 }
 
-function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest}:{id:string;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
+function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,showOriginalLink=true}:{id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
   const state=useData<DocumentContextResponse>(documentRoute(id,language,amendmentRequest));
   const data=responseFor(state.data,id,language,amendmentRequest),document=data?.document?.id===id&&(!data.document.selectedDocumentId||data.document.selectedDocumentId===id)?data.document:null;
   const text:DocumentText|undefined=document?.selectedText,reader=useRef<HTMLDivElement>(null),notePrefix='context-notes-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
@@ -158,7 +159,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   if(['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">Report amendment</p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
     {!wording&&<AmendmentJustification record={selectedVariant}/>}
-    <ProposalContextText data={proposalEvidenceMatches||data.placement?.status==='unresolved'?data:{...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}}} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage}/>
+    <ProposalContextText data={proposalEvidenceMatches||data.placement?.status==='unresolved'?data:{...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}}} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink}/>
   </div>;
   return <div className="document-context-document" data-context-pending={state.loading&&!hasText?'true':undefined}>
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools"><TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange}/>{hasText&&<FindInText key={id+':'+language} target={reader} label="Find in document"/>}</div></header>}
@@ -184,12 +185,12 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><Paragraph text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </>:!state.loading&&!loadError&&<p>Document text unavailable here.</p>}
-      {sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer">Open original document ↗</a></p>}
+      {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer">Open original document ↗</a></p>}
     </>}
   </div>;
 }
 
-function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange}:DocumentContextReaderProps) {
+function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true}:DocumentContextReaderProps) {
   const [selectedLanguage,setLanguage]=useState(typeof request.wordingLanguage==='string'?request.wordingLanguage:language),[localSelection,setLocalSelection]=useState<string|null>(null);
   const controlled=selectedDocumentId!==undefined,selected=controlled?selectedDocumentId:localSelection;
   const select=(id:string|null)=>{if(!controlled)setLocalSelection(id);onSelectedDocumentIdChange?.(id);};
@@ -201,10 +202,10 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   return <section className="document-context-reader" lang="en" aria-label="Document context" data-context-pending={pendingRelated?'true':undefined}>
     <button type="button" className="document-context-back" onClick={request.onBack}>← {request.backLabel??'Back'}</button>
     {request.summary}
-    {request.view==='document'?<DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} onLanguageChange={setLanguage} amendmentRequest={request}/>:<>
+    {request.view==='document'?<DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request}/>:<>
       {selected?<>
         <button type="button" className="document-context-choices-back" onClick={()=>select(null)}>← Adopted texts</button>
-        {selectedChoice?<DocumentBody key={selectedChoice.id+':'+selectedLanguage} id={selectedChoice.id} language={selectedLanguage} interfaceLanguage={language} onLanguageChange={setLanguage}/>:related.loading?<p role="status">Loading linked texts…</p>:!related.error&&<p>This adopted text is unavailable here.</p>}
+        {selectedChoice?<DocumentBody key={selectedChoice.id+':'+selectedLanguage} id={selectedChoice.id} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage}/>:related.loading?<p role="status">Loading linked texts…</p>:!related.error&&<p>This adopted text is unavailable here.</p>}
       </>:<><h3>Adopted texts</h3>{related.loading&&!data&&<p role="status">Loading linked texts…</p>}{data&&!choices.length&&!related.error&&<p>Adopted text unavailable here.</p>}{choices.length>0&&<ul className="document-context-choices">{choices.map(item=>{const title=titleOf(item,selectedLanguage);return <li key={item.id}><button type="button" onClick={()=>select(item.id)}><span lang={title.language}>{title.text}</span>{item.date&&<time dateTime={item.date}>{item.date}</time>}</button></li>;})}</ul>}</>}
       {partial&&<p className="document-context-notice">Some linked texts could not be loaded.</p>}
       {related.error&&<p className="document-context-notice" role="alert">Linked texts could not be loaded. <button type="button" onClick={related.retry}>Try again</button></p>}

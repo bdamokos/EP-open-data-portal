@@ -1,10 +1,12 @@
 import type {DossierActivityResponse,DossierAmendment,DossierItem,DossierVote,DossierSection,DossierFilter} from './DossierActivityTypes';
+import type {AmendmentDecision} from './AmendmentTypes';
 export const dossierSections:DossierSection[];
 export const dossierFilters:DossierFilter[];
 export function fullDossierReference(value:unknown):value is string;
 export function validDossierPerson(value:unknown):value is string;
 export function dossierHref(reference:string,person?:string|number|null,language?:string,base?:string,options?:{section?:DossierSection;stage?:'all'|'committee'|'plenary';committee?:string|null}):string;
 export function dossierAmendmentVotes(item:DossierAmendment,votes:DossierVote[]):DossierVote[];
+export function dossierUnrenderedDecisions(item:DossierAmendment,votes:DossierVote[]):AmendmentDecision[];
 export function dossierVoteCards(amendments:DossierAmendment[],votes:DossierVote[]):Map<string,{votes:DossierVote[];shared:DossierVote[];unloaded:boolean;showOutcome:boolean}>;
 export function dossierTimeline(items:DossierItem[]):{id:string;date:string|null;kind:DossierItem['kind'];items:DossierItem[]}[];
 export function mergeDossierPage(previous:DossierActivityResponse|null,page:DossierActivityResponse):DossierActivityResponse;

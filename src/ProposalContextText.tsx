@@ -109,7 +109,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
   })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes notes={proposal.notes} prefix={prefix}/></>;
 }
 
-export function ProposalContextText({data,wording,amendmentId,language}:{data:DocumentContextResponse;wording:Variant|null;amendmentId?:string;language:string}) {
+export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string}) {
   const reader=useRef<HTMLDivElement>(null),prefix='proposal-'+useId().replace(/[^A-Za-z0-9_-]/g,''),baseline=data.baseline!,items=data.proposal!.items;
   const placement=data.placement,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language;
   const effective=placed?placement:null;
@@ -151,7 +151,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
     return <section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-label={'Amendment'+(number?' '+number:'')}><h4 lang="en">Amendment{number?' '+number:''}{council?' · Council position':''}</h4>{existing&&placed&&placement.instruction&&<p className="document-context-instruction">{placement.instruction.replace(/[‘“"„]\s*$/u,'').trim()}</p>}{labelLength>0&&<p className="document-context-provision-label" data-source-label="true">{sourcePrefix!.trim()}</p>}{wording&&<WordingDiff labels={existing?{original:'Existing act'}:council?{original:'Council position'}:undefined} originalFormatting={useColumns?wording.originalFormatting:originalFormatting} proposedFormatting={existing&&placed&&placement.proposedRange?wording.proposedFormatting?.filter(mark=>mark.end>placement.proposedRange!.start&&mark.start<placement.proposedRange!.end).map(mark=>({...mark,start:Math.max(mark.start,placement.proposedRange!.start)-placement.proposedRange!.start,end:Math.min(mark.end,placement.proposedRange!.end)-placement.proposedRange!.start})):wording.proposedFormatting} original={placement?.operation==='insert'?'':useColumns?wording.originalText:comparisonOriginal} proposed={placement?.operation==='delete'?'':existing&&placed?placement.proposedText??wording.proposedText:wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={useColumns?undefined:renderOriginal}/>}<AmendmentJustification record={wording}/></section>;
   };
   return <>
-    <p className="proposal-context-summary">{official?<a href={official} target="_blank" rel="noreferrer">{identity} ↗</a>:identity} · <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></p>
+    <p className="proposal-context-summary">{showOriginalLink&&official?<a href={official} target="_blank" rel="noreferrer">{identity} ↗</a>:identity} {showOriginalLink&&<>· <a href={report} target="_blank" rel="noreferrer">Parliament {data.documentId.startsWith('A-')?'report':'document'} ↗</a></>}</p>
     <p className="document-context-language">Text language: {baseline.language.toUpperCase()}</p>
     <div className="document-context-tools"><FindInText target={reader} label={existing?'Find in existing act':council?'Find in Council position':'Find in proposal'}/></div>
     {placed?<div className="document-context-passage"><button type="button" onClick={showAmendment}>Go to amendment</button></div>:<p className="document-context-notice" role="status">{proposalPlacementReasons[placement?.reason||'']||'The amendment’s location could not be determined.'}</p>}
@@ -164,7 +164,7 @@ export function ProposalContextText({data,wording,amendmentId,language}:{data:Do
         <ReferenceScope texts={readerTexts(p.paragraphs.map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading="Referenced question" includeAnswers/>}>
           <ItemText proposal={p} itemIndex={index} placement={effective} block={amendmentBlock} prefix={prefix+'-'+index}/>
         </ReferenceScope>
-        {safeHref(council||existing?official:baseline.items[index]?.source.url)&&<p className="document-context-source"><a href={safeHref(council||existing?official:baseline.items[index].source.url)!} target="_blank" rel="noreferrer">{existing?'Open existing act':council?'Open Council position':'Open original '+(item.kind==='act'?'proposal':'annex')+' DOCX'} ↗</a></p>}
+        {showOriginalLink&&safeHref(council||existing?official:baseline.items[index]?.source.url)&&<p className="document-context-source"><a href={safeHref(council||existing?official:baseline.items[index].source.url)!} target="_blank" rel="noreferrer">{existing?'Open existing act':council?'Open Council position':'Open original '+(item.kind==='act'?'proposal':'annex')+' DOCX'} ↗</a></p>}
       </section>;
     })}</div>
     <p className="document-context-source">{baseline.attribution}</p>
