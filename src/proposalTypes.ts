@@ -1,3 +1,4 @@
+import type {DocumentImageAssets,DocumentImageReference} from './DocumentImage';
 import type { DocumentNote, NoteAnchor, DocumentLink } from './explorerTypes'
 
 export type ProposalUnitKind = 'frontmatter' | 'memorandum' | 'preamble' | 'body' | 'signature' | 'financial-statement' | 'title' | 'citation' | 'recital' | 'enacting-formula' | 'chapter' | 'section' | 'article' | 'annex' | 'paragraph' | 'subparagraph' | 'point' | 'indent' | 'quotation' | 'table'
@@ -22,6 +23,7 @@ export interface ProposalPathSegment {
 export type MathMLTag = 'math' | 'mrow' | 'mi' | 'mn' | 'mo' | 'mtext' | 'mfrac' | 'msub' | 'msup' | 'msubsup' | 'msqrt' | 'mroot' | 'munder' | 'mover' | 'munderover' | 'mtable' | 'mtr' | 'mtd'
 export interface MathMLNode { tag: MathMLTag; children: Array<MathMLNode | string>; attributes?: { accent?: 'true'; accentunder?: 'true'; mathvariant?: string } }
 export interface ProposalObject {
+  image?:DocumentImageReference;
   kind: 'math' | 'drawing' | 'object' | 'symbol' | 'unsupported'
   status: 'mapped' | 'converted' | 'unresolved'
   paragraph: number
@@ -85,6 +87,7 @@ export interface ProposalUnit {
   table?: ProposalTable
 }
 export interface ProposalDocument {
+  imageAssets?:DocumentImageAssets;
   parserVersion: string
   language: string
   item: 'act' | 'annex'

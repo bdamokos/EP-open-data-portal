@@ -1228,3 +1228,19 @@ test('report logo suppression retains real image, note and extraction gaps and r
     assert.equal(h.container.querySelectorAll('.document-context-object').length,variant==='note-image'||variant==='warning'?0:1);
   });
 });
+
+test('inline pictures preserve surrounding links, note anchors and table-cell positions, and can enlarge',async t=>{
+  const assetId='f'.repeat(64),data='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1cAAAAASUVORK5CYII=',image={id:assetId,description:'Published figure description',title:'',part:'word/document.xml',target:'word/media/chart.png',relationshipId:'rId9',mime:'image/png',width:1,height:1};
+  const h=await harness(t,()=>response(report,sourceDocument(report,['Heading','Before\uFFFC after'],{
+    documentObjects:[{paragraph:1,offset:6,path:'/document/p/r/drawing',kind:'drawing',status:'unresolved',image}],
+    imageAssets:{[assetId]:{mime:'image/png',width:1,height:1,sha256:assetId,data}},
+    notes:[{id:'1',label:'1',text:'Note \uFFFC end',links:[],objects:[{offset:5,replacement:'\uFFFC',kind:'drawing',image}]}],noteAnchors:[{paragraph:1,offset:7,note:'1',label:'1'}],
+    documentLinks:[{paragraph:1,start:0,end:6,url:'https://example.com/source'}],formatStatus:'extracted',paragraphFormats:[{},{}],tables:[{rows:[[{start:1,end:2}]]}]
+  })));
+  await h.render({request:{documentId:report,view:'document',onBack:()=>{}},language:'en'});
+  const cell=h.container.querySelector('td'),img=cell.querySelector('img');assert(img);assert.equal(img.alt,'Published figure description');assert.equal(img.src,'data:image/png;base64,'+data);
+  assert(cell.textContent.includes('Before'));assert(cell.textContent.includes(' after'));assert.equal(cell.querySelector('sup').textContent,'1');assert.equal(cell.querySelector('a').textContent,'Before');
+  assert(h.container.querySelector('.legal-notes img'));
+  await h.click(cell.querySelector('button'));assert.equal(cell.querySelector('button').getAttribute('aria-expanded'),'true');assert.match(cell.querySelector('button').textContent,/Fit image/);
+  assert(h.container.textContent.includes('View original pages'));assert.equal(h.requests.filter(route=>route.startsWith('document-pages')).length,0,'PDF stays lazy');
+});

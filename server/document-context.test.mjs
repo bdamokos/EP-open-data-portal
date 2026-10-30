@@ -56,7 +56,7 @@ function archive(documentXml,stylesXml,parts={}) {
 test('document context validates exact identity, source variant and query keys',()=>{
   assert.equal(documentContextQuery(ta,new URLSearchParams()).id,ta);
   assert.deepEqual(documentContextQuery(id,new URLSearchParams({amendment:amendmentId,list:listId})),{id,language:'en',amendmentId,listId,adopted:false,includeBody:true});
-  for(const value of ['B-9-2026-0424','../secret',id+'-AM-40'])assert.throws(()=>documentContextQuery(value,new URLSearchParams()),{status:400});
+  for(const value of ['B-11-2026-0424','../secret',id+'-AM-40'])assert.throws(()=>documentContextQuery(value,new URLSearchParams()),{status:400});
   for(const params of ['amendment=B-10-2026-0424-AM-40','list='+listId,'amendment='+amendmentId+'&list=B-10-2026-0424-AM-001-099','adopted=0','lang=en&lang=fr','unknown=1','adopted=1&amendment='+amendmentId])assert.throws(()=>documentContextQuery(id,new URLSearchParams(params)),{status:400});
   assert.throws(()=>documentContextQuery(ta,new URLSearchParams('adopted=1')),{status:400});
   for(const language of ['en','hu','zz','unknown']) {
@@ -392,7 +392,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,47);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,48);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });
@@ -720,4 +720,9 @@ for(const status of ['error','unavailable','available'])test('a selected file la
   const ordinary=service({findAmendment:()=>({...indexed,language:'fr',originalText:'Original français.',proposedText:'Nouveau texte.'}),readText:async()=>missing});
   const value=await ordinary.query(query({amendmentId,listId,wordingLanguage:'fr'}),{store:{}});
   assert.equal(value.target.status,'unavailable');assert.equal(value.target.reason,'source_structure_unavailable');
+});
+
+test('historical public reports remain readable on demand without expanding indexed amendment scope',()=>{
+  for(const id of ['A-8-2017-0014','A-8-2016-0283','TA-8-2015-0263'])assert.equal(documentContextQuery(id,new URLSearchParams({lang:'en'})).id,id);
+  assert.throws(()=>documentContextQuery('A-11-2027-0001',new URLSearchParams({lang:'en'})));
 });

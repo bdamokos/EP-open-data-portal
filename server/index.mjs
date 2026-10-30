@@ -27,6 +27,7 @@ import {memberVotes,memberVotesQuery,MEMBER_VOTES_PERIOD_RESPONSE_BYTES} from '.
 import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
+import {documentPages} from './document-pages.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
 import amendmentFinalText from './amendment-final-text.mjs';
 import {commissionFollowups,commissionFollowupsQuery} from './commission-followups.mjs';
@@ -123,7 +124,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -169,6 +170,15 @@ async function handleApi(request,response,url,apiPrefix){
       response.statusCode = 200;
       response.end(request.method === "HEAD" ? undefined : image.body);
       return;
+    }
+    if(segments[0]==='document-pages'&&segments.length===2){
+      requireQuery(url.searchParams,['lang']);
+      const pdf=await documentPages.query(segments[1],language);
+      setCommonSecurityHeaders(response);response.setHeader('Content-Type','application/pdf');
+      response.setHeader('Content-Disposition','inline');response.setHeader('Cache-Control','private, no-store');response.setHeader('CDN-Cache-Control','no-store');
+      response.setHeader('Content-Length',pdf.body.length);response.setHeader('ETag','"'+pdf.sha256+'"');
+      response.setHeader('X-Document-SHA256',pdf.sha256);response.setHeader('X-Document-Source',pdf.sourceUrl);response.setHeader('X-Document-Retrieved-At',pdf.fetchedAt);response.setHeader('Content-Language',pdf.language);
+      response.end(request.method==='HEAD'?undefined:pdf.body);return;
     }
     let result;
     if(segments[0]==='source-record' && segments.length===1)result=await sourceRecord(url.searchParams.get('url'),language);

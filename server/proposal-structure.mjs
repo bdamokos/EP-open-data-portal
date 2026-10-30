@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='17';
+export const PROPOSAL_PARSER_VERSION='18';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -389,7 +389,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   }
   finish(root);
   const structureComplete=sourceStructured&&!gaps.length;
-  return {parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
+  return {imageAssets:content.imageAssets??{},parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
     complete:root.complete&&structureComplete,contentComplete:paragraphs.every(paragraph=>paragraph.complete)&&notes.every(note=>note.complete),structureComplete,
     paragraphs,notes,anchors:content.anchors??[],links:content.links??[],units:root.children,gaps,numberingMode:content.numberingMode??'supplied-text',
     objects:[...paragraphs.flatMap(paragraph=>paragraph.objects),...notes.flatMap(note=>note.objects)]};
