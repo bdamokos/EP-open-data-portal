@@ -24,7 +24,8 @@ export class OfficialContextSources {
   constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
     Object.assign(this,{clock,fetchSource});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
-    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:32,maxBytes:24*1024*1024});
+    // Retain the latest week's linked pages without increasing the byte budget.
+    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
@@ -39,7 +40,7 @@ export class OfficialContextSources {
     }
     try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
   }
-  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false}={}) {
+  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive'}={}) {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
@@ -66,7 +67,7 @@ export class OfficialContextSources {
         if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
         const text=await limitedText(response,json?3*1024*1024:1024*1024);
         return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
-      },{priority:'interactive',origin:source.origin,signal});
+      },{priority,origin:source.origin,signal});
     }),{freshMs,includeRetryAt,validate:record=>{
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);

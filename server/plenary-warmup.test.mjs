@@ -9,6 +9,10 @@ import {MeetingsReader} from './meetings-reader.mjs';
 
 const clock=()=>Date.parse('2026-10-29T12:00:00Z');
 const sitting=date=>({id:'eli/dl/event/MTG-PL-'+date,activity_id:'MTG-PL-'+date,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_SITTING'});
+async function warmAll(service) {
+  for(let batch=0;batch<100;batch++)if(await service.warmPlenary()!==1000)return;
+  assert.fail('warm-up did not finish its bounded item batches');
+}
 
 test('warm-up selects the latest four sitting weeks across recesses and year boundaries',()=>{
   const dates=['2026-01-15','2026-01-14','2025-12-18','2025-11-27','2025-11-13','2025-10-22','2026-02-11'];
@@ -17,25 +21,26 @@ test('warm-up selects the latest four sitting weeks across recesses and year bou
   assert.deepEqual(recentPlenaryWeeks({...catalogue,complete:false}),[],'an unknown latest week must not be guessed');
 });
 
-test('warming prepares the real week view for a foreground read and a restart without enrichment',async t=>{
+test('warming retains the real week navigation while preparing item batches',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'plenary-warm-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const fixture=JSON.parse(await readFile(new URL('./fixtures/insights-live-20261014.json',import.meta.url),'utf8'));
   const meeting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
   const dates=['2026-10-07','2026-10-08','2026-09-17','2026-09-10','2026-07-09','2026-06-18','2026-11-11'],calls=[];
   let ready=false,generation=1,warming=true;
-  const store={get:()=>null,status:()=>({currentMeps:ready?1:0,servingGeneration:generation,complete:false,rosterFetchedAt:'2026-10-29T10:00:00Z',lastSuccessfulRefresh:null}),db:{prepare:()=>({get:()=>undefined})}};
+  const store={clock,get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:ready?1:0,servingGeneration:generation,complete:false,rosterFetchedAt:'2026-10-29T10:00:00Z',lastSuccessfulRefresh:null}),db:{prepare:()=>({get:()=>undefined,all:()=>[]})}};
   const request=async(endpoint,params,settings)=>{
     calls.push({endpoint,params,settings});
     if(warming)assert.equal(settings.priority,'background');
+    if(endpoint!=='/meetings'&&!endpoint.endsWith('/foreseen-activities'))throw Error('Not retained in the navigation fixture');
     const date=endpoint.match(/MTG-PL-(\d{4}-\d{2}-\d{2})/)?.[1];
     const payload=endpoint==='/meetings'?{data:dates.filter(date=>date.startsWith(String(params.year))).map(date=>JSON.parse(JSON.stringify(meeting).replaceAll('2026-10-07',date)))}:JSON.parse(JSON.stringify(fixture.foreseen.payload).replaceAll('2026-10-07',date));
     return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload};
   };
-  const options={clock,request,viewCache:{directory},loadMetadata:()=>assert.fail('week lists must not load people or documents')};
+  const options={clock,request,viewCache:{directory},loadMetadata:async()=>new Map()};
   const service=createInsights(store,options);
   await service.warmPlenary();assert.equal(calls.length,0,'wait for a serving roster');ready=true;
-  await service.warmPlenary();
-  assert.deepEqual(calls.filter(c=>c.endpoint!=='/meetings').map(c=>c.endpoint),dates.slice(0,5).map(date=>'/meetings/MTG-PL-'+date+'/foreseen-activities'));
+  await warmAll(service);
+  assert.deepEqual(calls.filter(c=>c.endpoint.endsWith('/foreseen-activities')).map(c=>c.endpoint),dates.slice(0,5).map(date=>'/meetings/MTG-PL-'+date+'/foreseen-activities'));
   warming=false;
   const query=new URLSearchParams('week=latest&lang=en');
   const warmed=await service.query('legislation',query);assert.equal(warmed.week,'2026-10-05');assert(warmed.topics.length>0);
@@ -43,8 +48,8 @@ test('warming prepares the real week view for a foreground read and a restart wi
   const restarted=createInsights(store,{...options,request:(endpoint,...args)=>{assert.equal(endpoint,'/meetings','restart reuses the assembled week after checking calendar selection');return request(endpoint,...args);}});
   assert.deepEqual(await restarted.query('legislation',query),warmed);
   const count=calls.length;
-  await service.warmPlenary();assert.equal(calls.length,count,'fresh views and source metadata are reused');
-  generation=2;await service.warmPlenary();
+  await warmAll(service);assert.equal(calls.length,count,'fresh views and source metadata are reused');
+  generation=2;await warmAll(service);
   assert.equal((await service.query('legislation',query)).coverage.servingGeneration,2,'prewarm the new index generation');
 });
 

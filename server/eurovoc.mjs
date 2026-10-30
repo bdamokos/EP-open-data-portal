@@ -57,12 +57,12 @@ export class EurovocCatalog {
   async known(ids,language) {
     const result=new Map();for(const id of ids){const record=await this.cache.stored(this.key(id,language));if(record?.value?.id===id)result.set(id,{...record.value,stale:this.clock()-record.at>7*86400_000});}return result;
   }
-  async load(ids,language) {
+  async load(ids,language,{priority='interactive'}={}) {
     requestSignal()?.throwIfAborted();
     const key=JSON.stringify([language,[...ids].sort()]);if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const job=sharedRequest(async()=>{
       const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',eurovocQuery(ids,language));url.searchParams.set('format','application/sparql-results+json');
-      const source=await this.sources.get(url.href),parsed=parseEurovoc(source.data,ids,language);
+      const source=await this.sources.get(url.href,{priority}),parsed=parseEurovoc(source.data,ids,language);
       requestSignal()?.throwIfAborted();
       const values=await Promise.all([...parsed].map(async([id,value])=>{const result={...value,source:{url:source.url,fetchedAt:source.fetchedAt,stale:Boolean(source.viewCache?.stale)}};await this.cache.save(this.key(id,language),result);return [id,result];}));if(this.cache.directory)await this.cache.pruneBatch().catch(()=>{});return new Map(values);
     }).finally(()=>this.pending.delete(key));this.pending.set(key,job);return waitForRequest(job);
