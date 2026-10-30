@@ -11,7 +11,7 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:7,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:8,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
@@ -19,6 +19,8 @@ const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{membe
 test('request route explicitly defaults to all decisions and retains exact page, selection and snapshot',()=>{
   assert.equal(MEMBER_VOTES_PAGE_SIZE,50);
   const basic=new URL(memberVotesRoute(memberId), 'https://example.invalid/');
+  assert.equal(basic.searchParams.get('view'),null);
+  assert.equal(new URL(memberVotesRoute(memberId,state,'en',{view:'period'}),'https://example.invalid/').searchParams.get('view'),'period');
   assert.equal(basic.pathname,'/member-votes/197591');assert.equal(basic.searchParams.get('positions'),'all');assert.equal(basic.searchParams.get('week'),'latest');
   const decisionId='MTG-PL-2026-10-07-DEC-197457';
   const route=new URL(memberVotesRoute(memberId,{...state,positions:'all',offset:50,decisionId,snapshotId},'hu'),'https://example.invalid/');

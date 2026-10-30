@@ -20,12 +20,12 @@ const deps={directory:'/nonexistent-mmc-test',speech:async()=>speech,catalogue,d
 test('actual Oct7 timestamps produce outward UTC bounds and keep the published embed event',async()=>{
   const result=await speechMedia(speech.id,'hu','hu',deps);
   assert.equal(result.available,true);assert.equal(result.status,'matched');
-  assert.equal(result.audioVerification,'official-content-map-runtime-check-required');
-  assert.equal(result.selectionMethod,'iframe-inventory-and-adaptation');assert.deepEqual(result.selectionVerifiedLanguages,[]);
+  assert.equal(result.audioVerification,'official-content-map');
+  assert.equal(result.selectionMethod,'official-embed-parameter');assert.deepEqual(result.selectionVerifiedLanguages,[]);
   assert.equal(result.clip.startUtc,'2026-10-07T09:19:15Z');assert.equal(result.clip.endUtc,'2026-10-07T09:20:55Z');
-  assert.match(result.embedUrl,/audio=or/);assert.equal(result.initialAudio,'or');assert.equal(result.requestedAudio,'hu');assert.equal(result.requiresAudioCheck,true);
+  assert.match(result.embedUrl,/audio=hu/);assert.equal(result.initialAudio,'hu');assert.equal(result.requestedAudio,'hu');assert.equal(result.requiresAudioCheck,false);
   assert.deepEqual(result.audioMapping.channels.find(c=>c.language==='hu'),{slot:16,language:'hu',providerCode:'qaw'});
-  assert.match(result.embedUrl,/autoplay=false/);assert.match(result.embedUrl,/analytics=false/);
+  assert.match(result.embedUrl,/autoplay=true/);assert.match(result.embedUrl,/analytics=false/);
   assert.match(result.embedUrl,/start=2026-10-07T09:19:15Z&end=2026-10-07T09:20:55Z$/);assert.ok(!result.embedUrl.includes('%3A'));
 });
 test('missing Irish interpretation never claims success or silently falls back',async()=>{
@@ -35,7 +35,7 @@ test('missing Irish interpretation never claims success or silently falls back',
 test('Irish supplied by a record-specific public content map is not blocked by the old manual proof list',async()=>{
   const languageMapping=structuredClone(mapping);languageMapping[24]={lang:'GA',sort:25};
   const result=await speechMedia(speech.id,'ga','ga',{...deps,content:async()=>({...content,payload:{...content.payload,languageMapping}})});
-  assert.equal(result.status,'matched');assert.equal(result.requestedAudio,'ga');assert.equal(result.requiresAudioCheck,true);
+  assert.equal(result.status,'matched');assert.equal(result.requestedAudio,'ga');assert.equal(result.requiresAudioCheck,false);
   assert.deepEqual(result.audioMapping.channels.find(c=>c.language==='ga'),{slot:24,language:'ga',providerCode:'qag'});
 });
 test('an explicit original-audio request keeps the original channel',async()=>{

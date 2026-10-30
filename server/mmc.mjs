@@ -12,7 +12,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {MMC_BASE,validateCatalogue,recordingCatalogue} from './mmc-catalogue.mjs';
 
 export {MMC_BASE,validateCatalogue};
-export const SPEECH_MEDIA_VERSION=2;
+export const SPEECH_MEDIA_VERSION=3;
 const DAY = 86400000;
 const root = () => process.env.ODP_CACHE_DIR ? path.join(process.env.ODP_CACHE_DIR, 'mmc') : null;
 const pending = new Map();
@@ -105,7 +105,7 @@ export function clipUrl(base, language, audio, start, end) {
   url.searchParams.delete('end');
   url.searchParams.set('language', language);
   url.searchParams.set('audio', audio);
-  url.searchParams.set('autoplay', 'false');
+  url.searchParams.set('autoplay', 'true');
   url.searchParams.set('analytics', 'false');
   // The published embed parser rejects percent-encoded ISO colons.
   return url.href + '&start=' + start + '&end=' + end;
@@ -143,7 +143,7 @@ async function speechForMedia(id) {
 export async function speechMedia(id, language, audio = language, dependencies = {}) {
   const directory = dependencies.directory ?? root();
   const speech = await (dependencies.speech || speechForMedia)(id);
-  const base = { speechId: id, available: false, embedUrl: null, originalEmbedUrl: null, requestedAudio: audio, initialAudio: 'or', availableAudioLanguages: [], audioVerification: 'unverified', selectionMethod: null, selectionVerifiedLanguages: [], requiresAudioCheck: true, audioMapping: null, recording: null, clip: null, provenance: { documentedSpeechApi: true, documentedMediaApi: false, documentedPlayerControl: false, documentedAudioContentApi: false, htmlScraping: false, catalogueRefresh: 'Automatic date-scoped public search with retained snapshots and bounded retry.' } };
+  const base = { speechId: id, available: false, embedUrl: null, originalEmbedUrl: null, requestedAudio: audio, initialAudio: audio, availableAudioLanguages: [], audioVerification: 'unverified', selectionMethod: null, selectionVerifiedLanguages: [], requiresAudioCheck: false, audioMapping: null, recording: null, clip: null, provenance: { documentedSpeechApi: true, documentedMediaApi: false, documentedPlayerControl: false, documentedAudioContentApi: false, htmlScraping: false, catalogueRefresh: 'Automatic date-scoped public search with retained snapshots and bounded retry.' } };
   const fail = (status, additions = {}) => ({ ...base, ...additions, status, reason: reason[status] });
   if (!['PLENARY_DEBATE_SPEECH', 'VOTE_EXPLANATION_ORAL', 'PLENARY_PROCEEDING_SPEECH', 'PLENARY_CHAIR_SPEECH'].includes(speech.kind)) return fail('not-recorded-speech');
   if (!Number.isFinite(Date.parse(speech.start)) || !Number.isFinite(Date.parse(speech.end)) || Date.parse(speech.end) <= Date.parse(speech.start)) return fail('missing-times');
@@ -178,11 +178,10 @@ export async function speechMedia(id, language, audio = language, dependencies =
   Object.assign(additions, {
     audioMapping: mapping,
     availableAudioLanguages: mapping.channels.map(channel => channel.language),
-    audioVerification: 'official-content-map-runtime-check-required',
-    selectionMethod: 'iframe-inventory-and-adaptation',
+    audioVerification: 'official-content-map',
+    selectionMethod: 'official-embed-parameter',
   });
   if (!additions.availableAudioLanguages.includes(audio)) return fail('audio-unavailable', additions);
-  // Always start paused on original. The client checks actual tracks and their
-  // adaptation/quality events before playing the separately requested language.
-  return { ...base, ...additions, status: 'matched', available: true, reason: null, embedUrl: clipUrl(official, language, 'or', match.startUtc, match.endUtc) };
+  // The official player applies audio and autoplay during its own startup.
+  return { ...base, ...additions, status: 'matched', available: true, reason: null, embedUrl: clipUrl(official, language, audio, match.startUtc, match.endUtc) };
 }

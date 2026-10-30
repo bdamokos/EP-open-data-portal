@@ -46,7 +46,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:7,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:8,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -546,7 +546,7 @@ test('partial period coverage is disclosed once alongside observed, filtered and
   const notice='Incomplete voting records';
   assert.equal(h.container.textContent.split(notice).length-1,1);
   assert.match(h.container.querySelector('.member-votes-tools').textContent,/1–1 of 1 decision · 1 with a recorded position/);
-  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 decision in this subject · 1 on this page/);
+  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/1 decision/);
   assert(!/all.term|denominator/i.test(h.container.textContent));
 });
 
@@ -652,7 +652,7 @@ test('collapsed subjects expose final positions, page-scoped summaries and off-p
   const whole=vote(99,{scope:{kind:'whole-text',basis:'exact-component-reference'}});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items,subjects:[subject(items,{wholeTextDecisions:[whole]})],selected:stateFrom(url).decisionId?{status:'found',item:whole}:{status:'not-requested',item:null}}))});
   const group=h.container.querySelector('[data-vote-group]');assert.equal(group.getAttribute('aria-expanded'),'false');
-  assert.match(group.textContent,/Recorded positions on this page: 1 For · 1 Against · 1 Abstained/);
+  assert.match(group.textContent,/Positions: 1 For · 1 Against · 1 Abstained/);
   const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Final vote · Adopted · Test member voted For/);
   await act(async()=>final.click());assert.equal(h.state.decisionId,whole.id);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Final vote');
@@ -709,7 +709,10 @@ test('calendar jump controls keep the direct select, accessible icons and year g
  const row=h.container.querySelector('.member-votes-week-navigation');assert.deepEqual([...row.children].map(node=>node.tagName),['BUTTON','BUTTON','SELECT','BUTTON','BUTTON']);
  assert.deepEqual([...row.querySelectorAll('optgroup')].map(node=>node.label),['2026','2025']);
  assert.match(row.querySelector('option').textContent,/4 sitting days/);
- for(const name of ['First plenary week','Previous plenary week','Next plenary week','Latest plenary week'])assert.equal(button(h.container,name).querySelector('span').getAttribute('aria-hidden'),'true');
+ for(const name of ['First plenary week','Previous plenary week','Next plenary week','Latest plenary week']){
+  const icon=button(h.container,name).querySelector('svg');assert(icon,'Missing navigation icon: '+name);
+  assert.equal(icon.getAttribute('aria-hidden'),'true');assert.equal(icon.getAttribute('focusable'),'false');
+ }
  assert.equal(button(h.container,'Latest plenary week').disabled,true);assert.equal(button(h.container,'First plenary week').disabled,false);
  await h.click('First plenary week');assert.equal(h.state.week,'2025-12-15');assert.equal(button(h.container,'First plenary week').disabled,true);assert.equal(button(h.container,'Previous plenary week').disabled,true);
  await h.click('Latest plenary week');assert.equal(h.state.week,WEEK);assert.equal(button(h.container,'Latest plenary week').disabled,true);
@@ -1229,4 +1232,18 @@ test('failed selection reads clear retained records before another selection sta
  mode='denied';await h.update({decisionId:decision(1)});assert.match(h.container.textContent,/Voting records could not be loaded/);
  mode='pending';await h.update({decisionId:decision(2)});assert.equal(h.container.querySelector('.member-votes-detail'),null);assert.equal(h.container.querySelector('[data-vote-id]'),null);
  mode='ok';await act(async()=>release());
+});
+
+
+test('period view keeps a subject larger than the old page together and canonicalizes old offsets',async t=>{
+  const items=Array.from({length:65},(_,index)=>vote(index+1));
+  const h=await mount(t,{state:{week:WEEK,offset:50,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items,pagination:{mode:'period',offset:0,observedTotal:65,filteredTotal:65,recordedTotal:65}}))});
+  assert.equal(h.state.offset,0);
+  assert.equal(h.container.querySelectorAll('.member-votes-subject').length,1);
+  assert.match(h.container.querySelector('.member-votes-subject-count').textContent,/^65 decisions$/);
+  assert.equal(button(h.container,'Next page'),undefined);
+  assert.equal(h.container.querySelectorAll('.member-votes-row').length,0);
+  await h.click(h.container.querySelector('[data-vote-group]').textContent.trim());
+  assert.equal(h.container.querySelectorAll('.member-votes-row').length,65);
+  assert(h.calls.every(url=>new URL(url,'http://localhost').searchParams.get('view')==='period'));
 });

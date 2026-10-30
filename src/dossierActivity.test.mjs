@@ -376,3 +376,13 @@ test('dossier participants and selected person use country only, with exact ID j
  assert.equal(participants[0].querySelector('.member-affiliation').textContent,'HUHungary');
  assert.equal(participants[1].querySelector('.member-affiliation'),null,'a matching name cannot supply country');
 });
+
+test('availability explanations disclose exact gaps without expanding warnings over the work',async t=>{
+  const h=await harness(t);await h.render(createElement(h.module.DossierActivity,{reference}));
+  const note=h.container.querySelector('[aria-label="Speeches coverage"] .dossier-coverage');
+  assert.equal(note.tagName,'DETAILS');assert.equal(note.open,false);
+  assert.equal(note.querySelector('summary').textContent,'Speeches availability');
+  assert.match(note.querySelector('li').textContent,/Some targets have not been checked/);
+  await h.click('Speeches availability');assert.equal(note.open,true);
+  assert.match(note.textContent,/Partial coverage/);
+});

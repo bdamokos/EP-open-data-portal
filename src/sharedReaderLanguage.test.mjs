@@ -41,10 +41,12 @@ test('player controls, unavailable states and parent-frame text stay English und
     assert.equal(h.container.querySelector('iframe'),null,'unavailable audio does not open a player');
     const mapping={schemaVersion:1,channels:[{slot:0,language:'or',providerCode:'qaa'}],source:{recordingId:'isolated-frame'}};
     await h.render(createElement(ParliamentFrame,{src:'http://localhost/isolated-frame',speechId:speech.id,lang:locale,audio:'or',original:true,mapping}));
-    assert.equal(h.container.querySelector('[role="status"]').textContent,'Preparing original audio…');assert.equal(effective(h.container.querySelector('[role="status"]')),'en');
-    const frame=h.container.querySelector('iframe');assert.equal(effective(frame),'en');assert.equal(frame.title,'European Parliament speech video');assert.equal(frame.tabIndex,-1);
+    const caption=h.container.querySelector('.explorer-video-caption');assert.equal(caption.textContent,'European Parliament');assert.equal(effective(caption),'en');
+    assert.equal(h.container.querySelector('[role="status"]'),null,'the native player loads without a parent preparation gate');
+    const frame=h.container.querySelector('iframe');assert.equal(effective(frame),'en');assert.equal(frame.title,'European Parliament speech video');assert.equal(frame.tabIndex,0);assert.notEqual(frame.parentElement.style.visibility,'hidden');assert.equal(frame.parentElement.getAttribute('aria-hidden'),null);
     await act(async()=>h.window.dispatchEvent(new h.window.MessageEvent('message',{origin:'https://webstreaming.europarl.europa.eu',source:frame.contentWindow,data:{key:'get:availableAudio',isError:true}})));
-    assert.equal(effective(h.container.querySelector('[role="alert"]')),'en');assert.equal(h.container.querySelector('[role="alert"] button').textContent,'Retry player');
+    assert.equal(h.container.querySelector('[role="alert"]'),null,'obsolete parent audio messages cannot replace the native player');
+    assert.equal(h.container.querySelector('iframe'),frame);assert.equal(effective(caption),'en');
     assert.equal(h.calls.length,1,'isolated parent-frame messages never fetch an external player');
   });
 });

@@ -346,7 +346,7 @@ export interface SpeechMedia {
   requestedAudio: string;
   availableAudioLanguages: string[];
   audioVerification: string;
-  initialAudio?: 'or';
+  initialAudio?: string;
   requiresAudioCheck?: boolean;
   audioMapping?: { schemaVersion: 1; channels: { slot:number; language:string; providerCode:string }[]; source:{ url:string; namespace:string; event:string; recordingId:string; sourceFetchedAt:string; stale:boolean; refreshError:string|null; payloadSha256:string }; codeOrderSource:{ url:string; sha256:string } } | null;
   selectionMethod?: string;
