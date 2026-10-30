@@ -12,7 +12,7 @@ import {createFinalActReader,finalActCorrespondence} from './final-act-identity.
 import {amendmentById} from './amendments-store.mjs';
 import {amendmentRowOutcome} from './amendments.mjs';
 
-export const AMENDMENT_FINAL_TEXT_VERSION=2;
+export const AMENDMENT_FINAL_TEXT_VERSION=3;
 export const FINAL_TEXT_LIMITS=Object.freeze({deadlineMs:28_000,concurrency:2,metadataReads:16,metadataBytes:4*1024*1024,contextBytes:6*1024*1024,bodyBytes:2*1024*1024,candidates:8,units:6000,passageCharacters:64*1024});
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const unique=values=>[...new Set(values)];
@@ -49,6 +49,7 @@ function completeUnit(proposal,unit) {
   return unit.complete===true&&!unit.pathConflict&&unit.scope==='proposal'&&unit.normative!==false&&unit.extent.end>unit.extent.start&&proposal.paragraphs.slice(unit.extent.start,unit.extent.end).every(row=>row.complete===true&&row.source?.complete!==false&&!row.text.includes('\uFFFC'))&&!proposal.gaps?.some(gap=>Number.isInteger(gap.paragraph)&&gap.paragraph>=unit.extent.start&&gap.paragraph<unit.extent.end);
 }
 const normalizedPassage=(proposal,unit)=>normalizeFinalWording(stripLabel(passage(proposal,unit).text,unit));
+const hasReferencedNotes=(proposal,unit)=>(proposal.anchors||[]).some(anchor=>!Number.isInteger(anchor.paragraph)||anchor.paragraph>=unit.extent.start&&anchor.paragraph<unit.extent.end);
 const occurrences=(text,part)=>{if(!part)return 0;let count=0,at=text.indexOf(part);while(at>=0){count++;at=text.indexOf(part,at+1);}return count;};
 
 // Two disjoint unchanged anchors must identify exactly one complete provision.
@@ -82,6 +83,7 @@ function anchorMapping(original,proposed,baseline,candidates,signal) {
  * service below supplies dossier identity and a separately grounded baseline. */
 export function compareFinalWording({variant,baseline,destination,signal,limits={}}) {
   const cap={...FINAL_TEXT_LIMITS,...limits};signal?.throwIfAborted();
+  if(variant.source?.notesComplete===false||(variant.gaps||[]).some(gap=>gap?.code==='notes-unavailable'||gap==='notes-unavailable'))return unavailable('amendment-notes-unverified');
   if(amendmentLanguageScope(variant)||amendmentMixedLanguageScope(variant))return unavailable('language-scope-unavailable');
   const operation=amendmentOperation(variant);
   if(!operation||typeof variant.originalText!=='string'||typeof variant.proposedText!=='string')return unavailable('amendment-wording-unavailable');
@@ -92,6 +94,7 @@ export function compareFinalWording({variant,baseline,destination,signal,limits=
   if(!target.complete||!target.segments.length||target.segments.some(segment=>segment.isNew))return unavailable('baseline-address-unavailable');
   const bases=proposalCandidates(baseline,target).filter(unit=>completeUnit(baseline,unit));
   if(bases.length!==1)return unavailable('baseline-provision-unavailable');
+  if(hasReferencedNotes(baseline,bases[0]))return unavailable('baseline-notes-unverified');
   const base=bases[0],original=normalizeFinalWording(stripLabel(variant.originalText,base)),proposed=normalizeFinalWording(stripLabel(variant.proposedText,base)),baseText=normalizedPassage(baseline,base);
   if(!original)return unavailable('insertion-baseline-boundaries-unavailable');
   // A short quoted sentence can be grounded inside a complete provision, but
@@ -110,6 +113,7 @@ export function compareFinalWording({variant,baseline,destination,signal,limits=
   let mapped=exact[0],basis=whole?'unique-complete-wording':'unique-complete-quoted-wording';
   if(!mapped){mapped=anchorMapping(original,proposed,baseText,candidates,signal);basis='unique-unchanged-anchors';}
   if(!mapped)return unavailable('corresponding-provision-unavailable');
+  if(hasReferencedNotes(destination,mapped.unit))return unavailable('destination-notes-unverified');
   // Shared wording inside a rewritten provision cannot establish that the
   // change retains its meaning: a condition or exception can sit elsewhere.
   const status=exact.length&&whole?'same-wording':'different-wording';
@@ -144,7 +148,8 @@ export class AmendmentFinalText {
       const variants=context.amendment?.id===query.amendmentId?context.amendment.variants.filter(row=>row.listId===query.listId&&row.language===selectedLanguage):[];
       if(context.documentId!==query.id||variants.length!==1||variants[0].wordingStatus!=='available')return stop('selected-wording-unavailable');
       const variant=variants[0];
-      if(!hashPattern.test(variant.source?.contentHash||variant.source?.sha256||'')||variant.source.stale||variant.source.refreshError||variant.sourceFreshness?.status==='stale')return stop('selected-wording-source-unverified');
+      if(variant.source?.notesComplete===false)return stop('amendment-notes-unverified');
+      if(!hashPattern.test(variant.source?.contentHash||variant.source?.sha256||'')||variant.source.contentHashConflict||variant.source.stale||variant.source.refreshError||variant.sourceFreshness&&variant.sourceFreshness.status!=='fresh')return stop('selected-wording-source-unverified');
       selection.source=variant.source;selection.parserVersion=variant.textParserVersion||variant.parserVersion||null;
       selection.targetPath=variant.targetPath??null;selection.baseline=variant.baseline??null;
       const identity=/^committee:([A-Z0-9-]+):([1-9]\d*)$/u.exec(query.amendmentId);

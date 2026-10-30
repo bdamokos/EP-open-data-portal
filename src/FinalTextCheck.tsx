@@ -11,7 +11,7 @@ const labels={
   'different-wording':'Different wording','unavailable':'Unavailable',
 };
 const destinationName=(kind:string)=>kind==='final-eu-act'?'Final EU act':'Parliament’s adopted text';
-const pinned=(data:FinalTextResponse,selection:FinalTextSelection)=>data?.version===2&&data.comparisonVersion===2&&
+const pinned=(data:FinalTextResponse,selection:FinalTextSelection)=>data?.version===3&&data.comparisonVersion===3&&
   (['documentId','amendmentId','listId','wordingLanguage','language'] as const).every(key=>data.selection?.[key]===selection[key]);
 
 function Stage({stage,source}:{stage:FinalTextStage;source:FinalTextResponse['selection']['source']}) {

@@ -17,6 +17,7 @@ import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-docume
 import {topicAmendments} from './topic-involvement.mjs';
 import {DossierActivity,dossierActivityQuery} from './dossier-activity.mjs';
 import {DocumentContext,documentContextQuery} from './document-context.mjs';
+import {AmendmentFinalText} from './amendment-final-text.mjs';
 import {humanSourceUrl} from './source-links.mjs';
 import {documentDetailEndpoint,documentRouteOwned,documentRouteDeferredOwners} from './document-detail-routing.mjs';
 import {prepareIndexes} from './migrate-indexes.mjs';
@@ -258,6 +259,47 @@ test('collection reuses the existing extraction path and dated roster rebuild fo
   const [item]=amendmentsPage(x.store,{scope:'committee',list:work.identifier,member:'100'}).items;
   assert(item);assert.equal(item.id,'committee:AGRI-AM-773343:51');assert.equal(item.baseline,'commission-proposal');assert.equal(item.proposerDate,day);assert.equal(item.authors[0].personId,'100');assert.equal(item.sourceVersion.sourceHash.length,64);
   assert.equal(item.outcome,'unavailable');assert.equal(item.decisions.length,0);
+  const reader=new DocumentContext({request:async endpoint=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:at,payload:{data:[doc(endpoint.split('/').at(-1))]}}),download:async()=>assert.fail('Reuse indexed wording')});
+  const query=documentContextQuery(item.targetDocumentId,new URLSearchParams({amendment:item.id,list:item.listId,'wording-lang':'en',body:'0'}));
+  const context=await reader.query(query,{store:x.store}),selected=context.amendment.variants.find(row=>row.language==='en');
+  assert.equal(context.amendment.basis,'index');assert.equal(selected.source.contentHash,item.sourceVersion.sourceHash);
+  assert.equal(selected.source.url,item.wordingSource.url);assert.equal(selected.source.sourceVersion.byteSize,item.sourceVersion.sourceDescriptor.byteSize);
+  for(const mutate of [row=>row.sourceVersion.sourceDescriptor.url+='-other',row=>row.sourceVersion.sourceDescriptor.language='fr',row=>row.sourceFreshness.status='pending',row=>row.sourceVersion.sourceHash='unknown',row=>delete row.sourceVersion.notesComplete]){
+    const wrong=structuredClone(item);mutate(wrong);
+    const projected=await reader.amendment(query,wrong,{},[],()=>assert.fail('No source read'),null);
+    assert.equal(projected.variants[0].source.contentHash,undefined,'an unbound stored hash is never promoted');
+  }
+  const conflicting=structuredClone(item);conflicting.wordingSource.contentHash='f'.repeat(64);
+  assert.equal((await reader.amendment(query,conflicting,{},[],()=>assert.fail('No source read'),null)).variants[0].source.contentHashConflict,true);
+  const noted=structuredClone(item);noted.sourceVersion.notesComplete=false;
+  assert.equal((await reader.amendment(query,noted,{},[],()=>assert.fail('No source read'),null)).variants[0].source.notesComplete,false);
+  let reads=0;
+  const comparison=new AmendmentFinalText({context:{query:async()=>context},request:async()=>{reads++;throw Object.assign(new Error('metadata probe'),{code:'metadata-probe'});}});
+  assert((await comparison.query(query,{store:x.store})).gaps.includes('metadata-probe'));assert.equal(reads,1,'indexed wording passes the source-proof guard');
+  selected.source.contentHashConflict=true;
+  assert((await comparison.query(query,{store:x.store})).gaps.includes('selected-wording-source-unverified'));assert.equal(reads,1);
+});
+
+test('tabling-day roster completion rebuilds the list and retains mandate proof for dossier reads',async t=>{
+  const x=setup(t),tabling='2025-05-21';roster(x);seed(x);
+  const key='amendment:list:AGRI-AM-773343',list=x.store.source(x.generation,key).work;
+  list.procedureEvidence=[{activityType:'COMMITTEE_TABLING_AMENDMENT',date:tabling}];
+  x.store.putSource(x.generation,key,'amendment-list',list,at);rebuildAmendmentTarget(x.worker,x.generation,list.scopeKey);
+  assert.equal(amendmentsPage(x.store,{scope:'committee',member:'100'}).total,0);
+  const rosterKey='amendment:roster:'+tabling;
+  enqueueAmendment(x.store,x.generation,rosterKey,'amendment-roster',{date:tabling,offset:1,members:[{id:'100',givenName:'Martin',familyName:'Häusling'}],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+tabling,fetchedAt:at}]},114,true);
+  const row=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,rosterKey);
+  x.worker.fetchRecord=async()=>({payload:{data:[]},fetchedAt:at,url:'https://data.europarl.europa.eu/api/v2/meps/show-current?mandate-date='+tabling});
+  await amendmentTask(x.worker,{...row,body:JSON.parse(row.body),amendmentJob:true});
+  const item=amendmentsPage(x.store,{scope:'committee',member:'100'}).items[0];assert(item,'ordinary roster completion triggers attribution');
+  const periods=item.authors[0].evidence.flatMap(proof=>proof.mandates||[]);
+  assert(periods.some(period=>period.start===day&&period.end===day));assert(periods.some(period=>period.start===tabling&&period.end===tabling));
+  assert(!periods.some(period=>period.start===day&&period.end===tabling),'separate observations do not create an interval');
+  const work=proc('2024-0318');work.had_participation=[];
+  work.consists_of=work.consists_of.filter(event=>event.had_activity_type.endsWith('/COMMITTEE_TABLING_AMENDMENT')).map(event=>({...event,activity_date:tabling}));
+  const reader={record:async endpoint=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:at,payload:{data:[work]}})};
+  const dossier=await new DossierActivity(x.store,{reader}).query(dossierActivityQuery(new URLSearchParams({reference:work.label,section:'amendments',member:'100',stage:'committee'})));
+  assert.equal(dossier.items.length,1);assert.equal(dossier.items[0].tabling.date,tabling);
 });
 
 function signedRows(x,listId,n=1) {

@@ -8,7 +8,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 const selection={documentId:'AGRI-PR-773115',amendmentId:'committee:AGRI-AM-773343:181',listId:'AGRI-AM-773343',wordingLanguage:'en',language:'en'};
 const wording={status:'same-wording',wholeProvision:'same',operation:'replace',mapping:{basis:'unique-complete-wording',from:'Article 7(4)',to:'Article 9(4)',officialLineage:false},passages:{original:'Original clause.',proposed:'Proposed complete clause.',baseline:{text:'Original clause.',address:'Article 7(4)',complete:true},destination:{text:'Proposed complete clause.',address:'Article 9(4)',complete:true}},components:[],gaps:[]};
 const destination={kind:'final-eu-act',id:'32026R0697',date:'2026-03-11',language:'en',sourceUrls:['https://publications.europa.eu/resource/celex/32026R0697','https://eur-lex.europa.eu/eli/reg/2026/697/oj/eng'],source:{url:'https://publications.europa.eu/resource/celex/32026R0697',sha256:'a'.repeat(64)}};
-const response=(picked=selection,extra={})=>({version:2,comparisonVersion:2,selection:{...picked,source:{url:'https://data.europarl.europa.eu/distribution/reds_iCmDoc_Amd/AGRI-AM-773343/AGRI-AM-773343_en.docx',contentHash:'b'.repeat(64)},parserVersion:'5'},vote:{status:'unavailable',stage:'committee',scope:'individual-amendment',outcome:null,decisions:[]},destination,wording,stages:[{destination,wording}],lineage:{status:'available',relationships:[],gaps:[]},provenance:[],gaps:[],...extra});
+const response=(picked=selection,extra={})=>({version:3,comparisonVersion:3,selection:{...picked,source:{url:'https://data.europarl.europa.eu/distribution/reds_iCmDoc_Amd/AGRI-AM-773343/AGRI-AM-773343_en.docx',contentHash:'b'.repeat(64)},parserVersion:'5'},vote:{status:'unavailable',stage:'committee',scope:'individual-amendment',outcome:null,decisions:[]},destination,wording,stages:[{destination,wording}],lineage:{status:'available',relationships:[],gaps:[]},provenance:[],gaps:[],...extra});
 
 async function harness(t,respond) {
   const window=new Window({url:'http://localhost/'}),requests=[];
@@ -70,8 +70,12 @@ test('published vote is separate from wording and unavailable destinations offer
 });
 
 test('a comparison produced by the earlier claim rules is rejected',async t=>{
-  const h=await harness(t,()=>response(selection,{version:1,comparisonVersion:1}));
+  let version=1;
+  const h=await harness(t,()=>response(selection,{version,comparisonVersion:version}));
   await h.render(selection);await h.toggle();
+  assert(h.container.textContent.includes('Could not load comparison.'));
+  assert(!h.container.textContent.includes('Same wording'));
+  version=2;await h.click('Try again');
   assert(h.container.textContent.includes('Could not load comparison.'));
   assert(!h.container.textContent.includes('Same wording'));
 });

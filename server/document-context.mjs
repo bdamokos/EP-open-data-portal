@@ -8,7 +8,7 @@ import {documentSummary} from './activities.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
 import {documentText,downloadDocxBuffer,allowedDownload} from './document-text.mjs';
 import {extractAmendments,AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
-import {amendmentReference,amendmentTextLosses,canonicalEPReference} from './amendments.mjs';
+import {amendmentReference,amendmentTextLosses,canonicalEPReference,sameDocxDescriptor} from './amendments.mjs';
 import * as amendmentStore from './amendments-store.mjs';
 import {sharedRequest,waitForRequest,isLocalRequestFailure,requestSignal} from './request-budget.mjs';
 import {resolveDocumentTarget} from './document-context-model.mjs';
@@ -25,7 +25,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=44;
+export const DOCUMENT_CONTEXT_VERSION=45;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
@@ -40,6 +40,15 @@ const manifestationVersion=descriptor=>{
   const rawSize=descriptor?.byteSize;
   return {byteSize:(typeof rawSize==='number'||typeof rawSize==='string'&&/^\d+$/.test(rawSize))&&Number.isSafeInteger(Number(rawSize))&&Number(rawSize)>=0?Number(rawSize):null,issued:typeof descriptor?.issued==='string'?descriptor.issued:null};
 };
+function indexedWordingSource(row) {
+  const source=row.wordingSource||null,publication=row.sourceVersion,descriptor=publication?.sourceDescriptor;
+  if(row.scope!=='committee'||!source||!descriptor||typeof source.url!=='string'||typeof publication?.notesComplete!=='boolean'||!/^[a-f0-9]{64}$/.test(publication?.sourceHash||'')||
+    descriptor.url!==source.url||descriptor.language!==row.language||source.language!==row.language||
+    row.sourceFreshness?.status!=='fresh'||!sameDocxDescriptor(descriptor,row.sourceFreshness.descriptor)||!sameDocxDescriptor(descriptor,row.sourceFreshness.sourceDescriptor))return source;
+  const version=manifestationVersion(descriptor);
+  const conflict=[source.contentHash,source.sha256].filter(Boolean).some(hash=>hash!==publication.sourceHash)||source.sourceVersion&&Object.keys(version).some(key=>source.sourceVersion[key]!=null&&String(source.sourceVersion[key])!==String(version[key]));
+  return {...source,contentHash:publication.sourceHash,sourceVersion:version,notesComplete:publication.notesComplete,...(conflict?{contentHashConflict:true}:{})};
+}
 const distributionVersion=(list,url)=>{
   const manifestations=array(list.is_realized_by).flatMap(expression=>array(expression.is_embodied_by)).filter(manifestation=>{try{return new URL(manifestation.is_exemplified_by,'https://data.europarl.europa.eu/').href===url;}catch{return false;}});
   return manifestationVersion(manifestations.length===1?manifestations[0]:null);
@@ -254,7 +263,7 @@ export class DocumentContext {
     const variants=indexed?.variants?.length?indexed.variants:indexed?[indexed]:[];
     const selectedVariants=variants.filter(row=>(!query.listId||row.listId===query.listId)&&typeof row.listId==='string');
     const available=row=>row.textIntegrity==='complete'&&typeof row.originalText==='string'&&typeof row.proposedText==='string'&&!row.conflicted;
-    if(selectedVariants.length)return {...base,status:selectedVariants.some(available)?'available':'unavailable',basis:'index',gaps:selectedVariants.some(row=>!available(row))?['source-versions-incomplete']:[],variants:selectedVariants.map(row=>({...Object.fromEntries(['documentDate','listDocumentDate','dateBasis','baseline','baselineSource','documentReferences','targetPath','targetLabelLanguage','targetLabelSource','fieldSources','textParserVersion','wordingRetained','proposerRetained','recordRetained','listRelationship','metadataSource','proposerSource'].map(key=>[key,row[key]??null])),listId:row.listId,language:row.language,justification:amendmentJustification(row)?.text??null,targetLabel:row.targetLabel,wordingStatus:available(row)?'available':'unavailable',originalText:available(row)?row.originalText:null,proposedText:available(row)?row.proposedText:null,originalFormatting:available(row)?row.originalFormatting || []:[],proposedFormatting:available(row)?row.proposedFormatting || []:[],authors:row.authors||[],source:row.wordingSource||null,sourceFreshness:row.sourceFreshness||null,gaps:row.gaps||[]}))};
+    if(selectedVariants.length)return {...base,status:selectedVariants.some(available)?'available':'unavailable',basis:'index',gaps:selectedVariants.some(row=>!available(row))?['source-versions-incomplete']:[],variants:selectedVariants.map(row=>({...Object.fromEntries(['documentDate','listDocumentDate','dateBasis','baseline','baselineSource','documentReferences','targetPath','targetLabelLanguage','targetLabelSource','fieldSources','textParserVersion','wordingRetained','proposerRetained','recordRetained','listRelationship','metadataSource','proposerSource'].map(key=>[key,row[key]??null])),listId:row.listId,language:row.language,justification:amendmentJustification(row)?.text??null,targetLabel:row.targetLabel,wordingStatus:available(row)?'available':'unavailable',originalText:available(row)?row.originalText:null,proposedText:available(row)?row.proposedText:null,originalFormatting:available(row)?row.originalFormatting || []:[],proposedFormatting:available(row)?row.proposedFormatting || []:[],authors:row.authors||[],source:indexedWordingSource(row),sourceFreshness:row.sourceFreshness||null,gaps:row.gaps||[]}))};
     // A single opened amendment may use its exact published list. This is not a
     // corpus read or an index write; source range labels select candidates only.
     const committeeIdentity=committeeAmendmentReference(query.amendmentId);
@@ -293,7 +302,7 @@ export class DocumentContext {
         if(rows.length!==1){base.gaps.push('amendment-not-in-published-list');continue;}
         const row=rows[0],losses=amendmentTextLosses(extraction,row);
         if(losses.length||typeof row.originalText!=='string'||typeof row.proposedText!=='string'){base.gaps.push('amendment-wording-incomplete');continue;}
-        const variant={listId,language,justification:amendmentJustification({...row,language,metadataSource:source})?.text??null,documentDate:row.documentDate,listDocumentDate:list.document_date??null,dateBasis:row.dateBasis,baseline:row.baseline ?? 'unknown',baselineSource:row.baselineSource??null,documentReferences:row.documentReferences??[],targetPath:row.targetPath??null,targetLabel:row.targetLabel,targetLabelLanguage:language,targetLabelSource:source,fieldSources:{wording:source,targetLabel:source,justification:source},wordingStatus:'available',originalText:row.originalText,proposedText:row.proposedText,originalFormatting:row.originalFormatting || [],proposedFormatting:row.proposedFormatting || [],authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source,parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)};
+        const variant={listId,language,justification:amendmentJustification({...row,language,metadataSource:source})?.text??null,documentDate:row.documentDate,listDocumentDate:list.document_date??null,dateBasis:row.dateBasis,baseline:row.baseline ?? 'unknown',baselineSource:row.baselineSource??null,documentReferences:row.documentReferences??[],targetPath:row.targetPath??null,targetLabel:row.targetLabel,targetLabelLanguage:language,targetLabelSource:source,fieldSources:{wording:source,targetLabel:source,justification:source},wordingStatus:'available',originalText:row.originalText,proposedText:row.proposedText,originalFormatting:row.originalFormatting || [],proposedFormatting:row.proposedFormatting || [],authors:row.authors.map(name=>({name,personId:null,status:'published-name'})),source:{...source,notesComplete:!array(row.gaps).some(gap=>gap?.code==='notes-unavailable')},parserVersion:AMENDMENT_EXTRACTION_VERSION,gaps:array(row.gaps)};
         if(wordingSelected)Object.assign(alternatives[files.indexOf(selected[0])],variant);else base.variants.push(variant);
       }catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;base.gaps.push('amendment-source-unavailable');}
     }

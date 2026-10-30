@@ -4,7 +4,7 @@ import type {ProposalDocument} from './proposalTypes';
 import type {PublicationDocument} from './explorerTypes';
 
 export type DocumentContextRequest={documentId:string;scope?:'committee'|'plenary';amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted';onBack:()=>void;backLabel?:string;summary?:ReactNode};
-export type ContextSource={url:string;fetchedAt:string;contentHash:string;stale:boolean;refreshInProgress:boolean;refreshError:string|null;language?:string|null;resolvedSourceUrl?:string;retrievedByteSize?:number;sourceVersion?:{byteSize:number|null;issued:string|null};representation?:'retained-index-projection';generation?:number;epoch?:string|null};
+export type ContextSource={url:string;fetchedAt:string;contentHash:string;stale:boolean;refreshInProgress:boolean;refreshError:string|null;language?:string|null;resolvedSourceUrl?:string;retrievedByteSize?:number;notesComplete?:boolean;contentHashConflict?:boolean;sourceVersion?:{byteSize:number|null;issued:string|null};representation?:'retained-index-projection';generation?:number;epoch?:string|null};
 export type DocumentContextResponse={
   version:number;
   baseline?:null|{kind:'commission-proposal'|'council-position'|'existing-act';actLabel?:string|null;productionWorkId?:string|null;productionVersion?:string|null;productionExpressionId?:string|null;baseCelex?:string|null;consolidationDate?:string|null;amendmentDate?:string|null;selectionBasis?:string|null;celex:string|null;workId:string|null;language:string;status:string;items:{kind:'act'|'annex';index:number;source:{url:string;resolvedSourceUrl?:string;fetchedAt:string;sha256:string;stale:boolean;refreshError:string|null}}[];gaps:unknown[];attribution:string};

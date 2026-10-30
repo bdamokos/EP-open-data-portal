@@ -63,6 +63,21 @@ test('negation, conditions, exceptions and changed actors outside shared phrases
   }
 });
 
+test('anchored notes require correspondence before a complete wording claim or passage is returned',()=>{
+  const entry=row(181),note='This obligation does not apply where the request concerns an interim measure.';
+  const withNote=(article,paragraph,text)=>document([xhtml(article,paragraph,text).replace('</p>','<a href="#ntr1">(1)</a></p>'),'<p class="oj-note"><a id="ntr1">(1)</a>'+escape(note)+'</p>']);
+  const destination=withNote('9','4',entry.final),result=compare(entry,{destination});
+  assert.equal(destination.notes[0].complete,true);assert.equal(destination.anchors.length,1);
+  assert.equal(result.status,'unavailable');assert.deepEqual(result.gaps,['destination-notes-unverified']);assert.equal(result.passages,null);
+  const baseline=withNote('7','4',entry.original);
+  assert.deepEqual(compare(entry,{baseline}).gaps,['baseline-notes-unverified']);
+  for(const variantProof of [{gaps:[{code:'notes-unavailable'}]},{source:{notesComplete:false}}]){
+    assert.deepEqual(compareFinalWording({variant:{...variant(entry),...variantProof},...projections(entry)}).gaps,['amendment-notes-unverified']);
+  }
+  const unrelated=document([xhtml('9','4',entry.final),xhtml('10','1','Another provision.').replace('</p>','<a href="#ntr1">(1)</a></p>'),'<p class="oj-note"><a id="ntr1">(1)</a>'+escape(note)+'</p>']);
+  assert.equal(compare(entry,{destination:unrelated}).status,'same-wording','notes on another provision do not qualify the selected paragraph');
+});
+
 test('AGRI 255 added request condition prevents a full or component equality claim',()=>{
   const result=compare(row(255));assert.equal(result.status,'different-wording');assert.equal(result.mapping.to,'Article 25(2)');assert.deepEqual(result.components,[]);
   const entry={...row(255),final:row(255).proposed.replace(/\.$/u,' if requested.')};
@@ -218,7 +233,7 @@ test('unknown and empty relationships have distinct gaps and cannot fetch an act
 });
 
 test('competing edition, wrong baseline, wrong selected variant and changed source versions block comparisons',async()=>{
-  for(const mutate of [h=>h.selected.language='fr',h=>h.selected.source.contentHash=null,h=>h.context.placement.status='unresolved',h=>h.context.baseline.evidence[0].procedures=['2024/0319(COD)'],h=>h.context.baseline.items[0].source.sha256=hash('wrong-body'),h=>h.records['/documents/'+h.query.listId].is_realized_by.push(h.records['/documents/'+h.query.listId].is_realized_by[0]),h=>{h.selected.source.sourceVersion={issued:'2025-05-20'};h.records['/documents/'+h.query.listId].is_realized_by[0].is_embodied_by[0].issued='2025-05-21';}]) {
+  for(const mutate of [h=>h.selected.language='fr',h=>h.selected.source.contentHash=null,h=>h.selected.sourceFreshness={status:'pending'},h=>h.selected.sourceFreshness={status:'failed'},h=>h.context.placement.status='unresolved',h=>h.context.baseline.evidence[0].procedures=['2024/0319(COD)'],h=>h.context.baseline.items[0].source.sha256=hash('wrong-body'),h=>h.records['/documents/'+h.query.listId].is_realized_by.push(h.records['/documents/'+h.query.listId].is_realized_by[0]),h=>{h.selected.source.sourceVersion={issued:'2025-05-20'};h.records['/documents/'+h.query.listId].is_realized_by[0].is_embodied_by[0].issued='2025-05-21';}]) {
     const h=serviceHarness();mutate(h);const result=await h.service.query(h.query);assert.equal(result.wording.status,'unavailable');assert.equal(h.counts().finalReads,0);
   }
 });

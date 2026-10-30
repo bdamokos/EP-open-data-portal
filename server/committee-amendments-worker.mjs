@@ -157,8 +157,15 @@ export function rebuildCommitteeList(worker,generation,key,{rosterMembers,schedu
     // days. No plenary alias or nearby sitting participates in this resolution.
     const dateConflict=tablingDates.length>1;
     authors=authors.map(author=>{
-      const checked=author.personId&&!dateConflict&&tablingDates.every(date=>date===authorDate||context(date).resolve([author.name]).some(other=>resolvedAmendmentAuthorId(other)===author.personId));
-      return checked?author:{...author,personId:null,method:null,status:dateConflict?'conflicting_tabling_dates':!authorDate?'missing_proposer_date':author.personId?'unverified_tabling_mandate':author.status};
+      const evidence=[...author.evidence];
+      const checked=author.personId&&!dateConflict&&tablingDates.every(date=>{
+        if(date===authorDate)return true;
+        const {roster,resolve}=context(date),match=resolve([author.displayName||author.name]).find(other=>resolvedAmendmentAuthorId(other)===author.personId);
+        if(!match)return false;
+        evidence.push(...match.evidence,...(roster.source.length?[{type:'dated_roster',sources:roster.source,mandateObservedOn:date}]:[]));
+        return true;
+      });
+      return checked?{...author,evidence}:{...author,personId:null,method:null,status:dateConflict?'conflicting_tabling_dates':!authorDate?'missing_proposer_date':author.personId?'unverified_tabling_mandate':author.status};
     });
     const identityConflict=Boolean(extraction.gaps?.some(gap=>['duplicate-amendment','number-conflict','number-outside-list'].includes(gap.code)&&Number(gap.number)===number));
     if(identityConflict||sourceAmbiguous)authors=authors.map(author=>({...author,personId:null,method:null,status:identityConflict?'conflicting_identity':'ambiguous_distribution'}));
@@ -169,7 +176,7 @@ export function rebuildCommitteeList(worker,generation,key,{rosterMembers,schedu
     rows.push({...amendment,id:key+':'+number,number,numberPublished:amendment.numberPublished||String(amendment.number),scope:'committee',contributionKind:'tabled-amendment',identityConflict,sourceAmbiguous,countConflict,revisionListIds:revisionLists,listId:id,officialIds:[],identifierBasis:'derived-from-exact-list-and-number',targetDocumentId:list.targetDocumentId,targetRelationship:list.targetRelationship,committeeDocumentKind:list.committeeDocumentKind,committees:list.committees,procedureIds:list.procedureIds,procedureEvidence:list.procedureEvidence,
       titles:list.title_dcterms||{},date:amendment.date||list.document_date||null,documentDate:amendment.documentDate||amendment.date||null,listDocumentDate:list.document_date||null,proposerDate:authorDate,proposerDateBasis:dateProof?.basis||null,authors,
       tabling:{status:dateConflict?'conflicting':tablingDates.length?'recorded':'unavailable',date:tablingDates.length===1?tablingDates[0]:null},
-      sourceVersion:{epNumber:list.epNumber||null,epNumberVersion:list.epNumberVersion||null,sourceDescriptor:extraction.sourceDescriptor||null,sourceHash:extraction.sourceHash||null,revisionRelationships:Object.fromEntries(['isVersionOf','hasVersion','is_replaced_by','replaces'].filter(key=>list[key]!==undefined).map(key=>[key,list[key]]))},
+      sourceVersion:{epNumber:list.epNumber||null,epNumberVersion:list.epNumberVersion||null,sourceDescriptor:extraction.sourceDescriptor||null,sourceHash:extraction.sourceHash||null,notesComplete:!array(amendment.gaps).some(gap=>gap?.code==='notes-unavailable'),revisionRelationships:Object.fromEntries(['isVersionOf','hasVersion','is_replaced_by','replaces'].filter(key=>list[key]!==undefined).map(key=>[key,list[key]]))},
       originalText:withhold?null:amendment.originalText,proposedText:withhold?null:amendment.proposedText,originalFormatting:withhold?[]:amendment.originalFormatting||[],proposedFormatting:withhold?[]:amendment.proposedFormatting||[],textParserVersion:extraction.parserVersion,textIntegrity:readable?'complete':'incomplete',language:amendment.language||extraction.language,
       targetLabelLanguage:extraction.language,targetLabelSource:amendment.metadataSource||proposerSource,wordingSource:amendment.wordingSource||proposerSource,metadataSource:amendment.metadataSource||proposerSource,proposerSource,sourceFreshness:freshness,decisions:[],splitParts:[],sources:unique([...(amendment.sources||[]),proposerSource,list.metadataSource]),gaps:rowGaps});
   }
