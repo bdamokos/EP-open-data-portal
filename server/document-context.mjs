@@ -42,7 +42,7 @@ const manifestationVersion=descriptor=>{
 };
 function indexedWordingSource(row) {
   const source=row.wordingSource||null,publication=row.sourceVersion,descriptor=publication?.sourceDescriptor;
-  if(row.scope!=='committee'||!source||!descriptor||typeof source.url!=='string'||typeof publication?.notesComplete!=='boolean'||!/^[a-f0-9]{64}$/.test(publication?.sourceHash||'')||
+  if(row.scope!=='committee'||row.wordingRetained||row.recordRetained||!source||!descriptor||typeof source.url!=='string'||typeof publication?.notesComplete!=='boolean'||!/^[a-f0-9]{64}$/.test(publication?.sourceHash||'')||
     descriptor.url!==source.url||descriptor.language!==row.language||source.language!==row.language||
     row.sourceFreshness?.status!=='fresh'||!sameDocxDescriptor(descriptor,row.sourceFreshness.descriptor)||!sameDocxDescriptor(descriptor,row.sourceFreshness.sourceDescriptor))return source;
   const version=manifestationVersion(descriptor);

@@ -264,7 +264,7 @@ test('collection reuses the existing extraction path and dated roster rebuild fo
   const context=await reader.query(query,{store:x.store}),selected=context.amendment.variants.find(row=>row.language==='en');
   assert.equal(context.amendment.basis,'index');assert.equal(selected.source.contentHash,item.sourceVersion.sourceHash);
   assert.equal(selected.source.url,item.wordingSource.url);assert.equal(selected.source.sourceVersion.byteSize,item.sourceVersion.sourceDescriptor.byteSize);
-  for(const mutate of [row=>row.sourceVersion.sourceDescriptor.url+='-other',row=>row.sourceVersion.sourceDescriptor.language='fr',row=>row.sourceFreshness.status='pending',row=>row.sourceVersion.sourceHash='unknown',row=>delete row.sourceVersion.notesComplete]){
+  for(const mutate of [row=>row.sourceVersion.sourceDescriptor.url+='-other',row=>row.sourceVersion.sourceDescriptor.language='fr',row=>row.sourceFreshness.status='pending',row=>row.sourceVersion.sourceHash='unknown',row=>row.wordingRetained=true,row=>row.recordRetained=true,row=>delete row.sourceVersion.notesComplete]){
     const wrong=structuredClone(item);mutate(wrong);
     const projected=await reader.amendment(query,wrong,{},[],()=>assert.fail('No source read'),null);
     assert.equal(projected.variants[0].source.contentHash,undefined,'an unbound stored hash is never promoted');

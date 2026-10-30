@@ -83,6 +83,7 @@ function anchorMapping(original,proposed,baseline,candidates,signal) {
  * service below supplies dossier identity and a separately grounded baseline. */
 export function compareFinalWording({variant,baseline,destination,signal,limits={}}) {
   const cap={...FINAL_TEXT_LIMITS,...limits};signal?.throwIfAborted();
+  if(variant.wordingRetained||variant.recordRetained)return unavailable('selected-wording-source-unverified');
   if(variant.source?.notesComplete===false||(variant.gaps||[]).some(gap=>gap?.code==='notes-unavailable'||gap==='notes-unavailable'))return unavailable('amendment-notes-unverified');
   if(amendmentLanguageScope(variant)||amendmentMixedLanguageScope(variant))return unavailable('language-scope-unavailable');
   const operation=amendmentOperation(variant);
@@ -149,7 +150,7 @@ export class AmendmentFinalText {
       if(context.documentId!==query.id||variants.length!==1||variants[0].wordingStatus!=='available')return stop('selected-wording-unavailable');
       const variant=variants[0];
       if(variant.source?.notesComplete===false)return stop('amendment-notes-unverified');
-      if(!hashPattern.test(variant.source?.contentHash||variant.source?.sha256||'')||variant.source.contentHashConflict||variant.source.stale||variant.source.refreshError||variant.sourceFreshness&&variant.sourceFreshness.status!=='fresh')return stop('selected-wording-source-unverified');
+      if(variant.wordingRetained||variant.recordRetained||!hashPattern.test(variant.source?.contentHash||variant.source?.sha256||'')||variant.source.contentHashConflict||variant.source.stale||variant.source.refreshError||variant.sourceFreshness&&variant.sourceFreshness.status!=='fresh')return stop('selected-wording-source-unverified');
       selection.source=variant.source;selection.parserVersion=variant.textParserVersion||variant.parserVersion||null;
       selection.targetPath=variant.targetPath??null;selection.baseline=variant.baseline??null;
       const identity=/^committee:([A-Z0-9-]+):([1-9]\d*)$/u.exec(query.amendmentId);

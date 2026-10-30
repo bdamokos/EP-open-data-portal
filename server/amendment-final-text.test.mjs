@@ -233,7 +233,7 @@ test('unknown and empty relationships have distinct gaps and cannot fetch an act
 });
 
 test('competing edition, wrong baseline, wrong selected variant and changed source versions block comparisons',async()=>{
-  for(const mutate of [h=>h.selected.language='fr',h=>h.selected.source.contentHash=null,h=>h.selected.sourceFreshness={status:'pending'},h=>h.selected.sourceFreshness={status:'failed'},h=>h.context.placement.status='unresolved',h=>h.context.baseline.evidence[0].procedures=['2024/0319(COD)'],h=>h.context.baseline.items[0].source.sha256=hash('wrong-body'),h=>h.records['/documents/'+h.query.listId].is_realized_by.push(h.records['/documents/'+h.query.listId].is_realized_by[0]),h=>{h.selected.source.sourceVersion={issued:'2025-05-20'};h.records['/documents/'+h.query.listId].is_realized_by[0].is_embodied_by[0].issued='2025-05-21';}]) {
+  for(const mutate of [h=>h.selected.language='fr',h=>h.selected.source.contentHash=null,h=>h.selected.wordingRetained=true,h=>h.selected.recordRetained=true,h=>h.selected.sourceFreshness={status:'pending'},h=>h.selected.sourceFreshness={status:'failed'},h=>h.context.placement.status='unresolved',h=>h.context.baseline.evidence[0].procedures=['2024/0319(COD)'],h=>h.context.baseline.items[0].source.sha256=hash('wrong-body'),h=>h.records['/documents/'+h.query.listId].is_realized_by.push(h.records['/documents/'+h.query.listId].is_realized_by[0]),h=>{h.selected.source.sourceVersion={issued:'2025-05-20'};h.records['/documents/'+h.query.listId].is_realized_by[0].is_embodied_by[0].issued='2025-05-21';}]) {
     const h=serviceHarness();mutate(h);const result=await h.service.query(h.query);assert.equal(result.wording.status,'unavailable');assert.equal(h.counts().finalReads,0);
   }
 });
