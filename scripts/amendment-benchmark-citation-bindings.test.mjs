@@ -84,6 +84,21 @@ test('one supplied-byte proof records both classifications and full raw assertio
   assert.deepEqual(result.canonical,request.canonical);assert.equal(result.proposed.status,'verified');assert.equal(result.accepted,false);assert.equal(result.changed,true);
   assert.equal(result.native.assertion.nativePreamble.length,20);assert.equal(result.rawComparison.originalText,arg.wording.originalText);assert.equal(result.binding.motion.at(-1).sha256,result.native.assertion.motionSha256);
 });
+test('a consistently sealed package with unaccounted wrapped blocks cannot promote canonical failure',async()=>{
+  const wrappers=[value=>'<w:sdt><w:sdtContent>'+value+'</w:sdtContent></w:sdt>',value=>'<w:customXml>'+value+'</w:customXml>'];
+  const paragraph='<w:p><w:r><w:t>ADDITIONAL LEGAL TEXT.</w:t></w:r></w:p>';
+  for(const wrapper of wrappers)for(const level of ['original','proposed','row']) {
+    const arg=input(),source=arg.inputs.at(-1);let cell=0;
+    const original=fixture.amendments.find(row=>row.number===arg.number).bodyXml;
+    const body=level==='row'?original.replace('</w:tbl>',wrapper('<w:tr><w:tc>'+paragraph+'</w:tc><w:tc>'+paragraph+'</w:tc></w:tr>')+'</w:tbl>'):original.replace(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/gu,match=>cell++===(level==='original'?3:4)?match.replace('</w:tc>',wrapper(paragraph)+'</w:tc>'):match);
+    source.body=zip(body);source.bytes=source.body.length;source.sha256=hash(source.body);
+    arg.amendmentSource={...source,url:arg.amendmentSource.url,resolvedSourceUrl:source.url};arg.manifest=arg.manifestForInputs();
+    const request=pair(arg),result=await pairedCitationVerification(request);
+    assert.equal(result.bindingStatus,'bound','identity proof does not substitute for complete native columns');
+    assert.equal(result.native.reason,'oracle-citation-comparison-unavailable');
+    assert.deepEqual(result.canonical,request.canonical);assert.deepEqual(result.proposed,request.canonical);assert.equal(result.changed,false);
+  }
+});
 test('unsupported or failed native proof and every other canonical result remain unchanged',async()=>{
   const arg=input(),request=pair(arg);request.placement.span={start:3,end:3};
   const wrong=await pairedCitationVerification(request);assert.equal(wrong.native.status,'failed');assert.deepEqual(wrong.proposed,request.canonical);

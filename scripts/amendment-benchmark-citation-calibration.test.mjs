@@ -65,6 +65,37 @@ test('complete native fields, language and both columns must match the measured 
     const arg=input();change(arg);assert.equal(rawCitationMarkerAssertion(arg).status,'unverified',String(change));
   }
 });
+test('visible content-control and custom-XML blocks in either native cell preserve canonical failure',()=>{
+  const wrappers=[value=>'<w:sdt><w:sdtPr/><w:sdtContent>'+value+'</w:sdtContent></w:sdt>',value=>'<w:customXml>'+value+'</w:customXml>'];
+  for(const number of [73,113])for(const column of [3,4])for(const wrapper of wrappers) {
+    const arg=input(number,true);let cell=0;
+    changeAmendment(arg,value=>value.replace(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/gu,match=>cell++===column?match.replace('</w:tc>',wrapper(p('ADDITIONAL LEGAL TEXT.'))+'</w:tc>'):match));
+    assert.equal(verifyPlacement(arg).reason,'oracle-original-span-mismatch');
+    assert.equal(rawCitationMarkerAssertion(arg).reason,'oracle-citation-comparison-unavailable');
+    assert.deepEqual(verifyPlacementWithCitationCalibration(arg),verifyPlacement(arg));
+  }
+});
+test('wrapped comparison rows and cells cannot disappear from native proof',()=>{
+  const wrappers=[value=>'<w:sdt><w:sdtContent>'+value+'</w:sdtContent></w:sdt>',value=>'<w:customXml>'+value+'</w:customXml>'];
+  for(const wrapper of wrappers)for(const level of ['row','cell']) {
+    const arg=input(73,true),extra='<w:tc>'+p('ADDITIONAL LEGAL TEXT.')+'</w:tc>';
+    changeAmendment(arg,value=>level==='row'?value.replace('</w:tbl>',wrapper('<w:tr>'+extra+extra+'</w:tr>')+'</w:tbl>'):value.replace('</w:tr></w:tbl>',wrapper(extra)+'</w:tr></w:tbl>'));
+    assert.equal(rawCitationMarkerAssertion(arg).reason,'oracle-citation-comparison-unavailable');
+    assert.deepEqual(verifyPlacementWithCitationCalibration(arg),verifyPlacement(arg));
+  }
+});
+test('unaccounted structural children and visible block text do not establish complete columns',()=>{
+  for(const [from,to] of [
+    ['</w:tbl>',p('ADDITIONAL LEGAL TEXT.')+'</w:tbl>'],
+    ['</w:tr></w:tbl>',p('ADDITIONAL LEGAL TEXT.')+'</w:tr></w:tbl>'],
+    ['</w:tc></w:tr></w:tbl>','<w:altChunk/></w:tc></w:tr></w:tbl>'],
+    ['</w:tc></w:tr></w:tbl>','ADDITIONAL LEGAL TEXT.</w:tc></w:tr></w:tbl>'],
+  ]) {
+    const arg=input(73,true);changeAmendment(arg,value=>value.replace(from,to));
+    assert.equal(rawCitationMarkerAssertion(arg).reason,'oracle-citation-comparison-unavailable');
+    assert.deepEqual(verifyPlacementWithCitationCalibration(arg),verifyPlacement(arg));
+  }
+});
 test('a literal dash inside the citation wording stays meaningful',()=>{
   const arg=input();changeMotion(arg,value=>value.replace('Articles 67','– Articles 67'));
   assert.equal(rawCitationMarkerAssertion(arg).reason,'oracle-citation-original-mismatch');
