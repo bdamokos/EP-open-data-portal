@@ -12,8 +12,10 @@ const citation='E-003031/2026',text='See question '+citation+'.';
 const resolved=id=>({key:'question:E-2026-'+id.slice(-6),kind:'question',status:'found',id,title:'Official question '+id});
 const documentResponse=(id,paragraphs)=>({id,selectedDocumentId:id,files:[],answers:[],selectedText:{status:'available',paragraphs,textLanguage:'en',availableTextLanguages:['en','fr'],translationType:'original'}});
 
-async function reader(t,{heading=true,citationInNotes=false}={}) {
+async function reader(t,{heading=true,citationInNotes=false,dossier=false}={}) {
   const window=new Window({url:'http://localhost/'}),requests=[],scrolls=[];
+  const sourceText=dossier?'Regulation (EU) 2018/302':text;
+  const resolvedAct={key:'celex:32018R0302',kind:'act',status:'found',celex:'32018R0302',title:'Geo-blocking regulation',procedure:'2016/0152(COD)'};
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,matchMedia:()=>({matches:true}),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -22,8 +24,8 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){scrolls.push({element:this,options});});
   t.mock.method(globalThis,'fetch',input=>{
     const url=new URL(input,window.location.href);assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');const route=url.pathname.split('/api/')[1]+url.search;
-    if(route.startsWith('references?'))return Promise.resolve(Response.json({references:[resolved(first),resolved(second)]}));
-    assert.match(route,/^document\//,'focus fixtures must never contact unrelated services');
+    if(route.startsWith('references?'))return Promise.resolve(Response.json({references:dossier?[resolvedAct]:[resolved(first),resolved(second)]}));
+    assert.match(route,/^(document\/|reference-summary\?)/,'focus fixtures must never contact unrelated services');
     return new Promise((resolve,reject)=>requests.push({route,resolve,reject,finished:false}));
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
@@ -40,8 +42,8 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
   const render=(showCitation=true)=>act(async()=>root.render(createElement(heading?'section':'div',null,
     heading&&createElement('h3',null,'Original document'),
     createElement('button',{id:'retained'},'Retained document control'),
-    createElement(ReferenceScope,{texts:[text],notes,language:'en',renderQuestion:id=>createElement(InsightQuestionReader,{id,language:'en',heading:'Referenced question',includeAnswers:true})},
-      createElement('p',null,citationInNotes?'Original document body.':showCitation?createElement(ReferenceText,{text}):'Updated document text without that citation.'),
+    createElement(ReferenceScope,{texts:[sourceText],notes,language:'en',renderQuestion:id=>createElement(InsightQuestionReader,{id,language:'en',heading:'Referenced question',includeAnswers:true})},
+      createElement('p',null,citationInNotes?'Original document body.':showCitation?createElement(ReferenceText,{text:sourceText}):'Updated document text without that citation.'),
       citationInNotes&&showCitation&&createElement(DocumentNotes,{notes,prefix:'focus-notes'})))));
   const click=element=>act(async()=>{assert(element,'Missing action');element.focus();element.click();});
   const findButton=(label,scope=container)=>[...scope.querySelectorAll('button')].find(button=>button.textContent===label);
@@ -50,7 +52,11 @@ async function reader(t,{heading=true,citationInNotes=false}={}) {
     if(error)request.reject(new Error('Fixture document unavailable'));else request.resolve(Response.json({...documentResponse(id,paragraphs),answers}));
   });
   await render();
-  return {window,container,scrolls,tick,render,click,findButton,finish,citation:()=>container.querySelector('button.legal-ref'),open:async(trigger=container.querySelector('button.legal-ref'))=>{await click(trigger);const card=container.querySelector('.legal-reference-card');assert.equal(document.activeElement,card);return card;}};
+  const finishSummary=()=>act(async()=>{
+    const request=requests.find(request=>request.route.startsWith('reference-summary?')&&!request.finished);assert(request,'Missing summary request');request.finished=true;
+    request.resolve(Response.json({reference:'2016/0152(COD)',title:'Geo-blocking regulation',language:'en',summary:{stage:'Final act',date:'2018-02-28',blocks:Array.from({length:5},(_,index)=>({kind:'paragraph',text:'Summary paragraph '+(index+1)})),source:{url:'https://oeil.secure.europarl.europa.eu/'}}}));
+  });
+  return {window,container,scrolls,tick,render,click,findButton,finish,finishSummary,citation:()=>container.querySelector('button.legal-ref'),open:async(trigger=container.querySelector('button.legal-ref'))=>{await click(trigger);const card=container.querySelector('.legal-reference-card');assert.equal(document.activeElement,card);return card;}};
 }
 
 test('pinned reference Close and Escape return to the exact citation without resize refocusing its controls',async t=>{
@@ -74,6 +80,52 @@ test('a hover preview neither focuses nor scrolls until the citation is explicit
   assert(h.container.querySelector('.legal-reference-card'),'the existing fine-pointer hover preview remains available');
   assert.equal(document.activeElement,retained);assert.equal(h.scrolls.length,0);
   await h.open(citation);assert.equal(h.scrolls.length,1);
+});
+
+test('interacting with a hover dossier summary keeps it open through loading, expansion and pointer departure',async t=>{
+  const h=await reader(t,{dossier:true}),citation=h.citation();
+  await act(async()=>citation.dispatchEvent(new h.window.PointerEvent('pointerover',{pointerType:'mouse',bubbles:true})));
+  await h.tick();const card=h.container.querySelector('.legal-reference-card');assert(card);
+  const summary=h.findButton('Dossier summary',card);
+  await act(async()=>summary.dispatchEvent(new h.window.PointerEvent('pointerdown',{pointerType:'mouse',bubbles:true})));
+  await h.click(summary);
+  assert.equal(document.activeElement,summary,'interacting inside the card preserves the chosen control');
+  assert.equal(h.scrolls.length,0,'pinning an interaction must not jump the document');
+  await act(async()=>card.dispatchEvent(new h.window.PointerEvent('pointerout',{pointerType:'mouse',bubbles:true})));
+  await h.tick(250);assert(card.isConnected,'the pending summary remains open after the pointer leaves');
+  await h.finishSummary();assert(card.textContent.includes('Summary paragraph 2'));assert(!card.textContent.includes('Summary paragraph 3'));
+  await h.click(h.findButton('Continue reading',card));
+  await act(async()=>card.dispatchEvent(new h.window.PointerEvent('pointerout',{pointerType:'mouse',bubbles:true})));
+  await h.tick(250);assert(card.isConnected);assert(card.textContent.includes('Summary paragraph 5'));
+  assert.equal(h.scrolls.length,0,'summary completion and expansion preserve the reading position');
+  await h.click(h.findButton('Show less',card));assert(!card.textContent.includes('Summary paragraph 3'));
+  await h.click(card.querySelector('[aria-label="Close"]'));assert.equal(document.activeElement,citation);assert.equal(card.isConnected,false);
+});
+
+test('keyboard focus pins a hover preview without stealing focus or scrolling',async t=>{
+  const h=await reader(t,{dossier:true});
+  await act(async()=>h.citation().dispatchEvent(new h.window.PointerEvent('pointerover',{pointerType:'mouse',bubbles:true})));
+  await h.tick();const card=h.container.querySelector('.legal-reference-card'),summary=h.findButton('Dossier summary',card);
+  await act(async()=>summary.focus());
+  await act(async()=>card.dispatchEvent(new h.window.PointerEvent('pointerout',{pointerType:'mouse',bubbles:true})));
+  await h.tick(250);assert(card.isConnected);assert.equal(document.activeElement,summary);assert.equal(h.scrolls.length,0);
+});
+
+test('a pinned reference cannot become a transient preview when the pointer revisits its citation',async t=>{
+  const h=await reader(t),citation=h.citation(),card=await h.open();
+  await act(async()=>citation.dispatchEvent(new h.window.PointerEvent('pointerover',{pointerType:'mouse',bubbles:true})));
+  await h.tick();await act(async()=>citation.dispatchEvent(new h.window.PointerEvent('pointerout',{pointerType:'mouse',bubbles:true})));
+  await h.tick(250);assert(card.isConnected);
+  await act(async()=>document.dispatchEvent(new h.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+  assert.equal(card.isConnected,false);assert.equal(document.activeElement,citation);
+});
+
+test('an untouched hover preview still closes when the pointer leaves',async t=>{
+  const h=await reader(t),citation=h.citation();
+  await act(async()=>citation.dispatchEvent(new h.window.PointerEvent('pointerover',{pointerType:'mouse',bubbles:true})));
+  await h.tick();const card=h.container.querySelector('.legal-reference-card');assert(card);
+  await act(async()=>card.dispatchEvent(new h.window.PointerEvent('pointerout',{pointerType:'mouse',bubbles:true})));
+  await h.tick(250);assert.equal(card.isConnected,false);
 });
 
 test('referenced readers focus a stable pending destination, preserve local-find refs and return one exact citation level at a time',async t=>{

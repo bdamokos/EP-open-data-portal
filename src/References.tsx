@@ -66,7 +66,14 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
   const [open,setOpen]=useState<OpenCard|null>(null),[question,setQuestion]=useState<OpenQuestion|null>(null);
   const wrapper=useRef<HTMLDivElement>(null),card=useRef<HTMLDivElement>(null),questionReader=useRef<HTMLDivElement>(null),focusedCard=useRef<OpenCard|null>(null),timer=useRef<number>(0),cardId=useId();
   const close=useCallback((restore=false)=>{if(restore)returnToReference(open?.trigger,wrapper.current);setOpen(null);},[open]);
-  const show=useCallback((next:OpenCard)=>{window.clearTimeout(timer.current);setOpen(current=>current?.pinned&&!next.pinned&&current.key!==next.key?current:next);},[]);
+  const show=useCallback((next:OpenCard)=>{window.clearTimeout(timer.current);setOpen(current=>current?.pinned&&!next.pinned?current:next);},[]);
+  const keepOpen=()=>{
+    window.clearTimeout(timer.current);
+    if(!open||open.pinned)return;
+    const next={...open,pinned:true};
+    // Interaction already chose its focus and reading position inside the card.
+    focusedCard.current=next;setOpen(next);
+  };
   const hoverEnd=useCallback(()=>{window.clearTimeout(timer.current);timer.current=window.setTimeout(()=>setOpen(current=>current?.pinned?current:null),250);},[]);
   useEffect(()=>()=>window.clearTimeout(timer.current),[]);
   useEffect(()=>{
@@ -97,6 +104,7 @@ export function ReferenceScope({texts,language,textLanguage=null,children,render
     {children}
     {lookup.unavailable&&<p lang="en" className="legal-reference-retry" role="status">Reference details are temporarily unavailable. <button type="button" className="legal-reference-text-button" disabled={lookup.loading} onClick={lookup.retry}>{lookup.loading?'Retrying references…':'Retry references'}</button></p>}
     {open&&reference&&position&&<div ref={card} id={cardId} className="legal-reference-card" lang={open.trigger.closest('[lang]')?.getAttribute('lang')??''} role="dialog" aria-label={open.text} tabIndex={-1} style={position}
+      onPointerDownCapture={keepOpen} onFocusCapture={keepOpen}
       onPointerEnter={()=>window.clearTimeout(timer.current)} onPointerLeave={event=>{if(event.pointerType==='mouse')hoverEnd();}}>
       <ReferenceCard reference={reference} text={open.text} textLanguage={open.trigger.closest('[lang]')?.getAttribute('lang')??''} language={language} footnote={open.footnote} onQuestion={renderQuestion?id=>{setQuestion({id,trigger:open.trigger});close();}:undefined}/>
       <button type="button" lang="en" className="legal-reference-close" aria-label="Close" onClick={()=>close(true)}>×</button>
