@@ -145,16 +145,37 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
   let failed=true;
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
-    if(url.searchParams.get('target-offset')==='0')return Response.json(page('amendments','257727',failed?[]:[{...amendment,tabling:{...amendment.tabling,observations:[{id:'unknown-date',date:null,stage:null,source}]}}],{checkedTarget:'A-10-2026-0010',coverage:{status:failed?'unavailable':'complete',gaps:failed?['Exact target read failed.']:[],sources:[source]},pagination:{offset:0,targetOffset:0,limit:25,next:{offset:0,targetOffset:1}}}));
-    return Response.json(page('amendments','257727',[{...amendment,id:'other-variant',amendment:{...amendment.amendment,id:'other-amendment',number:4,decisions:[]}}],{pagination:{offset:0,targetOffset:1,limit:25,next:null}}));
+    if(url.searchParams.get('target-offset')==='0')return Response.json(page('amendments','257727',failed?[]:[{...amendment,tabling:{...amendment.tabling,observations:[{id:'unknown-date',date:null,stage:null,source}]}}],{checkedTarget:'A-10-2026-0010',amendmentGeneration:failed?undefined:4,coverage:{status:failed?'unavailable':'complete',gaps:failed?['Exact target read failed.']:[],sources:[source]},pagination:{offset:0,targetOffset:0,limit:25,next:{offset:0,targetOffset:1}}}));
+    return Response.json(page('amendments','257727',[{...amendment,id:'other-variant',amendment:{...amendment.amendment,id:'other-amendment',number:4,decisions:[]}}],{amendmentGeneration:4,pagination:{offset:0,targetOffset:1,limit:25,next:null}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
   assert.match(h.container.textContent,/Amendments for A10-0010\/2026 could not be loaded/);assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0);assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1,'an unavailable AM cannot suppress its standalone vote');
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Amendments for A10-0010\/2026/);
+  assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'),'a missing amendmentGeneration on the failed response cannot erase its retry owner');
   failed=false;await h.click('Retry amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
   assert.equal([...h.container.querySelectorAll('button')].filter(node=>node.textContent==='Load more amendments').length,0,'retrying an earlier target cannot reopen the completed continuation');
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
+});
+
+test('a failed intermediate page cannot hide a later real amendment snapshot change',async t=>{
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    const index=Number(url.searchParams.get('target-offset')),failed=index===1;
+    return Response.json(page('amendments','257727',failed?[]:[{...amendment,id:'variant-'+index,amendment:{...amendment.amendment,number:index===0?3:5}}],{
+      checkedTarget:'A-10-2026-001'+index,amendmentGeneration:failed?undefined:index===0?4:5,
+      coverage:{status:failed?'unavailable':'complete',gaps:failed?['Exact target read failed.']:[],sources:[source]},
+      pagination:{offset:0,targetOffset:index,limit:25,next:index<2?{offset:0,targetOffset:index+1}:null}
+    }));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  await h.click('Load more amendments');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1,'an absent generation must retain the earlier successful snapshot');
+  assert.match(h.container.textContent,/Amendments for A10-0011\/2026 could not be loaded/);
+  await h.click('Load more amendments');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1,'a real known generation change must discard older snapshot rows');
+  assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 5/);
+  assert.doesNotMatch(h.container.querySelector('.dossier-amendment').textContent,/Amendment 3/);
 });
 
 test('document-only role cards use a separate document section and never claim an appointment date',async t=>{
