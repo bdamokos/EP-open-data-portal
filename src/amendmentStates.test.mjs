@@ -45,7 +45,7 @@ for(const language of ['en','hu','fr'])test(`${language}: incomplete wording and
   assert.doesNotMatch(card('unsafe-baseline').textContent,/Unverified old original must be withheld|Unverified old proposal must be withheld/);
   const absent=card('absent-list');
   assert.equal(absent.querySelector('.wording-diff__note').textContent,'New text');
-  assert.equal(absent.querySelector('.wording-diff__toggle button[aria-pressed="true"]').textContent,'Changes');
+  assert.equal(absent.querySelector('.wording-diff__toggle button[aria-pressed="true"]').textContent,'Side by side');
   const insertion=absent.querySelector('.wording-diff__passage>ins');assert(insertion);
   assert.equal(wordingText(absent,'original'),'');assert.equal(wordingText(absent,'proposed'),'Proposition conservée');
   assert.equal(effectiveLanguage(insertion),'fr');

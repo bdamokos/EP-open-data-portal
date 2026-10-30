@@ -478,7 +478,7 @@ test('placed insertion renders a framed WordingDiff between complete paragraph 1
   assert.equal(block.querySelector('h4').textContent,'Amendment 40');assert(block.querySelector('.wording-diff ins'));
   assert.equal(block.querySelector('del'),null);assert.equal(h.container.querySelectorAll('[data-context-target]').length,1);
   assert.equal(block.querySelector('.wording-diff__note').textContent,'New text');
-  assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
+  assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side').getAttribute('aria-pressed'),'true');
   assert.equal(block.querySelector('.wording-diff__legend'),null);
   assert(!block.textContent.includes('Mostly rewritten'));
   await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Go to amendment'));
@@ -488,8 +488,8 @@ test('replacement and deletion substitute the entire span with WordingDiff in so
   for(const operation of ['replace','delete'])await t.test(operation,async t=>{
     const h=await harness(t,()=>overlayResponse({operation,span:{start:1,end:2}}));await h.render({request:overlayRequest,language:'en'});
     const block=h.container.querySelector('[data-amendment-block]');assert(block.querySelector('.wording-diff del'));
-    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
-    assert.equal(block.querySelectorAll('.wording-diff__passage').length,1);
+    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side').getAttribute('aria-pressed'),'true');
+    assert.equal(block.querySelectorAll('.wording-diff__columns section').length,2);
     assert.equal(block.querySelector('.wording-diff__legend'),null);
     assert(!block.textContent.includes('Mostly rewritten'));
     assert.equal(h.container.querySelector('[data-source-paragraph="1"]'),null);assert.equal(h.container.querySelector('[data-source-paragraph="2"]'),null);
@@ -641,8 +641,8 @@ test('Commission proposal replaces the report body for recorded CBAM amendments 
     assert.equal(block.getAttribute('aria-label'),'Amendment '+selected);
     assert.equal(block.querySelector('h4').textContent,'Amendment '+selected);
     assert.equal(block.querySelector('h4').lang,'en');
-    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Changes').getAttribute('aria-pressed'),'true');
-    assert.equal(block.querySelectorAll('.wording-diff__passage').length,1);
+    assert.equal([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side').getAttribute('aria-pressed'),'true');
+    assert.equal(block.querySelectorAll('.wording-diff__columns section').length,2);
     assert.equal(block.querySelector('.wording-diff__legend'),null);
     assert(!block.textContent.includes('Mostly rewritten'));assert(!block.textContent.includes('official document is authoritative'));
   }
@@ -675,7 +675,7 @@ async function renderPlacedLabel(t,paragraphs,targetLabel,originalText,proposedT
   const h=await harness(t,()=>value);
   await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
   const block=h.container.querySelector('[data-amendment-block]');
-  return {h,block,text:block.textContent,label:block.querySelector('[data-source-label]')?.textContent??null,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:[...block.querySelectorAll('.wording-diff__passage')].map(node=>{const copy=node.cloneNode(true);copy.querySelectorAll('del,.wording-diff__sr').forEach(child=>child.remove());return copy.textContent;}).join(' ')};
+  return {h,block,text:block.textContent,label:block.querySelector('[data-source-label]')?.textContent??null,deleted:[...block.querySelectorAll('del')].map(node=>node.textContent).join(' '),proposed:wordingText(block,'proposed')};
 }
 
 test('a source number is shown as context and proposed wording is never changed',async t=>{

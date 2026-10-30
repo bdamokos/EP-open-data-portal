@@ -429,7 +429,7 @@ export class ActivityStore {
     // Keep counts and role-filtered pages on the member-leading partial index;
     // the global role frontier cannot narrow a read to this MEP.
     const memberItems='items INDEXED BY activity_member_roles';
-    const where='generation=? AND mep=?'+activityOnly+(category?' AND category=?':'');
+    const where='generation=? AND mep=?'+activityOnly+(category?' AND category=?':" AND category<>'plenary-contributions'");
     const params=[generation,String(mep),...(category?[category]:[])];
     const total=this.db.prepare('SELECT COUNT(*) AS n FROM '+memberItems+' WHERE '+where).get(...params).n;
     const sittingSources=new Map(), outcomes=new Map();
@@ -478,7 +478,7 @@ export class ActivityStore {
       return [id,{status:state,indexedCount:counts[id] || 0,total:state==='available'?counts[id] || 0:null,reason}];
     }));
     const exactTotal=category?categoryCoverage[category]?.status==='available':status.complete;
-    const availability=activityAvailability(this,generation,{category,limited:!exactTotal});
+    const availability=activityAvailability(this,generation,{category,limited:!exactTotal}).filter(source=>category||source.sourceKey!=='plenary-contributions');
     return { mepId:Number(mep), member:memberData, term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
       order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', availability,cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
   }
