@@ -39,7 +39,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     const query=new URLSearchParams({reference,lang:language,section,offset:String(cursor.offset),'target-offset':String(cursor.targetOffset),limit:'25'});if(person)query.set('member',person);
     api<DossierActivityResponse>('insights/dossier-activity?'+query,controller.signal).then(page=>{
       if(!live)return;
-      if(page.version!==6||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
+      if(page.version!==7||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
       // A failed target read has no amendment snapshot. Keep its retry page,
       // and compare known generations even after an intervening failed read.
       const knownAmendmentGeneration=[...pages.current.values()].find(saved=>saved.amendmentGeneration!==undefined)?.amendmentGeneration;

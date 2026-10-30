@@ -13,7 +13,7 @@ import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=6;
+export const DOSSIER_ACTIVITY_VERSION=7;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -168,12 +168,18 @@ export class DossierActivity {
       const ids=[...children.keys()],slots=ids.map(()=>'?').join(',');
       const indexed=new Set(this.store.db.prepare('SELECT DISTINCT source_id FROM items WHERE generation=? AND source_id IN ('+slots+')').all(result.generation,...ids).map(row=>row.source_id));
       const sources=new Set(this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='speech' AND key IN ("+slots+')').all(result.generation,...ids.map(id=>'/speeches/'+id)).map(row=>row.key));
-      const missing=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id));
+      const classifications=this.store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='event' AND key IN ("+slots+')').all(result.generation,...ids.map(id=>'/events/'+id)).flatMap(row=>{
+        const event=JSON.parse(row.body);
+        return row.key==='/events/'+event.id&&event.classificationVersion===1&&event.declaredBy&&children.get(event.id)?.some(parent=>tail(parent.id)===event.declaredBy)&&/^[A-Z][A-Z0-9_]+$/.test(event.kind)&&!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(event.kind)&&event.source?.url===apiUrl(row.key)+'?format=application%2Fld%2Bjson'&&Number.isFinite(Date.parse(event.source?.fetchedAt))?[event]:[];
+      });
+      const classified=new Set(classifications.map(event=>event.id));
+      const missing=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id)&&!classified.has(id));
       const rows=this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+slots+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...ids,DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
-      return {rows,missing};
+      return {rows,missing,classifications};
     });
     if(retained===null){coverage.status='unavailable';coverage.retryable=true;coverage.gaps.push('The activity index changed. Retry speeches.');return;}
     const {rows,missing}=retained;coverage.missingSpeechIds=missing;
+    for(const event of retained.classifications||[])coverage.sources.push({...event.source,language:null,stale:true});
     if(missing.length){coverage.retryable=true;coverage.gaps.push('Some linked contributions are not saved.');}
     const items=[];
     for(const row of rows.slice(0,DOSSIER_ACTIVITY_LIMITS.speechRows)) {

@@ -76,6 +76,21 @@ test('saved speeches need exact debate children, preserve gaps and survive trans
   x.records.delete('/events/'+DEBATE);const failed=await x.service.query(x.q('speeches'));assert.equal(failed.coverage.status,'unavailable');
   assert.equal((await x.service.query(x.q('roles'))).items.length,1,'a speech failure cannot blank roles');
 });
+test('exact non-speech event classification closes only its own declared-reference gap',async t=>{
+  const x=setup(t),other='MTG-PL-2026-09-15-OTH-999999';
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(other));
+  assert.deepEqual((await x.service.query(x.q('speeches'))).coverage.missingSpeechIds,[other]);
+  const projection={id:other,kind:'PLENARY_PROCEEDING',date:null,classificationVersion:1,declaredBy:DEBATE,source:{url:'https://data.europarl.europa.eu/api/v2/events/'+other+'?format=application%2Fld%2Bjson',fetchedAt:now}};
+  x.store.putSource(x.generation,'/events/'+other,'event',projection,now);
+  const checked=await x.service.query(x.q('speeches'));
+  assert.equal(checked.coverage.status,'complete');assert.deepEqual(checked.coverage.missingSpeechIds,[]);
+  assert.equal(checked.items.length,1,'non-speech events never become member contributions');
+  assert(checked.coverage.sources.some(source=>source.url===projection.source.url&&source.fetchedAt===now));
+  for(const change of [{kind:null},{kind:'PLENARY_DEBATE_SPEECH'},{declaredBy:DEBATE+'0'},{source:{url:'https://example.invalid',fetchedAt:now}}]) {
+    x.store.putSource(x.generation,'/events/'+other,'event',{...projection,...change},now);
+    assert.equal((await x.service.query(x.q('speeches'))).coverage.status,'partial');
+  }
+});
 test('amendments retain list-specific dates and same-generation refreshes',async t=>{
   const x=setup(t),r=await x.service.query(x.q('amendments',OTHER));
   assert.equal(r.checkedTarget,DOC);assert.equal(r.items[0].date,'2026-09-08');assert.equal(r.items[0].amendment.documentDate,'2026-09-09');assert.equal(r.items[0].amendment.onBehalfOf,'The Left');
@@ -125,7 +140,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,6);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,7);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
