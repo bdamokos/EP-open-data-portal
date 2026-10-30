@@ -149,7 +149,7 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
     return Response.json(page('amendments','257727',[{...amendment,id:'other-variant',amendment:{...amendment.amendment,id:'other-amendment',number:4,decisions:[]}}],{pagination:{offset:0,targetOffset:1,limit:25,next:null}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.textContent,/Records unavailable/);assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
+  assert.match(h.container.textContent,/Unavailable/);assert([...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0);assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1,'an unavailable AM cannot suppress its standalone vote');
   await h.click('Load more amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Partial coverage/);
   failed=false;await h.click('Retry amendments');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/Date unavailable/);assert.doesNotMatch(h.container.textContent,/Exact target read failed/);
@@ -194,7 +194,7 @@ test('global discovery capacity does not invent a gap in a complete dossier targ
 test('an unestablished target is unavailable without an unsupported retry promise',async t=>{
   const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[],{coverage:{status:'unavailable',retryable:false,gaps:['No checked amendment target is linked in this procedure observation.'],sources:[source]}})):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Records unavailable/);
+  assert.match(h.container.querySelector('[aria-label="Amendments coverage"]').textContent,/Unavailable/);
   assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Retry amendments'));
 });
 
@@ -206,7 +206,7 @@ test('coverage retains a short partial label when a later amendment target fails
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more amendments');
   const coverage=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
-  assert.match(coverage.textContent,/Amendments · Partial coverage/);
+  assert.match(coverage.textContent,/Partial coverage/);
   assert.equal(coverage.querySelector('details'),null);
 });
 
@@ -323,7 +323,7 @@ test('no-role RSP opens from a cold person link, keeps speech before gaps, and f
   assert(h.container.innerHTML.indexOf('dossier-timeline')<h.container.innerHTML.indexOf('dossier-section-status'));
   assert.match(h.container.textContent,/Votes could not be loaded/);assert.doesNotMatch(h.container.textContent,/No linked records|No participants|rapporteur/i);
   failVotes=false;await h.click('Retry votes');assert(h.container.querySelector('.dossier-speech'));
-  await h.click('Amendments');assert.doesNotMatch(h.container.textContent,/No linked amendments/);assert.match(h.container.textContent,/No records available yet/);
+  await h.click('Amendments');assert.match(h.container.textContent,/No matching amendments/);
   await h.click('Full dossier');assert.equal(h.container.querySelector('.dossier-participants a').textContent,'Gabriele Bischoff');assert.match(h.container.textContent,/Speeches · 1 shown/);
   await h.click('Work on this dossier');assert(h.container.querySelector('.dossier-speech'));assert.equal(new URL(location.href).searchParams.get('dossier-person'),rsp.personId);
 });
@@ -337,7 +337,7 @@ test('participant pages retain speech-only people and retries never erase succes
     return Response.json(page('roles',null,[],{participants:later?(fail?[]:[{id:'124984',name:'Other speaker',roles:[],speeches:[speech]}]):[{id:'257727',name:'First speaker',roles:[],speeches:[speech]}],participantCoverage:coverage,coverage:{status:'complete',gaps:[],sources:[source]},pagination:{offset:0,targetOffset:later?2:0,limit:25,next:later?null:{offset:0,targetOffset:2}}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more people');
-  assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/People · Partial coverage/);
+  assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Partial coverage/);
   fail=false;await h.click('Retry people');assert.match(h.container.textContent,/First speaker/);assert.match(h.container.textContent,/Other speaker/);assert.doesNotMatch(h.container.textContent,/Debate unavailable/);
 });
 
@@ -363,7 +363,7 @@ test('failed same-cursor contributor retry retains established speech evidence u
   });
   await h.render(createElement(h.module.DossierActivity,{reference:rsp.procedure.label}));
   assert.match(h.container.textContent,/Gabriele Bischoff/);await h.click('Retry people');
-  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/People · Partial coverage/);assert.doesNotMatch(h.container.textContent,/Earlier records retained/);
+  assert.match(h.container.textContent,/Gabriele Bischoff/);assert.match(h.container.textContent,/Partial coverage/);assert.doesNotMatch(h.container.textContent,/Earlier records retained/);
   await h.click('Retry people');assert(!h.container.querySelector('.dossier-participants'));
 });
 
@@ -402,12 +402,48 @@ test('dossier participants and selected person use country only, with exact ID j
  assert.equal(participants[1].querySelector('.member-affiliation'),null,'a matching name cannot supply country');
 });
 
-test('availability explanations disclose exact gaps without expanding warnings over the work',async t=>{
+test('availability disclosures keep gaps concise and source details out of the work',async t=>{
   const h=await harness(t);await h.render(createElement(h.module.DossierActivity,{reference}));
   const note=h.container.querySelector('[aria-label="Speeches coverage"] .dossier-coverage');
   assert.equal(note.tagName,'DETAILS');assert.equal(note.open,false);
   assert.equal(note.querySelector('summary').textContent,'Speeches availability');
-  assert.match(note.querySelector('li').textContent,/Some targets have not been checked/);
+  assert.equal(note.querySelector('li'),null);
+  assert.doesNotMatch(note.textContent,/Some targets have not been checked/);
   await h.click('Speeches availability');assert.equal(note.open,true);
   assert.match(note.textContent,/Partial coverage/);
+});
+
+test('committee stage and committee filters reset the list cursor without changing speeches or roles',async t=>{
+  const committeeRow=(code,number)=>({...amendment,id:`committee:${code}-AM-773343:${number}`,amendment:{...amendment.amendment,id:`committee:${code}-AM-773343:${number}`,scope:'committee',listId:code+'-AM-773343',targetDocumentId:null,targetRelationship:{status:'unavailable'},number,committees:[{code}],decisions:[]}});
+  const query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727&dossier-show=amendments';
+  const h=await harness(t,query,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    const stage=url.searchParams.get('stage'),committee=url.searchParams.get('committee'),offset=Number(url.searchParams.get('target-offset'));
+    const items=stage==='plenary'?[amendment]:committee?[committeeRow(committee,40)]:[committeeRow('AGRI',40),committeeRow('IMCO',40)];
+    return Response.json(page('amendments','257727',offset?[]:items,{version:7,stage,committee:committee||null,pagination:{offset:0,targetOffset:offset,limit:25,next:offset?null:{offset:0,targetOffset:1}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more amendments');
+  const change=async(label,value)=>{const select=[...h.container.querySelectorAll('label')].find(node=>node.firstChild?.textContent===label)?.querySelector('select');assert(select,label);await act(async()=>{select.value=value;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});};
+  await change('Stage','committee');
+  let call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.get('stage'),'committee');assert.equal(call.searchParams.get('target-offset'),'0');
+  assert.equal(h.container.querySelectorAll('[data-amendment-scope="committee"]').length,2);
+  await change('Committee','IMCO');
+  call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.get('committee'),'IMCO');assert.equal(call.searchParams.get('offset'),'0');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);
+  await change('Stage','plenary');
+  call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.has('committee'),false);assert.equal(h.container.querySelectorAll('[data-amendment-scope="plenary"]').length,1);
+  assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='roles').length,1);assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='speeches').length,0);
+  await h.navigate(query+'&dossier-stage=committee&dossier-committee=AGRI');
+  call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.get('committee'),'AGRI');assert.equal(call.searchParams.get('target-offset'),'0');
+});
+
+test('amendment-only dossier participants render separate stage links and survive a failed retry',async t=>{
+  let reads=0;
+  const evidence={id:'committee:AGRI-AM-773343:51',scope:'committee',listId:'AGRI-AM-773343',date:'2025-05-20',source};
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    return Response.json(page('roles',null,[],{participants:++reads===1?[{id:'1',name:'Amendment author',roles:[],amendments:[evidence],amendmentCounts:{committee:1,plenary:null}}]:[],participantCoverage:{status:reads===1?'partial':'unavailable',retryable:true,uncheckedTargets:['AGRI-AM-773343'],gaps:[],sources:[source]}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ Committee amendments/);assert.doesNotMatch(h.container.querySelector('.dossier-participants').textContent,/Plenary amendments/);
+  await h.click('Retry people');assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ Committee amendments/);
 });

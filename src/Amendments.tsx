@@ -1,6 +1,7 @@
+import {useDossierReaderState} from './dossierJourney';
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
 import {PersonName} from './PersonName';
-import {Fragment,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
+import {Fragment,lazy,Suspense,useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
 import {selectLanguageText} from './language.mjs';
 import {compareMembers} from './memberOrder.mjs';
 import {useData} from './data';
@@ -8,7 +9,7 @@ import {useExplorerParam} from './explorerUrl';
 import {InsightShell,insightMemberHref} from './InsightShared';
 import type {InsightProps} from './InsightTypes';
 import type {Amendment,AmendmentDecision,AmendmentPage,AmendmentSource,AmendmentSplit,AmendmentVariant} from './AmendmentTypes';
-import {amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
+import {validCommitteeCode,amendmentContextSelection,amendmentDecisionKey,amendmentDecisionPart,amendmentDecisionScope,amendmentGroups,amendmentOutcomeLabel,amendmentPlanSummary,amendmentRoute,publicAmendmentSource} from './amendmentModel.mjs';
 import type {Directory} from './explorerTypes';
 import './Amendments.css';
 import {FormattedWording} from './components/WordingFormatting';
@@ -16,6 +17,8 @@ import {WordingDiff} from './components/WordingDiff';
 import {AmendmentNamedVotes} from './AmendmentNamedVotes';
 import {voteMethodLabel} from './voteMethod.mjs';
 import {sourcePageUrl} from './SourceLink';
+
+const DocumentContextReader=lazy(()=>import('./DocumentContextReader').then(module=>({default:module.DocumentContextReader})));
 
 const outcomes=['','ADOPTED','REJECTED','LAPSED','WITHDRAWN','mixed','unavailable'] as const;
 const dateLabel=(value:string|number|null|undefined,language:string)=>{
@@ -35,11 +38,10 @@ function documentDateLabel(item:AmendmentVariant,language:string,legacySource=fa
   const listDate=item.dateBasis==='amendment-list-document'&&dateLabel(item.listDocumentDate,language)?item.listDocumentDate:null;
   const documentedBasis=['individual-amendment-document','amendment-list-document'].includes(item.dateBasis||'');
   const value=documentaryDate||listDate||(Object.hasOwn(item,'documentDate')||!documentedBasis&&!legacySource?null:item.date);
-  const label=item.dateBasis==='individual-amendment-document'?'Amendment document date':item.dateBasis==='amendment-list-document'?'Amendment-list document date':'Document date';
+  const label='scope' in item&&item.scope==='committee'?'Document date':item.dateBasis==='individual-amendment-document'?'Amendment document date':item.dateBasis==='amendment-list-document'?'Amendment-list document date':'Document date';
   return dateLabel(value,language)?<>{label} <LocalizedDate value={value} language={language}/></>:null;
 }
 const onBehalfLabel=(value:AmendmentVariant['onBehalfOf'])=>(Array.isArray(value)?value.join(', '):value)?.replace(/^on behalf of\s+/i,'');
-const gapLabel=(value:unknown):string=>typeof value==='string'?value:typeof value==='object'&&value!==null?String((value as Record<string,unknown>).message||(value as Record<string,unknown>).reason||(value as Record<string,unknown>).code||'A source record is unavailable.'):'A source record is unavailable.';
 const pageRange=(offset:number,count:number,total:number,emptyLabel:string)=>!count?(total?'0 shown of '+total:emptyLabel):offset+1+'–'+Math.min(offset+count,total)+' of '+total;
 
 function Outcome({value}:{value?:string|null}) {
@@ -52,10 +54,10 @@ function Decision({item,decision,language,compact=false}:{item:Amendment;decisio
   const complete=totals&&positions.every(([key])=>typeof totals[key]==='number'),total=complete?positions.reduce((sum,[key])=>sum+totals![key]!,0):null;
   const unbound=['unverified','unresolved-collective'].includes(decision.componentBinding||'');
   return <li className="explorer-amendment-decision" lang="en">
-    {(!compact||unbound)&&<div className="explorer-amendment-decision-heading"><strong>{decision.componentBinding==='unverified'?'Unverified split decision':decision.componentBinding==='unresolved-collective'?'Collective decision':amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div>}
+    {(!compact||unbound||item.scope==='committee')&&<div className="explorer-amendment-decision-heading"><strong>{item.scope==='committee'?((decision.stage||decision.scope)==='plenary'?'Plenary decision · ':'Committee decision · '):''}{decision.componentBinding==='unverified'?'Unverified split decision':decision.componentBinding==='unresolved-collective'?'Collective decision':amendmentDecisionScope(item,decision)}</strong><Outcome value={decision.outcome}/></div>}
     {hasTotals&&<>{complete&&total!>0&&<div className="amendment-vote-strip" aria-hidden="true">{positions.map(([key,label])=><span key={key} data-position={label} style={{flexGrow:totals![key]!}}/>)}</div>}<dl className="explorer-amendment-totals">{positions.map(([key,label])=><div key={key} data-position={label}><dt>{label.toLowerCase()}</dt><dd>{totals?.[key]!=null?<span lang={language}>{totals[key]!.toLocaleString(language)}</span>:'Unavailable'}</dd></div>)}</dl></>}
     {(total!=null||voteMethodLabel(decision.method))&&<p className="explorer-amendment-meta">{[total!=null?total.toLocaleString(language)+' votes':'',voteMethodLabel(decision.method)].filter(Boolean).join(' · ')}</p>}
-    <AmendmentNamedVotes item={item} decision={decision} language={language}/>
+    {item.scope!=='committee'&&<AmendmentNamedVotes item={item} decision={decision} language={language}/>}
     <details className="explorer-amendment-decision-record"><summary>Decision record</summary><p>{decision.date&&<>Decision date <LocalizedDate value={decision.date} language={language}/></>}</p>{source&&<a href={source} target="_blank" rel="noreferrer">Voting record ↗</a>}
       {(decision.collective||unbound||(decision.amendmentIds?.length||0)>1)&&Boolean(decision.amendmentIds?.length)&&<><p>Co-decided amendment references</p><ul className="explorer-amendment-collective-references">{decision.amendmentIds!.map(reference=><li key={reference} lang="">{reference}</li>)}</ul></>}
       {decision.componentReferences?.length?<><p>Recorded component references</p><ul>{decision.componentReferences.map(reference=><li key={reference} lang="">{reference}</li>)}</ul></>:null}
@@ -139,7 +141,7 @@ function AmendmentAuthors({item,language,onMember}:{item:Amendment;language:stri
     return <span key={String(author.personId||author.name)+':'+index}>{index>0?', ':''}{linked?<a href={insightMemberHref(String(author.personId),language)} onClick={onMember?event=>{
       if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;
       event.preventDefault();onMember(Number(author.personId));
-    }:undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a>:<><span lang="">{author.name}</span><small> ({note})</small></>}<RecordMemberAffiliation id={author.personId} language={language}/></span>;
+    }:undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a>:<><span lang="">{author.name}</span><small> ({item.scope==='committee'?'Unavailable':note})</small></>}<RecordMemberAffiliation id={author.personId} language={language}/></span>;
   })}{item.committeeProposer&&<p>Committee proposer: <span lang={item.proposerSource?.language??''}>{item.committeeProposer}</span></p>}{onBehalfOf&&<p>{!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf)&&'On behalf of '}<span lang="">{onBehalfOf}</span></p>}</div>;
 }
 function SourceVariants({item,language}:{item:Amendment;language:string}) {
@@ -159,66 +161,77 @@ function SourceVariants({item,language}:{item:Amendment;language:string}) {
 }
 export function AmendmentCard({item,language,onMember,showOutcome=true}:{item:Amendment;language:string;onMember?:InsightProps['onMember'];showOutcome?:boolean}) {
   const splitParts=[...(item.splitParts||[])].sort((a,b)=>Number.isFinite(Number(a.number))&&Number.isFinite(Number(b.number))?Number(a.number)-Number(b.number):0),decisions=item.decisions||[],whole=decisions.filter(decision=>!amendmentDecisionPart(splitParts,decision));
-  const authors=item.authors||[];
+  const committee=item.scope==='committee',selection=amendmentContextSelection(item);
+  const [contextOpen,setContextOpen]=useDossierReaderState('amendment-context:'+item.id,false),contextSummary=useRef<HTMLElement>(null);
   const title=selectLanguageText(item.titles,language,item.title||'','');
-  return <article lang="en" className="explorer-amendment-card" id={'amendment-'+item.id}>
-    <header><span className="explorer-amendment-number" aria-hidden="true">{item.number??'?'}</span><div><h4><span className="visually-hidden">Amendment {item.number}: </span><span className="explorer-amendment-target" lang={item.targetLabel?targetLabelLanguage(item):'en'}>{item.targetLabel||'Target provision unavailable'}</span></h4></div>{showOutcome&&<Outcome value={item.outcome}/>}</header>
+  return <article lang="en" className="explorer-amendment-card" id={'amendment-'+item.id} data-amendment-scope={item.scope||'plenary'}>
+    {committee&&<p className="explorer-amendment-stage">{item.contributionKind==='draft-report'?'Draft report':item.contributionKind==='draft-opinion'?'Draft opinion':'Committee amendment'}{item.committees?.map(c=><Fragment key={c.code}> · <span lang="" title={c.name||undefined}>{c.code}</span></Fragment>)}{item.contributionKind==='tabled-amendment'&&item.committeeDocumentKind&&<> · {item.committeeDocumentKind==='draft-report'?'Draft report':'Draft opinion'}</>}</p>}
+    <header><span className="explorer-amendment-number" aria-hidden="true">{item.number??'?'}</span><div><h4><span className="visually-hidden">Amendment {item.number}: </span><span className="explorer-amendment-target" lang={item.targetLabel?targetLabelLanguage(item):'en'}>{item.targetLabel||'Target provision unavailable'}</span></h4></div>{showOutcome&&(!committee||decisions.length>0)&&<Outcome value={item.outcome}/>}</header>
+    {committee&&<p className="explorer-amendment-meta">{joinMeta([item.targetDocumentId?<span lang="">{item.targetDocumentId}</span>:null,documentDateLabel(item,language),item.proposerDate&&item.proposerDateBasis==='tabling'?<>Tabled <LocalizedDate value={item.proposerDate} language={language}/></>:null])}</p>}
     <SourceVariants item={item} language={language}/>
     <AmendmentAuthors item={item} language={language} onMember={onMember}/>
     {(decisions.length>0||splitParts.length>0)?<div className="explorer-amendment-voting">{splitParts.length>0&&<ol className="explorer-amendment-parts">{splitParts.map((part,index)=><SplitPart key={part.id||JSON.stringify([part.componentIndex??index,part.rawDescription??part.description??null])} part={part} item={item} language={language}/>)}</ol>}{whole.length>0&&<ul className="explorer-amendment-decisions">{whole.map(decision=><Decision key={amendmentDecisionKey(decision)} item={item} decision={decision} language={language} compact={decisions.length===1&&!splitParts.length}/>)}</ul>}</div>:<p className="explorer-amendment-secondary">Outcome unavailable.</p>}
     {!item.conflicted&&<details className="explorer-amendment-wording"><summary>Compare original and proposed text</summary><AmendmentWording item={item}/></details>}
-    <details className="explorer-amendment-evidence"><summary>Sources{item.gaps?.length?' · '+item.gaps.length+(item.gaps.length===1?' gap':' gaps'):''}</summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={title.text===item.title?title.language:''}>{title.text}</p>}<p className="explorer-amendment-reference">{item.id}</p><p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language),metadataLanguage(item)?metadataLanguage(item).toUpperCase():null])}</p>
+    {selection&&<details className="explorer-amendment-context" open={contextOpen} onToggle={event=>setContextOpen(event.currentTarget.open)}><summary ref={contextSummary}>Read in context</summary>{contextOpen&&<Suspense fallback={<p role="status">Loading document…</p>}><DocumentContextReader language={language} request={{...selection,onBack:()=>{setContextOpen(false);contextSummary.current?.focus({preventScroll:true});}}}/></Suspense>}</details>}
+    <details className="explorer-amendment-evidence"><summary>Sources{item.gaps?.length?' · '+item.gaps.length+(item.gaps.length===1?' gap':' gaps'):''}</summary><AmendmentEvidenceState item={item}/>{item.title&&<p className="explorer-amendment-title" lang={title.text===item.title?title.language:''}>{title.text}</p>}{item.scope!=='committee'&&<p className="explorer-amendment-reference">{item.id}</p>}<p className="explorer-amendment-meta">{joinMeta([documentDateLabel(item,language),metadataLanguage(item)?metadataLanguage(item).toUpperCase():null])}</p>
       {item.officialIds?.length?<p className="explorer-amendment-reference">Official references: {item.officialIds.join(', ')}</p>:null}
       <AmendmentSources sources={item.sources||[]} language={language}/>
-      {item.procedureIds?.length?<p>Procedures: {item.procedureIds.map((reference,index)=><Fragment key={reference}>{index?', ':''}<span lang="">{reference}</span></Fragment>)}</p>:null}
+      {item.scope!=='committee'&&item.procedureIds?.length?<p>Procedures: {item.procedureIds.map((reference,index)=><Fragment key={reference}>{index?', ':''}<span lang="">{reference}</span></Fragment>)}</p>:null}
       {item.topics?.length?<ul>{item.topics.map(topic=><li key={topic.id}><span lang={topic.language??''}>{topic.label}</span> <small>· {topic.basis==='dossier'?'dossier subject':'target provision'}</small></li>)}</ul>:null}
-      {item.gaps?.length?<ul className="explorer-amendment-gap">{item.gaps.map((gap,index)=><li key={index}>{gapLabel(gap)}</li>)}</ul>:null}
+      {item.gaps?.length?<p className="explorer-amendment-secondary">Partial coverage</p>:null}
     </details>
   </article>;
 }
-type AmendmentProps={language?:string;document?:string|null;procedure?:string|null;member?:string|number|null;outcome?:string;offset?:number;onOutcome?:(value:string)=>void;onOffset?:(value:number)=>void;onMember?:InsightProps['onMember'];heading?:ReactNode};
-export function Amendments({language='en',document,procedure,member,outcome:controlledOutcome,offset:controlledOffset,onOutcome,onOffset,onMember,heading='Amendment trail'}:AmendmentProps) {
+type AmendmentProps={language?:string;scope?:'committee'|'plenary';list?:string|null;committee?:string|null;onCommittee?:(value:string)=>void;document?:string|null;procedure?:string|null;member?:string|number|null;outcome?:string;offset?:number;onOutcome?:(value:string)=>void;onOffset?:(value:number)=>void;onMember?:InsightProps['onMember'];heading?:ReactNode};
+export function Amendments({language='en',scope,list,committee:controlledCommittee,onCommittee,document,procedure,member,outcome:controlledOutcome,offset:controlledOffset,onOutcome,onOffset,onMember,heading='Amendment trail'}:AmendmentProps) {
+  const [localCommittee,setLocalCommittee]=useState('');
+  const committee=controlledCommittee??localCommittee;
   const [localOutcome,setLocalOutcome]=useState(''),[localOffset,setLocalOffset]=useState(0),[groupBy,setGroupBy]=useState('dossier');
   const outcome=controlledOutcome??localOutcome,offset=controlledOffset??localOffset,limit=20,headingId=useId(),headingRef=useRef<HTMLHeadingElement>(null);
-  const state=useData<AmendmentPage>(amendmentRoute({document,procedure,member,outcome,offset,limit,language}));
+  const state=useData<AmendmentPage>(amendmentRoute({scope,list,committee,document,procedure,member,outcome,offset,limit,language}));
+  const committees=[...new Set([...(committee?[committee]:[]),...(state.data?.items||[]).flatMap(item=>item.committees?.map(c=>c.code)||[])])].filter(validCommitteeCode).sort();
   const groups=useMemo(()=>amendmentGroups(state.data?.items||[],groupBy),[state.data,groupBy]);
   useEffect(()=>{
     if(!state.data?.coverage.pending)return;
     const timer=window.setInterval(state.retry,10_000);
     return ()=>window.clearInterval(timer);
   },[state.data?.coverage.pending,state.retry]);
-  useEffect(()=>{if(controlledOffset===undefined)setLocalOffset(0);},[document,procedure,member,language,controlledOffset]);
+  useEffect(()=>{if(controlledOffset===undefined)setLocalOffset(0);},[scope,list,committee,document,procedure,member,language,controlledOffset]);
   function page(value:number){onOffset?onOffset(value):setLocalOffset(value);headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:'start',behavior:'instant'});}
   function filter(value:string){onOutcome?onOutcome(value):setLocalOutcome(value);onOffset?onOffset(0):setLocalOffset(0);}
-  return <section lang="en" className="explorer-amendments" aria-labelledby={headingId} aria-busy={state.loading}><div className="explorer-amendment-section-heading"><h2 id={headingId} ref={headingRef} tabIndex={-1}>{heading}</h2><button onClick={state.retry} disabled={state.loading}>Refresh</button></div><div className="explorer-amendment-controls"><label>Outcome<select value={outcome} onChange={event=>filter(event.target.value)}>{outcomes.map(value=><option key={value} value={value}>{value?amendmentOutcomeLabel(value):'Any outcome'}</option>)}</select></label><label>Group this page by<select value={groupBy} onChange={event=>setGroupBy(event.target.value)}><option value="dossier">Dossier / target document</option><option value="target">Target provision</option><option value="topic">Recorded topic</option></select></label></div>{state.loading&&!state.data&&<p role="status">Loading amendments…</p>}{state.error&&<div className="explorer-amendment-gap" role="alert"><p>Amendments could not be loaded.</p><button onClick={state.retry}>Try again</button></div>}{state.data&&<><div className="explorer-amendment-coverage" role="status"><p><strong><span lang={language}>{state.data.total.toLocaleString(language)}</span> {state.data.total===1?'amendment':'amendments'}</strong>{state.data.coverage.pending?' · checking for amendments':state.data.coverage.complete?'':' · partial coverage'}</p>{state.data.coverage.lastUpdated&&<p>Updated <LocalizedDate value={state.data.coverage.lastUpdated} language={language}/></p>}</div>{!state.data.items.length?<p className="explorer-amendment-empty">{state.data.total?'No amendments on this page.':state.data.coverage.pending?'No matching amendments yet. Checking for amendments.':'No matching amendments.'}</p>:groups.map(group=><section className="explorer-amendment-group" key={group.id}><div className="explorer-amendment-group-heading"><h3><GroupLabel group={group} by={groupBy}/></h3><small>{group.items.length} on this page</small></div>{group.items.map(item=><AmendmentCard key={item.id} item={item} language={language} onMember={onMember}/>)}</section>)}<nav className="explorer-amendment-pagination" aria-label="Amendment pages"><button disabled={offset===0||state.loading} onClick={()=>page(Math.max(0,offset-limit))}>Previous</button><span aria-live="polite">{pageRange(offset,state.data.items.length,state.data.total,'0 amendments')}</span>{!state.data.items.length&&state.data.total>0&&offset>0&&<button onClick={()=>page(0)} disabled={state.loading}>Go to first page</button>}<button disabled={offset+state.data.items.length>=state.data.total||!state.data.items.length||state.loading} onClick={()=>page(offset+limit)}>Next</button></nav></>}</section>;
+  return <section lang="en" className="explorer-amendments" aria-labelledby={headingId} aria-busy={state.loading}><div className="explorer-amendment-section-heading"><h2 id={headingId} ref={headingRef} tabIndex={-1}>{heading}</h2><button onClick={state.retry} disabled={state.loading}>Refresh</button></div><div className="explorer-amendment-controls">{scope==='committee'&&(committees.length>1||committee)&&<label>Committee<select value={committee} onChange={event=>{onCommittee?onCommittee(event.target.value):setLocalCommittee(event.target.value);onOffset?onOffset(0):setLocalOffset(0);}}><option value="">All committees</option>{committees.map(code=><option key={code} value={code}>{code}</option>)}</select></label>}<label>Outcome<select value={outcome} onChange={event=>filter(event.target.value)}>{outcomes.map(value=><option key={value} value={value}>{value?amendmentOutcomeLabel(value):'Any outcome'}</option>)}</select></label><label>Group this page by<select value={groupBy} onChange={event=>setGroupBy(event.target.value)}><option value="dossier">Dossier / target document</option><option value="target">Target provision</option><option value="topic">Recorded topic</option></select></label></div>{state.loading&&!state.data&&<p role="status">Loading amendments…</p>}{state.error&&<div className="explorer-amendment-gap" role="alert"><p>Could not load amendments.</p><button onClick={state.retry}>Try again</button></div>}{state.data&&<><div className="explorer-amendment-coverage" role="status"><p><strong><span lang={language}>{state.data.total.toLocaleString(language)}</span> {state.data.total===1?'amendment':'amendments'}</strong>{state.data.coverage.pending?' · checking for amendments':state.data.coverage.complete?'':' · partial coverage'}</p></div>{!state.data.items.length?<p className="explorer-amendment-empty">{state.data.total?'No amendments on this page.':state.data.coverage.complete?'No matching amendments.':'Amendments unavailable.'}</p>:groups.map(group=><section className="explorer-amendment-group" key={group.id}><div className="explorer-amendment-group-heading"><h3><GroupLabel group={group} by={groupBy}/></h3><small>{group.items.length} on this page</small></div>{group.items.map(item=><AmendmentCard key={item.id} item={item} language={language} onMember={onMember}/>)}</section>)}<nav className="explorer-amendment-pagination" aria-label="Amendment pages"><button disabled={offset===0||state.loading} onClick={()=>page(Math.max(0,offset-limit))}>Previous</button><span aria-live="polite">{pageRange(offset,state.data.items.length,state.data.total,'0 amendments')}</span>{!state.data.items.length&&state.data.total>0&&offset>0&&<button onClick={()=>page(0)} disabled={state.loading}>Go to first page</button>}<button disabled={offset+state.data.items.length>=state.data.total||!state.data.items.length||state.loading} onClick={()=>page(offset+limit)}>Next</button></nav></>}</section>;
 }
 export function AmendmentsPage(props:InsightProps) {
   const language=props.language||'en';
+  const [scope,setScope]=useExplorerParam<'plenary'|'committee'>('am-scope','plenary',['plenary','committee']);
+  const [list,setList]=useExplorerParam<string>('am-list',''),[committee,setCommittee]=useExplorerParam<string>('am-committee','');
   const [document,setDocument]=useExplorerParam<string>('am-document','');
   const [procedure,setProcedure]=useExplorerParam<string>('am-procedure','');
   const [member,setMember]=useExplorerParam<string>('am-member','');
   const [outcome,setOutcome]=useExplorerParam<string>('am-outcome','',outcomes);
   const [offset,setOffset]=useExplorerParam<number>('am-offset',0);
-  const [draft,setDraft]=useState({document,procedure,member});
+  const [draft,setDraft]=useState({document,procedure,member,list});
   const directory=useData<Directory>('directory');
   const authors=useMemo(()=>[...(directory.data?.members||[])].sort(compareMembers),[directory.data]);
   const selectedAuthor=authors.find(person=>String(person.id)===member);
-  useEffect(()=>setDraft({document,procedure,member}),[document,procedure,member]);
+  useEffect(()=>setDraft({document,procedure,member,list}),[document,procedure,member,list]);
   return <InsightShell {...props} view="amendments" title="Amendments" description="Follow proposed changes, their authors and Parliament’s decisions.">
     <form lang="en" className="explorer-amendment-finder" onSubmit={event=>{
-      event.preventDefault();setDocument(draft.document.trim());setProcedure(draft.procedure.trim());setMember(draft.member);setOffset(0);
+      event.preventDefault();setDocument(draft.document.trim());setProcedure(draft.procedure.trim());setMember(draft.member);setList(scope==='committee'?draft.list.trim():'');setOffset(0);
     }}>
+      <label>Stage<select value={scope} onChange={event=>{setScope(event.target.value as typeof scope);setDocument('');setList('');setCommittee('');setOffset(0);setOutcome('');}}><option value="plenary">Plenary</option><option value="committee">Committee</option></select></label>
+      {scope==='committee'&&<label>Amendment list<input value={draft.list} onChange={event=>setDraft(value=>({...value,list:event.target.value}))} placeholder="AGRI-AM-773343" autoComplete="off" spellCheck={false}/></label>}
       <label>Dossier reference<input value={draft.procedure} onChange={event=>setDraft(value=>({...value,procedure:event.target.value}))} placeholder="2025/0407(COD)" autoComplete="off" spellCheck={false}/></label>
-      <label>Target document<input value={draft.document} onChange={event=>setDraft(value=>({...value,document:event.target.value}))} placeholder="A-10-2026-0254" autoComplete="off" spellCheck={false}/></label>
+      <label>Target document<input value={draft.document} onChange={event=>setDraft(value=>({...value,document:event.target.value}))} placeholder={scope==='committee'?'AGRI-PR-773115':'A-10-2026-0254'} autoComplete="off" spellCheck={false}/></label>
       <label>MEP author<select value={draft.member} onChange={event=>setDraft(value=>({...value,member:event.target.value}))}>
         <option value="">{directory.loading&&!authors.length?'Loading authors…':'Any author'}</option>
         {draft.member&&!authors.some(person=>String(person.id)===draft.member)&&<option value={draft.member}>MEP {draft.member} · {directory.loading?'loading name…':'name unavailable'}</option>}
         {authors.map(person=><option lang="" key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>)}
       </select></label>
       <button type="submit">Find amendments</button>
-      {(document||procedure||member||outcome||offset>0)&&<button type="button" onClick={()=>{setDocument('');setProcedure('');setMember('');setOutcome('');setOffset(0);}}>Clear filters</button>}
+      {(document||procedure||member||outcome||list||committee||scope!=='plenary'||offset>0)&&<button type="button" onClick={()=>{setDocument('');setProcedure('');setMember('');setOutcome('');setScope('plenary');setList('');setCommittee('');setOffset(0);}}>Clear filters</button>}
     </form>
     {directory.error&&<p lang="en" className="insight-secondary">Author choices are temporarily unavailable. <button onClick={directory.retry}>Reload authors</button></p>}
-    <Amendments language={language} document={document} procedure={procedure} member={member} outcome={outcome} offset={offset} onOutcome={setOutcome} onOffset={setOffset} onMember={props.onMember} heading={member?<>Amendments by <span lang="">{selectedAuthor?[selectedAuthor.firstName,selectedAuthor.lastName].join(' '):'MEP '+member}</span></>:procedure?<>Amendments for <span lang="">{procedure}</span></>:document?<>Amendments to <span lang="">{document}</span></>:'Latest amendments'}/>
+    <Amendments language={language} scope={scope} list={list} committee={committee} onCommittee={setCommittee} document={document} procedure={procedure} member={member} outcome={outcome} offset={offset} onOutcome={setOutcome} onOffset={setOffset} onMember={props.onMember} heading={member?<>Amendments by <span lang="">{selectedAuthor?[selectedAuthor.firstName,selectedAuthor.lastName].join(' '):'MEP '+member}</span></>:procedure?<>Amendments for <span lang="">{procedure}</span></>:document?<>Amendments to <span lang="">{document}</span></>:'Latest amendments'}/>
   </InsightShell>;
 }

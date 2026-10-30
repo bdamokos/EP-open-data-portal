@@ -97,13 +97,13 @@ for(const locale of ['en','hu','fr'])test(`${locale}: amendment controls, source
   assert.equal(container.querySelector('.explorer-amendment-group-heading h3').textContent,'Topic unavailable');
   assert.equal(effectiveLanguage(container.querySelector('.explorer-amendment-group-heading h3')),'en');
   await act(async()=>{grouping.value='dossier';grouping.dispatchEvent(new window.Event('change',{bubbles:true}));});
-  for(const scope of ['.explorer-amendment-card>.explorer-amendment-evidence>.explorer-amendment-meta','.explorer-amendment-decision','.explorer-amendment-evidence','.explorer-amendment-variant','.explorer-amendment-coverage']){
+  for(const scope of ['.explorer-amendment-card>.explorer-amendment-evidence>.explorer-amendment-meta','.explorer-amendment-decision','.explorer-amendment-evidence','.explorer-amendment-variant']){
     const dates=[...container.querySelectorAll(scope+' time')];assert(dates.length,scope);
     for(const date of dates){assert.equal(effectiveLanguage(date),locale);assert.equal(effectiveLanguage(date.parentElement),'en');}
   }
   assert.equal(card('known-fr').querySelector('.explorer-amendment-evidence>.explorer-amendment-meta time').textContent,fmt('2026-10-06',locale));
-  assert.equal(container.querySelector('.explorer-amendment-coverage time').textContent,fmt('2026-10-16',locale));
-  const authorSelect=container.querySelector('.explorer-amendment-finder select');
+  assert.equal(container.querySelector('.explorer-amendment-coverage time'),null,'retrieval timestamps stay out of the reading view');
+  const authorSelect=[...container.querySelectorAll('.explorer-amendment-finder label')].find(label=>label.textContent.startsWith('MEP author')).querySelector('select');
   await act(async()=>{authorSelect.value='42';authorSelect.dispatchEvent(new window.Event('change',{bubbles:true}));});
   await act(async()=>container.querySelector('.explorer-amendment-finder').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   assert.equal(effectiveLanguage(container.querySelector('.explorer-amendment-section-heading h2')),'en');

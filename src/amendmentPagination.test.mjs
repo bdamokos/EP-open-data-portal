@@ -86,6 +86,6 @@ test('zero indexed results with partial coverage explicitly retain the incomplet
   });
   assert.equal(container.querySelectorAll('.explorer-amendment-card').length,0);
   assert.match(container.querySelector('.explorer-amendment-coverage').textContent,/partial coverage/i);
-  assert.equal(container.querySelector('.explorer-amendment-empty').textContent,'No matching amendments.');
+  assert.equal(container.querySelector('.explorer-amendment-empty').textContent,'Amendments unavailable.');
   assert.match(container.querySelector('nav[aria-label="Amendment pages"]').textContent,/0 amendments/);
 });
