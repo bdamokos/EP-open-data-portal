@@ -56,10 +56,10 @@ function ContributorActivity({detail,headers,person,language,onSpeech}:{detail:N
   const counts=legislationActivity(detail,headers,person),amendments=legislationAmendmentCounts(detail,person),latest=legislationLatestSpeech(detail,headers,person);
   const references=detail.procedures.filter(p=>p.reference).map(p=>({id:p.id,reference:p.reference!}));
   return <><ul className="insight-person-activity" lang="en" aria-label="Linked activity">
-    <li>{counts.speeches===null?'Speeches unavailable':<><strong>{counts.speeches}</strong> {counts.speeches===1?'speech':'speeches'}</>}</li>
+    {counts.speeches!==null&&<li><strong>{counts.speeches}</strong> {counts.speeches===1?'speech':'speeches'}</li>}
     {counts.statements&&<li><strong>{counts.statements}</strong> {counts.statements===1?'written statement':'written statements'}</li>}
     {(['committee','plenary'] as const).map(stage=>amendments[stage]!==null&&amendments[stage]!>0?<li key={stage}><DossierAmendmentLinks references={references} person={person} language={language} stage={stage} count={amendments[stage]!}/></li>:null)}
-  </ul>{latest&&<button type="button" className="insight-text-button" onClick={()=>onSpeech(latest.sourceId)}>Latest plenary contribution</button>}</>;
+  </ul>{latest&&<button type="button" className="insight-text-button" onClick={()=>onSpeech(latest.sourceId)}>Latest plenary contribution <span lang={language}>{humanDate(latest.date,language)}</span></button>}</>;
 }
 function ContributorAnalysis({stats,language}:{stats:InsightStats;language:string}) {
   if(stats.denominator<=0&&!(stats.groupContributions?.total))return null;

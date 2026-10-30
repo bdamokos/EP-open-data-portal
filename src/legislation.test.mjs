@@ -46,7 +46,7 @@ test('vote changes preserve agenda readers and expansion through loading, failur
   const container=document.createElement('div');document.body.append(container);
   root=createRoot(container);
   await act(async()=>root.render(createElement(Legislation,{language:'en',onBack(){}})));
-  assert.match(container.querySelector('.insight-person-activity').textContent,/Speeches unavailable1 written statement3\+ Plenary amendments/);
+  assert.match(container.querySelector('.insight-person-activity').textContent,/1 written statement3\+ Plenary amendments/);
   assert.equal(calls.filter(url=>url.pathname.includes('amendments')).length,0,'card counts need no per-person requests');
   assert.equal(container.querySelector('.insight-participants>.insight-secondary'),null,'No activity disclaimer is displayed');
   const activities=[...container.querySelectorAll('.insight-participants .insight-person-activity')];

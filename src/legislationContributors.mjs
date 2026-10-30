@@ -8,8 +8,12 @@ export function legislationAmendmentCounts(detail,personId) {
   return detail.amendments&&Object.hasOwn(detail.amendments,'countsByStage')?{committee:observed(counts?.committee),plenary:observed(counts?.plenary)}:{committee:null,plenary:observed(detail.amendments?.counts?.[personId])};
 }
 export function legislationLatestSpeech(detail,headers,personId) {
-  return detail.speeches.filter(speech=>speech.date&&speech.date<=detail.date&&speech.people.some(person=>person.id===personId)&&headers[speech.sourceId]?.[personId]?.role!=='Chairing the sitting')
-    .toSorted((a,b)=>b.date.localeCompare(a.date)||(Date.parse(b.start)||0)-(Date.parse(a.start)||0)||a.sourceId.localeCompare(b.sourceId))[0]||null;
+  const speeches=[...new Map(detail.speeches.filter(speech=>speech.date&&speech.date<=detail.date&&speech.people.some(person=>person.id===personId)&&headers[speech.sourceId]?.[personId]?.role!=='Chairing the sitting').map(speech=>[speech.sourceId,speech])).values()];
+  const latestDate=speeches.map(speech=>speech.date).sort().at(-1),sameDay=speeches.filter(speech=>speech.date===latestDate);
+  if(sameDay.length<2)return sameDay[0]||null;
+  if(sameDay.some(speech=>!Number.isFinite(Date.parse(speech.start))))return null;
+  const ordered=sameDay.toSorted((a,b)=>Date.parse(b.start)-Date.parse(a.start));
+  return Date.parse(ordered[0].start)>Date.parse(ordered[1].start)?ordered[0]:null;
 }
 export function legislationActivity(detail,headers,personId) {
   const speeches=new Set(),statements=new Set();

@@ -58,6 +58,12 @@ test('latest plenary shortcut uses only exact agenda speeches on or before the s
   const detail=agendaDetail();detail.speeches=[{sourceId:'old',date:'2025-05-20',people:[person('2')]},{sourceId:'future',date:'2025-06-02',people:[person('2')]},{sourceId:'other-person',date:'2025-06-01',people:[person('1')]},{sourceId:'chair',date:'2025-06-01',people:[person('2')]}];
   assert.equal(legislationLatestSpeech(detail,{chair:{'2':{role:'Chairing the sitting'}}},'2').sourceId,'old');
   assert.equal(legislationLatestSpeech(detail,{},'9'),null);
+  detail.speeches=[{sourceId:'one',date:'2025-06-01',people:[person('2')]},{sourceId:'two',date:'2025-06-01',people:[person('2')]}];
+  assert.equal(legislationLatestSpeech(detail,{},'2'),null,'same-day IDs cannot establish the latest contribution');
+  detail.speeches[0].start='2025-06-01T09:00:00Z';detail.speeches[1].start='2025-06-01T10:00:00Z';
+  assert.equal(legislationLatestSpeech(detail,{},'2').sourceId,'two');
+  detail.speeches[1].start=detail.speeches[0].start;
+  assert.equal(legislationLatestSpeech(detail,{},'2'),null,'equal timestamps retain unresolved order');
 });
 
 function participantPage(participants,coverage={status:'partial',retryable:true,uncheckedTargets:[list],gaps:[],sources:[]}){
