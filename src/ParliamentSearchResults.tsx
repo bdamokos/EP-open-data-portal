@@ -41,7 +41,7 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
       {section.coverage.conflicts?.length? <p className="explorer-search-hint">{new Set(section.coverage.conflicts.map(row=>row.id)).size} agenda records have conflicting details.</p>:null}
       {section.coverage.limited&&<p className="explorer-search-hint">{section.type==='question'?'Search limited to 50,000 question records.':section.coverage.pageLimitedAgendas?`Search reached 100 agenda records in ${section.coverage.pageLimitedAgendas} sittings.`:'Search reached its sitting limit.'}</p>}
       {section.coverage.error&&<p className="explorer-search-hint">Some agenda records could not be read.</p>}
-      <AvailabilityNote sources={section.coverage.availability} sourceIds={section.results.map(result=>result.id)} label="question" language={language}/>
+      <AvailabilityNote sources={section.coverage.availability} label="question" language={language}/>
       {!section.results.length&&section.coverage.available&&<p>{section.coverage.complete?'No matches.':'No matches in the loaded records.'}</p>}
       {section.results.map(result=><article className="explorer-search-result" key={result.id}>
         <div className="explorer-search-meta"><span>{section.type==='mep'?'MEP':section.type==='topic'?'Plenary topic':result.id}</span>{result.date&&<time dateTime={result.date} lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(result.date+'T12:00:00Z'))}</time>}</div>

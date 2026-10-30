@@ -77,7 +77,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
         if(record)sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});
         const event=record?.payload.data.find(node=>canonical(node.id)===uri);
         if(!event||tail(event.had_activity_type)!=='PLENARY_DEBATE'||event.activity_date!==sitting.activity_date)continue;
-        if(!Array.isArray(event.consists_of))continue;
+        if(!array(event.consists_of).length)continue;
         const declared=[...new Set(refs(event.consists_of).filter(uri=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(uri)).map(tail))],children=declared.slice(0,200);
         if(!children.length)continue;
         const projected=children.length?store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1001`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body)):[],rows=projected.slice(0,1000);

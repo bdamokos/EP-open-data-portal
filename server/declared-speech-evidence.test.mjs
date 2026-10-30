@@ -29,3 +29,10 @@ test('child dates must agree even when the procedure omits its debate date',()=>
   assert.equal(proof.speeches.size,0);assert(proof.conflicted.has(id));
   assert.equal(read([{...speech(),activity_date:'2024-10-08'}],'2024-10-07').speeches.size,0);
 });
+
+test('the dated event identity reconciles each supplied date without manufacturing one',()=>{
+  for(const [nodes,date] of [[[ {...speech(),activity_date:'2024-10-08'} ],null],[[speech()],'2024-10-08']]){
+    const proof=read(nodes,date);assert.equal(proof.speeches.size,0);assert(proof.conflicted.has(id));
+  }
+  assert.equal(read([speech()]).speeches.get(id).date,null);
+});

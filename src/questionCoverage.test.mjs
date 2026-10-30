@@ -8,7 +8,7 @@ import {QuestionInsights,insightQuery} from '../server/insights-store.mjs';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 const clock=()=>Date.parse('2026-10-30T12:00:00Z');
-for(const view of ['topics','countries','time','selected-country','ninety-days','time-with-feed-500','time-with-feed-501','time-with-feed-1502'])test('bounded archive failures stay visible across unfiltered question presentations: '+view,async t=>{
+for(const view of ['only-dates','topics','countries','time','selected-country','ninety-days','time-with-feed-500','time-with-feed-501','time-with-feed-1502'])test('bounded archive failures stay visible across unfiltered question presentations: '+view,async t=>{
   const directory=mkdtempSync('/tmp/question-coverage-'),store=new ActivityStore(directory,{clock});
   t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
   store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',name:'Example',countryCode:'HU'}]);
@@ -18,11 +18,12 @@ for(const view of ['topics','countries','time','selected-country','ninety-days',
   const withFeed=view.startsWith('time-with-feed-'),gapCount=withFeed?Number(view.split('-').at(-1)):501;
   for(let i=1;i<=(withFeed?gapCount-1:gapCount);i++)insert.run(generation,'/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'));
   if(withFeed)store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,'feed:/parliamentary-questions','feed',?)").run(generation,JSON.stringify({endpoint:'/parliamentary-questions',start:'2026-10-01'}));
+  if(view==='only-dates')store.db.prepare("UPDATE refresh_gaps SET body=? WHERE generation=? AND key=?").run(JSON.stringify({start:'2026-10-16',end:'2026-10-16'}),generation,'/parliamentary-questions/E-10-2026-000501');
   store.publish(generation);store.release();store.db.exec('PRAGMA query_only=ON');
   const producer=new QuestionInsights(store,{clock,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()});
   const days=view==='ninety-days'||withFeed?'90':'term',country=view==='selected-country'?'HU':null;
-  const data=await producer.query(insightQuery(new URLSearchParams({days,...(country?{country}:{})}),{now:clock()}));
-  const window=new Window({url:'http://localhost/?view=questions&q-days='+days+'&q-view='+(withFeed?'time':['topics','countries','time'].includes(view)?view:'topics')+(country?'&q-country='+country:'')});
+  const data=await producer.query(insightQuery(new URLSearchParams({days,...(country?{country}:{}),...(view==='only-dates'?{from:'2026-10-01',to:'2026-10-30'}:{})}),{now:clock()}));
+  const window=new Window({url:'http://localhost/?view=questions&q-days='+days+'&q-view='+(withFeed?'time':['topics','countries','time'].includes(view)?view:'topics')+(country?'&q-country='+country:'')+(view==='only-dates'?'&q-range=2026-10-01_2026-10-30':'')});
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:window.requestAnimationFrame.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
   const previous=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
@@ -35,5 +36,6 @@ for(const view of ['topics','countries','time','selected-country','ninety-days',
   await act(async()=>{});await act(async()=>t.mock.timers.tick(350));
   assert.equal(container.querySelector('[role=alert]'),null);
   assert.equal(container.textContent.includes('At least 501 question reads failed'),['topics','countries','time'].includes(view));
+  if(view==='only-dates')assert.match(container.textContent,/1 question read failed.*Oct 16, 2026/);
   if(withFeed){assert(container.querySelector('.availability-gaps'));assert([...container.querySelectorAll('svg [aria-label]')].some(node=>node.getAttribute('aria-label').includes('Partial')));}
 });

@@ -145,3 +145,14 @@ test('query validation bounds types, dates, offsets and repeated parameters',()=
   assert.deepEqual(query('q=%22blue+flag%22+beach').terms,['blue flag','beach']);
   for(const value of ['q=','q=a&type=wrong','q=a&offset=-1','q=a&offset=1001','q=a&offset=1.5','q=a&from=2026-02-30','q=a&from=2026-10-01&to=2026-09-01','q=a&q=b','q=a&other=x'])assert.throws(()=>query(value),error=>error.status===400,value);
 });
+
+for(const boundary of ['2026-10-14','2026-10-15'])test('question scan cap is scoped to the unprocessed ordered boundary '+boundary,async t=>{
+ const {service,store}=setup(t),prepare=store.db.prepare.bind(store.db);
+ t.mock.method(store.db,'prepare',sql=>sql.includes('FROM sources INDEXED BY question_window')?{iterate:function*(){
+   for(let i=0;i<50000;i++)yield {id:'invalid',key:'/invalid',date:'2026-10-15'};
+   yield {id:'invalid',key:'/invalid',date:boundary};
+ }}:prepare(sql));
+ const section=(await service.query(query('q=none&type=question&from=2026-10-15&to=2026-10-15'))).sections[0];
+ assert.equal(section.coverage.limited,boundary==='2026-10-15');
+ assert.equal(section.coverage.complete,boundary==='2026-10-14');
+});

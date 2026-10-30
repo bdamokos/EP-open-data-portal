@@ -428,3 +428,9 @@ test('a consumed direct-speech opening does not reopen a closed reader after a l
   assert.equal(container.querySelector('.ov-drawer .ov-speech-reader'),null,'new drawer data cannot revive an already consumed opening');
   assert.equal(calls.filter(url=>url.pathname.includes('/speech/')).length,speechCalls);
 });
+
+test('an incomplete speaker directory qualifies its empty selection in visible and live copy',async t=>{
+ const h=await harness(t,[]);await act(async()=>{});
+ assert.match(h.container.querySelector('.ov-empty').textContent,/No matching speakers loaded/);
+ assert.doesNotMatch(h.container.textContent,/No speakers match\./);
+});

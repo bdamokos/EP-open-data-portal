@@ -11,7 +11,7 @@ import {indexAvailability} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {periodAvailability} from './source-availability.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=5;
+export const PARLIAMENT_SEARCH_VERSION=6;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -55,7 +55,7 @@ export class ParliamentSearch {
         FROM sources INDEXED BY question_window WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 50001`).iterate(generation);
       const seen=new Set();let scanned=0,latestObservedDate=null;
       for(const row of rows) {
-        if(scanned++===50000){coverage.question.limited=true;break;}
+        if(scanned++===50000){coverage.question.limited=!(query.from||query.to)||Boolean(row.date&&(!query.from||row.date>=query.from));break;}
         if(scanned%250===0){await yieldTurn();requestSignal()?.throwIfAborted();}
         const id=row.id||row.key.split('/').at(-1);
         if(!/^[EOP]-10-\d{4}-\d{6}$/.test(id)||seen.has(id)||!inPeriod(row.date))continue;
