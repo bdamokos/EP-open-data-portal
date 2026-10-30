@@ -1,3 +1,4 @@
+import {versionedPortraitUrl} from './portrait-version.mjs';
 import {loopback} from './test-support/loopback.mjs';
 import test from 'node:test';
 import {API_VERSION, versionedApiUrl} from './api-version.mjs';
@@ -101,6 +102,14 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
     }
   }
 
+  const independent = await originalFetch(base + versionedPortraitUrl('/api/portrait/43'));
+  assert.equal(independent.status,200);
+  assert(independent.headers.get('cdn-cache-control').startsWith('public,'));
+  const independentTag=independent.headers.get('etag');
+  await independent.arrayBuffer();
+  const independentHead=await originalFetch(base + versionedPortraitUrl('/api/portrait/43'),{method:'HEAD',headers:{'If-None-Match':independentTag}});
+  assert.equal(independentHead.status,304);
+  assert(independentHead.headers.get('cdn-cache-control').startsWith('public,'));
   const portrait = await get('/api/portrait/43');
   assert.equal(portrait.status, 200);
   assert.equal(portrait.headers.get('cache-control'), 'public, max-age=86400');

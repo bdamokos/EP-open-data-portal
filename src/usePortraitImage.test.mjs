@@ -4,94 +4,65 @@ import {createElement, act} from 'react';
 import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
-test('priority changes preserve requests and decoded portraits, and can start a waiting portrait', async t => {
+async function harness(t) {
   const window = new Window({url: 'http://localhost/'});
-  const observers = [], requests = [], revoked = [];
-  const frames = new Map(); let nextFrame = 0;
-  t.mock.method(window, 'requestAnimationFrame', callback => {frames.set(++nextFrame, callback); return nextFrame;});
-  t.mock.method(window, 'cancelAnimationFrame', id => frames.delete(id));
-  class Observer {
-    constructor(callback, options) {this.callback = callback; this.options = options; observers.push(this);}
-    observe() {}
-    disconnect() {}
-  }
-  window.IntersectionObserver = Observer;
-  const globals = {window, document: window.document, HTMLElement: window.HTMLElement, IntersectionObserver: Observer, IS_REACT_ACT_ENVIRONMENT: true};
+  const globals = {window, document: window.document, HTMLElement: window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true};
   const originals = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, {value, configurable: true, writable: true});
-  let loadModule, root, nextBlob = 0;
-  t.after(async () => {
-    if (root) await act(async () => root.unmount());
-    if (loadModule) await loadModule.close();
-    await window.happyDOM.close();
-    for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
-  });
-  t.mock.method(URL, 'createObjectURL', () => `blob:portrait-${++nextBlob}`);
-  t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
-  loadModule = await freshLoader({configFile: false, server: {middlewareMode: true, hmr: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
-  const {portraitLoader} = await loadModule('/src/portraitLoader.mjs');
-  t.mock.method(portraitLoader, 'load', (url, {signal, priority}) => {
-    const priorities = [priority];
-    return Object.assign(new Promise(resolve => requests.push({url, signal, resolve, priorities})), {setPriority: value => priorities.push(value)});
-  });
-  const {usePortraitImage} = await loadModule('/src/usePortraitImage.ts');
-  function Portrait({url, lazy}) {
-    const image = usePortraitImage(url, '/placeholder.svg', lazy);
-    return createElement('img', {ref: image.imageRef, src: image.src, onLoad: image.onLoad, 'data-status': image.status});
-  }
+  const load = await freshLoader({configFile: false, server: {middlewareMode: true, hmr: false, ws: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
+  const {usePortraitImage} = await load('/src/usePortraitImage.ts');
+  const {versionedPortraitUrl} = await load('/server/portrait-version.mjs');
   const {createRoot} = await import('react-dom/client');
   const container = document.createElement('div'); document.body.append(container);
-  container.style.overflowY = 'auto';
-  Object.defineProperty(container, 'clientHeight', {value: 844});
-  const wall = document.createElement('div'); wall.dataset.portraitScrollRoot = '';
-  container.append(wall);
-  root = createRoot(wall);
-  const render = (lazy, url = '/api/portrait/1') => act(async () => root.render(createElement(Portrait, {url, lazy})));
-  const image = () => container.querySelector('img');
+  const root = createRoot(container);
+  t.after(async () => {
+    await act(async () => root.unmount()); await load.close(); await window.happyDOM.close();
+    for (const [key, descriptor] of originals) descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete globalThis[key];
+  });
+  function Portrait({url, lazy}) {
+    const image = usePortraitImage(url, '/placeholder.svg', lazy);
+    return createElement('img', {ref: image.imageRef, src: image.src, loading: image.loading, onLoad: image.onLoad, onError: image.onError, 'data-status': image.status});
+  }
+  return {window, versionedPortraitUrl, root, image: () => container.querySelector('img'), render: (lazy = true, url = '/api/portrait/1') => act(async () => root.render(createElement(Portrait, {url, lazy})))};
+}
 
-  await render(true);
-  assert.equal(requests.length, 0);
-  assert.equal(observers.at(-1).options.root, container, 'mobile look-ahead expands the actual page scroll container');
-  assert.equal(observers.at(-1).options.rootMargin, '1688px 0px', 'look-ahead remains two viewports rather than the full roster height');
-  await act(async () => observers.at(-1).callback([{isIntersecting: true}]));
-  assert.equal(requests.length, 0, 'speculative work gives viewport observations the first response slots');
-  await act(async () => {for (const [id, callback] of frames) {frames.delete(id); callback();}});
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].priorities[0], 'background', 'look-ahead starts a paced request');
-  const viewportObserver = observers.find(observer => !observer.options);
-  await act(async () => viewportObserver.callback([{isIntersecting: true}]));
-  assert.equal(requests[0].priorities.at(-1), 'visible', 'entering the viewport promotes the existing request');
-  await act(async () => viewportObserver.callback([{isIntersecting: false}]));
-  assert.equal(requests[0].priorities.at(-1), 'background', 'leaving the viewport restores look-ahead priority');
-  await render(false);
-  await render(true);
-  assert.equal(requests.length, 1, 'priority changes must not restart active work');
-  assert.equal(requests[0].signal.aborted, false);
-  await act(async () => requests[0].resolve(new Blob(['portrait'])));
-  await act(async () => image().dispatchEvent(new window.Event('load')));
-  assert.equal(image().getAttribute('data-status'), 'loaded');
-  const displayed = image().getAttribute('src');
-  await render(false);
-  await render(true);
-  assert.equal(image().getAttribute('src'), displayed, 'loaded image stays displayed across priority changes');
-  assert.equal(image().getAttribute('data-status'), 'loaded');
-  assert.equal(requests.length, 1);
-  assert.deepEqual(revoked, []);
+test('real photo URLs render immediately and stay stable through loading priority and member changes', async t => {
+  const h = await harness(t);
+  t.mock.method(globalThis, 'fetch', () => assert.fail('portraits use native images'));
+  t.mock.method(URL, 'createObjectURL', () => assert.fail('normal images must retain browser-cache URLs'));
+  await h.render();
+  assert.equal(h.image().getAttribute('src'), h.versionedPortraitUrl('/api/portrait/1'));
+  assert.equal(h.image().loading, 'lazy');
+  await act(async () => h.image().dispatchEvent(new h.window.Event('load')));
+  assert.equal(h.image().dataset.status, 'loaded');
+  await h.render(false); assert.equal(h.image().loading, 'eager');
+  assert.equal(h.image().dataset.status, 'loaded');
+  await h.render(true, '/api/portrait/2');
+  assert.equal(h.image().getAttribute('src'), h.versionedPortraitUrl('/api/portrait/2'));
+  assert.equal(h.image().dataset.status, 'loading');
+});
 
-  wall.style.overflowY = 'auto';
-  Object.defineProperty(wall, 'clientHeight', {value: 400});
-  await render(true, '/api/portrait/2');
-  assert.equal(observers.at(-1).options.root, wall, 'desktop look-ahead expands the internally scrolling wall');
-  assert.equal(observers.at(-1).options.rootMargin, '800px 0px');
-  assert.equal(image().getAttribute('src'), '/placeholder.svg');
-  assert.deepEqual(revoked, [displayed], 'changing source releases the old blob');
-  assert.equal(requests.length, 1, 'new lazy source waits for proximity');
-  await render(false, '/api/portrait/2');
-  assert.equal(requests.length, 2, 'promotion starts a waiting source without an intersection');
-  assert.equal(requests[1].url, '/api/portrait/2');
-  await act(async () => requests[1].resolve(new Blob(['next portrait'])));
-  const second = image().getAttribute('src');
-  await act(async () => root.unmount()); root = null;
-  assert.deepEqual(revoked, [displayed, second], 'unmount releases the remaining blob');
-  assert.equal(requests[1].signal.aborted, true);
+test('an opaque native image failure shows a silhouette without a retry that could ignore Retry-After', async t => {
+  const h = await harness(t);
+  t.mock.method(globalThis, 'fetch', () => assert.fail('native errors must not trigger a second GET'));
+  await h.render(false);
+  await act(async () => h.image().dispatchEvent(new h.window.Event('error')));
+  assert.equal(h.image().getAttribute('src'), '/placeholder.svg');
+  await act(async () => h.image().dispatchEvent(new h.window.Event('load')));
+  assert.equal(h.image().dataset.status, 'error', 'a loaded fallback is still unavailable');
+  await h.render(true);
+  assert.equal(h.image().dataset.status, 'error', 'priority changes do not retry failures');
+  await h.render(false, '/api/portrait/2');
+  assert.equal(h.image().getAttribute('src'), h.versionedPortraitUrl('/api/portrait/2'));
+  assert.equal(h.image().dataset.status, 'loading');
+});
+
+test('ordinary image URLs and placeholders retain their original paths', async t => {
+  const h = await harness(t);
+  for (const url of ['/assets/person.jpg', 'https://www.europarl.europa.eu/mepphoto/43.jpg', '/assets/portrait-placeholder.svg']) {
+    await h.render(false, url);
+    assert.equal(h.image().getAttribute('src'), url);
+    await act(async () => h.image().dispatchEvent(new h.window.Event('load')));
+    assert.equal(h.image().dataset.status, 'loaded');
+  }
 });

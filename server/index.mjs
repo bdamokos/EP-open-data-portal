@@ -1,3 +1,4 @@
+import {PORTRAIT_VERSION} from './portrait-version.mjs';
 import {followingDossiers} from './follow-dossiers.mjs';
 import {followingResponse} from './insights-following.mjs';
 import {savedPostQuery,savedStates} from './insights-saved.mjs';
@@ -129,13 +130,14 @@ async function handleApi(request,response,url,apiPrefix){
  const versions=url.searchParams.getAll('v');
  if(versions.length>1 || versions.length===1 && (!/^[1-9][0-9]*$/.test(versions[0]) || !Number.isSafeInteger(Number(versions[0]))))
    throw new HttpError(400,'invalid_api_version','v must be a single positive integer.');
- const currentVersion=versions[0]===String(API_VERSION);
+ const segments=routeSegments(url.pathname,apiPrefix);
+ // Keep current API-versioned URLs working for clients from before the split.
+ const currentVersion=versions[0]===String(API_VERSION)||segments.length===2&&segments[0]==='portrait'&&versions[0]===String(PORTRAIT_VERSION);
  url.searchParams.delete('v');
  if(versions.length && !currentVersion){
    sendJson(request,response,409,{error:{code:'api_version_mismatch',message:'A new version of the explorer is available.',apiVersion:API_VERSION}});
    return;
  }
- const segments=routeSegments(url.pathname,apiPrefix);
  const endpoint=segments[0]||'';
  if(endpoint&&!apiEndpoints.has(endpoint))throw new HttpError(404,'not_found','The requested API endpoint does not exist.');
  const isSavedPost=segments.length===2&&endpoint==='insights'&&segments[1]==='saved';

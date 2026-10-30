@@ -42,27 +42,24 @@ test('API GETs and prefetches carry the contract version without changing route 
   assert.equal(new URL(location.href).searchParams.has('v'),false);
 });
 
-test('concurrent API and portrait mismatches show one localized recovery notice and reload only on click',async t=>{
+test('concurrent API mismatches show one localized recovery notice and reload only on click',async t=>{
   const x=await harness(t),reloads=[],calls=[];
   history.replaceState(null,'','?lang=hu&view=groups&mep=43#contribution');
   const before=location.href;
   t.mock.method(location,'reload',()=>reloads.push(location.href));
   const {readJson}=await x.load('/src/client.mjs');
-  const {createPortraitLoader}=await x.load('/src/portraitLoader.mjs');
   const ordinary=()=>Response.json({error:{code:'snapshot_expired',message:'Snapshot expired.'}},{status:409});
   await assert.rejects(readJson('/api/member-votes/43',{fetchImpl:ordinary}));
   await x.render(h(x.RootBoundary,null,h('p',null,'Current view')));
   assert.equal(x.container.textContent,'Current view');
   const mismatch=async url=>{calls.push(url);return Response.json({error:{code:'api_version_mismatch',apiVersion:2,message:'A new version of the explorer is available.'}},{status:409});};
-  const portraits=createPortraitLoader({fetchImpl:mismatch});
   await act(async()=>{
     await Promise.all([
       assert.rejects(readJson('/api/directory',{fetchImpl:mismatch}),error=>error.code==='api_version_mismatch'),
       assert.rejects(readJson('/api/profile/43',{fetchImpl:mismatch}),error=>error.code==='api_version_mismatch'),
-      assert.rejects(portraits.load('/api/portrait/43'),/409/),
     ]);
   });
-  assert.equal(calls.length,3,'a mismatch is not retried');
+  assert.equal(calls.length,2,'a mismatch is not retried');
   assert.equal(x.container.querySelectorAll('[role=alert]').length,1);
   assert.equal(x.container.querySelector('h1').textContent,'Elérhető a parlamenti adatböngésző új verziója');
   assert.equal(x.container.querySelector('main').lang,'hu');

@@ -90,7 +90,8 @@ test('global search stays remembered across top-level navigation while its share
 
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
   const h=await harness(t,'',false,false,false,true);
-  assert.deepEqual(h.portraitRequests,['portrait/257043']);
+  assert.match(h.container.querySelector('[data-member-id="257043"] img').getAttribute('src'),/^\/api\/portrait\/257043\?v=1$/);
+  assert.deepEqual(h.portraitRequests,[], 'portraits use native image loading');
   assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
 });
 
