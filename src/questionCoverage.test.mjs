@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {createElement,act} from 'react';
+import {Window} from 'happy-dom';
+import {ActivityStore} from '../server/activity-index-store.mjs';
+import {QuestionInsights,insightQuery} from '../server/insights-store.mjs';
+import {freshLoader} from './test-support/viteRunner.mjs';
+
+const clock=()=>Date.parse('2026-10-30T12:00:00Z');
+for(const view of ['topics','countries','time','selected-country','ninety-days'])test('bounded archive failures stay visible across unfiltered question presentations: '+view,async t=>{
+  const directory=mkdtempSync('/tmp/question-coverage-'),store=new ActivityStore(directory,{clock});
+  t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+  store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',name:'Example',countryCode:'HU'}]);
+  const id='E-10-2026-000001';
+  store.putSource(generation,'/parliamentary-questions/'+id,'document',{id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/QUESTION_WRITTEN',document_date:'2026-10-01',title_dcterms:{en:'Climate energy policy'},creator:['person/42']},clock());
+  const insert=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,'document','{}')");
+  for(let i=1;i<=501;i++)insert.run(generation,'/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'));
+  store.publish(generation);store.release();store.db.exec('PRAGMA query_only=ON');
+  const producer=new QuestionInsights(store,{clock,loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()});
+  const days=view==='ninety-days'?'90':'term',country=view==='selected-country'?'HU':null;
+  const data=await producer.query(insightQuery(new URLSearchParams({days,...(country?{country}:{})}),{now:clock()}));
+  const window=new Window({url:'http://localhost/?view=questions&q-days='+days+'&q-view='+(['topics','countries','time'].includes(view)?view:'topics')+(country?'&q-country='+country:'')});
+  const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:window.requestAnimationFrame.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
+  const previous=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {QuestionTopics}=await load('/src/QuestionTopics.tsx'),{createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
+  t.after(async()=>{await act(async()=>root.unmount());t.mock.timers.reset();await load.close();await window.happyDOM.close();for(const [key,descriptor]of previous)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  t.mock.method(globalThis,'fetch',async()=>Response.json(data));t.mock.timers.enable({apis:['setTimeout']});
+  await act(async()=>root.render(createElement(QuestionTopics,{language:'en',onBack(){}})));
+  await act(async()=>{});await act(async()=>t.mock.timers.tick(350));
+  assert.equal(container.querySelector('[role=alert]'),null);
+  assert.equal(container.textContent.includes('At least 501 question reads failed'),['topics','countries','time'].includes(view));
+});

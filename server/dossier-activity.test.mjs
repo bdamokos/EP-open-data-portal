@@ -256,6 +256,14 @@ test('split child declarations require consistent type, identity, date and paren
   }
 });
 
+test('a cached non-speech classification cannot erase an exact attributed speech declaration',async t=>{
+  const x=setup(t),id='MTG-PL-2026-09-15-OTH-996';
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push({id:uri(id),had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+MEMBER]}]});
+  x.store.putSource(x.generation,'/events/'+id,'event',{id,kind:'PLENARY_PROCEEDING',classificationVersion:1,declaredBy:DEBATE,source:{url:'https://data.europarl.europa.eu/api/v2/events/'+id+'?format=application%2Fld%2Bjson',fetchedAt:now}},now);
+  const selected=await x.service.query(x.q('speeches'));
+  assert.equal(selected.coverage.status,'partial');assert.deepEqual(selected.coverage.missingSpeechIds,[id]);
+});
+
 test('generic speech classification qualifies all-contributor discovery but not an unknown member attribution',async t=>{
   const x=setup(t),id='MTG-PL-2026-09-15-OTH-994';
   x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(id));

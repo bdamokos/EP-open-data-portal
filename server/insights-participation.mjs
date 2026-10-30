@@ -14,6 +14,7 @@ import {refs,voteScope} from './insights-legislation-model.mjs';
 import {odpLanguage} from './odp.mjs';
 import {brusselsDay} from './insights-store.mjs';
 import {LEGISLATION_LIMITS,sourceCacheState,sourceIsTransient} from './insights-legislation.mjs';
+import {declaredSpeechEvidence} from './declared-speech-evidence.mjs';
 export function participationQuery(search) {
   for(const key of search.keys())if(!['lang','sitting','week','country'].includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated participation query.');
   const sitting=search.get('sitting'),week=search.get('week'),country=search.get('country');if(country&&!countryCode(country))throw new HttpError(400,'invalid_country','Choose a country of representation.');
@@ -61,7 +62,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const sittings=query.week?catalogue.sittings.filter(s=>s.activity_date>=query.week&&s.activity_date<=end):catalogue.sittings.filter(s=>s.activity_id===selected);
   if(!sittings.length)missingSitting(catalogue);
   if(sittings.length>5)throw new HttpError(502,'sitting_calendar_invalid','Too many sitting days in this week.');
-  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords,store}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],speechProjectionGaps=new Set(),sources=[...(catalogue.sources||[])];
+  const memberRecords=new Map(store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)])),members=new Set(memberRecords.keys()),metadata=await legislation.loadMetadata({members:memberRecords,store}),countryOf=id=>memberCountry(id,memberRecords,metadata),all=[],gaps=[],speechProjectionGaps=new Map(),speechProjectionLimits=new Set(),sources=[...(catalogue.sources||[])];
   const countryMetadata=Object.fromEntries([...members].map(id=>[id,metadata.get(id)?.demographicProvenance?.['api:country-of-representation']||{status:countryOf(id)?'available':'missing_acquisition',value:countryOf(id),sources:[],lastAttempt:null}]));
   const recordSource=async(...args)=>{const record=await legislation.record(...args);sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});return record;};
   for(const sitting of sittings) {
@@ -76,10 +77,13 @@ export async function participation(legislation,store,query,{clock=Date.now,read
         if(record)sources.push({url:record.url,fetchedAt:record.fetchedAt,...sourceCacheState(record)});
         const event=record?.payload.data.find(node=>canonical(node.id)===uri);
         if(!event||tail(event.had_activity_type)!=='PLENARY_DEBATE'||event.activity_date!==sitting.activity_date)continue;
-        const children=refs(event.consists_of).map(tail).slice(0,200);if(!children.length)continue;
-        const rows=store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1000`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body));
-        const retained=new Set(rows.map(row=>row.sourceId));
-        for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic){speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);if(children.some(id=>!retained.has(id)))speechProjectionGaps.add(topic.id);}}
+        if(!Array.isArray(event.consists_of))continue;
+        const declared=[...new Set(refs(event.consists_of).filter(uri=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(uri)).map(tail))],children=declared.slice(0,200);
+        const projected=children.length?store.db.prepare(`SELECT body FROM items WHERE generation=? AND category='plenary-contributions' AND source_id IN (${children.map(()=>'?').join(',')}) LIMIT 1001`).all(status.servingGeneration,...children).map(row=>JSON.parse(row.body)):[],rows=projected.slice(0,1000);
+        const proof=declaredSpeechEvidence({children,parentId:id,parentDate:event.activity_date,nodes:[...array(event.consists_of),...record.payload.data]});
+        const missing=new Set();
+        for(const [child,observation] of proof.speeches)if(observation.kind==='PLENARY_DEBATE_SPEECH')for(const person of observation.people)if(members.has(person)&&!rows.some(row=>row.sourceId===child&&row.speechKind===observation.kind&&String(row.mepId)===person))missing.add(person);
+        for(const target of refs(event.executed)){const topic=base.topics.find(t=>t.uri===target);if(topic){speechRows.set(topic.id,[...(speechRows.get(topic.id)||[]),...rows]);speechProjectionGaps.set(topic.id,new Set([...(speechProjectionGaps.get(topic.id)||[]),...missing]));if(declared.length>children.length||projected.length>rows.length)speechProjectionLimits.add(topic.id);}}
       }
     }
     all.push(...participationRows(base.topics,results,decisions,speechRows,members,groupOn,id=>!query.country||countryOf(id)===query.country).map(row=>({...row,sittingId:sitting.activity_id,upcoming:sitting.activity_date>today})));
@@ -90,13 +94,13 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const oral=oralAvailability(store,{generation:status.servingGeneration,start:window.start,end:window.end});
   const availability={speakers:oral,voters:sourceAvailability({sourceKey:'named-votes',family:'votes',start:window.start,end:window.end,records:all.filter(row=>row.voterIds!==null).map(row=>row.date),limited:gaps.some(gap=>gap.kind.includes('vote')||gap.kind.includes('roll-call')),today}),amendmentVotes:sourceAvailability({sourceKey:'amendment-roll-calls',family:'votes',start:window.start,end:window.end,records:all.filter(row=>row.amendmentVotes!==null).map(row=>row.date),limited:gaps.some(gap=>gap.kind.includes('vote')||gap.kind.includes('roll-call')),today})};
   const fields={speakers:'speakerIds',voters:'voterIds',amendmentVotes:'amendmentVotes'};
-  const classify=(metric,rows,count,date)=>{
+  const classify=(metric,rows,count,date,selectIds=countryIds)=>{
     const source=availability[metric];
     const relevant=rows.filter(row=>metric==='speakers'?row.kind!=='PLENARY_VOTE':row.kind!=='PLENARY_DEBATE');
     const incomplete=relevant.some(row=>row[fields[metric]]===null)||gaps.some(gap=>gap.sitting===rows[0]?.sittingId&&(gap.kind==='agenda-unavailable'||metric!=='speakers'&&/vote|roll-call/.test(gap.kind)));
     // Archive failures stay in the archive notice. An exactly checked debate
     // is limited only by its own missing parent/child links, not another speech.
-    return periodAvailability({start:date,end:date},{...source,limited:(metric==='speakers'?false:source.limited)||incomplete,gaps:[...(metric==='speakers'?[]:source.gaps),...(metric==='speakers'&&rows.some(row=>speechProjectionGaps.has(row.id))?[{start:date,end:date,reason:'speech-projection-gap'}]:[])]},count,{today});
+    return periodAvailability({start:date,end:date},{...source,limited:(metric==='speakers'?rows.some(row=>speechProjectionLimits.has(row.id)):source.limited)||incomplete,gaps:[...(metric==='speakers'?[]:source.gaps),...(metric==='speakers'&&rows.some(row=>selectIds(speechProjectionGaps.get(row.id)||new Set()).size>0)?[{start:date,end:date,reason:'speech-projection-gap'}]:[])]},count,{today});
   };
   const series=sittings.map(s=>{
     const rows=all.filter(row=>row.sittingId===s.activity_id),values={speakers:rows.some(r=>r.speakerIds!==null)?union(rows,'speakerIds'):null,voters:rows.some(r=>r.voterIds!==null)?union(rows,'voterIds'):null,amendmentVotes:rows.some(r=>r.amendmentVotes!==null)?new Set(rows.flatMap(r=>[...r.amendmentIds])).size:null},states={};
@@ -105,7 +109,7 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   }).sort((a,b)=>a.date.localeCompare(b.date));
   const countsFor=(row,idsFor)=>{
     const speakerCount=row.speakerIds===null?null:idsFor(row.speakerIds).size,voterCount=row.voterIds===null?null:idsFor(row.voterIds).size;
-    return {speakers:classify('speakers',[row],speakerCount,row.date),voters:classify('voters',[row],voterCount,row.date),amendmentVotes:classify('amendmentVotes',[row],row.amendmentVotes,row.date)};
+    return {speakers:classify('speakers',[row],speakerCount,row.date,idsFor),voters:classify('voters',[row],voterCount,row.date),amendmentVotes:classify('amendmentVotes',[row],row.amendmentVotes,row.date)};
   };
   const countries=EU_COUNTRIES.map(code=>{
     const ids=new Set([...members].filter(id=>countryOf(id)===code));

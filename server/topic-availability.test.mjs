@@ -28,4 +28,7 @@ test('unmapped dossiers and unrelated archive gaps do not qualify an already map
   assert.equal(bins.find(b=>b.week==='2026-10-12').debates,1);
   assert.equal(bins.find(b=>b.week==='2026-10-12').availability.debates,'observed');
   assert.equal(bins.find(b=>b.week==='2026-10-19').debates,0);
+  const capped=topicTimeline(procedures,mappings,{start,end},{debates:evidence,votes:evidence,committee:evidence},{truncated:true}).topics[0].series;
+  assert.equal(capped.find(b=>b.week==='2026-10-12').availability.debates,'partial','a real procedure cap still limits positive topic counts');
+  assert.equal(capped.find(b=>b.week==='2026-10-19').debates,null,'a capped empty bin is not an observed zero');
 });

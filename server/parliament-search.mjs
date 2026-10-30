@@ -9,8 +9,9 @@ import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {comparable,exactReference} from './vote-evidence.mjs';
 import {indexAvailability} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
+import {periodAvailability} from './source-availability.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=4;
+export const PARLIAMENT_SEARCH_VERSION=5;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -64,7 +65,9 @@ export class ParliamentSearch {
         if(match([id,...Object.values(titles)]))add({id,type:'question',...title(titles,id),date:row.date,sourceUrl:`https://www.europarl.europa.eu/doceo/document/${id}_${query.language.toUpperCase()}.html`,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:row.fetched_at}});
       }
       coverage.question.availability=indexAvailability(this.store,{sourceKey:'questions',family:'questions',generation,start:query.from||'2024-07-16',end:query.to||brusselsDay(this.clock()),latestObservedDate,limited:coverage.question.limited});
-      coverage.question.complete=!coverage.question.limited&&!coverage.question.availability.gaps.length;
+      // Completeness must also support an empty lookup; positive matches do
+      // not close another known read failure in the same requested interval.
+      coverage.question.complete=periodAvailability({start:query.from||'2024-07-16',end:query.to||brusselsDay(this.clock())},coverage.question.availability,0,{today:brusselsDay(this.clock())}).state==='observed';
     }
     if(matches.has('topic')) {
       const catalogue=await this.meetings.catalogue(),sittings=catalogue.nodes.slice(0,500);

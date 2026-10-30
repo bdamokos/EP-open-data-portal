@@ -13,8 +13,9 @@ import {resolvedAmendmentAuthorId} from './amendments.mjs';
 import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
+import {declaredSpeechEvidence} from './declared-speech-evidence.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=9;
+export const DOSSIER_ACTIVITY_VERSION=10;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -179,7 +180,7 @@ export class DossierActivity {
     const declaredDebates=work.consists_of.filter(event=>tail(event.had_activity_type)==='PLENARY_DEBATE');
     const debates=sorted(declaredDebates.filter(event=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(canonical(event.id))).map(event=>({...event,date:date(event.activity_date)})));
     if(debates.length!==declaredDebates.length)coverage.gaps.push('A linked debate has an invalid identifier.');
-    const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map(),declarations=new Map();
+    const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map(),declarations=new Map(),declarationConflicts=new Set();
     coverage.checkedTargets=selected.map(event=>tail(event.id));
     coverage.uncheckedTargets=[...new Set(debates.map(event=>tail(event.id)))].filter(id=>!coverage.checkedTargets.includes(id));
     for(const event of selected)try {
@@ -188,20 +189,12 @@ export class DossierActivity {
       const ids=refs(nodes[0].consists_of).filter(value=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(value));
       if(ids.length>DOSSIER_ACTIVITY_LIMITS.children)coverage.gaps.push('Some debate children are outside this page.');
       for(const child of ids.slice(0,DOSSIER_ACTIVITY_LIMITS.children))children.set(tail(child),[...(children.get(tail(child))||[]),{...event,jointDebate:/joint debate/i.test(nodes[0].activity_label?.en||'')}]);
-      const childNodes=new Map();
-      for(const node of [...array(nodes[0].consists_of),...record.payload.data]) {
-        if(!node||typeof node!=='object'||!ids.includes(canonical(node.id)))continue;
-        const key=tail(node.id);childNodes.set(key,[...(childNodes.get(key)||[]),node]);
-      }
-      for(const [childId,observations] of childNodes) {
-        const kinds=[...new Set(observations.flatMap(node=>array(node.had_activity_type).map(value=>tail(typeof value==='string'?value:value?.id))).filter(Boolean))];
-        if(kinds.length!==1||!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(kinds[0]))continue;
-        if(observations.some(node=>node.activity_id!==undefined&&node.activity_id!==childId||node.activity_date!==undefined&&(!date(node.activity_date)||event.date&&date(node.activity_date)!==event.date)||node.inverse_consists_of!==undefined&&(!refs(node.inverse_consists_of).length||refs(node.inverse_consists_of).some(parent=>parent!==canonical(event.id)))))continue;
-        const people=observations.flatMap(node=>array(node.had_participation).flatMap(value=>refs(value?.had_participant_person))).map(personId).filter(Boolean);
-        if(!member||people.includes(member))declarations.set(childId,kinds[0]);
-      }
+      const proof=declaredSpeechEvidence({children:ids.map(tail),parentId:id,parentDate:event.date||date(nodes[0].activity_date),nodes:[...array(nodes[0].consists_of),...record.payload.data]});
+      for(const [childId,observation] of proof.speeches)if(!member||observation.people.includes(member))declarations.set(childId,observation.kind);
+      for(const childId of proof.conflicted)declarationConflicts.add(childId);
       const observation=source(record);coverage.sources.push(observation);
     }catch(error){if(isLocalRequestFailure(error))throw error;coverage.retryable=true;coverage.failedDebates.push(tail(event.id));coverage.gaps.push('A linked debate is unavailable.');}
+    for(const id of declarationConflicts)declarations.delete(id);
     const retained=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)return null;
       if(!children.size)return {rows:[],missing:[]};
@@ -213,10 +206,10 @@ export class DossierActivity {
         return row.key==='/events/'+event.id&&event.classificationVersion===1&&event.declaredBy&&children.get(event.id)?.some(parent=>tail(parent.id)===event.declaredBy)&&/^[A-Z][A-Z0-9_]+$/.test(event.kind)&&event.source?.url===apiUrl(row.key)+'?format=application%2Fld%2Bjson'&&Number.isFinite(Date.parse(event.source?.fetchedAt))?[event]:[];
       });
       const speechTypes=new Set(['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT']);
-      const classified=new Set(classifications.filter(event=>!speechTypes.has(event.kind)).map(event=>event.id));
+      const classified=new Set(classifications.filter(event=>!speechTypes.has(event.kind)&&!declarations.has(event.id)&&!declarationConflicts.has(event.id)).map(event=>event.id));
       const declaredSpeeches=new Set(classifications.filter(event=>speechTypes.has(event.kind)).map(event=>event.id));
       const unresolved=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id)&&!classified.has(id));
-      const missing=unresolved.filter(id=>declarations.has(id)||!member&&declaredSpeeches.has(id));
+      const missing=unresolved.filter(id=>declarations.has(id)||!member&&declaredSpeeches.has(id)&&!declarationConflicts.has(id));
       const unclassified=unresolved.filter(id=>!missing.includes(id));
       const rows=this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+slots+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...ids,DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
       return {rows,missing,unclassified,classifications};

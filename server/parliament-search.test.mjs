@@ -51,6 +51,17 @@ test('question search names its own failed records instead of inheriting unrelat
   assert.deepEqual(section.coverage.availability.gaps.map(gap=>gap.sourceId),[missing]);
   assert.equal(section.total,1,'a failed other record does not erase retained matches');
 });
+test('dated question failures qualify only the matching search interval',async t=>{
+  const {service,store,generation}=setup(t);store.acquire();
+  const put=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,'document',?)");
+  put.run(generation,'/parliamentary-questions/E-10-2024-000999',JSON.stringify({start:'2024-10-01',end:'2024-10-01'}));
+  const read=async period=>(await service.query(query('q=nonexistent&type=question'+period))).sections[0];
+  assert.equal((await read('&from=2026-01-01&to=2026-10-15')).coverage.complete,true);
+  assert.equal((await read('&from=2024-07-16&to=2026-10-15')).coverage.complete,false);
+  put.run(generation,'/parliamentary-questions/E-10-2026-000999',JSON.stringify({start:'2026-10-14',end:'2026-10-14'}));
+  assert.equal((await read('&from=2026-01-01&to=2026-10-15')).coverage.complete,false);
+});
+
 test('a fully read saved agenda is complete for search, while a full last page keeps its real limit',async t=>{
   const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
   const topics=fixture.foreseen.payload.data.slice(0,5);

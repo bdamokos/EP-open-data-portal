@@ -19,7 +19,7 @@ for(const failVotes of [false,true])test(`exact debate coverage ignores vote-onl
   const legislation={cache:new Map(),catalogue:async()=>({complete:true,sittings:[{activity_id:sitting,activity_date:day,consists_of:['eli/dl/event/'+event]}]}),loadMetadata:async()=>new Map(),
     record:async endpoint=>{if(failVotes)throw new Error('Voting record failed');return endpoint.endsWith('vote-results')?source([{id:resultId,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',executed:['eli/dl/event/'+voteTopic]}]):source([{id:'eli/dl/event/'+sitting+'-DEC-2',activity_date:day,inverse_consists_of:[resultId],had_voter_favor:['person/42']}]);},
     query:async()=>({topics:[{id:topic,uri:'eli/dl/event/'+topic,date:day,kind:'PLENARY_DEBATE',title:'Saved debate'},{id:voteTopic,uri:'eli/dl/event/'+voteTopic,date:day,kind:'PLENARY_VOTE',title:'Saved vote'}],coverage:{sources:[]}})};
-  const response=await participation(legislation,store,participationQuery(new URLSearchParams({sitting})),{clock,readEvent:async()=>source([{id:'eli/dl/event/'+event,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:['eli/dl/event/'+topic],consists_of:['eli/dl/event/'+saved.activity_id]}])});
+  const response=await participation(legislation,store,participationQuery(new URLSearchParams({sitting})),{clock,readEvent:async()=>source([{id:'eli/dl/event/'+event,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:['eli/dl/event/'+topic],consists_of:['eli/dl/event/'+saved.activity_id,'eli/dl/event/'+sitting+'-OTH-91',{id:'eli/dl/event/'+sitting+'-OTH-92',had_activity_type:'def/ep-activities/PLENARY_PROCEEDING'},{id:'eli/dl/event/'+sitting+'-OTH-93',had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT',had_participation:[{had_participant_person:['person/42']}]}]}])});
   assert.equal(response.series[0].speakers,1);assert.equal(response.series[0].availability.speakers,'observed');
   assert.equal(response.topics.find(row=>row.id===topic).availability.speakers,'observed');
   assert.equal(response.availability.speakers.gaps.length,1,'the unrelated archive failure is still disclosed separately');
@@ -32,7 +32,8 @@ for(const [frontier,retained] of [['2026-10-09',false],['2026-10-17',false],['20
   const saved=speech(day,'2');if(retained)worker.saveSpeech(generation,saved,clock());
   const source=data=>({url:'https://data.europarl.europa.eu/api/v2/events/'+event,fetchedAt:clock(),payload:{data}});
   const legislation={cache:new Map(),catalogue:async()=>({complete:true,sittings:[{activity_id:sitting,activity_date:day,consists_of:['eli/dl/event/'+event]}]}),loadMetadata:async()=>new Map(),record:async()=>source([]),query:async()=>({topics:[{id:topic,uri:'eli/dl/event/'+topic,date:day,kind:'PLENARY_DEBATE',title:'Saved debate'}],coverage:{sources:[]}})};
-  const response=await participation(legislation,store,participationQuery(new URLSearchParams({sitting})),{clock,readEvent:async()=>source([{id:'eli/dl/event/'+event,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:['eli/dl/event/'+topic],consists_of:['eli/dl/event/'+saved.activity_id,'eli/dl/event/'+sitting+'-OTH-999']}])});
+  const missing=sitting+'-OTH-999';
+  const response=await participation(legislation,store,participationQuery(new URLSearchParams({sitting})),{clock,readEvent:async()=>source([{id:'eli/dl/event/'+event,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:['eli/dl/event/'+topic],consists_of:['eli/dl/event/'+saved.activity_id,{id:'eli/dl/event/'+missing,had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/42']}]}]}])});
   const row=response.topics[0],country=response.countries.find(row=>row.code==='HU').topics[0];
   assert.equal(response.series[0].speakers,retained?1:null);
   assert.equal(row.speakers,retained?1:null);assert.equal(row.allSpeakers,retained?1:null);
@@ -42,4 +43,18 @@ for(const [frontier,retained] of [['2026-10-09',false],['2026-10-17',false],['20
   assert.equal(row.availability.speakers,retained?'partial':'unavailable');
   assert.equal(country.speakers,retained?1:null);assert.equal(country.speakingShare,retained?100:null);
   assert.equal(country.availability.speakers,retained?'partial':'unavailable');
+});
+
+test('a known missing contributor qualifies only their own country selection',async t=>{
+  const directory=mkdtempSync(path.join(os.tmpdir(),'participation-country-gap-')),store=new ActivityStore(directory,{clock});
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();const {generation}=store.beginCycle();
+  store.setMembers([{id:'42',name:'Retained contributor',countryCode:'HU'},{id:'43',name:'Declared contributor',countryCode:'FR'}]);
+  const saved=speech(day,'2');new ActivityWorker(store,{clock}).saveSpeech(generation,saved,clock());
+  const source=data=>({url:'https://data.europarl.europa.eu/api/v2/events/'+event,fetchedAt:clock(),payload:{data}});
+  const legislation={cache:new Map(),catalogue:async()=>({complete:true,sittings:[{activity_id:sitting,activity_date:day,consists_of:['eli/dl/event/'+event]}]}),loadMetadata:async()=>new Map(),record:async()=>source([]),query:async()=>({topics:[{id:topic,uri:'eli/dl/event/'+topic,date:day,kind:'PLENARY_DEBATE',title:'Saved debate'}],coverage:{sources:[]}})};
+  const readEvent=async()=>source([{id:'eli/dl/event/'+event,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:['eli/dl/event/'+topic],consists_of:['eli/dl/event/'+saved.activity_id,{id:'eli/dl/event/'+sitting+'-OTH-999',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/43']}]}]}]);
+  const response=await participation(legislation,store,participationQuery(new URLSearchParams({sitting,country:'HU'})),{clock,readEvent});
+  assert.equal(response.series[0].speakers,1);assert.equal(response.series[0].availability.speakers,'observed');
+  assert.equal(response.countries.find(row=>row.code==='HU').topics[0].availability.speakers,'observed');
+  assert.equal(response.countries.find(row=>row.code==='FR').topics[0].speakers,null);
 });
