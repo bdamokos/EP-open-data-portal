@@ -1,4 +1,4 @@
-import {versionedApiUrl} from '../server/api-version.mjs';
+import {versionedPortraitUrl} from '../server/portrait-version.mjs';
 import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
 
 const portraitPath = /^(?:(?:\.\/)*|\/)api\/portrait\/([1-9][0-9]*)$/;
@@ -55,7 +55,7 @@ export function createPortraitLoader({concurrency = 6, backgroundConcurrency = M
 
   async function read(job) {
     try {
-      const response = await fetchImpl(versionedApiUrl(job.url), {credentials: 'omit', redirect: 'error'});
+      const response = await fetchImpl(versionedPortraitUrl(job.url), {credentials: 'omit', redirect: 'error'});
       if (response.ok) return settle(job, null, await response.blob());
       if (response.status === 409) {
         reportApiVersionMismatch(response.status, await response.json().catch(() => null));

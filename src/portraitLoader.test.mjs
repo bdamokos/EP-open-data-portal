@@ -1,9 +1,9 @@
 import test from 'node:test';
-import {versionedApiUrl} from '../server/api-version.mjs';
+import {versionedPortraitUrl} from '../server/portrait-version.mjs';
 import assert from 'node:assert/strict';
 import {createPortraitLoader, isManagedPortrait} from './portraitLoader.mjs';
 
-const fetchedPath = id => versionedApiUrl(path(id));
+const fetchedPath = id => versionedPortraitUrl(path(id));
 const path = id => `/api/portrait/${id}`;
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() {

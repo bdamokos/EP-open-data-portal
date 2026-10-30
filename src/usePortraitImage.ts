@@ -1,92 +1,50 @@
-import {useEffect, useRef, useState} from 'react';
+import {useLayoutEffect, useRef, useState} from 'react';
 import {isManagedPortrait, portraitLoader} from './portraitLoader.mjs';
+import {versionedPortraitUrl} from '../server/portrait-version.mjs';
 
-type State = {url: string; src: string; phase: 'loading'|'ready'|'loaded'|'error'};
+type State = {url: string; src: string; phase: 'loading'|'ready'|'loaded'|'retrying'|'error'};
 
 export function usePortraitImage(url: string, fallback: string, lazy = true) {
   const imageRef = useRef<HTMLImageElement>(null);
-  const startRef = useRef<(() => void) | null>(null);
-  const [state, setState] = useState<State>({url, src: fallback, phase: 'loading'});
   const managed = isManagedPortrait(url);
-  const current = state.url === url ? state : {url, src: fallback, phase: 'loading' as const};
+  const source = managed ? versionedPortraitUrl(url) : url;
+  const [state, setState] = useState<State>({url, src: source, phase: 'loading'});
+  const current = state.url === url ? state : {url, src: source, phase: 'loading' as const};
+  const retryRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (!managed) return;
+  useLayoutEffect(() => {
     const controller = new AbortController();
-    let objectUrl = '', started = false;
-    let backgroundFrame = 0;
-    let observer: IntersectionObserver | undefined, viewportObserver: IntersectionObserver | undefined;
-    let request: ReturnType<typeof portraitLoader.load> | undefined;
-    let visible = false;
-    setState({url, src: fallback, phase: 'loading'});
-    const start = () => {
-      if (started || controller.signal.aborted) return;
-      started = true;
-      observer?.disconnect();
-      request = portraitLoader.load(url, {signal: controller.signal, priority: visible ? 'visible' : 'background'});
-      request.then(blob => {
+    let objectUrl = '', retried = false;
+    // Native images can complete from the browser cache before effects run.
+    const loaded = imageRef.current?.complete && (imageRef.current?.naturalWidth || 0) > 0;
+    setState({url, src: source, phase: loaded ? 'loaded' : 'loading'});
+    retryRef.current = () => {
+      if (retried || !managed) {setState({url, src: fallback, phase: 'error'}); return;}
+      retried = true;
+      setState({url, src: source, phase: 'retrying'});
+      // Normal loads use the real URL directly. Retain bounded Retry-After and
+      // mismatch handling only when a native image request has failed.
+      portraitLoader.load(url, {signal: controller.signal, priority: 'visible'}).then(blob => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
         setState({url, src: objectUrl, phase: 'ready'});
-      }).catch(error => {
-        if (error.name !== 'AbortError' && !controller.signal.aborted) setState({url, src: fallback, phase: 'error'});
-      }).finally(() => viewportObserver?.disconnect());
-    };
-    const foreground = () => {
-      visible = true;
-      request?.setPriority('visible');
-      start();
-    };
-    startRef.current = foreground;
-    if (!('IntersectionObserver' in window)) start();
-    else if (imageRef.current) {
-      // Expand the scrolling wall itself: viewport margins cannot extend past
-      // an intervening overflow container's clip.
-      const wall = imageRef.current.closest<HTMLElement>('[data-portrait-scroll-root]');
-      let root = wall;
-      while (root && !['auto', 'scroll'].includes(window.getComputedStyle(root).overflowY)) root = root.parentElement;
-      const margin = wall ? Math.max(800, (root?.clientHeight || window.innerHeight) * 2) : 200;
-      // A separate viewport observer respects clipping by the wall and window.
-      // Keep it until the request settles so scrolling can promote queued work.
-      viewportObserver = new IntersectionObserver(entries => {
-        visible = entries.some(entry => entry.isIntersecting);
-        request?.setPriority(visible ? 'visible' : 'background');
-        if (visible) start();
+      }).catch(() => {
+        if (!controller.signal.aborted) setState({url, src: fallback, phase: 'error'});
       });
-      viewportObserver.observe(imageRef.current);
-      observer = new IntersectionObserver(entries => {
-        if (entries.some(entry => entry.isIntersecting)) {
-          // Let all viewport observations promote visible images before
-          // speculative work can occupy response slots on initial layout.
-          backgroundFrame ||= window.requestAnimationFrame(() => {
-            backgroundFrame = 0;
-            start();
-          });
-        }
-      }, {root, rootMargin: `${margin}px 0px`});
-      observer.observe(imageRef.current);
-    }
+    };
     return () => {
-      startRef.current = null;
-      observer?.disconnect();
-      viewportObserver?.disconnect();
-      window.cancelAnimationFrame(backgroundFrame);
+      retryRef.current = null;
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, fallback, managed]);
-
-  // Priority changes may start a waiting request, but must not discard an
-  // existing request or blob when filtering moves a card within the wall.
-  useEffect(() => {
-    if (!lazy && managed) startRef.current?.();
-  }, [lazy, url, fallback, managed]);
+  }, [url, source, fallback, managed]);
 
   return {
     imageRef,
-    src: managed ? current.src : current.phase === 'error' ? fallback : url,
-    status: managed ? current.phase === 'loaded' ? 'loaded' : current.phase === 'error' ? 'error' : 'loading' : current.phase === 'error' ? 'error' : 'loaded',
-    onLoad: () => {if (managed && current.phase === 'ready') setState(value => value.url === url ? {...value, phase: 'loaded'} : value);},
-    onError: () => setState({url, src: fallback, phase: 'error'}),
+    src: current.src,
+    loading: lazy ? 'lazy' : 'eager',
+    status: current.phase === 'loaded' ? 'loaded' : current.phase === 'error' ? 'error' : 'loading',
+    onLoad: () => {if (current.phase !== 'error' && current.phase !== 'retrying') setState({url, src: current.src, phase: 'loaded'});},
+    onError: () => {if (current.phase !== 'error' && current.phase !== 'retrying') retryRef.current?.();},
   } as const;
 }
