@@ -12,7 +12,7 @@ test('topic amendments use checked exact attribution, deduplicate observations a
   }});
   assert.deepEqual(result.counts,{'1':1,'2':1,'3':null});
   assert.deepEqual(calls,[{document:target,limit:500,offset:0}]);
-  assert.deepEqual(result.documents,[{id:target,total:1000,checked:6,coverage,sources:[]}]);
+  assert.deepEqual(result.documents,[{id:target,scope:'plenary',total:1000,checked:6,coverage,sources:[]}]);
   assert.equal(result.truncated,false);assert.equal(result.generation,0);
 });
 

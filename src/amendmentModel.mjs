@@ -1,6 +1,23 @@
 const outcomes = {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',mixed:'Mixed outcomes',unavailable:'Outcome unavailable'};
 export const amendmentOutcomeLabel = value => outcomes[value] || outcomes.unavailable;
 export const supportedAmendmentTarget = value => typeof value==='string'&&/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
+export const amendmentStages=['all','committee','plenary'];
+export const validCommitteeCode=value=>typeof value==='string'&&/^(?:[A-Z]{3,5}|CJ\d{2})$/.test(value);
+export const committeeAmendmentList=value=>typeof value==='string'&&/^(?:[A-Z]{3,5}|CJ\d{2})-AM-\d{4,9}(?:-\d+)*$/.test(value);
+export const committeeAmendmentTarget=value=>typeof value==='string'&&/^(?:[A-Z]{3,5}|CJ\d{2})-(?:PR|PA|AD|AL)-\d{4,9}(?:-\d+)*$/.test(value);
+export function committeeAmendmentIdentity(value) {
+  if(typeof value!=='string')return null;
+  const match=value.match(/^committee:([^:]+):([1-9]\d{0,6}[a-z]?)$/);
+  return match&&committeeAmendmentList(match[1])?{listId:match[1],number:match[2]}:null;
+}
+export function amendmentContextSelection(item) {
+  if(item.conflicted||!item.listId)return null;
+  if(item.scope==='committee'){
+    const identity=committeeAmendmentIdentity(item.id);
+    if(!identity||identity.listId!==item.listId||String(item.number)!==identity.number||item.targetRelationship?.status!=='verified'||!committeeAmendmentTarget(item.targetDocumentId))return null;
+  }else if(!supportedAmendmentTarget(item.targetDocumentId)||!item.id.startsWith(item.targetDocumentId+'-AM-')||!/^\d+(?:-\d+)?$/.test(item.id.slice(item.targetDocumentId.length+4)))return null;
+  return {documentId:item.targetDocumentId,amendmentId:item.id,listId:item.listId,scope:item.scope||'plenary',wordingLanguage:Object.hasOwn(item,'wordingSource')?item.wordingSource?.language??null:item.language??null,view:'document'};
+}
 export function amendmentFailureKey(failure) {
   const component=failure.registryPartKey??failure.partId??[failure.recordKind??failure.scope??'unknown',failure.componentIndex??null,failure.description??null,failure.rawDescription??null,failure.sourceDescriptions??null];
   return JSON.stringify([failure.registryRequestKey??failure.requestId??failure.observationKey??null,component,failure.language??null]);
@@ -16,16 +33,22 @@ export function amendmentProcedure(value) {
   const match=reference.match(/^(\d{4})[/-](\d{4})([A-Z]?)(?:\([A-Z]{2,8}\))?$/i);
   return match ? `${match[1]}-${match[2]}${match[3].toUpperCase()}` : reference;
 }
-export function amendmentRoute({document,procedure,member,outcome,offset=0,language='en',limit=20}={}) {
+export function amendmentRoute({document,procedure,member,outcome,scope,list,committee,offset=0,language='en',limit=20}={}) {
   const params=new URLSearchParams({lang:language,limit:String(limit),offset:String(Math.max(0,Number.isSafeInteger(offset)?offset:0))});
+  if(scope==='committee')params.set('scope','committee');
+  if(scope==='committee'&&list)params.set('list',list);
+  if(scope==='committee'&&committee)params.set('committee',committee);
   if(document)params.set('document',document);
   if(procedure)params.set('procedure',amendmentProcedure(procedure));
   if(member&&/^[1-9]\d*$/.test(String(member)))params.set('member',String(member));
   if(Object.hasOwn(outcomes,outcome)&&outcome!=='')params.set('outcome',outcome);
   return 'amendments?'+params;
 }
-export function amendmentHref(path,{document,procedure,member,language='en'}={}) {
+export function amendmentHref(path,{document,procedure,member,scope,list,committee,language='en'}={}) {
   const params=new URLSearchParams({lang:language,view:'amendments'});
+  if(scope==='committee')params.set('am-scope','committee');
+  if(scope==='committee'&&committeeAmendmentList(list))params.set('am-list',list);
+  if(scope==='committee'&&validCommitteeCode(committee))params.set('am-committee',committee);
   if(document)params.set('am-document',document);
   if(procedure)params.set('am-procedure',procedure);
   if(member)params.set('am-member',String(member));
@@ -50,7 +73,8 @@ export function amendmentDecisionScope(item,decision) {
   return 'Whole amendment';
 }
 export function amendmentDecisionKey(decision) {
-  return JSON.stringify([decision.id,decision.partId??null,decision.partId?null:decision.partNumber??null]);
+  const key=[decision.id,decision.partId??null,decision.partId?null:decision.partNumber??null],stage=decision.stage??(['committee','plenary'].includes(decision.scope)?decision.scope:null);
+  return JSON.stringify(stage?[...key,stage]:key);
 }
 export function amendmentDecisionPart(parts,decision) {
   // An explicit ID always takes precedence, including when that ID is not indexed.

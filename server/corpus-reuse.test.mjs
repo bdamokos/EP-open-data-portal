@@ -246,13 +246,17 @@ test('legislation associations use exact saved speech and document metadata with
   assert.equal((await service.record('/speeches/'+id)).payload.data[0].activity_id,id);
   assert.deepEqual((await service.record('/plenary-documents/'+work.identifier)).payload.data[0],work);
 });
-test('incomplete procedure projections retain source classification and debate association fallback',async t=>{
+test('legacy incomplete procedure projections retain source classification and debate association fallback',async t=>{
   const {index}=fixture(t),id='2025-0407',work={id:'eli/dl/proc/'+id,process_type:'def/procedure-types/COD',label:'2025/0407(COD)',consists_of:[{id:'eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-1',activity_id:'MTG-PL-2026-10-07-PVCRE-ITM-1',had_activity_type:'def/ep-activities/PLENARY_DEBATE'}]};
-  const projection=projectProcedure(work),generation=index.status().servingGeneration;index.putSource(generation,'/procedures/'+id,'procedure',projection,fetchedAt,[]);
+  const projection=projectProcedure(work),generation=index.status().servingGeneration;
+  delete projection.label;delete projection.consists_of[0].activity_id;
+  index.putSource(generation,'/procedures/'+id,'procedure',projection,fetchedAt,[]);
   let calls=0;const service=new LegislationInsights(index,{clock:now,request:async endpoint=>{calls++;assert.equal(endpoint,'/procedures/'+id);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:now(),payload:{data:[work]}};}});
   const read=(await service.record('/procedures/'+id)).payload.data[0];assert.equal(calls,1);assert.equal(classifyProcedure(read).code,'COD');assert.equal(read.consists_of[0].activity_id,work.consists_of[0].activity_id);
   index.putSource(generation,'/procedures/'+id,'procedure',work,fetchedAt,[]);
   assert.equal((await service.record('/procedures/'+id)).payload.data[0].label,work.label);assert.equal(calls,1);
+  index.putSource(generation,'/procedures/'+id,'procedure',projectProcedure(work),fetchedAt,[]);
+  assert.equal((await service.record('/procedures/'+id)).payload.data[0].consists_of[0].activity_id,work.consists_of[0].activity_id);assert.equal(calls,1);
 });
 test('cloud and member page walks restart when selected members change without silently skipping a speech',async t=>{
   const {store,index,add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));

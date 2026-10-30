@@ -79,6 +79,7 @@ function destinationMounted() {
   if(query.get('view')==='legislation'&&query.get('pl-mode')==='dossier'){
     const panel=document.querySelector<HTMLElement>('[data-dossier-reference]');
     if(panel?.dataset.dossierReference!==query.get('dossier-ref')||panel.dataset.dossierPerson!==(query.get('dossier-person')||''))return false;
+    if((panel.dataset.dossierStage||'all')!==(query.get('dossier-stage')||'all')||(panel.dataset.dossierCommittee||'')!==(query.get('dossier-committee')||''))return false;
   }else if(query.get('view')==='legislation'&&(!query.get('pl-mode')||query.get('pl-mode')==='agenda')){
     const panel=document.querySelector<HTMLElement>('[data-agenda-topic]');if(!panel||query.get('agenda-topic')&&panel.dataset.agendaTopic!==query.get('agenda-topic'))return false;
   }else if(!query.has('view')&&query.get('module')==='activities'){

@@ -1,3 +1,4 @@
+import {committeeDraftId,committeeDocumentEndpoint,committeeDocumentKind} from './committee-amendments.mjs';
 import {CellarDocuments,cellarGraph,CELLAR_WORK_PATTERN,CELLAR_LIMITS,cellarTransportUrl,councilCelex} from './cellar-documents.mjs';
 import {languageCode} from './ep-links.mjs';
 import {odp,odpLanguage} from './odp.mjs';
@@ -7,7 +8,7 @@ const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const unique=values=>[...new Set(values)];
 const unresolved=(gap,evidence=[])=>({status:'unresolved',items:[],gaps:[gap],evidence});
 export function reportCouncilReference(report,{reportId,language='en',documentReferences=[]}={}) {
-  if(!/^A-\d{1,2}-\d{4}-\d{4}$/.test(reportId||'')||!['eli/dl/doc/'+reportId,'https://data.europarl.europa.eu/eli/dl/doc/'+reportId].includes(report?.id)||String(report.work_type?.id||report.work_type).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')!=='def/ep-document-types/REPORT_PLENARY')return unresolved('report-identity');
+  if(!committeeDraftId(reportId)&&!/^A-\d{1,2}-\d{4}-\d{4}$/.test(reportId||'')||!['eli/dl/doc/'+reportId,'https://data.europarl.europa.eu/eli/dl/doc/'+reportId].includes(report?.id)||String(report.work_type?.id||report.work_type).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')!=='def/ep-document-types/REPORT_PLENARY'&&!(committeeDraftId(reportId)&&committeeDocumentKind(report)))return unresolved('report-identity');
   const texts=[...array(report.is_realized_by).flatMap(e=>array(e.title_alternative?.[language])),...documentReferences.filter(r=>r.field==='DocRef').map(r=>r.raw)].filter(t=>typeof t==='string');
   const references=texts.flatMap(raw=>[...raw.matchAll(/\b(\d{4,5})\/(\d{1,2})\/((?:19|20)\d{2})\b/g)].map(m=>({raw:m[0],number:m[1],revision:m[2],year:m[3],alias:`http://publications.europa.eu/resource/consil/ST_${m[1]}_${m[3]}_REV_${Number(m[2])}`})));
   const procedures=unique(texts.flatMap(raw=>[...raw.matchAll(/\b(\d{4})\/(\d{4})\s*\(COD\)/g)].map(m=>`${m[1]}/${m[2]}(COD)`)));
@@ -56,7 +57,7 @@ export function createCouncilPositionBaseline({documents=new CellarDocuments(),r
     let evidence=[];
     const unavailable=gap=>({status:'unavailable',celex:null,workId:null,language,items:[],gaps:[gap],evidence});
     try {
-      const report=await request('/plenary-documents/'+reportId,{}, {staleWhileRevalidate:true});
+      const report=await request(committeeDocumentEndpoint(reportId)||'/plenary-documents/'+reportId,{}, {staleWhileRevalidate:true});
       const identity=reportCouncilReference(report.payload?.data?.length===1?report.payload.data[0]:null,{reportId,language,documentReferences});
       evidence=[...identity.evidence,{kind:'report-source',url:report.url,fetchedAt:new Date(report.fetchedAt).toISOString(),stale:Boolean(report.stale)}];
       if(identity.status!=='resolved')return {...unavailable(identity.gaps[0]),status:identity.status};

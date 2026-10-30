@@ -1,3 +1,4 @@
+import {committeeDiscoveryTask,rebuildCommitteeList} from './committee-amendments-worker.mjs';
 import {sittingConfirmationDay,sittingOutcomesComplete,sittingSnapshotConfirmed} from './refresh-policy.mjs';
 import https from 'node:https';
 import { createHash, randomUUID } from 'node:crypto';
@@ -180,7 +181,7 @@ function proposerDatedExtraction(store,generation,list) {
   const extraction=list?.extraction;if(!extraction)return extraction;
   return {...extraction,amendments:(extraction.amendments || []).map(amendment=>{
     const documentary=amendmentProposerDate(amendment,{documentDate:amendment.documentDate || amendment.date,listDate:null});
-    const record=store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,list.targetDocumentId+'-AM-'+amendment.number);
+    const record=store.db.prepare('SELECT body FROM amendments WHERE generation=? AND id=?').get(generation,list.scope==='committee'?list.scopeKey+':'+amendment.number:list.targetDocumentId+'-AM-'+amendment.number);
     const row=record?JSON.parse(record.body):null;
     const accepted=row?.listId===idOf(list)?row:row?.variants?.find(variant=>variant.listId===idOf(list));
     const proposerSource=amendment.proposerSource || amendment.metadataSource || extractionSource(extraction),acceptedSource=accepted?.proposerSource || accepted?.metadataSource;
@@ -342,8 +343,8 @@ async function runParserUpgradeSlice(worker,task) {
   const complete=await runAmendmentWorkSlice(worker,task,{
     select:body=>store.db.prepare("SELECT key,body,COALESCE(json_extract(body,'$.document_date'),'') AS date FROM sources WHERE generation=? AND kind='amendment-list' AND key<=? AND (COALESCE(json_extract(body,'$.document_date'),'')<? OR (COALESCE(json_extract(body,'$.document_date'),'')=? AND key<?)) ORDER BY date DESC,key DESC LIMIT 1").get(generation,body.throughKey,body.afterDate ?? '\uffff',body.afterDate ?? '\uffff',body.afterKey || '\uffff'),
     action:(source,body)=>{
-      const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.targetDocumentId;
-      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId))return;
+      const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.scopeKey||list.targetDocumentId;
+      if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId)&&!targetDocumentId?.startsWith('committee:'))return;
       const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
       if(freshness.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()) {
         store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
@@ -360,6 +361,9 @@ async function runParserUpgradeSlice(worker,task) {
       // This pass uses retained list identities directly. Report-link upgrades,
       // their daily cap and unavailable target endpoints cannot block it.
       const extract=Boolean(currentDocxDescriptor(list));
+      if(list.scope==='committee'&&!extract){
+        const endpoint='/documents/'+listId;return enqueueAmendment(store,generation,endpoint,'document',{endpoint},103,true,{deferOnCapacity:true});
+      }
       const admitted=admitParserList(store,generation,extract?'amendment:extract:'+listId:linkedListKey(targetDocumentId,listId),extract?'amendment-extract':'amendment-list-detail',{listId,targetDocumentId,parserUpgrade:true},extract?112:115);
       if(!admitted)store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(worker.clock()+60_000,generation,task.key);
       return admitted;
@@ -462,7 +466,7 @@ function sittingRebuildContext(worker,generation,sittingId) {
 }
 function rebuildQuery(generation,scope,context) {
   if(scope.kind==='members')return {sql:'SELECT id FROM amendment_targets WHERE generation=?',args:[generation]};
-  if(scope.kind==='roster')return {sql:"SELECT DISTINCT json_extract(source.body,'$.targetDocumentId') AS id FROM sources AS source WHERE generation=? AND kind='amendment-list' AND (json_extract(source.body,'$.document_date')=? OR EXISTS(SELECT 1 FROM json_each(source.body,'$.extraction.amendments') AS amendment WHERE json_extract(amendment.value,'$.date')=? OR json_extract(amendment.value,'$.proposerDate')=?))",args:[generation,scope.date,scope.date,scope.date]};
+  if(scope.kind==='roster')return {sql:"SELECT DISTINCT COALESCE(json_extract(source.body,'$.scopeKey'),json_extract(source.body,'$.targetDocumentId')) AS id FROM sources AS source WHERE generation=? AND kind='amendment-list' AND (json_extract(source.body,'$.document_date')=? OR EXISTS(SELECT 1 FROM json_each(source.body,'$.extraction.amendments') AS amendment WHERE json_extract(amendment.value,'$.date')=? OR json_extract(amendment.value,'$.documentDate')=? OR json_extract(amendment.value,'$.proposerDate')=?) OR json_extract(source.body,'$.scope')='committee' AND EXISTS(SELECT 1 FROM json_each(source.body,'$.procedureEvidence') AS proof WHERE json_extract(proof.value,'$.activityType')='COMMITTEE_TABLING_AMENDMENT' AND json_extract(proof.value,'$.date')=?))",args:[generation,scope.date,scope.date,scope.date,scope.date,scope.date]};
   return {sql:`SELECT value AS id FROM json_each(?) UNION SELECT id FROM amendment_targets AS target WHERE generation=? AND EXISTS(SELECT 1 FROM json_each(target.body,'$.sittingIds') AS sitting WHERE sitting.value=?)
     UNION SELECT DISTINCT amendment.target AS id FROM amendments AS amendment JOIN amendment_targets AS target ON target.generation=amendment.generation AND target.id=amendment.target WHERE amendment.generation=? AND json_type(target.body,'$.sittingIds') IS NULL AND EXISTS(SELECT 1 FROM json_each(amendment.body,'$.decisions') AS decision WHERE json_extract(decision.value,'$.sittingId')=?)`,args:[JSON.stringify([...context.directTargets]),generation,scope.sittingId,generation,scope.sittingId]};
 }
@@ -479,7 +483,7 @@ async function runRebuildSlice(worker,task) {
   const complete=await runAmendmentWorkSlice(worker,task,{
     select:body=>body.rebuild.kind==='profile'?(body.targets?.[body.rebuild.offset]!=null?{id:body.targets[body.rebuild.offset]}:null):store.db.prepare('SELECT id FROM ('+query.sql+') WHERE id>? AND id<=? ORDER BY id LIMIT 1').get(...query.args,body.rebuild.afterTarget,body.rebuild.throughTarget),
     action:({id})=>{
-      if(amendmentTarget(id)&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{});
+      if(id?.startsWith('committee:')||amendmentTarget(id)&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{});
     },
     advance:({id},body)=>({rebuild:{...body.rebuild,...(body.rebuild.kind==='profile'?{offset:body.rebuild.offset+1}:{afterTarget:id})}}),
   });
@@ -587,6 +591,7 @@ function cachedDirectSittings(store,generation,targetId) {
   return {limited:candidates.length>AMENDMENT_LIMITS.sittingsPerTarget,sittingIds:candidates.slice(0,AMENDMENT_LIMITS.sittingsPerTarget).filter(source=>array(amendmentSitting(JSON.parse(source.body)).decisions).some(decision=>array(decision.decided_on_a_realization_of).some(value=>amendmentReference(value)?.targetDocumentId===targetId))).map(source=>source.key.replace(/^motion-outcomes:/,'')).filter(id=>/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(id))};
 }
 export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,observedDecisionIds=[],discoveredSittingIds=[],discover=true}={}) {
+  if(id?.startsWith('committee:'))return rebuildCommitteeList(worker,generation,id,{rosterMembers,scheduleMandateProfiles,verifiedWording,discover});
   const store=worker.store,saved=store.source(generation,targetKey(id));if(!saved)return;
   const priorTarget=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=? AND id=?').get(generation,id);
   const cachedDirect=cachedDirectSittings(store,generation,id);
@@ -621,7 +626,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
     return authorContexts.get(date);
   };
   if(discover)scheduleMandateProfiles(worker,generation,id,lists,aliases);
-  const base=(amendmentId,number)=>({id:amendmentId,number,listId:null,targetDocumentId:id,title:target.titles.en || id,titles:target.titles,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,targetDocumentDate:target.date,procedureIds:target.procedureIds,targetLabel:null,targetLabelLanguage:null,targetLabelSource:null,originalText:null,proposedText:null,language:null,authors:[],decisions:[],splitParts:[],topics:target.topics,sources:[...target.sources],gaps:[],identifierBasis:'derived-from-exact-target-and-number',officialIds:[]});
+  const base=(amendmentId,number)=>({id:amendmentId,number,scope:'plenary',contributionKind:'tabled-amendment',listId:null,targetDocumentId:id,title:target.titles.en || id,titles:target.titles,date:null,documentDate:null,listDocumentDate:null,dateBasis:null,proposerDate:null,proposerDateBasis:null,targetDocumentDate:target.date,procedureIds:target.procedureIds,targetLabel:null,targetLabelLanguage:null,targetLabelSource:null,originalText:null,proposedText:null,language:null,authors:[],decisions:[],splitParts:[],topics:target.topics,sources:[...target.sources],gaps:[],identifierBasis:'derived-from-exact-target-and-number',officialIds:[]});
   if(cachedDirect.limited)gaps.push('This target exceeds the cached direct-decision sitting discovery limit.');
   if(!relationshipsKnown)gaps.push('Current amendment-list relationships are unavailable; previously indexed list evidence is unverified and retained.');
   if(listLimit || target.linkedListObservationCount>AMENDMENT_LIMITS.listsPerTarget)gaps.push('This target exceeds the amendment-list processing limit.');
@@ -764,6 +769,7 @@ async function downloadVotingXml(url,{signal}={}) {
 export async function amendmentTask(worker,task) {
   const {generation,body}=task,store=worker.store,signal=worker.controller.signal;
   signal.throwIfAborted();
+  if(task.kind.startsWith('amendment-committee-')){await committeeDiscoveryTask(worker,task,{rebuild:rebuildAmendmentTarget});return;}
   if(task.kind==='amendment-prepare'){await runPreparationSlice(worker,task);return;}
   if(task.kind==='amendment-parser-upgrade'){await runParserUpgradeSlice(worker,task);return;}
   if(body.rebuild) {
@@ -839,7 +845,7 @@ export async function amendmentTask(worker,task) {
     const parseSource=async (descriptor,downloaded)=>{
       const fetchedAt=downloaded.fetchedAt;
       const reportId=saved.work.reportWording&&sameDocxDescriptor(descriptor,currentDocxDescriptor({...saved.work,distributionEvidence:saved.work.reportWording.distributionEvidence}))?saved.work.reportWording.reportId:null;
-      const extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:body.targetDocumentId,language:descriptor.language,sourceUrl:descriptor.url,fetchedAt,...(reportId?{reportId}:{})},{signal});
+      const extraction=await worker.extractAmendmentList(downloaded.buffer,{listId:body.listId,targetDocumentId:saved.work.scope==='committee'?saved.work.targetDocumentId:body.targetDocumentId,language:descriptor.language,sourceUrl:descriptor.url,fetchedAt,...(saved.work.scope==='committee'?{scope:'committee',sourceKind:'amendment-list'}:{}),...(reportId?{reportId}:{})},{signal});
       signal.throwIfAborted();
       if(!Array.isArray(extraction.amendments)||extraction.amendments.length>AMENDMENT_LIMITS.amendmentsPerList)throw new Error('Amendment extraction exceeded its record budget.');
       await sources.save(descriptor,downloaded.buffer,fetchedAt,{listId:body.listId,signal});
@@ -929,7 +935,7 @@ export async function amendmentTask(worker,task) {
   store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='amendment-gap'").run(generation,'amendment:gap:'+task.key);
 }
 export function failAmendmentTask(worker,task,error) {
-  if(!task.kind.startsWith('amendment-')||task.kind==='amendment-prepare'||task.kind==='amendment-parser-upgrade'||task.kind==='amendment-rebuild'||task.body.rebuild)return false;
+  if(task.kind.startsWith('amendment-committee-')||!task.kind.startsWith('amendment-')||task.kind==='amendment-prepare'||task.kind==='amendment-parser-upgrade'||task.kind==='amendment-rebuild'||task.body.rebuild)return false;
   if(worker.stopped || worker.controller?.signal.aborted)return false;
   if(task.kind==='amendment-roster'){worker.store.set('amendmentMandateFallback',true);enqueueAmendment(worker.store,task.generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108);}
   if(task.attempts<2)return false;

@@ -40,7 +40,7 @@ export async function bindCitationNativeInputs({manifest,readObservation,offline
       if(String(manifestation.format?.id??manifestation.format)!=='http://publications.europa.eu/resource/authority/file-type/DOCX')continue;
       for(const file of array(manifestation.is_exemplified_by)){
         const raw=typeof file==='string'?file:file?.id;if(!raw)continue;
-        const url=new URL(raw,'https://data.europarl.europa.eu/').href;
+        let url;try{url=new URL(raw,'https://data.europarl.europa.eu/').href;}catch{return unknown('citation-proof-document-distribution-unavailable');}
         if(publicWord(url))declarations.push({expression:expression.id,language:expression.language,manifestation:manifestation.id,declaredFile:raw,url});
       }
     }

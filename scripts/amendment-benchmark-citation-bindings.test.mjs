@@ -64,6 +64,15 @@ test('wrong work identity, language and competing distributions remain unsupport
     const arg=input();change(arg);refreshMetadata(arg);assert.equal((await bindCitationNativeInputs(arg)).status,'unavailable',String(change));
   }
 });
+test('malformed native file declarations stay unavailable and preserve ordinary verification',async()=>{
+  for(const extraValid of [false,true]) {
+    const arg=input(),manifestation=arg.work.is_realized_by[0].is_embodied_by[0],valid=manifestation.is_exemplified_by;
+    manifestation.is_exemplified_by=extraValid?['https://[',valid]:'https://[';refreshMetadata(arg);
+    const bound=await bindCitationNativeInputs(arg);assert.equal(bound.status,'unavailable');assert.equal(bound.reason,'citation-proof-document-distribution-unavailable');
+    const request=pair(arg),result=await sourceBoundCitationVerification(request);
+    assert.deepEqual(result,{verification:request.canonical,evidence:null});
+  }
+});
 test('redirects cannot switch language, owner or leave the retained approved source chain',async()=>{
   for(const suffix of ['_fr.docx','/unrelated_en.docx']){
     const arg=input();arg.inputs[1].redirectUrl=arg.inputs[1].redirectUrl.replace('_en.docx',suffix);arg.inputs[1].headers.location=arg.inputs[1].redirectUrl;arg.manifest=arg.manifestForInputs();

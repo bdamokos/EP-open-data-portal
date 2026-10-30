@@ -1,3 +1,4 @@
+import {committeeAmendmentList,committeeAmendmentTarget,supportedAmendmentTarget,validCommitteeCode} from './amendmentModel.mjs';
 import {filterCountry} from './countries.mjs';
 import {validAddresseeFilter} from '../server/question-addressees.mjs';
 import {isMemberVotesParam} from './memberVotesJourney.mjs';
@@ -16,6 +17,11 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if((key.endsWith('-until')||key==='trend-week')&&raw&&!validDate(raw))return fallback;
   if(['q-offset','am-offset'].includes(key)&&(!Number.isInteger(value)||value<0||value>(key==='am-offset'?1000000:5000)))return fallback;
   if(key==='q-addressee'&&raw&&!validAddresseeFilter(raw))return fallback;
+  if(['am-scope'].includes(key)&&!['plenary','committee'].includes(raw))return fallback;
+  if(key==='am-list'&&raw&&!committeeAmendmentList(raw))return fallback;
+  if(['am-committee','dossier-committee'].includes(key)&&raw&&!validCommitteeCode(raw))return fallback;
+  if(key==='dossier-stage'&&!['all','committee','plenary'].includes(raw))return fallback;
+  if(key==='am-document'&&raw&&!supportedAmendmentTarget(raw)&&!(query.get('am-scope')==='committee'&&committeeAmendmentTarget(raw)))return fallback;
   if(key==='am-member'&&raw&&!/^[1-9]\d{0,12}$/.test(raw))return fallback;
   if(key.endsWith('-fts-offset')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>1000))return fallback;
   if(key.endsWith('-fts-page')&&(!Number.isInteger(Number(value))||Number(value)<0||Number(value)>50))return fallback;

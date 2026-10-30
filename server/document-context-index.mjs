@@ -1,3 +1,4 @@
+import {committeeAmendmentReference,committeeListId,committeeDraftId,committeeDocumentEndpoint} from './committee-amendments.mjs';
 import {createHash} from 'node:crypto';
 import {amendmentGeneration} from './amendments-store.mjs';
 import {canonicalEPReference} from './amendments.mjs';
@@ -9,21 +10,21 @@ import {HttpError} from './http-utils.mjs';
 import {ODP_BASE} from './odp.mjs';
 
 const typeOf=work=>String(work?.work_type?.id||work?.work_type||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
-const expected=id=>'def/ep-document-types/'+(id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
+const expected=id=>'def/ep-document-types/'+(committeeListId(id)?'AMENDMENT_LIST':committeeDraftId(id)?id.includes('-PR-')?'REPORT_PARLIAMENTARY_COMMITTEE_DRAFT':'OPINION_PARLIAMENTARY_COMMITTEE_DRAFT':id.startsWith('TA-')?'TEXT_ADOPTED':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':id.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY');
 
 // Copy one bounded read snapshot before any asynchronous source/body work.
 // Retained projections are usable observations, never a fresh source census.
 export function retainedDocumentContext(store,query,{adoptedCandidates,metadataBytes},{amendment=null}={}) {
   const variants=amendment?.variants?.length?amendment.variants:amendment?[amendment]:[];
-  const selected=variants.filter(variant=>typeof variant.listId==='string'&&variant.listId.startsWith(query.id+'-AM-')&&
+  const selected=variants.filter(variant=>typeof variant.listId==='string'&&(variant.listId.startsWith(query.id+'-AM-')||amendment?.scope==='committee'&&variant.listId===committeeAmendmentReference(query.amendmentId)?.listId)&&
     (!query.listId||variant.listId===query.listId)&&(!Object.hasOwn(query,'wordingLanguage')||variant.language===query.wordingLanguage));
-  const exactAmendment=typeof query.amendmentId==='string'&&amendment?.targetDocumentId===query.id&&
+  const exactAmendment=typeof query.amendmentId==='string'&&(amendment?.targetDocumentId===query.id||amendment?.scope==='committee'&&amendment.listId===query.id)&&
     (amendment.id===query.amendmentId||array(amendment.officialIds).some(value=>canonicalEPReference(value)==='eli/dl/doc/'+query.amendmentId))&&
     selected.length>0&&selected.every(variant=>variant.language===query.language);
   if(!store?.readSnapshot||!store.db||!query.adopted&&!query.id.startsWith('TA-')&&!exactAmendment)return null;
   return store.readSnapshot(()=>{
     const generations=[...new Set([store.get('working')?.generation,amendmentGeneration(store),store.get('active')].filter(Number.isInteger))];
-    const endpoint=(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
+    const endpoint=committeeDocumentEndpoint(query.id)||(query.id.startsWith('TA-')?'/adopted-texts/':'/plenary-documents/')+query.id;
     let bytes=0;
     const observation=(key,work,fetchedAt,generation)=>{
       if(!Number.isFinite(Date.parse(fetchedAt)))return null;

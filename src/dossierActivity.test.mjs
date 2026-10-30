@@ -560,4 +560,53 @@ test('coverage notices use only valid exact missing identities and preserve retr
   assert.deepEqual(notices,[{kind:'contributions',id:'2024-10-07',date:'2024-10-07',count:1},{kind:'debate',id:'MTG-PL-2024-10-07-PVCRE-ITM-17',date:'2024-10-07',item:'17'},{kind:'amendment-target',id:'B-10-2024-0003'}]);
   assert.equal(dossierEmptyLabel({status:'unavailable',gaps:[]}),null);
   assert.equal(dossierEmptyLabel({status:'partial',gaps:['Known gap.']}),null);
+  assert.deepEqual(dossierCoverageNotices({},[target('IMCO-AM-772127',true),target('AGRI-PR-773115',true)]),[{kind:'amendment-target',id:'IMCO-AM-772127'},{kind:'amendment-target',id:'AGRI-PR-773115'}]);
+});
+
+test('loading another participant page preserves an established amendment count link',async t=>{
+  const evidence={id:'committee:AGRI-AM-773343:51',scope:'committee',listId:'AGRI-AM-773343',source};
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    const later=url.searchParams.get('offset')==='2000';
+    return Response.json(page('roles',null,[],{participants:[{id:'1',name:'Amendment author',roles:[role],amendments:later?[]:[evidence],amendmentCounts:{committee:later?null:1,plenary:null}}],participantCoverage:{status:'partial',gaps:[],sources:[source]},pagination:{offset:later?2000:0,targetOffset:0,limit:25,next:later?null:{offset:2000,targetOffset:0}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const link=()=>h.container.querySelector('a[aria-label="At least 1 committee amendment"]');
+  assert(link());await h.click('Load more people');assert(link());
+  assert.equal(new URL(link().href).searchParams.get('dossier-person'),'1');
+});
+
+test('committee stage and committee filters reset the list cursor without changing speeches or roles',async t=>{
+  const committeeRow=(code,number)=>({...amendment,id:`committee:${code}-AM-773343:${number}`,amendment:{...amendment.amendment,id:`committee:${code}-AM-773343:${number}`,scope:'committee',listId:code+'-AM-773343',targetDocumentId:null,targetRelationship:{status:'unavailable'},number,committees:[{code}],decisions:[]}});
+  const query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727&dossier-show=amendments';
+  const h=await harness(t,query,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    const stage=url.searchParams.get('stage'),committee=url.searchParams.get('committee'),offset=Number(url.searchParams.get('target-offset'));
+    const items=stage==='plenary'?[amendment]:committee?[committeeRow(committee,40)]:[committeeRow('AGRI',40),committeeRow('IMCO',40)];
+    return Response.json(page('amendments','257727',offset?[]:items,{version:7,stage,committee:committee||null,pagination:{offset:0,targetOffset:offset,limit:25,next:offset?null:{offset:0,targetOffset:1}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more amendments');
+  const change=async(label,value)=>{const select=[...h.container.querySelectorAll('label')].find(node=>node.firstChild?.textContent===label)?.querySelector('select');assert(select,label);await act(async()=>{select.value=value;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});};
+  await change('Stage','committee');
+  let call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.get('stage'),'committee');assert.equal(call.searchParams.get('target-offset'),'0');
+  assert.equal(h.container.querySelectorAll('[data-amendment-scope="committee"]').length,2);
+  await change('Committee','IMCO');
+  call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.get('committee'),'IMCO');assert.equal(call.searchParams.get('offset'),'0');assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);
+  await change('Stage','plenary');
+  call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.has('committee'),false);assert.equal(h.container.querySelectorAll('[data-amendment-scope="plenary"]').length,1);
+  assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='roles').length,1);assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='speeches').length,0);
+  await h.navigate(query+'&dossier-stage=committee&dossier-committee=AGRI');
+  call=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);assert.equal(call.searchParams.get('committee'),'AGRI');assert.equal(call.searchParams.get('target-offset'),'0');
+});
+
+test('amendment-only dossier participants render separate stage links and survive a failed retry',async t=>{
+  let reads=0;
+  const evidence={id:'committee:AGRI-AM-773343:51',scope:'committee',listId:'AGRI-AM-773343',date:'2025-05-20',source};
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    return Response.json(page('roles',null,[],{participants:++reads===1?[{id:'1',name:'Amendment author',roles:[],amendments:[evidence],amendmentCounts:{committee:1,plenary:null}}]:[],participantCoverage:{status:reads===1?'partial':'unavailable',retryable:true,uncheckedTargets:['AGRI-AM-773343'],gaps:[],sources:[source]}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);assert.doesNotMatch(h.container.querySelector('.dossier-participants').textContent,/plenary amendments/);
+  await h.click('Retry people');assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);
 });

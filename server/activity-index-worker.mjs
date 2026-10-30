@@ -1,3 +1,5 @@
+import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
+import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
 import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
@@ -12,7 +14,7 @@ import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream, observedOdpFetch } from './odp.mjs';
-import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
+import { amendmentTask, rebuildAmendmentTarget, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
@@ -106,7 +108,7 @@ export class ActivityWorker {
     if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))return true;
     if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())||amendmentDocumentRouteVerificationPending(this.store,generation)))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
-    if(amendmentParserUpgradeDue(this.store,generation))return true;
+    if(amendmentParserUpgradeDue(this.store,generation)||committeePreparationDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
       !this.store.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
@@ -385,12 +387,14 @@ export class ActivityWorker {
       const requestedAt=this.clock(),r=await this.request(endpoint),adopted=endpoint.startsWith('/adopted-texts/');
       const work=adopted?adoptedTextRecord(endpoint,r.payload.data):listId?validateAmendmentListMetadata(r.payload,listId):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
+      if(committeeDraftId(tail(endpoint))&&(!validCommitteeWork(work)||work.identifier!==tail(endpoint)))throw new Error('Invalid or conflicting exact committee draft metadata.');
       if(body.amendmentRouteVerification) {
         const proof=body.amendmentRouteVerification,at=Date.parse(r.fetchedAt),failed=Date.parse(proof.previousFailure?.failedAt);
         if(!listId||proof.version!==1||proof.endpoint!==endpoint||proof.previousFailure?.endpoint!==task.key||body.endpoint!==task.key||proof.previousFailure.status!==404||r.stale||!Number.isFinite(at)||!Number.isFinite(failed)||at<requestedAt||at<=failed||at>this.clock())throw new Error('Corrected amendment route did not return fresh exact metadata.');
       }
-      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED',...(listId?['AMENDMENT_LIST']:[])].includes(tail(work.work_type))){this.store.finishTask(task);return;}
+      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','REPORT_PARLIAMENTARY_COMMITTEE_DRAFT','OPINION_PARLIAMENTARY_COMMITTEE_DRAFT','TEXT_ADOPTED',...(listId?['AMENDMENT_LIST']:[])].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(sanitizeFreshDocument(work)), proc=new Map();
+      if(validCommitteeWork(projected))projected.committeeProjectionVersion=1;
       if(adopted){
         validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
         if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=projectFollowupReferences(work.inverse_answers_to);
@@ -409,11 +413,16 @@ export class ActivityWorker {
       if(followups)this.store.taskProgress(task,followups);else this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
       scheduleAmendments(this,generation,projected,r.fetchedAt,endpoint);
+      scheduleCommitteeDiscovery(this,generation,projected,r.fetchedAt,endpoint);
+      prepareCommitteeList(this,generation,projected,r.fetchedAt,endpoint,{rebuild:rebuildAmendmentTarget});
     } else if(task.kind==='motion-outcomes') {
       await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
-      const r=await this.request(body.endpoint), work=r.payload.data[0];if(!work)throw new Error('EP procedure detail was empty.');
-      this.store.putSource(generation,body.endpoint,'procedure',projectProcedure(work),r.fetchedAt);
+      const r=await this.request(body.endpoint),matches=r.payload.data.filter(work=>String(work?.id||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/proc/'+tail(body.endpoint));
+      const work=matches[0];if(matches.length!==1||work.process_id&&work.process_id!==tail(body.endpoint))throw new Error('Invalid or conflicting exact procedure metadata.');
+      const projected=projectProcedure(work);
+      this.store.putSource(generation,body.endpoint,'procedure',projected,r.fetchedAt);
+      scheduleCommitteeDiscovery(this,generation,projected,r.fetchedAt,body.endpoint);
       // Make verified report roles usable during the initial partial load; an
       // unrelated missing speech must not postpone an already supported join.
       this.refreshReportJoins(generation,tail(body.endpoint));
@@ -702,6 +711,7 @@ export class ActivityWorker {
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
+      prepareCommitteeAmendments(this,generation);
       for(const row of this.store.db.prepare('SELECT sitting_id FROM sitting_refresh WHERE generation=? AND next_check<=? ORDER BY next_check,sitting_id LIMIT 100').all(generation,this.clock())) {
         const delay=this.clock()<Date.parse(sittingConfirmationDay(row.sitting_id))?6*60*60_000:7*DAY;
         const gap=this.store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND sitting_id=? AND kind='motion-outcomes' ORDER BY retry_at LIMIT 1").get(generation,row.sitting_id);

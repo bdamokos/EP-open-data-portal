@@ -54,7 +54,7 @@ export function createInsights(store,options={}) {
     const generation=store.status().servingGeneration;
     // Calendar content selects "latest". Retrieval times alone do not change it.
     const selection=view==='legislation'&&isLatest(query)?catalogue.coverage.years.map(year=>[year.year,year.state,year.stopReason,year.error,year.sources.map(source=>[source.url,source.contentHash,source.stale,source.refreshInProgress,source.refreshError])]):null;
-    return [version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query,...(view==='legislation'&&query.topic?[amendmentGeneration(store)]:[]),...(selection?[selection]:[]),...(view==='legislation'?[await agendaCacheRevision()]:[])];
+    return [version,view,generation,historyCacheKey(store,generation),store.get('availabilityRevision')||0,store.get('demographicRevision')||0,view==='legislation'?brusselsDay(clock()):null,query,...(view==='legislation'&&query.topic?[amendmentGeneration(store),store.get('amendmentMutationRevision')||0]:[]),...(selection?[selection]:[]),...(view==='legislation'?[await agendaCacheRevision()]:[])];
   };
   const cached=async(query,catalogue,reader,background=false)=>{
     const cache=query.topic?details:views,key=await viewKey('legislation',query,catalogue);
