@@ -1,3 +1,4 @@
+import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
 import {followingDossiers} from './follow-dossiers.mjs';
 import {followingResponse} from './insights-following.mjs';
@@ -124,7 +125,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -170,6 +171,15 @@ async function handleApi(request,response,url,apiPrefix){
       response.statusCode = 200;
       response.end(request.method === "HEAD" ? undefined : image.body);
       return;
+    }
+    if(segments[0]==='document-image'&&segments.length===3){
+      requireQuery(url.searchParams,[]);
+      const image=await documentImage(segments[1],segments[2]);
+      setCommonSecurityHeaders(response);response.setHeader('Content-Type',image.mime);
+      response.setHeader('Cache-Control','private, no-store');response.setHeader('CDN-Cache-Control','no-store');
+      response.setHeader('Content-Length',image.body.length);response.setHeader('ETag','"'+segments[2]+'"');
+      response.setHeader('X-Document-SHA256',segments[1]);response.setHeader('X-Image-SHA256',segments[2]);
+      response.end(request.method==='HEAD'?undefined:image.body);return;
     }
     if(segments[0]==='document-pages'&&segments.length===2){
       requireQuery(url.searchParams,['lang']);

@@ -1,4 +1,5 @@
-import {docxImages,documentImages} from './docx-images.mjs';
+import {publishDocumentImages} from './document-image-store.mjs';
+import {docxImages} from './docx-images.mjs';
 import {languagePreference} from './language-order.mjs';
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
@@ -21,7 +22,7 @@ import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStr
 import {styleFormatting,paragraphFormat,tableLayout,documentFormatting,DOCX_FORMATTING_VERSION as FORMATTING_VERSION} from './docx-formatting.mjs';
 import {documentAuthorIdentities} from './document-authors.mjs';
 import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
-export const DOCUMENT_TEXT_VERSION=2;
+export const DOCUMENT_TEXT_VERSION=3;
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
 
@@ -418,7 +419,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const previousFailure=failures.get(key);
   const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
   const failure=changedEdition?null:previousFailure;
-  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:documentImages(record),sourceHash:record.sourceHash||null,
+  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory}),sourceHash:record.sourceHash||null,
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
   // Keep saved text readable while a background read adds formatting/byline metadata.
@@ -426,7 +427,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     if((stale||reformat) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
       void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});
-    }return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+    }return {...await present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}

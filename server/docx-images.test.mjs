@@ -98,3 +98,27 @@ test('proposal cache accounting includes inflated image strings rather than comp
  for(let i=1;i<=4;i++)parseProposal(source,{identity:{largeImageCacheTest:i}});
  assert.notEqual(parseProposal(source,options),first,'inflated assets evict earlier entries before the eight-entry cap');
 });
+
+test('maximum accepted pictures use small public descriptors and a separate bounded source-addressed store',async t=>{
+ const {DocumentImageStore}=await import('./document-image-store.mjs');
+ const {mkdtemp,rm,writeFile}=await import('node:fs/promises');const os=await import('node:os');const path=await import('node:path');
+ const directory=await mkdtemp(path.join(os.tmpdir(),'document-images-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const large=Buffer.alloc(IMAGE_LIMITS.bytes);png.copy(large);
+ const buffer=fixture(drawing,{'word/media/picture.png':large}),content=docxContent(buffer),id=content.documentObjects[0].image.id;
+ const store=new DocumentImageStore(),imageAssets=await store.publish(content,{directory});
+ assert.equal(imageAssets[id].data,undefined);assert.equal(imageAssets[id].sourceHash,content.sourceHash);
+ assert(Buffer.byteLength(JSON.stringify({...content,imageAssets}))<10_000,'source text stays below public JSON budgets');
+ assert.deepEqual((await store.read(content.sourceHash,id,{directory})).body,large);
+ const reopened=new DocumentImageStore();assert.deepEqual((await reopened.read(content.sourceHash,id,{directory})).body,large);
+ const proposal=parseProposal(buffer);assert(Buffer.byteLength(JSON.stringify({...proposal,imageAssets:await store.publish(proposal,{directory})}))<3*1024*1024,'legal baseline projection remains available');
+ await assert.rejects(store.read('../x',id,{directory}),error=>error.status===400);
+ await assert.rejects(store.read('f'.repeat(64),id,{directory}),error=>error.status===404);
+ reopened.memory.clear();await writeFile(path.join(directory,'document-images-v1',content.sourceHash+'-'+id+'.bin'),'corrupt');
+ await assert.rejects(reopened.read(content.sourceHash,id,{directory}),error=>error.status===404);
+ for(let n=0;n<10;n++)store.remember(String(n),large);
+ assert(store.bytes<=32*1024*1024);assert.equal(store.memory.has('0'),false);
+ const {documentText}=await import('./document-text.mjs');
+ const url='https://data.europarl.europa.eu/distribution/test/large-image.docx';
+ const text=await documentText({id:'eli/dl/doc/A-10-2026-0999',is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/ENG',is_embodied_by:[{format:'http://publications.europa.eu/resource/authority/file-type/DOCX',is_exemplified_by:url}]}]},'en',{directory,download:async()=>content});
+ assert.equal(text.status,'available');assert.equal(text.imageAssets[id].data,undefined);assert(Buffer.byteLength(JSON.stringify(text))<10000);
+});
