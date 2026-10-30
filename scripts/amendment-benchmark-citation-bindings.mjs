@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {rawCitationMarkerAssertion} from './amendment-benchmark-citation-calibration.mjs';
 
 export const CITATION_CALIBRATION_MODE='proposed-native-citation-marker';
+export const CITATION_NATIVE_PROTOCOL='native-citation-marker-v1';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const ref=value=>String(value?.id??value??'').replace(/^https:\/\/data\.europarl\.europa\.eu\//u,'');
@@ -74,12 +75,26 @@ export async function bindCitationNativeInputs({manifest,readObservation,offline
   return {status:'bound',binding,nativeCitation:{motionBuffer:motion.body,amendmentBuffer:amendment.body,number}};
 }
 
-export async function pairedCitationVerification({canonical,mode,cache,row,variant,fetched,text,wording,placement,target}) {
+async function citationVerificationPair({canonical,mode,cache,row,variant,fetched,text,wording,placement,target},{zeroRequestCap=true}={}) {
   if(mode!==CITATION_CALIBRATION_MODE)throw new Error('Explicit citation calibration mode required.');
   const targetMatch=/^Citation ([1-9]\d*)$/u.exec(wording?.targetLabel??'');
   if(wording?.language!=='en'||wording.baseline!=='motion-resolution'||!targetMatch||!wording.originalText?.startsWith(targetMatch[1]+'.\t'))return null;
-  const bound=await bindCitationNativeInputs({manifest:cache.manifest(),offline:cache.fetchMissing===false&&cache.cap===0&&Boolean(cache.sealed),readObservation:(url,request)=>cache.get(url,{...request,raw:true,officialRedirect:publicWord(url)}),documentId:row.targetDocumentId,listId:variant.listId,number:row.number,language:variant.language,wording,motionSource:text?.sourceInput,amendmentSource:{...fetched,resolvedSourceUrl:fetched?.resolvedSourceUrl??fetched?.url}});
+  const bound=await bindCitationNativeInputs({manifest:cache.manifest(),offline:cache.fetchMissing===false&&(!zeroRequestCap||cache.cap===0)&&Boolean(cache.sealed),readObservation:(url,request)=>cache.get(url,{...request,raw:true,officialRedirect:publicWord(url)}),documentId:row.targetDocumentId,listId:variant.listId,number:row.number,language:variant.language,wording,motionSource:text?.sourceInput,amendmentSource:{...fetched,resolvedSourceUrl:fetched?.resolvedSourceUrl??fetched?.url}});
   const native=bound.status==='bound'?rawCitationMarkerAssertion({wording,placement,text,target,nativeCitation:bound.nativeCitation}):{status:'unverified',reason:bound.reason};
   const proposed=canonical.status==='failed'&&canonical.reason==='oracle-original-span-mismatch'&&native.status==='verified'?native:canonical;
   return {mode,accepted:false,canonical,proposed,native,binding:bound.binding??null,bindingStatus:bound.status,bindingReason:bound.reason??null,rawComparison:{targetLabel:wording.targetLabel,originalText:wording.originalText,proposedText:wording.proposedText},changed:stable(canonical)!==stable(proposed)};
+}
+
+export const pairedCitationVerification=input=>citationVerificationPair(input);
+
+// Canonical replay may use the source-bound assertion only after its ordinary
+// original-span check fails. Sealing disables acquisition regardless of the
+// budget that was used to capture the snapshot. Experimental probes retain
+// their explicit zero-cap requirement above.
+export async function sourceBoundCitationVerification(input) {
+  const unchanged={verification:input.canonical,evidence:null};
+  if(input.canonical?.status!=='failed'||input.canonical.reason!=='oracle-original-span-mismatch'||input.cache?.fetchMissing!==false||!input.cache?.sealed)return unchanged;
+  const pair=await citationVerificationPair({...input,mode:CITATION_CALIBRATION_MODE},{zeroRequestCap:false});
+  if(!pair?.changed||pair.bindingStatus!=='bound'||pair.native?.status!=='verified')return unchanged;
+  return {verification:pair.native,evidence:{protocol:CITATION_NATIVE_PROTOCOL,previousVerification:pair.canonical,binding:pair.binding}};
 }

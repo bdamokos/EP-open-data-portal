@@ -13,7 +13,7 @@ import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=5;
+export const DOSSIER_ACTIVITY_VERSION=6;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -107,7 +107,7 @@ export class DossierActivity {
   async participants(result,work,query) {
     // Reuse the exact debate-child projection, without fetching individual people
     // or speeches. A procedural role is not a prerequisite for a contribution.
-    const speechResult={...result,items:[],coverage:{status:'partial',gaps:[],sources:[result.procedure.source]},pagination:{...result.pagination,next:null}};
+    const speechResult={...result,items:[],coverage:{status:'complete',gaps:[],sources:[result.procedure.source],checkedTargets:[],uncheckedTargets:[]},pagination:{...result.pagination,next:null}};
     await this.speeches(speechResult,work,{...query,offset:0},(items,next)=>{speechResult.items=items;speechResult.pagination.next=next;});
     result.participantCoverage=speechResult.coverage;
     const people=new Map(result.participants.map(person=>[person.id,{...person,speeches:[]}]));
@@ -127,7 +127,7 @@ export class DossierActivity {
     const {reference,language,member,section,offset,targetOffset,limit}=query,id=reference.split('(')[0].replace('/','-');
     const {work,procedure}=await this.procedure(id,language,reference);
     const local=this.store.readSnapshot(()=>{const generation=this.store.status().servingGeneration;return {generation,...this.localRoles(work,procedure,generation)};});
-    const coverage={status:'partial',gaps:section==='roles'?[...local.gaps]:[],sources:[procedure.source],checkedScope:section,observedCount:null,truncated:false},pagination={offset,targetOffset,limit,next:null};
+    const coverage={status:'complete',gaps:section==='roles'?[...local.gaps]:[],sources:[procedure.source],checkedTargets:[],uncheckedTargets:[],checkedScope:section,observedCount:null,truncated:false},pagination={offset,targetOffset,limit,next:null};
     const result={version:DOSSIER_ACTIVITY_VERSION,procedure,memberId:member,participants:local.participants,section,items:[],pagination,coverage,generation:local.generation};
     const page=(items,nextTarget=null)=>{result.items=items.slice(offset,offset+limit);pagination.next=offset+limit<items.length?{offset:offset+limit,targetOffset}:nextTarget;coverage.observedCount=items.length;coverage.truncated=Boolean(pagination.next);};
     if(section==='roles') {
@@ -136,7 +136,8 @@ export class DossierActivity {
     }else if(section==='speeches')await this.speeches(result,work,query,page);
     else if(section==='amendments')await this.amendments(result,work,query);
     else await this.ballots(result,work,query);
-    if(coverage.sources.some(s=>s.stale||s.refreshInProgress||s.refreshError)){coverage.status='partial';coverage.gaps.push('Some source observations are refreshing.');}
+    coverage.checkedComplete ??= coverage.status==='complete'&&!coverage.gaps.length;
+    if(coverage.status==='complete'&&(coverage.gaps.length||coverage.uncheckedTargets.length))coverage.status='partial';
     if(coverage.status==='unavailable')coverage.observedCount=null;
     coverage.gaps=[...new Set(coverage.gaps)];
     coverage.sources=[...new Map(coverage.sources.map(s=>[JSON.stringify([s.url,s.fetchedAt,s.contentHash||null]),s])).values()];
@@ -145,9 +146,14 @@ export class DossierActivity {
   }
   async speeches(result,work,query,page) {
     const {coverage}=result,{targetOffset,language,member}=query;
-    coverage.retryable=false;coverage.failedDebates=[];
-    const debates=sorted(array(work.consists_of).filter(event=>tail(event.had_activity_type)==='PLENARY_DEBATE'&&/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(canonical(event.id))).map(event=>({...event,date:date(event.activity_date)})));
+    coverage.retryable=false;coverage.failedDebates=[];coverage.missingSpeechIds=[];coverage.checkedComplete=false;
+    if(!Array.isArray(work.consists_of)){coverage.status='unavailable';coverage.gaps.push('Linked debate records are unavailable.');return;}
+    const declaredDebates=work.consists_of.filter(event=>tail(event.had_activity_type)==='PLENARY_DEBATE');
+    const debates=sorted(declaredDebates.filter(event=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(canonical(event.id))).map(event=>({...event,date:date(event.activity_date)})));
+    if(debates.length!==declaredDebates.length)coverage.gaps.push('A linked debate has an invalid identifier.');
     const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map();
+    coverage.checkedTargets=selected.map(event=>tail(event.id));
+    coverage.uncheckedTargets=[...new Set(debates.map(event=>tail(event.id)))].filter(id=>!coverage.checkedTargets.includes(id));
     for(const event of selected)try {
       const id=tail(event.id),record=await this.reader.record('/events/'+id),nodes=record.payload.data.filter(node=>canonical(node.id)===canonical(event.id));
       if(nodes.length!==1||event.date&&date(nodes[0].activity_date)!==event.date||!Array.isArray(nodes[0].consists_of))throw new HttpError(502,'debate_identity','The exact debate is unavailable.');
@@ -155,14 +161,20 @@ export class DossierActivity {
       if(ids.length>DOSSIER_ACTIVITY_LIMITS.children)coverage.gaps.push('Some debate children are outside this page.');
       for(const child of ids.slice(0,DOSSIER_ACTIVITY_LIMITS.children))children.set(tail(child),[...(children.get(tail(child))||[]),{...event,jointDebate:/joint debate/i.test(nodes[0].activity_label?.en||'')}]);
       const observation=source(record);coverage.sources.push(observation);
-      if(observation.refreshError)coverage.failedDebates.push(id);
     }catch(error){if(isLocalRequestFailure(error))throw error;coverage.retryable=true;coverage.failedDebates.push(tail(event.id));coverage.gaps.push('A linked debate is unavailable.');}
-    const rows=this.store.readSnapshot(()=>{
+    const retained=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)return null;
-      if(!children.size)return [];
-      return this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+[...children].map(()=>'?').join(',')+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...children.keys(),DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
+      if(!children.size)return {rows:[],missing:[]};
+      const ids=[...children.keys()],slots=ids.map(()=>'?').join(',');
+      const indexed=new Set(this.store.db.prepare('SELECT DISTINCT source_id FROM items WHERE generation=? AND source_id IN ('+slots+')').all(result.generation,...ids).map(row=>row.source_id));
+      const sources=new Set(this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='speech' AND key IN ("+slots+')').all(result.generation,...ids.map(id=>'/speeches/'+id)).map(row=>row.key));
+      const missing=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id));
+      const rows=this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+slots+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...ids,DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
+      return {rows,missing};
     });
-    if(rows===null){coverage.status='unavailable';coverage.retryable=true;coverage.gaps.push('The activity index changed. Retry speeches.');return;}
+    if(retained===null){coverage.status='unavailable';coverage.retryable=true;coverage.gaps.push('The activity index changed. Retry speeches.');return;}
+    const {rows,missing}=retained;coverage.missingSpeechIds=missing;
+    if(missing.length){coverage.retryable=true;coverage.gaps.push('Some linked contributions are not saved.');}
     const items=[];
     for(const row of rows.slice(0,DOSSIER_ACTIVITY_LIMITS.speechRows)) {
       const speech=JSON.parse(row.body),parents=children.get(speech.sourceId)||[];
@@ -175,12 +187,10 @@ export class DossierActivity {
       items.push({kind:'speech',id:speech.sourceId,personId:speaker,date:date(speech.date),start:speech.start||null,stage:stage(parents[0].occured_at_stage),...pick(speech.titles,language,speech.speechKind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'Written statement':'Speech'),debateId:tail(parents[0].id),jointDebate:parents[0].jointDebate,source:from});
     }
     if(rows.length>DOSSIER_ACTIVITY_LIMITS.speechRows)coverage.gaps.push('Some saved speech records are outside this page.');
-    coverage.gaps.push('Showing saved contributions linked to the checked debates.');
-    if(coverage.sources.some(s=>s.stale||s.refreshInProgress||s.refreshError))coverage.gaps.push('Some source observations are refreshing.');
-    if(coverage.sources.some(s=>s.refreshError))coverage.retryable=true;
     const nextTarget=targetOffset+selected.length<debates.length?{offset:0,targetOffset:targetOffset+selected.length}:null;
     page(sorted([...new Map(items.map(item=>[item.id+'@'+item.personId,item])).values()]),nextTarget);
-    if(selected.length&&!children.size&&coverage.retryable)coverage.status='unavailable';
+    coverage.checkedComplete=!coverage.gaps.length;
+    coverage.status=coverage.failedDebates.length===selected.length&&selected.length?'unavailable':coverage.gaps.length||coverage.uncheckedTargets.length?'partial':'complete';
   }
   async amendments(result,work,query) {
     const {coverage,procedure}=result,{member,language,targetOffset,offset,limit}=query;
@@ -197,13 +207,15 @@ export class DossierActivity {
     const candidates=[...new Set([...retained,...array(work.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY').flatMap(event=>refs(event.based_on_a_realization_of)).map(tail)].filter(id=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(id)))].sort();
     const targets=candidates.slice(0,DOSSIER_ACTIVITY_LIMITS.documents);
     if(candidates.length>targets.length)coverage.gaps.push('Some amendment targets are outside this checked scope.');
-    if(targetOffset>=targets.length){coverage.gaps.push('No checked amendment target is linked in this procedure observation.');return;}
-    const target=targets[targetOffset];let record;
+    if(targetOffset>=targets.length){coverage.status='unavailable';coverage.retryable=false;coverage.gaps.push('No checked amendment target is linked in this procedure observation.');return;}
+    const target=targets[targetOffset];let record,targetWork;
+    coverage.checkedTargets=[target];coverage.uncheckedTargets=targets.filter(id=>id!==target);
     result.checkedTarget=target;
     try {
       record=await this.reader.record('/plenary-documents/'+target);
       const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/doc/'+target);
       if(nodes.length!==1||!refs(nodes[0].inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))throw new HttpError(502,'dossier_amendment_target','The exact amendment target is unavailable.');
+      targetWork=nodes[0];
     }catch(error){
       if(isLocalRequestFailure(error))throw error;
       coverage.status='unavailable';coverage.gaps.push('Amendment target '+target+' is unavailable.');
@@ -229,7 +241,9 @@ export class DossierActivity {
         items.push({kind:'amendment',id:row.id+'@'+(variant.listId||'aggregate'),date:tabling.date||date(variant.documentDate)||date(variant.date),dateBasis:tabling.date?'tabling':'document',stage:stages.length===1?stages[0]:null,tabling,amendment,source:source(from,from.language||null)});
       }
     }
-    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':'partial';
+    const declared=refs(targetWork.inverse_foresees_change_of).some(value=>value.match(/^eli\/dl\/doc\/((?:A|B|RC)-10-\d{4}-\d{4,6})-AM-\d{1,5}(?:-\d{1,5})?$/)?.[1]===target);
+    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':data.total>0||declared?'partial':'unavailable';
+    if(coverage.status==='unavailable')coverage.retryable=false;
     coverage.gaps.push(...array(data.coverage.targetGaps||data.coverage.gaps).filter(gap=>typeof gap==='string'));
     coverage.discovery=data.coverage.discovery||null;
     result.checkedTarget=target;
@@ -240,8 +254,9 @@ export class DossierActivity {
     const {coverage}=result,{offset,member,language}=query;
     const events=array(work.consists_of).filter(event=>tail(event.had_activity_type)==='PLENARY_VOTE_RESULTS'&&/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-VOT-ITM-\d+$/.test(canonical(event.id)));
     const sittings=[...new Set(events.map(event=>tail(event.id).match(/^MTG-PL-\d{4}-\d{2}-\d{2}/)[0]))].sort();
-    if(offset>=sittings.length){coverage.gaps.push('No plenary decision event is linked in this procedure observation.');return;}
+    if(offset>=sittings.length){coverage.status='unavailable';coverage.retryable=false;coverage.gaps.push('No plenary decision event is linked in this procedure observation.');return;}
     const sitting=sittings[offset],snapshot=await this.votes.snapshot({sitting,week:null,language,snapshot:null}),allowed=new Set(events.map(event=>canonical(event.id)));
+    coverage.checkedTargets=[sitting];coverage.uncheckedTargets=sittings.filter(id=>id!==sitting);
     const items=snapshot.days.flatMap(day=>projectMemberSitting(day,member,language).items).filter(vote=>{
       const parents=vote.context.resultIds.map(eventRef);
       return !vote.sourceConflicts&&!['ambiguous','unlinked'].includes(vote.resultRelationship.binding)&&parents.length===1&&allowed.has(parents[0]);

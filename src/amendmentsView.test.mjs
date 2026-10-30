@@ -17,7 +17,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
-  const amendment={id:'B-10-2026-0424-AM-114',number:114,targetDocumentId:'B-10-2026-0424',language:'fr',originalText:'',proposedText:'Texte nouveau',outcome:'mixed',authors:[{name:'Christophe Bay',personId:'261797',method:'voting_alias'}],procedureIds:['2025-0407'],
+  const amendment={id:'B-10-2026-0424-AM-114',number:114,targetDocumentId:'B-10-2026-0424',language:'fr',justification:'Motif publié.\nDeuxième paragraphe & <texte>.',originalText:'',proposedText:'Texte nouveau',outcome:'mixed',authors:[{name:'Christophe Bay',personId:'261797',method:'voting_alias'}],procedureIds:['2025-0407'],
     decisions:[{id:'exact-decision',partId:'request-one-part-1',partNumber:1,outcome:'REJECTED',totals:{for:0,against:4,abstaining:null}},{id:'unindexed-decision',partId:'unindexed-part-1',partNumber:1,outcome:'LAPSED'}],
     splitParts:[{id:'request-one-part-1',number:1,language:'en',description:'Text as a whole without the words “carbon leakage”',status:'parsed',plan:{type:'difference',base:{type:'all'},except:{type:'text',quote:'carbon leakage'}}},{id:'request-two-part-1',number:1,language:'en',description:'A future unrecognised form',status:'unresolved',failure:{code:'unsupported_syntax',message:'Description not recognised.'}}],sources:[{url:'https://data.europarl.europa.eu/fixture',language:'fr',fetchedAt:'2026-10-16T12:00:00Z'}]};
   const frenchDescription='<partValue>«politique agricole» <img src="invalid" onerror="alert(1)"/></partValue>';
@@ -57,6 +57,9 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   assert.match(container.querySelector('.explorer-amendment-coverage').textContent,/partial coverage/);
   assert.equal(cards[0].querySelector('.wording-diff').lang,'en');
   assert.equal(cards[0].querySelector('.wording-diff__passage').lang,'fr');
+  assert.equal(cards[0].querySelector('.amendment-justification p').textContent,amendment.justification);
+  assert.equal(cards[0].querySelector('.amendment-justification p').lang,'fr');
+  assert.equal(cards[1].querySelector('.amendment-justification'),null);
   const parts=[...cards[0].querySelectorAll('.explorer-amendment-part')];
   assert.equal(parts[0].querySelector('blockquote').lang,'en');
   assert.equal(parts[0].querySelectorAll('.explorer-amendment-decision').length,1);

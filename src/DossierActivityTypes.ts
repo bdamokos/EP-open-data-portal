@@ -2,7 +2,7 @@ import type {Amendment} from './AmendmentTypes';
 import type {MemberVote} from './MemberVotesTypes';
 
 export type DossierSource={url:string;fetchedAt:string|null;language:string|null;stale?:boolean;refreshInProgress?:boolean;refreshError?:string|null};
-export type DossierCoverage={status:'complete'|'partial'|'unavailable';gaps:string[];sources:DossierSource[];retryable?:boolean;failedDebates?:string[];retained?:boolean;discovery?:{pending:boolean;refreshGaps:boolean;capacityGaps:string[]}|null};
+export type DossierCoverage={status:'complete'|'partial'|'unavailable';gaps:string[];sources:DossierSource[];checkedComplete?:boolean;checkedTargets?:string[];uncheckedTargets?:string[];retryable?:boolean;failedDebates?:string[];missingSpeechIds?:string[];retained?:boolean;discovery?:{pending:boolean;refreshGaps:boolean;capacityGaps:string[]}|null};
 export type DossierReference={id:string;reference:string;title:string;titleLanguage:string|null;source:DossierSource};
 type ActivityBase={id:string;date:string|null;stage:string|null;source:DossierSource};
 export type DossierRole=ActivityBase&{kind:'role';participationId?:string|null;personId:string;role:string;committee:string|null;dateBasis:'recorded'|'document';documentId?:string};
@@ -13,5 +13,5 @@ export type DossierItem=DossierRole|DossierSpeech|DossierAmendment|DossierVote;
 export type DossierSection='roles'|'speeches'|'amendments'|'votes';
 export type DossierFilter='all'|DossierSection;
 export type DossierCursor={offset:number;targetOffset:number};
-export type DossierActivityResponse={version:5;procedure:DossierReference;memberId:string|null;participants:{id:string;name:string|null;roles:DossierRole[];speeches?:Pick<DossierSpeech,'id'|'debateId'|'date'|'source'>[]}[];participantCoverage?:DossierCoverage;section:DossierSection;items:DossierItem[];pagination:DossierCursor&{limit:number;next:DossierCursor|null};coverage:DossierCoverage;generation:number;amendmentGeneration?:number;checkedTarget?:string};
+export type DossierActivityResponse={version:6;procedure:DossierReference;memberId:string|null;participants:{id:string;name:string|null;roles:DossierRole[];speeches?:Pick<DossierSpeech,'id'|'debateId'|'date'|'source'>[]}[];participantCoverage?:DossierCoverage;section:DossierSection;items:DossierItem[];pagination:DossierCursor&{limit:number;next:DossierCursor|null};coverage:DossierCoverage;generation:number;amendmentGeneration?:number;checkedTarget?:string};
 export type DossierReferencesResponse={items:DossierReference[];coverage:{status:DossierCoverage['status'];gaps:({code?:string;message?:string;id?:string}|string)[]}};

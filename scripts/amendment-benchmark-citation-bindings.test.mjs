@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {deflateRawSync} from 'node:zlib';
 import {readFileSync} from 'node:fs';
-import {bindCitationNativeInputs,pairedCitationVerification,CITATION_CALIBRATION_MODE} from './amendment-benchmark-citation-bindings.mjs';
+import {bindCitationNativeInputs,pairedCitationVerification,sourceBoundCitationVerification,CITATION_CALIBRATION_MODE,CITATION_NATIVE_PROTOCOL} from './amendment-benchmark-citation-bindings.mjs';
 
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/resolution-citation-native.json',import.meta.url)));
@@ -90,4 +90,38 @@ test('unsupported or failed native proof and every other canonical result remain
   const missing=input(),missingRequest=pair(missing);missing.manifest=[];assert.deepEqual((await pairedCitationVerification(missingRequest)).proposed,missingRequest.canonical);
   const unplaced=input(),unplacedRequest=pair(unplaced);unplacedRequest.canonical={status:'not-applicable',reason:'not-placed'};unplacedRequest.placement.status='unresolved';assert.deepEqual((await pairedCitationVerification(unplacedRequest)).proposed,unplacedRequest.canonical);
   await assert.rejects(pairedCitationVerification({...pair(input()),mode:undefined}),/Explicit citation calibration mode/);
+});
+
+test('canonical replay verifies the native-owned citation and retains its previous assertion and source observations',async()=>{
+  const request=pair(input()),original=structuredClone(request.canonical);
+  const result=await sourceBoundCitationVerification(request);
+  assert.equal(result.verification.status,'verified');
+  assert.equal(result.verification.reason,'oracle-native-citation-marker');
+  assert.equal(result.evidence.protocol,CITATION_NATIVE_PROTOCOL);
+  assert.deepEqual(result.evidence.previousVerification,original);
+  assert.deepEqual(request.canonical,original);
+  assert.equal(result.evidence.binding.motion.at(-1).sha256,result.verification.assertion.motionSha256);
+  assert.equal(result.evidence.binding.amendment.at(-1).sha256,result.verification.assertion.amendmentSha256);
+});
+
+test('canonical proof is offline after sealing even when acquisition used the ordinary request budget',async()=>{
+  const request=pair(input());request.cache.cap=1500;
+  assert.equal((await sourceBoundCitationVerification(request)).verification.status,'verified');
+  // The explicitly experimental probe keeps its stricter cap0 contract.
+  assert.deepEqual((await pairedCitationVerification(request)).proposed,request.canonical);
+  for(const change of [r=>r.cache.fetchMissing=true,r=>r.cache.sealed=null]) {
+    const request=pair(input());change(request);
+    request.cache.get=()=>{throw Error('Unsealed proof must not read a source');};
+    assert.deepEqual(await sourceBoundCitationVerification(request),{verification:request.canonical,evidence:null});
+  }
+});
+
+test('canonical verification cannot repair missing proof, a different source span or other verification outcomes',async()=>{
+  const missing=input(),request=pair(missing);missing.manifest=[];
+  assert.deepEqual(await sourceBoundCitationVerification(request),{verification:request.canonical,evidence:null});
+  const wrongSpan=pair(input());wrongSpan.placement.span={start:3,end:3};
+  assert.deepEqual(await sourceBoundCitationVerification(wrongSpan),{verification:wrongSpan.canonical,evidence:null});
+  for(const canonical of [{status:'verified',reason:'oracle-verified'},{status:'unverified',reason:'oracle-target-unavailable'},{status:'not-applicable',reason:'not-placed'},{status:'failed',reason:'oracle-operation-mismatch'}]) {
+    assert.deepEqual(await sourceBoundCitationVerification({canonical,cache:{get(){throw Error('Unrelated verification must not read native bytes');}}}),{verification:canonical,evidence:null});
+  }
 });

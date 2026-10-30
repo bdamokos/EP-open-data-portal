@@ -137,6 +137,31 @@ test('wording-only reads defer the source body until context is requested',async
   for(const text of ['body=1','body=0','body=0&adopted=1','body=0&amendment='+amendmentId+'&adopted=1'])assert.throws(()=>documentContextQuery(id,new URLSearchParams(text)),{status:400});
 });
 
+test('wording responses preserve each justification and its source without reading the body',async()=>{
+  const french={...source,url:source.url.replace('_en','_fr'),language:'fr'};
+  const variants=[{...indexed,justification:'First paragraph.\nSecond paragraph.',metadataSource:source},
+    {...indexed,listId:id+'-AM-040-040',language:'fr',justification:'Motif publié.',metadataSource:french,wordingSource:french}];
+  const reader=service({findAmendment:()=>({...indexed,variants}),readText:async()=>assert.fail('body=0 must not read the body')});
+  const result=await reader.query(query({amendmentId,includeBody:false}),{store:{}});
+  assert.deepEqual(result.amendment.variants.map(row=>[row.listId,row.language,row.justification,row.metadataSource]),
+    variants.map(row=>[row.listId,row.language,row.justification,row.metadataSource]));
+  const missing=service({findAmendment:()=>indexed});
+  assert.equal((await missing.query(query({amendmentId,includeBody:false}),{store:{}})).amendment.variants[0].justification,null);
+});
+
+test('a cold published-list read exposes the extracted Danish justification with the exact DOCX source',async()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url))).documents.find(row=>row.language==='da');
+  const list={id:'eli/dl/doc/'+fixture.listId,identifier:fixture.listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+fixture.targetDocumentId,
+    is_realized_by:[{language:'language/DAN',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:fixture.sourceUrl}]}]};
+  const reader=service({request:async()=>record({...work,id:'eli/dl/doc/'+fixture.targetDocumentId,identifier:fixture.targetDocumentId,inverse_foresees_change_of:[list]}),
+    download:async()=>({buffer:archive(fixture.documentXml,fixture.stylesXml),resolvedSourceUrl:fixture.sourceUrl}),readText:async()=>assert.fail('body=0 must not read the body')});
+  const result=await reader.query({...query(),id:fixture.targetDocumentId,amendmentId:fixture.targetDocumentId+'-AM-41',language:'da',includeBody:false});
+  const variant=result.amendment.variants[0];
+  assert.equal(variant.justification,'I overensstemmelse med Parlamentets holdning, der blev vedtaget med et flertal i 2024.');
+  assert.equal(variant.language,'da');assert.equal(variant.fieldSources.justification.url,fixture.sourceUrl);
+  assert.equal(variant.fieldSources.justification.language,'da');assert.equal(result.amendment.basis,'published-list');
+});
+
 test('exact requested source is required before any body is read',async()=>{
   for(const nodes of [[{...work,id:'eli/dl/doc/B-10-2026-0424'}],[work,work],[]]) {
     let reads=0;const reader=service({request:async()=>({payload:{data:nodes},fetchedAt:at}),readText:async()=>{reads++;return summary;}});
@@ -367,7 +392,7 @@ test('context returns column operation and complete placement independently of c
   const amendment={...indexed,originalText:'',proposedText:'19a. New provision;',targetLabel:'Paragraph 19 a (new)',targetLabelLanguage:'en'};
   const reader=service({readText:async()=>text,findAmendment:()=>amendment});
   const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
-  assert.equal(result.version,42);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
+  assert.equal(result.version,43);assert.equal(result.placement.status,'placed');assert.equal(result.placement.operation,'insert');assert.equal(result.placement.insertAfter,3);assert.equal(result.placement.insertBefore,4);
   assert.equal(result.target.status,'unavailable','old target remains a separate compatibility observation');
   assert.equal(result.target.evidence.wordingLanguage,'en');
 });

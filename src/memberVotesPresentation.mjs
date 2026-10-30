@@ -124,12 +124,18 @@ function sourceLabel(labels,language) {
   if(!isObject(labels))return null;
   return [labels[language],labels.en,...Object.values(labels)].find(value=>typeof value==='string'&&value.trim())||null;
 }
+export function memberVoteParentLabel(vote,language='en') {
+  const amendments=unique((vote.context?.amendmentIds||[]).filter(id=>amendmentDocument.test(id)).map(id=>id.slice(id.indexOf('-AM-')+4)));
+  if(amendments.length)return (amendments.length===1?'Amendment ':'Amendments ')+amendments.join(', ');
+  const scopes=unique((vote.parts||[]).map(part=>sourceLabel(part.requestScopeByLanguage,language)).filter(Boolean));
+  return scopes.length===1?scopes[0]:sourceLabel(vote.referenceTexts,language);
+}
 export function memberVoteLabel(vote,language='en') {
   if(vote.scope?.kind==='whole-text')return 'Final vote';
-  const amendments=unique((vote.context?.amendmentIds||[]).filter(id=>amendmentDocument.test(id)).map(id=>id.slice(id.indexOf('-AM-')+4)));
   const parts=unique((vote.parts||[]).map(part=>part.number).filter(value=>typeof value==='string'&&value.trim()||typeof value==='number'&&Number.isFinite(value)).map(String));
   const label=[];
-  if(amendments.length)label.push((amendments.length===1?'Amendment ':'Amendments ')+amendments.join(', '));
+  const parent=memberVoteParentLabel(vote,language);
+  if(parent)label.push(parent);
   if(parts.length)label.push((parts.length===1?'Part ':'Parts ')+parts.join(', '));
   return label.join(' · ')||sourceLabel(vote.referenceTexts,language)||'Decision';
 }
