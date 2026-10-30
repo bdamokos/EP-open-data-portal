@@ -62,3 +62,39 @@ test('compatibility pictures select one supported representation without doublin
  const body='<mc:AlternateContent xmlns:mc="urn:compat"><mc:Choice Requires="wps"><w:r><w:drawing><wps:wsp xmlns:wps="urn:wps"><w:txbxContent><w:p><w:r><w:t>Shape text</w:t></w:r></w:p></w:txbxContent></wps:wsp></w:drawing></w:r></mc:Choice><mc:Fallback>'+drawing+'</mc:Fallback></mc:AlternateContent>';
  const c=docxContent(fixture(body));assert.equal(c.paragraphs[0],'Before\uFFFCAfter');assert.equal(c.documentObjects.length,1);assert(c.documentObjects[0].image);assert.equal(c.documentObjects[0].image.compatibility,'mc:Fallback');assert.equal(c.documentObjects[0].status,'unresolved');
 });
+
+test('compatibility pictures use shared visibility rules and never revive hidden or deleted drawings through fallbacks',()=>{
+ const withoutRun=drawing.slice('<w:r>'.length,-'</w:r>'.length),styles='<w:styles xmlns:w="urn:word"><w:style w:type="character" w:styleId="Secret"><w:rPr><w:vanish/></w:rPr></w:style></w:styles>';
+ for(const suppressed of [
+  drawing.replace('<w:r>','<w:r><w:rPr><w:vanish/></w:rPr>'),
+  drawing.replace('<w:r>','<w:r><w:rPr><w:webHidden/></w:rPr>'),
+  drawing.replace('<w:r>','<w:r><w:rPr><w:rStyle w:val="Secret"/></w:rPr>'),
+  '<w:del>'+drawing+'</w:del>','<w:moveFrom>'+drawing+'</w:moveFrom>',
+  withoutRun.replace('id="1" descr=', 'id="1" hidden="1" descr=')
+ ]){
+  const body='<mc:AlternateContent xmlns:mc="urn:compat"><mc:Choice>'+suppressed+'</mc:Choice><mc:Fallback>'+withoutRun+'</mc:Fallback></mc:AlternateContent>';
+  const c=docxContent(fixture(body,{'word/styles.xml':styles}));assert.equal(c.documentObjects[0].image,undefined);assert.deepEqual(c.imageAssets,{});assert.equal(c.documentObjects[0].imageUnavailableReason,'picture-hidden');
+ }
+});
+test('hidden VML shapes do not extract image bytes and published picture extents are retained',()=>{
+ const vml=style=>'<w:r><w:pict xmlns:v="urn:vml"><v:shape style="'+style+'"><v:imagedata r:id="rId1"/></v:shape></w:pict></w:r>';
+ for(const style of ['width:120pt;height:60pt;visibility:hidden','width:120pt;height:60pt;display:none','width:120pt;height:60pt;mso-hide:all']){
+  const c=docxContent(fixture(vml(style)));assert.equal(c.documentObjects[0].image,undefined);assert.deepEqual(c.imageAssets,{});
+ }
+ const shape=docxContent(fixture(vml('width:120pt;height:60pt'))).documentObjects[0].image;assert.equal(shape.displayWidth,160);assert.equal(shape.displayHeight,80);
+ const inline=docxContent(fixture(drawing.replace('<wp:inline>','<wp:inline><wp:extent cx="3048000" cy="762000"/>'))).documentObjects[0].image;
+ assert.equal(inline.displayWidth,320);assert.equal(inline.displayHeight,80);assert.equal(inline.width,1);assert.equal(inline.height,1);
+ assert.equal(docxContent(fixture(drawing.replace('<wp:inline>','<wp:inline><wp:extent cx="9999999999" cy="762000"/>'))).documentObjects[0].image,undefined);
+});
+test('the inflated media budget charges each unique part once across repeated placements',()=>{
+ const large=Buffer.concat([png,Buffer.alloc(3*1024*1024-png.length)]),c=docxContent(fixture(drawing.repeat(5),{'word/media/picture.png':large}));
+ assert.equal(Object.keys(c.imageAssets).length,1);assert.equal(c.documentObjects.filter(object=>object.image).length,5);
+});
+test('proposal cache accounting includes inflated image strings rather than compressed archive size',()=>{
+ const one=Buffer.concat([png,Buffer.alloc(3*1024*1024-png.length)]),two=Buffer.from(one);two[two.length-1]=1;
+ const source=fixture(drawing+drawing.replace('rId1','rId2'),{'word/media/picture.png':one,'word/media/second.png':two,'word/_rels/document.xml.rels':rels().replace('</Relationships>','<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/second.png"/></Relationships>')});
+ const options={identity:{largeImageCacheTest:0}},first=parseProposal(source,options);assert.equal(Object.keys(first.imageAssets).length,2);
+ assert.equal(parseProposal(source,options),first);
+ for(let i=1;i<=4;i++)parseProposal(source,{identity:{largeImageCacheTest:i}});
+ assert.notEqual(parseProposal(source,options),first,'inflated assets evict earlier entries before the eight-entry cap');
+});

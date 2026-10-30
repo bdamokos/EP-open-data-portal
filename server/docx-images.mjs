@@ -46,14 +46,17 @@ function directory(buffer){
 }
 // Relationship IDs belong to their source part. Never fetch linked/external media.
 export function docxImages(buffer,parts){
-  const assets={},relationships=new Map();let entries,total=0,count=0;
+  const assets={},relationships=new Map(),decoded=new Map(),failed=new Map();let entries,total=0,count=0;
   try{entries=directory(buffer);}catch{return {assets,resolve:()=>null};}
   function bytes(name){
+    if(decoded.has(name))return decoded.get(name);if(failed.has(name))throw Error(failed.get(name));
+    try {
     const e=entries.get(name);if(!e||e.flags&1||![0,8].includes(e.method)||e.size>IMAGE_LIMITS.bytes||e.compressed>buffer.length||e.offset+30>buffer.length||buffer.readUInt32LE(e.offset)!==0x04034b50)throw Error('media-unavailable');
     const n=buffer.readUInt16LE(e.offset+26),x=buffer.readUInt16LE(e.offset+28),start=e.offset+30+n+x;
     if(buffer.readUInt16LE(e.offset+6)!==e.flags||buffer.readUInt16LE(e.offset+8)!==e.method||buffer.toString('utf8',e.offset+30,e.offset+30+n)!==name||start+e.compressed>buffer.length)throw Error('media-invalid');
     total+=e.size;if(total>IMAGE_LIMITS.total)throw Error('media-limit');const compressed=buffer.subarray(start,start+e.compressed),b=e.method===0?compressed:inflateRawSync(compressed,{maxOutputLength:IMAGE_LIMITS.bytes});
-    if(b.length!==e.size||crc32(b)!==e.crc)throw Error('media-invalid');return b;
+    if(b.length!==e.size||crc32(b)!==e.crc)throw Error('media-invalid');decoded.set(name,b);return b;
+    }catch(error){failed.set(name,error.message||'media-invalid');throw error;}
   }
   function rels(part){
     if(relationships.has(part))return relationships.get(part);const file=path.posix.join(path.posix.dirname(part),'_rels',path.posix.basename(part)+'.rels'),xml=parts.get(file);let map=new Map();
@@ -61,23 +64,34 @@ export function docxImages(buffer,parts){
       for(const rel of list(parse(xml).Relationships?.Relationship)){if(map.has(rel.Id)){map.set(rel.Id,null);continue;}map.set(rel.Id,rel);}
     }relationships.set(part,map);return map;
   }
-  function resolve(node,part='word/document.xml'){
+  function resolve(node,part='word/document.xml',visibility=null){
     if(node['mc:AlternateContent']){
+      if(!visibility)return {reason:'compatibility-visibility-unverified'};
       const branches=node['mc:AlternateContent'].filter(n=>n['mc:Choice']||n['mc:Fallback']);
-      for(const branch of branches){const kind=branch['mc:Choice']?'mc:Choice':'mc:Fallback',candidate=resolve({'w:drawing':branch[kind]},part);if(candidate?.id)return {...candidate,compatibility:kind};}
+      for(const branch of branches){const kind=branch['mc:Choice']?'mc:Choice':'mc:Fallback',state=visibility?.(branch[kind]);if(state==='hidden')return {reason:'picture-hidden'};if(state==='none')continue;const candidate=resolve({'selectedBranch':branch[kind]},part,visibility);if(candidate?.reason==='picture-hidden')return candidate;if(candidate?.id)return {...candidate,compatibility:kind};}
       return {reason:'drawing-layout-required'};
     }
-    const refs=[],properties=[],unsupported=[];
+    const refs=[],properties=[],unsupported=[];let hidden=false,display=null;
     function visit(nodes){for(const n of nodes||[])for(const [key,value] of Object.entries(n)){
       if(key==='a:blip'){refs.push({id:n[':@']?.['@_r:embed'],external:n[':@']?.['@_r:link']});if(value.some(child=>Object.keys(child).some(key=>key!==':@'&&key!=='a:extLst')))unsupported.push('picture-effect');}
       if(key==='v:imagedata'){refs.push({id:n[':@']?.['@_r:id'],external:n[':@']?.['@_src']});if(Object.keys(n[':@']||{}).some(k=>/crop|gamma|blacklevel|gain|grayscale|bilevel/i.test(k)))unsupported.push('picture-transform');}
       if(key==='v:shape'&&/rotation|flip/i.test(String(n[':@']?.['@_style']||'')))unsupported.push('picture-transform');
       if(key==='a:custGeom'||key==='a:prstGeom'&&n[':@']?.['@_prst']!=='rect')unsupported.push('picture-geometry');
       if(['w:txbxContent','wps:wsp','wpg:wgp','a:grpSp','v:group','c:chart','dgm:relIds'].includes(key))unsupported.push('drawing-layout');
-      if(['wp:docPr','pic:cNvPr'].includes(key))properties.push(n[':@']||{});
+      if(['wp:docPr','pic:cNvPr'].includes(key)){properties.push(n[':@']||{});const value=n[':@']?.['@_hidden'];if(value!==undefined&&!['0','false','off'].includes(String(value)))hidden=true;}
+      if(key==='wp:extent')display={width:Number(n[':@']?.['@_cx'])/9525,height:Number(n[':@']?.['@_cy'])/9525};
+      if(key==='v:shape'){
+        const style=String(n[':@']?.['@_style']||'');if(/(?:visibility\s*:\s*hidden|display\s*:\s*none|mso-hide\s*:\s*all)/i.test(style))hidden=true;
+        if(/(?:^|;)\s*(?:width|height)\s*:/i.test(style)){
+          const length=name=>{const match=new RegExp('(?:^|;)\\s*'+name+'\\s*:\\s*(\\d+(?:\\.\\d+)?)\\s*(pt|in|cm|mm|px)(?:;|$)','i').exec(style);return match?Number(match[1])*({pt:96/72,in:96,cm:96/2.54,mm:96/25.4,px:1}[match[2].toLowerCase()]):NaN;};
+          display={width:length('width'),height:length('height')};
+        }
+      }
       if(key==='a:srcRect'&&Object.values(n[':@']||{}).some(v=>Number(v)!==0)||key==='a:xfrm'&&Object.entries(n[':@']||{}).some(([k,v])=>['@_rot','@_flipH','@_flipV'].includes(k)&&!['0','false'].includes(String(v)))||['a:duotone','a:lum','a:grayscl','a:alphaModFix','a:clrChange'].includes(key))unsupported.push('picture-transform');
       if(key!==':@'&&Array.isArray(value))visit(value);
     }}visit([node]);
+    if(hidden)return {reason:'picture-hidden'};
+    if(display&&(!Number.isFinite(display.width)||!Number.isFinite(display.height)||display.width<=0||display.height<=0||display.width>10000||display.height>10000))return {reason:'picture-display-extent-unsupported'};
     if(refs.length!==1)return {reason:'drawing-layout-required'};if(refs[0].external)return {reason:'external-picture'};if(!refs[0].id)return {reason:'picture-relationship-missing'};if(unsupported.length)return {reason:'picture-transform-unsupported'};
     const rel=rels(part).get(refs[0].id);if(!rel||rel.TargetMode==='External'||!String(rel.Type).endsWith('/image')||typeof rel.Target!=='string'||/[\\%?#:]|^\//.test(rel.Target))return {reason:'picture-relationship-unsupported'};
     const target=path.posix.normalize(path.posix.join(path.posix.dirname(part),rel.Target));if(!/^word\/media\/[^/]+$/.test(target))return {reason:'picture-target-unsupported'};
@@ -85,7 +99,7 @@ export function docxImages(buffer,parts){
       if(++count>IMAGE_LIMITS.count)return {reason:'picture-count-limit'};const b=bytes(target),info=imageInfo(b);if(!info)return {reason:'picture-format-or-dimensions-unsupported'};const id=hash(b);
       assets[id]??={...info,data:b.toString('base64'),sha256:id};
       const prop=properties.find(p=>p['@_descr'])||properties[0]||{};
-      return {id,part,target,relationshipId:refs[0].id,description:String(prop['@_descr']||'').slice(0,2000),title:String(prop['@_title']||'').slice(0,500),...info};
+      return {id,...(display?{displayWidth:display.width,displayHeight:display.height}:{}),part,target,relationshipId:refs[0].id,description:String(prop['@_descr']||'').slice(0,2000),title:String(prop['@_title']||'').slice(0,500),...info};
     }catch(error){return {reason:error.message||'picture-unavailable'};}
   }
   return {assets,resolve};

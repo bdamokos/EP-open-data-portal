@@ -418,8 +418,11 @@ export function parseProposal(input,options={}) {
   // Clone supplied projections before freezing, leaving the caller's data intact.
   const prepared=binary||typeof input==='string'?input:structuredClone(input);
   const result=freezeTree(parseProposalUncached(prepared,{...options,language,item,sourceUrl,identity:structuredClone(options.identity??null)}));
-  const bytes=Buffer.byteLength(typeof serialized==='string'?serialized:Buffer.from(serialized))+result.paragraphs.length*1024+
-    result.objects.reduce((sum,object)=>sum+(object.math?JSON.stringify(object.math).length*2:512),0);
+  const bytes=Buffer.byteLength(typeof serialized==='string'?serialized:Buffer.from(serialized))+
+    result.paragraphs.reduce((sum,paragraph)=>sum+paragraph.text.length*2+1024,0)+
+    result.notes.reduce((sum,note)=>sum+note.text.length*2+1024,0)+
+    result.objects.reduce((sum,object)=>sum+JSON.stringify(object).length*2+512,0)+
+    Object.values(result.imageAssets).reduce((sum,asset)=>sum+(typeof asset?.data==='string'?asset.data.length*2:0)+512,0);
   if(bytes<=MAX_CACHE_BYTES){parseCache.set(cacheKey,{result,bytes});cacheBytes+=bytes;while(cacheBytes>MAX_CACHE_BYTES||parseCache.size>MAX_CACHE_ENTRIES){const [oldest,entry]=parseCache.entries().next().value;parseCache.delete(oldest);cacheBytes-=entry.bytes;}}
   return result;
 }

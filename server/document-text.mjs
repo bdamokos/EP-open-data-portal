@@ -145,11 +145,23 @@ function counterGap(node,context) {
   const risk=skippedCounterRisk([node]);
   for(const key of ['lists','notes'])context.counterGaps[key] ||= risk[key];
 }
+// Reuse the wording walker's final-revision/style rules for pictures inside
+// compatibility branches. Suppressed branches cannot be revived by a fallback.
+function pictureVisibility(nodes,context) {
+  const visible={text:'',marks:[],spans:[],objects:[]};
+  inline(nodes,{vanish:false,webHidden:false},visible,{...context,images:null,warnings:new Set(),counterGaps:{...context.counterGaps}});
+  const paths=new Set(visible.objects.filter(object=>object.kind==='drawing').map(object=>object.path)),pictures=[];
+  function visit(entries){for(const entry of entries||[])for(const [key,value] of Object.entries(entry)){
+    if(['w:drawing','w:pict'].includes(key))pictures.push(context.sourceIndex.get(entry)?.path);
+    else if(key!==':@'&&Array.isArray(value))visit(value);
+  }}visit(nodes);
+  return !pictures.length?'none':pictures.every(path=>paths.has(path))?'visible':'hidden';
+}
 function objectText(node,key,out,context) {
   const kind=key==='w:sym'?'symbol':['w:drawing','w:pict'].includes(key)?'drawing':key==='w:object'?'object':key.startsWith('m:')?'math':'unsupported';
   const font=attribute(node,'font'),code=attribute(node,'char');
   const mapped=kind==='symbol'?symbolText(font,code):null,replacement=mapped??OBJECT_REPLACEMENT,status=mapped?'mapped':'unresolved';
-  const resolved=kind==='drawing'||key==='mc:AlternateContent'?context.images?.resolve(node,context.sourcePart):null,image=resolved?.id?resolved:null;
+  const resolved=kind==='drawing'||key==='mc:AlternateContent'?context.images?.resolve(node,context.sourcePart,nodes=>pictureVisibility(nodes,context)):null,image=resolved?.id?resolved:null;
   out.objects.push({...(image?{image}:{}),...(resolved?.reason?{imageUnavailableReason:resolved.reason}:{}),offset:out.text.length,path:context.sourceIndex.get(node).path,kind,status,replacement,role:mapped&&!out.text.trim()?'leading-marker':'content',
     ...(kind==='symbol'?{font:font??'',code:code??''}:{})});
   out.text+=replacement;
