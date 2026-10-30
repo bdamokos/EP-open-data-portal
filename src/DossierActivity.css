@@ -56,3 +56,13 @@
 @media(max-width:680px){.dossier-exits{justify-content:flex-start}.dossier-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.dossier-timeline>li{padding-left:12px}.dossier-ballot{grid-template-columns:1fr;gap:12px}.dossier-section-status{grid-template-columns:1fr}.dossier-activity .explorer-amendment-card{padding:14px 0}.dossier-activity .explorer-amendment-card>header~*{margin-left:0}.dossier-scope h3{flex-basis:100%}}
 
 .dossier-document-roles>.dossier-role{margin-block:12px}
+.dossier-amendment-controls{display:flex;flex-wrap:wrap;gap:16px;margin-block:20px}
+.dossier-amendment-controls label,.insight-contribution-filter{display:grid;gap:6px;min-width:0;font-size:14px}
+.dossier-amendment-controls select,.insight-contribution-filter select{max-width:100%;min-height:44px;padding:8px 12px;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-sm);font:inherit}
+.dossier-amendment-links a{display:inline-flex;align-items:center;flex-wrap:wrap;max-width:100%;gap:5px;min-height:44px;overflow-wrap:anywhere}
+.dossier-amendment-links details>a{display:flex;color:var(--accent);text-decoration:underline;text-underline-offset:.18em}
+.insight-participants .insight-section-heading{flex-wrap:wrap}
+.insight-person-activity .dossier-amendment-links{white-space:normal}
+.insight-person-activity .dossier-amendment-links summary{min-height:44px;cursor:pointer;white-space:normal}
+.insight-committee-amendments>summary{min-height:44px;cursor:pointer;padding-block:10px}
+.insight-committee-amendments>summary:focus-visible{outline:3px solid var(--focus);outline-offset:3px}

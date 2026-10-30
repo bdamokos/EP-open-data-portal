@@ -9,6 +9,7 @@ type Props={
   originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];
   emptySemantics:'insertion-deletion'|'not-supplied';
   presentation?:'comparison'|'context';
+  highlightChanges?:boolean;
   // UTF-16 offsets count only original-side equal/deleted text, never insertions.
   renderOriginal?:(text:string,start:number)=>ReactNode;
   labels?:{original?:string;proposed?:string;emptyOriginal?:string;emptyProposed?:string};
@@ -26,8 +27,8 @@ function Passage({segments,language,renderOriginal,originalFormatting=[],propose
     return <Tag key={index}><span className="wording-diff__sr" lang="en">{segment.type==='delete'?'Deleted text: ':'Inserted text: '}</span>{content}<span className="wording-diff__sr" lang="en"> end</span></Tag>;
   })}</p>;
 }
-function Comparison({original,proposed,language,emptySemantics,presentation='comparison',labels={},renderOriginal,originalFormatting=[],proposedFormatting=[],publishedOnly=false}:Props&{publishedOnly?:boolean}) {
-  const comparable=!publishedOnly&&original!==null&&proposed!==null&&(original!==''||proposed!=='')&&
+function Comparison({original,proposed,language,emptySemantics,presentation='comparison',highlightChanges=true,labels={},renderOriginal,originalFormatting=[],proposedFormatting=[],publishedOnly=false}:Props&{publishedOnly?:boolean}) {
+  const comparable=highlightChanges&&!publishedOnly&&original!==null&&proposed!==null&&(original!==''||proposed!=='')&&
     (emptySemantics==='insertion-deletion'||original!==''&&proposed!=='');
   const diff=useMemo(()=>comparable?textDiff(original!,proposed!,language):null,[comparable,original,proposed,language]);
   const segments=useMemo(()=>diff?.status==='ok'?formattingDiff(diff.segments,originalFormatting,proposedFormatting):[],[diff,originalFormatting,proposedFormatting]);
@@ -65,5 +66,5 @@ export function WordingDiff(props:Props) {
   const scope=amendmentLanguageScope({originalText:props.original,proposedText:props.proposed,language:props.language});
   if(scope)return <div className="wording-diff" lang="en"><p className="wording-diff__note">No change in this language version.</p><p className="wording-diff__scope" lang={scope.language}>{scope.note}</p></div>;
   // A new exact wording selection gets its own default; choices never persist outside this instance.
-  return <Comparison key={JSON.stringify([props.original,props.proposed,props.originalFormatting,props.proposedFormatting,props.language,props.emptySemantics,props.presentation])} {...props} publishedOnly={Boolean(mixedScope)} emptySemantics={mixedScope?'not-supplied':props.emptySemantics}/>;
+  return <Comparison key={JSON.stringify([props.original,props.proposed,props.originalFormatting,props.proposedFormatting,props.language,props.emptySemantics,props.presentation,props.highlightChanges])} {...props} publishedOnly={Boolean(mixedScope)} emptySemantics={mixedScope?'not-supplied':props.emptySemantics}/>;
 }

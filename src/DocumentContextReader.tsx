@@ -36,10 +36,11 @@ const titleOf=(document:Pick<PublicationDocument,'titles'>,language:string):Titl
   const title=selectLanguageText(document.titles,language,'Document text');
   return {...title,text:displayVoteTitle(title.text)};
 };
-const documentKind=(id:string)=>id.startsWith('TA-')?'Adopted text':id.startsWith('RC-')?'Joint motion':id.startsWith('B-')?'Motion':'Report';
+const documentKind=(id:string)=>id.startsWith('TA-')?'Adopted text':id.includes('-PR-')?'Draft report':id.includes('-PA-')?'Draft opinion':id.includes('-AM-')?'Committee amendments':id.startsWith('RC-')?'Joint motion':id.startsWith('B-')?'Motion':'Report';
 const documentRoute=(id:string,language:string,request?:DocumentContextRequest)=>{
   const query=new URLSearchParams({lang:language});
   if(request?.amendmentId)query.set('amendment',request.amendmentId);
+  if(request?.scope==='committee')query.set('scope','committee');
   if(request?.amendmentId&&request.listId)query.set('list',request.listId);
   if(request?.amendmentId&&request.listId&&request.wordingLanguage!==undefined)query.set('wording-lang',request.wordingLanguage??'unknown');
   return 'document-context/'+encodeURIComponent(id)+'?'+query;
@@ -65,7 +66,7 @@ const placementReasons:Record<string,string>={
   matching_budget:'The amendment’s location could not be determined.',
   amendment_wording_unavailable:'The amendment wording is unavailable.',
 };
-const amendmentNumber=(id:string|undefined)=>id?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
+const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
 
 // Keep source offsets when replacing an unresolved inline object with a source link.
 // The surrounding text, references and note anchors remain in their original positions.
@@ -215,5 +216,5 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
 export function DocumentContextReader(props:DocumentContextReaderProps) {
   const {request,language}=props;
   // A new requested document/version starts a new reading session immediately.
-  return <ContextSession key={JSON.stringify([request.documentId,request.amendmentId,request.listId,request.wordingLanguage!==undefined,request.wordingLanguage,request.view,language])} {...props}/>;
+  return <ContextSession key={JSON.stringify([request.documentId,request.scope,request.amendmentId,request.listId,request.wordingLanguage!==undefined,request.wordingLanguage,request.view,language])} {...props}/>;
 }

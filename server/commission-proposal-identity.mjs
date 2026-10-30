@@ -1,3 +1,4 @@
+import {committeeDraftId,committeeDocumentKind} from './committee-amendments.mjs';
 import {languageCode} from './ep-links.mjs';
 import {CELLAR_WORK_PATTERN,CELLAR_LIMITS,cellarGraph,cellarTransportUrl,proposalCelex} from './cellar-documents.mjs';
 
@@ -10,7 +11,7 @@ export function commissionReferences(raw) {
 }
 export function reportProposalReference(report,{reportId,documentReferences=[]}={}) {
   if(!report||report.id!==`eli/dl/doc/${reportId}`&&report.id!==`https://data.europarl.europa.eu/eli/dl/doc/${reportId}`)return unresolved('unresolved',['report-identity']);
-  if(report.work_type&&report.work_type!=='def/ep-document-types/REPORT_PLENARY')return unresolved('unresolved',['report-type']);
+  if(report.work_type&&report.work_type!=='def/ep-document-types/REPORT_PLENARY'&&!(committeeDraftId(reportId)&&committeeDocumentKind(report)))return unresolved('unresolved',['report-type']);
   // Alternative titles carry the explicit COM/procedure reference. The report
   // title itself names amended laws and cannot establish proposal identity.
   const texts=list(report.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flatMap(list));

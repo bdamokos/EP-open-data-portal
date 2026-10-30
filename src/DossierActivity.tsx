@@ -1,5 +1,7 @@
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
-import {lazy,Suspense,useEffect,useRef,useState} from 'react';
+import {Fragment,lazy,Suspense,useEffect,useRef,useState} from 'react';
+import {amendmentStages,committeeAmendmentList,committeeAmendmentTarget,validCommitteeCode} from './amendmentModel.mjs';
+import type {AmendmentStage} from './AmendmentTypes';
 import {sourcePageUrl} from './SourceLink';
 import {api} from './data';
 const DossierVoteText=lazy(()=>import('./DossierVoteText'));
@@ -21,10 +23,10 @@ const stageLabel=(value:string)=>({RDG1:'First reading',RDG2:'Second reading',RD
 const labels:Record<DossierFilter,string>={all:'All',roles:'Roles',speeches:'Speeches',amendments:'Amendments',votes:'Votes'};
 type SectionState={data:DossierActivityResponse|null;loading:boolean;error:string|null};
 const canRetryCoverage=(coverage:DossierCoverage|undefined)=>coverage?.retryable===true||coverage?.retryable!==false&&coverage?.status==='unavailable';
-function useDossierSection(reference:string,person:string|null,section:DossierSection,language:string,active:boolean) {
+function useDossierSection(reference:string,person:string|null,section:DossierSection,language:string,active:boolean,stage:AmendmentStage='all',committee='') {
   const [state,setState]=useState<SectionState>({data:null,loading:active,error:null});
   const [request,setRequest]=useState<{key?:string;cursor:DossierCursor;attempt:number}>({cursor:{offset:0,targetOffset:0},attempt:0});
-  const key=JSON.stringify([reference,person,section,language]),scope=useRef(key),lastCursor=useRef<DossierCursor>({offset:0,targetOffset:0});
+  const key=JSON.stringify([reference,person,section,language,stage,committee]),scope=useRef(key),lastCursor=useRef<DossierCursor>({offset:0,targetOffset:0});
   const previous=useRef<DossierActivityResponse|null>(null);
   const pages=useRef(new Map<string,DossierActivityResponse>()),failedCursor=useRef<DossierCursor|null>(null);
   const earlierResultsRemoved=useRef(false);
@@ -38,9 +40,10 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     let live=true;const controller=new AbortController();
     setState({data:previous.current,loading:true,error:null});
     const query=new URLSearchParams({reference,lang:language,section,offset:String(cursor.offset),'target-offset':String(cursor.targetOffset),limit:'25'});if(person)query.set('member',person);
+    if(section==='amendments'){query.set('stage',stage);if(committee)query.set('committee',committee);}
     api<DossierActivityResponse>('insights/dossier-activity?'+query,controller.signal).then(page=>{
       if(!live)return;
-      if(page.version!==7||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination)throw new Error('Unexpected dossier response.');
+      if(!Number.isInteger(page.version)||page.version<8||page.procedure?.reference!==reference||page.memberId!==person||page.section!==section||!Array.isArray(page.items)||!page.coverage||!page.pagination||section==='amendments'&&(page.stage!==undefined&&page.stage!==stage||page.committee!==undefined&&(page.committee||'')!==committee))throw new Error('Unexpected dossier response.');
       // A failed target read has no amendment snapshot. Keep its retry page,
       // and compare known generations even after an intervening failed read.
       const knownAmendmentGeneration=[...pages.current.values()].find(saved=>saved.amendmentGeneration!==undefined)?.amendmentGeneration;
@@ -75,7 +78,9 @@ function Coverage({coverage,language,pages}:{coverage:DossierCoverage;section:Do
   return <ul className="dossier-coverage">{notices.map(notice=>{
     if(notice.kind==='contributions')return <li key={'contributions:'+notice.id}>{notice.count} debate contribution{notice.count===1?'':'s'} from <time dateTime={notice.date} lang={language}>{humanDate(notice.date!,language)}</time> not loaded.</li>;
     if(notice.kind==='debate')return <li key={'debate:'+notice.id}>Debate item {notice.item} on <time dateTime={notice.date} lang={language}>{humanDate(notice.date!,language)}</time> could not be loaded.</li>;
-    const href=sourcePageUrl('https://data.europarl.europa.eu/api/v2/plenary-documents/'+notice.id,{language});
+    const committee=committeeAmendmentList(notice.id)||committeeAmendmentTarget(notice.id);
+    const href=sourcePageUrl('https://data.europarl.europa.eu/api/v2/'+(committee?'documents/':'plenary-documents/')+notice.id,{language});
+    if(committee)return <li key={'target:'+notice.id}>{notice.id.split('-')[0]} amendments could not be loaded.{href&&<> <a href={href} target="_blank" rel="noreferrer">View document on Parliament ↗</a></>}</li>;
     const reference=notice.id.replace(/^(A|B|RC)-10-(\d{4})-(\d{4,6})$/,(_match,family,year,number)=>(family==='RC'?'RC-B':family)+'10-'+number+'/'+year);
     return <li key={'target:'+notice.id}>Amendments for {reference} could not be loaded.{href&&<> <a href={href} target="_blank" rel="noreferrer">View document on Parliament ↗</a></>}</li>;
   })}</ul>;
@@ -112,11 +117,13 @@ function Speech({item,language}:{item:DossierSpeech;language:string}) {
 
 export function DossierActivity({reference,language='en',onProcedure}:{reference:string;language?:string;onProcedure?:(procedure:DossierReference)=>void}) {
   const [rawPerson]=useExplorerParam<string|null>('dossier-person',null),[filter]=useExplorerParam<DossierFilter>('dossier-show','all',dossierFilters);
+  const [stage]=useExplorerParam<AmendmentStage>('dossier-stage','all',amendmentStages),[rawCommittee]=useExplorerParam('dossier-committee','');
+  const committee=stage!=='plenary'&&validCommitteeCode(rawCommittee)?rawCommittee:'';
   const person=validDossierPerson(rawPerson)?rawPerson:null,displayName=usePersonName();
   const roles=useDossierSection(reference,person,'roles',language,true);
   useEffect(()=>{if(roles.data?.procedure)onProcedure?.(roles.data.procedure);},[roles.data?.procedure,onProcedure]);
   const speeches=useDossierSection(reference,person,'speeches',language,Boolean(person)&&(filter==='all'||filter==='speeches'));
-  const amendments=useDossierSection(reference,person,'amendments',language,Boolean(person)&&(filter==='all'||filter==='amendments'));
+  const amendments=useDossierSection(reference,person,'amendments',language,Boolean(person)&&(filter==='all'||filter==='amendments'),stage,committee);
   const votes=useDossierSection(reference,person,'votes',language,Boolean(person)&&['all','amendments','votes'].includes(filter));
   const states={roles,speeches,amendments,votes};
   const participants=roles.data?.participants||[],selected=participants.find(row=>row.id===person),memberName=person?displayName(person,selected?.name)||'Selected person':'';
@@ -125,30 +132,39 @@ export function DossierActivity({reference,language='en',onProcedure}:{reference
   const documentRoles=nonVotes.filter((row):row is DossierRole=>row.kind==='role'&&row.dateBasis==='document');
   const voteRows=(votes.data?.items||[]).filter((row):row is DossierVote=>row.kind==='vote');
   const visibleAmendments=nonVotes.filter((row):row is DossierAmendment=>row.kind==='amendment');
+  const committees=[...new Set([...(committee?[committee]:[]),...visibleAmendments.flatMap(row=>row.amendment.committees?.map(item=>item.code)||[])])].sort();
+  const chooseAmendmentFilter=(name:string,value:string)=>{const url=new URL(location.href);value&&value!=='all'?url.searchParams.set(name,value):url.searchParams.delete(name);url.searchParams.delete('dossier-list');url.searchParams.delete('dossier-document');if(name==='dossier-stage'&&value==='plenary')url.searchParams.delete('dossier-committee');navigateDossier(url.href);};
   const inlineVotes=dossierVoteCards(visibleAmendments,voteRows);
   const renderedVotes=new Set([...inlineVotes.values()].flatMap(group=>group.votes.map(row=>row.id)));
   const remaining=filter==='votes'?voteRows:filter==='all'?voteRows.filter(row=>!renderedVotes.has(row.id)):[];
   const sittings=new Map<string,DossierVote[]>();for(const row of remaining){const key=row.vote.sittingId;const group=sittings.get(key)||[];group.push(row);sittings.set(key,group);}
   const back=dossierBackHref();
-  return <section className="dossier-activity" lang="en" data-dossier-reference={reference} data-dossier-person={person||''} data-dossier-pending={roles.loading||visibleSections.some(section=>states[section].loading)?'true':undefined}>
+  return <section className="dossier-activity" lang="en" data-dossier-reference={reference} data-dossier-person={person||''} data-dossier-stage={stage} data-dossier-committee={committee} data-dossier-pending={roles.loading||visibleSections.some(section=>states[section].loading)?'true':undefined}>
     {back&&<a className="dossier-back" href={back} onClick={dossierLinkClick}>← Back to where you were</a>}
     {rawPerson&&!person&&<p role="alert">Person not found. Choose a participant.</p>}
     <div className="dossier-scope"><h3>{person?'Work on this dossier':'People on this dossier'}</h3>{person&&<><span className="dossier-person-chip"><a href={insightMemberHref(person,language)} onClick={dossierLinkClick}><PersonName id={person} label={selected?.name} fallback={'Person '+person}/></a><RecordMemberAffiliation id={person} language={language}/><a href={dossierHref(reference,null,language)} onClick={dossierLinkClick} aria-label="Clear person selection">×</a></span><div className="dossier-exits"><a href={dossierHref(reference,null,language)} onClick={dossierLinkClick}>Full dossier</a><a href={insightMemberHref(person,language)} onClick={dossierLinkClick}>Member profile</a></div></>}</div>
     {person&&<nav className="dossier-filters" aria-label="Dossier activity type">{dossierFilters.map(value=><button type="button" key={value} aria-pressed={filter===value} onClick={()=>{const url=new URL(location.href);value==='all'?url.searchParams.delete('dossier-show'):url.searchParams.set('dossier-show',value);navigateDossier(url.href);}}><span>{labels[value]}</span>{' '}<small>{value==='all'?'All activity':states[value].data?.items.length&&states[value].data!.coverage.status!=='unavailable'?states[value].data!.items.length+' shown':'—'}</small></button>)}</nav>}
 
+    {person&&(filter==='all'||filter==='amendments')&&<div className="dossier-amendment-controls"><label>Stage<select value={stage} onChange={event=>chooseAmendmentFilter('dossier-stage',event.target.value)}><option value="all">All stages</option><option value="committee">Committee</option><option value="plenary">Plenary</option></select></label>{stage!=='plenary'&&(committees.length>1||committee)&&<label>Committee<select value={committee} onChange={event=>chooseAmendmentFilter('dossier-committee',event.target.value)}><option value="">All committees</option>{committees.map(code=><option key={code} value={code}>{code}</option>)}</select></label>}</div>}
     {!visibleSections.includes('roles')&&roles.error&&<p role="alert">Participant records could not be loaded. <button type="button" disabled={roles.loading} onClick={roles.retry}>Retry participants</button></p>}
     {!person&&roles.data?.participantCoverage&&<Coverage coverage={roles.data.participantCoverage} section="people" language={language} pages={[]}/>}
     {!person&&roles.data&&!roles.loading&&!participants.length&&dossierEmptyLabel(roles.data.participantCoverage||roles.data.coverage)&&<p>{dossierEmptyLabel(roles.data.participantCoverage||roles.data.coverage)}</p>}
-    {participants.length>0&&<details className="dossier-participants" open={!person}><summary>People · {participants.length} shown</summary><ul>{participants.map(participant=><li key={participant.id}><a href={insightMemberHref(participant.id,language)} onClick={dossierLinkClick}><PersonName id={participant.id} label={participant.name} fallback={'Person '+participant.id}/></a><RecordMemberAffiliation id={participant.id} language={language}/><ul>{participant.roles.map(role=><li key={role.id}>{roleName(role.role)}{role.committee?' · '+role.committee:''}{role.date?' · '+humanDate(role.date,language):''}{role.dateBasis==='document'?' · document date':''}{role.stage?' · '+stageLabel(role.stage):''}<Source source={role.source} id={role.id} language={language}/></li>)}</ul>{Boolean(participant.speeches?.length)&&<p className="dossier-muted">Speeches · {participant.speeches!.length} shown</p>}<a href={dossierHref(reference,participant.id,language)} onClick={dossierLinkClick}>Work on this dossier</a></li>)}</ul></details>}
+    {participants.length>0&&<details className="dossier-participants" open={!person}><summary>People · {participants.length} shown</summary><ul>{participants.map(participant=><li key={participant.id}><a href={insightMemberHref(participant.id,language)} onClick={dossierLinkClick}><PersonName id={participant.id} label={participant.name} fallback={'Person '+participant.id}/></a><RecordMemberAffiliation id={participant.id} language={language}/><ul>{participant.roles.map(role=><li key={role.id}>{roleName(role.role)}{role.committee?' · '+role.committee:''}{role.date?' · '+humanDate(role.date,language):''}{role.dateBasis==='document'?' · document date':''}{role.stage?' · '+stageLabel(role.stage):''}<Source source={role.source} id={role.id} language={language}/></li>)}</ul>{Boolean(participant.speeches?.length)&&<p className="dossier-muted">Speeches · {participant.speeches!.length} shown</p>}{(['committee','plenary'] as const).map(stage=>{const count=participant.amendmentCounts?.[stage];return count!==null&&count!==undefined&&count>0?<p key={stage}><DossierAmendmentLinks references={[{id:roles.data!.procedure.id,reference}]} person={participant.id} language={language} stage={stage} count={count}/></p>:null;})}<a href={dossierHref(reference,participant.id,language)} onClick={dossierLinkClick}>Work on this dossier</a></li>)}</ul></details>}
     {person&&<>{documentRoles.length>0&&<section className="dossier-document-roles"><h4>Roles recorded on documents</h4>{documentRoles.map(item=><Role key={item.id} item={item} language={language}/>)}</section>}<ol className="dossier-timeline">{dossierTimeline(nonVotes).map(group=><li key={group.id}><p className="dossier-event-date">{group.date?<time lang={language}>{humanDate(group.date,language)}</time>:'Date unavailable'}</p>{group.items.map(item=>item.kind==='role'?<Role key={item.id} item={item} language={language}/>:item.kind==='speech'?<Speech key={item.id} item={item} language={language}/>:item.kind==='amendment'?<Amendment key={item.id} item={item} votes={inlineVotes.get(item.id)?.votes||[]} shared={inlineVotes.get(item.id)?.shared||[]} showOutcome={inlineVotes.get(item.id)?.showOutcome??true} unloaded={Boolean(inlineVotes.get(item.id)?.unloaded)} votesPending={Boolean(votes.loading||votes.error||votes.data?.pagination.next)} onMoreVotes={votes.data?.pagination.next&&!votes.loading?votes.more:undefined} language={language} memberName={memberName} memberId={person}/>:null)}</li>)}</ol>
       {[...sittings.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([id,rows])=><section className="dossier-sitting" key={id}><h4>{filter==='all'?'Other votes':'Votes'} · <time lang={language}>{humanDate(rows[0].date||'',language)}</time></h4>{rows.map(row=><Ballot key={row.id} item={row} language={language} memberName={memberName}/>)}</section>)}
       {visibleSections.every(section=>states[section].data&&!states[section].loading&&!states[section].error&&dossierEmptyLabel(states[section].data!.coverage))&&!nonVotes.length&&!remaining.length&&filter!=='amendments'&&<p>No linked records.</p>}
-      {filter==='amendments'&&amendments.data&&!amendments.loading&&!visibleAmendments.length&&dossierEmptyLabel(amendments.data.coverage)&&<p>No linked amendments.</p>}
+      {filter==='amendments'&&amendments.data&&!amendments.loading&&!visibleAmendments.length&&dossierEmptyLabel(amendments.data.coverage)&&<p>No matching amendments.</p>}
     </>}
-    <div className="dossier-section-status">{visibleSections.map(section=>{const state=states[section];return <section key={section} aria-label={labels[section]+' coverage'}>{state.data&&<Coverage coverage={state.data.coverage} section={section} language={language} pages={state.pages}/>} {state.loading&&<p role="status">Loading {labels[section].toLowerCase()}…</p>}{state.error&&<p role="alert">{labels[section]} could not be loaded. <button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button></p>}{!state.error&&state.retryableUnavailable&&<button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button>}{state.earlierResultsRemoved&&<p className="dossier-muted">Earlier results need reloading. <button type="button" disabled={state.loading} onClick={state.restart}>Reload {!person?'people':labels[section].toLowerCase()}</button></p>}{state.data?.pagination.next&&<button type="button" disabled={state.loading} onClick={state.more}>Load more {!person?'people':labels[section].toLowerCase()}</button>}</section>;})}</div>
+    <div className="dossier-section-status">{visibleSections.map(section=>{const state=states[section];return <section key={section} aria-label={labels[section]+' coverage'}>{state.data&&<Coverage coverage={state.data.coverage} section={section} language={language} pages={state.pages}/>} {state.loading&&<p role="status">Loading {labels[section].toLowerCase()}…</p>}{state.error&&<p role="alert">{section==='amendments'?'Could not load amendments.':labels[section]+' could not be loaded.'} <button type="button" disabled={state.loading} onClick={state.retry}>{section==='amendments'?'Try again':!person?'Retry people':'Retry '+labels[section].toLowerCase()}</button></p>}{!state.error&&state.retryableUnavailable&&<button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button>}{state.earlierResultsRemoved&&<p className="dossier-muted">Earlier results need reloading. <button type="button" disabled={state.loading} onClick={state.restart}>Reload {!person?'people':labels[section].toLowerCase()}</button></p>}{state.data?.pagination.next&&<button type="button" disabled={state.loading} onClick={state.more}>Load more {!person?'people':labels[section].toLowerCase()}</button>}</section>;})}</div>
   </section>;
 }
 
+export function DossierAmendmentLinks({references,person,language='en',stage,count}:{references:Pick<DossierReference,'id'|'reference'>[];person:string|number;language?:string;stage:'committee'|'plenary';count:number}) {
+  const exact=references.filter(row=>fullDossierReference(row.reference)),label=stage+' '+(count===1?'amendment':'amendments');
+  const content=<><strong>{count}+</strong> {label}</>,accessible=`At least ${count} ${label.toLowerCase()}`;
+  const link=(row:typeof exact[number])=><a key={row.reference} aria-label={exact.length>1?`${stage==='committee'?'Committee':'Plenary'} amendments · ${row.reference}`:accessible} href={dossierHref(row.reference,person,language,location.href,{section:'amendments',stage})} onClick={dossierLinkClick}>{exact.length>1?row.reference:content}</a>;
+  return <span className="dossier-amendment-links">{exact.length===1?link(exact[0]):exact.length>1?<details><summary aria-label={accessible}>{content} · choose a procedure</summary>{exact.map(link)}</details>:<span aria-label={accessible}>{content}</span>}</span>;
+}
 export function DossierWorkLinks({references,person,language='en'}:{references:Pick<DossierReference,'id'|'reference'>[];person:string|number;language?:string}) {
   const exact=references.filter(row=>fullDossierReference(row.reference));
   if(!exact.length)return null;

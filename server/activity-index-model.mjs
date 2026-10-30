@@ -47,14 +47,14 @@ export function documentFiles(work) {
   }));
 }
 export function projectDocument(w) {
-  const result = Object.fromEntries(['id','identifier','label','work_type','parliamentary_term','document_date','title_dcterms','workHadParticipation','creator','inverse_created_a_realization_of','adopts','adoptionProjectionVersion','followupRelationships','metadataObservation','based_on','originalLanguage','foresees_change_of','itemNumberBegin','itemNumberEnd','numbering','is_about','isAboutSubjectMatter','isAboutDirectoryCode'].filter(k => w[k] !== undefined).map(k => [k,w[k]]));
+  const result = Object.fromEntries(['id','identifier','label','work_type','parliamentary_term','document_date','title_dcterms','workHadParticipation','creator','inverse_created_a_realization_of','adopts','adoptionProjectionVersion','followupRelationships','metadataObservation','based_on','originalLanguage','foresees_change_of','itemNumberBegin','itemNumberEnd','numbering','epNumber','epNumberVersion','isVersionOf','hasVersion','is_replaced_by','replaces','is_about','isAboutSubjectMatter','isAboutDirectoryCode'].filter(k => w[k] !== undefined).map(k => [k,w[k]]));
   result.languageVersionsObserved=w.languageVersionsObserved ?? (Object.hasOwn(w,'is_realized_by') && w.is_realized_by!=null);
   result.answersObserved=w.answersObserved ?? (Object.hasOwn(w,'inverse_answers_to') && w.inverse_answers_to!=null);
   if(tail(w.work_type)==='AMENDMENT_LIST')result.amendmentDistributionDeclared=typeof w.amendmentDistributionDeclared==='boolean'?w.amendmentDistributionDeclared:Object.hasOwn(w,'is_realized_by')&&w.is_realized_by!=null;
   result.is_realized_by = array(w.is_realized_by).map(e => ({ language:e.language, title:e.title,
     is_embodied_by:array(e.is_embodied_by).map(m => ({format:m.format,byteSize:m.byteSize,...(m.issued!==undefined?{issued:m.issued}:{}),is_exemplified_by:m.is_exemplified_by})) }));
   result.inverse_answers_to = array(w.inverse_answers_to).filter(a => a && typeof a === 'object').map(projectDocument);
-  if (['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
+  if (['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','REPORT_PARLIAMENTARY_COMMITTEE_DRAFT','OPINION_PARLIAMENTARY_COMMITTEE_DRAFT'].includes(tail(w.work_type))) {
     // Reprojecting an older cache cannot recover observations it discarded.
     result.amendmentLinksVersion = Object.hasOwn(w,'amendmentLinksVersion')?w.amendmentLinksVersion:AMENDMENT_LINKS_VERSION;
     // An omitted or unavailable relationship is not an observed empty set.
@@ -72,7 +72,7 @@ export function projectDocument(w) {
   return result;
 }
 export function projectProcedure(p) {
-  return { id: p.id, process_type:p.process_type||p.procedure_type||p.had_procedure_type||null, process_title: p.process_title ?? null, had_participation: array(p.had_participation), consists_of: array(p.consists_of).map(a => Object.fromEntries(['id','had_activity_type','occured_at_stage','based_on_a_realization_of','created_a_realization_of','involved_work','decided_on_a_realization_of','activity_date'].filter(k => a[k] !== undefined).map(k => [k,a[k]]))) };
+  return { id: p.id, label:p.label ?? null, process_id:p.process_id ?? null, committeeProjectionVersion:1, participationObserved:p.participationObserved ?? (Object.hasOwn(p,'had_participation')&&p.had_participation!=null), eventsObserved:p.eventsObserved ?? (Object.hasOwn(p,'consists_of')&&p.consists_of!=null), created_a_realization_of:p.created_a_realization_of, process_type:p.process_type||p.procedure_type||p.had_procedure_type||null, process_title: p.process_title ?? null, had_participation: p.had_participation==null?undefined:array(p.had_participation), consists_of: p.consists_of==null?undefined:array(p.consists_of).map(a => Object.fromEntries(['id','activity_id','had_activity_type','occured_at_stage','based_on_a_realization_of','created_a_realization_of','involved_work','decided_on_a_realization_of','activity_date'].filter(k => a[k] !== undefined).map(k => [k,a[k]]))) };
 }
 export function procedureIds(w) {
   return [...new Set(array(w.inverse_created_a_realization_of).map(tail).filter(v => /^\d{4}-\d{4}[A-Z]?$/.test(v)))];

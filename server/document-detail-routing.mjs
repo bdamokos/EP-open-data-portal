@@ -1,8 +1,8 @@
 const origin='https://data.europarl.europa.eu';
 const relative=value=>typeof (value?.id||value)==='string'?String(value?.id||value).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
 const array=value=>Array.isArray(value)?value:value==null?[]:[value];
-const listPattern='((?:A|B|RC)-10-\\d{4}-\\d{4,6}-AM-\\d{1,5}-\\d{1,5})';
-const listEndpoint=new RegExp('^/(?:plenary-documents|documents)/'+listPattern+'$');
+const listPattern='((?:A|B|RC)-10-\\d{4}-\\d{4,6}-AM-\\d{1,5}-\\d{1,5}|[A-Z][A-Z0-9]{2,5}-AM-\\d{4,9}(?:-\\d{1,4})*)';
+const listEndpoint=new RegExp('^/(?:plenary-documents|committee-documents|documents)/'+listPattern+'$');
 export const amendmentListDocumentId=endpoint=>listEndpoint.exec(endpoint)?.[1]||null;
 export const documentDetailEndpoint=endpoint=>{
   const id=amendmentListDocumentId(endpoint);return id?'/documents/'+id:endpoint;
@@ -26,7 +26,7 @@ export function documentRouteDeferredOwners(store,generation) {
 
 export function documentRouteBlocker(store,generation,endpoint,deferred,{ignoreGapKey=null,executingTask=null,allowDueGaps=false,allowDueLegacyGap=false,now=store.clock()}={}) {
   const id=amendmentListDocumentId(endpoint);if(!id)return null;
-  const keys=['/plenary-documents/'+id,'/documents/'+id];
+  const keys=['/plenary-documents/'+id,'/committee-documents/'+id,'/documents/'+id];
   const executingTable=executingTask?.amendmentJob?'amendment_jobs':'tasks';
   for(const table of ['tasks','amendment_jobs']) {
     const own=row=>executingTask?.generation===generation&&executingTable===table&&executingTask.key===row.key;

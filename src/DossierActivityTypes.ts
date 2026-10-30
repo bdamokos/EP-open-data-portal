@@ -1,4 +1,4 @@
-import type {Amendment} from './AmendmentTypes';
+import type {Amendment,AmendmentCounts,AmendmentScope,AmendmentStage} from './AmendmentTypes';
 import type {MemberVote} from './MemberVotesTypes';
 
 export type DossierSource={url:string;fetchedAt:string|null;language:string|null;stale?:boolean;refreshInProgress?:boolean;refreshError?:string|null};
@@ -13,5 +13,7 @@ export type DossierItem=DossierRole|DossierSpeech|DossierAmendment|DossierVote;
 export type DossierSection='roles'|'speeches'|'amendments'|'votes';
 export type DossierFilter='all'|DossierSection;
 export type DossierCursor={offset:number;targetOffset:number};
-export type DossierActivityResponse={version:7;procedure:DossierReference;memberId:string|null;participants:{id:string;name:string|null;roles:DossierRole[];speeches?:Pick<DossierSpeech,'id'|'debateId'|'date'|'source'>[]}[];participantCoverage?:DossierCoverage;section:DossierSection;items:DossierItem[];pagination:DossierCursor&{limit:number;next:DossierCursor|null};coverage:DossierCoverage;generation:number;amendmentGeneration?:number;checkedTarget?:string};
+export type DossierAmendmentEvidence={id:string;scope?:AmendmentScope;listId?:string|null;targetDocumentId?:string|null;date?:string|null;source?:DossierSource;countConflict?:boolean};
+export type DossierParticipant={id:string;name:string|null;roles:DossierRole[];speeches?:Pick<DossierSpeech,'id'|'debateId'|'date'|'source'>[];amendmentCounts?:AmendmentCounts;amendments?:DossierAmendmentEvidence[]};
+export type DossierActivityResponse={version:number;stage?:AmendmentStage;committee?:string|null;procedure:DossierReference;memberId:string|null;participants:DossierParticipant[];participantCoverage?:DossierCoverage;section:DossierSection;items:DossierItem[];pagination:DossierCursor&{limit:number;next:DossierCursor|null};coverage:DossierCoverage;generation:number;amendmentGeneration?:number;checkedTarget?:string};
 export type DossierReferencesResponse={items:DossierReference[];coverage:{status:DossierCoverage['status'];gaps:({code?:string;message?:string;id?:string}|string)[]}};

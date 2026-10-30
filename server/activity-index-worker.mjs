@@ -1,3 +1,5 @@
+import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
+import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
 import {cataloguePage,acquisitionMode,observeSource,finishAvailabilityWrite} from './availability-history.mjs';
 import {groupHistoryTask,scheduleGroupHistory} from './group-history.mjs';
@@ -12,7 +14,7 @@ import { stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { ODP_BASE, boundedUpstream, backoffUpstream, observedOdpFetch } from './odp.mjs';
-import { amendmentTask, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
+import { amendmentTask, rebuildAmendmentTarget, scheduleAmendments, scheduleSittingOutcomes, prepareAmendments, amendmentParserUpgradeDue, prepareAmendmentParserUpgrade, parseSavedSplits, refreshSittingTargets, failAmendmentTask, amendmentDownloads } from './amendments-worker.mjs';
 import { projectAmendmentDecisions, projectAmendmentSplits, AMENDMENT_SITTING_PROJECTION_VERSION } from './amendments.mjs';
 import { amendmentReadVersion, nextAmendmentTask, amendmentGeneration, amendmentsCopy, amendmentCompletionMarker, invalidateAmendmentLinks } from './amendments-store.mjs';
 import {spId,validateTA,validateReply,projectFollowup,projectFollowupReferences} from './commission-followups-model.mjs';
@@ -108,7 +110,7 @@ export class ActivityWorker {
     if(this.recoveryMode==='backfill'&&declaredDebateRecoveryDue(this.store,generation))return true;
     if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())||amendmentDocumentRouteVerificationPending(this.store,generation)))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
-    if(amendmentParserUpgradeDue(this.store,generation))return true;
+    if(amendmentParserUpgradeDue(this.store,generation)||committeePreparationDue(this.store,generation))return true;
     if(cycle&&(!cycle.initialized||!cycle.reportJoinsReady||!cycle.procedureTitlesQueued||!cycle.procedureTypesQueued||
       cycle.motionOutcomesDay!==day(this.clock())||day(Date.parse(cycle.startedAt))!==day(this.clock())&&cycle.catchupDay!==day(this.clock())||
       !this.store.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) LIMIT 1').get(generation)))return true;
@@ -282,12 +284,14 @@ export class ActivityWorker {
     } else if(task.kind==='speeches' && body.recoveryId) {
       if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(body.recoveryId))throw new Error('Invalid speech recovery identifier.');
       const r=await this.request('/speeches/'+body.recoveryId);
+      this.controller.signal.throwIfAborted();this.store.assertWriter();
       const activity=body.declaredParent!==undefined?declaredSpeechDetail(r,body.recoveryId,body.declaredParent,this.clock()):r.payload.data.find(node=>node.activity_id===body.recoveryId);
       if(!activity)throw new Error(`Published speech ${body.recoveryId} has no matching detail record.`);
       this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task),declaredParent:body.declaredParent});
       this.store.finishTask(task);
     } else if(task.kind==='speeches') {
       const r=await this.request('/speeches',{...body.params,limit:250,offset:body.offset});
+      this.controller.signal.throwIfAborted();this.store.assertWriter();
       // The search total saturates at 10,000. Partition the date window before
       // paging so a full term cannot be mistaken for a truncated search result.
       if(body.offset===0 && Number(r.payload.meta?.total)>=10000) {
@@ -389,12 +393,14 @@ export class ActivityWorker {
       const requestedAt=this.clock(),r=await this.request(endpoint),adopted=endpoint.startsWith('/adopted-texts/');
       const work=adopted?adoptedTextRecord(endpoint,r.payload.data):listId?validateAmendmentListMetadata(r.payload,listId):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
+      if(committeeDraftId(tail(endpoint))&&(!validCommitteeWork(work)||work.identifier!==tail(endpoint)))throw new Error('Invalid or conflicting exact committee draft metadata.');
       if(body.amendmentRouteVerification) {
         const proof=body.amendmentRouteVerification,at=Date.parse(r.fetchedAt),failed=Date.parse(proof.previousFailure?.failedAt);
         if(!listId||proof.version!==1||proof.endpoint!==endpoint||proof.previousFailure?.endpoint!==task.key||body.endpoint!==task.key||proof.previousFailure.status!==404||r.stale||!Number.isFinite(at)||!Number.isFinite(failed)||at<requestedAt||at<=failed||at>this.clock())throw new Error('Corrected amendment route did not return fresh exact metadata.');
       }
-      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','TEXT_ADOPTED',...(listId?['AMENDMENT_LIST']:[])].includes(tail(work.work_type))){this.store.finishTask(task);return;}
+      if(body.feedDiscovery && !['REPORT_PLENARY','RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL','OPINION_PARLIAMENTARY_COMMITTEE','OPINION_LETTER_PARLIAMENTARY_COMMITTEE','REPORT_PARLIAMENTARY_COMMITTEE_DRAFT','OPINION_PARLIAMENTARY_COMMITTEE_DRAFT','TEXT_ADOPTED',...(listId?['AMENDMENT_LIST']:[])].includes(tail(work.work_type))){this.store.finishTask(task);return;}
       const projected=projectDocument(sanitizeFreshDocument(work)), proc=new Map();
+      if(validCommitteeWork(projected))projected.committeeProjectionVersion=1;
       if(adopted){
         validateTA({data:[work]},work.identifier);projected.adoptionProjectionVersion=adoptedTextProjectionVersion;
         if(Object.hasOwn(work,'inverse_answers_to'))projected.followupRelationships=projectFollowupReferences(work.inverse_answers_to);
@@ -413,11 +419,16 @@ export class ActivityWorker {
       if(followups)this.store.taskProgress(task,followups);else this.store.finishTask(task);
       if(isMotion(projected))this.scheduleMotionOutcomes(generation,projected);
       scheduleAmendments(this,generation,projected,r.fetchedAt,endpoint);
+      scheduleCommitteeDiscovery(this,generation,projected,r.fetchedAt,endpoint);
+      prepareCommitteeList(this,generation,projected,r.fetchedAt,endpoint,{rebuild:rebuildAmendmentTarget});
     } else if(task.kind==='motion-outcomes') {
       await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
-      const r=await this.request(body.endpoint), work=r.payload.data[0];if(!work)throw new Error('EP procedure detail was empty.');
-      this.store.putSource(generation,body.endpoint,'procedure',projectProcedure(work),r.fetchedAt);
+      const r=await this.request(body.endpoint),matches=r.payload.data.filter(work=>String(work?.id||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/proc/'+tail(body.endpoint));
+      const work=matches[0];if(matches.length!==1||work.process_id&&work.process_id!==tail(body.endpoint))throw new Error('Invalid or conflicting exact procedure metadata.');
+      const projected=projectProcedure(work);
+      this.store.putSource(generation,body.endpoint,'procedure',projected,r.fetchedAt);
+      scheduleCommitteeDiscovery(this,generation,projected,r.fetchedAt,body.endpoint);
       if(this.recoveryMode==='backfill'&&this.store.get('working')?.generation===generation)this.store.enqueue(generation,'debate-links:'+body.endpoint,'debate-links',{endpoint:body.endpoint,offset:0},102,true);
       // Make verified report roles usable during the initial partial load; an
       // unrelated missing speech must not postpone an already supported join.
@@ -427,8 +438,12 @@ export class ActivityWorker {
   }
   saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false,{acquisition='unknown',declaredParent=null}={}) {
     const key='/speeches/'+activity.activity_id;
+    const retained=this.store.source(generation,key)?.work;
+    // The declaration comes from the separately observed debate. An ordinary
+    // catalogue refresh does not erase it or invent an omitted reverse edge.
+    declaredParent=declaredParent??retained?.declaredParent??null;
     let outside=outsideSpeech(activity,fetchedAt,queryUrl);
-    const previous=this.store.source(generation,key)?.work.outside;
+    const previous=retained?.outside;
     if(outside && previous) {
       outside={...outside,titles:{...previous.titles,...outside.titles},...(outside.headerChecked?{source:previous.source}:{} )};
     }
@@ -442,7 +457,7 @@ export class ActivityWorker {
       observeSource(this.store,{sourceId:activity.activity_id,family:'speeches',subtype:tail(activity.had_activity_type),date:activity.activity_date,fetchedAt,url:queryUrl,acquisition,existed});
       finishAvailabilityWrite(this.store);
     });return;}
-    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(declaredParent?{declaredParent,...(activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{})}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
+    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(declaredParent?{declaredParent}:{}),...(activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
     recordOutside(this.store,generation,outside);
     if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
   }
@@ -708,6 +723,7 @@ export class ActivityWorker {
       if(this.recoveryMode==='backfill')scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
+      prepareCommitteeAmendments(this,generation);
       for(const row of this.store.db.prepare('SELECT sitting_id FROM sitting_refresh WHERE generation=? AND next_check<=? ORDER BY next_check,sitting_id LIMIT 100').all(generation,this.clock())) {
         const delay=this.clock()<Date.parse(sittingConfirmationDay(row.sitting_id))?6*60*60_000:7*DAY;
         const gap=this.store.db.prepare("SELECT * FROM refresh_gaps WHERE generation=? AND sitting_id=? AND kind='motion-outcomes' ORDER BY retry_at LIMIT 1").get(generation,row.sitting_id);

@@ -97,3 +97,10 @@
 .explorer-amendment-number {white-space:nowrap;}
 @media(max-width:680px) {.explorer-amendment-number {width:2rem;}.explorer-amendment-card>header~* {margin-left:calc(2rem + 10px);}}
 .explorer-amendment-totals dt {order:1;}
+.explorer-amendment-stage{font-size:14px;color:var(--ink-muted);margin:0 0 10px;overflow-wrap:anywhere}
+.explorer-amendment-card>p.explorer-amendment-stage{margin-left:0}
+.explorer-amendment-card :is(summary,button,a){min-height:44px;touch-action:manipulation}
+.explorer-amendment-card summary{cursor:pointer;padding-block:10px}
+.explorer-amendment-authors a{display:inline-flex;align-items:center}
+.explorer-amendment-card{--am-line:var(--line);--am-muted:var(--ink-muted);--am-focus:var(--focus)}
+.explorer-amendment-card :is(button,a,summary):focus-visible{outline:3px solid var(--focus);outline-offset:3px}

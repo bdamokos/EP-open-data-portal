@@ -13,7 +13,7 @@ export async function discoverDeclaredSpeeches(worker,generation) {
     store.assertWriter();
     for(const row of rows) {
       if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(row.id)||row.key!=='/speeches/'+row.id||!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(row.kind))continue;
-      if(store.db.prepare("SELECT 1 FROM documents WHERE source_id=? AND kind='speech'").get(row.id))continue;
+      if(store.db.prepare("SELECT 1 FROM documents d WHERE d.source_id=? AND d.kind='speech' AND EXISTS (SELECT 1 FROM texts t WHERE t.document_id=d.id AND t.chars>0)").get(row.id))continue;
       // INSERT OR IGNORE preserves every pending task's body, attempts and
       // future deadline. Only an already-completed empty job may be reopened.
       const key='speech:'+row.id,body={id:row.id,declaredIndex:true,...(row.parent!=null?{declaredParent:row.parent}:{})};

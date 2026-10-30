@@ -298,3 +298,52 @@ test('yielding a queued duplicate preserves the actual admitted event owner and 
   assert(x.store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(x.generation,key));
   assert.deepEqual(x.calls,[]);
 });
+
+for(const recovery of [true,false])test(`cancelled ${recovery?'declared detail':'catalogue'} responses cannot retain speech metadata or finish work`,async t=>{
+  const x=fixture(t),id=child(51),key=recovery?'recovery:/speeches/'+id:'catalog:/speeches:cancelled';
+  x.store.enqueue(x.generation,key,'speeches',recovery?{recoveryId:id,declaredParent:parent}:{params:{'sitting-date':'2024-10-07','sitting-date-end':'2024-10-07'},offset:0},103);
+  x.worker.fetchRecord=async()=>{
+    x.worker.controller.abort(new Error('fixture cancellation'));
+    return {payload:{data:[node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)],had_participation:[{had_participant_person:['person/42']}]})]},fetchedAt:time};
+  };
+  await assert.rejects(x.worker.task(x.task(key)),/cancellation/);
+  assert.equal(x.store.source(x.generation,'/speeches/'+id),undefined);
+  assert.equal(x.store.db.prepare('SELECT COUNT(*) n FROM items WHERE source_id=?').get(id).n,0);
+  assert.equal(x.task(key).done,0);assert.equal(x.task(key).body.offset,recovery?undefined:0);
+});
+
+test('ordinary catalogue refresh retains declared lineage and explicit conflicting links without inventing omitted links',async t=>{
+  const x=fixture(t),id=child(52),key='recovery:/speeches/'+id,catalog='catalog:/speeches:lineage',other=parent+'0';
+  const speech=extra=>node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',had_participation:[{had_participant_person:['person/42']}],...extra});
+  x.store.enqueue(x.generation,key,'speeches',{recoveryId:id,declaredParent:parent},103);
+  x.records.set('/speeches/'+id,speech({inverse_consists_of:[uri(parent)]}));await x.worker.task(x.task(key));
+  x.store.enqueue(x.generation,catalog,'speeches',{params:{'sitting-date':'2024-10-07','sitting-date-end':'2024-10-07'},offset:0},100);
+  x.records.set('/speeches',[speech({})]);await x.worker.task(x.task(catalog));
+  let saved=x.store.source(x.generation,'/speeches/'+id).work;
+  assert.equal(saved.declaredParent,parent);assert.equal(Object.hasOwn(saved,'inverse_consists_of'),false);
+  x.store.enqueue(x.generation,catalog+':refresh','speeches',{params:{'sitting-date':'2024-10-07','sitting-date-end':'2024-10-07'},offset:0},100);
+  x.records.set('/speeches',[speech({inverse_consists_of:[uri(other)]})]);await x.worker.task(x.task(catalog+':refresh'));
+  saved=x.store.source(x.generation,'/speeches/'+id).work;
+  assert.equal(saved.declaredParent,parent);assert.deepEqual(saved.inverse_consists_of,[uri(other)]);
+  const dossier=new DossierActivity(x.store,{reader:{record:async()=>({payload:{data:[node(parent,'PLENARY_DEBATE',{activity_date:'2024-10-07',consists_of:[uri(id)]})]},url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:time})}});
+  const result={generation:x.generation,coverage:{sources:[],gaps:[]},pagination:{}};
+  await dossier.speeches(result,{consists_of:[node(parent,'PLENARY_DEBATE')]},{targetOffset:0,language:'en',member:'42'},items=>{result.items=items;});
+  assert.deepEqual(result.items,[]);assert.equal(result.coverage.status,'partial');
+  assert(result.coverage.gaps.includes('A contribution has conflicting debate links.'));
+});
+
+for(const emptyRow of [false,true])test(`six-hour discovery reopens ${emptyRow?'zero-character':'textless'} speech documents while preserving pending future retries`,async t=>{
+  const x=fixture(t);let ms=now();const clock=()=>ms,id=child(53),key='speech:'+id;
+  x.store.putSource(x.generation,'/speeches/'+id,'speech',{id,kind:'PLENARY_DEBATE_SPEECH',date:'2024-10-07',declaredParent:parent},time);x.store.publish(x.generation);
+  const corpus=new CorpusStore(path.join(x.directory,'corpus'),{indexFile:x.store.filename,clock});assert(corpus.acquire());t.after(()=>corpus.close());
+  const worker=new CorpusWorker(corpus,{clock,fetchRecord:async()=>({payload:{data:[node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]})]},fetchedAt:new Date(ms).toISOString()})});
+  await discoverDeclaredSpeeches(worker,x.generation);await worker.task(corpus.task(key));
+  assert.equal(corpus.task(key).done,1);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM texts').get().n,0);
+  if(emptyRow)corpus.putDocument({sourceId:id,kind:'speech',date:'2024-10-07'},[{language:'en',sourceKey:'en',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:'https://data.europarl.europa.eu/api/v2/speeches/'+id,fetchedAt:time,body:''}]);
+  ms+=6*3600000;assert(corpus.acquire());assert(declaredSpeechDiscoveryDue(corpus,x.generation));await discoverDeclaredSpeeches(worker,x.generation);
+  assert.equal(corpus.task(key).done,0);assert.equal(corpus.task(key).body.declaredParent,parent);
+  corpus.failTask(corpus.task(key),new Error('fixture source unavailable'),12*3600);
+  const pending=corpus.task(key);
+  ms+=6*3600000;assert(corpus.acquire());await discoverDeclaredSpeeches(worker,x.generation);
+  assert.deepEqual(corpus.task(key),pending,'real future owner and its clock survive another scan');
+});
