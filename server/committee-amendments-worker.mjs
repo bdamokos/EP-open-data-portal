@@ -63,10 +63,19 @@ export function prepareCommitteeAmendments(worker,generation) {
 
 export async function committeeDiscoveryTask(worker,task,{rebuild}={}) {
   const {store}=worker,{generation}=task;
+  const yieldOnCapacity=action=>(...args)=>{
+    const admitted=action(...args);
+    if(admitted===false) {
+      // Let lower-priority dependencies drain before retrying this cursor.
+      store.assertWriter();
+      store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(COALESCE(retry_at,0),?) WHERE generation=? AND key=?`).run(worker.clock()+60_000,generation,task.key);
+    }
+    return admitted;
+  };
   if(task.kind==='amendment-committee-prepare') {
     const complete=await runAmendmentWorkSlice(worker,task,{
       select:body=>store.db.prepare("SELECT key,body,fetched_at FROM sources INDEXED BY committee_preparation WHERE generation=? AND kind IN ('procedure','document') AND key>? AND key<=? ORDER BY key LIMIT 1").get(generation,body.afterKey,body.throughKey),
-      action:row=>{
+      action:yieldOnCapacity(row=>{
         const work=JSON.parse(row.body);
         if(row.key.startsWith('/procedures/')) {
           if(work.committeeProjectionVersion!==COMMITTEE_AMENDMENTS_VERSION)return enqueueDocument(worker,generation,row.key,'procedure');
@@ -78,7 +87,7 @@ export async function committeeDiscoveryTask(worker,task,{rebuild}={}) {
         } else if(/^(?:A|B|RC)-10-/.test(work.identifier||'')) {
           for(const id of procedureIds(work))if(!store.source(generation,'/procedures/'+id)&&!enqueueDocument(worker,generation,'/procedures/'+id,'procedure'))return false;
         }
-      },advance:row=>({afterKey:row.key}),
+      }),advance:row=>({afterKey:row.key}),
     });
     if(complete){
       store.putSource(generation,'committee:preparation','committee-preparation',{version:COMMITTEE_AMENDMENTS_VERSION,day:task.body.day},new Date(worker.clock()).toISOString());
@@ -88,7 +97,7 @@ export async function committeeDiscoveryTask(worker,task,{rebuild}={}) {
   }
   const complete=await runAmendmentWorkSlice(worker,task,{
     select:body=>body.references[body.offset],
-    action:(reference,body)=>{
+    action:yieldOnCapacity((reference,body)=>{
       const endpoint=committeeDocumentEndpoint(reference.id),old=store.source(generation,endpoint);
       if(!endpoint)return;
       const parentDraft=committeeDraftId(tail(body.endpoint))?tail(body.endpoint):null;
@@ -100,7 +109,7 @@ export async function committeeDiscoveryTask(worker,task,{rebuild}={}) {
       }
       if(old?.work.committeeProjectionVersion===COMMITTEE_AMENDMENTS_VERSION&&worker.clock()-Date.parse(old.fetchedAt)<7*DAY)return;
       return enqueueDocument(worker,generation,endpoint);
-    },advance:(_,body)=>({offset:body.offset+1}),
+    }),advance:(_,body)=>({offset:body.offset+1}),
   });
   if(complete)store.finishTask(task);
 }
