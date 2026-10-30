@@ -333,7 +333,7 @@ export function allowedDownload(value) {
     ((u.hostname==='data.europarl.europa.eu' && u.pathname.startsWith('/distribution/')) || (u.hostname==='redmapl3.europarl.europa.eu' && u.pathname.startsWith('/RedmapFront/media/')))
     && u.pathname.endsWith('.docx');}catch{return false;}
 }
-export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal()}={}) {
+export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expectedByteSize=null}={}) {
   let url=sourceUrl;
   for(let hop=0;hop<4;hop++) {
     signal?.throwIfAborted();
@@ -348,6 +348,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal()}={}) 
     if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
+    if(Number.isSafeInteger(expectedByteSize)&&expectedByteSize>=0&&size!==expectedByteSize)throw new Error('Official document size does not match the selected edition.');
     return {buffer:Buffer.concat(chunks),resolvedSourceUrl:url};
   }
   throw new Error('Too many document download redirects.');

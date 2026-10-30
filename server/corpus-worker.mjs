@@ -251,13 +251,19 @@ export class CorpusWorker {
       this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
+      const issued=Date.parse(body.edition?.issued);
+      if(issued>this.clock()) {
+        this.store.assertWriter();this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,task.key);return;
+      }
       await this.pace();
       this.controller.signal.throwIfAborted();
       const signal=this.controller.signal;
-      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
+      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize}),{source:'documents',priority:'background',signal});
       signal.throwIfAborted();
+      const text=result.paragraphs.join('\n');
+      if(!text.trim())throw new Error('Official document contains no readable text.');
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
-        [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:result.paragraphs.join('\n'),raw:null}],{acquisition:acquisitionMode(this.store,task,{corpus:true})});
+        [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:text,raw:null}],{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       this.store.finishTask(task);
     } else throw new Error('Unknown corpus task.');
   }
