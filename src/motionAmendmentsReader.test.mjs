@@ -346,21 +346,24 @@ test('a late response from an obsolete language request cannot overwrite the cur
 test('conflicting source versions require a choice and only checked variant proposers receive the member label',async t=>{
   const listA=`${documentId}-AM-001-020`,listB=`${documentId}-AM-013-014`;
   const item=amendment(13,{conflicted:true,authors:[{name:'Aggregate-only author',personId:memberId}],memberMatch:match(),
-    variants:[variant(listA,{authors:[{name:'Another checked proposer',personId:'102'}],memberMatch:match(false),proposedText:'First variant wording'}),
-      variant(listB,{authors:[{name:'Checked variant proposer',personId:memberId}],memberMatch:match(),proposedText:'Second variant wording'})]});
+    variants:[variant(listA,{authors:[{name:'Another checked proposer',personId:'102'}],memberMatch:match(false),proposedText:'First variant wording',justification:'First published reason.'}),
+      variant(listB,{authors:[{name:'Checked variant proposer',personId:memberId}],memberMatch:match(),proposedText:'Second variant wording',justification:'Second published reason.'})]});
   const h=await readerHarness(t,{state:{open:true,scope:'all'}});await h.respond(page({scope:'all',items:[item]}));
   await h.click(/^Amendment 13/);
   let detail=h.container.querySelector('.motion-amendments__detail');
   assert.match(wordingViewText(detail),/Choose a wording version/);
   assert.equal(detail.querySelector('.motion-amendments__passage'),null);
+  assert.equal(detail.querySelector('.amendment-justification'),null);
   assert.equal(h.button('Read in context').disabled,true);
   assert.doesNotMatch(detail.textContent,/Aggregate-only author/);
   await h.change('.motion-amendments__version select',listA);detail=h.container.querySelector('.motion-amendments__detail');
   assert.match(wordingViewText(detail),/First variant wording/);assert.match(wordingViewText(detail),/Another checked proposer/);
+  assert.equal(detail.querySelector('.amendment-justification p').textContent,'First published reason.');
   assert.equal(detail.querySelector('.motion-amendments__member-tag'),null);
   assert.doesNotMatch(wordingViewText(detail),/Aggregate-only author|Checked variant proposer|Second variant wording/);
   await h.change('.motion-amendments__version select',listB);detail=h.container.querySelector('.motion-amendments__detail');
-  assert.match(wordingViewText(detail),/Second variant wording/);assert.match(wordingViewText(detail),/Checked variant proposer/);
+  assert.match(wordingViewText(detail),/Second variant wording/);
+  assert.equal(detail.querySelector('.amendment-justification p').textContent,'Second published reason.');assert.match(wordingViewText(detail),/Checked variant proposer/);
   assert.equal(detail.querySelector('.motion-amendments__member-tag').textContent,'Selected MEP’s proposal');
   assert.doesNotMatch(detail.textContent,/Aggregate-only author|Another checked proposer/);
   assert.equal(h.requests.length,1);

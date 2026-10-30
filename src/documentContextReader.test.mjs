@@ -25,6 +25,29 @@ const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
+test('document and legal-proposal context keep the justification with the selected amendment',async t=>{
+  const text='Published rationale.\nAnother paragraph & <literal text>.';
+  const legal=proposalContextResponse(report,amendment,list);
+  legal.amendment.variants[0].justification=text;
+  const ordinary=response(report,sourceDocument(report,[]),{amendment:{...amendmentSource,variants:[wordingVariant('en',{justification:text})]}});
+  let current=ordinary;
+  const h=await harness(t,()=>current);
+  const request={documentId:report,amendmentId:amendment,listId:list,view:'document',onBack:()=>{}};
+  await h.render({request,language:'en'});
+  assert.equal(h.container.querySelector('.amendment-justification p').textContent,text);
+  assert.equal(h.container.querySelector('.amendment-justification p').lang,'en');
+  current=legal;
+  await h.render({request:{...request,wordingLanguage:'en'},language:'en'});
+  assert.equal(h.container.querySelectorAll('.amendment-justification').length,1);
+  assert.equal(h.container.querySelector('.amendment-justification p').textContent,text);
+  assert.equal(h.container.querySelector('.amendment-justification literal'),null);
+  current=response(report,null,{requestedLanguage:'fr',requestedWordingLanguage:'fr',amendment:{...amendmentSource,status:'unavailable',variants:[wordingVariant('fr',{wordingStatus:'unavailable',originalText:null,proposedText:null,justification:'Motif lisible.'})]}});
+  await h.render({request:{...request,wordingLanguage:'fr'},language:'en'});
+  assert.equal(h.container.querySelector('.amendment-justification p').textContent,'Motif lisible.');
+  assert.equal(h.container.querySelector('.amendment-justification p').lang,'fr');
+  assert.equal(h.container.querySelector('[data-amendment-block]'),null);
+});
+
 for(const [textLanguage,status,hasBody] of [['en','available',true],['fr','available',true],[null,'unavailable',false],['en','error',false],['en','unavailable',false],['en','available',false]])test('a French scope note needs actual body text for a language mismatch: '+textLanguage+' / '+status+' / '+hasBody,async t=>{
   const note='(Ne concerne pas la version française.)',mismatch=textLanguage==='en'&&hasBody;
   const paragraphs=hasBody?['The published document stays intact.']:[];
