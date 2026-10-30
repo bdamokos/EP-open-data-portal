@@ -1,4 +1,4 @@
-.dossier-activity{margin:24px 0 32px;min-width:0;color:var(--ink)}
+.dossier-activity{--am-line:var(--line);--am-muted:var(--ink-muted);--am-surface:var(--surface);margin:24px 0 32px;min-width:0;color:var(--ink)}
 .dossier-activity a,.dossier-work-links a{color:var(--accent);overflow-wrap:anywhere;text-underline-offset:3px}
 .dossier-activity button,.dossier-activity summary,.dossier-activity a,.dossier-work-links a,.dossier-work-links summary{min-height:44px;touch-action:manipulation}
 .dossier-activity a,.dossier-work-links a{display:inline-flex;align-items:center;gap:6px}
@@ -12,9 +12,10 @@
 .dossier-person-chip{border:1px solid var(--accent);border-radius:var(--radius);background:var(--accent-soft);padding-left:12px;color:var(--ink)}
 .dossier-person-chip a{min-width:44px;justify-content:center;font-size:24px;text-decoration:none}
 .dossier-exits{width:100%;justify-content:flex-end}
-.dossier-filters{margin:20px 0}
+.dossier-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:20px 0;max-width:720px}
+.dossier-filters button{display:grid;grid-template-rows:24px 16px;align-content:center;gap:2px;min-width:0;min-height:64px;padding:8px;font-size:var(--control-font-size);line-height:var(--control-line-height)}
 .dossier-filters button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
-.dossier-filters small{display:block;color:var(--ink-muted);font-size:12px}
+.dossier-filters button>small{display:block;color:var(--ink-muted);font-size:12px;line-height:16px}
 .dossier-section-status{display:flex;flex-wrap:wrap;gap:12px 24px;margin-block:18px}
 .dossier-section-status>section{min-width:0;max-width:100%}
 .dossier-section-status>section:not(:has(*)){display:none}
@@ -29,6 +30,20 @@
 .dossier-timeline :is(.dossier-role,.dossier-speech),.dossier-document-roles>.dossier-role,.dossier-vote{background:var(--surface);padding:16px;border:1px solid var(--line);border-radius:var(--radius);min-width:0;overflow-wrap:anywhere}
 .dossier-amendment{margin-block:14px}
 .dossier-amendment>.explorer-amendment-card{margin-block:8px}
+.dossier-proposers p{margin:8px 0}
+.dossier-proposers>.dossier-muted{margin-block:4px}
+.dossier-proposers>details>summary{font-size:14px;color:var(--ink-muted)}
+.dossier-amendment-wording{max-width:78ch;margin-top:16px}
+.dossier-proposed-text>p{font-family:var(--font-serif);font-size:18px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.dossier-vote-inline .member-votes-position-unknown strong{font-size:inherit;display:inline}
+.dossier-amendment .explorer-amendment-outcome[data-outcome=ADOPTED]{color:var(--positive)}
+.dossier-amendment .explorer-amendment-outcome[data-outcome=REJECTED]{color:var(--danger)}
+.dossier-amendment .explorer-amendment-outcome[data-outcome=mixed]{color:var(--warning)}
+.dossier-amendment .dossier-vote-inline{border:0;border-radius:0;padding:0;background:transparent;margin:12px 0}
+.dossier-vote-inline>.dossier-muted{margin-block:4px;font-size:15px;color:var(--ink)}
+.dossier-vote-totals>summary{font-size:14px;color:var(--ink-muted)}
+.dossier-vote-text{margin-top:12px;min-width:0}
+.dossier-vote-text[hidden]{display:none}
 .dossier-ballot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:20px;margin:16px 0}
 .dossier-vote{--mv-ink:var(--ink);--mv-muted:var(--ink-muted);--mv-for:var(--vote-for);--mv-against:var(--vote-against);--mv-abstain:var(--vote-abstain);margin-block:12px}
 .dossier-sitting{margin-block:24px}
@@ -38,6 +53,6 @@
 .dossier-participants li ul{padding-left:18px;font-size:14px}
 .dossier-work-links{font-size:14px;margin-block:6px}
 .dossier-work-links details>a{display:flex}
-@media(max-width:680px){.dossier-exits{justify-content:flex-start}.dossier-filters{gap:8px}.dossier-filters button{flex:1 1 28%;padding-inline:8px}.dossier-timeline>li{padding-left:12px}.dossier-ballot{grid-template-columns:1fr;gap:12px}.dossier-section-status{grid-template-columns:1fr}.dossier-activity .explorer-amendment-card{padding:14px}.dossier-scope h3{flex-basis:100%}}
+@media(max-width:680px){.dossier-exits{justify-content:flex-start}.dossier-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.dossier-timeline>li{padding-left:12px}.dossier-ballot{grid-template-columns:1fr;gap:12px}.dossier-section-status{grid-template-columns:1fr}.dossier-activity .explorer-amendment-card{padding:14px 0}.dossier-activity .explorer-amendment-card>header~*{margin-left:0}.dossier-scope h3{flex-basis:100%}}
 
 .dossier-document-roles>.dossier-role{margin-block:12px}
