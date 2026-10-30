@@ -120,6 +120,25 @@ async function mountWording(t,{variants,amendmentStatus='available',state={},mem
     Response.json({documentId:DOCUMENT,requestedLanguage:'en',document:null,amendment:{id:AMENDMENT,status:amendmentStatus,variants}}):Response.json(responseFor(url,{items:[item]}))});
 }
 
+test('vote justifications follow the chosen edition and render paragraphs as literal source text',async t=>{
+  const text='Motif publié.\n<img src=x onerror=alert(1)> & seconde ligne.';
+  const variants=[wordingVariant({listId:'published-fr',justification:text}),
+    wordingVariant({listId:'published-hu',language:'hu',justification:'Magyar indokolás.'}),
+    wordingVariant({listId:'no-justification',justification:' \n '})];
+  const h=await mountWording(t,{variants});
+  const selector='select[aria-label="Amendment published version"]';
+  assert.equal(h.container.querySelector('.amendment-justification'),null);
+  await h.select(selector,'published-fr');
+  assert.equal(h.container.querySelector('.amendment-justification p').textContent,text);
+  assert.equal(h.container.querySelector('.amendment-justification p').lang,'fr');
+  assert.equal(h.container.querySelector('.amendment-justification img'),null);
+  await h.select(selector,'published-hu');
+  assert.equal(h.container.querySelector('.amendment-justification p').textContent,'Magyar indokolás.');
+  assert.equal(h.container.querySelector('.amendment-justification p').lang,'hu');
+  await h.select(selector,'no-justification');
+  assert.equal(h.container.querySelector('.amendment-justification'),null);
+});
+
 test('decoded source reference text renders literally in vote cards and detail headings',async t=>{
   const source='S&amp;D: 10% &lt; 20% &amp; &lt;img src=x onerror=alert(1)&gt;',
     expected='S&D: 10% < 20% & <img src=x onerror=alert(1)>',
