@@ -32,7 +32,7 @@ test('loading the known target batches clears only their pending coverage',()=>{
   assert.equal(incomplete.coverage.status,'partial','loading remaining pages cannot repair an incomplete checked source');
 });
 
-function page(section,member='257727',items,extra={}) {return {version:8,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
+function page(section,member='257727',items,extra={}) {return {version:9,procedure:{id:'2025-0176',reference,title:'Official full dossier title',titleLanguage:'en',source},memberId:member,section,participants:[{id:'257727',name:'Named member',roles:[role]},{id:'124984',name:'Other member',roles:[{...role,id:'role-2',personId:'124984',role:'RAPPORTEUR_SHADOW'}]}],items:items??({roles:[role],speeches:[speech],amendments:[amendment],votes:[agreement,rejection]}[section]),pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Some targets have not been checked.'],sources:[source]},generation:1,...extra};}
 
 async function harness(t,query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727',handler) {
   const window=new Window({url:'http://localhost/'+query});
@@ -583,7 +583,7 @@ test('committee stage and committee filters reset the list cursor without changi
     if(url.searchParams.get('section')!=='amendments')return;
     const stage=url.searchParams.get('stage'),committee=url.searchParams.get('committee'),offset=Number(url.searchParams.get('target-offset'));
     const items=stage==='plenary'?[amendment]:committee?[committeeRow(committee,40)]:[committeeRow('AGRI',40),committeeRow('IMCO',40)];
-    return Response.json(page('amendments','257727',offset?[]:items,{version:8,stage,committee:committee||null,pagination:{offset:0,targetOffset:offset,limit:25,next:offset?null:{offset:0,targetOffset:1}}}));
+    return Response.json(page('amendments','257727',offset?[]:items,{version:9,stage,committee:committee||null,pagination:{offset:0,targetOffset:offset,limit:25,next:offset?null:{offset:0,targetOffset:1}}}));
   });
   await h.render(createElement(h.module.DossierActivity,{reference}));await h.click('Load more amendments');
   const change=async(label,value)=>{const select=[...h.container.querySelectorAll('label')].find(node=>node.firstChild?.textContent===label)?.querySelector('select');assert(select,label);await act(async()=>{select.value=value;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});};

@@ -2,7 +2,7 @@ import type {Amendment,AmendmentCounts,AmendmentScope,AmendmentStage} from './Am
 import type {MemberVote} from './MemberVotesTypes';
 
 export type DossierSource={url:string;fetchedAt:string|null;language:string|null;stale?:boolean;refreshInProgress?:boolean;refreshError?:string|null};
-export type DossierCoverage={status:'complete'|'partial'|'unavailable';gaps:string[];sources:DossierSource[];checkedComplete?:boolean;checkedTargets?:string[];uncheckedTargets?:string[];retryable?:boolean;failedDebates?:string[];missingSpeechIds?:string[];retained?:boolean;discovery?:{pending:boolean;refreshGaps:boolean;capacityGaps:string[]}|null};
+export type DossierCoverage={status:'complete'|'partial'|'unavailable';gaps:string[];sources:DossierSource[];checkedComplete?:boolean;checkedTargets?:string[];uncheckedTargets?:string[];retryable?:boolean;failedDebates?:string[];missingSpeechIds?:string[];unresolvedChildIds?:string[];retained?:boolean;discovery?:{pending:boolean;refreshGaps:boolean;capacityGaps:string[]}|null};
 export type DossierReference={id:string;reference:string;title:string;titleLanguage:string|null;source:DossierSource};
 type ActivityBase={id:string;date:string|null;stage:string|null;source:DossierSource};
 export type DossierRole=ActivityBase&{kind:'role';participationId?:string|null;personId:string;role:string;committee:string|null;dateBasis:'recorded'|'document';documentId?:string};

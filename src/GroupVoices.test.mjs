@@ -119,5 +119,5 @@ for(const mode of ['gap','observed','partial'])test(`group summary and selected 
  const availability=sourceAvailability({sourceKey:'oral-speeches',start:'2026-09-01',end:'2026-09-30',latestObservedDate:'2026-10-16',gaps:mode==='gap'?[{start:'2026-09-01',end:'2026-09-30'}]:[],limited:mode==='partial',today:'2026-10-24'});
  const h=await harness(t,'?view=groups&gv-period=2026-09&gv-tab=subjects&gv-subject=foreign',{response:{availability,people:[],contributions:[],total:0,window:{from:'2026-09-01',to:'2026-09-30'}}});
  const values=[...h.container.querySelectorAll('.gv-summary strong,.gv-subject-title strong,.gv-contributions h2 > small')].map(el=>el.textContent.replace(/^·\s*/,''));
- assert.equal(values.length,5);assert(values.every(value=>value===(mode==='observed'?'0':'Unavailable')),JSON.stringify(values));
+ assert.equal(values.length,5);assert(values.every(value=>value===(mode==='partial'?'Unavailable':'0')),JSON.stringify(values));
 });

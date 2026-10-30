@@ -31,9 +31,16 @@ test('question notices distinguish a failed refresh from a missing root in the s
   const {store}=fixture(t),present='/parliamentary-questions/E-10-2026-001715',absent='/parliamentary-questions/P-10-2026-000337';
   for(const key of [present,absent])store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (1,?,'document','{}')").run(key);
   store.putSource(1,present,'document',{identifier:'E-10-2026-001715'},at,[]);
+  store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,present,'E-10-2026-001715','42','written-questions','2025-11-06','{"recordKind":"document"}');
   // A record in another generation cannot establish presence in this snapshot.
   store.putSource(2,absent,'document',{identifier:'P-10-2026-000337'},at,[]);
   assert.deepEqual(savedGaps(store,1,'questions').map(gap=>[gap.sourceId,gap.retained]),[[present,true],[absent,false]]);
+  assert.deepEqual(savedGaps(store,1,'questions').find(gap=>gap.sourceId===present).start,'2025-11-06');
+});
+test('bounded gap overflow preserves an explicit aggregate instead of losing known failures',t=>{
+  const {store}=fixture(t),insert=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (1,?,'document','{}')");
+  for(let i=1;i<=501;i++)insert.run('/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'));
+  assert.deepEqual(savedGaps(store,1,'questions'),[{reason:'gap-list-limit',minimumCount:501}]);
 });
 
 test('role frontiers preserve cross-member, subtype, generation, gap and unavailable evidence',t=>{

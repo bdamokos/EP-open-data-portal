@@ -17,7 +17,9 @@ type Summary={availability?:SourceAvailability;people:GroupVoicePerson[];months:
 type Contribution={id:string;personId:string;date:string;subject:string;title:string|null;titleLanguage:string|null;websiteUrl:string|null;websiteLanguage:string|null};
 type Contributions={contributions:Contribution[];total:number;nextOffset:number|null;coverage:Coverage};
 function Count({count,data,language}:{count:number;data:Summary;language:string}){
-  const evidence=data.availability||sourceAvailability({sourceKey:'oral-speeches',family:'speeches',observedRecords:data.coverage.observedOralRecords||0,limited:true});
+  // Archive failures without a known speaker or group cannot qualify this
+  // group's recorded counts. Selection limits remain explicit below.
+  const evidence=data.availability?{...data.availability,gaps:[]}:sourceAvailability({sourceKey:'oral-speeches',family:'speeches',observedRecords:data.coverage.observedOralRecords||0,limited:true});
   const value=periodAvailability({start:data.window.from,end:data.window.to},evidence,count);
   return value.observedCount===null?<span className="gv-unavailable">Unavailable</span>:<>{value.observedCount===0&&value.state==='partial'?'0 so far':value.observedCount.toLocaleString(language)}</>;
 }
@@ -71,7 +73,7 @@ export function GroupVoices({language='en',...props}:InsightProps){
     <p className="gv-intro">Who takes the floor on behalf of a political group?</p>
     <div className="gv-controls"><label>Political group<select value={s.group} onChange={e=>change({group:e.target.value})}>{Object.entries(groups).map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label><label>Period<select value={s.period} onChange={e=>change({period:e.target.value})}><option value="term">Current term · since July 2024</option><option value="12m">Last 12 months</option>{months.map(month=><option lang={language} key={month} value={month}>{monthLabel(month)}</option>)}</select></label></div>
     <InsightStatus loading={page.loading&&!data} error={data?null:page.error} retry={page.retry}/>
-    {data&&<><AvailabilityNote sources={data.availability||sourceAvailability({sourceKey:'oral-speeches',family:'speeches',observedRecords:data.coverage.observedOralRecords||0,limited:true})} label="speech" language={language} end={data.window.to} partial={data.coverage.pending>0||data.coverage.truncated}/>
+    {data&&<><AvailabilityNote showGaps={false} sources={data.availability||sourceAvailability({sourceKey:'oral-speeches',family:'speeches',observedRecords:data.coverage.observedOralRecords||0,limited:true})} label="speech" language={language} end={data.window.to} partial={data.coverage.pending>0||data.coverage.truncated}/>
       {data.coverage.truncated&&<p className="gv-list-count">Contribution limit reached. Narrow the period.</p>}
       <div className="gv-summary" aria-live="polite"><div><strong><Count count={total} data={data} language={language}/></strong><span>recorded oral contributions</span></div><div><strong><Count count={speakers} data={data} language={language}/></strong><span>{speakers===1?'speaker':'speakers'}</span></div><div><strong><Count count={topicRows.filter(t=>t.id!=='unclassified'&&(!s.subject||s.subject===t.id)).length} data={data} language={language}/></strong><span>subjects</span></div></div>
       {(s.person||s.subject)&&<div className="gv-selected" aria-label="Active filters">{s.person&&<button onClick={()=>change({person:null})}>{selected?<Name person={selected} language={language}/>:<>Person {s.person}</>} <span aria-hidden="true">×</span><span className="gv-sr"> Remove person filter</span></button>}{s.subject&&<button onClick={()=>change({subject:null})}>{subjects[s.subject]} <span aria-hidden="true">×</span><span className="gv-sr"> Remove subject filter</span></button>}</div>}

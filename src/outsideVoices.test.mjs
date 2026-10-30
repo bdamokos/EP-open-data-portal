@@ -109,7 +109,7 @@ test('monthly bars reflect this speaker\'s missing links while archive failures 
   assert.equal(bars[8].getAttribute('aria-label'),'Sep 2026: 0 agenda items');
   assert.deepEqual([...select('Month').options].slice(1).map(o=>o.textContent),bars.map(b=>b.getAttribute('aria-label')));
   assert.equal(container.querySelectorAll('.ov-monthly .availability-partial').length,1);
-  assert.match(container.querySelector('.availability-note').textContent,/Records not loaded.*Apr/);
+  assert.equal(container.querySelector('.availability-note').textContent,'Latest speech: Aug 12, 2026');
   assert.doesNotMatch(container.querySelector('.availability-note').textContent,/2023|Partial coverage/);
   assert.match(container.querySelector('.ov-sources').textContent,/Updated/);
   assert.doesNotMatch(container.querySelector('.ov-sources').textContent,/Partial/);

@@ -15,8 +15,12 @@ test('a latest event date does not manufacture missing records in a checked sele
 test('older and undated gaps never turn missing observations into zeroes',()=>{
   for(const gaps of [[{start:'2026-10-08',end:'2026-10-10'}],[{}]]) {
     assert.equal(periodAvailability(period('2026-10-09'),source({gaps}),0).observedCount,null);
-    assert.deepEqual([periodAvailability(period('2026-10-09'),source({gaps}),2).state,periodAvailability(period('2026-10-09'),source({gaps}),2).observedCount],['partial',2]);
+    assert.deepEqual([periodAvailability(period('2026-10-09'),source({gaps}),2).state,periodAvailability(period('2026-10-09'),source({gaps}),2).observedCount],[gaps[0].start?'partial':'observed',2]);
   }
+});
+test('a failed refresh with retained data does not imply missing records',()=>{
+  const evidence=source({gaps:[{start:'2026-10-09',end:'2026-10-09',retained:true}]});
+  assert.equal(periodAvailability(period('2026-10-09'),evidence,2).state,'observed');
 });
 test('different latest event dates are not failed dependencies; actual limits remain partial',()=>{
   const sources=[source(),source({sourceKey:'answers',latestObservedDate:'2026-10-09'})];

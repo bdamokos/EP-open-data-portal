@@ -362,18 +362,18 @@ test('pending and unresolved Outside records retain their own dates without limi
   assert.equal(periodAvailability({start:'2025-04-01',end:'2025-04-30'},coverage.availability,2).state,'observed');
 }));
 
-test('unknown, capped and truncated Outside coverage cannot imply unaffected months',withStore((store,generation)=>{
+test('undated Outside recovery does not qualify another month while empty or truncated selections remain unavailable',withStore((store,generation)=>{
   seed(store,generation);store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
   const period={start:'2025-04-01',end:'2025-04-30'};
   const state=truncated=>periodAvailability(period,outsideCoverage(store,generation,truncated,{term:'10'}).availability,2).state;
   assert.equal(state(false),'observed');assert.equal(state(true),'partial');
   store.enqueue(generation,'outside:unknown','outside-detail',{id:'unknown'},102);
-  assert.equal(state(false),'partial');
+  assert.equal(state(false),'observed');
   assert.equal(periodAvailability(period,outsideCoverage(store,generation,false,{term:'10'}).availability,0).observedCount,null);
   store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
   for(let i=0;i<501;i++)store.enqueue(generation,'outside:cap:'+i,'outside-detail',{id:'MTG-PL-2025-01-15-OTH-'+i},102);
-  assert.equal(state(false),'partial');
+  assert.equal(state(false),'observed');
   store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);
   for(let i=0;i<501;i++)store.putSource(generation,'outside:gap:cap:'+i,'outside-gap',{taskBody:{date:'2025-01-15'}},saved.fetchedAt);
-  assert.equal(state(false),'partial');
+  assert.equal(state(false),'observed');
 }));

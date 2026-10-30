@@ -45,7 +45,7 @@ export function Participation({language,sittings,onTopic,latestAvailable=true}:{
     {data&&<>
       <SittingCalendarNotice complete={data.coverage.catalogueComplete}/>
       <p className="insight-chart-caption"><span lang={language}>{humanDate(data.window.start,language)}{data.window.end!==data.window.start?' — '+humanDate(data.window.end,language):''}</span> · {country?<>MEPs elected in <span lang={language}>{countryName(country,language)}</span></>:'All current MEPs'}</p>
-      {!future&&<AvailabilityNote sources={data.availability?.[metric]} label={metric==='speakers'?'speech':'vote'} language={language} end={data.window.end} partial={bins.some(bin=>bin.availability?.[metric]==='partial')}/>}
+      {!future&&<AvailabilityNote showGaps={false} sources={data.availability?.[metric]} label={metric==='speakers'?'speech':'vote'} language={language} end={data.window.end} partial={bins.some(bin=>bin.availability?.[metric]==='partial')}/>}
       {future&&<p className="insight-empty-state">This period has not taken place.</p>}
       {!future&&!hasActivity&&!agendaUnavailable&&<p className="insight-empty-state">{labels[metric]}: unavailable for this period. Choose another sitting or open an agenda item below.</p>}
       {!future&&activityUnavailable&&<p className="insight-empty-state" lang="en">{activityUnavailable}</p>}

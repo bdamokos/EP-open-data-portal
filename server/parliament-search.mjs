@@ -10,7 +10,7 @@ import {comparable,exactReference} from './vote-evidence.mjs';
 import {indexAvailability} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=3;
+export const PARLIAMENT_SEARCH_VERSION=4;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -77,6 +77,7 @@ export class ParliamentSearch {
       coverage.topic.agendasRead=0;
       coverage.topic.missingAgendas=0;
       coverage.topic.pageLimitedAgendas=0;
+      coverage.topic.missingAgendaPages=[];
       coverage.topic.conflicts=[];
       const seen=new Set();
       for(const sitting of sittings) {
@@ -98,7 +99,7 @@ export class ParliamentSearch {
             if(record.payload.data.length<50)break;
             if(page===1){coverage.topic.pageLimitedAgendas++;coverage.topic.limited=true;}
           }
-          catch(error){requestSignal()?.throwIfAborted();if(error.code!=='odp_cache_miss')coverage.topic.error=true;break;}
+          catch(error){requestSignal()?.throwIfAborted();if(page>0)coverage.topic.missingAgendaPages.push({sittingId:sitting.activity_id,offset:page*50});if(error.code!=='odp_cache_miss')coverage.topic.error=true;break;}
         }
         if(!sources.length){coverage.topic.missingAgendas++;continue;}
         coverage.topic.agendasRead++;
@@ -111,7 +112,7 @@ export class ParliamentSearch {
         }
       }
       if(coverage.topic.missingAgendas&&!coverage.topic.agendasRead)coverage.topic.available=false;
-      coverage.topic.complete=calendarComplete&&!coverage.topic.missingAgendas&&!coverage.topic.limited&&!coverage.topic.error&&!coverage.topic.conflicts.length;
+      coverage.topic.complete=calendarComplete&&!coverage.topic.missingAgendas&&!coverage.topic.missingAgendaPages.length&&!coverage.topic.limited&&!coverage.topic.error&&!coverage.topic.conflicts.length;
     }
     const sections=selected.map(type=>{
       const rows=matches.get(type).sort(compare(type)),total=totals.get(type);

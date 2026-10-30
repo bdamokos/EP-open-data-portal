@@ -81,6 +81,15 @@ test('a failed old calendar stays disclosed only when its year is in the selecte
   const current=(await service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0].coverage;
   assert.deepEqual(current.incompleteCalendarYears,[]);assert.equal(current.complete,true);
 });
+test('a missing second agenda page retains the first page but cannot establish a complete search',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const first=[...fixture.foreseen.payload.data.slice(0,5),...Array.from({length:45},(_,i)=>({id:'eli/dl/event/'+sitting.activity_id+'-X-'+i,activity_id:sitting.activity_id+'-X-'+i}))];
+  const {service}=setup(t,{agenda:(_endpoint,params)=>{if(params.offset)throw Object.assign(new Error('Not retained'),{code:'odp_cache_miss'});return {...fixture.foreseen,payload:{data:first},fetchedAt:clock()};}});
+  service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'complete'}});
+  const section=(await service.query(query('q=energy&type=topic'))).sections[0];
+  assert.equal(section.coverage.complete,false);assert.equal(section.coverage.agendasRead,1);
+  assert.deepEqual(section.coverage.missingAgendaPages,[{sittingId:sitting.activity_id,offset:50}]);
+});
 test('missing calendar observations remain unavailable while MEP and question results survive',async t=>{
   const {service}=setup(t,{missing:true});
   const response=await service.query(query('q=eva'));

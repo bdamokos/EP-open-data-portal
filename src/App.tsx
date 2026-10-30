@@ -376,7 +376,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
       </nav>}
     </>}
     <h3 ref={resultsHeading} tabIndex={-1} className="explorer-activity-results-title">{selectedLabel}{state.data && coverage?.status!=="source-not-verified" ? ` · ${state.data.indexedTotal}` : ""}</h3>
-    {page&&coverage?.status!=='source-not-verified'&&<AvailabilityNote sources={page.availability} language={lang}/>}
+    {page&&coverage?.status!=='source-not-verified'&&<AvailabilityNote showGaps={false} sources={page.availability} language={lang}/>}
     {state.loading && !state.data && <p role="status">Loading…</p>}
     {state.error && <ErrorView message={state.error} retry={state.retry} />}
     {page && <>

@@ -67,7 +67,8 @@ export function topicTimeline(procedures,mappings,{start,end,concept},availabili
       const startDay=bin.week<start?start:bin.week,weekEnd=new Date(Date.parse(bin.week+'T12:00Z')+6*86400_000).toISOString().slice(0,10);
       bin.availability={};
       for(const metric of ['debates','votes','committee']) {
-        const state=periodAvailability({start:startDay,end:weekEnd>end?end:weekEnd},availability[metric],bin[metric]);
+        const own={...availability[metric],limited:false,gaps:availability[metric].gaps.filter(gap=>topic.dossiers.has(gap.sourceId?.match(/^\/procedures\/(\d{4}-\d{4}[A-Z]?)$/)?.[1]))};
+        const state=periodAvailability({start:startDay,end:weekEnd>end?end:weekEnd},own,bin[metric]);
         bin[metric]=state.observedCount;bin.availability[metric]=state.state;
       }
     }

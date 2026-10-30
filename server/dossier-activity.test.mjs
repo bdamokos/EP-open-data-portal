@@ -79,7 +79,7 @@ test('saved speeches need exact debate children, preserve gaps and survive trans
 test('exact non-speech event classification closes only its own declared-reference gap',async t=>{
   const x=setup(t),other='MTG-PL-2026-09-15-OTH-999999';
   x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(other));
-  assert.deepEqual((await x.service.query(x.q('speeches'))).coverage.missingSpeechIds,[other]);
+  const unclassified=await x.service.query(x.q('speeches'));assert.deepEqual(unclassified.coverage.missingSpeechIds,[]);assert.deepEqual(unclassified.coverage.unresolvedChildIds,[other]);assert.equal(unclassified.coverage.status,'complete');
   const projection={id:other,kind:'PLENARY_PROCEEDING',date:null,classificationVersion:1,declaredBy:DEBATE,source:{url:'https://data.europarl.europa.eu/api/v2/events/'+other+'?format=application%2Fld%2Bjson',fetchedAt:now}};
   x.store.putSource(x.generation,'/events/'+other,'event',projection,now);
   const checked=await x.service.query(x.q('speeches'));
@@ -88,7 +88,7 @@ test('exact non-speech event classification closes only its own declared-referen
   assert(checked.coverage.sources.some(source=>source.url===projection.source.url&&source.fetchedAt===now));
   for(const change of [{kind:null},{kind:'PLENARY_DEBATE_SPEECH'},{declaredBy:DEBATE+'0'},{source:{url:'https://example.invalid',fetchedAt:now}}]) {
     x.store.putSource(x.generation,'/events/'+other,'event',{...projection,...change},now);
-    assert.equal((await x.service.query(x.q('speeches'))).coverage.status,'partial');
+    const unresolved=await x.service.query(x.q('speeches'));assert.equal(unresolved.coverage.status,'complete');assert.deepEqual(unresolved.coverage.unresolvedChildIds,[other]);
   }
 });
 test('amendments retain list-specific dates and same-generation refreshes',async t=>{
@@ -140,7 +140,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,8);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,9);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
@@ -215,17 +215,55 @@ test('speech coverage completes its declared linked scope without requiring hypo
 
 test('a concrete declared speech absent from retained sources keeps coverage partial',async t=>{
   const x=setup(t),missing='MTG-PL-2026-09-15-OTH-9999999999999';
-  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(missing));
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push({id:uri(missing),had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+MEMBER]}]});
   const response=await x.service.query(x.q('speeches'));
   assert.equal(response.coverage.status,'partial');assert.deepEqual(response.coverage.missingSpeechIds,[missing]);
   assert.equal(response.items.length,1);assert.match(response.coverage.gaps.join(' '),/linked contribution.*not saved/i);
   assert(!response.coverage.gaps.some(gap=>gap.includes('Showing saved contributions')));
   x.store.putSource(x.generation,'/speeches/'+missing,'document',{id:uri(missing)},now);
   assert.deepEqual((await x.service.query(x.q('speeches'))).coverage.missingSpeechIds,[missing]);
-  const raw={id:uri(missing),activity_id:missing,activity_date:'2026-09-15',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+OTHER]}],inverse_consists_of:[uri(DEBATE)]};
+  const raw={id:uri(missing),activity_id:missing,activity_date:'2026-09-15',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+MEMBER]}],inverse_consists_of:[uri(DEBATE)]};
   x.store.putSource(x.generation,'/speeches/'+missing,'speech',raw,now,speechRows(raw,now));
   const recovered=await x.service.query(x.q('speeches'));
-  assert.equal(recovered.coverage.status,'complete');assert.deepEqual(recovered.coverage.missingSpeechIds,[]);assert.equal(recovered.items.length,1);
+  assert.equal(recovered.coverage.status,'complete');assert.deepEqual(recovered.coverage.missingSpeechIds,[]);assert.equal(recovered.items.length,2);
+});
+test('URI-only markers and another person’s typed missing speech do not make this member partial',async t=>{
+  const x=setup(t),marker='MTG-PL-2026-09-15-OTH-991',other='MTG-PL-2026-09-15-OTH-992';
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(marker),{id:uri(other),had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+OTHER]}]});
+  const selected=await x.service.query(x.q('speeches'));
+  assert.equal(selected.coverage.status,'complete');assert.deepEqual(selected.coverage.missingSpeechIds,[]);assert.equal(selected.items.length,1);
+  assert.deepEqual(new Set(selected.coverage.unresolvedChildIds),new Set([marker,other]));
+  const affected=await x.service.query(x.q('speeches',OTHER));
+  assert.equal(affected.coverage.status,'partial');assert.deepEqual(affected.coverage.missingSpeechIds,[other]);
+});
+
+test('split child declarations require consistent type, identity, date and parent before attributing missing speech',async t=>{
+  const x=setup(t),missing='MTG-PL-2026-09-15-OTH-993',record=x.records.get('/events/'+DEBATE);
+  record.payload.data[0].consists_of.push(uri(missing));
+  const typed={id:uri(missing),had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT',had_participation:[{had_participant_person:['person/'+MEMBER]}]};
+  record.payload.data.push(typed);
+  assert.deepEqual((await x.service.query(x.q('speeches'))).coverage.missingSpeechIds,[missing]);
+  for(const conflict of [
+    {id:uri(missing),had_activity_type:'def/ep-activities/PLENARY_DEBATE_CATCH_THE_EYE'},
+    {id:uri(missing),activity_id:missing+'0'},
+    {id:uri(missing),activity_date:'2024-01-01'},
+    {id:uri(missing),inverse_consists_of:[uri('MTG-PL-2026-09-15-PVCRE-ITM-999')]},
+  ]) {
+    record.payload.data.push(conflict);
+    const value=await x.service.query(x.q('speeches'));
+    assert.deepEqual(value.coverage.missingSpeechIds,[]);assert(value.coverage.unresolvedChildIds.includes(missing));
+    record.payload.data.pop();
+  }
+});
+
+test('generic speech classification qualifies all-contributor discovery but not an unknown member attribution',async t=>{
+  const x=setup(t),id='MTG-PL-2026-09-15-OTH-994';
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(uri(id));
+  x.store.putSource(x.generation,'/events/'+id,'event',{id,kind:'PLENARY_DEBATE_SPEECH',classificationVersion:1,declaredBy:DEBATE,source:{url:'https://data.europarl.europa.eu/api/v2/events/'+id+'?format=application%2Fld%2Bjson',fetchedAt:now}},now);
+  const selected=await x.service.query(x.q('speeches'));
+  assert.equal(selected.coverage.status,'complete');assert.deepEqual(selected.coverage.missingSpeechIds,[]);
+  const directory=await x.service.query(x.q('roles',null));
+  assert.equal(directory.participantCoverage.status,'partial');assert.deepEqual(directory.participantCoverage.missingSpeechIds,[id]);
 });
 
 test('retained source freshness does not invent a coverage gap',async t=>{

@@ -8,7 +8,7 @@ import type {SourceAvailability} from '../server/source-availability.mjs';
 const InsightQuestionReader=lazyView(()=>import('./InsightReaders').then(module=>({default:module.InsightQuestionReader})));
 
 type Result={id:string;type:string;title:string;titleLanguage:string|null;date:string|null;sittingId?:string;sourceUrl?:string};
-type Section={type:string;total:number;results:Result[];nextOffset:number|null;truncated:boolean;coverage:{complete:boolean;available:boolean;limited:boolean;missingAgendas?:number;pageLimitedAgendas?:number;incompleteCalendarYears?:number[];conflicts?:{id:string}[];error?:boolean;availability?:SourceAvailability}};
+type Section={type:string;total:number;results:Result[];nextOffset:number|null;truncated:boolean;coverage:{complete:boolean;available:boolean;limited:boolean;missingAgendas?:number;missingAgendaPages?:{sittingId:string;offset:number}[];pageLimitedAgendas?:number;incompleteCalendarYears?:number[];conflicts?:{id:string}[];error?:boolean;availability?:SourceAvailability}};
 type Response={offset:number;sections:Section[]};
 const labels:Record<string,string>={mep:'MEPs',topic:'Plenary topics',question:'Questions'};
 function resultUrl(result:Result,language:string) {
@@ -37,11 +37,12 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
       {!section.coverage.available&&<p className="explorer-search-hint">Unavailable</p>}
       {section.coverage.incompleteCalendarYears?.length? <p className="explorer-search-hint">Sitting calendar not fully loaded for {section.coverage.incompleteCalendarYears.join(', ')}.</p>:null}
       {section.coverage.missingAgendas? <p className="explorer-search-hint">{section.coverage.missingAgendas} sitting {section.coverage.missingAgendas===1?'agenda':'agendas'} not loaded.</p>:null}
+      {section.coverage.missingAgendaPages?.map(page=><p key={page.sittingId+':'+page.offset} className="explorer-search-hint">Agenda not fully loaded · <time dateTime={page.sittingId.slice(7)}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(page.sittingId.slice(7)+'T12:00Z'))}</time>.</p>)}
       {section.coverage.conflicts?.length? <p className="explorer-search-hint">{new Set(section.coverage.conflicts.map(row=>row.id)).size} agenda records have conflicting details.</p>:null}
       {section.coverage.limited&&<p className="explorer-search-hint">{section.type==='question'?'Search limited to 50,000 question records.':section.coverage.pageLimitedAgendas?`Search reached 100 agenda records in ${section.coverage.pageLimitedAgendas} sittings.`:'Search reached its sitting limit.'}</p>}
       {section.coverage.error&&<p className="explorer-search-hint">Some agenda records could not be read.</p>}
-      <AvailabilityNote sources={section.coverage.availability} label="question" language={language}/>
-      {!section.results.length&&section.coverage.available&&<p>No matches.</p>}
+      <AvailabilityNote sources={section.coverage.availability} sourceIds={section.results.map(result=>result.id)} label="question" language={language}/>
+      {!section.results.length&&section.coverage.available&&<p>{section.coverage.complete?'No matches.':'No matches in the loaded records.'}</p>}
       {section.results.map(result=><article className="explorer-search-result" key={result.id}>
         <div className="explorer-search-meta"><span>{section.type==='mep'?'MEP':section.type==='topic'?'Plenary topic':result.id}</span>{result.date&&<time dateTime={result.date} lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(result.date+'T12:00:00Z'))}</time>}</div>
         <h4 lang={result.titleLanguage||''}>{result.type==='question'?<a href={result.sourceUrl} target="_blank" rel="noreferrer">{result.title} ↗</a>:<a href={resultUrl(result,language)}>{result.title}</a>}</h4>

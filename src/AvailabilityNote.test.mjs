@@ -13,7 +13,7 @@ test('coverage names concrete gaps without inferring missing records from dates 
   const {AvailabilityNote}=await load('/src/AvailabilityNote.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
   t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  const render=source=>act(async()=>root.render(createElement(AvailabilityNote,{sources:source,label:'text',end:'2026-10-24'})));
+  const render=(source,options={})=>act(async()=>root.render(createElement(AvailabilityNote,{sources:source,label:'text',end:'2026-10-24',...options})));
   await render(sourceAvailability({sourceKey:'speech-text',latestObservedDate:'2026-10-16'}));
   assert.equal(container.textContent,'Latest text: Oct 16, 2026');
   assert.equal(container.querySelector('time').getAttribute('datetime'),'2026-10-16');
@@ -21,11 +21,13 @@ test('coverage names concrete gaps without inferring missing records from dates 
   await render(sourceAvailability({sourceKey:'speech-text',observedRecords:3,limited:true,publicationMaturity:'unknown'}));
   assert.equal(container.textContent,'','an unspecified archive limit must not fabricate a selected missing record');
   await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715'}]}));
+  assert.equal(container.textContent,'','an undated archive failure cannot be assigned to the selected period');
+  await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715'}]}),{sourceIds:['E-10-2026-001715']});
   assert.match(container.textContent,/Question E-10-2026-001715.*last read failed/);
   assert.equal(container.querySelector('a').href,'https://www.europarl.europa.eu/doceo/document/E-10-2026-001715_EN.html');
   assert.doesNotMatch(container.innerHTML,/data\.europarl|api\/v2/);
   for(const [retained,expected] of [[true,'could not be updated'],[false,'not loaded']]) {
-    await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715',retained}]}));
+    await render(sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{sourceId:'/parliamentary-questions/E-10-2026-001715',retained}]}),{sourceIds:['E-10-2026-001715']});
     assert.match(container.textContent,new RegExp(expected));
   }
   await render(sourceAvailability({sourceKey:'speeches',family:'speeches',start:'2024-07-16',end:'2026-10-24',gaps:[
@@ -40,4 +42,11 @@ test('coverage names concrete gaps without inferring missing records from dates 
   assert.equal(container.textContent,'','a later open-ended failure does not affect an earlier selection');
   await render(sourceAvailability({sourceKey:'speech-text',observedRecords:0}));
   assert.equal(container.textContent,'','the containing view owns its empty or unavailable state');
+  const overflow=sourceAvailability({sourceKey:'questions',family:'questions',gaps:[{reason:'gap-list-limit',minimumCount:501}]});
+  await render(overflow,{archive:true});assert.match(container.textContent,/At least 501 question reads failed/);
+  await render(overflow);assert.equal(container.textContent,'','an unscoped aggregate cannot qualify every selected page');
+  await render(sourceAvailability({sourceKey:'speech',family:'speeches',latestObservedDate:'2026-10-16',gaps:[{start:'2024-10-07',end:'2024-10-07',sourceId:'speech:MTG-PL-2024-10-07-OTH-123'}]}),{start:'2026-10-01'});
+  assert.equal(container.textContent,'Latest text: Oct 16, 2026');
+  await render(sourceAvailability({sourceKey:'speech',family:'speeches',latestObservedDate:'2026-10-16',gaps:[{start:'2026-10-07',end:'2026-10-07',sourceId:'speech:MTG-PL-2026-10-07-OTH-123'}]}),{showGaps:false});
+  assert.equal(container.textContent,'Latest text: Oct 16, 2026','archive gaps cannot be attributed to a selected person');
 });
