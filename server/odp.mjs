@@ -58,6 +58,9 @@ const cacheDir = process.env.ODP_CACHE_DIR;
 // Agenda warming must not grow the general source directory indefinitely.
 const agendaDirectory=cacheDir&&path.join(cacheDir,'plenary-agendas-v1');
 const agendaBudget=agendaDirectory&&new CacheDiskBudget(agendaDirectory,{maxBytes:32*1024*1024,maxEntries:160,pattern:/^[a-f0-9]{64}\.json$/});
+const plenaryDirectory=cacheDir&&path.join(cacheDir,'plenary-sources-v1');
+// Raw detail and speech pages share one budget across successive warm-up weeks.
+const plenaryBudget=plenaryDirectory&&new CacheDiskBudget(plenaryDirectory,{maxBytes:128*1024*1024,maxEntries:1800,pattern:/^[a-f0-9]{64}\.json$/});
 const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
 let agendaRevision='initial',agendaRevisionLoaded,agendaPublications=Promise.resolve();
 async function loadAgendaRevision() {
@@ -117,14 +120,14 @@ const firstString = (value) =>
     : Array.isArray(value)
       ? value.find((x) => typeof x === "string") || ""
       : "";
-function filename(key) {
+function filename(key,cacheGroup=null) {
   return path.join(
-    isAgendaKey(key)?agendaDirectory:cacheDir,
+    isAgendaKey(key)?agendaDirectory:cacheGroup==='plenary'?plenaryDirectory:cacheDir,
     createHash("sha256").update(key).digest("hex") + ".json",
   );
 }
-// Disk and upstream records share one count and serialized-byte budget.
-function rememberSource(key, record, serialized = JSON.stringify(record)) {
+// Records loaded from disk and upstream share this in-memory budget.
+function rememberSource(key, record, serialized = JSON.stringify(record),cacheGroup=null) {
   const bytes = Buffer.byteLength(serialized);
   const previous = cache.get(key);
   if (previous) {
@@ -132,7 +135,7 @@ function rememberSource(key, record, serialized = JSON.stringify(record)) {
     cache.delete(key);
   }
   if (bytes > MAX_CACHE_BYTES) return;
-  cache.set(key, {record, bytes});
+  cache.set(key, {record, bytes,cacheGroup});
   cacheBytes += bytes;
   while (cache.size > MAX_CACHE_ENTRIES || cacheBytes > MAX_CACHE_BYTES) {
     const oldest = cache.keys().next().value;
@@ -155,17 +158,17 @@ function withSourceLock(key, operation) {
 async function readDiskSource(key, signal) {
   if (!cacheDir) return null;
   try {
-    const record = JSON.parse(await readSourceFile(key, signal));
+    const record = JSON.parse((await readSourceFile(key, signal)).raw);
     return record.url === key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data) ? record : null;
   } catch { signal?.throwIfAborted(); return null; }
 }
 async function readSourceFile(key,signal) {
-  const names=[filename(key)];
-  if(isAgendaKey(key))names.push(path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'));
+  const names=isAgendaKey(key)?[{file:filename(key),cacheGroup:null}]:[{file:filename(key,'plenary'),cacheGroup:'plenary'},{file:filename(key),cacheGroup:null}];
+  if(isAgendaKey(key))names.push({file:path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),cacheGroup:null});
   const legacy=Buffer.from(key).toString('base64url')+'.json';
-  if(legacy.length<=255)names.push(path.join(cacheDir,legacy));
-  for(const file of names) {
-    try {return await readSourceRecord(file,signal);}
+  if(legacy.length<=255)names.push({file:path.join(cacheDir,legacy),cacheGroup:null});
+  for(const {file,cacheGroup} of names) {
+    try {return {raw:await readSourceRecord(file,signal),cacheGroup};}
     catch{signal?.throwIfAborted();}
   }
   throw new Error('Source record is not retained.');
@@ -178,20 +181,21 @@ function newestSource(key, record) {
 }
 // Inside a lock the write itself is never cancelled: the lock is released only
 // once the file is published, and a cancelled caller merely stops waiting.
-const publishLocked = async (key, serialized) => {
+const publishLocked = async (key, serialized,cacheGroup=null) => {
   try {
-    const file=filename(key);
+    const file=filename(key,cacheGroup);
     const published=await writeCacheFile(file,serialized,{signal:null});
     if(published&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
+    else if(published&&cacheGroup==='plenary')await plenaryBudget.saved(path.basename(file),Buffer.byteLength(serialized));
     return published;
   }catch{return false;/* Available source data survives a failed reproducible disk write. */}
 };
-function publishSourceFile(key, record, serialized, signal) {
+function publishSourceFile(key, record, serialized, signal,cacheGroup=null) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
     if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
-    const published=await publishLocked(key, serialized);
-    if(published&&isAgendaKey(key)) {
+    const published=await publishLocked(key, serialized,cacheGroup);
+    if(published&&(isAgendaKey(key)||cacheGroup==='plenary')) {
       const legacy=Buffer.from(key).toString('base64url')+'.json';
       const old=[path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),...(legacy.length<=255?[path.join(cacheDir,legacy)]:[])];
       for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
@@ -251,7 +255,7 @@ function observeSource(entry,priority,signal) {
 export async function odp(
   endpoint,
   params = {},
-  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
+  { force = false, ttl = TTL, daily = false, staleWhileRevalidate = false, cachedOnly=false, validate, retain=true, cacheGroup=null,priority='interactive',signal=priority==='background'?undefined:requestSignal() } = {},
 ) {
   signal?.throwIfAborted();
   // All agenda consumers share one policy, including live-status and vote reads.
@@ -266,16 +270,19 @@ export async function odp(
   }))
     url.searchParams.set(key, String(value));
   const key = url.href;
+  cacheGroup=cacheGroup==='plenary'?'plenary':cache.get(key)?.cacheGroup||null;
   let stored = cache.get(key)?.record;
   if (!stored && cacheDir && !force) {
     try {
-      const raw=await readSourceFile(key,signal);
+      const saved=await readSourceFile(key,signal);
       signal?.throwIfAborted();
-      const record=JSON.parse(raw);
+      const record=JSON.parse(saved.raw);
       if(record.url===key && Number.isFinite(record.fetchedAt) && Array.isArray(record.payload?.data)) {
         stored=newestSource(key,record);
-        if(stored===record)rememberSource(key,record);
+        cacheGroup=saved.cacheGroup||cacheGroup;
+        if(stored===record)rememberSource(key,record,undefined,cacheGroup);
         if(isAgendaKey(key))agendaBudget.used(path.basename(filename(key)));
+        else if(saved.cacheGroup==='plenary')plenaryBudget.used(path.basename(filename(key,'plenary')));
       }
     } catch { /* Missing or invalid reproducible cache. */ }
   }
@@ -298,16 +305,16 @@ export async function odp(
   if (!force && stored && staleWhileRevalidate) {
     const failure=refreshFailures.get(key);
     if (!pending.has(key) && (!failure || failure.retryAt<=Date.now()))
-      void odp(endpoint,params,{force:true,ttl,daily,validate,priority:'background'}).catch(()=>{});
+      void odp(endpoint,params,{force:true,ttl,daily,validate,cacheGroup,priority:'background'}).catch(()=>{});
     return {...stored,stale:true,refreshInProgress:pending.has(key),refreshError:failure?.message || null};
   }
   signal?.throwIfAborted();
   const shared=pending.get(key);
-  if(shared){if(validate)shared.validators.add(validate);return observeSource(shared,priority,signal);}
+  if(shared){if(validate)shared.validators.add(validate);if(cacheGroup==='plenary')shared.cacheGroup='plenary';return observeSource(shared,priority,signal);}
   // Cold interactive work includes admission and body in one bounded job.
   // Background retries retain their owner while waiting through upstream pauses.
   const budget=priority==='background'?{signal:undefined,abort:()=>{},dispose:()=>{}}:createRequestBudget(30_000);
-  const entry={priority,budget,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),validators:new Set(validate?[validate]:[]),settled:false,promise:null};
+  const entry={priority,budget,cacheGroup,backgroundOwner:priority==='background',readers:0,foregroundWaiters:new Set(),validators:new Set(validate?[validate]:[]),settled:false,promise:null};
   const job = runWithRequestSignal(undefined,async () => {
     let rateFailures=0;
     for(;;){
@@ -384,8 +391,8 @@ export async function odp(
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
         const publish=async()=>{
-          if (retain) rememberSource(key, record, serialized);
-          if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal);
+          if (retain) rememberSource(key, record, serialized,entry.cacheGroup);
+          if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal,entry.cacheGroup);
         };
         if(retain&&isAgendaKey(key))await publishAgenda(record,publish);else await publish();
         budget.signal?.throwIfAborted();

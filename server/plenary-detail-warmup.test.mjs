@@ -34,6 +34,7 @@ async function harness(t) {
   let failVotes=false,foreground=false,mixed=false;
   const request=async(endpoint,params,settings)=>{
     if(!mixed)assert.equal(settings.priority,foreground?'interactive':'background');
+    if(settings.priority==='background')assert.equal(settings.cacheGroup,'plenary');
     calls.push({endpoint,params});
     if(failVotes&&endpoint.endsWith('/decisions'))throw Error('Vote source temporarily unavailable');
     let payload={data:[]};

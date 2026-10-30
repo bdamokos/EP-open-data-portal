@@ -73,7 +73,7 @@ export function createInsights(store,options={}) {
     const status=store.status();
     if(!status.currentMeps||!status.servingGeneration)return 60_000;
     if(!warmReader){
-      const request=(endpoint,params,settings)=> (options.request||odp)(endpoint,params,{...settings,priority:'background',signal:requestSignal()});
+      const request=(endpoint,params,settings)=> (options.request||odp)(endpoint,params,{...settings,priority:'background',cacheGroup:'plenary',signal:requestSignal()});
       warmReader=new LegislationInsights(store,{...shared,request,readSpeechMetadata:legislation.readSpeechMetadata,meetings:new MeetingsReader({request,clock})});
       warmCloud=new SpeechCloudInsights(store,{...shared,request,legislation:warmReader,readCorpusPage:speechCloud.readCorpusPage});
     }

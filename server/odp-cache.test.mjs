@@ -13,7 +13,7 @@ async function fixture(t,scenario) {
   t.after(()=>rm(directory,{recursive:true,force:true}));
   const script=`
     import assert from 'node:assert/strict';
-    import {writeFile,rm,stat,truncate} from 'node:fs/promises';
+    import {writeFile,rm,stat,truncate,readdir,mkdir,utimes} from 'node:fs/promises';
     import {createHash} from 'node:crypto';
     import path from 'node:path';
     const directory=process.env.ODP_CACHE_DIR;
@@ -62,6 +62,99 @@ test('disk and network ODP records share the memory entry limit without losing t
     assert.equal((await odp('/memory-count-2')).payload.data[0].identifier,'/memory-count-2');
     assert.deepEqual(await odp('/memory-network'),fresh);
     assert.equal(calls,3);
+  `);
+});
+
+test('automatic plenary sources share a disk entry budget across week changes and remain readable after restart',async t=>{
+  await fixture(t,`
+    const retained=await save('/unrelated-retained-source');
+    const bounded=path.join(directory,'plenary-sources-v1');await mkdir(bounded);
+    let oldest;
+    for(let offset=0;offset<1800;offset++) {
+      const url=new URL(ODP_BASE+'/speeches');
+      for(const [key,value] of Object.entries({'sitting-date':'2026-10-05',offset,format:'application/ld+json'}))url.searchParams.set(key,String(value));
+      const file=path.join(bounded,createHash('sha256').update(url.href).digest('hex')+'.json');
+      await writeFile(file,JSON.stringify({url:url.href,fetchedAt:Date.now(),payload:{data:[]}}));
+      if(!offset){oldest=file;await utimes(file,new Date(0),new Date(0));}
+    }
+    allowed=true;
+    const params={'sitting-date':'2026-10-12',offset:0};
+    const current=await odp('/speeches',params,{cacheGroup:'plenary',priority:'background'});
+    const files=await readdir(bounded);assert.equal(files.length,1800);
+    await assert.rejects(stat(oldest),error=>error.code==='ENOENT');
+    assert.equal((await readdir(directory)).filter(name=>/^[a-f0-9]{64}\\.json$/.test(name)).length,1,'the automatic walk does not publish into the general directory');
+    allowed=false;const cold=await import(${JSON.stringify(moduleUrl+'?bounded-plenary-restart')});
+    assert.deepEqual(await cold.odp('/speeches',params),current);assert.equal(calls,1);
+    assert.deepEqual(await cold.odp('/unrelated-retained-source'),retained,'unrelated retained data is preserved');
+  `);
+});
+
+test('the aggregate plenary source byte budget evicts old weeks without touching unrelated caches',async t=>{
+  await fixture(t,`
+    const retained=await save('/unrelated-byte-budget-source');
+    const bounded=path.join(directory,'plenary-sources-v1');await mkdir(bounded);
+    const old=[];
+    for(let i=0;i<3;i++) {
+      const file=path.join(bounded,String(i).padStart(64,'0')+'.json');old.push(file);
+      await writeFile(file,'{}');await truncate(file,50*1024*1024);
+      await utimes(file,new Date(1000+i),new Date(1000+i));
+    }
+    allowed=true;
+    await odp('/speeches',{'sitting-date':'2026-10-19'},{cacheGroup:'plenary',priority:'background'});
+    const files=await readdir(bounded),sizes=await Promise.all(files.map(name=>stat(path.join(bounded,name))));
+    assert(sizes.reduce((sum,file)=>sum+file.size,0)<=128*1024*1024);
+    await assert.rejects(stat(old[0]),error=>error.code==='ENOENT');
+    assert.deepEqual(await odp('/unrelated-byte-budget-source'),retained);
+  `);
+});
+
+test('foreground reads and stale refreshes reuse bounded plenary sources without duplicating flat files',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-10-19T12:00:00Z');Date.now=()=>time;
+    allowed=true;
+    const params={'sitting-date':'2026-10-19'},first=await odp('/speeches',params,{cacheGroup:'plenary',priority:'background'});
+    const flat=path.join(directory,createHash('sha256').update(first.url).digest('hex')+'.json');
+    const cold=await import(${JSON.stringify(moduleUrl+'?bounded-plenary-swr')});
+    assert.deepEqual(await cold.odp('/speeches',params),first);
+    time+=7*60*60_000;networkPayload={data:[{identifier:'later publication'}]};
+    assert.equal((await cold.odp('/speeches',params,{staleWhileRevalidate:true})).stale,true);
+    const updated=await cold.odp('/speeches',params,{force:true});
+    assert.equal(updated.payload.data[0].identifier,'later publication');
+    await assert.rejects(stat(flat),error=>error.code==='ENOENT');
+    assert.equal((await readdir(path.join(directory,'plenary-sources-v1'))).length,1);
+    allowed=false;const restarted=await import(${JSON.stringify(moduleUrl+'?bounded-plenary-swr-restart')});
+    assert.deepEqual(await restarted.odp('/speeches',params),updated);assert.equal(calls,2);
+  `);
+});
+
+test('a warm-up joining a foreground source keeps their shared publication in the bounded directory',async t=>{
+  await fixture(t,`
+    let finish;
+    globalThis.fetch=async()=>{calls++;return new Promise(resolve=>finish=()=>resolve(Response.json({data:[]})));};
+    const params={'sitting-date':'2026-10-26'},foreground=odp('/speeches',params);
+    for(let i=0;i<100&&!finish;i++)await new Promise(resolve=>setImmediate(resolve));
+    assert(finish);
+    const background=odp('/speeches',params,{cacheGroup:'plenary',priority:'background'});
+    const {upstreamStatus}=await import(${JSON.stringify(moduleUrl)});
+    for(let i=0;i<100&&upstreamStatus().background!==1;i++)await new Promise(resolve=>setTimeout(resolve,1));
+    assert.equal(upstreamStatus().background,1);finish();
+    assert.deepEqual(await foreground,await background);assert.equal(calls,1);
+    assert.equal((await readdir(directory)).filter(name=>/^[a-f0-9]{64}\\.json$/.test(name)).length,0);
+    assert.equal((await readdir(path.join(directory,'plenary-sources-v1'))).length,1);
+  `);
+});
+
+test('evicting a warmed correction cannot reveal its superseded general-cache source',async t=>{
+  await fixture(t,`
+    const old=await save('/procedures/2026-0001');
+    const flat=path.join(directory,createHash('sha256').update(old.url).digest('hex')+'.json');
+    allowed=true;networkPayload={data:[{identifier:'corrected source'}]};
+    await odp('/procedures/2026-0001',{}, {force:true,cacheGroup:'plenary',priority:'background'});
+    await assert.rejects(stat(flat),error=>error.code==='ENOENT');
+    await rm(path.join(directory,'plenary-sources-v1',createHash('sha256').update(old.url).digest('hex')+'.json'));
+    const cold=await import(${JSON.stringify(moduleUrl+'?evicted-plenary-correction')});
+    assert.equal((await cold.odp('/procedures/2026-0001')).payload.data[0].identifier,'corrected source');
+    assert.equal(calls,2,'the evicted observation is re-read rather than replaced with superseded bytes');
   `);
 });
 
@@ -148,7 +241,6 @@ test('agenda sources survive restart, retain provenance on failed refresh and re
 
 test('agenda disk budget evicts older files without touching general sources and reads former locations',async t=>{
   await fixture(t,`
-    const {mkdir,readdir,utimes}=await import('node:fs/promises');
     const agendaDir=path.join(directory,'plenary-agendas-v1');await mkdir(agendaDir);
     const oldTime=new Date(Date.now()-86400_000);
     for(let i=0;i<5;i++){
