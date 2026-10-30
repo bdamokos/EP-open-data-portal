@@ -18,7 +18,7 @@
 .explorer-insights .ov :is(.ov-speaker-body,.ov-drawer) :is(.ov-appearance,.ov-roles){color:var(--ink)}
 .explorer-insights .ov :is(.ov-speaker-body,.ov-drawer) :is(.insight-reader-source,.intervention-source){color:var(--ink-muted)}
 .explorer-insights .ov :is(.ov-speaker-body,.ov-drawer) :is(.ov-appearance,.ov-roles,.insight-reader-source,.intervention-source)>summary{color:var(--ink)}
-.ov .insight-inline-reader :is(.insight-language-fallback,.insight-machine-label){color:var(--ink-muted)}
+.ov .insight-inline-reader :is(.insight-language-fallback,.speech-translation){color:var(--ink-muted)}
 
 .ov-month-bar[data-availability=partial]>span {background:var(--surface);border:2px dashed var(--accent);min-height:3px;}
 .ov-month-bar[data-availability=unavailable] {background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 5px,var(--line) 5px,var(--line) 6px);}

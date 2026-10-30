@@ -78,7 +78,7 @@
 .explorer-speech-detail > h3 { margin-top: 24px; }
 .explorer-transcript { max-width: 78ch; font-family: var(--font-serif); }
 .explorer-transcript p { margin: 16px 0; overflow-wrap: anywhere; }
-.explorer-text-meta { font-size: 14px; padding: 9px 12px; background: var(--surface-2); }
+.explorer-text-meta { font-size: 14px; color: var(--ink-muted); }
 .explorer-text-meta + .explorer-transcript { margin-top: 16px; }
 .explorer-source-link { font-size: 15px; }
 .explorer-source-link small { margin-left: 8px; }

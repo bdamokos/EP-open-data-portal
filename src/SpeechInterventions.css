@@ -22,7 +22,7 @@
 .intervention-stats-grid span{grid-column:1/-1;font-size:.74rem;color:var(--ink-muted);line-height:1.4}
 .intervention-statistics button,.intervention-context button{font:inherit;cursor:pointer}
 .intervention-sequence-heading button{border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--accent);padding:.4rem .65rem;font-size:.78rem}
-.intervention-context{margin:.8rem 0 1.1rem;border-block:1px solid var(--line)}
+.intervention-context{margin:.8rem 0 1.1rem}
 .intervention-context-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;padding:.8rem 0;background:transparent;border:0;color:var(--accent);text-align:left;font-weight:650!important}
 .intervention-debate{padding:.25rem 0 1rem}
 .intervention-error{margin:.7rem 0;overflow-wrap:anywhere}
@@ -50,7 +50,7 @@
 .intervention-connected-tools>.intervention-caption{margin:0}
 .intervention-connected-text .explorer-video{padding:0;margin:.5rem 0 1rem}
 .intervention-context button:focus-visible,.intervention-statistics button:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
-.explorer .intervention-context-toggle{padding:.8rem 0;background:transparent;color:var(--accent)}
+:is(.explorer,.explorer-insights) .intervention-context-toggle{padding:.8rem 0;border:0;border-radius:0;background:transparent;color:var(--accent)}
 .explorer .intervention-read{background:transparent;color:var(--ink);padding:.4rem .55rem;min-height:var(--control-height)}
 .explorer .intervention-sequence-heading button{background:var(--surface);color:var(--accent);padding:.4rem .65rem;font-size:.78rem}
 .explorer .intervention-stats-heading h3{font-size:1rem;margin:0}

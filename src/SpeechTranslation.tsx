@@ -21,7 +21,7 @@ export function useSpeechTranslation(id:string,requested:string,interfaceLanguag
   // as the original or display it in place of the requested source text.
   const exactOriginal=!original||body?.translationType==='original'&&body.textLanguage===current?.source;
   const name=(code:string)=>{try{return new Intl.DisplayNames(['en'],{type:'language'}).of(code)||code;}catch{return code;}};
-  const control=current||machine?<span className="speech-translation insight-machine-label" lang="en">
+  const control=current||machine?<span className="speech-translation" lang="en">
     <span>{original?'Original text':'Machine translation'}</span>{' · '}
     {original?<button type="button" onClick={()=>setChoice(null)}>Show translation{current!.translation?` (${name(current!.translation)})`:null}</button>
       :source?<button type="button" onClick={()=>setChoice({key,source,translation:body?.textLanguage??null})}>Show original ({name(source)})</button>
