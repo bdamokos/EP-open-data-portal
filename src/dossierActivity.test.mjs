@@ -67,12 +67,48 @@ test('electronic secret dossier ballots keep unrecorded positions separate from 
   assert.equal(card.querySelector('.member-votes-position-for'),null);
 });
 
+test('dossier amendments expose wording, summarize exact proposers and omit source notes and other author votes',async t=>{
+  const item=structuredClone(amendment);
+  Object.assign(item.amendment,{targetLabel:'Article 1',originalText:'Original provision.',proposedText:'Revised provision.'});
+  const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[item])):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const card=h.container.querySelector('.explorer-amendment-card');
+  assert.match(card.querySelector('.dossier-proposers>p').textContent,/Named member proposed this with 1 other MEP/);
+  assert.equal(card.querySelector('.dossier-proposers details').open,false);
+  assert.match(card.querySelector('.dossier-proposers details').textContent,/Exact coauthor/);
+  assert.equal(card.querySelector('.dossier-proposed-text>p').textContent,'Revised provision.');
+  assert.equal(card.querySelector('.dossier-proposed-text').closest('details'),null,'wording is immediately readable');
+  assert.equal(card.querySelectorAll('.member-votes-position').length,1);
+  assert.match(card.querySelector('.dossier-vote-inline').textContent,/Adopted in plenary.*Sep 16, 2026/);
+  assert.doesNotMatch(card.textContent,/Decision record|Recorded tabling dates|Sources/);
+  assert.equal(card.querySelector('a[target="_blank"]'),null);
+  assert.equal(h.calls.filter(url=>url.pathname.includes('decision-votes')).length,0,'dossier never fetches the full proposer-vote list');
+});
+
+test('other votes load exact amendment wording only when opened, including collective decisions',async t=>{
+  const vote=structuredClone(rejection),id='A-10-2026-0010-AM-18',other='A-10-2026-0010-AM-19';
+  vote.vote.context.amendmentIds=[id,other];
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')==='votes')return Response.json(page('votes','257727',[vote]));
+    if(url.pathname.includes('/document-context/'))return Response.json({documentId:'A-10-2026-0010',requestedLanguage:'en',amendment:{id:url.searchParams.get('amendment'),status:'available',variants:[{listId:'exact-list',language:'en',wordingStatus:'available',originalText:'Original.',proposedText:'Proposed '+url.searchParams.get('amendment'),authors:[]}]}});
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.equal(h.calls.filter(url=>url.pathname.includes('/document-context/')).length,0);
+  await h.click('Read text');
+  for(let i=0;i<100&&!h.container.textContent.includes('Proposed '+other);i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
+  assert.match(h.container.textContent,/Proposed A-10-2026-0010-AM-18/);
+  assert.match(h.container.textContent,/Proposed A-10-2026-0010-AM-19/);
+  const requests=h.calls.filter(url=>url.pathname.includes('/document-context/'));
+  assert.deepEqual(requests.map(url=>url.searchParams.get('amendment')).sort(),[id,other]);
+  assert(requests.every(url=>url.pathname.endsWith('A-10-2026-0010')&&url.searchParams.get('body')==='0'));
+});
+
 test('All renders exact amendment ballot once, preserves dates/coauthors and joint debate scope; Votes renders every ballot once',async t=>{
   const h=await harness(t);await h.render(createElement(h.module.DossierActivity,{reference}));
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-activity')).length,4,'one bounded first page per section');
   assert.equal(h.calls.filter(url=>url.pathname.includes('/speech/')).length,0,'closed speech readers stay lazy');
   assert.match(h.container.textContent,/Joint debate/);assert.match(h.container.textContent,/Exact coauthor/);assert.match(h.container.textContent,/ENVI, SEDE/);
-  assert.match(h.container.textContent,/Sep 8, 2026/);assert.match(h.container.textContent,/Sep 9, 2026/);
+  assert.match(h.container.textContent,/Sep 8, 2026/);assert.doesNotMatch(h.container.textContent,/Sep 9, 2026/,'document metadata stays out of the activity narrative');
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+agreement.id+'"]').length,1);
   assert(h.container.querySelector('.dossier-amendment [data-dossier-vote="'+agreement.id+'"]'));
   assert.equal(h.container.querySelectorAll('[data-dossier-vote="'+rejection.id+'"]').length,1);
@@ -299,7 +335,7 @@ test('dossier controls and cards retain readable dark/light tokens and 44px targ
       const style=window.document.createElement('style');style.textContent=themeCss(scheme)+css;window.document.head.append(style);
       window.document.body.innerHTML='<section class="dossier-activity"><nav class="dossier-filters"><button aria-pressed="true">All</button></nav><article class="dossier-vote"><p class="dossier-muted">Source date unavailable</p></article></section>';
       for(const element of window.document.querySelectorAll('button,.dossier-muted'))assert(contrast(window.getComputedStyle(element).color,paintedBackground(window,element,scheme))>=4.5,scheme+' '+element.className);
-      assert.equal(window.getComputedStyle(window.document.querySelector('button')).minHeight,'44px');
+      assert.equal(window.getComputedStyle(window.document.querySelector('button')).minHeight,'64px');
     }finally{await window.happyDOM.close();}
   }
 });
