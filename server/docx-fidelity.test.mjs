@@ -44,7 +44,8 @@ test('a public EP motion with literal labels is identical with unused automatic 
   const numbering=JSON.parse(await readFile(new URL('./fixtures/docx-numbering-cbam.json',import.meta.url),'utf8'));
   const plain=docxContent(zip(fixture.documentXml,{'word/styles.xml':fixture.stylesXml}));
   const unused=docxContent(zip(fixture.documentXml,{'word/styles.xml':fixture.stylesXml,'word/numbering.xml':numbering.numberingXml}));
-  assert.deepEqual(unused,plain);
+  const {sourceHash:plainHash,...plainText}=plain,{sourceHash:unusedHash,...unusedText}=unused;
+  assert.notEqual(unusedHash,plainHash,'source byte identities remain distinct');assert.deepEqual(unusedText,plainText);
 });
 
 test('all 18 public report citations retain the exact Symbol minus, tab and complete readable wording',async()=>{

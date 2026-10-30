@@ -1,5 +1,5 @@
 // Visible objects, final-revision visibility and source boundaries.
-export const DOCX_EXTRACTION_VERSION=9;
+export const DOCX_EXTRACTION_VERSION=10;
 
 // Paths describe the original XML, including elements whose text is omitted.
 // Paragraph ordinals therefore do not imply adjacency after extraction.

@@ -1,0 +1,6 @@
+.document-image { display: block; margin-block: 1rem; max-width: 100%; }
+.document-image-scroll { display: block; max-width: 100%; overflow: auto; background: var(--surface); }
+.document-image img { display: block; width: auto; max-width: 100%; height: auto; background: var(--document-paper); }
+.document-image-expanded .document-image-scroll { max-height: 75vh; }
+.document-image-expanded img { max-width: none; }
+.document-image button { margin-block-start: .4rem; }

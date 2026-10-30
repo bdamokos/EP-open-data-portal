@@ -1,3 +1,4 @@
+import {DocumentImage,type DocumentImageAssets} from './DocumentImage';
 import {SourceLink} from './SourceLink';
 import {Fragment,createContext,createElement,useCallback,useContext,useEffect,useId,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {linkedSegments,noteReferences,referenceKeys,type LinkSpan} from '../server/legal-reference-text.mjs';
@@ -213,10 +214,15 @@ export function ReferenceText({text,start=0,anchors=[],links=[],marks:formatMark
   while(next<marks.length)mark();
   return <>{nodes}</>;
 }
-export function DocumentNotes({notes,prefix,renderText}:{notes:DocumentNote[];prefix:string;renderText?:(note:DocumentNote)=>ReactNode}) {
+function NoteContent({note,assets}:{note:DocumentNote;assets?:DocumentImageAssets}) {
+  const objects=(note.objects||[]).filter(object=>(object.image||object.kind==='drawing')&&Number.isInteger(object.offset)&&object.offset>=0&&object.replacement==='\uFFFC'&&note.text[object.offset]==='\uFFFC').sort((a,b)=>a.offset-b.offset);
+  let offset=0;const text=(from:number,to:number)=><ReferenceText text={note.text.slice(from,to)} start={from} links={(note.linkSpans||[]).map(link=>({...link,start:Math.max(from,link.start),end:Math.min(to,link.end)})).filter(link=>link.end>link.start)} linkify/>;
+  return <>{objects.map((object,index)=>{if(object.offset<offset)return null;const before=text(offset,object.offset);offset=object.offset+1;return <Fragment key={index}>{before}{object.image?<DocumentImage image={object.image} assets={assets}/>:<span className="document-context-object">Content in original</span>}</Fragment>;})}{text(offset,note.text.length)}</>;
+}
+export function DocumentNotes({notes,prefix,renderText,assets}:{notes:DocumentNote[];prefix:string;assets?:DocumentImageAssets;renderText?:(note:DocumentNote)=>ReactNode}) {
   if(!notes.length)return null;
   return <details className="legal-notes" open><summary lang="en">Notes · {notes.length}</summary><ol>{notes.map(note=><li key={note.id} id={`${prefix}-note-${note.id}`} value={/^\d+$/.test(note.label)?Number(note.label):undefined}>
-    <span className="legal-note-label">{/^\d+$/.test(note.label)?null:note.label+' '}</span>{renderText?renderText(note):<ReferenceText text={note.text} links={note.linkSpans||[]} linkify/>}
+    <span className="legal-note-label">{/^\d+$/.test(note.label)?null:note.label+' '}</span>{renderText?renderText(note):<NoteContent note={note} assets={assets}/>}
     {note.links.filter(link=>!note.text.includes(link)&&!(note.linkSpans||[]).some(span=>span.url===link)).map(link=><span key={link} lang="en"> <SourceLink url={link} compact>Link ↗</SourceLink></span>)}
   </li>)}</ol></details>;
 }

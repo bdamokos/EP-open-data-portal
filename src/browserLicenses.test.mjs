@@ -20,7 +20,7 @@ test('production JavaScript retains full notices for every bundled dependency', 
   const normalizedBanner = normalize(banner);
   assert.ok(inventory.length > 0);
   for (const dependency of inventory) {
-    assert.equal(dependency.identifier, 'MIT', `review the licence for ${dependency.name}`);
+    assert.equal(dependency.identifier, dependency.name==='pdfjs-dist'?'Apache-2.0':'MIT', `review the licence for ${dependency.name}`);
     assert.ok(notices.includes(`${dependency.name}@${dependency.version}`), `update notices for ${dependency.name}@${dependency.version}`);
     let text = dependency.text;
     if (!text) {

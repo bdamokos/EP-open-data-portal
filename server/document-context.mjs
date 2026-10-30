@@ -1,3 +1,4 @@
+import {publishDocumentImages} from './document-image-store.mjs';
 import {committeeAmendmentReference,committeeListId,committeeDraftId,committeeDocumentEndpoint,COMMITTEE_DOCUMENT_TYPES,validCommitteeWork} from './committee-amendments.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {amendmentJustification} from '../src/amendmentJustification.mjs';
@@ -25,9 +26,9 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=47;
+export const DOCUMENT_CONTEXT_VERSION=49;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
-const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
+const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
 const refs=value=>array(value).map(ref).filter(Boolean);
 const canonicalType=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
@@ -242,7 +243,7 @@ export class DocumentContext {
         for(const item of source?.items||[]) {
           requestSignal()?.throwIfAborted();
           const parsed=(councilKind||existingKind?parsePublicLegalXhtml:parseProposal)(item.buffer,{language:chosen.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,...(councilKind||existingKind?{celex:source.celex}:{})}});
-          items.push({kind:item.kind,index:item.index,proposal:parsed});
+          items.push({kind:item.kind,index:item.index,proposal:{...parsed,imageAssets:await publishDocumentImages(parsed)}});
           baseline.items.push({kind:item.kind,index:item.index,source:item.source});
         }
         // Bound the public projection as well as the binary and parser caches.
