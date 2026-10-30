@@ -117,7 +117,7 @@ test('participation announces only settled filters and keeps focus while qualify
   await act(async()=>response.resolve({window:{start:'2026-10-20',end:'2026-10-20'},series:[],topics:[{id:'exact-agenda-id',title:'Fixture agenda',date:'2026-10-20',sittingId:'MTG-PL-2026-10-20',upcoming:true,speakers:null,voters:null,amendmentVotes:null,rollCalls:0}],coverage:{topicsWithSpeechLinks:0,topics:1,gaps:[{kind:'unavailable',sitting:'MTG-PL-2026-10-20'}]}}));
   await h.tick(349);assert.equal(status.textContent,'','results stay silent before the debounce deadline');
   await h.tick(1);
-  assert.match(status.textContent,/1 agenda item/);assert.match(status.textContent,/This period has not taken place\./);assert.match(status.textContent,/Partial coverage/);
+  assert.match(status.textContent,/1 agenda item/);assert.match(status.textContent,/This period has not taken place\./);assert.doesNotMatch(status.textContent,/Partial coverage/);
   assert.equal(document.activeElement,search);assert.equal(status.lang,'en');
   h.messages.length=0;
   await h.navigate('?hot-period=sitting%3AMTG-PL-2026-10-20&hot-search=absent');
@@ -163,7 +163,7 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   await act(async()=>first.resolve(trends([trend(1)],{nextPage:1})));await h.tick();
   assert.equal(h.status().textContent,'','an intermediate page is not settled');
   await act(async()=>last.resolve(trends(Array.from({length:15},(_,i)=>trend(i+1)))));await h.tick();
-  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/Archive incomplete/);assert.match(h.status().textContent,/first 600 matching dossiers/);
+  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/10 dossiers not loaded/);assert.match(h.status().textContent,/first 600 matching dossiers/);
   await h.click('More topics');await h.tick();assert.match(h.status().textContent,/15 topics.*Showing 15/);assert.equal(h.calls.length,2);
   await h.navigate('?trend-days=180');await h.tick();
   assert.equal(h.status().textContent,'Topic catalogue temporarily unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);
@@ -175,7 +175,7 @@ test('topic status waits for every page, distinguishes shown topics and never tr
 test('an empty topic list over incomplete coverage stays scoped',async t=>{
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90',()=>trends([]));
   await h.tick();
-  assert.match(h.status().textContent,/No matching topics · Partial coverage/);
+  assert.match(h.status().textContent,/No matching topics in the loaded records\./);
   assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection/,'incomplete coverage cannot establish an empty result');
 });
 
@@ -183,8 +183,8 @@ for(const [name,coverage] of [['unmapped dossiers',{unmapped:1}],['pending mappi
   const complete={procedures:1,mapped:0,unmapped:0,pending:0,sourceError:false,truncated:false,indexComplete:true,...coverage};
   const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete}));
   await h.tick();
-  assert.match(h.status().textContent,/No matching topics · Partial coverage/);
-  assert.match(h.container.textContent,/No matching events · Partial coverage/);
+  assert.match(h.status().textContent,/No matching topics in the loaded records\./);
+  assert.match(h.container.textContent,/No matching events in the loaded records\./);
   assert.doesNotMatch(h.container.textContent,/No topics with|No debates in this selection|No events for this topic/,'unmapped or pending dossiers cannot establish an empty result');
 });
 
@@ -201,16 +201,23 @@ for(const metric of ['debates','votes','committee'])test('empty '+metric+' topic
     ['frontier before the period',{latestObservedDate:'2026-06-30'}],
     ['frontier within the period',{latestObservedDate:'2026-09-15'}],
     ['period ending at the frontier',{latestObservedDate:'2026-09-30'}],
-    ['unchecked start of the period',{checkedIntervals:[{start:'2026-07-15',end:'2026-10-01',basis:'saved-records'}]}],
+    ['unchecked start of the period',{checkedIntervals:[{start:'2026-07-15',end:'2026-10-01',basis:'saved-records'}]},true],
   ];
-  for(const [name,extra] of cases)await t.test(name,async t=>{
+  for(const [name,extra,limited] of cases)await t.test(name,async t=>{
     const evidence=sourceAvailability({sourceKey:'topic-'+metric,latestObservedDate:'2026-10-01',checkedIntervals:[{start:'2026-07-01',end:'2026-10-01',basis:'saved-records'}],today:'2026-10-26',...extra});
     const h=await harness(t,'/src/TopicTrends.tsx','TopicTrends','?trend-days=90&trend-metric='+metric+'&trend-topic='+encodeURIComponent('http://eurovoc.europa.eu/404'),()=>trends([],{coverage:complete,availability:{[metric]:evidence}}));
     await h.tick();
-    assert.match(h.status().textContent,/No matching topics · Partial coverage/);
-    assert.match(h.container.querySelector('.insight-trend-picker').textContent,/No matching topics · Partial coverage/);
-    assert.match(h.container.textContent,/No matching events · Partial coverage/);
-    assert.doesNotMatch(h.container.textContent,/No topics with|No (debates|votes|committee events) in this selection|No events for this topic/);
+    const label={debates:'debates',votes:'votes',committee:'committee events'}[metric];
+    if(limited){
+      assert.match(h.status().textContent,/No matching topics in the loaded records\./);
+      assert.match(h.container.querySelector('.insight-trend-picker').textContent,/No matching topics in the loaded records\./);
+      assert.match(h.container.textContent,/No matching events in the loaded records\./);
+      assert.doesNotMatch(h.container.textContent,/No topics with|No events for this topic/);
+    }else{
+      assert.equal(h.status().textContent,'No topics with '+label+' in this selection.');
+      assert.match(h.container.textContent,/No events for this topic in the selected period/);
+    }
+    assert.doesNotMatch(h.container.textContent,/Partial coverage|Later dates unavailable/);
   });
   await t.test('fully checked period before the frontier',async t=>{
     const evidence=sourceAvailability({sourceKey:'topic-'+metric,latestObservedDate:'2026-10-01',start:'2026-07-01',end:'2026-10-01',today:'2026-10-26'});
@@ -256,7 +263,7 @@ test('question topic counts stay silent during text search and announce once whe
 test('question results announce total and page range without moving focus or repeating presentation toggles',async t=>{
   const second=deferred();
   const h=await harness(t,'/src/QuestionTopics.tsx','QuestionTopics','?view=questions',url=>url.searchParams.get('offset')==='25'?second.promise:questions());
-  await h.tick();assert.match(h.status().textContent,/42 questions match these filters. Showing 1 to 25/);assert.match(h.status().textContent,/Question archive incomplete/);assert.match(h.status().textContent,/latest 5,000/);
+  await h.tick();assert.match(h.status().textContent,/42 questions match these filters. Showing 1 to 25/);assert.doesNotMatch(h.status().textContent,/Question archive incomplete/);assert.match(h.status().textContent,/latest 5,000/);
   const select=h.container.querySelector('[data-question-country]');select.focus();
   await h.navigate('?view=questions&q-offset=25');await h.tick();assert.equal(h.status().textContent,'');assert.equal(document.activeElement,select);
   await act(async()=>second.resolve(questions(25)));await h.tick();

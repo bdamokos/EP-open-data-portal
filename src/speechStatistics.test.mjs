@@ -99,7 +99,7 @@ test('complete empty coverage displays known zeroes without a duplicate footer o
   await ui.render({member:257070});
   for(const label of ['Total contributions','On behalf of a group','Written statements','Blue cards raised','Blue cards answered','Blue-card reactions'])assert.equal(ui.stat(label),'0');
   assert.equal(ui.container.querySelector('[role="status"]'),null);
-  assert.match(ui.container.textContent,/No matching records\./);
+  assert.equal(ui.container.querySelector('.availability-note'),null,'known zeroes need no duplicate empty-state caption');
   assert(!ui.container.textContent.includes('The Left'),'redundant group counts are omitted');
 });
 
@@ -113,7 +113,7 @@ test('a failed later page retains partial counts and retry automatically finishe
   });
   await ui.render({member:257070});
   assert.equal(ui.stat('Total contributions'),'50');
-  assert.match(ui.container.textContent,/Partial coverage/);
+  assert.match(ui.container.querySelector('[role="alert"]').textContent,/More contributions are temporarily unavailable/);
   assert.equal(ui.container.querySelector('[role="status"]'),null);
   assert.match(ui.container.querySelector('[role="alert"]').textContent,/temporarily unavailable/);
   fail=false;
@@ -125,7 +125,7 @@ test('a failed later page retains partial counts and retry automatically finishe
   assert.deepEqual(pages,[0,1,0,1]);
   assert.equal(ui.stat('Total contributions'),'69');
   assert.equal(ui.container.querySelector('[role="alert"],[role="status"]'),null);
-  assert.match(ui.container.querySelector('.availability-note p').textContent,/Partial coverage/);
+  assert.equal(ui.container.querySelector('.availability-note'),null,'completed counts do not inherit an archive disclaimer');
 });
 
 test('a first-page failure offers retry without presenting missing data as zero',async t=>{
@@ -193,7 +193,7 @@ test('saved collection date replaces the blanket partial label without hiding re
   await ui.render({member:257070});
   assert.match(ui.container.textContent,/Latest speech record: Oct 8, 2026/);
   assert(!ui.container.textContent.includes('Partial coverage'));
-  assert(ui.container.textContent.includes('Later dates unavailable'));
+  assert(!ui.container.textContent.includes('Later dates unavailable'));
   assert(!ui.container.textContent.includes('could not be classified'));
   assert.equal(ui.container.querySelector('time').dateTime,'2026-10-08');
 });

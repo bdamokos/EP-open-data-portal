@@ -396,7 +396,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
         </article>;
       })}
       {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}>Previous</button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}>Next 10</button>}<button onClick={state.retry}>Refresh list</button></div>}
-      {(!page.cache.complete||page.cache.lastSuccessfulRefresh)&&<p className="explorer-source-join">{page.cache.lastSuccessfulRefresh?<>Updated <span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span></>:null}{!page.cache.complete?(page.cache.lastSuccessfulRefresh?' · ':'')+'Partial coverage':''}</p>}
+      {page.cache.lastSuccessfulRefresh&&<p className="explorer-source-join">Updated <span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span></p>}
     </>}
     {open && state.error && !state.data && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={false} />}
   </section>;
@@ -984,9 +984,6 @@ export default function App() {
                   <div className="explorer-index" role="status" lang="en">
                     {directory.index.error ||
                       `Loading committee memberships: ${directory.index.loaded} / ${directory.index.total}.`}
-                    {partialCommittee && (
-                      <p>Partial results.</p>
-                    )}
                     {directory.index.error && (
                       <button onClick={directoryState.retry}>
                         Retry membership index

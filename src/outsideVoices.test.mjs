@@ -92,24 +92,27 @@ async function harness(t,details,query='?view=outside',sourceData=null,readSpeec
 const sourceIds=container=>[...new Set([...container.querySelectorAll('[data-ov-speech]')].map(node=>node.dataset.ovSpeech))].sort();
 const contributionIds=detail=>detail.contributions.map(c=>c.id).sort();
 
-test('monthly bars and month options localize dated gaps and preserve the overall notice',async t=>{
+test('monthly bars reflect this speaker\'s missing links while archive failures stay separate',async t=>{
   const dates=['2026-01-12','2026-01-13','2026-02-12','2026-03-12','2026-04-12','2026-06-12','2026-07-12','2026-08-12'];
   const detail=speaker('42','Monthly guest',dates.map((date,i)=>speech(date,String(i),[item(date,1)])));
+  detail.agendas=detail.agendas.filter(agenda=>agenda.date!=='2026-04-12');
   detail.coverage={...coverage,window:{start:'2024-07-16',end:'2026-09-30'},availability:sourceAvailability({
     sourceKey:'outside-speeches',start:'2024-07-16',end:'2026-09-30',latestObservedDate:'2026-08-12',
     gaps:[{start:'2023-12-13',end:'2023-12-13'},{start:'2026-04-01',end:'2026-04-30'}],
   })};
   const {container,select,click}=await harness(t,[detail],'?view=outside&ov-person=42');
   const bars=[...container.querySelectorAll('.ov-monthly button')];
-  assert.deepEqual(bars.map(b=>b.querySelector('[data-availability]').dataset.availability),['observed','observed','observed','partial','observed','observed','observed','partial','unavailable']);
+  assert.deepEqual(bars.map(b=>b.querySelector('[data-availability]').dataset.availability),['observed','observed','observed','partial','observed','observed','observed','observed','observed']);
   assert.equal(bars[0].getAttribute('aria-label'),'Jan 2026: 2 agenda items');
   assert.equal(bars[3].getAttribute('aria-label'),'Apr 2026: 1 · Partial agenda item');
   assert.equal(bars[4].getAttribute('aria-label'),'May 2026: 0 agenda items');
-  assert.equal(bars[8].getAttribute('aria-label'),'Sep 2026: Agenda items unavailable');
+  assert.equal(bars[8].getAttribute('aria-label'),'Sep 2026: 0 agenda items');
   assert.deepEqual([...select('Month').options].slice(1).map(o=>o.textContent),bars.map(b=>b.getAttribute('aria-label')));
-  assert.equal(container.querySelectorAll('.ov-monthly .availability-partial').length,2);
-  assert.match(container.querySelector('.availability-note').textContent,/Partial coverage/);
-  assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
+  assert.equal(container.querySelectorAll('.ov-monthly .availability-partial').length,1);
+  assert.match(container.querySelector('.availability-note').textContent,/Records not loaded.*Apr/);
+  assert.doesNotMatch(container.querySelector('.availability-note').textContent,/2023|Partial coverage/);
+  assert.match(container.querySelector('.ov-sources').textContent,/Updated/);
+  assert.doesNotMatch(container.querySelector('.ov-sources').textContent,/Partial/);
   await act(async()=>bars[3].click());
   assert.deepEqual(sourceIds(container),detail.contributions.filter(c=>c.date.startsWith('2026-04')).map(c=>c.id));
 });
@@ -251,7 +254,8 @@ test('month controls preserve all 11 monthly counts, unlinked speeches and equiv
     assert.equal(bars[i].querySelector('small').textContent,label.split(':')[0]);
     assert.equal(bars[i].disabled,value==='2026-03');
   }
-  assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
+  assert.match(container.querySelector('.ov-sources').textContent,/Updated/);
+  assert.doesNotMatch(container.querySelector('.ov-sources').textContent,/Partial/);
   await change('Month','2025-12');
   assert.equal(window.location.search.includes('ov-month=2025-12'),true);
   assert.equal(new URL(window.location.href).searchParams.get('ov-tab'),'appearances');
@@ -384,7 +388,8 @@ test('each recent speech opens its exact transcript in one click, including repe
     assert.equal(document.activeElement,readers[0].closest('.ov-speech-reader'));
     assert.equal(document.activeElement.getAttribute('role'),'region');
     assert.equal(document.activeElement.getAttribute('aria-label'),'Speech');
-    assert.match(container.querySelector('.ov-sources').textContent,/Partial coverage/);
+    assert.match(container.querySelector('.ov-sources').textContent,/Updated/);
+  assert.doesNotMatch(container.querySelector('.ov-sources').textContent,/Partial/);
     await act(async()=>container.querySelector('[aria-label="Close speeches"]').click());
     assert.equal(document.activeElement,card,'closing returns to the exact speech card');
   }

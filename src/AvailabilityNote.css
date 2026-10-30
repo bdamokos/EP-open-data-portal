@@ -1,4 +1,6 @@
 .availability-note {display:flex;align-items:baseline;flex-wrap:wrap;gap:0 14px;color:var(--ink-muted);font-size:13px;margin:10px 0 16px;}
 .availability-note p {margin:0;}
+.availability-gaps {flex-basis:100%;margin:6px 0 0;padding-left:18px;}
+.availability-gaps li {margin:3px 0;}
 .availability-partial {display:inline-block;font-size:11px;font-weight:500;border:1px dashed currentColor;border-radius:3px;padding:1px 4px;margin-left:6px;white-space:nowrap;}
 .availability-unknown {fill:var(--surface-3);stroke:var(--line-strong);stroke-dasharray:3 4;}

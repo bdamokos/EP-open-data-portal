@@ -79,6 +79,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
       {!loading&&<>
         <AvailabilityNote sources={result.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(),latestObservedDate:result.coverage.latestDataDate,observedRecords:result.coverage.available,route:'public-api',checkedAt:result.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)})} label="speech record" partial={Boolean(missingContributions||result.coverage.unclassified>0)} end={brusselsDay()}/>
         {result.coverage.unclassified>0&&<p className="intervention-caption">{result.coverage.unclassified} {result.coverage.unclassified===1?'contribution could':'contributions could'} not be classified.</p>}
+        {missingContributions&&result.coverage.total!==null&&result.coverage.total>result.coverage.available&&<p className="intervention-caption">{result.coverage.total-result.coverage.available} contribution records not loaded.</p>}
       </>}
     </>}
     {error&&<p role="alert">{error} <button onClick={()=>setAttempt(a=>a+1)}>Retry counts</button></p>}

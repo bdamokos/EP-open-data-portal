@@ -117,7 +117,8 @@ test('known committee matches stay usable after another profile fails, with hone
   const {default:App}=await h.load('/src/App.tsx');await h.render(createElement(App));await wait(380);
   assert.equal(h.container.querySelector('.explorer-results strong').textContent,'1+');
   assert.equal(h.container.querySelectorAll('.explorer-portrait-item').length,1);
-  assert.match(h.container.textContent,/Partial results\./);
+  assert.match(h.container.textContent,/Committee memberships are incomplete/);
+  assert.doesNotMatch(h.container.textContent,/Partial results\./);
   assert.match(h.container.querySelector('option[value="ENVI"]').textContent,/ENVI.*Name unavailable/);
   const retry=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Retry membership index');assert(retry);
   const detailsRetry=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Retry committee details');assert(detailsRetry);

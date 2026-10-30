@@ -98,5 +98,6 @@ test('question trends expose measures and retain keyboard and select filtering',
   assert.match(select().options[3].textContent, /Unavailable/);
   assert.doesNotMatch(select().options[3].textContent, /0 questions/);
   assert.equal(container.querySelector('svg path').getAttribute('d').split('L').length, 2, 'baseline stops at the frontier');
-  assert.match(container.textContent, /Later dates unavailable/);
+  assert.match(container.textContent, /Oct 15, 2026–Oct 16, 2026: Unavailable/);
+  assert.doesNotMatch(container.textContent, /Later dates unavailable/);
 });

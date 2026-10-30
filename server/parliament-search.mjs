@@ -7,8 +7,10 @@ import {languagePreference} from './language-order.mjs';
 import {requestSignal} from './request-budget.mjs';
 import {setImmediate as yieldTurn} from 'node:timers/promises';
 import {comparable,exactReference} from './vote-evidence.mjs';
+import {indexAvailability} from './availability-evidence.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=2;
+export const PARLIAMENT_SEARCH_VERSION=3;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -27,7 +29,7 @@ const cachedRequest=(endpoint,params,options)=>odp(endpoint,params,{...options,c
 // Search existing public observations. This reader neither starts collection nor
 // writes another index; missing retained calendars/agendas remain coverage gaps.
 export class ParliamentSearch {
-  constructor(store,{request=cachedRequest,clock=Date.now}={}){this.store=store;this.request=request;this.meetings=new MeetingsReader({request,clock});}
+  constructor(store,{request=cachedRequest,clock=Date.now}={}){this.store=store;this.request=request;this.clock=clock;this.meetings=new MeetingsReader({request,clock});}
   async query(query) {
     const status=this.store.status(),generation=status.servingGeneration;
     if(!generation)throw new HttpError(503,'search_unavailable','Search unavailable.');
@@ -50,16 +52,19 @@ export class ParliamentSearch {
       const rows=this.store.db.prepare(`SELECT key,json_extract(body,'$.identifier') id,json_extract(body,'$.document_date') date,
         json_extract(body,'$.title_dcterms') titles,(SELECT json_group_array(json_extract(expression.value,'$.title')) FROM json_each(sources.body,'$.is_realized_by') expression) expression_titles,fetched_at
         FROM sources INDEXED BY question_window WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 50001`).iterate(generation);
-      const seen=new Set();let scanned=0;
+      const seen=new Set();let scanned=0,latestObservedDate=null;
       for(const row of rows) {
         if(scanned++===50000){coverage.question.limited=true;break;}
         if(scanned%250===0){await yieldTurn();requestSignal()?.throwIfAborted();}
         const id=row.id||row.key.split('/').at(-1);
         if(!/^[EOP]-10-\d{4}-\d{6}$/.test(id)||seen.has(id)||!inPeriod(row.date))continue;
         seen.add(id);
+        if(row.date&&(!latestObservedDate||row.date>latestObservedDate))latestObservedDate=row.date;
         const titles=suppliedTitles({title_dcterms:JSON.parse(row.titles||'{}'),is_realized_by:JSON.parse(row.expression_titles||'[]').map(title=>({title}))});
         if(match([id,...Object.values(titles)]))add({id,type:'question',...title(titles,id),date:row.date,sourceUrl:`https://www.europarl.europa.eu/doceo/document/${id}_${query.language.toUpperCase()}.html`,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:row.fetched_at}});
       }
+      coverage.question.availability=indexAvailability(this.store,{sourceKey:'questions',family:'questions',generation,start:query.from||'2024-07-16',end:query.to||brusselsDay(this.clock()),latestObservedDate,limited:coverage.question.limited});
+      coverage.question.complete=!coverage.question.limited&&!coverage.question.availability.gaps.length;
     }
     if(matches.has('topic')) {
       const catalogue=await this.meetings.catalogue(),sittings=catalogue.nodes.slice(0,500);
@@ -68,6 +73,7 @@ export class ParliamentSearch {
       coverage.topic.catalogue=catalogue.coverage;
       coverage.topic.agendasRead=0;
       coverage.topic.missingAgendas=0;
+      coverage.topic.pageLimitedAgendas=0;
       coverage.topic.conflicts=[];
       const seen=new Set();
       for(const sitting of sittings) {
@@ -87,6 +93,7 @@ export class ParliamentSearch {
               }
             }
             if(record.payload.data.length<50)break;
+            if(page===1){coverage.topic.pageLimitedAgendas++;coverage.topic.limited=true;}
           }
           catch(error){requestSignal()?.throwIfAborted();if(error.code!=='odp_cache_miss')coverage.topic.error=true;break;}
         }
@@ -101,6 +108,7 @@ export class ParliamentSearch {
         }
       }
       if(coverage.topic.missingAgendas&&!coverage.topic.agendasRead)coverage.topic.available=false;
+      coverage.topic.complete=catalogue.coverage.status==='complete'&&!coverage.topic.missingAgendas&&!coverage.topic.limited&&!coverage.topic.error&&!coverage.topic.conflicts.length;
     }
     const sections=selected.map(type=>{
       const rows=matches.get(type).sort(compare(type)),total=totals.get(type);

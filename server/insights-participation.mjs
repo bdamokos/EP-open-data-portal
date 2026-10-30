@@ -92,8 +92,11 @@ export async function participation(legislation,store,query,{clock=Date.now,read
   const fields={speakers:'speakerIds',voters:'voterIds',amendmentVotes:'amendmentVotes'};
   const classify=(metric,rows,count,date)=>{
     const source=availability[metric];
-    const incomplete=rows.some(row=>row[fields[metric]]===null)||gaps.some(gap=>gap.sitting===rows[0]?.sittingId);
-    return periodAvailability({start:date,end:date},{...source,limited:source.limited||incomplete,gaps:[...source.gaps,...(metric==='speakers'&&rows.some(row=>speechProjectionGaps.has(row.id))?[{start:date,end:date,reason:'speech-projection-gap'}]:[])]},count,{today});
+    const relevant=rows.filter(row=>metric==='speakers'?row.kind!=='PLENARY_VOTE':row.kind!=='PLENARY_DEBATE');
+    const incomplete=relevant.some(row=>row[fields[metric]]===null)||gaps.some(gap=>gap.sitting===rows[0]?.sittingId&&(gap.kind==='agenda-unavailable'||metric!=='speakers'&&/vote|roll-call/.test(gap.kind)));
+    // Archive failures stay in the archive notice. An exactly checked debate
+    // is limited only by its own missing parent/child links, not another speech.
+    return periodAvailability({start:date,end:date},{...source,limited:(metric==='speakers'?false:source.limited)||incomplete,gaps:[...(metric==='speakers'?[]:source.gaps),...(metric==='speakers'&&rows.some(row=>speechProjectionGaps.has(row.id))?[{start:date,end:date,reason:'speech-projection-gap'}]:[])]},count,{today});
   };
   const series=sittings.map(s=>{
     const rows=all.filter(row=>row.sittingId===s.activity_id),values={speakers:rows.some(r=>r.speakerIds!==null)?union(rows,'speakerIds'):null,voters:rows.some(r=>r.voterIds!==null)?union(rows,'voterIds'):null,amendmentVotes:rows.some(r=>r.amendmentVotes!==null)?new Set(rows.flatMap(r=>[...r.amendmentIds])).size:null},states={};

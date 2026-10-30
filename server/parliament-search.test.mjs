@@ -40,6 +40,30 @@ test('names and exact question metadata are searchable without a text corpus',as
   assert.equal((await service.query(query('q=Blue&type=question&from=2026-08-01'))).sections[0].total,0);
   assert.equal(calls.length,0,'question/name selection never reads agenda sources');
 });
+test('question search names its own failed records instead of inheriting unrelated archive failures',async t=>{
+  const {service,store,generation}=setup(t);store.acquire();
+  const put=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,'document','{}')");
+  put.run(generation,'/plenary-documents/A-10-2026-0001');
+  const read=async()=>(await service.query(query('q=Blue&type=question'))).sections[0];
+  assert.equal((await read()).coverage.complete,true);
+  const missing='/parliamentary-questions/E-10-2026-001715';put.run(generation,missing);
+  const section=await read();assert.equal(section.coverage.complete,false);
+  assert.deepEqual(section.coverage.availability.gaps.map(gap=>gap.sourceId),[missing]);
+  assert.equal(section.total,1,'a failed other record does not erase retained matches');
+});
+test('a fully read saved agenda is complete for search, while a full last page keeps its real limit',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const topics=fixture.foreseen.payload.data.slice(0,5);
+  const {service}=setup(t,{agenda:()=>({...fixture.foreseen,payload:{data:topics},fetchedAt:clock()})});
+  service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'complete'}});
+  const section=(await service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0];
+  assert.equal(section.coverage.missingAgendas,0);assert.equal(section.coverage.limited,false);assert.equal(section.coverage.complete,true);
+  const full=Array.from({length:50},(_,i)=>({id:'eli/dl/event/'+sitting.activity_id+'-UNRELATED-'+i,activity_id:sitting.activity_id+'-UNRELATED-'+i}));
+  const limited=setup(t,{agenda:()=>({...fixture.foreseen,payload:{data:full},fetchedAt:clock()})});
+  limited.service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'complete'}});
+  const result=(await limited.service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0];
+  assert.equal(result.coverage.pageLimitedAgendas,1);assert.equal(result.coverage.limited,true);assert.equal(result.coverage.complete,false);
+});
 test('plenary topics use exact calendar-to-agenda relationships and retain dates and provenance',async t=>{
   const {service}=setup(t);
   const result=await service.query(query('q='+encodeURIComponent('energy')+'&type=topic'));

@@ -4,7 +4,7 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
-import {activityAvailability,indexAvailability} from './availability-evidence.mjs';
+import {activityAvailability,indexAvailability,savedGaps} from './availability-evidence.mjs';
 
 const at='2026-10-25T09:00:00.000Z';
 function fixture(t) {
@@ -26,6 +26,15 @@ function aggregate(store,generation,{category=null,limited=false}={}) {
   const rows=store.db.prepare("SELECT category,MAX(date) date FROM items WHERE generation=? AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer' GROUP BY category").all(generation);
   return (category?[rows.find(row=>row.category===category)||{category,date:null}]:rows).map(row=>indexAvailability(store,{sourceKey:row.category,family:row.category.includes('questions')?'questions':row.category==='plenary-contributions'?'speeches':'documents',stage:'activity-role',generation,latestObservedDate:row.date,limited}));
 }
+
+test('question notices distinguish a failed refresh from a missing root in the same snapshot',t=>{
+  const {store}=fixture(t),present='/parliamentary-questions/E-10-2026-001715',absent='/parliamentary-questions/P-10-2026-000337';
+  for(const key of [present,absent])store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (1,?,'document','{}')").run(key);
+  store.putSource(1,present,'document',{identifier:'E-10-2026-001715'},at,[]);
+  // A record in another generation cannot establish presence in this snapshot.
+  store.putSource(2,absent,'document',{identifier:'P-10-2026-000337'},at,[]);
+  assert.deepEqual(savedGaps(store,1,'questions').map(gap=>[gap.sourceId,gap.retained]),[[present,true],[absent,false]]);
+});
 
 test('role frontiers preserve cross-member, subtype, generation, gap and unavailable evidence',t=>{
   const {store,insert}=fixture(t);

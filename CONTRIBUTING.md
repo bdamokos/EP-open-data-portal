@@ -47,7 +47,7 @@ Write interface text for readers: plain, brief and free of disclaimers, hedges a
 
 - The site notice (`src/components/DataNotice.tsx`) states once that the site is independent, that its counts may be incomplete or out of date, and that readers should check the original. Do not repeat that inline.
 - Link only to human-readable public pages; `sourcePageUrl` and `SourceLink` in `src/SourceLink.tsx` apply this rule. Never link to or display machine endpoints (API, JSON-LD, SPARQL, concept URIs, the developer corner), request URLs, retrieval timestamps or record IDs as evidence. Without a public page, show no link and no note about it.
-- Mark gaps, unavailable values and partial coverage with short labels such as "Partial coverage", "Unavailable" or "—", not sentences.
+- Use "Partial" only for a concrete missing record, failed read or bounded omission affecting the displayed selection. A recent event date, unknown future publication or an unrelated archive failure is not a gap. Name the missing item or affected dates briefly; include its exact human-readable Parliament page when known. Omit generic coverage disclaimers. Keep unknown values distinct from zero.
 - Do not state what the app does not infer or claim, and do not explain methods. Add one line only where it changes how a number reads, such as "Shared questions count once per country".
 - Keep pipeline and maintainer terms out of public views: index generations, parsers, source variants, load states, what an API returned.
 - State empty and error states in a few words ("No matching amendments.", "Transcript unavailable."), without reasons or advice. Omit helper captions, such as search-scope notes, unless the reader can act on them.

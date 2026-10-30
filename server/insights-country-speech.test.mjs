@@ -65,8 +65,8 @@ test('country query restricts demographic people and uses the appropriate trend 
   const empty=await service.query(insightQuery(new URLSearchParams('days=180&country=HU'),{now:now()}));
   assert.equal(empty.counts.selectedQuestions,0);
   assert.equal(empty.trend.latestObservedDate,result.questions[0].date);
-  assert(empty.trend.bins.some(b=>b.availability==='partial'&&b.total===0),'missing question subtypes qualify observed zeroes without changing the collection frontier');
-  assert.deepEqual(empty.trend.bins.at(-1),{start:result.trend.bins.at(-1).start,end:result.trend.bins.at(-1).end,availability:'unavailable',count:null,total:null,share:null});
+  assert(empty.trend.bins.every(b=>b.availability==='observed'),'an enumerated saved index without source gaps is not partial merely because a subtype has no records');
+  assert.deepEqual(empty.trend.bins.at(-1),{start:result.trend.bins.at(-1).start,end:result.trend.bins.at(-1).end,availability:'observed',count:0,total:0,share:null});
  }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('distinctive national vocabulary is considered even outside the global word cloud',()=>{
