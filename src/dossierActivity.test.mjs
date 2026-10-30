@@ -101,6 +101,12 @@ test('other votes load exact amendment wording only when opened, including colle
   const requests=h.calls.filter(url=>url.pathname.includes('/document-context/'));
   assert.deepEqual(requests.map(url=>url.searchParams.get('amendment')).sort(),[id,other]);
   assert(requests.every(url=>url.pathname.endsWith('A-10-2026-0010')&&url.searchParams.get('body')==='0'));
+  const opener=[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Read in context');opener.focus();
+  await h.click('Read in context');
+  assert.equal(document.activeElement,h.container.querySelector('.document-context-back'),'opening context moves focus into its visible reader');
+  await h.click('← Back to vote text');
+  await act(async()=>{await new Promise(resolve=>h.window.requestAnimationFrame(resolve));});
+  assert.equal(document.activeElement.textContent,'Read in context','closing context restores its initiating control');
 });
 
 test('unloaded indexed decisions retain their outcomes beside an already loaded whole ballot',async t=>{
