@@ -11,6 +11,7 @@ import type {MotionAmendment,MotionAmendmentDecision,MotionAmendmentVariant,Moti
 import './MotionAmendments.css';
 import {FormattedWording} from './components/WordingFormatting';
 import {WordingDiff} from './components/WordingDiff';
+import {AmendmentJustification} from './components/AmendmentJustification';
 
 export const MOTION_AMENDMENTS_PAGE_SIZE=20;
 export type MotionAmendmentsState={
@@ -231,6 +232,7 @@ function AmendmentDetail({item,member,memberName,language,listId,onVariant,onCon
       {record.wording?.originalStatus==='available'&&record.wording.proposedStatus==='available'&&typeof record.originalText==='string'&&record.originalText!==''&&typeof record.proposedText==='string'&&record.proposedText!==''?
         <WordingDiff originalFormatting={record.originalFormatting} proposedFormatting={record.proposedFormatting} key={JSON.stringify(record)} original={record.originalText} proposed={record.proposedText} language={sourceLanguage(record.wording.language)} emptySemantics="not-supplied" labels={{original:'Original wording quoted in the amendment',proposed:'Proposed wording'}}/>:
         <div className="motion-amendments__wording-grid"><Wording record={record} kind="original"/><Wording record={record} kind="proposed"/></div>}
+      <AmendmentJustification record={record}/>
       {url&&<p className="motion-amendments__source"><a href={url} target="_blank" rel="noreferrer">Official amendment wording ↗</a></p>}
     </>}
     <div className="motion-amendments__detail-actions"><button type="button" ref={contextButton} onClick={onContext} disabled={!record?.listId}>Read in context</button></div>

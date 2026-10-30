@@ -18,6 +18,7 @@ import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from '.
 import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
+import {AmendmentJustification} from './components/AmendmentJustification';
 import {MemberVoteExplanations} from './MemberVoteExplanations';
 
 export type MemberVotesContext={documentId:string;amendmentId?:string;listId?:string;wordingLanguage?:string|null;view:'document'|'adopted'};
@@ -37,6 +38,7 @@ type WordingVariant={
   listId:string;language:string|null;targetLabel:string|null;targetLabelLanguage?:string|null;
   targetLabelSource?:Record<string,unknown>|null;fieldSources?:Record<string,unknown>|null;
   wordingStatus:'available'|'unavailable';originalText:string|null;proposedText:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];authors:{name:string;personId?:string|null}[];
+  justification?:string|null;metadataSource?:{url?:string;language?:string|null}|null;
   source?:Record<string,unknown>|null;sourceFreshness?:{status:string}|null;
   wordingRetained?:boolean|null;proposerRetained?:boolean|null;recordRetained?:boolean|null;
 };
@@ -91,6 +93,7 @@ function Wording({documentId,amendmentId,language,openContext,showHeading=true}:
         {(readable&&textLanguage||authors.length>0)&&<p className="member-votes-muted">{readable&&textLanguage&&'Text language: '+languageLabel(textLanguage)}{authors.length>0&&<>{readable&&textLanguage?' · ':''}Proposed by {authors.map((author,index)=><span key={index}>{index?', ':''}<PersonName id={author.personId} label={author.name}/><RecordMemberAffiliation id={author.personId} language={language}/></span>)}</>}</p>}
         {readable?<div className="member-votes-comparison" lang={textLanguage||''}><WordingDiff originalFormatting={selected.originalFormatting} proposedFormatting={selected.proposedFormatting} key={selectedOption!.key} original={selected.originalText} proposed={selected.proposedText} language={textLanguage} emptySemantics="insertion-deletion" labels={{original:'Original wording',proposed:'Proposed wording',emptyOriginal:'',emptyProposed:''}}/></div>:<p>Amendment wording unavailable here.</p>}
         {readable&&selected.wordingRetained&&<p className="member-votes-muted">Showing saved wording.</p>}
+        <AmendmentJustification record={selected}/>
         <button type="button" onClick={()=>openContext({documentId,amendmentId,listId:selected.listId,wordingLanguage:textLanguage,view:'document'})}>Read in context</button>
       </>}
     </>

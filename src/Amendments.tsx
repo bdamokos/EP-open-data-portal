@@ -14,6 +14,7 @@ import type {Directory} from './explorerTypes';
 import './Amendments.css';
 import {FormattedWording} from './components/WordingFormatting';
 import {WordingDiff} from './components/WordingDiff';
+import {AmendmentJustification} from './components/AmendmentJustification';
 import {AmendmentNamedVotes} from './AmendmentNamedVotes';
 import {voteMethodLabel} from './voteMethod.mjs';
 import {sourcePageUrl} from './SourceLink';
@@ -119,7 +120,7 @@ function AmendmentWording({item}:{item:AmendmentVariant}) {
   return <>{readable?<WordingDiff originalFormatting={item.originalFormatting} proposedFormatting={item.proposedFormatting} original={item.originalText!} proposed={item.proposedText!} language={wordingLanguage(item)} emptySemantics="insertion-deletion"/>:<div className="explorer-amendment-texts" lang="en">
     <section><h5>Original text</h5>{withheld?<p className="explorer-amendment-secondary">Unavailable.</p>:item.originalText!==null&&item.originalText!==undefined?item.originalText===''?<p>No original text (insertion).</p>:<p lang={wordingLanguage(item)}>{<FormattedWording text={item.originalText} formatting={item.originalFormatting}/>}</p>:<p className="explorer-amendment-secondary">Unavailable.</p>}</section>
     <section><h5>Proposed text</h5>{withheld?<p className="explorer-amendment-secondary">Unavailable.</p>:item.proposedText!==null&&item.proposedText!==undefined?item.proposedText===''?<p>Text deleted.</p>:<p lang={wordingLanguage(item)}>{<FormattedWording text={item.proposedText} formatting={item.proposedFormatting}/>}</p>:<p className="explorer-amendment-secondary">Unavailable.</p>}</section>
-  </div>}</>;
+  </div>}<AmendmentJustification record={item}/></>;
 }
 function AmendmentEvidenceState({item}:{item:AmendmentVariant}) {
   if(item.textIntegrity!=='incomplete')return null;

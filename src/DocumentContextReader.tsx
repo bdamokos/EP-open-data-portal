@@ -12,6 +12,7 @@ import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './Referenc
 import {InsightQuestionReader} from './InsightReaders';
 import {mapContextAnnotations} from './contextAnnotations.mjs';
 import {WordingDiff} from './components/WordingDiff';
+import {AmendmentJustification} from './components/AmendmentJustification';
 import {amendmentLanguageScope} from './amendmentLanguageScope.mjs';
 import {FindInText} from './TextSearch';
 import {ProposalContextText,proposalPlacementReasons} from './ProposalContextText';
@@ -109,7 +110,8 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     data.amendment.status==='available'&&(!amendmentRequest.listId||data.amendment.variants.length===1&&data.amendment.variants[0].listId===amendmentRequest.listId));
   const found=Boolean(!data?.placement&&amendmentMatches&&target?.status==='found'&&indices.length>0&&indices.every(index=>Number.isInteger(index)&&index>=0&&index<allParagraphs.length));
   const placement=data?.placement;
-  const wording=variants.length===1&&variants[0].wordingStatus==='available'?variants[0]:null;
+  const selectedVariant=variants.length===1?variants[0]:null;
+  const wording=selectedVariant?.wordingStatus==='available'?selectedVariant:null;
   const scopeLanguageMismatch=Boolean(allParagraphs.length&&wording&&amendmentLanguageScope(wording)&&text?.textLanguage&&text.textLanguage!==wording.language);
   const reportHeading=data?.amendment?.id===amendmentRequest?.amendmentId&&data?.placement?.reason==='amendment_wording_unavailable'&&!wording?
     reportAmendmentHeading(text,id,amendmentRequest?.amendmentId,amendmentRequest?.listId):null;
@@ -140,6 +142,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace?'true':undefined} tabIndex={inPlace?-1:undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang="en">Amendment{number?' '+number:''}</h4>
     {wording&&<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={placement?.operation==='insert'?'':wording.originalText} proposed={placement?.operation==='delete'?'':wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={inPlace?renderOriginal:undefined}/>}
+    <AmendmentJustification record={wording}/>
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;
@@ -154,6 +157,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     typeof wording.language==='string'&&data?.baseline?.language===wording.language);
   if(['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind">Report amendment</p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
+    {!wording&&<AmendmentJustification record={selectedVariant}/>}
     <ProposalContextText data={proposalEvidenceMatches||data.placement?.status==='unresolved'?data:{...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}}} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage}/>
   </div>;
   return <div className="document-context-document" data-context-pending={state.loading&&!hasText?'true':undefined}>
@@ -161,6 +165,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {state.loading&&!data&&<p role="status">Loading document…</p>}
     {loadError&&<p className="document-context-notice" role="alert">{hasText?'Couldn’t update the document. Showing saved text.':extractionError?'Document text could not be loaded.':'Document could not be loaded.'} <button type="button" onClick={state.retry}>Try again</button></p>}
     {!state.loading&&!loadError&&!document&&<p>Document unavailable here.</p>}
+    {(!wording||hasText&&(!placement||scopeLanguageMismatch))&&<AmendmentJustification record={selectedVariant}/>}
     {wording&&!hasText&&<div className="document-context-text">{amendmentBlock(false)}</div>}
     {document&&<>
       {actual&&<p className="document-context-language">{actual!==language?<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>:<>Text language: {languageName(actual)}</>}</p>}
