@@ -68,6 +68,8 @@
 .explorer .explorer-speech-toggle { display: flex; flex-direction: column; align-items: stretch; gap: 7px; width: 100%; padding: 18px; background: var(--surface); color: var(--ink); border: 0; border-radius: calc(var(--radius-sm) - 1px); text-align: left; }
 .explorer-speech-toggle > span { font-size: 15px; line-height: 1.4; }
 .explorer-speech-toggle strong { font-size: 20px; line-height: 1.3; font-weight: 600; }
+.explorer-speech-toggle > span > strong { display: block; }
+.explorer-speech-toggle > span > :is(.explorer-question-status, .explorer-motion-statuses) { display: flex; width: fit-content; margin: 12px 0 0; }
 .explorer-speech-toggle small { display: flex; justify-content: space-between; gap: 10px; }
 .explorer-speech-toggle b { font-size: 24px; line-height: 1; }
 .explorer-speech-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
