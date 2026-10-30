@@ -11,6 +11,23 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
 const until=async condition=>{for(let i=0;i<100&&!condition();i++)await flush();assert(condition(),'the expected asynchronous phase started');};
 const json=()=>Response.json({results:{bindings:[]}});
 
+test('cold visitors use foreground admission while an official-source warm-up waits for background capacity',async()=>{
+  let calls=0;
+  const queue=new UpstreamQueue(),release=await queue.acquire('background');
+  const reader=new OfficialContextSources({directory:null,fetchSource:async()=>{calls++;return json();}});
+  reader.queues.set(new URL(po).origin,queue);
+  const url=po+'?query=warm-contention',warming=reader.get(url,{priority:'background'});
+  try {
+    await until(()=>queue.waiters.length===1);
+    const [one,two]=await Promise.all([reader.get(url),reader.get(url)]);
+    assert.equal(one.url,url);assert.deepEqual(two,one);
+    assert.equal(calls,1,'cold foreground visitors share one admitted fetch');
+    assert.equal(queue.waiters.length,1,'the background warm-up retains its own queued budget');
+  }finally{release();await warming;}
+  assert.equal(reader.cache.foregroundPending.size,0);assert.equal(reader.cache.pending.size,0);
+  assert.equal((await reader.get(url)).url,url);assert.equal(calls,2,'the completed background observation is retained');
+});
+
 test('cold official sources use independent origins during a Parliament cooldown',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()});
   backoffUpstream(60);

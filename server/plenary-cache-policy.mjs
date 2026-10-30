@@ -42,7 +42,7 @@ export function nextPlenaryWarmup(catalogue,values,now=Date.now()) {
   const week=calendarMonday(brusselsDay(now));
   if(catalogue.sittings.some(sitting=>calendarMonday(sitting.activity_date)===week))return PLENARY_REFRESH_MS;
   const next=catalogue.sittings.map(sitting=>calendarMonday(sitting.activity_date)).filter(date=>date>week).sort()[0];
-  // Known future sitting weeks supply the wake date; no timer scans saved weeks.
-  if(!next)return null;
-  return brusselsMidnight(next)-now;
+  // Linked details can be published during recesses; keep the latest week warm
+  // even when the next sitting has not been announced (including year rollover).
+  return next?Math.min(PLENARY_REFRESH_MS,brusselsMidnight(next)-now):PLENARY_REFRESH_MS;
 }

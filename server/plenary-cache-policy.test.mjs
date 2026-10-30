@@ -25,12 +25,14 @@ test('indefinite retention requires a post-week observation, including across DS
   preliminary.coverage.sources[0].fetchedAt=new Date(later).toISOString();assert.equal(agendaViewFreshMs(preliminary,later),Infinity);
 });
 
-test('outside plenary warm-up waits for a known next week and does not poll old weeks',()=>{
+test('warm-up checks latest-week details during recesses and wakes for a nearer new week',()=>{
   const asOf=Date.parse('2026-10-29T12:00:00Z');
-  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-22','2026-11-11']),[view('2026-10-22')],asOf),Date.parse('2026-11-08T23:00:00Z')-asOf);
+  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-22','2026-11-11']),[view('2026-10-22')],asOf),PLENARY_REFRESH_MS);
   const beforeDst=Date.parse('2026-10-12T12:00:00Z');
-  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-07','2026-10-20']),[view('2026-10-07')],beforeDst),Date.parse('2026-10-18T22:00:00Z')-beforeDst);
-  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-22']),[view('2026-10-22')],asOf),null);
+  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-07','2026-10-20']),[view('2026-10-07')],beforeDst),PLENARY_REFRESH_MS);
+  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-22']),[view('2026-10-22')],asOf),PLENARY_REFRESH_MS);
+  assert.equal(nextPlenaryWarmup(catalogue(['2026-10-22','2026-11-11']),[view('2026-10-22')],Date.parse('2026-11-08T22:45:00Z')),15*60_000);
+  assert.equal(nextPlenaryWarmup(catalogue(['2026-12-17']),[view('2026-12-17')],Date.parse('2027-01-02T12:00:00Z')),PLENARY_REFRESH_MS);
   assert.equal(nextPlenaryWarmup(catalogue(['2026-10-20']),[view('2026-10-20')],now),PLENARY_REFRESH_MS);
   const missing=view('2026-10-07');missing.coverage.agendaComplete=false;
   assert.equal(nextPlenaryWarmup(catalogue(['2026-10-07']),[missing],asOf),PLENARY_REFRESH_MS);
