@@ -50,7 +50,7 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,7);
+  assert.equal(first.version,8);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -778,4 +778,23 @@ test('held weeks crossing New Year read only years through Brussels today',async
     assert.equal(result.coverage.status,'complete');
     assert.deepEqual(calls.filter(call=>call.endpoint==='/meetings').map(call=>call.params.year),today.startsWith('2025')?[2025]:[2025,2026]);
   }
+});
+
+
+test('period view returns every filtered decision despite a legacy offset and small limit',async()=>{
+  const decisions=Array.from({length:65},(_,index)=>({...clone(finalDecision),id:'eli/dl/event/'+SITTING+'-DEC-'+(index+1),activity_id:SITTING+'-DEC-'+(index+1)}));
+  const {service,calls}=setup({decisions});
+  const page=await service.query(MEMBER,query('sitting='+SITTING+'&limit=1'));
+  const reads=calls.length;
+  const full=await service.query(MEMBER,query('sitting='+SITTING+'&limit=1&offset=50&view=period&snapshot='+page.snapshotId));
+  assert.equal(full.pagination.mode,'period');
+  assert.equal(full.pagination.offset,0);
+  assert.equal(full.pagination.returned,full.pagination.filteredTotal);
+  assert.equal(full.pagination.nextOffset,null);
+  assert(full.items.length>1);
+  assert(full.subjects.every(subject=>subject.counts.page===subject.counts.filtered));
+  assert.equal(calls.length,reads);
+  const recorded=await service.query(MEMBER,query('sitting='+SITTING+'&view=period&positions=recorded&snapshot='+page.snapshotId));
+  assert(recorded.items.every(item=>item.actualPosition.status==='recorded'));
+  assert.throws(()=>query('sitting='+SITTING+'&view=other'));
 });

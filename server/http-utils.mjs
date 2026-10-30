@@ -53,7 +53,7 @@ export function assertSameOrigin(request) {
 export function sendJson(request, response, status, payload, options = {}) {
   if(response.destroyed||response.writableEnded)return;
   const body = Buffer.from(`${JSON.stringify(payload)}\n`, "utf8");
-  if (body.byteLength > config.jsonResponseLimitBytes) {
+  if (body.byteLength > (options.responseLimitBytes ?? config.jsonResponseLimitBytes)) {
     throw new HttpError(500, "response_too_large", "The generated response is too large");
   }
 

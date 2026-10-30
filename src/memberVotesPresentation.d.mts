@@ -4,7 +4,7 @@ export function memberVotesCoverageNotice(data:MemberVotesResponse,state?:{decis
 export type MemberVotesRequestState={week?:string;sittingId?:string|null;positions?:'recorded'|'all';alignment?:'all'|'with'|'against'|'abstained';offset?:number;decisionId?:string|null;snapshotId?:string|null};
 export type MemberVoteGroup={id:string;subject:MemberVoteSubject|null;items:MemberVote[]};
 export type MemberVoteCounts={for:number;against:number;abstaining:number;total:number};
-export function memberVotesRoute(memberId:number|string,state?:MemberVotesRequestState,language?:string):string;
+export function memberVotesRoute(memberId:number|string,state?:MemberVotesRequestState,language?:string,options?:{view?:'page'|'period'}):string;
 export function validateMemberVotesResponse(data:unknown,request:{memberId:number|string;state?:MemberVotesRequestState}):data is MemberVotesResponse;
 export function groupMemberVotes(data:MemberVotesResponse):MemberVoteGroup[];
 export function displayVoteTitle(title:string|null|undefined):string;
