@@ -59,41 +59,31 @@ test('other decisions show a subject explanation with a final-vote link, never a
   await view.click('Final vote');assert.deepEqual(view.selected,[decision]);
 });
 
-test('failed and mismatched responses preserve the vote and cannot supply stale attachments',async t=>{
-  const view=await mount(t,{response:result({memberId:'42'})});
-  assert.match(view.container.textContent,/Could not check oral explanations/);assert.doesNotMatch(view.container.textContent,/Read oral explanation|No oral explanation found/);
-  assert(view.container.querySelector('button')?.textContent.includes('Retry'));
-  await view.update({vote:{id:sitting+'-DEC-999',sittingId:sitting,subjectId:subject}});
-  assert.doesNotMatch(view.container.textContent,/Read oral explanation/);
+for(const [name,response] of Object.entries({
+  mismatched:result({memberId:'42'}),
+  incomplete:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'speech-source-unavailable'}]}}),
+  unavailable:result({items:[],coverage:{status:'unavailable',searchComplete:false,gaps:[{code:'odp_unavailable'}]}}),
+  empty:result({items:[]}),
+  structural:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-read-limit'}]}}),
+  malformed:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:{code:'speech-source-unavailable'}}}),
+}))test(name+' discovery shows no explanation message without a known match',async t=>{
+  const view=await mount(t,{response});
+  assert.equal(view.container.textContent,'');
+  assert.equal(view.container.querySelectorAll('button,p').length,0);
 });
 
-test('incomplete searches stay distinct from none found, without repeated attribution or links',async t=>{
-  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'speech-source-unavailable'}]}})});
-  assert.match(view.container.textContent,/Oral explanation search incomplete/);
-  assert.doesNotMatch(view.container.textContent,/No oral explanation found|Written explanations|0 explanations/);
-  assert.equal(view.container.querySelectorAll('button').length,1);
-  assert.equal(view.container.querySelector('button').textContent,'Retry');
-  assert.equal(view.container.querySelectorAll('a,h3,section,[role="alert"]').length,0);
+test('a failed discovery request stays quiet',async t=>{
+  const view=await mount(t,{handler:url=>url.includes('member-vote-explanations/')?new Response('',{status:503}):null});
+  assert.equal(view.container.textContent,'');
 });
 
-test('a complete empty search is one quiet line and has no retry',async t=>{
-  const view=await mount(t,{response:result({items:[]})});
-  assert.equal(view.container.textContent,'No oral explanation found for this member.');
-  assert.equal(view.container.querySelectorAll('p').length,1);
-  assert.equal(view.container.querySelectorAll('a,button,h3,section').length,0);
-});
-
-test('structural gaps retain uncertainty without offering a retry',async t=>{
-  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-read-limit'},{code:'explanation-transcript-conflict'}]}})});
-  assert.match(view.container.textContent,/Oral explanation search incomplete/);
-  assert.equal(view.container.querySelectorAll('button').length,0);
-});
-
-test('malformed coverage cannot crash the reader or claim that nothing was found',async t=>{
-  const view=await mount(t,{response:result({items:[],coverage:{status:'partial',searchComplete:false,gaps:{code:'speech-source-unavailable'}}})});
-  assert.match(view.container.textContent,/Could not check oral explanations/);
-  assert.doesNotMatch(view.container.textContent,/No oral explanation found/);
-  assert.equal(view.container.querySelectorAll('button').length,1);
+test('a known explanation keeps its transcript failure and retry',async t=>{
+  let attempts=0;
+  const view=await mount(t,{handler:url=>url.includes('speech-transcript/')&&++attempts===1?new Response('',{status:503}):null});
+  await view.click('Read oral explanation of vote');
+  assert.match(view.container.textContent,/Transcript unavailable/);
+  await view.click('Retry transcript');
+  assert.match(view.container.textContent,/Published explanation/);
 });
 
 test('multiple disclosures have unique mounted targets and keep external attribution out of the reader',async t=>{
@@ -113,9 +103,9 @@ test('multiple disclosures have unique mounted targets and keep external attribu
   await act(async()=>toggles()[1].click());assert.equal(view.container.querySelectorAll('[aria-controls]').length,0);
 });
 
-test('partial matches show one qualifier and at most one useful retry',async t=>{
+test('known matches remain readable without unrelated search warnings',async t=>{
   const view=await mount(t,{response:result({coverage:{status:'partial',searchComplete:false,gaps:[{code:'parent-source-stale'}]}})});
   assert.match(view.container.textContent,/Read oral explanation of vote/);
-  assert.match(view.container.textContent,/Search incomplete/);
-  assert.equal([...view.container.querySelectorAll('button')].filter(button=>button.textContent==='Retry').length,1);
+  assert.doesNotMatch(view.container.textContent,/Search incomplete/);
+  assert.equal([...view.container.querySelectorAll('button')].filter(button=>button.textContent==='Retry').length,0);
 });
