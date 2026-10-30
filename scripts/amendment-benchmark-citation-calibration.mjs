@@ -8,6 +8,7 @@ const unknown=reason=>({status:'unverified',reason});
 const failed=reason=>({status:'failed',reason});
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const children=(nodes,name)=>nodes.flatMap(node=>node[name]?[node[name]]:[]);
+const onlyChildren=(nodes,names)=>nodes.every(node=>Object.entries(node).every(([key,value])=>key===':@'||key==='#text'&&/^[\t\n\r ]*$/u.test(value)||names.includes(key)));
 const has=(nodes,names)=>nodes.some(node=>Object.entries(node).some(([key,value])=>names.includes(key)||Array.isArray(value)&&has(value,names)));
 const rawText=nodes=>nodes.map(node=>Object.entries(node).map(([key,value])=>key==='w:t'?value.map(v=>v['#text']??'').join(''):key==='w:tab'?'\t':['w:br','w:cr'].includes(key)?'\n':key==='w:noBreakHyphen'?'\u2011':key==='w:softHyphen'?'\u00ad':Array.isArray(value)?rawText(value):'').join('')).join('');
 const whitespace=value=>value.replace(/\s+/gu,' ').trim();
@@ -28,6 +29,9 @@ function nativeComparison(body,number) {
   const table=tables[0].nodes['w:tbl'];
   if(has(table,['w:tbl','w:vMerge','w:hMerge','w:del','w:moveFrom','w:vanish','w:webHidden','w:instrText','w:fldChar','w:drawing','w:pict','w:object','m:oMath','w:numPr','w:footnoteReference','w:endnoteReference']))return null;
   const nativeRows=children(table,'w:tr');let layoutOffset=0;
+  // Direct-child extraction is complete only for this literal table shape.
+  // Reject wrappers or other blocks before they can hide rows/cell wording.
+  if(!onlyChildren(table,['w:tblPr','w:tblGrid','w:tr'])||nativeRows.some(row=>!onlyChildren(row,['w:trPr','w:tc'])||children(row,'w:tc').some(cell=>!onlyChildren(cell,['w:tcPr','w:p']))))return null;
   // The template's first, empty full-width row is layout, never wording.
   if(nativeRows.length&&children(nativeRows[0],'w:tc').length===1&&rawText(nativeRows[0]).trim()===''&&children(children(nativeRows[0],'w:tc')[0],'w:tcPr').some(props=>props.some(node=>node['w:gridSpan']&&node[':@']?.['@_w:val']==='2'))){nativeRows.shift();layoutOffset=1;}
   if(nativeRows.some(row=>has(row,['w:gridSpan'])))return null;
