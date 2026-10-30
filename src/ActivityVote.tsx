@@ -2,7 +2,7 @@ import {voteMethodLabel} from './voteMethod.mjs';
 import {useEffect,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import type {MemberVotesResponse,MemberVote} from './MemberVotesTypes';
-import {memberVotesRoute,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {memberVotesRoute,validateMemberVotesResponse} from './memberVotesPresentation.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {Position,Result} from './MemberVoteSummary';
 import {selectLanguageText} from './language.mjs';
@@ -49,7 +49,6 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
     href=url.href;
   }
   if(!route)return <>{children}</>;
-  const record=vote?votingRecordUrl(vote):null;
   const method=vote?.ballotStatus==='not-conducted'?'Not put to a vote':vote?voteMethodLabel(vote.method):null;
   if(context)return <div className="activity-vote">{vote?<><p className="member-votes-eyebrow">{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</p>
       {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>Vote records disagree</p><div aria-label="Saved activity result">{children}</div></div>}
@@ -74,6 +73,6 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
     </>:children}
     {response.loading&&!vote&&<p className="activity-vote__meta" role="status">Loading member’s vote…</p>}
     {!response.loading&&!vote&&<p className="activity-vote__meta">{response.error||response.data&&!data||data?.coverage.status!=='complete'||data?.selected.status==='unavailable'?'Additional vote details could not be loaded.':'No additional details were found for this decision.'} <button type="button" onClick={response.retry}>Retry vote details</button></p>}
-    <div className="activity-vote__links">{href&&<a href={href}>View vote details</a>}{record&&<a href={record} target="_blank" rel="noreferrer">Parliament’s voting record ↗</a>}</div>
+    <div className="activity-vote__links">{href&&<a href={href}>View vote details</a>}</div>
   </div>;
 }
