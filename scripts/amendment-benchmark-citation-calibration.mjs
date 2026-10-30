@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 import {verifyPlacement} from './amendment-benchmark-model.mjs';
 
-// Proposed calibration only: canonical scoring does not call this module.
+// Source-bound assertion for sealed replay and explicit calibration probes.
 // Native Word establishes ownership before projection rows supply coordinates.
 const unknown=reason=>({status:'unverified',reason});
 const failed=reason=>({status:'failed',reason});
