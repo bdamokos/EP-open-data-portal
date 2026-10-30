@@ -1,0 +1,16 @@
+.final-text-check { border-block-start: 1px solid var(--line); margin-block-start: 16px; min-width: 0; }
+.final-text-check > summary { padding-block: 12px; font-weight: 700; cursor: pointer; }
+.final-text-check summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.final-text-check__body { padding-block-end: 12px; min-width: 0; }
+.final-text-check__stage { min-width: 0; padding-block: 12px; border-block-end: 1px solid var(--line); }
+.final-text-check__stage h5 { font-size: 1em; margin: 0; }
+.final-text-check__address { color: var(--ink-muted); font-size: .875em; margin-block: 6px; }
+.final-text-check__result { font-weight: 700; margin-block: 8px; }
+.final-text-check__comparison { margin-block: 12px; }
+.final-text-check__comparison > summary { min-height: var(--control-height); align-content: center; cursor: pointer; color: var(--accent-strong); }
+.final-text-check__comparison .wording-diff { margin-block: 12px; }
+.final-text-check__body > button { margin-block-start: 12px; min-height: var(--control-height); padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.final-text-check__body > button:disabled { color: var(--ink-muted); cursor: default; }
+.final-text-check__body > button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.final-text-check__vote { margin-block: 0 8px; }
+@media (max-width: 680px) { .final-text-check .wording-diff__columns { grid-template-columns: minmax(0,1fr); } }

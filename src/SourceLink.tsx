@@ -8,6 +8,16 @@ const machineReadable=(value:string)=>{try{const url=new URL(value);return url.h
 // The public page for a source, or null when only a machine-readable record exists.
 export function sourcePageUrl(url:string|null|undefined,{language='en',reference}:{language?:string;reference?:string}={}) {
   if(!url)return null;
+  try{
+    const source=new URL(url);
+    if(source.protocol==='https:'&&source.hostname==='data.europarl.europa.eu'&&!source.port&&!source.username&&!source.password&&!source.hash){
+      const record=source.pathname.match(/^\/(?:api\/v2\/(?:documents|committee-documents)|eli\/dl\/doc)\/((?:[A-Z]{3,5}|CJ\d{2})-(?:AM|PR|PA|AD|AL)-\d{4,9}(?:-\d+)*)$/);
+      const edition=source.pathname.match(/^\/distribution\/[^/]+\/((?:[A-Z]{3,5}|CJ\d{2})-(?:AM|PR|PA|AD|AL)-\d{4,9}(?:-\d+)*)\/\1_([a-z]{2})\.(?:docx|pdf)$/);
+      const selected=edition?.[2]||source.searchParams.get('language')||language;
+      const code='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ').includes(selected)?selected:'en';
+      if(record||edition)return `https://www.europarl.europa.eu/doceo/document/${(record||edition)![1]}_${code.toUpperCase()}.html`;
+    }
+  }catch{/* Invalid sources have no public link. */}
   return humanSourceUrl(url,{language,reference})||(machineReadable(url)?null:safeHref(url));
 }
 

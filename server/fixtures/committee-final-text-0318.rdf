@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rdf:RDF xmlns:ns1="http://publications.europa.eu/ontology/cdm#" xmlns:ns2="http://www.w3.org/2002/07/owl#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <!--Predicate excerpts from https://publications.europa.eu/resource/celex/32026R0697 ; retrieved 2026-10-30. Full metadata SHA256 105db7b14a5c9e21a1978678cd901a42eeac69697c8e36b6f8f5a25a2329634e. Legal text copyright European Union.-->
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/celex/32026R0697">
+    <ns1:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2024_318" />
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1">
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/celex/32026R0697" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/oj/L_202600697" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/eli/reg/2026/697/oj" />
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006">
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/oj/L_202600697.ENG" />
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/oj/L_202600697.ENG.xhtml">
+    <ns1:manifestation_manifests_expression rdf:resource="http://publications.europa.eu/resource/oj/L_202600697.ENG" />
+    <ns1:manifestation_type rdf:datatype="http://www.w3.org/2001/XMLSchema#string">xhtml</ns1:manifestation_type>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006.03">
+    <ns1:manifestation_has_item rdf:resource="http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006.03/DOC_1" />
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/oj/L_202600697.ENG.xhtml" />
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/oj/L_202600697.ENG">
+    <ns1:expression_uses_language rdf:resource="http://publications.europa.eu/resource/authority/language/ENG" />
+    <ns1:expression_belongs_to_work rdf:resource="http://publications.europa.eu/resource/oj/L_202600697" />
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/oj/L_202600697">
+    <ns1:work_date_document rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2026-03-11</ns1:work_date_document>
+    <ns1:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/CONSIL" />
+    <ns1:work_part_of_dossier rdf:resource="http://publications.europa.eu/resource/procedure/2024_318" />
+    <ns1:resource_legal_id_celex rdf:datatype="http://www.w3.org/2001/XMLSchema#string">32026R0697</ns1:resource_legal_id_celex>
+    <ns1:official-journal-act_date_publication rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2026-03-20</ns1:official-journal-act_date_publication>
+    <ns1:work_has_resource-type rdf:resource="http://publications.europa.eu/resource/authority/resource-type/REG" />
+    <ns1:work_created_by_agent rdf:resource="http://publications.europa.eu/resource/authority/corporate-body/EP" />
+  </rdf:Description>
+  <rdf:Description rdf:about="http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006.03/DOC_1">
+    <ns2:sameAs rdf:resource="http://publications.europa.eu/resource/oj/L_202600697.ENG.xhtml.L_202600697EN.html" />
+    <ns1:item_belongs_to_manifestation rdf:resource="http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006.03" />
+  </rdf:Description>
+</rdf:RDF>

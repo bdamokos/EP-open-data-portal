@@ -27,6 +27,7 @@ import {decisionVotes,decisionVotesQuery} from './decision-votes.mjs';
 import {memberAttendance,memberAttendanceQuery} from './member-attendance.mjs';
 import {memberVoteExplanations,memberVoteExplanationsQuery} from './member-vote-explanations.mjs';
 import {documentContext,documentContextQuery} from './document-context.mjs';
+import amendmentFinalText from './amendment-final-text.mjs';
 import {commissionFollowups,commissionFollowupsQuery} from './commission-followups.mjs';
 import {sourceRecord} from './source-record.mjs';
 import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
@@ -195,7 +196,8 @@ async function handleApi(request,response,url,apiPrefix){
       result=await memberVoteExplanations.query(positiveId(segments[1]),memberVoteExplanationsQuery(url.searchParams));
     }
     else if(segments[0]==='document-context'&&segments.length===2) {
-      result=await documentContext.query(documentContextQuery(segments[1],url.searchParams),{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
+      const query=documentContextQuery(segments[1],url.searchParams);
+      result=await (query.finalText?amendmentFinalText:documentContext).query(query,{store:process.env.ACTIVITY_INDEX_ENABLED==='true'?activityIndex().store:null});
     }
     else if (segments[0] === 'amendments' && (segments.length===1 || segments.length===2&&segments[1]==='failures')) {
       const failures=segments.length===2,query=amendmentQuery(url.searchParams,{failures});

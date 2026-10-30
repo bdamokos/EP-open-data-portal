@@ -1,5 +1,20 @@
 import {contributorOffice} from './speakerRoles.mjs';
 
+export const contributionFilters=['all','committee','plenary'];
+export function legislationAmendmentCounts(detail,personId) {
+  if(detail.amendments?.authorDates?.[personId]>detail.date)return {committee:null,plenary:null};
+  const counts=detail.amendments?.countsByStage?.[personId];
+  const observed=value=>Number.isSafeInteger(value)&&value>=0?value:null;
+  return detail.amendments&&Object.hasOwn(detail.amendments,'countsByStage')?{committee:observed(counts?.committee),plenary:observed(counts?.plenary)}:{committee:null,plenary:observed(detail.amendments?.counts?.[personId])};
+}
+export function legislationLatestSpeech(detail,headers,personId) {
+  const speeches=[...new Map(detail.speeches.filter(speech=>speech.date&&speech.date<=detail.date&&speech.people.some(person=>person.id===personId)&&headers[speech.sourceId]?.[personId]?.role!=='Chairing the sitting').map(speech=>[speech.sourceId,speech])).values()];
+  const latestDate=speeches.map(speech=>speech.date).sort().at(-1),sameDay=speeches.filter(speech=>speech.date===latestDate);
+  if(sameDay.length<2)return sameDay[0]||null;
+  if(sameDay.some(speech=>!Number.isFinite(Date.parse(speech.start))))return null;
+  const ordered=sameDay.toSorted((a,b)=>Date.parse(b.start)-Date.parse(a.start));
+  return Date.parse(ordered[0].start)>Date.parse(ordered[1].start)?ordered[0]:null;
+}
 export function legislationActivity(detail,headers,personId) {
   const speeches=new Set(),statements=new Set();
   for(const speech of detail.speeches) {
@@ -51,10 +66,17 @@ export function orderLegislationPeople(people, roles, members=[]) {
     || a.id.localeCompare(b.id));
 }
 
-export function legislationContributors(detail, headers) {
+export function legislationContributors(detail, headers, contribution='all') {
   const chairing=(speech,id)=>headers[speech.sourceId]?.[id]?.role==='Chairing the sitting';
   const roles=[...detail.roles,...detail.speeches.flatMap(speech=>speech.people.filter(person=>!chairing(speech,person.id)).map(person=>({id:person.id,role:speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'WRITTEN_STATEMENT':'SPEAKER'})))];
-  const included=new Set(roles.map(person=>person.id)),people=detail.people.filter(person=>included.has(person.id));
+  const included=new Set(roles.map(person=>person.id)),authors=new Set(detail.amendments?.authorIds||[]);
+  for(const person of detail.people){
+    const counts=legislationAmendmentCounts(detail,person.id);
+    if(detail.amendments?.authorDates?.[person.id]>detail.date)continue;
+    if(authors.has(person.id)||counts.committee>0||counts.plenary>0)included.add(person.id);
+  }
+  if(contribution!=='all')for(const id of included)if(!(legislationAmendmentCounts(detail,id)[contribution]>0))included.delete(id);
+  const people=detail.people.filter(person=>included.has(person.id));
   const excluded=detail.people.filter(person=>!included.has(person.id)),stats={...detail.stats};
   if(stats.demographicEvidence)stats.demographicEvidence=Object.fromEntries(Object.entries(stats.demographicEvidence).filter(([id])=>included.has(id)));
   stats.uniquePeople=people.length;stats.uniqueCurrentMeps=people.filter(person=>person.currentMep).length;
@@ -62,7 +84,7 @@ export function legislationContributors(detail, headers) {
   stats.dimensions=Object.fromEntries(Object.entries(detail.stats.dimensions).map(([dimension,rows])=>{
     const counts=new Map(rows.map(row=>[row.label,row.count]));
     for(const person of excluded.filter(person=>person.currentMep)) {
-      const label=person.demographics[dimension];counts.set(label,(counts.get(label)||0)-1);
+      const label=person.demographics?.[dimension]||'Unknown';counts.set(label,(counts.get(label)||0)-1);
     }
     return [dimension,[...counts].filter(([,count])=>count>0).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))];
   }));
@@ -74,6 +96,7 @@ export function legislationContributors(detail, headers) {
     }
     stats.groupContributions={...stats.groupContributions,total,unavailable,rows:[...counts].filter(([,count])=>count>0).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label))};
   }
+  if(contribution!=='all')delete stats.groupContributions;
   return {people,roles,stats,excludedCount:excluded.length};
 }
 

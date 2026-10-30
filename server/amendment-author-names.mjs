@@ -11,6 +11,11 @@ const latinLanguages=['en','fr','es','de','it','pl','nl','pt','sv','fi','ro','mt
 export function alternateAuthorDescriptor(list,extraction) {
   if(!hasNonLatinAuthors(extraction))return null;
   const files=list.distributionEvidence?.descriptors||[];
+  if(list.scope==='committee') {
+    const language=latinLanguages.find(language=>files.some(file=>file.language===language&&file.url!==extraction.sourceUrl));
+    const selected=files.filter(file=>file.language===language&&file.url!==extraction.sourceUrl);
+    return selected.length===1?normalizedDocxDescriptor(selected[0]):null;
+  }
   return normalizedDocxDescriptor(latinLanguages.flatMap(language=>files.filter(file=>file.language===language&&file.url!==extraction.sourceUrl))[0]);
 }
 export function authorNameVariants(author,source) {

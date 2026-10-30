@@ -1,3 +1,4 @@
+import {committeeDraftId,committeeDocumentEndpoint} from './committee-amendments.mjs';
 import {CellarDocuments,proposalCelex,CELLAR_LIMITS} from './cellar-documents.mjs';
 import {commissionReferences,reportProposalReference,resolveProposalTree,resolveProposalCandidates} from './commission-proposal-identity.mjs';
 import {odp,odpLanguage} from './odp.mjs';
@@ -8,7 +9,7 @@ import {sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budg
 export function createProposalBaseline({documents=new CellarDocuments(),request=odp}={}) {
   return function proposalBaseline({reportId,celex,language='en',documentReferences=[]}={}) {
     odpLanguage(language);
-    if(reportId!=null&&!/^A-\d{1,2}-\d{4}-\d{4}$/.test(reportId))throw new HttpError(400,'invalid_report','Choose an exact A-report identifier.');
+    if(reportId!=null&&!committeeDraftId(reportId)&&!/^A-\d{1,2}-\d{4}-\d{4}$/.test(reportId))throw new HttpError(400,'invalid_report','Choose an exact A-report identifier.');
     if(celex!=null)proposalCelex(celex);
     if(!reportId&&!celex)throw new HttpError(400,'missing_proposal','Choose a report or proposal CELEX identifier.');
     return waitForRequest(sharedRequest(async()=>{
@@ -16,7 +17,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
       const unavailable=(status,gaps,extra={})=>({status,celex:sourceCelex??null,workId:null,language,items:[],gaps,evidence,...extra});
       try {
         if(reportId) {
-          const source=await request(`/plenary-documents/${reportId}`,{}, {staleWhileRevalidate:true});
+          const source=await request(committeeDocumentEndpoint(reportId)||`/plenary-documents/${reportId}`,{}, {staleWhileRevalidate:true});
           if(!Array.isArray(source.payload?.data)||source.payload.data.length!==1)return unavailable('unresolved',['report-identity']);
           const identity=reportProposalReference(source.payload.data[0],{reportId,documentReferences});
           evidence=[...identity.evidence,{kind:'report-source',url:source.url,fetchedAt:new Date(source.fetchedAt).toISOString(),stale:Boolean(source.stale),refreshError:source.refreshError||null}];

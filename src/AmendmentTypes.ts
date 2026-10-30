@@ -1,8 +1,13 @@
 import type {WordingFormat} from './components/WordingFormatting';
+export type AmendmentScope = 'committee' | 'plenary';
+export type AmendmentStage = 'all' | AmendmentScope;
+export type AmendmentCounts = {committee:number|null;plenary:number|null};
+export type AmendmentCommittee = {code:string;name?:string|null};
 export type AmendmentOutcome = 'ADOPTED' | 'REJECTED' | 'LAPSED' | 'WITHDRAWN' | 'mixed' | 'unavailable';
 export type AmendmentSource = {url:string;fetchedAt?:string|number|null;language?:string|null;date?:string|null;dateBasis?:string|null};
 export type AmendmentAuthor = {name:string;displayName?:string;nameVariants?:{value:string;script:string;language?:string|null;source?:unknown}[];personId:string|number|null;method?:string|null;status?:string|null;evidence?:unknown};
 export type AmendmentDecision = {
+  stage?:AmendmentScope;scope?:AmendmentScope|'whole-amendment'|'split-part'|'unresolved-split';
   id:string;sittingId?:string|null;date?:string|null;outcome?:string|null;method?:string|null;
   partId?:string|null;partNumber?:number|string|null;reference?:string|null;
   totals?:{for?:number|null;against?:number|null;abstaining?:number|null}|null;
@@ -20,6 +25,10 @@ export type AmendmentVariant = {
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;fieldSources?:Record<string,AmendmentSource|null>;
 };
 export type Amendment = {
+  scope?:AmendmentScope;contributionKind?:'tabled-amendment'|'draft-report'|'draft-opinion';
+  committees?:AmendmentCommittee[];committeeDocumentKind?:'draft-report'|'draft-opinion'|null;
+  targetRelationship?:{status:'verified'|'unavailable'|'conflicting';evidence?:unknown[]};
+  procedureEvidence?:unknown[];sourceVersion?:unknown;
   id:string;number:number|string|null;listId?:string|null;targetDocumentId?:string|null;title?:string|null;titles?:Record<string,string>;date?:string|null;
   documentDate?:string|null;listDocumentDate?:string|null;dateBasis?:string|null;committeeProposer?:string|null;conflicted?:boolean;variants?:AmendmentVariant[];
   proposerDate?:string|null;proposerDateBasis?:string|null;

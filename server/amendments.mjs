@@ -1,8 +1,9 @@
+import {committeeListId,committeeDraftId,committeeCode} from './committee-amendments.mjs';
 import { array, tail, procedureIds, documentFiles } from './activity-index-model.mjs';
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 7;
+export const AMENDMENTS_VERSION = 8;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -15,6 +16,7 @@ export function validAmendmentDate(value) {
 // Indexed presentation dates may fall back to a report date. Only documentary
 // amendment/list dates, or an explicitly preserved proposer basis, support links.
 export function amendmentProposerDate(record,{documentDate=record?.documentDate,listDate=record?.listDocumentDate}={}) {
+  if(record?.proposerDateConflict)return null;
   const documented=validAmendmentDate(documentDate)?documentDate:null,listed=validAmendmentDate(listDate)?listDate:null;
   const documentBasis=record?.dateBasis==='amendment-list-document'?'amendment-list-document':'individual-amendment-document';
   if(record?.proposerDate!=null) {
@@ -55,6 +57,10 @@ export function currentDocxDescriptor(list) {
   const evidence=own?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION&&own.state!=='available'&&list?.reportWording?.reportId&&list.reportWording.reportId===list.targetDocumentId?list.reportWording.distributionEvidence:own;
   if(evidence?.version!==AMENDMENT_DISTRIBUTION_PROOF_VERSION||evidence.state!=='available')return null;
   const descriptors=array(evidence.descriptors).map(normalizedDocxDescriptor).filter(Boolean);
+  if(list?.scope==='committee') {
+    const language=descriptors.some(file=>file.language==='en')?'en':descriptors[0]?.language;
+    const selected=descriptors.filter(file=>file.language===language);return selected.length===1?selected[0]:null;
+  }
   return descriptors.find(file=>file.language==='en') || descriptors[0] || null;
 }
 export function listWordingFreshness(list,{parserVersion}={}) {
@@ -203,17 +209,21 @@ export function amendmentRowOutcome(row) {
   return amendmentOutcome(row.decisions || []);
 }
 export function amendmentQuery(params,{failures=false}={}) {
-  const allowed=failures?['limit','offset','lang','status']:['document','procedure','member','outcome','limit','offset','lang'];
+  const allowed=failures?['limit','offset','lang','status']:['document','procedure','member','outcome','limit','offset','lang','scope','list','committee'];
   for(const key of params.keys())if(!allowed.includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated amendment query parameter.');
   const number=(key,fallback,max,min=0)=>{const text=params.get(key)??String(fallback),n=Number(text);if(!/^(0|[1-9]\d*)$/.test(text)||!Number.isSafeInteger(n)||n<min||n>max)throw new HttpError(400,'invalid_query',`Invalid ${key}.`);return n;};
   const result={limit:number('limit',20,AMENDMENT_LIMITS.page,1),offset:number('offset',0,1000000),language:odpLanguage(params.get('lang') || 'en')};
   if(failures){const status=params.get('status');if(status!==null&&!['unresolved','resolved','all'].includes(status))throw new HttpError(400,'invalid_status','Choose unresolved, resolved or all.');return {...result,status:status || 'all'};}
   const document=params.get('document'),procedure=params.get('procedure'),member=params.get('member'),outcome=params.get('outcome');
-  if(document!==null && !amendmentTarget(document))throw new HttpError(400,'invalid_document','Use an exact plenary report or motion identifier.');
+  const scope=params.get('scope')||'plenary',list=params.get('list'),committee=params.get('committee');
+  if(!['plenary','committee'].includes(scope))throw new HttpError(400,'invalid_scope','Choose committee or plenary amendments.');
+  if(list!==null&&(scope!=='committee'||!committeeListId(list)))throw new HttpError(400,'invalid_list','Choose an exact committee amendment list.');
+  if(committee!==null&&(scope!=='committee'||!committeeCode(committee)))throw new HttpError(400,'invalid_committee','Choose an exact committee code.');
+  if(document!==null && !(scope==='committee'?committeeDraftId(document):amendmentTarget(document)))throw new HttpError(400,'invalid_document','Use an exact plenary report or motion identifier.');
   if(procedure!==null && !/^\d{4}-\d{4}[A-Z]?$/.test(procedure))throw new HttpError(400,'invalid_procedure','Use an exact procedure identifier.');
   if(member!==null && (!/^[1-9]\d*$/.test(member)||!Number.isSafeInteger(Number(member))))throw new HttpError(400,'invalid_member','Use a positive MEP identifier.');
   if(outcome!==null&&!['ADOPTED','REJECTED','LAPSED','WITHDRAWN','mixed','unavailable'].includes(outcome))throw new HttpError(400,'invalid_outcome','Unknown amendment outcome.');
-  return {...result,document,procedure,member,outcome};
+  return {...result,document,procedure,member,outcome,...(scope==='committee'?{scope,list,committee}:{})};
 }
 export function targetMetadata(work,fetchedAt,endpoint) {
   return {id:work.identifier || tail(work.id),date:work.document_date || null,titles:work.title_dcterms || {},procedureIds:procedureIds(work),sittingIds:amendmentSittings(work),
