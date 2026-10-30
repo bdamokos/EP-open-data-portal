@@ -31,18 +31,36 @@ test('AGRI 181 and IMCO 121 retain the identical complete wording without assign
   assert.notDeepEqual(row(181).authors,row(121).authors);
 });
 
-test('AGRI 171 retains the bounded insertion in a rewritten complete provision',()=>{
-  const result=compare(row(171));assert.equal(result.status,'change-retained');assert.equal(result.wholeProvision,'different');
-  assert.equal(result.mapping.to,'Article 8(3)');assert.equal(result.components[0].proposed.trim(),'without delay');
+test('AGRI 171 shares an inserted phrase with a rewritten provision without a retained-change claim',()=>{
+  const result=compare(row(171));assert.equal(result.status,'different-wording');assert.equal(result.wholeProvision,'different');
+  assert.equal(result.mapping.to,'Article 8(3)');assert.deepEqual(result.components,[]);
 });
 
 test('a shared introductory sentence cannot compete with two uniquely identifying unchanged anchors',()=>{
   const entry=row(171),other='4. The requested enforcement authority shall inform the applicant enforcement authority without delay of any refusal to comply with a request for mutual assistance, together with the reasons for that refusal.';
   const destination=document([xhtml('8','3',entry.final),xhtml('13','4',other)]);
   const result=compare(entry,{destination});
-  assert.equal(result.status,'change-retained');assert.equal(result.mapping.to,'Article 8(3)');
+  assert.equal(result.status,'different-wording');assert.equal(result.mapping.to,'Article 8(3)');
   const competing=document([xhtml('8','3',entry.final),xhtml('13','4',entry.final.replace(/^3\./u,'4.'))]);
   assert.equal(compare(entry,{destination:competing}).status,'unavailable');
+});
+
+test('negation, conditions, exceptions and changed actors outside shared phrases cannot retain a change',()=>{
+  for(const number of [171,181]) {
+    const entry=row(number);
+    const changes=[
+      text=>text.replace('shall inform','shall not inform'),
+      text=>text.replace(/^(3\.|4\.)\s*/u,'$1 If requested, '),
+      text=>text+' This obligation does not apply where the request concerns an interim measure.',
+      text=>text.replace('requested enforcement authority','applicant enforcement authority'),
+      text=>text.replace(/\.$/u,' only if the authority agrees.'),
+    ];
+    for(const change of changes){
+      const final=change(entry.final);if(final===entry.final)continue;
+      const result=compare({...entry,final});
+      assert.notEqual(result.status,'same-wording');assert.deepEqual(result.components,[]);
+    }
+  }
 });
 
 test('AGRI 255 added request condition prevents a full or component equality claim',()=>{

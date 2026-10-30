@@ -76,7 +76,16 @@ test('partial participant retries retain amendment evidence and nullable lower b
   assert.equal(kept.participants[0].amendments[0].id,amendment.id);assert.deepEqual(kept.participants[0].amendmentCounts,{committee:1,plenary:null});assert.equal(kept.participantCoverage.retained,true);
   const translated=mergeDossierPage(before,participantPage([{id:'1',name:'An author',roles:[],amendments:[{...evidence,source:{...source,language:'fr'}}],amendmentCounts:{committee:1,plenary:0}}]));
   assert.equal(translated.participants[0].amendments.length,1);assert.deepEqual(translated.participants[0].amendmentCounts,{committee:1,plenary:null});
-  const withheld=mergeDossierPage(before,participantPage([{id:'1',name:'An author',roles:[],amendments:[{...evidence,id:'committee:IMCO-AM-772127:51',listId:'IMCO-AM-772127'}],amendmentCounts:{committee:null,plenary:null}}]));assert.equal(withheld.participants[0].amendmentCounts.committee,null,'unresolved distinct counts stay unavailable despite retained identities');
+  const withheld=mergeDossierPage(before,participantPage([{id:'1',name:'An author',roles:[],amendments:[{...evidence,id:'committee:IMCO-AM-772127:51',listId:'IMCO-AM-772127',countConflict:true}],amendmentCounts:{committee:null,plenary:null}}]));assert.equal(withheld.participants[0].amendmentCounts.committee,null,'explicit distinct-count conflicts stay unavailable despite retained identities');
+  const later=mergeDossierPage(before,participantPage([{id:'1',name:'An author',roles:[],amendments:[],amendmentCounts:{committee:null,plenary:null}}]));
+  assert.equal(later.participants[0].amendmentCounts.committee,1,'a page without this person’s amendments preserves established evidence');
+  const stillConflicted=mergeDossierPage(withheld,participantPage([{id:'1',name:'An author',roles:[],amendments:[],amendmentCounts:{committee:null,plenary:null}}]));
+  assert.equal(stillConflicted.participants[0].amendmentCounts.committee,null);
+  const repeated=mergeDossierPage(withheld,participantPage([{id:'1',name:'An author',roles:[],amendments:[{...evidence,id:'committee:IMCO-AM-772127:51',listId:'IMCO-AM-772127'}],amendmentCounts:{committee:1,plenary:null}}]));
+  assert.equal(repeated.participants[0].amendmentCounts.committee,null,'a page-local count cannot resolve an explicit conflict from another page');
+  const two=participantPage([{id:'1',name:'An author',roles:[],amendments:[evidence,{...evidence,id:'committee:IMCO-AM-772127:51',listId:'IMCO-AM-772127'}],amendmentCounts:{committee:2,plenary:null}}]);
+  const scoped=retainDossierContributors(two,failed);
+  assert.equal(scoped.participants[0].amendments.length,1);assert.equal(scoped.participants[0].amendmentCounts.committee,1,'a failed-target retry retains only the count supported by that target');
   for(const patch of [{generation:2},{amendmentGeneration:2},{stage:'committee'},{committee:'IMCO'},{participantCoverage:{status:'complete',retryable:false,gaps:[],sources:[]}}])assert.deepEqual(retainDossierContributors(before,{...failed,...patch}).participants,[]);
 });
 
@@ -109,7 +118,10 @@ test('stage count links preserve exact person/procedure and offer a procedure ch
   await h.render(el(DossierAmendmentLinks,{references:[{id:'2024-0318',reference},{id:'2025-0176',reference:'2025/0176(COD)'}],person:'1',stage:'committee',count:2}));
   assert.match(h.container.querySelector('summary').textContent,/choose a procedure/);assert.equal(h.container.querySelector('details').open,false);
   const links=h.container.querySelectorAll('a');assert.equal(links.length,2);
-  for(const link of links){const query=new URL(link.href).searchParams;assert.equal(query.get('dossier-person'),'1');assert.equal(query.get('dossier-show'),'amendments');assert.equal(query.get('dossier-stage'),'committee');assert.equal(link.getAttribute('aria-label').startsWith('At least 2 committee amendments'),true);}
+  assert.match(h.container.querySelector('summary').textContent,/2\+ committee amendments/);
+  for(const link of links){const query=new URL(link.href).searchParams;assert.equal(query.get('dossier-person'),'1');assert.equal(query.get('dossier-show'),'amendments');assert.equal(query.get('dossier-stage'),'committee');assert.equal(link.getAttribute('aria-label'),'Committee amendments · '+query.get('dossier-ref'));assert.doesNotMatch(link.textContent,/2\+|At least/);}
+  await h.render(el(DossierAmendmentLinks,{references:[{id:'2024-0318',reference}],person:'1',stage:'committee',count:2}));
+  assert.equal(h.container.querySelector('a').getAttribute('aria-label'),'At least 2 committee amendments');assert.match(h.container.querySelector('a').textContent,/2\+ committee amendments/);
 });
 
 test('source conversion includes exact joint lists and rejects machine collections',async t=>{

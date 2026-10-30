@@ -76,12 +76,15 @@ export function mergeDossierPage(previous,page) {
 
 function mergeParticipantAmendments(before,after) {
   if(!before?.amendments&&!after?.amendments&&!before?.amendmentCounts&&!after?.amendmentCounts)return {};
-  const amendments=[...new Map([...(before?.amendments||[]),...(after?.amendments||[])].map(item=>[item.id,item])).values()];
+  const byId=new Map();
+  for(const item of [...(before?.amendments||[]),...(after?.amendments||[])])byId.set(item.id,{...item,...(byId.get(item.id)?.countConflict||item.countConflict?{countConflict:true}:{})});
+  const amendments=[...byId.values()];
   const amendmentCounts=Object.fromEntries(['committee','plenary'].map(scope=>{
     const values=[before?.amendmentCounts?.[scope],after?.amendmentCounts?.[scope]];
-    if(values.includes(null))return [scope,null];
+    if(amendments.some(item=>(item.scope||'plenary')===scope&&item.countConflict))return [scope,null];
     const known=values.filter(value=>Number.isSafeInteger(value)&&value>=0);
     const observed=amendments.filter(item=>(item.scope||'plenary')===scope).length;
+    if(!observed&&!known.some(value=>value>0)&&values.includes(null))return [scope,null];
     return [scope,known.length||observed?Math.max(observed,...known):null];
   }));
   return {amendments,amendmentCounts};
@@ -99,7 +102,7 @@ export function retainDossierContributors(previous,page) {
     retained=true;
     // Retain only established contribution evidence. Fresh role observations
     // still replace old roles, and a successful retry can remove stale rows.
-    people.set(old.id,{...current,id:old.id,name:current?.name||old.name,roles:current?.roles||[],speeches:[...earlier,...(current?.speeches||[])],...mergeParticipantAmendments(earlierAmendments.length?{amendments:earlierAmendments,amendmentCounts:old.amendmentCounts}:null,current)});
+    people.set(old.id,{...current,id:old.id,name:current?.name||old.name,roles:current?.roles||[],speeches:[...earlier,...(current?.speeches||[])],...mergeParticipantAmendments(earlierAmendments.length?{amendments:earlierAmendments}:null,current)});
   }
   if(!retained)return page;
   return {...page,participants:[...people.values()],pagination:{...page.pagination,next:page.pagination.next||previous.pagination.next},participantCoverage:{...coverage,status:'partial',retained:true,sources:[...new Map([...(previous.participantCoverage?.sources||[]),...coverage.sources].map(source=>[JSON.stringify(source),source])).values()]}};

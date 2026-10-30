@@ -7,7 +7,7 @@ export type FinalTextDestination={
   sourceUrls:string[];source:FinalTextSource;
 };
 export type FinalTextWording={
-  status:'same-wording'|'some-wording-matches'|'different-wording'|'change-retained'|'unavailable';
+  status:'same-wording'|'different-wording'|'unavailable';
   wholeProvision:'same'|'different'|null;operation:'insert'|'replace'|'delete'|null;
   mapping:null|{basis:string;from:string;to:string;officialLineage:false};
   passages:null|{original:string;proposed:string;baseline:{text:string;address:string;complete:true};destination:{text:string;address:string;complete:true}};

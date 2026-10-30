@@ -12,7 +12,7 @@ import {createFinalActReader,finalActCorrespondence} from './final-act-identity.
 import {amendmentById} from './amendments-store.mjs';
 import {amendmentRowOutcome} from './amendments.mjs';
 
-export const AMENDMENT_FINAL_TEXT_VERSION=1;
+export const AMENDMENT_FINAL_TEXT_VERSION=2;
 export const FINAL_TEXT_LIMITS=Object.freeze({deadlineMs:28_000,concurrency:2,metadataReads:16,metadataBytes:4*1024*1024,contextBytes:6*1024*1024,bodyBytes:2*1024*1024,candidates:8,units:6000,passageCharacters:64*1024});
 const array=value=>value==null?[]:Array.isArray(value)?value:[value];
 const unique=values=>[...new Set(values)];
@@ -78,22 +78,6 @@ function anchorMapping(original,proposed,baseline,candidates,signal) {
   return matches.length===1?matches[0]:null;
 }
 
-// One bounded edit can survive a rewritten remainder. The interval includes all
-// inserted/substituted text between unchanged anchors; substring presence cannot
-// retain a conditionally qualified insertion or a changed quantity/negation.
-function retainedComponent(original,proposed,destination) {
-  let start=0;while(start<original.length&&start<proposed.length&&original[start]===proposed[start])start++;
-  let end=0;while(end<original.length-start&&end<proposed.length-start&&original.at(-end-1)===proposed.at(-end-1))end++;
-  const before=original.slice(0,start),after=end?original.slice(-end):'';
-  const left=before.trim().split(' ').slice(-5).join(' '),right=after.trim().split(' ').slice(0,5).join(' ');
-  if(left.trim().length<24||right.trim().length<24||occurrences(original,left)!==1||occurrences(original,right)!==1||occurrences(proposed,left)!==1||occurrences(proposed,right)!==1||occurrences(destination,left)!==1||occurrences(destination,right)!==1)return null;
-  const from=destination.indexOf(left)+left.length,to=destination.indexOf(right);
-  if(to<from)return null;
-  const proposedPart=proposed.slice(proposed.indexOf(left)+left.length,proposed.indexOf(right)),originalPart=original.slice(original.indexOf(left)+left.length,original.indexOf(right));
-  if(destination.slice(from,to)!==proposedPart||proposedPart===originalPart)return null;
-  return {status:'retained',operation:originalPart.trim()===''?'insert':proposedPart.trim()===''?'delete':'replace',original:originalPart,proposed:proposedPart,destination:destination.slice(from,to),anchors:{left,right},destinationRange:{start:from,end:to,coordinateSpace:'presentation-normalized-wording'}};
-}
-
 /** Pure comparison of already verified, same-dossier source projections. The
  * service below supplies dossier identity and a separately grounded baseline. */
 export function compareFinalWording({variant,baseline,destination,signal,limits={}}) {
@@ -126,9 +110,10 @@ export function compareFinalWording({variant,baseline,destination,signal,limits=
   let mapped=exact[0],basis=whole?'unique-complete-wording':'unique-complete-quoted-wording';
   if(!mapped){mapped=anchorMapping(original,proposed,baseText,candidates,signal);basis='unique-unchanged-anchors';}
   if(!mapped)return unavailable('corresponding-provision-unavailable');
-  const component=retainedComponent(original,proposed,mapped.normal);
-  const status=exact.length&&whole?'same-wording':component?'change-retained':'different-wording';
-  return {status,wholeProvision:exact.length&&whole?'same':'different',operation,mapping:{basis,from:address(base.path),to:address(mapped.unit.path),fromPath:base.path,toPath:mapped.unit.path,...(mapped.anchors?{anchors:mapped.anchors}:{}),officialLineage:false},passages:{original:variant.originalText,proposed:variant.proposedText,baseline:passage(baseline,base),destination:passage(destination,mapped.unit)},components:component?[component]:[],gaps:[]};
+  // Shared wording inside a rewritten provision cannot establish that the
+  // change retains its meaning: a condition or exception can sit elsewhere.
+  const status=exact.length&&whole?'same-wording':'different-wording';
+  return {status,wholeProvision:exact.length&&whole?'same':'different',operation,mapping:{basis,from:address(base.path),to:address(mapped.unit.path),fromPath:base.path,toPath:mapped.unit.path,...(mapped.anchors?{anchors:mapped.anchors}:{}),officialLineage:false},passages:{original:variant.originalText,proposed:variant.proposedText,baseline:passage(baseline,base),destination:passage(destination,mapped.unit)},components:[],gaps:[]};
 }
 
 export class AmendmentFinalText {

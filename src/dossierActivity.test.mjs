@@ -500,6 +500,19 @@ test('coverage notices use only valid exact missing identities and preserve retr
   assert.deepEqual(dossierCoverageNotices({},[target('IMCO-AM-772127',true),target('AGRI-PR-773115',true)]),[{kind:'amendment-target',id:'IMCO-AM-772127'},{kind:'amendment-target',id:'AGRI-PR-773115'}]);
 });
 
+test('loading another participant page preserves an established amendment count link',async t=>{
+  const evidence={id:'committee:AGRI-AM-773343:51',scope:'committee',listId:'AGRI-AM-773343',source};
+  const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>{
+    if(url.searchParams.get('section')!=='roles')return;
+    const later=url.searchParams.get('offset')==='2000';
+    return Response.json(page('roles',null,[],{participants:[{id:'1',name:'Amendment author',roles:[role],amendments:later?[]:[evidence],amendmentCounts:{committee:later?null:1,plenary:null}}],participantCoverage:{status:'partial',gaps:[],sources:[source]},pagination:{offset:later?2000:0,targetOffset:0,limit:25,next:later?null:{offset:2000,targetOffset:0}}}));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const link=()=>h.container.querySelector('a[aria-label="At least 1 committee amendment"]');
+  assert(link());await h.click('Load more people');assert(link());
+  assert.equal(new URL(link().href).searchParams.get('dossier-person'),'1');
+});
+
 test('committee stage and committee filters reset the list cursor without changing speeches or roles',async t=>{
   const committeeRow=(code,number)=>({...amendment,id:`committee:${code}-AM-773343:${number}`,amendment:{...amendment.amendment,id:`committee:${code}-AM-773343:${number}`,scope:'committee',listId:code+'-AM-773343',targetDocumentId:null,targetRelationship:{status:'unavailable'},number,committees:[{code}],decisions:[]}});
   const query='?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference)+'&dossier-person=257727&dossier-show=amendments';

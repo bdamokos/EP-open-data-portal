@@ -7,11 +7,11 @@ import './FinalTextCheck.css';
 
 export type {FinalTextSelection,FinalTextResponse} from './FinalTextCheckTypes';
 const labels={
-  'same-wording':'Same wording','some-wording-matches':'Some wording matches',
-  'different-wording':'Different wording','change-retained':'Change retained','unavailable':'Unavailable',
+  'same-wording':'Same wording',
+  'different-wording':'Different wording','unavailable':'Unavailable',
 };
 const destinationName=(kind:string)=>kind==='final-eu-act'?'Final EU act':'Parliament’s adopted text';
-const pinned=(data:FinalTextResponse,selection:FinalTextSelection)=>data?.version===1&&data.comparisonVersion===1&&
+const pinned=(data:FinalTextResponse,selection:FinalTextSelection)=>data?.version===2&&data.comparisonVersion===2&&
   (['documentId','amendmentId','listId','wordingLanguage','language'] as const).every(key=>data.selection?.[key]===selection[key]);
 
 function Stage({stage,source}:{stage:FinalTextStage;source:FinalTextResponse['selection']['source']}) {

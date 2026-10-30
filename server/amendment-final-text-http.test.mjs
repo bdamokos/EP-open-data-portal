@@ -11,8 +11,8 @@ test('the final-text route pins source selectors, preserves ordinary context rea
   const {documentContext}=await import('./document-context.mjs');
   const {amendmentFinalText}=await import('./amendment-final-text.mjs');
   const calls=[];
-  t.mock.method(amendmentFinalText,'query',async(query,options)=>{calls.push({query,options});return {version:1,reader:'final-text',query};});
-  t.mock.method(documentContext,'query',async()=>({version:43,reader:'context'}));
+  t.mock.method(amendmentFinalText,'query',async(query,options)=>{calls.push({query,options});return {version:2,reader:'final-text',query};});
+  t.mock.method(documentContext,'query',async()=>({version:44,reader:'context'}));
   t.mock.method(globalThis,'fetch',()=>assert.fail('Dispatch must not bypass the selected reader.'));
   const base='/api/document-context/AGRI-PR-773115';
   const selected=new URLSearchParams({scope:'committee',amendment:'committee:AGRI-AM-773343:181',list:'AGRI-AM-773343','wording-lang':'en','final-text':'1'});
