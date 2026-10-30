@@ -1,3 +1,4 @@
+import {committeeAmendmentList,committeeAmendmentTarget} from './amendmentModel.mjs';
 export const dossierSections=['roles','speeches','amendments','votes'];
 export const dossierFilters=['all',...dossierSections];
 export const fullDossierReference=value=>typeof value==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(value);
@@ -104,4 +105,24 @@ export function retainDossierContributors(previous,page) {
   return {...page,participants:[...people.values()],pagination:{...page.pagination,next:page.pagination.next||previous.pagination.next},participantCoverage:{...coverage,status:'partial',retained:true,sources:[...new Map([...(previous.participantCoverage?.sources||[]),...coverage.sources].map(source=>[JSON.stringify(source),source])).values()]}};
 }
 
-export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length?'No linked records.':coverage.status==='unavailable'?'Records unavailable.':'No records available yet.';
+export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length?'No linked records.':null;
+
+// Show only identified missing records. Unknown scope and collection-wide
+// discovery diagnostics do not explain a gap in this person's work.
+export function dossierCoverageNotices(coverage,pages=[]) {
+  const day=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
+  const notices=[],missing=new Map();
+  for(const id of new Set(coverage.missingSpeechIds||[])){
+    const match=String(id).match(/^MTG-PL-(\d{4}-\d{2}-\d{2})-OTH-\d+$/);
+    if(match&&day(match[1]))missing.set(match[1],(missing.get(match[1])||0)+1);
+  }
+  for(const [date,count]of missing)notices.push({kind:'contributions',id:date,date,count});
+  for(const id of new Set(coverage.failedDebates||[])){
+    const match=String(id).match(/^MTG-PL-(\d{4}-\d{2}-\d{2})-PVCRE-ITM-(\d+)$/);
+    if(match&&day(match[1]))notices.push({kind:'debate',id,date:match[1],item:match[2]});
+  }
+  const failedTargets=new Set();
+  for(const page of pages)if(page.section==='amendments'&&(/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(page.checkedTarget||'')||committeeAmendmentList(page.checkedTarget)||committeeAmendmentTarget(page.checkedTarget))&&page.coverage.status==='unavailable'&&page.coverage.retryable!==false)failedTargets.add(page.checkedTarget);
+  for(const id of failedTargets)notices.push({kind:'amendment-target',id});
+  return notices;
+}

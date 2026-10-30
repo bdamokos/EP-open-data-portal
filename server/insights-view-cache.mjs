@@ -7,7 +7,7 @@ import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,cacheable=()=>true}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,cacheable});this.cache=new Map();this.pending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,cacheable=()=>true}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,cacheable});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
     if(this.cache.has(key)){const record=this.cache.get(key);return this.cacheable(record.value)?record:null;}
@@ -47,12 +47,21 @@ export class InsightViewCache {
     const files=await Promise.all(names.map(async name=>{const info=await stat(path.join(this.directory,name));return {name,at:info.mtimeMs,bytes:info.size};}));files.sort((a,b)=>b.at-a.at);
     let bytes=0;for(let i=0;i<files.length;i++){bytes+=files[i].bytes;if(i>=this.maxEntries||bytes>64*1024*1024)await unlink(path.join(this.directory,files[i].name)).catch(()=>{});}
   }
-  refresh(key,load) {
+  refresh(key,load,{background=false}={}) {
     if(this.pending.has(key))return this.pending.get(key);
-    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message,retryAt:Number.isFinite(error.retryAt)?error.retryAt:null});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>this.pending.delete(key));
+    const promise=sharedRequest(async()=>{await new Promise(resolve=>setImmediate(resolve));const value=await load();requestSignal()?.throwIfAborted();return this.save(key,value);}).then(record=>{this.failures.delete(key);return record;}).catch(error=>{if(!isLocalRequestFailure(error))this.failures.set(key,{at:this.clock(),error:error.message,retryAt:Number.isFinite(error.retryAt)?error.retryAt:null});while(this.failures.size>this.maxEntries)this.failures.delete(this.failures.keys().next().value);throw error;}).finally(()=>{this.pending.delete(key);this.background.delete(key);});
+    if(background)this.background.add(key);
     this.pending.set(key,promise);return promise;
   }
-  async get(value,load,{freshMs=this.freshMs,validate,includeRetryAt=false}={}) {
+  readForeground(key,load) {
+    if(this.foregroundPending.has(key))return this.foregroundPending.get(key);
+    // A cold visitor uses its own foreground source admission, rather than
+    // inheriting a queued warm-up's background budget. Source clients still
+    // coalesce where supported. Only the original refresh publishes the cache.
+    const promise=sharedRequest(async()=>({value:await load(),at:this.clock()})).finally(()=>this.foregroundPending.delete(key));
+    this.foregroundPending.set(key,promise);return promise;
+  }
+  async get(value,load,{freshMs=this.freshMs,validate,includeRetryAt=false,background=false}={}) {
     const key=this.key(value);let old=await this.stored(key);
     requestSignal()?.throwIfAborted();
     // A concurrent disk miss may finish after another reader has saved the view.
@@ -67,9 +76,9 @@ export class InsightViewCache {
       const lifetime=typeof freshMs==='function'?freshMs(old.value):freshMs;
       const stale=this.clock()-old.at>(old.value?.coverage?.catalogue&&calendarNeedsRefresh(old.value.coverage.catalogue)?Math.min(lifetime,60_000):lifetime);
       const retryAt=failure?Math.max(failure.at+60_000,failure.retryAt||0):null;
-      if(stale&&(!failure||this.clock()>retryAt))void this.refresh(key,checkedLoad).catch(()=>{});
+      if(stale&&(!failure||this.clock()>retryAt))void this.refresh(key,checkedLoad,{background}).catch(()=>{});
       return {...old.value,viewCache:{computedAt:new Date(old.at).toISOString(),stale,refreshInProgress:this.pending.has(key),refreshError:failure?.error||null,...(includeRetryAt?{retryAt}: {})}};
     }
-    const record=await waitForRequest(this.refresh(key,checkedLoad));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null,...(includeRetryAt?{retryAt:null}: {})}};
+    const record=await waitForRequest(!background&&this.background.has(key)?this.readForeground(key,checkedLoad):this.refresh(key,checkedLoad,{background}));return {...record.value,viewCache:{computedAt:new Date(record.at).toISOString(),stale:false,refreshInProgress:false,refreshError:null,...(includeRetryAt?{retryAt:null}: {})}};
   }
 }

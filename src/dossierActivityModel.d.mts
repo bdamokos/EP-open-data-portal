@@ -9,4 +9,6 @@ export function dossierVoteCards(amendments:DossierAmendment[],votes:DossierVote
 export function dossierTimeline(items:DossierItem[]):{id:string;date:string|null;kind:DossierItem['kind'];items:DossierItem[]}[];
 export function mergeDossierPage(previous:DossierActivityResponse|null,page:DossierActivityResponse):DossierActivityResponse;
 export function retainDossierContributors(previous:DossierActivityResponse|undefined,page:DossierActivityResponse):DossierActivityResponse;
-export function dossierEmptyLabel(coverage:DossierActivityResponse['coverage']):string;
+export function dossierEmptyLabel(coverage:DossierActivityResponse['coverage']):string|null;
+export type DossierCoverageNotice={kind:'contributions';id:string;date:string;count:number}|{kind:'debate';id:string;date:string;item:string}|{kind:'amendment-target';id:string};
+export function dossierCoverageNotices(coverage:DossierActivityResponse['coverage'],pages?:DossierActivityResponse[]):DossierCoverageNotice[];
