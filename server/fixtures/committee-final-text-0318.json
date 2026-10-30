@@ -1,0 +1,161 @@
+{
+  "attribution": "Public parliamentary and EU legal text. Legal text © European Union.",
+  "retrievedOn": "2026-10-30",
+  "sourceScope": "Complete individual amendment columns and complete corresponding final paragraphs; other provisions are omitted. Test wrappers supply the bounded structural document.",
+  "sources": [
+    {
+      "documentId": "AGRI-AM-773343",
+      "documentDate": "2025-05-20",
+      "language": "en",
+      "declaredLanguage": "http://publications.europa.eu/resource/authority/language/ENG",
+      "expressionId": "eli/dl/doc/AGRI-AM-773343/en",
+      "manifestationId": "eli/dl/doc/AGRI-AM-773343/en/docx",
+      "fileIssued": "2025-06-03T16:08:20+02:00",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iCmDoc_Amd/AGRI-AM-773343/AGRI-AM-773343_en.docx",
+      "sha256": "be84188b7eb0e546598a2719db5fe7266b4ea3ab866e08c6ace0b4c4ec662f7f",
+      "observedBytes": 145393,
+      "retrievedOn": "2026-10-30"
+    },
+    {
+      "documentId": "IMCO-AM-772127",
+      "documentDate": "2025-04-11",
+      "language": "en",
+      "declaredLanguage": "http://publications.europa.eu/resource/authority/language/ENG",
+      "expressionId": "eli/dl/doc/IMCO-AM-772127/en",
+      "manifestationId": "eli/dl/doc/IMCO-AM-772127/en/docx",
+      "fileIssued": "2025-04-15T17:48:23+02:00",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iCmDoc_Amd/IMCO-AM-772127/IMCO-AM-772127_en.docx",
+      "sha256": "44706788d90de1729d129860e6ed4c16fc2aba532b97a34371aa53ef1d832c7e",
+      "observedBytes": 129537,
+      "retrievedOn": "2026-10-30"
+    },
+    {
+      "documentId": "TA-10-2026-0048",
+      "documentDate": "2026-02-12",
+      "language": "en",
+      "declaredLanguage": "http://publications.europa.eu/resource/authority/language/ENG",
+      "expressionId": "eli/dl/doc/TA-10-2026-0048/en",
+      "manifestationId": "eli/dl/doc/TA-10-2026-0048/en/docx",
+      "fileIssued": "2026-03-24T10:31:21+01:00",
+      "sourceUrl": "https://data.europarl.europa.eu/distribution/doc/TA-10-2026-0048_en.docx",
+      "sha256": "5b553b50f102b79259cf7b51308d75ee6c4ba21168c6232ed5354b981675fc59",
+      "observedBytes": 47576,
+      "retrievedOn": "2026-10-30"
+    }
+  ],
+  "finalAct": {
+    "celex": "32026R0697",
+    "documentDate": "2026-03-11",
+    "ojDate": "2026-03-20",
+    "procedure": "2024/0318(COD)",
+    "language": "en",
+    "workId": "http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1",
+    "expressionId": "http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006",
+    "manifestationId": "http://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006.03",
+    "sourceUrl": "https://publications.europa.eu/resource/cellar/2d93ced9-23ff-11f1-8c3a-01aa75ed71a1.0006.03/DOC_1",
+    "sha256": "14b2f4413d4b85aee436703745406983b45b8c829797d8216fdad4eaa4a6378d"
+  },
+  "cases": [
+    {
+      "kind": "same-wording-multiple-authors",
+      "listId": "AGRI-AM-773343",
+      "number": 181,
+      "authors": [
+        "Paulo Do Nascimento Cabral"
+      ],
+      "targetLabel": "Article 7 – paragraph 4",
+      "original": "4.Questions regarding limitation periods for the enforcement of fines, other equally effective penalties and interim measures shall be governed by the national law of the Member State of the requested authority.",
+      "proposed": "4.Questions regarding limitation periods for the enforcement of fines, other equally effective penalties and interim measures shall be governed by the national law of the Member State of the requested enforcement authority.",
+      "finalAddress": {
+        "article": "9",
+        "paragraph": "4"
+      },
+      "final": "4. Questions regarding limitation periods for the enforcement of fines, other equally effective penalties and interim measures shall be governed by the national law of the Member State of the requested enforcement authority."
+    },
+    {
+      "kind": "same-wording-multiple-authors",
+      "listId": "IMCO-AM-772127",
+      "number": 121,
+      "authors": [
+        "Gheorghe Piperea"
+      ],
+      "targetLabel": "Article 7 – paragraph 4",
+      "original": "4.Questions regarding limitation periods for the enforcement of fines, other equally effective penalties and interim measures shall be governed by the national law of the Member State of the requested authority.",
+      "proposed": "4.Questions regarding limitation periods for the enforcement of fines, other equally effective penalties and interim measures shall be governed by the national law of the Member State of the requested enforcement authority.",
+      "finalAddress": {
+        "article": "9",
+        "paragraph": "4"
+      },
+      "final": "4. Questions regarding limitation periods for the enforcement of fines, other equally effective penalties and interim measures shall be governed by the national law of the Member State of the requested enforcement authority."
+    },
+    {
+      "kind": "inserted-phrase-retained-provision-rewritten",
+      "listId": "AGRI-AM-773343",
+      "number": 171,
+      "authors": [
+        "Paulo Do Nascimento Cabral"
+      ],
+      "targetLabel": "Article 6 – paragraph 3",
+      "original": "3.The requested enforcement authority shall inform the applicant enforcement authority about the steps and measures taken and the steps and measures that it intends to take.",
+      "proposed": "3.The requested enforcement authority shall inform the applicant enforcement authority without delay about the steps and measures taken and the steps and measures that it intends to take.",
+      "finalAddress": {
+        "article": "8",
+        "paragraph": "3"
+      },
+      "final": "3. The requested enforcement authority shall inform the applicant enforcement authority without delay about the steps and measures that it has taken, or intends to take, under paragraph 1."
+    },
+    {
+      "kind": "requested-modal-change-absent",
+      "listId": "AGRI-AM-773343",
+      "number": 221,
+      "authors": [
+        "Martin Häusling"
+      ],
+      "targetLabel": "Article 12 – paragraph 1",
+      "original": "The Commission may adopt implementing acts laying down standard forms for the requests of mutual assistance under Article 9(2).",
+      "proposed": "The Commission shall adopt implementing acts laying down standard forms for the requests of mutual assistance under Article 9(2).",
+      "finalAddress": {
+        "article": "12",
+        "paragraph": "3"
+      },
+      "final": "3. The Commission may adopt implementing acts laying down standard forms for the requests for mutual assistance referred to in paragraph 2. Those implementing acts shall be adopted in accordance with the examination procedure referred to in Article 32."
+    },
+    {
+      "kind": "requested-modal-change-absent",
+      "listId": "AGRI-AM-773343",
+      "number": 222,
+      "authors": [
+        "Krzysztof Hetman"
+      ],
+      "targetLabel": "Article 12 – paragraph 1",
+      "original": "The Commission may adopt implementing acts laying down standard forms for the requests of mutual assistance under Article 9(2).",
+      "proposed": "The Commission shall adopt implementing acts laying down standard forms for the requests of mutual assistance under Article 9(2).",
+      "finalAddress": {
+        "article": "12",
+        "paragraph": "3"
+      },
+      "final": "3. The Commission may adopt implementing acts laying down standard forms for the requests for mutual assistance referred to in paragraph 2. Those implementing acts shall be adopted in accordance with the examination procedure referred to in Article 32."
+    },
+    {
+      "kind": "requested-translation-qualified",
+      "listId": "AGRI-AM-773343",
+      "number": 255,
+      "authors": [
+        "Paulo Do Nascimento Cabral"
+      ],
+      "targetLabel": "Article 20 – paragraph 2",
+      "original": "2.If no agreement can be reached between the enforcement authorities concerned, notifications and other communications shall be sent in the official language or one of the official languages of the Member State making the notification or other communication.",
+      "proposed": "2.If no agreement can be reached between the enforcement authorities concerned, notifications and other communications shall be sent in the official language or one of the official languages of the Member State making the notification or other communication, accompanied by a courtesy translation in English.",
+      "finalAddress": {
+        "article": "25",
+        "paragraph": "2"
+      },
+      "final": "2. If no agreement can be reached between the enforcement authorities concerned on the languages to be used, notifications and other communications shall be sent in the official language, or one of the official languages, of the Member State making the notification or other communication, accompanied by a courtesy translation in English if requested."
+    }
+  ],
+  "correspondence": {
+    "documentId": "TA-10-2026-0048",
+    "paragraph": 23,
+    "text": "(As an agreement was reached between Parliament and Council, Parliament's position corresponds to the final legislative act, Regulation (EU) 2026/697.)"
+  }
+}
