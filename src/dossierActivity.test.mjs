@@ -178,6 +178,32 @@ test('a failed intermediate page cannot hide a later real amendment snapshot cha
   assert.doesNotMatch(h.container.querySelector('.dossier-amendment').textContent,/Amendment 3/);
 });
 
+for(const cursor of [{offset:0,targetOffset:1},{offset:25,targetOffset:0}])test('activity publication preserves the incoming failed target at cursor '+JSON.stringify(cursor),async t=>{
+  let failed=true;
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    const later=Number(url.searchParams.get('offset'))===cursor.offset&&Number(url.searchParams.get('target-offset'))===cursor.targetOffset;
+    const target=later&&cursor.targetOffset?'A-10-2026-0011':'A-10-2026-0010';
+    return Response.json(page('amendments','257727',later&&failed?[]:[{...amendment,id:later?'new-generation':'old-generation',amendment:{...amendment.amendment,number:later?5:3}}],{
+      generation:later?11:10,checkedTarget:target,amendmentGeneration:later&&failed?undefined:4,
+      coverage:{status:later&&failed?'unavailable':'complete',gaps:later&&failed?['Amendment target '+target+' is unavailable.']:[],sources:[source]},
+      pagination:{offset:later?cursor.offset:0,targetOffset:later?cursor.targetOffset:0,limit:25,next:later?null:cursor}
+    }));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  await h.click('Load more amendments');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,0,'rows from the old activity generation remain fenced');
+  const expected=cursor.targetOffset?'A10-0011/2026':'A10-0010/2026';
+  assert(h.container.textContent.includes('Amendments for '+expected+' could not be loaded.'),'the incoming exact target failure must remain visible after publication');
+  const notice=h.container.querySelector('[aria-label="Amendments coverage"] .dossier-coverage');
+  assert.equal(notice.querySelector('a').href,'https://www.europarl.europa.eu/doceo/document/'+(cursor.targetOffset?'A-10-2026-0011':'A-10-2026-0010')+'_EN.html');
+  failed=false;await h.click('Retry amendments');
+  const retry=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);
+  assert.equal(Number(retry.searchParams.get('offset')),cursor.offset);assert.equal(Number(retry.searchParams.get('target-offset')),cursor.targetOffset);
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 5/);
+  assert.doesNotMatch(h.container.textContent,/could not be loaded|Amendment 3/);
+});
+
 test('document-only role cards use a separate document section and never claim an appointment date',async t=>{
   const h=await harness(t,undefined,url=>url.searchParams.get('section')==='roles'?Response.json(page('roles','257727',[{...role,dateBasis:'document',documentId:'exact-document'}])):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));assert.doesNotMatch(h.container.querySelector('.dossier-document-roles').textContent,/appointment dates unavailable/);assert.match(h.container.querySelector('.dossier-document-roles').textContent,/Document date/);

@@ -44,7 +44,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
       const amendmentSnapshotChanged=knownAmendmentGeneration!==undefined&&page.amendmentGeneration!==undefined&&knownAmendmentGeneration!==page.amendmentGeneration;
       if(previous.current&&(previous.current.generation!==page.generation||amendmentSnapshotChanged)){
         pages.current.clear();
-        if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:'partial',gaps:[...page.coverage.gaps,'This dossier was updated. Reopen it to load earlier pages.']}};
+        if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:page.coverage.status==='complete'?'partial':page.coverage.status,gaps:[...page.coverage.gaps,'This dossier was updated. Reopen it to load earlier pages.']}};
       }
       const pageKey=JSON.stringify(cursor);page=retainDossierContributors(pages.current.get(pageKey),page);
       pages.current.set(pageKey,page);failedCursor.current=null;
