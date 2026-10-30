@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import https from 'node:https';
+import {Readable} from 'node:stream';
+import {EventEmitter} from 'node:events';
 import {ActivityStore} from './activity-index-store.mjs';
 import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
@@ -12,6 +15,8 @@ import {followingResponse,followingIdsSql} from './insights-following.mjs';
 import {activityOnly,motionDocuments} from './activity-read-projections.mjs';
 import {discoverQuestionFiles,changedQuestionsSql,missingQuestionFilesSql} from './question-discovery.mjs';
 import {prepareIndexes} from './migrate-indexes.mjs';
+import {questionFiles,questionFileEdition} from './question-files.mjs';
+import {downloadDocxBuffer} from './document-text.mjs';
 
 const now=()=>Date.parse('2026-10-20T09:00:00Z'),fetched=new Date(now()).toISOString();
 const key='/parliamentary-questions/E-10-2026-000001';
@@ -33,7 +38,7 @@ test('question discovery seeks manifests, anti-joins URLs and acknowledges only 
   const existing=projected[0];corpus.putDocument({sourceId:existing.sourceId,kind:existing.kind},[{sourceKey:'en',language:'en',translationType:'unspecified',sourceFormat:'docx',sourceUrl:existing.url,fetchedAt:fetched,body:'retained'}]);
   assert.match(plan(corpus.db,changedQuestionsSql,1,'','all'),/SEARCH source USING INDEX/);
   assert.match(plan(corpus.db,changedQuestionsSql,1,'','all'),/SEARCH seen USING INDEX/);
-  assert.match(plan(corpus.db,missingQuestionFilesSql,1,key,'all'),/SEARCH text USING COVERING INDEX text_source_url/);
+  assert.match(plan(corpus.db,missingQuestionFilesSql,1,key,'all'),/SEARCH text USING INDEX text_source_url/);
   await discoverQuestionFiles(worker,1);
   assert.equal(corpus.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='docx'").get().n,3);
   assert.equal(corpus.db.prepare(changedQuestionsSql).all(1,'','all').length,0);
@@ -50,6 +55,114 @@ test('question discovery seeks manifests, anti-joins URLs and acknowledges only 
   index.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(1,key);
   assert.equal(index.db.prepare('SELECT COUNT(*) n FROM question_files WHERE generation=1').get().n,0);
   assert.equal(index.db.prepare('SELECT COUNT(*) n FROM question_files WHERE generation=2').get().n,5);
+});
+
+const editionQuestion=(byteSize,issued)=>({...question(['en']),inverse_answers_to:[],is_realized_by:[{language:'en',is_embodied_by:[{...file('q','en').is_embodied_by[0],byteSize,issued}]}]});
+const retainQuestion=(corpus,work,checkedAt=fetched)=>{
+  const file=questionFiles(work)[0];
+  corpus.putDocument({sourceId:file.sourceId,kind:file.kind},[{sourceKey:file.language,language:file.language,translationType:file.translationType,sourceFormat:'docx',sourceUrl:file.url,fetchedAt:checkedAt,body:'Retained first edition.'}]);
+  return file;
+};
+
+test('same-URL newer question and answer editions queue a fresh body without relabelling retained text',async t=>{
+  const {index,corpus,worker}=fixture(t),old=editionQuestion(100,'2026-10-01T08:00:00Z');
+  index.putSource(1,key,'document',old,fetched);
+  const original=retainQuestion(corpus,old,'2026-10-02T09:00:00Z');
+  await discoverQuestionFiles(worker,1);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM tasks').get().n,0);
+  const originalText=corpus.db.prepare('SELECT * FROM texts').get(),before=index.db.prepare('SELECT signature FROM question_file_sources').get().signature;
+  const current=editionQuestion(200,'2026-10-19T08:00:00Z');index.putSource(1,key,'document',current,fetched);
+  assert.notEqual(index.db.prepare('SELECT signature FROM question_file_sources').get().signature,before);
+  await discoverQuestionFiles(worker,1);
+  assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),originalText,'admission does not refresh or relabel old bytes');
+  const task=corpus.nextTask();assert.equal(task.key,'docx:'+original.url);assert.deepEqual(task.body.edition,{byteSize:200,issued:'2026-10-19T08:00:00Z'});
+  let downloads=0;worker.runUpstream=load=>load(worker.controller.signal);
+  worker.download=async(url,{expectedByteSize})=>{downloads++;assert.equal(url,original.url);assert.equal(expectedByteSize,200);return {paragraphs:['Fresh second edition.']};};
+  await worker.task(task);
+  assert.equal(downloads,1);assert.equal(corpus.task(task.key).done,1);
+  const fresh=corpus.db.prepare('SELECT body,checked_at FROM texts').get();assert.equal(fresh.body,'Fresh second edition.');assert.equal(fresh.checked_at,fetched);
+  await discoverQuestionFiles(worker,1);assert.equal(corpus.db.prepare(changedQuestionsSql).all(1,'','all').length,0);assert.equal(downloads,1);
+  const answer={...current,identifier:current.identifier+'-ASW'};
+  const projected=questionFiles({...old,inverse_answers_to:[answer]}).find(item=>item.kind==='answer');
+  assert.deepEqual(projected.edition,{byteSize:200,issued:'2026-10-19T08:00:00Z'});assert.equal(projected.parentId,old.identifier);
+});
+
+test('changed known byte sizes refresh completed work, while pending retry ownership and clocks survive metadata updates',async t=>{
+  const {index,corpus,worker}=fixture(t),old=editionQuestion(100,'2026-10-01T08:00:00Z');
+  index.putSource(1,key,'document',old,fetched);
+  await discoverQuestionFiles(worker,1);
+  worker.runUpstream=load=>load(worker.controller.signal);worker.download=async()=>({paragraphs:['Retained first edition.']});
+  await worker.task(corpus.nextTask());
+  const fresh=editionQuestion(200,'2026-10-01T08:00:00Z');index.putSource(1,key,'document',fresh,fetched);await discoverQuestionFiles(worker,1);
+  const task=corpus.nextTask();assert(task);assert.equal(task.done,0);assert.equal(task.body.edition.byteSize,200);
+  corpus.failTask(task,Object.assign(new Error('Upstream throttled'),{retryAfter:3600}));
+  const pending=corpus.task(task.key);
+  index.putSource(1,key,'document',editionQuestion(300,'2026-10-19T08:00:00Z'),fetched);await discoverQuestionFiles(worker,1);
+  const updated=corpus.task(task.key);assert.equal(updated.body.edition.byteSize,300);
+  assert.deepEqual({...updated,body:null},{...pending,body:null},'metadata updates preserve attempts, deadline, error, priority and completion clock');
+  assert.equal(corpus.nextTask(),undefined);assert.equal(corpus.db.prepare('SELECT body FROM texts').get().body,'Retained first edition.');
+});
+
+test('legacy unknown editions and equivalent issue timestamps do not cause mass re-downloads',async t=>{
+  const {index,corpus,worker}=fixture(t),work=editionQuestion(100,'2026-10-01T08:00:00Z');
+  index.putSource(1,key,'document',work,fetched);const file=retainQuestion(corpus,work);
+  await discoverQuestionFiles(worker,1);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM tasks').get().n,0);
+  // Unknown byte provenance cannot establish that old bytes have changed.
+  index.putSource(1,key,'document',editionQuestion(200,'2026-10-01T08:00:00Z'),fetched);await discoverQuestionFiles(worker,1);
+  assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM tasks').get().n,0);
+  corpus.enqueue('docx:'+file.url,'docx',file,50);corpus.finishTask(corpus.task('docx:'+file.url));
+  index.putSource(1,key,'document',editionQuestion(100,'2026-10-01T10:00:00+02:00'),fetched);await discoverQuestionFiles(worker,1);
+  assert.equal(corpus.task('docx:'+file.url).done,1);
+  assert.deepEqual(questionFileEdition({byteSize:null,issued:'invalid'}),{byteSize:null,issued:null});
+  assert.deepEqual(questionFileEdition({byteSize:-1,issued:42}),{byteSize:null,issued:null});
+});
+
+test('future issue dates defer the existing owner and empty replacement bodies preserve retained text',async t=>{
+  const {index,corpus,worker}=fixture(t),old=editionQuestion(100,'2026-10-01T08:00:00Z');
+  const file=retainQuestion(corpus,old,'2026-10-02T09:00:00Z'),future=editionQuestion(200,'2026-10-21T08:00:00Z');
+  index.putSource(1,key,'document',future,fetched);await discoverQuestionFiles(worker,1);
+  const task=corpus.task('docx:'+file.url);assert.equal(task.retry_at,Date.parse(future.is_realized_by[0].is_embodied_by[0].issued));assert.equal(corpus.nextTask(),undefined);
+  let downloads=0;worker.download=async()=>{downloads++;return {paragraphs:[' ']};};worker.runUpstream=load=>load(worker.controller.signal);
+  await worker.task(task);assert.equal(downloads,0);
+  index.putSource(1,key,'document',editionQuestion(200,'2026-10-19T08:00:00Z'),fetched);await discoverQuestionFiles(worker,1);
+  const pending=corpus.task(task.key);assert.equal(pending.retry_at,task.retry_at,'a later metadata observation cannot shorten the existing future clock');
+  const oldText=corpus.db.prepare('SELECT * FROM texts').get();
+  await assert.rejects(worker.task(pending),/contains no readable text/);
+  assert.equal(downloads,1);assert.equal(corpus.task(task.key).done,0);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),oldText);
+});
+
+test('declared DOCX sizes are checked against actual response bytes before parsing',async t=>{
+  const bytes=Buffer.from('fixture');
+  t.mock.method(https,'get',(_url,_options,callback)=>{
+    const request=new EventEmitter();
+    queueMicrotask(()=>callback(Object.assign(Readable.from([bytes]),{statusCode:200,headers:{'content-type':'application/octet-stream'}})));
+    return request;
+  });
+  const url='https://data.europarl.europa.eu/distribution/test/edition.docx',signal=new AbortController().signal;
+  assert.deepEqual((await downloadDocxBuffer(url,{signal,expectedByteSize:bytes.length})).buffer,bytes);
+  await assert.rejects(downloadDocxBuffer(url,{signal,expectedByteSize:bytes.length+1}),/does not match the selected edition/);
+});
+
+test('a shared URL preserves its pending owner without losing another exact record or blocking unrelated files',async t=>{
+  const {index,corpus,worker}=fixture(t),work=editionQuestion(100,'2026-10-01T08:00:00Z'),file=questionFiles(work)[0];
+  index.putSource(1,key,'document',work,fetched);
+  const otherId='E-10-2026-000003',otherUrl=file.url.replace('q_en.docx','other_en.docx');
+  index.putSource(1,'/parliamentary-questions/'+otherId,'document',{...work,identifier:otherId,is_realized_by:[{language:'en',is_embodied_by:[{format:'DOCX',is_exemplified_by:otherUrl}]}]},fetched);
+  const foreign={...file,sourceId:'E-10-2026-000002'};
+  corpus.enqueue('docx:'+file.url,'docx',foreign,50);corpus.failTask(corpus.task('docx:'+file.url),new Error('Existing URL retry'),3600);
+  const before=corpus.task('docx:'+file.url);
+  await discoverQuestionFiles(worker,1);
+  assert.deepEqual(corpus.task(before.key),before,'the other exact identity keeps its entire pending owner');
+  assert.deepEqual(corpus.db.prepare(changedQuestionsSql).all(1,'','all').map(row=>row.source_key),[key],'the blocked intent is not acknowledged away');
+  assert(corpus.task('docx:'+otherUrl),'unrelated files are still admitted');
+  const resumed=before.retry_at+1;corpus.clock=worker.clock=()=>resumed;assert(corpus.acquire());
+  worker.runUpstream=load=>load(worker.controller.signal);worker.download=async()=>({paragraphs:['Public shared-file text.']});
+  await worker.task(corpus.task(before.key));
+  assert.equal(corpus.db.prepare('SELECT source_id FROM documents').get().source_id,foreign.sourceId);
+  await discoverQuestionFiles(worker,1);
+  const admitted=corpus.task(before.key);assert.equal(admitted.body.sourceId,file.sourceId);assert.equal(admitted.done,0);
+  await worker.task(admitted);
+  assert.deepEqual(corpus.db.prepare('SELECT source_id FROM documents ORDER BY source_id').all().map(row=>row.source_id),[file.sourceId,foreign.sourceId]);
+  assert.equal(corpus.db.prepare(changedQuestionsSql).all(1,'','all').length,0);
 });
 
 test('policy widening, queue rollback and cancellation leave durable restartable discovery',async t=>{
@@ -125,4 +238,25 @@ test('offline preparation backfills new projections once while preserving bodies
   assert.equal(index.db.prepare('SELECT COUNT(*) n FROM question_files').get().n,4);
   assert.deepEqual(index.source(1,key),before);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
   assert(prepareIndexes(options).every(r=>r.noop));
+});
+
+test('edition projection preparation preserves legacy text, generation pointers and future retries',async t=>{
+  const {index,corpus,worker,directory}=fixture(t),work=editionQuestion(100,'2026-10-01T08:00:00Z');
+  index.putSource(1,key,'document',work,fetched);index.set('active',1);
+  const file=retainQuestion(corpus,work),{edition,...legacy}=file;
+  corpus.enqueue('docx:'+file.url,'docx',legacy,50);corpus.failTask(corpus.task('docx:'+file.url),new Error('Saved future retry'),86400);
+  const beforeText=corpus.db.prepare('SELECT * FROM texts').get(),beforeTask=corpus.task('docx:'+file.url),beforeSource=index.source(1,key);
+  index.set('activityReadVersion',1);
+  index.db.prepare('UPDATE question_files SET body=? WHERE generation=1').run(JSON.stringify(legacy));
+  index.db.prepare('UPDATE question_file_sources SET signature=? WHERE generation=1').run('legacy-signature');
+  corpus.db.prepare('INSERT OR REPLACE INTO question_discovery VALUES (?,?,?)').run(key,'legacy-signature','all');
+  index.release();corpus.release();
+  const options={activityDirectory:path.join(directory,'index'),corpusDirectory:path.join(directory,'corpus'),clock:now,log:()=>{}};
+  assert.equal(prepareIndexes(options).find(result=>result.kind==='activity').noop,false);
+  assert.equal(index.get('activityReadVersion'),2);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
+  assert.deepEqual(index.source(1,key),beforeSource);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
+  assert.deepEqual(JSON.parse(index.db.prepare('SELECT body FROM question_files').get().body).edition,edition);
+  assert(corpus.acquire());await discoverQuestionFiles(worker,1);
+  assert.deepEqual(corpus.task('docx:'+file.url),beforeTask);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
+  corpus.release();assert(prepareIndexes(options).every(result=>result.noop));
 });
