@@ -25,6 +25,21 @@ const wordingVariant=(language,extra={})=>({listId:list,language,wordingStatus:'
 const pinnedEvidence=(wordingLanguage,extra={})=>({amendmentId:amendment,listId:list,wordingLanguage,wordingSource:null,referenceDecisions:[],...extra});
 const choice=(id,to=original)=>({id,titles:{en:'***I Exact adopted resolution '+id.slice(-4)},date:'2026-10-08',kind:'TEXT_ADOPTED',roles:[],files:[],answers:[],relationship:{from:id,field:'adopts',to},source:{}});
 
+test('embedded dossier readers can omit original-document links while preserving reproduced text',async t=>{
+  let current=response(report);
+  const h=await harness(t,()=>current);
+  const request={documentId:report,view:'document',onBack:()=>{}};
+  await h.render({request,language:'en',showOriginalLink:false});
+  assert.match(h.container.textContent,/Exact target passage/);
+  assert.equal(h.container.querySelector('.document-context-source a'),null);
+  await h.render({request,language:'en'});
+  assert(h.container.querySelector('.document-context-source a'),'other readers keep their existing source link');
+  current=proposalContextResponse(report,amendment,list);
+  await h.render({request:{...request,amendmentId:amendment,listId:list,wordingLanguage:'en'},language:'en',showOriginalLink:false});
+  assert(h.container.querySelector('[data-proposal-item]'));
+  assert.equal(h.container.querySelector('.document-context-source a,.proposal-context-summary a'),null);
+});
+
 test('document and legal-proposal context keep the justification with the selected amendment',async t=>{
   const text='Published rationale.\nAnother paragraph & <literal text>.';
   const legal=proposalContextResponse(report,amendment,list);
