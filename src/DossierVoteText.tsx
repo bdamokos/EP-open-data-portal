@@ -20,6 +20,6 @@ export default function DossierVoteText({vote,language}:{vote:MemberVote;languag
       {documents.map(documentId=><button type="button" key={documentId} onClick={()=>openContext({documentId,view:'document'})}>Read {documentId.startsWith('A-')?'report':documentId.startsWith('RC-')?'joint motion':documentId.startsWith('TA-')?'adopted text':'motion'}{documents.length>1?' · '+documentId:''}</button>)}
       {!targets.length&&!documents.length&&!vote.parts.length&&vote.scope.kind!=='procedural'&&<p>Text unavailable.</p>}
     </div>
-    {context&&<DocumentContextReader request={{...context,onBack:closeContext,backLabel:'Back to vote text'}} language={language}/>}
+    {context&&<DocumentContextReader showOriginalLink={false} request={{...context,onBack:closeContext,backLabel:'Back to vote text'}} language={language}/>}
   </div>;
 }

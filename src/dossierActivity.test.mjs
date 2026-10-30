@@ -103,6 +103,27 @@ test('other votes load exact amendment wording only when opened, including colle
   assert(requests.every(url=>url.pathname.endsWith('A-10-2026-0010')&&url.searchParams.get('body')==='0'));
 });
 
+test('unloaded indexed decisions retain their outcomes beside an already loaded whole ballot',async t=>{
+  const item=structuredClone(amendment);
+  Object.assign(item.amendment,{outcome:'mixed',decisions:[{id:agreement.id,outcome:'ADOPTED',date:'2026-09-16'},{id:'second-decision',outcome:'REJECTED',date:'2026-09-17'}]});
+  const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[item])):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  const card=h.container.querySelector('.explorer-amendment-card');
+  assert.equal(card.querySelector('header [data-outcome]').dataset.outcome,'mixed');
+  assert.equal(card.querySelectorAll('.explorer-amendment-decision').length,1,'the bound decision is not repeated');
+  assert.match(card.querySelector('.explorer-amendment-decision').textContent,/Rejected.*Sep 17, 2026/);
+  assert.equal(card.querySelectorAll('[data-dossier-vote]').length,1);
+});
+
+test('proposed wording uses its own source language when metadata comes from another edition',async t=>{
+  const item=structuredClone(amendment);
+  Object.assign(item.amendment,{language:'en',wordingSource:{url:source.url,language:'fr'},originalText:'Does not affect the English version.',proposedText:'Texte français proposé.'});
+  const h=await harness(t,undefined,url=>url.searchParams.get('section')==='amendments'?Response.json(page('amendments','257727',[item])):null);
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.equal(h.container.querySelector('.dossier-proposed-text>p').textContent,'Texte français proposé.');
+  assert.equal(h.container.querySelector('.dossier-proposed-text>p').lang,'fr');
+});
+
 test('All renders exact amendment ballot once, preserves dates/coauthors and joint debate scope; Votes renders every ballot once',async t=>{
   const h=await harness(t);await h.render(createElement(h.module.DossierActivity,{reference}));
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-activity')).length,4,'one bounded first page per section');

@@ -10,7 +10,7 @@ import {PersonName,usePersonName} from './PersonName';
 import {humanDate,insightMemberHref,roleName} from './InsightShared';
 import {memberVoteLabel,memberVoteOutcome} from './memberVotesPresentation.mjs';
 import {useExplorerParam} from './explorerUrl';
-import {dossierCoverageNotices,dossierEmptyLabel,dossierVoteCards,dossierFilters,dossierHref,dossierTimeline,fullDossierReference,mergeDossierPage,retainDossierContributors,validDossierPerson} from './dossierActivityModel.mjs';
+import {dossierCoverageNotices,dossierEmptyLabel,dossierUnrenderedDecisions,dossierVoteCards,dossierFilters,dossierHref,dossierTimeline,fullDossierReference,mergeDossierPage,retainDossierContributors,validDossierPerson} from './dossierActivityModel.mjs';
 import {dossierBackHref,dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
 import type {DossierActivityResponse,DossierAmendment,DossierCoverage,DossierCursor,DossierFilter,DossierItem,DossierReference,DossierReferencesResponse,DossierRole,DossierSection,DossierSource,DossierSpeech,DossierVote} from './DossierActivityTypes';
 import {useInsightData} from './InsightData';
@@ -96,7 +96,7 @@ function Ballot({item,language,memberName,inline=false,inlineLabel=false}:{item:
 }
 function Amendment({item,votes,shared,showOutcome,unloaded,votesPending,onMoreVotes,language,memberName,memberId}:{item:DossierAmendment;votes:DossierVote[];shared:DossierVote[];showOutcome:boolean;unloaded:boolean;votesPending:boolean;onMoreVotes?:()=>void;language:string;memberName:string;memberId:string}) {
   return <div className="dossier-amendment">
-    <AmendmentCard item={item.amendment} showOutcome={showOutcome} reader memberId={memberId} language={language} onMember={id=>navigateDossier(insightMemberHref(String(id),language))}>
+    <AmendmentCard item={item.amendment} showOutcome={showOutcome} reader readerDecisions={dossierUnrenderedDecisions(item,[...votes,...shared])} memberId={memberId} language={language} onMember={id=>navigateDossier(insightMemberHref(String(id),language))}>
       {(item.tabling.status==='recorded'&&item.tabling.date||item.tabling.status==='conflicting')&&<p className="dossier-muted">{item.tabling.status==='recorded'&&item.tabling.date?<>Tabled <time dateTime={item.tabling.date} lang={language}>{humanDate(item.tabling.date,language)}</time>{item.stage?' · '+stageLabel(item.stage):''}</>:'Conflicting tabling dates'}</p>}
       {votes.length>0&&<section aria-label="Recorded votes on this amendment">{votes.map(vote=><Ballot key={vote.id} item={vote} language={language} memberName={memberName} inline inlineLabel={showOutcome}/>)}</section>}
       {unloaded&&votesPending&&<p className="dossier-muted">Vote details not loaded.{onMoreVotes&&<> <button type="button" onClick={onMoreVotes}>Check more votes</button></>}</p>}
