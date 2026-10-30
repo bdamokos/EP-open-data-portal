@@ -175,6 +175,20 @@ test('a forced foreground refresh after restart preserves the warmed source loca
   `);
 });
 
+test('a stale general source reports its refresh pending before storage-location discovery',async t=>{
+  await fixture(t,`
+    let time=Date.parse('2026-10-19T12:00:00Z');Date.now=()=>time;
+    const old=await save('/procedures/2026-0003');time+=7*60*60_000;
+    let finish,started;const fetching=new Promise(resolve=>started=resolve);
+    globalThis.fetch=async()=>{calls++;const response=new Promise(resolve=>finish=()=>resolve(Response.json({data:[{identifier:'refreshed'}]})));started();return response;};
+    const stale=await odp('/procedures/2026-0003',{}, {staleWhileRevalidate:true});
+    assert.deepEqual(stale.payload,old.payload);assert.equal(stale.refreshInProgress,true);
+    const refreshing=odp('/procedures/2026-0003',{}, {force:true});
+    await fetching;finish();
+    assert.equal((await refreshing).payload.data[0].identifier,'refreshed');assert.equal(calls,1);
+  `);
+});
+
 test('ODP memory has a byte limit and replacing a record releases its previous byte charge',async t=>{
   await fixture(t,`
     const text='é'.repeat(3*1024*1024);

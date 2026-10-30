@@ -271,10 +271,6 @@ export async function odp(
     url.searchParams.set(key, String(value));
   const key = url.href;
   cacheGroup=cacheGroup==='plenary'?'plenary':cache.get(key)?.cacheGroup||null;
-  // A maintenance refresh skips saved bytes, but keeps their storage budget.
-  if(force&&cacheDir&&!cacheGroup&&!isAgendaKey(key)) {
-    try {if((await stat(filename(key,'plenary'))).isFile())cacheGroup='plenary';}catch{}
-  }
   let stored = cache.get(key)?.record;
   if (!stored && cacheDir && !force) {
     try {
@@ -395,6 +391,11 @@ export async function odp(
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
         const publish=async()=>{
+          // Resolve a forced read's storage location at publication, after its
+          // pending job is visible to stale readers and coalescing callers.
+          if(force&&retain&&cacheDir&&!entry.cacheGroup&&!isAgendaKey(key)) {
+            try {if((await stat(filename(key,'plenary'))).isFile())entry.cacheGroup='plenary';}catch{}
+          }
           if (retain) rememberSource(key, record, serialized,entry.cacheGroup);
           if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal,entry.cacheGroup);
         };
