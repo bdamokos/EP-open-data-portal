@@ -68,3 +68,20 @@ test('published vote is separate from wording and unavailable destinations offer
   await h.render(selection);await h.toggle();assert(h.container.textContent.includes('Committee vote: rejected'));assert(h.container.textContent.includes('Unavailable'));
   assert(!h.container.textContent.includes('Same wording'));assert(!h.container.textContent.includes('Not yet'));assert(!h.container.textContent.includes('Compare wording'));
 });
+
+test('a verified final-act comparison stays clear when the Parliament publication has no legislative body',async t=>{
+  const parliament={...destination,kind:'parliament-adopted-text',id:'TA-10-2026-0048'};
+  const h=await harness(t,()=>response(selection,{stages:[{destination:parliament,wording:{...wording,status:'unavailable',mapping:null,passages:null}},{destination,wording}]}));
+  await h.render(selection);await h.toggle();
+  assert(h.container.textContent.includes('Final EU act'));assert(h.container.textContent.includes('Same wording'));
+  assert(!h.container.textContent.includes('Parliament’s adopted text'));assert(!h.container.textContent.includes('Unavailable'));
+});
+
+test('same wording keeps each published passage without highlighting presentation-only spacing',async t=>{
+  const matched={...wording,passages:{...wording.passages,proposed:'4.Questions regarding limitation periods.',destination:{...wording.passages.destination,text:'4. Questions regarding limitation periods.'}}};
+  const h=await harness(t,()=>response(selection,{wording:matched,stages:[{destination,wording:matched}]}));
+  await h.render(selection);await h.toggle();
+  const passages=h.container.querySelectorAll('.wording-diff__passage');
+  assert.equal(passages[0].textContent,'4.Questions regarding limitation periods.');assert.equal(passages[1].textContent,'4. Questions regarding limitation periods.');
+  assert.equal(h.container.querySelectorAll('.wording-diff ins,.wording-diff del').length,0);
+});

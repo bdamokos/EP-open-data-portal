@@ -24,7 +24,7 @@ function Stage({stage,source}:{stage:FinalTextStage;source:FinalTextResponse['se
     <p className="final-text-check__result">{labels[wording.status]||'Unavailable'}</p>
     {wording.passages&&<details className="final-text-check__comparison">
       <summary>Compare wording</summary>
-      <WordingDiff original={wording.passages.proposed} proposed={wording.passages.destination.text} language={destination.language} emptySemantics="not-supplied" presentation="context" labels={{original:'Proposed amendment',proposed:name}}/>
+      <WordingDiff original={wording.passages.proposed} proposed={wording.passages.destination.text} language={destination.language} emptySemantics="not-supplied" presentation="context" highlightChanges={wording.status!=='same-wording'} labels={{original:'Proposed wording',proposed:name}}/>
       {source&&sourcePageUrl(source.url,{language:destination.language})&&<SourceLink url={source.url} language={destination.language}>Amendment</SourceLink>}
     </details>}
     {readable&&<SourceLink url={readable} language={destination.language}>Read text</SourceLink>}
@@ -50,12 +50,14 @@ function Session({selection}:{selection:FinalTextSelection}) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[open,retry,route]);
   const data=state.data;
+  const availableStages=data?.stages.filter(stage=>stage.wording.status!=='unavailable')||[];
+  const shownStages=availableStages.length?availableStages:data?.stages.filter(stage=>stage.destination.kind===data.destination?.kind&&stage.destination.id===data.destination?.id)||[];
   return <details className="final-text-check" onToggle={event=>setOpen(event.currentTarget.open)}>
     <summary>In the final text?</summary>
     {open&&<div className="final-text-check__body" aria-busy={state.loading}>
       {state.loading&&!data&&<p role="status">Loading…</p>}
       {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">{data.vote.stage==='committee'?'Committee vote':data.vote.stage==='plenary'?'Plenary vote':'Vote'}: {data.vote.outcome.toLowerCase().replaceAll('_',' ')}</p>}
-      {data&&(data.stages.length?data.stages.map(stage=><Stage key={stage.destination.kind+':'+stage.destination.id} stage={stage} source={data.selection.source}/>):<p>Unavailable</p>)}
+      {data&&(shownStages.length?shownStages.map(stage=><Stage key={stage.destination.kind+':'+stage.destination.id} stage={stage} source={data.selection.source}/>):<p>Unavailable</p>)}
       {state.error&&<p role="status">{data?'Could not refresh comparison.':'Could not load comparison.'}</p>}
       {(state.error||data)&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}>{state.error?'Try again':'Check again'}</button>}
     </div>}

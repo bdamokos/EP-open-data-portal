@@ -182,7 +182,7 @@ export class AmendmentFinalText {
       const procedureType=ep(procedure.process_type).match(/^def\/ep-procedure-types\/([A-Z]{2,8})$/u)?.[1];
       if(!procedureType)return stop('procedure-type-unavailable');
       const procedureReference=procedureId.replace('-','/')+'('+procedureType+')';selection.procedureIds=[procedureId];
-      result.lineage={status:'available',relationships:[{from:query.listId,field:'foresees_change_of',to:query.id},{from:procedureId,field:'created_a_realization_of',to:query.id}],gaps:[]};
+      result.lineage={status:'partial',relationships:[{from:query.listId,field:'foresees_change_of',to:query.id},{from:procedureId,field:'created_a_realization_of',to:query.id}],gaps:['individual-amendment-lineage-unavailable']};
       const baselineItems=context.proposal?.items||[],placement=context.placement;
       if(placement?.status!=='placed'||baselineItems.length!==1||context.baseline?.status!=='available')return stop('verified-baseline-unavailable');
       const baseline=baselineItems[placement.itemIndex??0]?.proposal;

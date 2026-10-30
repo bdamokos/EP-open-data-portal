@@ -141,6 +141,7 @@ function serviceHarness(entry=row(181),options={}) {
 test('service obtains the exact selected context and keeps resolution-only TA and final EU act separate',async()=>{
   const h=serviceHarness(),result=await h.service.query(h.query,{store:{}});
   assert.equal(result.wording.status,'same-wording');assert.equal(result.selection.source.contentHash,h.selected.source.contentHash);
+  assert.equal(result.lineage.status,'partial');assert(result.lineage.gaps.includes('individual-amendment-lineage-unavailable'));
   assert.equal(result.destination.kind,'final-eu-act');assert.equal(result.stages[0].wording.status,'unavailable');assert.equal(result.stages[0].destination.kind,'parliament-adopted-text');assert.equal(result.stages[1].wording.status,'same-wording');
   assert.deepEqual(result.vote,{status:'unavailable',stage:'committee',scope:'individual-amendment',outcome:null,decisions:[]});assert.equal(h.counts().finalReads,1);
   const noBody=await h.service.query({...h.query,includeBody:false});assert.equal(noBody.wording.passages,null);assert.equal(noBody.wording.status,'same-wording');assert.equal(noBody.stages[1].wording.passages,null);
