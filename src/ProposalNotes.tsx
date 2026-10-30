@@ -16,9 +16,7 @@ export function ProposalNotes({ notes, prefix }: { notes: ProposalNote[]; prefix
       const before = text(offset, object.offset)
       offset = object.offset + object.replacement.length
       const linkUrl = (note.linkSpans ?? []).find(link => link.start <= object.offset && link.end >= offset)?.url
-      const content = object.kind === 'symbol' && object.status === 'mapped' && object.complete
-        ? linkUrl ? <SourceLink url={linkUrl} compact>{object.replacement}</SourceLink> : object.replacement
-        : <ProposalMath object={object} linkUrl={linkUrl} />
+      const content = (((object.kind === 'symbol') && (object.status === 'mapped')) && object.complete) ? (linkUrl ? <SourceLink url={linkUrl} compact>{object.replacement}</SourceLink> : object.replacement) : <ProposalMath object={object} linkUrl={linkUrl} />
       return <Fragment key={index}>{before}{content}</Fragment>
     })
     return <>{parts}{text(offset, note.text.length)}</>

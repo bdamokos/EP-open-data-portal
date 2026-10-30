@@ -11,7 +11,7 @@ export function savedKey(item:SavedItem):string;
 export function readSaved(raw:string|null):SavedItem[];
 export function savedObservation(item:SavedItem,state:any):SavedItem;
 export function savedLinks(item:SavedItem):SavedActivity[];
-export function createSavedStore(storage:Storage|null,notify?:()=>void):{
+export function createSavedStore(storage:Storage|null,notify?:()=>void, ui?: import('./uiI18n.mjs').UiFormatter):{
  snapshot:()=>{items:SavedItem[];persistent:boolean;storageError:null|'quota'|'unavailable';unsavedSince:number|null;restarted:boolean;checkState:string;questionCheckState:string;epoch:string|null;manifest:FollowingManifest|null};
  publish:(mirror?:boolean)=>boolean;reload:(key?:string|null)=>void;retryStorage:()=>boolean;setCheckState:(state:string,kind?:'mep'|'question')=>void;
  toggle:(item:SavedItem)=>void;applyManifest:(manifest:FollowingManifest)=>boolean;materialize:(data:FollowingMember,expected?:SavedItem)=>boolean;

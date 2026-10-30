@@ -1,3 +1,4 @@
+import {UiMessage, useUiI18n} from './UiI18nReact';
 import {SavedNav} from './SavedControls';
 import {TextSearch} from './TextSearch';
 import './ParliamentHeader.css';
@@ -19,19 +20,20 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en
   onSaved?: () => void;
   language?:string;
 }) {
+  const ui = useUiI18n();
   return <header className="parliament-header">
-    <span className="parliament-brand" lang="en"><SiteMark/>European Parliament data explorer</span>
-    <nav aria-label="Explore Parliament" lang="en">
-      <button aria-current={view==='members'?'page':undefined} onClick={onMembers}>Members</button>
+    <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>
+    <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language}>
+      <button aria-current={(view==='members') ? 'page' : undefined} onClick={onMembers}><UiMessage id="batch4.parliamentheader.tsx.25.1"/></button>
       {(['legislation','questions','amendments','outside','groups'] as const).filter(destination=>destination!=='amendments'||publicAmendmentsEnabled).map(destination=><button
         key={destination}
-        aria-current={view===destination?'page':undefined}
+        aria-current={(view===destination) ? 'page' : undefined}
         disabled={!onNavigate&&view!==destination}
         onClick={()=>onNavigate?.(destination)}
-      >{destination==='legislation'?'Plenary agenda':destination==='questions'?'Questions':destination==='amendments'?'Amendments':destination==='groups'?'Group voices':'Outside voices'}</button>)}
+      >{destination==='legislation'?ui.t("plenarymodes.plenary_agenda"):destination==='questions'?ui.t("textsearch.questions"):destination==='amendments'?ui.t("legislation.amendments.900866"):destination==='groups'?ui.t("groupvoices.group_voices.f21b8b"):ui.t("outsidevoices.outside_voices.a027e6")}</button>)}
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
     <ThemeToggle/>
-    <TextSearch global prefix="global-fts" label="Search Parliament" language={language} className="explorer-text-search-global"/>
+    <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>
   </header>;
 }

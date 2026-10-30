@@ -13,4 +13,4 @@ export function mergeSpeechSpeakers(previous:SpeechHeaders,speeches:{id:string;p
 export function orderLegislationPeople(people:Detail['people'],roles:{id:string;role:string}[],members?:Pick<DirectoryMember,'groupCode'>[]):Detail['people'];
 export function legislationContributors(detail:Detail,headers:SpeechHeaders,contribution?:'all'|'committee'|'plenary'):{people:Detail['people'];roles:{id:string;role:string}[];stats:InsightStats;excludedCount:number};
 
-export function legislationOffice(detail:Detail,headers:SpeechHeaders,personId:string,language?:string):SpeakerRoleLabel|null;
+export function legislationOffice(detail:Detail,headers:SpeechHeaders,personId:string,language?:string, ui?: import('./uiI18n.mjs').UiFormatter):SpeakerRoleLabel|null;

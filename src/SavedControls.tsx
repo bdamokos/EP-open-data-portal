@@ -1,3 +1,6 @@
+import {UiMessageError,uiErrorText} from './uiErrors.mjs';
+import {defaultUi} from './uiDefault.mjs';
+import {UiMessage, useUiI18n} from './UiI18nReact';
 import {dossierStore,subscribeDossiers,useDossiers} from './DossierControls';
 import {createGroupsStore,GROUPS_KEY,groupIsNew,type GroupsSnapshot} from './followGroups.mjs';
 import {createCoverageStore,COVERAGE_KEY} from './followCoverage.mjs';
@@ -38,7 +41,7 @@ function refreshSavedClock() {
   savedNow=Date.now();clearTimeout(expiryTimer);
   const membershipExpiry=membershipStore.snapshot().entries.filter(entry=>membershipIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000);
   const deadlines=[nextExpiry([...savedStore.snapshot().items,...dossierStore.snapshot().items],savedNow),...membershipExpiry,...groupsStore.snapshot().entries.filter(entry=>groupIsNew(entry,savedNow)).map(entry=>entry.discoveredAt+24*60*60*1000)].filter((value):value is number=>value!==null);
-  const expiry=deadlines.length?Math.min(...deadlines):null;
+  const expiry=deadlines.length ? Math.min(...deadlines) : null;
   if(clockListeners.size&&expiry!==null)expiryTimer=setTimeout(refreshSavedClock,Math.max(1,expiry-savedNow));
   clockListeners.forEach(listener=>listener());
 }
@@ -58,8 +61,8 @@ const checkListeners=new Set<()=>void>();
 let manifestDone='',questionsDone='',pendingLanguage='';
 const taskKey=(language:string,items:SavedItem[])=>JSON.stringify([status?.epoch,status?.generation,status?.marksReady,language,items.map(item=>[savedKey(item),item.savedAt])]);
 const selectionKey=()=>savedStore.snapshot().items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
-function verify(data:{epoch:string;generation:number},expected:FollowingStatus) {
-  if(data.epoch!==expected.epoch||data.generation!==expected.generation)throw Object.assign(Error('Data was updated. Try again.'),{code:'generation_changed'});
+function verify(data:{epoch:string;generation:number},expected:FollowingStatus, ui: import('./uiI18n.mjs').UiFormatter = defaultUi) {
+  if(data.epoch!==expected.epoch||data.generation!==expected.generation)throw Object.assign(Error(ui.t("savedcontrols.data.was.updated.try.again")),{code:'generation_changed'});
 }
 let memberReads=0;
 const memberQueue:(()=>void)[]=[];
@@ -68,39 +71,39 @@ async function memberSlot() {
   else memberReads++;
   return ()=>{const next=memberQueue.shift();if(next)next();else memberReads--;};
 }
-async function memberDetail(item:SavedItem,language:string,expected:FollowingStatus) {
+async function memberDetail(item:SavedItem,language:string,expected:FollowingStatus, ui: import('./uiI18n.mjs').UiFormatter = defaultUi) {
   const release=await memberSlot();
   try {
     const params=new URLSearchParams({member:item.id,epoch:expected.epoch,generation:String(expected.generation),lang:language});
-    const data=await api<FollowingMember>('insights/following-member?'+params);verify(data,expected);
-    if(!savedStore.materialize(data,item))throw Object.assign(Error('Data was updated. Try again.'),{code:'generation_changed'});
+    const data=await api<FollowingMember>('insights/following-member?'+params, undefined, undefined, ui);verify(data,expected, ui);
+    if(!savedStore.materialize(data,item))throw Object.assign(Error(ui.t("savedcontrols.data.was.updated.try.again")),{code:'generation_changed'});
     return data;
   }finally{release();}
 }
 function checkedStatus():FollowingStatus|null {return status;}
 const opening=new Map<string,Promise<unknown>>();
-export function openSavedMember(item:SavedItem,language:string):Promise<unknown> {
+export function openSavedMember(item:SavedItem,language:string, ui: import('./uiI18n.mjs').UiFormatter = defaultUi):Promise<unknown> {
   const key=taskKey(language,[item]),existing=opening.get(key);if(existing)return existing;
   const run=(async()=>{
-    try{await checkSaved(language);}catch(error){if(!status?.marksReady||!savedStore.snapshot().manifest)throw error;}
-    if(!status?.marksReady)throw Error('Update checks are not available yet.');
+    try{await checkSaved(language, undefined, ui);}catch(error){if(!status?.marksReady||!savedStore.snapshot().manifest)throw error;}
+    if(!status?.marksReady)throw Error(ui.t("savedcontrols.update.checks.are.not.available.yet"));
     const expected=status;
-    try{return await memberDetail(item,language,expected);}catch(error){
+    try{return await memberDetail(item,language,expected, ui);}catch(error){
       if((error as {code?:string}).code==='generation_changed') {
         let refreshed=checkedStatus();const manifest=savedStore.snapshot().manifest;
         if(!refreshed?.marksReady||refreshed.epoch===expected.epoch&&refreshed.generation===expected.generation||manifest?.epoch!==refreshed.epoch||manifest?.generation!==refreshed.generation) {
-          status=null;lastStatus=0;await checkSaved(language,true);refreshed=checkedStatus();
+          status=null;lastStatus=0;await checkSaved(language,true, ui);refreshed=checkedStatus();
         }
-        if(refreshed?.marksReady)return memberDetail(item,language,refreshed);
+        if(refreshed?.marksReady)return memberDetail(item,language,refreshed, ui);
       }
       throw error;
     }
   })().finally(()=>opening.delete(key));opening.set(key,run);return run;
 }
-export function checkSaved(language:string,force=false):Promise<SavedCheck|undefined> {
+export function checkSaved(language:string,force=false, ui: import('./uiI18n.mjs').UiFormatter = defaultUi):Promise<SavedCheck|undefined> {
   if(pending) {
     if(pendingLanguage===language)return pending;
-    const queued=pending.catch(()=>undefined).then(()=>document.visibilityState==='visible'?checkSaved(language,force):undefined);requestedKeys.set(queued,selectionKey());return queued;
+    const queued=pending.catch(()=>undefined).then(()=>(document.visibilityState==='visible') ? checkSaved(language,force, ui) : undefined);requestedKeys.set(queued,selectionKey());return queued;
   }
   pendingLanguage=language;
   const requestedKey=selectionKey();
@@ -112,7 +115,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     // A new selection can use a fresh status already held by this tab.
     try {
       if(force||!status||Date.now()-lastStatus>=60_000) {
-        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status');statusError=false;
+        lastStatus=Date.now();status=await api<FollowingStatus>('insights/following-status', undefined, undefined, ui);statusError=false;
       }
       expected=status;
     }catch(error){statusError=true;savedStore.setCheckState('error');if(hasMembers){setMembershipCheck('error');setGroupsCheck('error');failures.push(error);}}
@@ -123,7 +126,7 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
     // prevent question answers from becoming available in the store.
     const checkQuestions=async()=>{
       if(questions.length&&questionsDone!==questionKey)try{
-        data=await postSavedQuestions(language,questions.map(item=>item.id));savedStore.observe(data,questions);questionsDone=questionKey;
+        data=await postSavedQuestions(language,questions.map(item=>item.id), ui);savedStore.observe(data,questions);questionsDone=questionKey;
         savedStore.setCheckState('available','question');
       }catch(error){savedStore.setCheckState('error','question');failures.push(error);}
     };
@@ -134,16 +137,16 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
         const key=JSON.stringify([expected.epoch,expected.generation,expected.marksReady,language]);
         if(manifestDone!==key||savedStore.snapshot().epoch!==expected.epoch||items.some(item=>item.kind==='mep'&&!item.seen&&!item.legacy)) {
           const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-          const manifest=await api<FollowingManifest>('insights/following-manifest?'+params);verify(manifest,expected);
+          const manifest=await api<FollowingManifest>('insights/following-manifest?'+params, undefined, undefined, ui);verify(manifest,expected, ui);
           savedStore.applyManifest(manifest);manifestDone=key;
         }
         // Migration stays serial on constrained clients; successful members are
         // never requested again for migration.
         const migrationFailures:unknown[]=[];
-        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await memberDetail(item,language,expected);}catch(error){migrationFailures.push(error);}
+        for(const item of savedStore.snapshot().items.filter(item=>item.kind==='mep'&&item.legacy))try{await memberDetail(item,language,expected, ui);}catch(error){migrationFailures.push(error);}
         if(migrationFailures.length)throw migrationFailures[0];
         savedStore.setCheckState('available');
-      }catch(error){savedStore.setCheckState((error as {code?:string}).code==='marks_unavailable'?'unavailable':'error');failures.push(error);}
+      }catch(error){savedStore.setCheckState(((error as {code?:string}).code==='marks_unavailable') ? 'unavailable' : 'error');failures.push(error);}
     };
     const checkMembership=async()=>{
       if(!hasMembers||!expected)return;
@@ -151,10 +154,10 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
       if(expected.membershipReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-        const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params);verify(snapshot,expected);
-        if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Error('Invalid membership snapshot.');
+        const snapshot=await api<MembershipSnapshot>('insights/following-membership?'+params, undefined, undefined, ui);verify(snapshot,expected, ui);
+        if(!membershipStore.observe(snapshot,savedStore.snapshot().items))throw Object.assign(new UiMessageError('Saved.couldn_t_check_membership_updates',{},ui),{code:'invalid_membership_snapshot',cause:Error('Invalid membership snapshot.')});
         coverageStore.observeMembership(snapshot);
-        setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable')?'unavailable':'available');
+        setMembershipCheck(Object.values(snapshot.lists).some(list=>list.status==='unavailable') ? 'unavailable' : 'available');
       }catch(error){setMembershipCheck('error');failures.push(error);}
     };
     const checkGroups=async()=>{
@@ -163,9 +166,9 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
       if(expected.groupsReady!==true)return;
       try {
         const params=new URLSearchParams({epoch:expected.epoch,generation:String(expected.generation)});
-        const snapshot=await api<GroupsSnapshot>('insights/following-groups?'+params);verify(snapshot,expected);
-        if(!groupsStore.observe(snapshot,savedStore.snapshot().items))throw Error('Invalid group snapshot.');
-        setGroupsCheck(items.some(item=>item.kind==='mep'&&snapshot.members[item.id]?.coverage!=='complete')?'unavailable':'available');
+        const snapshot=await api<GroupsSnapshot>('insights/following-groups?'+params, undefined, undefined, ui);verify(snapshot,expected, ui);
+        if(!groupsStore.observe(snapshot,savedStore.snapshot().items))throw Object.assign(new UiMessageError('groupupdates.tsx.couldn.t.check.group.updates',{},ui),{code:'invalid_group_snapshot',cause:Error('Invalid group snapshot.')});
+        setGroupsCheck(items.some(item=>item.kind==='mep'&&snapshot.members[item.id]?.coverage!=='complete') ? 'unavailable' : 'available');
       }catch(error){setGroupsCheck('error');failures.push(error);}
     };
     await Promise.all([checkQuestions(),checkMembers(),checkMembership(),checkGroups()]);
@@ -180,10 +183,11 @@ export function checkSaved(language:string,force=false):Promise<SavedCheck|undef
       }
       throw error;
     }
-  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language).catch(()=>{});});
+  })().finally(()=>{pending=null;checkListeners.forEach(listener=>listener());if(document.visibilityState==='visible'&&selectionKey()!==requestedKey)void checkSaved(language, undefined, ui).catch(()=>{});});
   requestedKeys.set(pending,requestedKey);return pending;
 }
 export function useSavedChecks(language:string,following=false) {
+  const ui = useUiI18n();
   const {items}=useSaved(),key=items.map(item=>savedKey(item)+':'+(item.savedAt??'')).sort().join(',');
   useEffect(()=>{
     if(!key)return;
@@ -191,17 +195,17 @@ export function useSavedChecks(language:string,following=false) {
     const delay=()=>{
       const saved=savedStore.snapshot(),hasMembers=saved.items.some(item=>item.kind==='mep'),hasQuestions=saved.items.some(item=>item.kind==='question');
       const waiting=statusError||!status||hasMembers&&(!status.marksReady||status.membershipReady===false||status.groupsReady===false||saved.checkState!=='available'||membershipCheck==='error'||groupsCheck==='error')||hasQuestions&&saved.questionCheckState!=='available';
-      return waiting?60_000:4*60*60_000;
+      return waiting ? 60_000 : (4*60*60_000);
     };
     const schedule=()=>{
       clearTimeout(timer);
-      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending?1000:Math.max(1000,lastStatus+delay()-Date.now()));
+      if(active&&document.visibilityState==='visible')timer=setTimeout(()=>void check(),contextPending ? 1000 : Math.max(1000,lastStatus+delay()-Date.now()));
     };
     const check=async()=>{
       clearTimeout(timer);
       if(document.visibilityState!=='visible')return;
       if(contextPending||Date.now()-lastStatus>=delay()){
-        const checked=checkSaved(language),matches=requestedKeys.get(checked)===key;
+        const checked=checkSaved(language, undefined, ui),matches=requestedKeys.get(checked)===key;
         try{
           const result=await checked;
           if(result?.requestedKey===key&&result.language===language)contextPending=false;
@@ -223,6 +227,7 @@ export function useSavedChecks(language:string,following=false) {
 type Resolution={pending?:boolean;error?:string};
 const resolutionAttempts=new Map<string,{at:number;error?:string;done?:boolean}>();
 export function useResolveSavedMembers(language:string) {
+  const ui=useUiI18n();
   const saved=useSaved(),[resolutions,setResolutions]=useState<Record<string,Resolution>>({}),[wake,setWake]=useState(0);
   const active=useRef(false),forced=useRef(new Set<string>()),retryEventAt=useRef(0);
   const resolveKey=(item:SavedItem)=>JSON.stringify([saved.epoch,saved.manifest?.generation,language,item.id,item.savedAt]);
@@ -244,7 +249,7 @@ export function useResolveSavedMembers(language:string) {
         resolutionAttempts.set(key,{at:Date.now(),done:true});
         if(active.current)setResolutions(previous=>({...previous,[key]:{}}));
       },error=>{
-        const message=(error as Error).message;resolutionAttempts.set(key,{at:Date.now(),error:message});
+        const message=uiErrorText(error,ui);resolutionAttempts.set(key,{at:Date.now(),error:message});
         if(active.current)setResolutions(previous=>({...previous,[key]:{error:message}}));
       }).finally(()=>{if(active.current)setWake(value=>value+1);});
     }
@@ -252,13 +257,15 @@ export function useResolveSavedMembers(language:string) {
   return {resolution:(item:SavedItem)=>resolutions[resolveKey(item)]||resolutionAttempts.get(resolveKey(item))||{},retry:(item:SavedItem)=>{forced.current.add(resolveKey(item));setWake(value=>value+1);}};
 }
 export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;compact?:boolean;language?:string}) {
+  const ui = useUiI18n();
   const {items}=useSaved(),saved=items.some(x=>savedKey(x)===savedKey(item)),[error,setError]=useState('');
-  const label=item.kind==='mep'?{text:saved?'Following':'Follow',language:'en'}:interfaceTerm(saved?'saved-question':'save-question',language);
-  const name=item.kind==='mep'?label.text+' MEP':label.text;
-  const tooltip=item.kind==='mep'?(saved?'Saved in this browser':'Save in this browser'):interfaceTerm(saved?'saved-in-browser':'save-in-browser',language).text;
-  return <><button className={'explorer-save-button'+(saved?' is-saved':'')} lang={item.title?compoundLanguage(label.language,item.titleLanguage):label.language} aria-label={`${name}${item.title?' · '+item.title:''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError((e as Error).message);}}}><span aria-hidden="true">{saved?'★':'☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang="en">{error}</small>}</>;
+  const label=(item.kind==='mep') ? ({text:saved ? ui.t("batch4.dossiercontrols.tsx.64.2") : ui.t("followsuggestions.follow"),language:'en'}) : interfaceTerm(saved ? 'saved-question' : 'save-question',language);
+  const name=(item.kind==='mep') ? (label.text+' MEP') : label.text;
+  const tooltip=(item.kind==='mep') ? (saved ? ui.t("batch4.dossiercontrols.tsx.64.1") : ui.t("terms.catalogue_save_in_browser")) : interfaceTerm(saved ? 'saved-in-browser' : 'save-in-browser',language).text;
+  return <><button className={'explorer-save-button'+(saved ? ' is-saved' : '')} lang={item.title ? compoundLanguage(label.language,item.titleLanguage) : label.language} aria-label={`${name}${item.title ? (' · '+item.title) : ''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError(uiErrorText(e,ui));}}}><span aria-hidden="true">{saved ? '★' : '☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang={ui.language}>{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
+  const ui = useUiI18n();
   const dossiers=useDossiers(),groups=useGroups(),membership=useMembership(),saved=useSaved(),now=useSavedNow(),items=[...saved.items,...dossiers.items],updates=items.filter(item=>itemHasNew(item,now)||item.kind==='mep'&&membership.entries.some(entry=>entry.mep===item.id&&membershipIsNew(entry,now))||item.kind==='mep'&&groups.entries.some(entry=>entry.mep===item.id&&groupIsNew(entry,now))).length;
-  return <button onClick={onClick} lang="en" aria-current={current?'page':undefined}>Following{updates>0&&<span className="explorer-saved-count" title={`${updates} followed ${updates===1?'item has':'items have'} new updates`}>{updates} new</span>}</button>;
+  return <button onClick={onClick} lang={ui.language} aria-current={current ? 'page' : undefined}><UiMessage id="batch4.dossiercontrols.tsx.64.2"/>{updates>0&&<span className="explorer-saved-count" title={ui.t("savedcontrols.count.followed.items.have.new.updates", {count: updates})}><UiMessage id="dossierCard.state.1" values={{count: updates}}/></span>}</button>;
 }

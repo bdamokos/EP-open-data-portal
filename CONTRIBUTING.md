@@ -52,6 +52,12 @@ Write interface text for readers: plain, brief and free of disclaimers, hedges a
 - Keep pipeline and maintainer terms out of public views: index generations, parsers, source variants, load states, what an API returned.
 - State empty and error states in a few words ("No matching amendments.", "Transcript unavailable."), without reasons or advice. Omit helper captions, such as search-scope notes, unless the reader can act on them.
 
+UI messages use stable IDs in `src/ui-locales/en.json`. React components read the scoped formatter with `useUiI18n`; presentation helpers accept a formatter explicitly. Use whole messages and named rich slots. Keep source wording, identifiers and source-language tags in those slots; never look up arbitrary API strings or rewrite rendered DOM text. Text-only elements such as SVG titles use `ui.t` directly. `UiMessage` accepts separate numeric `counts` when a displayed count is a rich node.
+
+Language assets are flat `src/ui-locales/<language>.json` dictionaries keyed by canonical message ID. `existing.json` retains the exact earlier translations, and `aliases.json` maps earlier extraction keys to canonical IDs. Missing messages fall back individually to English. Do not create English copies for untranslated locales. The interface code `pt` dispatches with `pt-PT` rules.
+
+`plural-pairs.json` declares each source plural family and its count parameter. Reviewed native forms belong in `plural-forms.json` as language → primary message ID → category → template; forms merge with the translated family before placeholder validation. Use `Intl.PluralRules` categories through the formatter, including independent selectors in messages with several counts. Owned errors carry IDs and parameters through `UiMessageError`; render them with `uiErrorText`. Preserve external API error messages literally.
+
 Use public sources and retain exact identifiers, dates, languages and attribution. Document a new source in `docs/PUBLIC_DATA.md` and add bounded, attributable test examples. Keep unavailable observations distinct from zeroes.
 
 Do not commit credentials, private datasets, browser storage, generated caches, runtime databases, host addresses or site-specific deployment configuration. CI does not access a deployed website or run an indexer. Deployment is separate from pull-request checks.

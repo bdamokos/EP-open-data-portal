@@ -118,25 +118,25 @@ for(const pathname of ['//attacker.example/','/browser/mep-speeches-poc/index.ht
 }
 
 for(const language of ['en','hu','fr']) {
-  test(language+': interface copy, English shell, endonyms, speech-title fallbacks and transcript language stay distinct',async t=>{
+  test(language+': interface copy, localized shell, endonyms, speech-title fallbacks and transcript language stay distinct',async t=>{
     const h=await harness(t,language),c=copy[language];
     assert.equal(document.documentElement.lang,language);assert.equal(h.container.querySelector('main.explorer').lang,language);
     assert.equal(document.title,c.title+' — European Parliament data explorer');assert.equal(document.querySelector('title').lang,language);
     assert.equal(effectiveLanguage(exactText(h.container,'h1',c.title)),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-filters input')),language);
     const footerSelect=h.container.querySelector('select[aria-label="Interface language"]');
-    assert.equal(effectiveLanguage(footerSelect),'en');
+    assert.equal(effectiveLanguage(footerSelect),language);
     for(const code of ['en','hu','fr','ga','mt'])assert.equal(effectiveLanguage(footerSelect.querySelector(`[value="${code}"]`)),code);
     const countries=[...h.container.querySelectorAll('.explorer-filter-line label')].find(node=>node.firstChild.textContent===c.country);
     assert(countries);assert.equal(effectiveLanguage(countries),language);
-    assert.equal(effectiveLanguage(countries.querySelector('option[value=""]')),'en');
+    assert.equal(effectiveLanguage(countries.querySelector('option[value=""]')),language);
     assert.equal(effectiveLanguage(countries.querySelector('option[value="FI"]')),language);
     assert.equal(effectiveLanguage(exactText(h.container,'option','EPP')),'');
     // Exact committee identifiers retain the selected dictionary entry's
     // language, including the English fallback under a localized interface.
     const committeeFallback=exactText(h.container,'option','LIBE · Civil liberties');
     assert.equal(effectiveLanguage(committeeFallback),'en');assert.equal(committeeFallback.getAttribute('aria-label'),null);
-    const freshness=h.container.querySelector('.explorer-results small');assert.equal(effectiveLanguage(freshness),'en');
+    const freshness=h.container.querySelector('.explorer-results small');assert.equal(effectiveLanguage(freshness),language);
     assert.equal(freshness.textContent,'Current at '+date(directory.day,language));assert.equal(effectiveLanguage(freshness.querySelector('time')),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.portrait--button')),'');
 
@@ -149,7 +149,7 @@ for(const language of ['en','hu','fr']) {
     const rows=[...h.container.querySelectorAll('.explorer-speech')];assert.equal(rows.length,speeches.length);
     rows.forEach((row,index)=>{
       const title=row.querySelector('strong');assert.equal(title.textContent,expected[index]);assert.equal(effectiveLanguage(title),expectedLanguages[index]);
-      const metadata=row.querySelector('.explorer-speech-toggle > span');assert.equal(effectiveLanguage(metadata),'en');
+      const metadata=row.querySelector('.explorer-speech-toggle > span');assert.equal(effectiveLanguage(metadata),language);
       assert.equal(metadata.querySelector('span').textContent,date('2026-10-07',language));assert.equal(effectiveLanguage(metadata.querySelector('span')),language);
       assert(!row.querySelector('.explorer-speech-toggle').textContent.includes(speeches[index].reference),'speech reference stays out of the card label');
     });
@@ -158,17 +158,17 @@ for(const language of ['en','hu','fr']) {
     assert.equal(body.textContent,'Texte français du discours.');assert.equal(effectiveLanguage(body.querySelector('p')),'fr');
     assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
-    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),'en');assert.match(detail.querySelector('.explorer-text-meta').textContent,/Machine translation/);
-    assert.equal(effectiveLanguage(exactText(detail,'small','Showing saved transcript.')),'en');
+    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),language);assert.match(detail.querySelector('.explorer-text-meta').textContent,/Machine translation/);
+    assert.equal(effectiveLanguage(exactText(detail,'small','Showing saved transcript.')),language);
     assert.equal(detail.querySelector('.explorer-source-link a'),null);
-    assert.equal(effectiveLanguage(detail.querySelector('button[aria-label="Find in speech"]')),'en');
+    assert.equal(effectiveLanguage(detail.querySelector('button[aria-label="Find in speech"]')),language);
     await h.click(rows[1].querySelector('button'));
     const unknown=rows[1].querySelector('.explorer-transcript');assert.equal(effectiveLanguage(unknown.querySelector('p')),'');assert.equal(unknown.textContent,'Unspecified source transcript.');
     assert.equal(rows[1].querySelector('.explorer-text-meta').textContent,'');
 
     await h.click(exactText(h.container,'.explorer-tabs button',c.profile));
     const born=[...h.container.querySelectorAll('.explorer-profile-body p')].find(node=>node.textContent.startsWith('Born '));
-    assert.equal(effectiveLanguage(born),'en');assert.equal(effectiveLanguage(born.querySelector('span')),language);assert.equal(effectiveLanguage(born.querySelectorAll('span')[1]),'');
+    assert.equal(effectiveLanguage(born),language);assert.equal(effectiveLanguage(born.querySelector('span')),language);assert.equal(effectiveLanguage(born.querySelectorAll('span')[1]),'');
     assert.equal(effectiveLanguage(h.container.querySelector('a[href^="mailto:"]')),'');
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-membership p')),language);
     await h.click(exactText(h.container,'.parliament-header button','Following'));
@@ -176,23 +176,23 @@ for(const language of ['en','hu','fr']) {
     assert.equal(document.documentElement.lang,language);assert.equal(h.container.querySelector('main.explorer').lang,language);
   });
 
-  test(language+': source documents keep headers, notes, unknown-language boundaries and English controls, and save exact title language',async t=>{
+  test(language+': source documents keep headers, notes, unknown-language boundaries and localized controls, and save exact title language',async t=>{
     const h=await harness(t,language,{items:questions,query:{member:String(member.id),module:'activities'}});
     const rows=[...h.container.querySelectorAll('.explorer-speech')];
     assert.deepEqual(rows.map(row=>effectiveLanguage(row.querySelector('strong'))),['fr','','hu']);
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-activities h2')),language);
     const metadata=rows[0].querySelector('.explorer-speech-toggle small');
     assert.equal(metadata.childNodes.length,1,'activity category and date retain one flex item');assert.equal(metadata.textContent,'Written question · '+date('2026-10-01',language));
-    assert.equal(effectiveLanguage(metadata),'en');assert.equal(effectiveLanguage(metadata.querySelector('time')),language);
+    assert.equal(effectiveLanguage(metadata),language);assert.equal(effectiveLanguage(metadata.querySelector('time')),language);
     for(let index=0;index<rows.length;index++) {
       await h.click(rows[index].querySelector('button'));
       const reader=rows[index].querySelector('.explorer-document-text'),id=questions[index].sourceId,fixture=bodies[id],body=reader.querySelector('.explorer-transcript');
       assert.equal(effectiveLanguage(body.querySelector('p')),fixture.language||'');
       assert.equal(effectiveLanguage(reader.querySelector('.legal-notes li')),fixture.language||'');
-      assert.equal(effectiveLanguage(reader.querySelector('.legal-notes summary')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-download summary')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-publication-files select')),'en');
+      assert.equal(effectiveLanguage(reader.querySelector('.legal-notes summary')),language);
+      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-download summary')),language);
+      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),language);
+      assert.equal(effectiveLanguage(reader.querySelector('.explorer-publication-files select')),language);
       for(const option of reader.querySelectorAll('.explorer-reader-heading option[value]:not([value=""])'))assert.equal(effectiveLanguage(option),option.value);
       assert(reader.querySelector('sup a[href*="-note-1"]'),'superscript source note marker remains available');
       assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
@@ -207,20 +207,20 @@ for(const language of ['en','hu','fr']) {
         assert.equal(save.querySelector('span[lang]').textContent,label);assert.equal(effectiveLanguage(save.querySelector('span[lang]')),language);
         const answer=reader.querySelector('#document-'+answerId),answerHeading='Answer · '+date('2026-10-02',language);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
-        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),'Text language');assert.equal(effectiveLanguage(answerSelect),'en');
+        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),'Text language');assert.equal(effectiveLanguage(answerSelect),language);
         await h.click(save);
         const saved=JSON.parse(h.window.localStorage.getItem('ep.following.v2')).items[0];
         assert.equal(saved.id,questionId);assert.equal(saved.title,questions[0].title);assert.equal(saved.titleLanguage,'fr');assert.deepEqual(saved.baseline.answerIds,[]);
       }
     }
     await h.wait();
-    const status=rows[2].querySelector('[role="status"][aria-live]');assert.equal(status.textContent,'Question: Text loaded.');assert.equal(effectiveLanguage(status),'en');
+    const status=rows[2].querySelector('[role="status"][aria-live]');assert.equal(status.textContent,'Question: Text loaded.');assert.equal(effectiveLanguage(status),language);
   });
 }
 
 test('linked-source fallback skips empty titles while preserving source language and exact links',async t=>{
   const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{de:'',fr:'Do not select a later entry'}}});
-  const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'en');
+  const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'hu');
   await h.click(exactText(fallback,'button','Look it up'));
   const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
@@ -265,7 +265,7 @@ for(const language of ['en','hu','fr'])test(language+': transcript availability 
     const {name,prefix,provenance,readable,unreadable,...response}=scenario;
     const h=await harness(t,language,{items:[speeches[0]],query:{member:String(member.id),module:'speeches',speech:speeches[0].sourceId},speechResponse:{...response,availableTextLanguages:[]}});
     const detail=h.container.querySelector('.explorer-speech-detail'),metadata=detail.querySelector('.explorer-text-meta');
-    assert.equal(effectiveLanguage(metadata),'en');assert(metadata.textContent.startsWith(prefix));
+    assert.equal(effectiveLanguage(metadata),language);assert(metadata.textContent.startsWith(prefix));
     if(provenance)assert(metadata.textContent.includes(provenance));
     else assert.equal(metadata.textContent,prefix,'no language or provenance is inferred from readable text');
     const body=detail.querySelector('.explorer-transcript'),find=detail.querySelector('button[aria-label="Find in speech"]');

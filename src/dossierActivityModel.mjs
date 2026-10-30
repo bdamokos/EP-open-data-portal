@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 import {committeeAmendmentList,committeeAmendmentTarget} from './amendmentModel.mjs';
 export const dossierSections=['roles','speeches','amendments','votes'];
 export const dossierFilters=['all',...dossierSections];
@@ -112,7 +113,7 @@ export function retainDossierContributors(previous,page) {
   return {...page,participants:[...people.values()],pagination:{...page.pagination,next:page.pagination.next||previous.pagination.next},participantCoverage:{...coverage,status:'partial',retained:true,sources:[...new Map([...(previous.participantCoverage?.sources||[]),...coverage.sources].map(source=>[JSON.stringify(source),source])).values()]}};
 }
 
-export const dossierEmptyLabel=coverage=>coverage.status==='complete'&&!coverage.gaps.length?'No linked records.':null;
+export const dossierEmptyLabel=(coverage, ui = defaultUi)=>coverage.status==='complete'&&!coverage.gaps.length?ui.t("dossieractivity.no_linked_records"):null;
 
 // Show only identified missing records. Unknown scope and collection-wide
 // discovery diagnostics do not explain a gap in this person's work.

@@ -1,5 +1,8 @@
+import {defaultUi} from './uiDefault.mjs';
 const outcomes = {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',mixed:'Mixed outcomes',unavailable:'Outcome unavailable'};
-export const amendmentOutcomeLabel = value => outcomes[value] || outcomes.unavailable;
+export const outcomesUi = (ui = defaultUi) => ({ADOPTED:ui.t("membervotespresentation.adopted"),REJECTED:ui.t("membervotespresentation.rejected"),LAPSED:ui.t("membervotespresentation.lapsed"),WITHDRAWN:ui.t("membervotespresentation.withdrawn"),mixed:ui.t("amendmentmodel.mjs.mixed.outcomes"),unavailable:ui.t("membervotespresentation.outcome_unavailable")});
+
+export const amendmentOutcomeLabel = (value,ui=defaultUi) => outcomesUi(ui)[value] || outcomesUi(ui).unavailable;
 export const supportedAmendmentTarget = value => typeof value==='string'&&/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(value);
 export const amendmentStages=['all','committee','plenary'];
 export const validCommitteeCode=value=>typeof value==='string'&&/^(?:[A-Z]{3,5}|CJ\d{2})$/.test(value);
@@ -22,10 +25,10 @@ export function amendmentFailureKey(failure) {
   const component=failure.registryPartKey??failure.partId??[failure.recordKind??failure.scope??'unknown',failure.componentIndex??null,failure.description??null,failure.rawDescription??null,failure.sourceDescriptions??null];
   return JSON.stringify([failure.registryRequestKey??failure.requestId??failure.observationKey??null,component,failure.language??null]);
 }
-export function amendmentFailureLabel(failure) {
+export function amendmentFailureLabel(failure, ui = defaultUi) {
   if(failure.partId)return failure.partId;
-  if(failure.recordKind==='request'||failure.scope==='request')return 'Split request failure';
-  return 'Unidentified split component'+(Number.isInteger(failure.componentIndex)&&failure.componentIndex>=0?' '+(failure.componentIndex+1):'');
+  if(failure.recordKind==='request'||failure.scope==='request')return ui.t("amendmentmodel.mjs.split.request.failure");
+  return (Number.isInteger(failure.componentIndex)&&failure.componentIndex>=0)?ui.t("amendmentmodel.mjs.unidentified.split.component.number", {number: String(failure.componentIndex+1)}):(ui.t("amendmentmodel.mjs.unidentified.split.component"));
 }
 export function amendmentProcedure(value) {
   let reference=String(value||'').trim();
@@ -54,23 +57,23 @@ export function amendmentHref(path,{document,procedure,member,scope,list,committ
   if(member)params.set('am-member',String(member));
   return path+'?'+params;
 }
-export function amendmentGroups(items,by='dossier') {
+export function amendmentGroups(items,by='dossier', ui = defaultUi) {
   const groups=new Map();
   for(const item of items) {
     let key,label,basis;
-    if(by==='target'){key=JSON.stringify([item.targetDocumentId||null,item.targetLabel||null]);label=[item.targetDocumentId,item.targetLabel||'Target provision unavailable'].filter(Boolean).join(' · ');basis='Target provision in the amendment document';}
-    else if(by==='topic') {const topic=item.topics?.[0];key=topic?JSON.stringify([topic.basis,topic.id,topic.basis==='target'?item.targetDocumentId||null:null]):'unknown';label=topic?.basis==='target'?[item.targetDocumentId,topic.label].filter(Boolean).join(' · '):topic?.label||'Topic unavailable';basis=topic?.basis==='dossier'?'Dossier subject classification':topic?.basis==='target'?'Target provision':'No topic classification recorded';}
-    else {const procedure=item.procedureIds?.[0];key=procedure||item.targetDocumentId||'unknown';label=procedure||item.targetDocumentId||'Dossier unavailable';basis=procedure?'Exact procedure reference':'Target document';}
+    if(by==='target'){key=JSON.stringify([item.targetDocumentId||null,item.targetLabel||null]);label=[item.targetDocumentId,item.targetLabel||ui.t("amendmentmodel.mjs.target.provision.unavailable")].filter(Boolean).join(' · ');basis=ui.t("amendmentmodel.mjs.target.provision.in.the.amendment.document");}
+    else if(by==='topic') {const topic=item.topics?.[0];key=topic?JSON.stringify([topic.basis,topic.id,topic.basis==='target'?item.targetDocumentId||null:null]):'unknown';label=topic?.basis==='target'?[item.targetDocumentId,topic.label].filter(Boolean).join(' · '):topic?.label||ui.t("amendmentmodel.mjs.topic.unavailable");basis=(topic?.basis==='dossier')?ui.t("amendmentmodel.mjs.dossier.subject.classification"):(!(topic?.basis==='dossier') && (topic?.basis==='target')?ui.t("amendmentmodel.mjs.target.provision"):(ui.t("amendmentmodel.mjs.no.topic.classification.recorded")));}
+    else {const procedure=item.procedureIds?.[0];key=procedure||item.targetDocumentId||'unknown';label=procedure||item.targetDocumentId||ui.t("amendmentmodel.mjs.dossier.unavailable");basis=(procedure)?ui.t("amendmentmodel.mjs.exact.procedure.reference"):(ui.t("amendmentmodel.mjs.target.document"));}
     if(!groups.has(key))groups.set(key,{id:key,label,basis,items:[]});
     groups.get(key).items.push(item);
   }
   return [...groups.values()];
 }
-export function amendmentDecisionScope(item,decision) {
-  if(decision.partId||decision.partNumber!==undefined&&decision.partNumber!==null)return 'Split part'+(decision.partNumber!==undefined&&decision.partNumber!==null?' '+decision.partNumber:'');
-  if(decision.collective||decision.amendmentIds?.length>1)return 'Collective decision';
-  if(item.splitParts?.length)return 'Amendment decision';
-  return 'Whole amendment';
+export function amendmentDecisionScope(item,decision, ui = defaultUi) {
+  if(decision.partId||decision.partNumber!==undefined&&decision.partNumber!==null)return (decision.partNumber!==undefined&&decision.partNumber!==null)?ui.t("amendmentmodel.mjs.split.part.number", {number: String(decision.partNumber)}):(ui.t("amendmentmodel.mjs.split.part"));
+  if(decision.collective||decision.amendmentIds?.length>1)return ui.t("amendmentmodel.mjs.collective.decision");
+  if(item.splitParts?.length)return ui.t("amendmentmodel.mjs.amendment.decision");
+  return ui.t("amendmentmodel.mjs.whole.amendment");
 }
 export function amendmentDecisionKey(decision) {
   const key=[decision.id,decision.partId??null,decision.partId?null:decision.partNumber??null],stage=decision.stage??(['committee','plenary'].includes(decision.scope)?decision.scope:null);
@@ -88,19 +91,19 @@ export function publicAmendmentSource(value) {
 }
 const quoted=value=>typeof value==='string'&&value?`“${value}”`:'';
 // Summarise supported, explicitly typed plans; never manufacture a text selection.
-export function amendmentPlanSummary(plan) {
+export function amendmentPlanSummary(plan, ui = defaultUi) {
   if(!plan||typeof plan!=='object')return [];
   const describe=(node,depth=0)=>{
     if(!node||typeof node!=='object'||depth>8)return null;
     let text;
-    if(node.type==='all')text='The whole amendment text';
+    if(node.type==='all')text=ui.t("amendmentmodel.mjs.the.whole.amendment.text");
     else if(node.type==='text'&&quoted(node.quote))text='The text '+quoted(node.quote);
     else if(node.type==='delete_operation'&&quoted(node.quote))text='The amendment’s deletion of '+quoted(node.quote)+' (an edit operation)';
     else if(node.type==='character'&&quoted(node.character)&&quoted(node.within)&&Number.isInteger(node.characterOccurrence))text='Occurrence '+node.characterOccurrence+' of '+quoted(node.character)+' within '+quoted(node.within);
     else if(node.type==='difference'){
       const base=describe(node.base,depth+1),except=describe(node.except,depth+1);
       if(!base||!except)return null;
-      text=base+', excluding '+(node.except?.type==='union'?'('+except+')':except);
+      text=(node.except?.type==='union')?ui.t("batch2.amendmentmodel.mjs.base.excluding.exception", {base: String(base), exception: String(except)}):(ui.t("amendmentmodel.mjs.base.excluding.exception", {base: String(base), exception: String(except)}));
     }
     else if(node.type==='union'){
       if(!Array.isArray(node.items)||!node.items.length)return null;
@@ -114,6 +117,6 @@ export function amendmentPlanSummary(plan) {
     if(node.scope){const scope=describe(node.scope,depth+1);if(!scope)return null;text+=' · within '+scope;}
     return text;
   };
-  const description=describe(plan);
+  const description=describe(plan, undefined);
   return description?[description]:[];
 }

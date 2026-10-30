@@ -278,7 +278,7 @@ test('a cold deep link renders its destination shell before the view module reso
   assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Group voices');
   assert.equal(h.container.querySelector('[role=status]').textContent,'Chargement de la vue…');
   assert.equal(h.container.querySelectorAll('main').length,1);
-  assert(h.button('Members'));
+  assert(h.button('Membres'));
   await h.releaseView();
   assert.equal(h.container.querySelectorAll('main').length,1);
 });

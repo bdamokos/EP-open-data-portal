@@ -1,3 +1,4 @@
+import {UiMessage, useUiI18n} from './UiI18nReact';
 import { createElement, type ReactNode } from 'react'
 import { SourceLink } from './SourceLink'
 import './ProposalMath.css'
@@ -25,13 +26,14 @@ function renderNode(node: MathMLNode | string, key: number): ReactNode {
 function sourceLink(value: string | null): string | null {
   try {
     const url = new URL(value ?? '')
-    return url.protocol === 'https:' && !url.username && !url.password && !url.port && ['publications.europa.eu', 'eur-lex.europa.eu', 'data.europarl.europa.eu', 'redmapl3.europarl.europa.eu'].includes(url.hostname) ? url.href : null
+    return (((((url.protocol === 'https:') && (!url.username)) && (!url.password)) && (!url.port)) && ['publications.europa.eu', 'eur-lex.europa.eu', 'data.europarl.europa.eu', 'redmapl3.europarl.europa.eu'].includes(url.hostname)) ? url.href : null
   } catch { return null }
 }
 /** Renders JSON elements and text through React. Upstream markup is never inserted. */
 export function ProposalMath({ object, linkUrl }: { object: ProposalObject; linkUrl?: string }) {
+  const ui = useUiI18n();
   const linked = (content: ReactNode) => linkUrl ? <SourceLink url={linkUrl} compact>{content}</SourceLink> : content
   if (object.kind === 'math' && object.complete && object.status === 'converted' && safeTree(object.math)) return <span className="proposal-math-scroll"><span className="proposal-math-content">{linked(renderNode(object.math, 0))}</span></span>
   const href = sourceLink(object.sourceUrl)
-  return <span className="proposal-object" role="note">{linked('[Equation unavailable]')}{href && <> <a href={href} target="_blank" rel="noopener noreferrer">View official document</a></>}</span>
+  return <span className="proposal-object" role="note">{linked(ui.t("proposalmath.equation_unavailable"))}{href && <> <a href={href} target="_blank" rel="noopener noreferrer"><UiMessage id="proposalmath.view_official_document"/></a></>}</span>
 }

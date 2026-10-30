@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 const languages=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
 const sitting=/^MTG-PL-(\d{4}-\d{2}-\d{2})$/;
 const validSitting=id=>typeof id==='string'&&sitting.test(id)&&Number.isFinite(Date.parse(id.slice(7)+'T12:00:00Z'))&&new Date(id.slice(7)+'T12:00:00Z').toISOString().slice(0,10)===id.slice(7);
@@ -25,16 +26,16 @@ export function validateMemberAttendanceResponse(data,{memberId,sittingIds}) {
     return object(register)&&register.documentId==='PV-10-'+day.date+'-ATT'&&['available','unavailable','not-published'].includes(register.status)&&validPdf(register.pdf)&&(register.issued===null||typeof register.issued==='string'&&Number.isFinite(Date.parse(register.issued)))&&source(register.source);
   });
 }
-export function memberAttendanceDetail(day) {
-  if(!day||['partial','unavailable'].includes(day.status))return 'Attendance register unavailable for this sitting.';
-  if(day.status==='not-published')return "This sitting's attendance register is not yet published.";
-  if(day.memberStatus==='not-listed'&&!day.excusedSupplied)return 'Not listed as present.';
+export function memberAttendanceDetail(day, ui = defaultUi) {
+  if(!day||['partial','unavailable'].includes(day.status))return ui.t("batch5.memberattendancepresentation.mjs.29.101");
+  if(day.status==='not-published')return ui.t("batch5.memberattendancepresentation.mjs.30.102");
+  if(day.memberStatus==='not-listed'&&!day.excusedSupplied)return ui.t("batch5.memberattendancepresentation.mjs.31.103");
   return {
-    'listed-present':"Listed as present at this sitting.",
-    'listed-excused':"Listed as excused in this sitting's attendance register.",
-    'not-listed':"Not listed in this sitting's attendance register.",
-    conflicting:'Listed as both present and excused in this register.',
-  }[day.memberStatus]||'Attendance register unavailable for this sitting.';
+    'listed-present':ui.t("batch5.memberattendancepresentation.mjs.33.104"),
+    'listed-excused':ui.t("batch5.memberattendancepresentation.mjs.34.105"),
+    'not-listed':ui.t("batch5.memberattendancepresentation.mjs.35.106"),
+    conflicting:ui.t("batch5.memberattendancepresentation.mjs.36.107"),
+  }[day.memberStatus]||ui.t("batch5.memberattendancepresentation.mjs.29.101");
 }
 const shortDate=value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
 function attendanceDates(dates) {
@@ -47,13 +48,13 @@ function attendanceDates(dates) {
   const formatter=new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
   return runs.map(run=>run.length===1?shortDate(run[0]):formatter.formatRange(new Date(run[0]+'T12:00:00Z'),new Date(run.at(-1)+'T12:00:00Z')).replace(/\s*–\s*/g,'–')).join(', ');
 }
-export function memberAttendanceLine(sittings) {
-  const labels={'listed-present':'listed present','listed-excused':'excused','not-listed':'not listed',conflicting:'conflicting entries','not-published':'not yet published',unavailable:'unavailable',partial:'unavailable'};
+export function memberAttendanceLine(sittings, ui = defaultUi) {
+  const labels={'listed-present':ui.t("batch5.memberattendancepresentation.mjs.51.108"),'listed-excused':ui.t("batch5.memberattendancepresentation.mjs.51.109"),'not-listed':ui.t("batch5.memberattendancepresentation.mjs.51.110"),conflicting:ui.t("batch5.memberattendancepresentation.mjs.51.111"),'not-published':ui.t("batch5.memberattendancepresentation.mjs.51.112"),unavailable:ui.t("batch5.memberattendancepresentation.mjs.51.113"),partial:ui.t("batch5.memberattendancepresentation.mjs.51.113")};
   const groups=new Map();
   for(const day of sittings){
     const label=labels[day.status==='observed'?day.memberStatus:day.status]||'unavailable';
     if(!groups.has(label))groups.set(label,[]);
     groups.get(label).push(day.date);
   }
-  return 'Attendance register: '+[...groups].map(([label,dates])=>label+' '+attendanceDates(dates)).join(' · ');
+  return ui.t("batch5.memberattendancepresentation.mjs.58.114", {groups: String([...groups].map(([label,dates])=>label+' '+attendanceDates(dates)).join(' · '))});
 }

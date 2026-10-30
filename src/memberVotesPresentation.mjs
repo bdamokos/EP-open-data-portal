@@ -1,21 +1,22 @@
+import {defaultUi} from './uiDefault.mjs';
 export const MEMBER_VOTES_PAGE_SIZE=50;
 
-export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}) {
+export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}, ui = defaultUi) {
   if(context)return null;
   if(decisionId){
     const vote=data.selected?.status==='found'&&data.selected.item?.id===decisionId?data.selected.item:null;
-    if(!vote)return data.coverage.status==='partial'?'Partial coverage':null;
-    if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return 'Vote result incomplete';
+    if(!vote)return data.coverage.status==='partial'?ui.t("membervotespresentation.partial_coverage"):null;
+    if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return ui.t("membervotespresentation.vote_result_incomplete");
     return null;
   }
   const coverage=data.coverage;
   if(coverage.status==='complete')return null;
   const ids=unique([...(coverage.failedSittingIds||[]),...(coverage.incompleteSittingIds||[]),...(coverage.sittings||[]).filter(day=>day.state!=='complete').map(day=>day.sittingId)]);
   const dates=ids.filter(validSitting).map(id=>id.slice(7)).sort();
-  const label=coverage.status==='unavailable'?'Voting records unavailable':'Incomplete voting records';
+  const label=(coverage.status==='unavailable')?ui.t("membervotespresentation.voting_records_unavailable"):(ui.t("membervotespresentation.incomplete_voting_records"));
   const days=dates.map(value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')));
   const calendarGap=coverage.catalogue&&coverage.catalogue.state!=='complete';
-  return days.length?label+' · '+days.join(', ')+(calendarGap?' · Sitting dates incomplete':''):coverage.status==='unavailable'?label:calendarGap?'Sitting dates incomplete':label;
+  return days.length?label+' · '+days.join(', ')+(calendarGap?' · Sitting dates incomplete':''):coverage.status==='unavailable'?label:calendarGap?ui.t("membervotespresentation.sitting_dates_incomplete"):label;
 }
 const alignments=new Set(['all','with','against','abstained']);
 const positions=new Set(['recorded','all']);
@@ -130,32 +131,32 @@ export function memberVoteParentLabel(vote,language='en') {
   const scopes=unique((vote.parts||[]).map(part=>sourceLabel(part.requestScopeByLanguage,language)).filter(Boolean));
   return scopes.length===1?scopes[0]:sourceLabel(vote.referenceTexts,language);
 }
-export function memberVoteLabel(vote,language='en') {
-  if(vote.scope?.kind==='whole-text')return 'Final vote';
+export function memberVoteLabel(vote,language='en', ui = defaultUi) {
+  if(vote.scope?.kind==='whole-text')return ui.t("membervotespresentation.final_vote");
   const parts=unique((vote.parts||[]).map(part=>part.number).filter(value=>typeof value==='string'&&value.trim()||typeof value==='number'&&Number.isFinite(value)).map(String));
   const label=[];
   const parent=memberVoteParentLabel(vote,language);
   if(parent)label.push(parent);
-  if(parts.length)label.push((parts.length===1?'Part ':'Parts ')+parts.join(', '));
-  return label.join(' · ')||sourceLabel(vote.referenceTexts,language)||'Decision';
+  if(parts.length)label.push((parts.length===1)?ui.t("membervotespresentation.part_numbers", {numbers: String(parts.join(', '))}):(ui.t("membervotespresentation.parts_numbers", {numbers: String(parts.join(', '))})));
+  return label.join(' · ')||sourceLabel(vote.referenceTexts,language)||ui.t("membervotespresentation.decision");
 }
-export function memberVotePosition(vote) {
-  if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return 'Not put to a vote';
-  if(vote.actualPosition?.status==='conflicting')return 'Conflicting records';
-  if(vote.actualPosition?.status==='unavailable')return 'Position unavailable';
-  if(vote.actualPosition?.status==='not-individually-recorded')return 'Not individually recorded';
-  if(vote.actualPosition?.status==='recorded')return {for:'For',against:'Against',abstaining:'Abstained'}[vote.actualPosition.position]||'Position unavailable';
-  return 'No recorded position';
+export function memberVotePosition(vote, ui = defaultUi) {
+  if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return ui.t("activityvote.not_put_to_a_vote");
+  if(vote.actualPosition?.status==='conflicting')return ui.t("membervotespresentation.conflicting_records");
+  if(vote.actualPosition?.status==='unavailable')return ui.t("activityvote.position_unavailable");
+  if(vote.actualPosition?.status==='not-individually-recorded')return ui.t("membervotespresentation.not_individually_recorded");
+  if(vote.actualPosition?.status==='recorded')return {for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("membervotespresentation.abstained")}[vote.actualPosition.position]||ui.t("activityvote.position_unavailable");
+  return ui.t("membervotespresentation.no_recorded_position");
 }
 
-export function memberVotePositionSummary(items) {
+export function memberVotePositionSummary(items, ui = defaultUi) {
   const counts={For:0,Against:0,Abstained:0};
-  for(const item of items){const label=memberVotePosition(item);if(Object.hasOwn(counts,label))counts[label]++;}
+  for(const item of items){const label=memberVotePosition(item, ui);if(Object.hasOwn(counts,label))counts[label]++;}
   const recorded=Object.entries(counts).filter(([,count])=>count).map(([label,count])=>count+' '+label);
-  return 'Positions: '+(recorded.join(' · ')||'none')+(items.some(item=>item.actualPosition?.status==='not-individually-recorded')?' · '+items.filter(item=>item.actualPosition?.status==='not-individually-recorded').length+' not individually recorded':'');
+  return (items.some(item=>item.actualPosition?.status==='not-individually-recorded'))?ui.t("membervotespresentation.positions_positions_count_not_individually_recorded", {positions: String(recorded.join(' · ')||'none'), count: String(items.filter(item=>item.actualPosition?.status==='not-individually-recorded').length)}):(ui.t("membervotespresentation.positions_positions", {positions: String(recorded.join(' · ')||'none')}));
 }
-export function memberVoteOutcome(vote) {
-  return {ADOPTED:'Adopted',REJECTED:'Rejected',LAPSED:'Lapsed',WITHDRAWN:'Withdrawn',CANCELLED:'Cancelled'}[vote.outcome]||'Outcome unavailable';
+export function memberVoteOutcome(vote, ui = defaultUi) {
+  return {ADOPTED:ui.t("membervotespresentation.adopted"),REJECTED:ui.t("membervotespresentation.rejected"),LAPSED:ui.t("membervotespresentation.lapsed"),WITHDRAWN:ui.t("membervotespresentation.withdrawn"),CANCELLED:ui.t("membervotespresentation.cancelled")}[vote.outcome]||ui.t("membervotespresentation.outcome_unavailable");
 }
 export function memberVoteTotals(vote) {
   if(vote.ballotStatus!=='conducted'||!['for','against','abstaining'].every(key=>typeof vote.totals?.[key]==='number'&&Number.isFinite(vote.totals[key])&&vote.totals[key]>=0))return null;
