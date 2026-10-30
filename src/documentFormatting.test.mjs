@@ -6,7 +6,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 const id='E-10-2026-003031',url='https://www.europarl.europa.eu/doceo/document/'+id+'_EN.docx',link='https://eur-lex.europa.eu/eli/reg/2016/679/oj';
-async function render(t,selectedText) {
+async function render(t,selectedText,documentId=id) {
   const window=new Window({url:'http://localhost/'});
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,requestAnimationFrame:callback=>setTimeout(callback,0),cancelAnimationFrame:clearTimeout,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -16,13 +16,13 @@ async function render(t,selectedText) {
   t.mock.method(globalThis,'fetch',async input=>{
     const request=new URL(input,window.location.href);assert.equal(request.searchParams.get('v'),String(API_VERSION));assert.equal(request.origin,'http://localhost');
     if(request.pathname==='/api/references')return Response.json({references:[]});
-    assert.equal(request.pathname,'/api/document/'+id);
-    return Response.json({id,titles:{en:'Question'},files:[],answers:[],selectedDocumentId:id,selectedText:{status:'available',textLanguage:'en',requestedLanguage:'en',availableTextLanguages:['en'],translationType:'original',sourceFormat:'DOCX',sourceUrl:url,notes:[],noteAnchors:[],documentLinks:[],...selectedText}});
+    assert.equal(request.pathname,'/api/document/'+documentId);
+    return Response.json({id,titles:{en:'Question'},files:[],answers:[],selectedDocumentId:documentId,selectedText:{status:'available',textLanguage:'en',requestedLanguage:'en',availableTextLanguages:['en'],translationType:'original',sourceFormat:'DOCX',sourceUrl:url,notes:[],noteAnchors:[],documentLinks:[],...selectedText}});
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {InsightQuestionReader}=await loadModule('/src/InsightReaders.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
-  await act(async()=>root.render(createElement(InsightQuestionReader,{id,language:'en'})));
+  await act(async()=>root.render(createElement(InsightQuestionReader,{id:documentId,language:'en'})));
   await act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   return container.querySelector('.insight-reader-text');
 }
@@ -41,3 +41,9 @@ test('omitted grid columns keep later cells under their own columns',async t=>{
   const rows=[...text.querySelectorAll('table tr')].map(row=>[...row.cells].map(cell=>[cell.textContent,cell.className]));
   assert.deepEqual(rows,[[['A',''],['B','']],[['','doc-table-gap'],['C','']]]);
 });
+
+ test('generic insight report readers suppress only the identified masthead logo',async t=>{
+ const paragraphs=['European Parliament\t\uFFFC','2024-2029','Plenary sitting','A10-0275/2025','REPORT','Body \uFFFC'];
+ const text=await render(t,{paragraphs,structureStatus:'extracted',documentObjects:[{paragraph:0,offset:20,kind:'drawing',status:'unresolved'},{paragraph:5,offset:5,kind:'drawing',status:'unresolved'}]},'A-10-2025-0275');
+ assert.equal(text.querySelectorAll('.document-context-object').length,1);assert.equal(text.querySelector('p').textContent,'European Parliament\t');assert.match(text.lastElementChild.textContent,/Image in original/);
+ });

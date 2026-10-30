@@ -1,3 +1,4 @@
+import {DocumentImage} from './DocumentImage';
 import {mapWordingFormatting} from './contextAnnotations.mjs';
 import {useId,useRef,type ReactNode} from 'react';
 import type {DocumentContextResponse} from './DocumentContextTypes';
@@ -48,7 +49,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     const objects=paragraph.objects.filter(o=>o.offset>=start&&o.offset<end&&text[o.offset]==='\uFFFC').sort((a,b)=>a.offset-b.offset);
     const nodes:ReactNode[]=[];let from=start;
     const textPart=(a:number,b:number)=><ReferenceText key={'t'+a} text={text.slice(a,b)} start={a} anchors={selectedAnchors.filter(n=>n.offset>a&&n.offset<=b||a===0&&n.offset===0)} links={selectedLinks.map(l=>({...l,start:Math.max(a,l.start),end:Math.min(b,l.end)})).filter(l=>l.end>l.start)} final={b===end} notePrefix={prefix}/>;
-    for(const object of objects){nodes.push(textPart(from,object.offset));nodes.push(object.kind==='math'?<ProposalMath key={'o'+object.offset} object={object} linkUrl={selectedLinks.find(link=>link.start<=object.offset&&link.end>=object.offset+1)?.url}/>:<span className="document-context-object" key={'o'+object.offset}>[Content in original]{safeHref(object.sourceUrl)&&<> <a href={safeHref(object.sourceUrl)!} target="_blank" rel="noreferrer">View original ↗</a></>}</span>);from=object.offset+1;const after=selectedAnchors.filter(a=>a.offset===from);if(after.length)nodes.push(<ReferenceText key={'n'+from} text="" start={from} anchors={after} links={[]} final notePrefix={prefix}/>);}
+    for(const object of objects){nodes.push(textPart(from,object.offset));nodes.push(object.image?<DocumentImage key={'o'+object.offset} image={object.image} assets={proposal.imageAssets}/>:object.kind==='math'?<ProposalMath key={'o'+object.offset} object={object} linkUrl={selectedLinks.find(link=>link.start<=object.offset&&link.end>=object.offset+1)?.url}/>:<span className="document-context-object" key={'o'+object.offset}>[Content in original]{safeHref(object.sourceUrl)&&<> <a href={safeHref(object.sourceUrl)!} target="_blank" rel="noreferrer">View original ↗</a></>}</span>);from=object.offset+1;const after=selectedAnchors.filter(a=>a.offset===from);if(after.length)nodes.push(<ReferenceText key={'n'+from} text="" start={from} anchors={after} links={[]} final notePrefix={prefix}/>);}
     nodes.push(textPart(from,end));return nodes;
   }
   const topTables=units(proposal.units).filter(u=>u.kind==='table'&&u.table).map(u=>u.table!);
@@ -107,7 +108,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     const table=topTables.find(t=>t.paragraphs[0]===index);
     const empty=topTables.filter(t=>!t.paragraphs.length&&t.anchor===index).map(tableNode);
     return [...empty,...(table?[tableNode(table)]:tableParagraphs.has(index)?[]:row(p.index))];
-  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes notes={proposal.notes} prefix={prefix}/></>;
+  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes assets={proposal.imageAssets} notes={proposal.notes} prefix={prefix}/></>;
 }
 
 export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string}) {

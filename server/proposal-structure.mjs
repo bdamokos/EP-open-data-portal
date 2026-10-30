@@ -7,7 +7,7 @@ import {proposalRegion} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
 export {parseTargetLabel,unitLabel};
 export {normaliseForMatching} from './proposal-matching.mjs';
-export const PROPOSAL_PARSER_VERSION='17';
+export const PROPOSAL_PARSER_VERSION='18';
 const MAX_TEXT=8*1024*1024,MAX_PARAGRAPHS=100000;
 const parseCache=new Map(),candidateIndexes=new WeakMap();
 const MAX_CACHE_BYTES=64*1024*1024,MAX_CACHE_ENTRIES=8;let cacheBytes=0;
@@ -389,7 +389,7 @@ function parseProposalUncached(input,{language='en',item='act',sourceUrl=null,id
   }
   finish(root);
   const structureComplete=sourceStructured&&!gaps.length;
-  return {parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
+  return {imageAssets:content.imageAssets??{},parserVersion:PROPOSAL_PARSER_VERSION,language,item,identity,sourceUrl,sourceHash,sourceKind:content.sourceKind??'extracted-text',
     complete:root.complete&&structureComplete,contentComplete:paragraphs.every(paragraph=>paragraph.complete)&&notes.every(note=>note.complete),structureComplete,
     paragraphs,notes,anchors:content.anchors??[],links:content.links??[],units:root.children,gaps,numberingMode:content.numberingMode??'supplied-text',
     objects:[...paragraphs.flatMap(paragraph=>paragraph.objects),...notes.flatMap(note=>note.objects)]};
@@ -418,8 +418,11 @@ export function parseProposal(input,options={}) {
   // Clone supplied projections before freezing, leaving the caller's data intact.
   const prepared=binary||typeof input==='string'?input:structuredClone(input);
   const result=freezeTree(parseProposalUncached(prepared,{...options,language,item,sourceUrl,identity:structuredClone(options.identity??null)}));
-  const bytes=Buffer.byteLength(typeof serialized==='string'?serialized:Buffer.from(serialized))+result.paragraphs.length*1024+
-    result.objects.reduce((sum,object)=>sum+(object.math?JSON.stringify(object.math).length*2:512),0);
+  const bytes=Buffer.byteLength(typeof serialized==='string'?serialized:Buffer.from(serialized))+
+    result.paragraphs.reduce((sum,paragraph)=>sum+paragraph.text.length*2+1024,0)+
+    result.notes.reduce((sum,note)=>sum+note.text.length*2+1024,0)+
+    result.objects.reduce((sum,object)=>sum+JSON.stringify(object).length*2+512,0)+
+    Object.values(result.imageAssets).reduce((sum,asset)=>sum+(typeof asset?.data==='string'?asset.data.length*2:0)+512,0);
   if(bytes<=MAX_CACHE_BYTES){parseCache.set(cacheKey,{result,bytes});cacheBytes+=bytes;while(cacheBytes>MAX_CACHE_BYTES||parseCache.size>MAX_CACHE_ENTRIES){const [oldest,entry]=parseCache.entries().next().value;parseCache.delete(oldest);cacheBytes-=entry.bytes;}}
   return result;
 }

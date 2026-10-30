@@ -1,3 +1,5 @@
+import {publishDocumentImages} from './document-image-store.mjs';
+import {docxImages} from './docx-images.mjs';
 import {languagePreference} from './language-order.mjs';
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
@@ -20,7 +22,7 @@ import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStr
 import {styleFormatting,paragraphFormat,tableLayout,documentFormatting,DOCX_FORMATTING_VERSION as FORMATTING_VERSION} from './docx-formatting.mjs';
 import {documentAuthorIdentities} from './document-authors.mjs';
 import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
-export const DOCUMENT_TEXT_VERSION=1;
+export const DOCUMENT_TEXT_VERSION=3;
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
 
@@ -28,6 +30,9 @@ export {documentFormatting} from './docx-formatting.mjs';
 // Bound the aggregate inflated parts independently of the download size.
 const MAX_FILE=8*1024*1024,MAX_XML=12*1024*1024,DAY=86400000;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
+let memoryBytes=0;
+const memorySizes=new Map();
+function remember(key,record){const size=Buffer.byteLength(JSON.stringify(record));memoryBytes-=memorySizes.get(key)||0;memory.delete(key);memorySizes.delete(key);if(size>64*1024*1024)return;memory.set(key,record);memorySizes.set(key,size);memoryBytes+=size;while(memory.size>100||memoryBytes>64*1024*1024){const first=memory.keys().next().value;memoryBytes-=memorySizes.get(first)||0;memory.delete(first);memorySizes.delete(first);}}
 const memory=new Map(),pending=new Map(),failures=new Map(),reformatted=new Set();
 // Published DOCX files carry no HTTP validators. Recent texts are re-read weekly;
 // a text retrieved 60 or more days after publication is treated as settled, and a
@@ -141,11 +146,24 @@ function counterGap(node,context) {
   const risk=skippedCounterRisk([node]);
   for(const key of ['lists','notes'])context.counterGaps[key] ||= risk[key];
 }
+// Reuse the wording walker's final-revision/style rules for pictures inside
+// compatibility branches. Suppressed branches cannot be revived by a fallback.
+function pictureVisibility(nodes,context) {
+  const visible={text:'',marks:[],spans:[],objects:[]};
+  inline(nodes,{vanish:false,webHidden:false},visible,{...context,images:null,warnings:new Set(),counterGaps:{...context.counterGaps}});
+  const paths=new Set(visible.objects.filter(object=>object.kind==='drawing').map(object=>object.path)),pictures=[];
+  function visit(entries){for(const entry of entries||[])for(const [key,value] of Object.entries(entry)){
+    if(['w:drawing','w:pict'].includes(key))pictures.push(context.sourceIndex.get(entry)?.path);
+    else if(key!==':@'&&Array.isArray(value))visit(value);
+  }}visit(nodes);
+  return !pictures.length?'none':pictures.every(path=>paths.has(path))?'visible':'hidden';
+}
 function objectText(node,key,out,context) {
   const kind=key==='w:sym'?'symbol':['w:drawing','w:pict'].includes(key)?'drawing':key==='w:object'?'object':key.startsWith('m:')?'math':'unsupported';
   const font=attribute(node,'font'),code=attribute(node,'char');
   const mapped=kind==='symbol'?symbolText(font,code):null,replacement=mapped??OBJECT_REPLACEMENT,status=mapped?'mapped':'unresolved';
-  out.objects.push({offset:out.text.length,path:context.sourceIndex.get(node).path,kind,status,replacement,role:mapped&&!out.text.trim()?'leading-marker':'content',
+  const resolved=kind==='drawing'||key==='mc:AlternateContent'?context.images?.resolve(node,context.sourcePart,nodes=>pictureVisibility(nodes,context)):null,image=resolved?.id?resolved:null;
+  out.objects.push({...(image?{image}:{}),...(resolved?.reason?{imageUnavailableReason:resolved.reason}:{}),offset:out.text.length,path:context.sourceIndex.get(node).path,kind,status,replacement,role:mapped&&!out.text.trim()?'leading-marker':'content',
     ...(kind==='symbol'?{font:font??'',code:code??''}:{})});
   out.text+=replacement;
   if(!mapped)counterGap(node,context);
@@ -238,18 +256,18 @@ function paragraphsOf(nodes,context) {
 }
 // Paragraphs stay plain strings. Footnotes and links are returned separately with exact positions.
 export function docxContent(buffer,{includeParagraphProperties=false,includeNoteObjects=false,numbering=numberingLabels}={}) {
-  const parts=docxParts(buffer),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set(),extractionGaps=[];
+  const parts=docxParts(buffer),images=docxImages(buffer,parts),style=styleVisibility(parts.get('word/styles.xml')),warnings=new Set(),extractionGaps=[];
   let incompleteNumber=false;
   const label=numbering(parts.get('word/numbering.xml'),parts.get('word/styles.xml'),{add(message){incompleteNumber=true;warnings.add(message);}});
   const numberLabel=properties=>{incompleteNumber=false;const value=label(properties);return {label:value,incomplete:incompleteNumber};};
   const document=parser().parse(parts.get('word/document.xml')),paragraphSections=new WeakMap(),noteLabel=noteNumbering(document,parts.get('word/settings.xml'),warnings,paragraphSections);
   const formatting=styleFormatting(children(parts.has('word/styles.xml')?parser().parse(parts.get('word/styles.xml')):[],'w:styles')),tables={depth:0,layout:null,cell:null,found:[]};
-  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
+  const body=paragraphsOf(document,{style,numberLabel,warnings,paragraphSections,formatting,tables,images,links:externalLinks(parts.get('word/_rels/document.xml.rels'))});
   if(!body.length || body.length>20000 || body.map(p=>p.text).join('\n').length>2*1024*1024)throw new Error('DOCX text is empty or exceeds the supported size.');
   const supplied=new Map();
   for(const kind of ['footnote','endnote'])if(parts.has('word/'+kind+'s.xml')) {
     const sourcePart='word/'+kind+'s.xml',document=parser().parse(parts.get(sourcePart)),index=sourceIndex(document);
-    const context={style,numberLabel,warnings,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
+    const context={style,numberLabel,warnings,images,sourcePart,links:externalLinks(parts.get('word/_rels/'+kind+'s.xml.rels'))};
     for(const node of children(document,'w:'+kind+'s')||[]) {
       if(!node['w:'+kind]||!['normal',undefined].includes(attribute(node,'type')))continue;
       // Use the whole note part's index for unambiguous source paths. Ordinary
@@ -319,7 +337,7 @@ export function docxContent(buffer,{includeParagraphProperties=false,includeNote
   }
   const subject=body.findIndex(paragraph=>paragraph.paragraphStyle==='QuestionSubject');
   const authorBylineParagraphs=subject>0 ? body.slice(0,subject).map(paragraph=>paragraph.text) : body.filter(paragraph=>paragraph.authorMarker).map(paragraph=>paragraph.text);
-  return {paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
+  return {sourceHash:createHash('sha256').update(buffer).digest('hex'),imageAssets:images.assets,paragraphs:body.map(p=>p.text),notes,anchors,links,structureStatus:'extracted',paragraphSources:body.map(p=>p.source),
     ...(includeParagraphProperties?{paragraphProperties:body.map(p=>p.properties)}:{}),
     ...(includeNoteObjects?{extractionGaps}:{}),
     authorBylineParagraphs,
@@ -355,7 +373,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
 }
 export async function downloadDocx(sourceUrl,options={}) {
   const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
-  return {...docxContent(buffer),resolvedSourceUrl};
+  return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};
 }
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
@@ -383,7 +401,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,key);
   let saved=memory.get(key);
   if(saved)budget?.used(name);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;memory.set(key,record);budget.used(name);}}catch{}
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;remember(key,record);budget.used(name);}}catch{}
   requestSignal()?.throwIfAborted();
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
@@ -392,7 +410,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
       const serialized=JSON.stringify(record);
       if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
-      memory.set(key,record);if(memory.size>100)memory.delete(memory.keys().next().value);failures.delete(key);return record;
+      remember(key,record);failures.delete(key);return record;
     },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
     pending.set(key,job);return job;
   };
@@ -401,7 +419,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const previousFailure=failures.get(key);
   const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
   const failure=changedEdition?null:previousFailure;
-  const present=record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),
+  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory}),sourceHash:record.sourceHash||null,
     extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
   // Keep saved text readable while a background read adds formatting/byline metadata.
@@ -409,7 +427,7 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
     if((stale||reformat) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
       void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});
-    }return {...present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+    }return {...await present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
