@@ -39,9 +39,33 @@ export function publicationBody(paragraphs, documentId, language) {
   return subject>0&&subject<paragraphs.length-1?{paragraphs:paragraphs.slice(subject+1),header:paragraphs.slice(0,subject+1),start:subject+1,exact:true}:original;
 }
 
+// Recognise only an isolated drawing in the official report masthead, with
+// the exact printed report reference. Coordinates remain those of the source.
+export function publicationCoverLogo(text,documentId,language) {
+  const match=String(documentId).match(/^A-(\d+)-(\d{4})-(\d{4})$/);
+  if(language!=='en'||!match||!text||text.structureStatus!=='extracted')return null;
+  const paragraphs=text.paragraphs||[],opening=paragraphs.slice(0,10).map(p=>p.replace(/\s+/gu,' ').trim());
+  const reference=`A${Number(match[1])}-${match[3]}/${match[2]}`;
+  if(!opening.includes(reference)||!opening.includes('Plenary sitting')||!opening.includes('REPORT'))return null;
+  const heading=opening.findIndex(p=>p.replace(/\uFFFC/gu,'').trim()==='European Parliament');
+  if(heading<0||heading>1||!/^\d{4}[-–]\d{4}$/.test(opening[heading+1]||''))return null;
+  const candidates=(text.documentObjects||[]).filter(o=>o.paragraph>=heading&&o.paragraph<=heading+2&&o.kind==='drawing'&&o.status==='unresolved'&&paragraphs[o.paragraph]?.[o.offset]==='\uFFFC');
+  if(candidates.length!==1)return null;
+  const logo=candidates[0],content=paragraphs[logo.paragraph];
+  if((content.match(/\uFFFC/gu)||[]).length!==1||content.replace(/\uFFFC/gu,'').trim()!==(logo.paragraph===heading?'European Parliament':''))return null;
+  return {paragraph:logo.paragraph,offset:logo.offset};
+}
+
 // A recognised cover logo does not make the visible resolution incomplete.
 // Unknown structure, other objects, note gaps and unrelated warnings stay explicit.
-export function publicationHasMissingContent(text,body) {
+export function publicationHasMissingContent(text,body,decorative=null) {
+  if(decorative) {
+    const paragraphs=text.paragraphs.map((value,index)=>index===decorative.paragraph?value.slice(0,decorative.offset)+value.slice(decorative.offset+1):value);
+    const documentObjects=(text.documentObjects||[]).filter(object=>object.paragraph!==decorative.paragraph||object.offset!==decorative.offset);
+    const warning='A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.';
+    const extractionWarnings=(text.extractionWarnings||[]).filter(value=>value!==warning||documentObjects.some(object=>object.status==='unresolved')||paragraphs.some(value=>value.includes('\uFFFC'))||(text.notes||[]).some(note=>note.text.includes('\uFFFC')));
+    return publicationHasMissingContent({...text,paragraphs,documentObjects,extractionWarnings},body);
+  }
   if(!text)return false;
   const objects=text.documentObjects||[],warnings=text.extractionWarnings||[];
   const missing=objects.some(object=>object.status==='unresolved')||warnings.length>0||text.notesStatus==='not-extracted'

@@ -13,6 +13,7 @@ export default function DossierVoteText({vote,language}:{vote:MemberVote;languag
   const closeContext=()=>{setContext(null);window.requestAnimationFrame(()=>origin.current?.focus());};
   const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote);
   useLayoutEffect(()=>{if(context)reader.current?.querySelector<HTMLButtonElement>('.document-context-back')?.focus();},[context]);
+  if(!targets.length&&!vote.context.amendmentIds.length&&vote.scope.kind!=='procedural'&&!vote.parts.length&&documents.length===1)return <DocumentContextReader showBackButton={false} showOriginalLink={false} request={{documentId:documents[0],view:'document',onBack:()=>{}}} language={language}/>;
   return <div className="dossier-vote-text">
     <div hidden={Boolean(context)}>
       <VotePartDescriptions vote={vote} language={language}/>

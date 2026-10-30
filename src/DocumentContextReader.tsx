@@ -5,7 +5,7 @@ import {useData} from './data';
 import {CommissionFollowups} from './CommissionFollowups';
 import type {DocumentContextRequest,DocumentContextResponse} from './DocumentContextTypes';
 import type {PublicationDocument,NoteAnchor,DocumentLink} from './explorerTypes';
-import {publicationBody,publicationHasMissingContent} from './publication-body.mjs';
+import {publicationBody,publicationHasMissingContent,publicationCoverLogo} from './publication-body.mjs';
 import {reportAmendmentHeading} from './reportAmendmentHeading.mjs';
 import {displayVoteTitle} from './memberVotesPresentation.mjs';
 import {DocumentNotes,ReferenceScope,ReferenceText,readerTexts} from './References';
@@ -23,6 +23,7 @@ export type DocumentContextReaderProps={
   request:DocumentContextRequest;
   language:string;
   showOriginalLink?:boolean;
+  showBackButton?:boolean;
   selectedDocumentId?:string|null;
   onSelectedDocumentIdChange?:(id:string|null)=>void;
 };
@@ -70,7 +71,7 @@ const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i
 
 // Keep source offsets when replacing an unresolved inline object with a source link.
 // The surrounding text, references and note anchors remain in their original positions.
-function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,sourceUrl,anchors,links,marks,notePrefix}:{text:string;paragraph:number;from?:number;to?:number;final?:boolean;objects:InlineObject[];sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];marks:FormatMark[];notePrefix:string}) {
+function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,logo,sourceUrl,anchors,links,marks,notePrefix}:{text:string;paragraph:number;from?:number;to?:number;final?:boolean;objects:InlineObject[];logo:{paragraph:number;offset:number}|null;sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];marks:FormatMark[];notePrefix:string}) {
   const unresolved=new Map(objects.filter(object=>object.paragraph===paragraph&&object.status==='unresolved'&&Number.isInteger(object.offset)&&object.offset>=from&&object.offset<to&&text[object.offset]==='\uFFFC').map(object=>[object.offset,object]));
   const nodes:ReactNode[]=[];let start=from;
   // A slice ending at a replaced object owns the note anchored there; the label slice before a hanging tab does not.
@@ -81,6 +82,7 @@ function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,sour
   if(!unresolved.size)return slice(from,to,final);
   for(const [offset,object] of [...unresolved].sort(([a],[b])=>a-b)) {
     nodes.push(slice(start,offset,true));
+    if(logo?.paragraph===paragraph&&logo.offset===offset){start=offset+1;continue;}
     const label=object.kind==='drawing'?'Image in original':'See original';
     nodes.push(sourceUrl?<a key={'object-'+offset} className="document-context-object" lang="en" href={sourceUrl} target="_blank" rel="noreferrer">{label} ↗</a>:<span key={'object-'+offset} className="document-context-object" lang="en">{object.kind==='drawing'?'Image unavailable':'Content unavailable'}</span>);
     start=offset+1;
@@ -148,7 +150,8 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
   const title=document?titleOf(document,language):null,hasText=text?.status==='available'&&allParagraphs.length>0;
   const extractionError=text?.status==='error',loadError=Boolean(state.error)||extractionError;
-  const incomplete=publicationHasMissingContent(text,body);
+  const logo=publicationCoverLogo(text,id,text?.textLanguage);
+  const incomplete=publicationHasMissingContent(text,body,logo);
   const actual=text?.textLanguage||null;
   const availableLanguages=[...new Set([...(text?.availableTextLanguages||[]),...(actual?[actual]:[])])];
   const showPassage=()=>{const paragraph=reader.current?.querySelector<HTMLElement>('[data-context-target="true"], [data-report-amendment="true"]');paragraph?.scrollIntoView({block:'center'});paragraph?.focus({preventScroll:true});};
@@ -182,7 +185,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return sourceIndex===placement.span.start?amendmentBlock(true):null;
               return placed&&placement?.operation==='insert'&&sourceIndex===placement.insertAfter?<Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment>:paragraph;
             }}
-            renderText={(sourceIndex,paragraph,from,to,final,marks)=><Paragraph text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div>
+            renderText={(sourceIndex,paragraph,from,to,final,marks)=><Paragraph text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </>:!state.loading&&!loadError&&<p>Document text unavailable here.</p>}
       {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer">Open original document ↗</a></p>}
@@ -190,7 +193,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   </div>;
 }
 
-function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true}:DocumentContextReaderProps) {
+function ContextSession({request,language,selectedDocumentId,onSelectedDocumentIdChange,showOriginalLink=true,showBackButton=true}:DocumentContextReaderProps) {
   const [selectedLanguage,setLanguage]=useState(typeof request.wordingLanguage==='string'?request.wordingLanguage:language),[localSelection,setLocalSelection]=useState<string|null>(null);
   const controlled=selectedDocumentId!==undefined,selected=controlled?selectedDocumentId:localSelection;
   const select=(id:string|null)=>{if(!controlled)setLocalSelection(id);onSelectedDocumentIdChange?.(id);};
@@ -200,7 +203,7 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   const selectedChoice=choices.find(item=>item.id===selected),partial=data?.related.status==='partial';
   const pendingRelated=request.view==='adopted'&&related.loading&&(selected?!selectedChoice:!data);
   return <section className="document-context-reader" lang="en" aria-label="Document context" data-context-pending={pendingRelated?'true':undefined}>
-    <button type="button" className="document-context-back" onClick={request.onBack}>← {request.backLabel??'Back'}</button>
+    {showBackButton&&<button type="button" className="document-context-back" onClick={request.onBack}>← {request.backLabel??'Back'}</button>}
     {request.summary}
     {request.view==='document'?<DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request}/>:<>
       {selected?<>
