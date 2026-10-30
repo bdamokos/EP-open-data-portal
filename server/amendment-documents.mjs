@@ -1,10 +1,11 @@
+import {committeeListId,committeeDraftId} from './committee-amendments.mjs';
 import { XMLParser } from 'fast-xml-parser';
 import { docxParts } from './document-text.mjs';
 import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTargetPath } from './amendment-baseline.mjs';
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='19';
+export const AMENDMENT_EXTRACTION_VERSION='20';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -320,7 +321,8 @@ function sectionRows(table) {
 }
 
 /** Extract individual amendments without flattening the original/proposed columns. */
-export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null,reportId=null}={}) {
+export function extractAmendments(buffer,{listId,targetDocumentId,language=null,sourceUrl=null,fetchedAt=null,reportId=null,scope='plenary',sourceKind=null}={}) {
+  if(scope==='committee'&&!(sourceKind==='amendment-list'&&committeeListId(listId)||['draft-report','draft-opinion'].includes(sourceKind)&&committeeDraftId(listId)))throw new Error('Invalid typed committee amendment source.');
   const warnings=new Set();let blocks=documentBlocks(docxParts(buffer),warnings,language);const groups=[],gaps=[];
   const gap=(code,number,message,details={})=>gaps.push({code,...(number==null?{}:{number}),message,sourceUrl,...details});
   if(reportId) {
@@ -360,6 +362,9 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
   // institution on its cover; Chairman/Rapporteur names are never authors.
   const committee=field(coverRaw,'Committee').map(metadata).filter(Boolean).join('; ')||null;
   const coverDate=documentDate(coverRaw);
+  const publishedRanges=scope==='committee'?field(coverRaw,'RangeAM').map(value=>metadata(value).match(/^([1-9]\d*)\s*[-–—]\s*([1-9]\d*)$/)).filter(Boolean):[];
+  const committeeRange=publishedRanges.length===1&&Number(publishedRanges[0][1])<=Number(publishedRanges[0][2])?publishedRanges[0]:null;
+  if(scope==='committee'&&sourceKind==='amendment-list'&&!committeeRange)gap('list-range-unavailable',null,'The published amendment-list range is unavailable or conflicting.');
   const byNumber=new Map();
   for(const group of groups) {
     const raw=group.filter(b=>b.kind==='paragraph').map(b=>b.raw).join('\n');
@@ -427,7 +432,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
       if(sections.length!==2||sections[0].side!=='original'||sections[1].side!=='proposed')gap('comparison-header',number,'The stacked comparison does not supply exactly one original section followed by one proposed section.');
       else comparisonHeadings.push({left:sections[0].heading,right:sections[1].heading});
     }
-    const ownDate=documentDate(raw),date=ownDate||(!field(raw,'Date').length&&committee?coverDate:null);
+    const ownDate=documentDate(raw),date=ownDate||(!field(raw,'Date').length&&(committee||scope==='committee')?coverDate:null);
     const dateBasis=ownDate?'individual-amendment-document':date?'amendment-list-document':null;
     let justification=null,inJustification=false;const justificationParts=[];
     for(const block of group)if(block.kind==='paragraph') {
@@ -452,7 +457,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const targetPath={...amendmentTargetPath(documentReferences),language,sourceUrl,fetchedAt};
     if(baselineSource.conflicted)gap('baseline-conflict',number,'Comparison tables name different baseline categories.');
     const original=trimWording(joinWording(before)),proposed=trimWording(joinWording(after));
-    const record={baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?original.text:null,proposedText:comparableRows?proposed.text:null,originalFormatting:comparableRows?canonicalFormatting(original.formatting):[],proposedFormatting:comparableRows?canonicalFormatting(proposed.formatting):[],justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
+    const record={...(scope==='committee'?{numberPublished:field(raw,'NumAm')[0]||String(number),proposerDateConflict:Boolean(field(raw,'Date').length&&!ownDate||!ownDate&&field(coverRaw,'Date').length&&!coverDate)}:{}),baselineSource,documentReferences,targetPath,number,listId:listId??null,targetDocumentId:targetDocumentId??null,date,documentDate:date,dateBasis,authors,committeeProposer:committee,onBehalfOf,baseline,targetLabel,originalText:comparableRows?original.text:null,proposedText:comparableRows?proposed.text:null,originalFormatting:comparableRows?canonicalFormatting(original.formatting):[],proposedFormatting:comparableRows?canonicalFormatting(proposed.formatting):[],justification,language,sources:[{url:sourceUrl,fetchedAt,date,dateBasis,language,format:'DOCX'}]};
     if(!authors.length)gap('authors-unavailable',number,'No explicit amendment proposer names were found in this document block.');
     if(!date)gap('date-unavailable',number,'The amendment document does not supply a supported document date.');
     if(!targetLabel)gap('target-unavailable',number,'The amendment target location was not recorded.');
@@ -462,7 +467,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     } else byNumber.set(number,record);
   }
   let amendments=[...byNumber.values()].filter(Boolean).sort((a,b)=>a.number-b.number);
-  const range=String(listId||'').match(/-AM-(\d+)-(\d+)$/);
+  const range=scope==='committee'?committeeRange:String(listId||'').match(/-AM-(\d+)-(\d+)$/);
   if(range&&Number(range[2])-Number(range[1])<1000) {
     const missing=[];
     for(let n=Number(range[1]);n<=Number(range[2]);n++)if(!byNumber.get(n))missing.push(n);

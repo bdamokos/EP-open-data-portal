@@ -6,12 +6,12 @@ import {existsSync,statSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {ActivityStore} from './activity-index-store.mjs';
-import {amendmentReadVersion,amendmentLinkIndexVersion} from './amendments-store.mjs';
+import {committeeAmendmentIndexVersion,amendmentReadVersion,amendmentLinkIndexVersion} from './amendments-store.mjs';
 import {CorpusStore} from './corpus-store.mjs';
 import {absolutePathFromEnvironment,booleanFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion&&store.get('activityAvailabilityIndexVersion')===activityAvailabilityIndexVersion:store.get('questionDiscoveryVersion')===1);
+const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('committeeAmendmentIndexVersion')===committeeAmendmentIndexVersion&&store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion&&store.get('activityAvailabilityIndexVersion')===activityAvailabilityIndexVersion:store.get('questionDiscoveryVersion')===1);
 
 // Run before opening the HTTP listener or starting either source writer.
 export function prepareStartupIndexes() {

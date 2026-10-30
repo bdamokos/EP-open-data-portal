@@ -1,3 +1,4 @@
+import {committeeCode,committeeListId} from './committee-amendments.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import {odpLanguage} from './odp.mjs';
@@ -7,13 +8,13 @@ import {array,tail} from './activity-index-model.mjs';
 import {classifyProcedure,refs} from './insights-legislation-model.mjs';
 import {LegislationInsights,sourceCacheState} from './insights-legislation.mjs';
 import {languagePreference} from './language-order.mjs';
-import {amendmentsPage,amendmentAuthorMatch,amendmentGeneration} from './amendments-store.mjs';
+import {amendmentsPage,amendmentAuthorMatch,amendmentGeneration,amendmentProcedureTargets,amendmentContributors} from './amendments-store.mjs';
 import {resolvedAmendmentAuthorId} from './amendments.mjs';
 import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=6;
+export const DOSSIER_ACTIVITY_VERSION=7;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -29,13 +30,16 @@ const eventRef=value=>{const id=tail(value);return /^MTG-PL-\d{4}-\d{2}-\d{2}-[A
 const errorGap=error=>({code:error?.code||'source_unavailable',message:'Source unavailable.'});
 
 export function dossierActivityQuery(search) {
-  const allowed=['reference','member','section','lang','offset','target-offset','limit'];
+  const allowed=['reference','member','section','lang','offset','target-offset','limit','stage','committee','participant-offset'];
   for(const key of search.keys())if(!allowed.includes(key)||search.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated dossier parameter.');
   const reference=procedureReference(search.get('reference')),member=search.get('member'),section=search.get('section')||'roles';
   if(member!==null&&(!/^[1-9]\d*$/.test(member)||!Number.isSafeInteger(Number(member))))throw new HttpError(400,'invalid_member','Use an exact person identifier.');
   if(!sectionNames.includes(section)||section!=='roles'&&!member)throw new HttpError(400,'invalid_section','Choose an activity section and person.');
+  const stageFilter=search.get('stage')||'all',committee=search.get('committee');
+  if(!['all','committee','plenary'].includes(stageFilter))throw new HttpError(400,'invalid_stage','Choose all, committee or plenary amendments.');
+  if(committee!==null&&!committeeCode(committee))throw new HttpError(400,'invalid_committee','Choose an exact committee code.');
   const integer=(key,fallback,max)=>{const raw=search.get(key)??String(fallback),n=Number(raw);if(!/^(0|[1-9]\d*)$/.test(raw)||!Number.isSafeInteger(n)||n>max||key==='limit'&&n<1)throw new HttpError(400,'invalid_query','Invalid dossier page.');return n;};
-  return {reference,member,section,language:odpLanguage(search.get('lang')||'en'),offset:integer('offset',0,100000),targetOffset:integer('target-offset',0,1000),limit:integer('limit',25,50)};
+  return {reference,member,section,language:odpLanguage(search.get('lang')||'en'),offset:integer('offset',0,100000),targetOffset:integer('target-offset',0,1000),limit:integer('limit',25,50),stage:stageFilter,committee,participantOffset:integer('participant-offset',0,100000)};
 }
 
 export function dossierReferencesQuery(search) {
@@ -46,7 +50,7 @@ export function dossierReferencesQuery(search) {
 }
 
 export function amendmentTabling(procedure,listId,procedureSource) {
-  const observations=array(procedure.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY'&&refs(event.based_on_a_realization_of).includes('eli/dl/doc/'+listId))
+  const observations=array(procedure.consists_of).filter(event=>['TABLING_PLENARY','COMMITTEE_TABLING_AMENDMENT'].includes(tail(event.had_activity_type))&&refs(event.based_on_a_realization_of).includes('eli/dl/doc/'+listId))
     .map(event=>({id:canonical(event.id),date:date(event.activity_date),stage:stage(event.occured_at_stage),source:procedureSource}));
   const dates=[...new Set(observations.map(item=>item.date))],known=dates.filter(Boolean);
   return {status:dates.length===1&&known.length===1?'recorded':known.length>1?'conflicting':'unavailable',date:dates.length===1?known[0]||null:null,observations};
@@ -56,6 +60,7 @@ export function amendmentTabling(procedure,listId,procedureSource) {
 // A name match on the document date cannot establish a mandate on a different day.
 function authorAtTabling(record,member,tabling) {
   if(!amendmentAuthorMatch(record,member).aggregateMatched)return false;
+  if(tabling.status==='conflicting')return false;
   if(!tabling.date||tabling.date===record.proposerDate)return true;
   return array(record.authors).filter(author=>resolvedAmendmentAuthorId(author)===member).some(author=>array(author.evidence).some(proof=>array(proof.mandates).some(period=>validDay(period.start)&&period.start<=tabling.date&&(!period.end||validDay(period.end)&&period.end>=tabling.date))));
 }
@@ -90,7 +95,8 @@ export class DossierActivity {
       }
     };
     add(work.had_participation,procedure.source);
-    if(this.store.reportsForProcedure)for(const report of this.store.reportsForProcedure(generation,procedure.id)) {
+    const roleDocuments=function*(store){if(store.reportsForProcedure)yield*store.reportsForProcedure(generation,procedure.id);if(store.committeeDocumentsForProcedure)yield*store.committeeDocumentsForProcedure(generation,procedure.id);};
+    for(const report of roleDocuments(this.store)) {
       if(documents++>=DOSSIER_ACTIVITY_LIMITS.documents){gaps.push('Some linked role documents are outside this page.');break;}
       if(!refs(report.work.inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))continue;
       add(report.work.workHadParticipation,source({url:apiUrl(report.key),fetchedAt:report.fetchedAt}),tail(report.work.id),report.work.document_date);
@@ -119,6 +125,28 @@ export class DossierActivity {
         person.speeches.push({id:speech.id,debateId:speech.debateId,date:speech.date,source:speech.source});
       }
     });
+    this.store.readSnapshot(()=>{
+      if(this.store.status().servingGeneration!==result.generation)return;
+      const contributions=amendmentContributors(this.store,{procedures:[result.procedure.id],offset:query.participantOffset||query.offset||0,limit:DOSSIER_ACTIVITY_LIMITS.speechRows});
+      result.amendmentGeneration=amendmentGeneration(this.store);
+      result.participantPagination={offset:query.participantOffset||query.offset||0,next:contributions.next};
+      const targets=amendmentProcedureTargets(this.store,result.procedure.id,{limit:1001});
+      const failed=targets.filter(target=>target.proposerComplete===false||contributions.truncated).map(target=>target.listId||target.targetDocumentId||target.id);
+      const checked=targets.filter(target=>target.proposerComplete===true&&!contributions.truncated).map(target=>target.listId||target.targetDocumentId||target.id);
+      result.participantCoverage.checkedTargets=[...new Set([...result.participantCoverage.checkedTargets,...checked])];
+      for(const item of contributions.items)if(item.source?.url)result.participantCoverage.sources.push(item.source);
+      result.participantCoverage.uncheckedTargets=[...new Set([...result.participantCoverage.uncheckedTargets,...failed])];
+      result.participantCoverage.retryable ||= failed.length>0;
+      if((failed.length||contributions.truncated||result.participantCoverage.status==='unavailable'&&contributions.items.length)&&result.participantCoverage.status!=='partial')result.participantCoverage.status='partial';
+      result.participantCoverage.amendments={status:contributions.items.length?'partial':'unavailable',truncated:contributions.truncated};
+      for(const contribution of contributions.items){
+        let person=people.get(contribution.personId);
+        if(!person){const row=this.store.db.prepare('SELECT body FROM members WHERE id=?').get(contribution.personId),member=row?JSON.parse(row.body):null;person={id:contribution.personId,name:member?[member.firstName||member.givenName,member.lastName||member.familyName].filter(Boolean).join(' ')||member.name||member.label||null:null,roles:[],speeches:[]};people.set(person.id,person);}
+        person.amendments||=[];const {id,scope,listId,targetDocumentId,date,source,countConflict}=contribution;person.amendments.push({id,scope,listId,targetDocumentId,date,source,...(countConflict?{countConflict:true}:{})});
+      }
+      for(const person of people.values()){person.amendments||=[];person.amendmentCounts={committee:null,plenary:null};for(const scope of ['committee','plenary']){const ids=new Set(person.amendments.filter(value=>value.scope===scope).map(value=>value.id));if(ids.size&&!person.amendments.some(value=>value.scope===scope&&value.countConflict))person.amendmentCounts[scope]=ids.size;}}
+      if(contributions.next!==null&&!result.pagination.next)result.pagination.next={offset:contributions.next,targetOffset:query.targetOffset||0};
+    });
     result.participants=[...people.values()];
     result.pagination.next ||= speechResult.pagination.next;
     result.coverage.truncated=Boolean(result.pagination.next);
@@ -128,13 +156,13 @@ export class DossierActivity {
     const {work,procedure}=await this.procedure(id,language,reference);
     const local=this.store.readSnapshot(()=>{const generation=this.store.status().servingGeneration;return {generation,...this.localRoles(work,procedure,generation)};});
     const coverage={status:'complete',gaps:section==='roles'?[...local.gaps]:[],sources:[procedure.source],checkedTargets:[],uncheckedTargets:[],checkedScope:section,observedCount:null,truncated:false},pagination={offset,targetOffset,limit,next:null};
-    const result={version:DOSSIER_ACTIVITY_VERSION,procedure,memberId:member,participants:local.participants,section,items:[],pagination,coverage,generation:local.generation};
+    const result={version:DOSSIER_ACTIVITY_VERSION,procedure,memberId:member,participants:local.participants.map(person=>({...person,amendmentCounts:{committee:null,plenary:null},amendments:[]})),section,items:[],pagination,coverage,generation:local.generation};
     const page=(items,nextTarget=null)=>{result.items=items.slice(offset,offset+limit);pagination.next=offset+limit<items.length?{offset:offset+limit,targetOffset}:nextTarget;coverage.observedCount=items.length;coverage.truncated=Boolean(pagination.next);};
     if(section==='roles') {
       const roles=local.roles.filter(role=>!member||role.personId===member);page(roles);coverage.status=!Array.isArray(work.had_participation)&&!roles.length?'unavailable':local.gaps.length?'partial':'complete';
       if(!member)await this.participants(result,work,query);
     }else if(section==='speeches')await this.speeches(result,work,query,page);
-    else if(section==='amendments')await this.amendments(result,work,query);
+    else if(section==='amendments'){result.stage=query.stage||'all';result.committee=query.committee||null;await this.amendments(result,work,query);}
     else await this.ballots(result,work,query);
     coverage.checkedComplete ??= coverage.status==='complete'&&!coverage.gaps.length;
     if(coverage.status==='complete'&&(coverage.gaps.length||coverage.uncheckedTargets.length))coverage.status='partial';
@@ -205,17 +233,22 @@ export class DossierActivity {
     // A joint debate can name other dossiers' reports. Its document list never
     // establishes this procedure's amendment targets.
     const candidates=[...new Set([...retained,...array(work.consists_of).filter(event=>tail(event.had_activity_type)==='TABLING_PLENARY').flatMap(event=>refs(event.based_on_a_realization_of)).map(tail)].filter(id=>/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(id)))].sort();
-    const targets=candidates.slice(0,DOSSIER_ACTIVITY_LIMITS.documents);
-    if(candidates.length>targets.length)coverage.gaps.push('Some amendment targets are outside this checked scope.');
+    const committeeTargets=this.store.readSnapshot(()=>amendmentProcedureTargets(this.store,procedure.id,{scope:'committee',committee:query.committee,limit:1001}));
+    const stageFilter=query.stage||'all';
+    const allTargets=[...(stageFilter==='committee'||query.committee?[]:candidates),...(stageFilter==='plenary'?[]:committeeTargets.map(value=>value.id))];
+    const targets=allTargets;
+    if(committeeTargets.length>=1001)coverage.gaps.push('Some amendment targets are outside this checked scope.');
     if(targetOffset>=targets.length){coverage.status='unavailable';coverage.retryable=false;coverage.gaps.push('No checked amendment target is linked in this procedure observation.');return;}
     const target=targets[targetOffset];let record,targetWork;
     coverage.checkedTargets=[target];coverage.uncheckedTargets=targets.filter(id=>id!==target);
     result.checkedTarget=target;
+    const committeeTarget=committeeTargets.find(value=>value.id===target);
     try {
-      record=await this.reader.record('/plenary-documents/'+target);
+      if(committeeTarget){record={url:committeeTarget.sources?.[0]?.url,fetchedAt:committeeTarget.sources?.[0]?.fetchedAt};targetWork={inverse_foresees_change_of:[]};}
+      else {record=await this.reader.record('/plenary-documents/'+target);
       const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/doc/'+target);
       if(nodes.length!==1||!refs(nodes[0].inverse_created_a_realization_of).includes('eli/dl/proc/'+procedure.id))throw new HttpError(502,'dossier_amendment_target','The exact amendment target is unavailable.');
-      targetWork=nodes[0];
+      targetWork=nodes[0];}
     }catch(error){
       if(isLocalRequestFailure(error))throw error;
       coverage.status='unavailable';coverage.gaps.push('Amendment target '+target+' is unavailable.');
@@ -225,7 +258,7 @@ export class DossierActivity {
     coverage.sources.push(source(record));
     const captured=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)throw new HttpError(409,'dossier_generation_changed','The activity index changed. Retry amendments.');
-      const generation=amendmentGeneration(this.store),data=this.readAmendments(this.store,{document:target,member,language,offset,limit});
+      const generation=amendmentGeneration(this.store),data=this.readAmendments(this.store,{...(committeeTarget?{scope:'committee',list:committeeTarget.listId,procedure:procedure.id,committee:query.committee}:{document:target}),member,language,offset,limit});
       return {generation,data};
     });
     result.amendmentGeneration=captured.generation;
@@ -242,11 +275,12 @@ export class DossierActivity {
       }
     }
     const declared=refs(targetWork.inverse_foresees_change_of).some(value=>value.match(/^eli\/dl\/doc\/((?:A|B|RC)-10-\d{4}-\d{4,6})-AM-\d{1,5}(?:-\d{1,5})?$/)?.[1]===target);
-    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':data.total>0||declared?'partial':'unavailable';
+    result.items=sorted(items);coverage.observedCount=items.length;coverage.status=data.coverage.observationComplete?'complete':data.total>0||declared||committeeTarget?'partial':'unavailable';
     if(coverage.status==='unavailable')coverage.retryable=false;
     coverage.gaps.push(...array(data.coverage.targetGaps||data.coverage.gaps).filter(gap=>typeof gap==='string'));
     coverage.discovery=data.coverage.discovery||null;
-    result.checkedTarget=target;
+    result.checkedTarget=committeeTarget?.listId||target;
+    result.amendmentScope=committeeTarget?'committee':'plenary';
     result.pagination.next=offset+limit<data.total?{offset:offset+limit,targetOffset}:targetOffset+1<targets.length?{offset:0,targetOffset:targetOffset+1}:null;
     coverage.truncated=Boolean(result.pagination.next);
   }

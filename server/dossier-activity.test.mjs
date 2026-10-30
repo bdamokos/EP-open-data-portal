@@ -125,7 +125,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,6);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,7);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{

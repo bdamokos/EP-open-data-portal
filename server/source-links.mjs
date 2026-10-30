@@ -1,11 +1,12 @@
+import {committeeDraftId,committeeListId} from './committee-amendments.mjs';
 import {languagePreference} from './language-order.mjs';
 import {speechWebsite} from './ep-links.mjs';
 
 export const SOURCE_LANGUAGES='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
 const languages=new Set(SOURCE_LANGUAGES);
-const documentId=/^(?:[EPOAB]-\d+-\d{4}-\d+(?:-ASW)?|(?:RC|TA)-\d+-\d{4}-\d+|[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*)$/;
-const familyId={procedures:/^\d{4}-\d{4}[A-Z]?$/,meps:/^[1-9]\d{0,8}$/,speeches:/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/,events:/^[A-Z0-9-]{1,150}$/,meetings:/^MTG-PL-\d{4}-\d{2}-\d{2}$/,
-  'plenary-documents':/^(?:A|B|RC)-\d+-\d{4}-\d+$/,'parliamentary-questions':/^[EPO]-\d+-\d{4}-\d+(?:-ASW)?$/,'committee-documents':/^[A-Z]{3,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*$/,'adopted-texts':/^TA-\d+-\d{4}-\d+$/};
+const documentId=/^(?:[EPOAB]-\d+-\d{4}-\d+(?:-ASW)?|(?:RC|TA)-\d+-\d{4}-\d+|[A-Z][A-Z0-9]{2,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*)$/;
+const familyId={documents:/^(?:(?:A|B|RC)-10-\d{4}-\d{4,6}-AM-\d{1,5}-\d{1,5}|[A-Z][A-Z0-9]{2,5}-AM-\d{4,9}(?:-\d{1,4})*)$/,procedures:/^\d{4}-\d{4}[A-Z]?$/,meps:/^[1-9]\d{0,8}$/,speeches:/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]{1,80}$/,events:/^[A-Z0-9-]{1,150}$/,meetings:/^MTG-PL-\d{4}-\d{2}-\d{2}$/,
+  'plenary-documents':/^(?:A|B|RC)-\d+-\d{4}-\d+$/,'parliamentary-questions':/^[EPO]-\d+-\d{4}-\d+(?:-ASW)?$/,'committee-documents':/^[A-Z][A-Z0-9]{2,5}-(?:AD|AL|AM|PA|PR)-\d+(?:-\d+)*$/,'adopted-texts':/^TA-\d+-\d{4}-\d+$/};
 const filters=new Set(['format','language','language-filter','search-language','title','include-output','parliamentary-term','person-id','sitting-date','sitting-date-end','activity-type','sort-by','limit','offset','mandate-date','year','vote-method']);
 
 // This is a record reader, not an arbitrary URL proxy. Preserve the original
@@ -52,6 +53,10 @@ export function humanSourceUrl(value,{language='en',reference,record}={}) {
   const eurovoc=url.hostname==='eurovoc.europa.eu'&&url.pathname.match(/^\/([1-9]\d{0,7})$/);
   const authority=url.hostname==='publications.europa.eu'&&url.pathname.match(/^\/resource\/authority\/eurovoc\/([1-9]\d{0,7})$/);
   if((eurovoc||authority)&&!url.search&&!url.hash)return 'https://op.europa.eu/en/web/eu-vocabularies/concept/-/resource?'+new URLSearchParams({uri:'http://eurovoc.europa.eu/'+(eurovoc||authority)[1]});
+  if(url.hostname==='data.europarl.europa.eu'&&!url.search&&!url.hash){
+    const distribution=url.pathname.match(/^\/distribution\/[^/]+\/([A-Z0-9-]+)\/\1_([a-z]{2})\.(?:docx|pdf)$/i);
+    if(distribution&&(committeeDraftId(distribution[1])||committeeListId(distribution[1]))&&languages.has(distribution[2].toLowerCase()))return documentWebsite(distribution[1],distribution[2].toLowerCase());
+  }
   const target=sourceTarget(value);
   if(target){
     if(target.collection)return null; // A website listing cannot stand in for an exact filtered result or dated roster.
@@ -63,7 +68,7 @@ export function humanSourceUrl(value,{language='en',reference,record}={}) {
       return procedureWebsite(id,supplied,language);
     }
     if(family==='meps')return 'https://www.europarl.europa.eu/meps/'+language+'/'+id;
-    if(['plenary-documents','parliamentary-questions','committee-documents','adopted-texts'].includes(family))return documentWebsite(id,language);
+    if(['documents','plenary-documents','parliamentary-questions','committee-documents','adopted-texts'].includes(family))return documentWebsite(id,language);
     if(family==='speeches'&&record){
       const doc=(Array.isArray(record.recorded_in_a_realization_of)?record.recorded_in_a_realization_of:[]).find(doc=>doc&&typeof doc==='object');
       return doc?speechWebsite(doc).websiteUrl:null;
