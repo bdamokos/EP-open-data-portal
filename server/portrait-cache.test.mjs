@@ -7,7 +7,6 @@ import os from 'node:os';
 import path from 'node:path';
 import {PortraitCache} from './portrait-cache.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
-import {createPortraitLoader} from '../src/portraitLoader.mjs';
 
 beforeEach(registerSubprocesses);
 
@@ -216,12 +215,8 @@ test('a stale wall burst bounds background work and leaves an upstream slot for 
     const release = await upstream.acquire(priority);
     try { await delayed.promise; return source(id); } finally { release(); }
   };
-  const loader = createPortraitLoader({concurrency: 3, fetchImpl: async url => {
-    const image = await cache.get(Number(new URL(url,'http://localhost').pathname.split('/').at(-1)), resolveSource);
-    return new Response(image.body, {headers: {'content-type': image.contentType}});
-  }});
-  const images = await Promise.all(ids.map(id => loader.load(`/api/portrait/${id}`)));
-  assert(images.every(image => image.size === 5), 'all stale images return while refreshes are blocked');
+  const images = await Promise.all(ids.map(id => cache.get(id, resolveSource)));
+  assert(images.every(image => image.body.length === 5), 'all stale images return while refreshes are blocked');
   assert.equal(cache.refreshes.size, 2); assert.equal(cache.backgroundQueue.size, 4);
   assert.deepEqual(priorities, ['background', 'background']);
   assert.equal(upstream.background, 1);

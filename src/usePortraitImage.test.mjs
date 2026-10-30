@@ -10,7 +10,6 @@ async function harness(t) {
   const originals = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, {value, configurable: true, writable: true});
   const load = await freshLoader({configFile: false, server: {middlewareMode: true, hmr: false, ws: false, watch: null}, optimizeDeps: {noDiscovery: true}, oxc: {jsx: {runtime: 'automatic'}}});
-  const {portraitLoader} = await load('/src/portraitLoader.mjs');
   const {usePortraitImage} = await load('/src/usePortraitImage.ts');
   const {versionedPortraitUrl} = await load('/server/portrait-version.mjs');
   const {createRoot} = await import('react-dom/client');
@@ -24,12 +23,12 @@ async function harness(t) {
     const image = usePortraitImage(url, '/placeholder.svg', lazy);
     return createElement('img', {ref: image.imageRef, src: image.src, loading: image.loading, onLoad: image.onLoad, onError: image.onError, 'data-status': image.status});
   }
-  return {window, portraitLoader, versionedPortraitUrl, root, image: () => container.querySelector('img'), render: (lazy = true, url = '/api/portrait/1') => act(async () => root.render(createElement(Portrait, {url, lazy})))};
+  return {window, versionedPortraitUrl, root, image: () => container.querySelector('img'), render: (lazy = true, url = '/api/portrait/1') => act(async () => root.render(createElement(Portrait, {url, lazy})))};
 }
 
 test('real photo URLs render immediately and stay stable through loading priority and member changes', async t => {
   const h = await harness(t);
-  t.mock.method(h.portraitLoader, 'load', () => assert.fail('normal image loading must not wait for a JavaScript fetch'));
+  t.mock.method(globalThis, 'fetch', () => assert.fail('portraits use native images'));
   t.mock.method(URL, 'createObjectURL', () => assert.fail('normal images must retain browser-cache URLs'));
   await h.render();
   assert.equal(h.image().getAttribute('src'), h.versionedPortraitUrl('/api/portrait/1'));
@@ -43,36 +42,27 @@ test('real photo URLs render immediately and stay stable through loading priorit
   assert.equal(h.image().dataset.status, 'loading');
 });
 
-test('a failed native request uses bounded recovery and only then shows the silhouette', async t => {
-  const h = await harness(t); let reject, calls = 0;
-  t.mock.method(h.portraitLoader, 'load', () => {calls++; return new Promise((_, no) => {reject = no;});});
+test('an opaque native image failure shows a silhouette without a retry that could ignore Retry-After', async t => {
+  const h = await harness(t);
+  t.mock.method(globalThis, 'fetch', () => assert.fail('native errors must not trigger a second GET'));
   await h.render(false);
   await act(async () => h.image().dispatchEvent(new h.window.Event('error')));
-  assert.equal(calls, 1);
-  await act(async () => h.image().dispatchEvent(new h.window.Event('error')));
-  assert.equal(calls, 1, 'duplicate image errors cannot create overlapping retries');
-  await act(async () => reject(new Error('unavailable')));
   assert.equal(h.image().getAttribute('src'), '/placeholder.svg');
   await act(async () => h.image().dispatchEvent(new h.window.Event('load')));
   assert.equal(h.image().dataset.status, 'error', 'a loaded fallback is still unavailable');
+  await h.render(true);
+  assert.equal(h.image().dataset.status, 'error', 'priority changes do not retry failures');
+  await h.render(false, '/api/portrait/2');
+  assert.equal(h.image().getAttribute('src'), h.versionedPortraitUrl('/api/portrait/2'));
+  assert.equal(h.image().dataset.status, 'loading');
 });
 
-test('late recovery cannot replace a different member and decoded retry URLs are released', async t => {
-  const h = await harness(t); const requests = [], revoked = [];
-  t.mock.method(h.portraitLoader, 'load', (url, {signal}) => new Promise(resolve => requests.push({resolve, signal})));
-  t.mock.method(URL, 'createObjectURL', () => 'blob:recovered');
-  t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
-  await h.render(false);
-  await act(async () => h.image().dispatchEvent(new h.window.Event('error')));
-  await h.render(false, '/api/portrait/2');
-  assert.equal(requests[0].signal.aborted, true);
-  await act(async () => requests[0].resolve(new Blob(['old'])));
-  assert.equal(h.image().getAttribute('src'), h.versionedPortraitUrl('/api/portrait/2'));
-  await act(async () => h.image().dispatchEvent(new h.window.Event('error')));
-  await act(async () => requests[1].resolve(new Blob(['new'])));
-  assert.equal(h.image().getAttribute('src'), 'blob:recovered');
-  await act(async () => h.image().dispatchEvent(new h.window.Event('load')));
-  assert.equal(h.image().dataset.status, 'loaded');
-  await h.render(false, '/api/portrait/3');
-  assert.deepEqual(revoked, ['blob:recovered']);
+test('ordinary image URLs and placeholders retain their original paths', async t => {
+  const h = await harness(t);
+  for (const url of ['/assets/person.jpg', 'https://www.europarl.europa.eu/mepphoto/43.jpg', '/assets/portrait-placeholder.svg']) {
+    await h.render(false, url);
+    assert.equal(h.image().getAttribute('src'), url);
+    await act(async () => h.image().dispatchEvent(new h.window.Event('load')));
+    assert.equal(h.image().dataset.status, 'loaded');
+  }
 });
