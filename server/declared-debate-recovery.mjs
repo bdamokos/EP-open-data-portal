@@ -2,7 +2,7 @@ import {array} from './activity-index-model.mjs';
 import {groupVoiceJobKey} from './group-voices-store.mjs';
 import {createHash} from 'node:crypto';
 
-const marker='declaredDebateRecovery',batch=100,week=7*86400_000;
+const marker='declaredDebateRecovery',batch=100,week=7*86400_000,relationshipBytes=8*1024*1024;
 const childId=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
 const debateId=/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/;
 const relative=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
@@ -77,14 +77,21 @@ export async function declaredDebateTask(worker,task) {
   store.assertWriter();worker.controller.signal.throwIfAborted();
   if(task.kind==='debate-links') {
     if(!/^\/procedures\/\d{4}-\d{4}[A-Z]?$/.test(body.endpoint)||!Number.isSafeInteger(body.offset)||body.offset<0)throw new Error('Invalid declared debate cursor.');
+    // Hash the bounded relationship observation, not unrelated procedure roles.
+    // Page this captured value so the hash and rows describe the same snapshot.
+    const source=store.db.prepare(`SELECT fetched_at,CASE WHEN json_type(body,'$.consists_of')='array'
+      AND length(CAST(json_extract(body,'$.consists_of') AS BLOB))<=? THEN json_extract(body,'$.consists_of') END relationships
+      FROM sources WHERE generation=? AND key=? AND kind='procedure'`).get(relationshipBytes,generation,body.endpoint);
+    if(typeof source?.relationships!=='string')throw new Error('Saved procedure relationship observation is unavailable or exceeds 8 MiB.');
+    const procedureObservation=createHash('sha256').update(JSON.stringify([body.endpoint,source.fetched_at])).update('\0').update(source.relationships).digest('hex');
+    const offset=body.procedureObservation===procedureObservation?body.offset:0;
     const rows=store.db.prepare(`SELECT entry.key ordinal,CASE WHEN entry.type='object' THEN json_extract(entry.value,'$.id') END id,
       CASE WHEN entry.type='object' THEN json_extract(entry.value,'$.had_activity_type') END kind
-      FROM sources source,json_each(source.body,'$.consists_of') entry
-      WHERE source.generation=? AND source.key=? AND source.kind='procedure' AND entry.key>=? ORDER BY entry.key LIMIT ?`).all(generation,body.endpoint,body.offset,batch);
+      FROM json_each(?) entry WHERE entry.key>=? ORDER BY entry.key LIMIT ?`).all(source.relationships,offset,batch);
     store.transaction(()=>{
       store.assertWriter();
       for(const row of rows){const id=eventId(row.id);if(type(row.kind)==='PLENARY_DEBATE'&&debateId.test(id))enqueueEvent(worker,generation,id,'debate');}
-      if(rows.length<batch)store.finishTask(task);else store.taskProgress(task,{...body,offset:rows.at(-1).ordinal+1});
+      if(rows.length<batch)store.finishTask(task);else store.taskProgress(task,{...body,offset:rows.at(-1).ordinal+1,procedureObservation});
     });
     return;
   }
@@ -98,8 +105,8 @@ export async function declaredDebateTask(worker,task) {
       // Transfer service to the existing owner without pretending that this
       // endpoint's earlier failure acquired metadata or closed its gap.
       if(store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,task.key)) {
-        store.db.prepare('UPDATE tasks SET done=1 WHERE generation=? AND key=?').run(generation,task.key);
-        store.db.prepare('DELETE FROM refresh_gap_admissions WHERE generation=? AND key=?').run(generation,task.key);
+        store.db.prepare(`UPDATE ${task.amendmentJob?'amendment_jobs':'tasks'} SET done=1 WHERE generation=? AND key=?`).run(generation,task.key);
+        if(!admittedElsewhere)store.db.prepare('DELETE FROM refresh_gap_admissions WHERE generation=? AND key=?').run(generation,task.key);
       } else store.finishTask(task);
     });return;
   }

@@ -9,7 +9,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery} from './declared-debate-recovery.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
-import {recordTaskGap} from './refresh-policy.mjs';
+import {recordTaskGap,scheduleGapRecovery} from './refresh-policy.mjs';
 import {DossierActivity} from './dossier-activity.mjs';
 
 const time='2026-10-30T10:00:00.000Z',now=()=>Date.parse(time);
@@ -238,4 +238,63 @@ for(const [label,change] of [['URI',{id:uri(child(999))}],['date',{activity_date
   const task=corpus.task('speech:'+id);assert.equal(task.body.declaredParent,parent);
   await assert.rejects(worker.task(task));
   assert.equal(corpus.task(task.key).done,0);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM texts').get().n,0);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n,0);
+});
+
+test('an admitted failed event yields to a future owner once without retiring its endpoint gap',async t=>{
+  const x=fixture(t);let ms=now();x.store.clock=x.worker.clock=()=>ms;
+  const key='/events/'+child(41),canonical='recovery:/speeches/'+child(41);
+  x.store.enqueue(x.generation,key,'declared-event',{id:child(41),role:'child',parent},103);
+  assert(recordTaskGap(x.worker,{...x.task(key),attempts:4},new Error('fixture failed endpoint')));
+  ms+=8*86400000;assert(x.store.acquire());assert.equal(scheduleGapRecovery(x.worker,x.generation),1);
+  x.worker.checkpointContinuations(x.generation);
+  x.store.enqueue(x.generation,canonical,'speeches',{recoveryId:child(41),offset:250},103);
+  x.store.db.prepare('UPDATE tasks SET attempts=3,retry_at=?,error=? WHERE generation=? AND key=?').run(ms+86400000,'future canonical owner',x.generation,canonical);
+  x.worker.checkpointContinuations(x.generation);
+  const before=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,canonical);
+  const gap=x.store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? AND key=?').get(x.generation,key);
+  const row=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,key);
+  assert.equal(row.done,0);await x.worker.task({...row,body:JSON.parse(row.body),amendmentJob:true});
+  assert.equal(x.store.db.prepare('SELECT done FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,key).done,1);
+  assert.deepEqual(x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,canonical),before);
+  assert.deepEqual(x.store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? AND key=?').get(x.generation,key),gap);
+  assert.deepEqual(x.calls,[]);
+});
+
+test('ordinary procedure refresh restarts relationship paging on a changed observation, even at the same retrieval time',async t=>{
+  const x=fixture(t),key='/procedures/2024-0212',links='debate-links:'+key;
+  const ids=Array.from({length:201},(_,i)=>'MTG-PL-2024-10-07-PVCRE-ITM-'+i),added='MTG-PL-2024-10-07-PVCRE-ITM-99999';
+  const procedure=list=>({id:'eli/dl/proc/2024-0212',consists_of:list.map(id=>node(id,'PLENARY_DEBATE'))});
+  x.store.putSource(x.generation,key,'procedure',procedure(ids),time);
+  scheduleDeclaredDebateRecovery(x.worker,x.generation);await x.worker.task(x.task(links));assert.equal(x.task(links).body.offset,100);
+  x.store.enqueue(x.generation,key,'procedure',{endpoint:key},105);x.records.set(key,procedure([added,...ids.slice().reverse()]));
+  await x.worker.task(x.task(key));assert.equal(x.store.source(x.generation,key).fetchedAt,time);
+  while(!x.task(links).done)await x.worker.task(x.task(links));
+  for(const id of [added,...ids])assert(x.task('/events/'+id),'Every observed debate receives an owner: '+id);
+  assert.equal(x.store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='declared-event'").get().n,202);
+});
+
+test('oversized procedure relationship observations stay owned without returning unbounded metadata or admitting children',async t=>{
+  const x=fixture(t),key='/procedures/2024-0212';
+  x.store.putSource(x.generation,key,'procedure',{id:'eli/dl/proc/2024-0212',consists_of:[node(parent,'PLENARY_DEBATE',{based_on_a_realization_of:['x'.repeat(8*1024*1024)]})]},time);
+  scheduleDeclaredDebateRecovery(x.worker,x.generation);
+  await assert.rejects(x.worker.task(x.task('debate-links:'+key)),/8 MiB/);
+  assert.equal(x.task('debate-links:'+key).done,0);assert.equal(x.task('/events/'+parent),undefined);assert.deepEqual(x.calls,[]);
+});
+
+test('yielding a queued duplicate preserves the actual admitted event owner and its gap reservation',async t=>{
+  const x=fixture(t);let ms=now();x.store.clock=x.worker.clock=()=>ms;const key='/events/'+child(42);
+  x.store.enqueue(x.generation,key,'declared-event',{id:child(42),role:'child',parent},103);
+  assert(recordTaskGap(x.worker,{...x.task(key),attempts:4},new Error('fixture failed endpoint')));
+  ms+=8*86400000;assert(x.store.acquire());assert.equal(scheduleGapRecovery(x.worker,x.generation),1);
+  x.worker.checkpointContinuations(x.generation);
+  x.store.db.prepare('UPDATE amendment_jobs SET retry_at=? WHERE generation=? AND key=?').run(ms+86400000,x.generation,key);
+  const owner=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,key);
+  const gap=x.store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? AND key=?').get(x.generation,key);
+  x.store.db.prepare('INSERT INTO tasks SELECT generation,key,kind,body,priority,done,attempts,0,error FROM amendment_jobs WHERE generation=? AND key=?').run(x.generation,key);
+  await x.worker.task(x.task(key));
+  assert.equal(x.task(key).done,1);
+  assert.deepEqual(x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,key),owner);
+  assert.deepEqual(x.store.db.prepare('SELECT * FROM refresh_gaps WHERE generation=? AND key=?').get(x.generation,key),gap);
+  assert(x.store.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(x.generation,key));
+  assert.deepEqual(x.calls,[]);
 });
