@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {speechRows} from './activity-index-model.mjs';
+import {ActivityWorker} from './activity-index-worker.mjs';
 import {DossierActivity,dossierActivityQuery,dossierReferencesQuery,DOSSIER_ACTIVITY_LIMITS} from './dossier-activity.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {createInsights} from './insights.mjs';
@@ -140,7 +141,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,10);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,11);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
@@ -226,6 +227,27 @@ test('a concrete declared speech absent from retained sources keeps coverage par
   x.store.putSource(x.generation,'/speeches/'+missing,'speech',raw,now,speechRows(raw,now));
   const recovered=await x.service.query(x.q('speeches'));
   assert.equal(recovered.coverage.status,'complete');assert.deepEqual(recovered.coverage.missingSpeechIds,[]);assert.equal(recovered.items.length,2);
+});
+for(const saved of ['no-participants','other-member','different-kind'])test('retained speech metadata closes only its matching attributed declaration: '+saved,async t=>{
+  const x=setup(t),id='MTG-PL-2026-09-15-OTH-998';
+  const declaration={id:uri(id),had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+MEMBER]}]};
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of.push(declaration);
+  const raw={id:uri(id),activity_id:id,activity_date:'2026-09-15',had_activity_type:'def/ep-activities/'+(saved==='different-kind'?'PLENARY_DEBATE_WRITTEN_STATEMENT':'PLENARY_DEBATE_SPEECH'),had_participation:saved==='no-participants'?[]:[{had_participant_person:['person/'+(saved==='other-member'?OTHER:MEMBER)]}],inverse_consists_of:[uri(DEBATE)]};
+  const worker=new ActivityWorker(x.store);worker.saveSpeech(x.generation,raw,Date.parse(now));
+  for(const member of [MEMBER,null]) {
+    const response=await x.service.query(x.q(member?'speeches':'roles',member)),coverage=member?response.coverage:response.participantCoverage;
+    assert.deepEqual(coverage.missingSpeechIds,[id]);assert.equal(coverage.status,'partial');assert.equal(coverage.retryable,true);
+  }
+  raw.had_activity_type='def/ep-activities/PLENARY_DEBATE_SPEECH';raw.had_participation=[{had_participant_person:['person/'+MEMBER]}];
+  worker.saveSpeech(x.generation,raw,Date.parse(now));
+  const recovered=await x.service.query(x.q('speeches'));
+  assert.equal(recovered.coverage.status,'complete');assert.equal(recovered.coverage.retryable,false);assert.deepEqual(recovered.coverage.missingSpeechIds,[]);
+});
+test('a declaration outside the checked child page stays a page limit rather than an invented missing record',async t=>{
+  const x=setup(t),id='MTG-PL-2026-09-15-OTH-999999';
+  x.records.get('/events/'+DEBATE).payload.data[0].consists_of=[...Array.from({length:DOSSIER_ACTIVITY_LIMITS.children},(_,i)=>uri('MTG-PL-2026-09-15-OTH-'+(10000+i))),{id:uri(id),had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{had_participant_person:['person/'+MEMBER]}]}];
+  const response=await x.service.query(x.q('speeches'));
+  assert.equal(response.coverage.status,'partial');assert.match(response.coverage.gaps.join(' '),/outside this page/);assert.deepEqual(response.coverage.missingSpeechIds,[]);
 });
 test('URI-only markers and another person’s typed missing speech do not make this member partial',async t=>{
   const x=setup(t),marker='MTG-PL-2026-09-15-OTH-991',other='MTG-PL-2026-09-15-OTH-992';

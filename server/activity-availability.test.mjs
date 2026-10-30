@@ -42,6 +42,14 @@ test('bounded gap overflow preserves an explicit aggregate instead of losing kno
   for(let i=1;i<=501;i++)insert.run('/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'));
   assert.deepEqual(savedGaps(store,1,'questions'),[{reason:'gap-list-limit',minimumCount:501}]);
 });
+test('archive overflow preserves dated collection and record evidence beyond its undated detail cap',t=>{
+  const {store}=fixture(t),insert=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (1,?,'document','{}')");
+  for(let i=1;i<=1500;i++)insert.run('/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'));
+  store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (1,'feed:/parliamentary-questions','feed',?)").run(JSON.stringify({endpoint:'/parliamentary-questions',start:'2026-10-16'}));
+  store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (1,'/parliamentary-questions/E-10-2025-009999','document',?)").run(JSON.stringify({start:'2025-01-02',end:'2025-01-02'}));
+  const gaps=savedGaps(store,1,'questions');
+  assert.deepEqual(gaps,[{reason:'gap-list-limit',minimumCount:501},{start:'2025-01-02',end:'2025-01-02',sourceId:'/parliamentary-questions/E-10-2025-009999',reason:'source-gap',retained:false},{start:'2026-10-16',end:null,sourceId:'feed:/parliamentary-questions',reason:'source-gap'}]);
+});
 
 test('role frontiers preserve cross-member, subtype, generation, gap and unavailable evidence',t=>{
   const {store,insert}=fixture(t);
