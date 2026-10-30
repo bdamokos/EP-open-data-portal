@@ -8,6 +8,8 @@ import {documentRows,projectDocument,speechRows} from './activity-index-model.mj
 import {OfficialContextSources} from './official-context.mjs';
 import {createInsights} from './insights.mjs';
 import {PLENARY_REFRESH_MS} from './plenary-cache-policy.mjs';
+import {UpstreamQueue} from './upstream-queue.mjs';
+import {sharedRequest} from './request-budget.mjs';
 
 async function warmAll(service) {
   let batches=0,delay;
@@ -29,9 +31,9 @@ async function harness(t) {
   store.putSource(generation,'/plenary-documents/'+report.identifier,'document',projectDocument(report),new Date(fixture.report.fetchedAt).toISOString(),documentRows(report,'/plenary-documents/'+report.identifier,new Date(fixture.report.fetchedAt).toISOString()).rows);
   const dates=['2026-10-07','2026-09-17','2026-11-11'];
   const meeting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
-  let failVotes=false,foreground=false;
+  let failVotes=false,foreground=false,mixed=false;
   const request=async(endpoint,params,settings)=>{
-    assert.equal(settings.priority,foreground?'interactive':'background');
+    if(!mixed)assert.equal(settings.priority,foreground?'interactive':'background');
     calls.push({endpoint,params});
     if(failVotes&&endpoint.endsWith('/decisions'))throw Error('Vote source temporarily unavailable');
     let payload={data:[]};
@@ -61,7 +63,7 @@ async function harness(t) {
     return new Response(html,{headers:{'content-type':'text/html'}});
   }});
   const options={clock,request,officialSources,eurovoc:{directory:path.join(directory,'eurovoc')},viewCache:{directory:path.join(directory,'views')},loadMetadata:async()=>new Map(),log:(...args)=>warnings.push(args)};
-  return {store,options,calls,officialCalls,priorities,warnings,dates,fixture,clock,advance:ms=>now+=ms,setForeground:value=>foreground=value,setFailVotes:value=>failVotes=value};
+  return {store,options,calls,officialCalls,priorities,warnings,dates,fixture,clock,advance:ms=>now+=ms,setForeground:value=>foreground=value,setFailVotes:value=>failVotes=value,allowMixed:()=>mixed=true};
 }
 
 test('latest-week item details, remote votes, summaries and speech pages are warm before a visit and survive restart',async t=>{
@@ -132,4 +134,29 @@ test('index availability updates between batches do not starve the end of the ag
   const week=await service.query('legislation',new URLSearchParams('week=latest')),topic=week.topics.at(-1),count=h.calls.length;
   const result=await service.query('legislation',new URLSearchParams({sitting:topic.sittingId,topic:topic.id}));
   assert.equal(result.detail.id,topic.id);assert.equal(h.calls.length,count);
+});
+
+test('a visitor can use foreground capacity while its cold detail is queued for background warm-up',async t=>{
+  const h=await harness(t);h.allowMixed();
+  const queue=new UpstreamQueue(),release=await queue.acquire('background'),request=h.options.request;
+  let foregroundCalls=0,blockedProcedure,entered;
+  const queued=new Promise(resolve=>entered=resolve);
+  h.options.request=(endpoint,params,settings)=>{
+    if(!endpoint.startsWith('/procedures/'))return request(endpoint,params,settings);
+    const pending=queue.run(()=>{if(settings.priority==='interactive')foregroundCalls++;return request(endpoint,params,settings);},settings);
+    if(settings.priority==='background'){blockedProcedure=endpoint.split('/').at(-1);entered();}
+    return pending;
+  };
+  const service=createInsights(h.store,h.options),warming=service.warmPlenary();
+  try {
+    await sharedRequest(()=>queued,2000);
+    assert.equal(queue.waiters.length,1,'warm-up is waiting for the occupied background slot');
+    const week=await service.query('legislation',new URLSearchParams('week=latest')),topic=week.topics.find(topic=>topic.procedureIds.includes(blockedProcedure));
+    assert(topic,'the queued procedure belongs to an exact agenda item');
+    const params=new URLSearchParams({sitting:topic.sittingId,topic:topic.id});
+    const [first,second]=await sharedRequest(()=>Promise.all([service.query('legislation',params),service.query('legislation',params)]),1000);
+    assert.equal(first.detail.id,topic.id);assert.deepEqual(second,first);
+    assert(foregroundCalls>0,'the visitor reaches the normal foreground source admission');
+    assert.equal(queue.waiters.length,1,'the background slot remains occupied');
+  }finally{release();await warming;}
 });

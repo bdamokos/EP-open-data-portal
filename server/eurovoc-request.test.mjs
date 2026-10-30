@@ -6,6 +6,21 @@ import {sharedRequest,waitForRequest,requestSignal} from './request-budget.mjs';
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
 const source={url:'https://publications.europa.eu/webapi/rdf/sparql',fetchedAt:'2026-10-16T12:00:00Z',data:{results:{bindings:[]}}};
 
+test('a foreground EuroVoc reader reaches source admission instead of joining a queued warm-up',async()=>{
+  let finish;
+  const priorities=[],catalog=new EurovocCatalog({get:(_url,{priority})=>{
+    priorities.push(priority);
+    return priority==='background'?new Promise(resolve=>finish=()=>resolve(source)):Promise.resolve(source);
+  }},{directory:null});
+  const warming=catalog.load(['2024-0001'],'en',{priority:'background'});
+  try {
+    await turn();assert(finish);
+    const result=await catalog.load(['2024-0001'],'en');
+    assert.equal(result.get('2024-0001').state,'unmapped');
+    assert.deepEqual(priorities,['background','interactive']);
+  }finally{finish?.();await warming;}
+});
+
 test('staggered EuroVoc readers keep a shared catalogue load after the first owner expires',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
   let finish,sourceOwner,secondOwner,calls=0;

@@ -68,7 +68,7 @@ export class OfficialContextSources {
         const text=await limitedText(response,json?3*1024*1024:1024*1024);
         return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
       },{priority,origin:source.origin,signal});
-    }),{freshMs,includeRetryAt,validate:record=>{
+    }),{freshMs,includeRetryAt,background:priority==='background',validate:record=>{
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);
     }}));

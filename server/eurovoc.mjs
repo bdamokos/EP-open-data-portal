@@ -59,7 +59,8 @@ export class EurovocCatalog {
   }
   async load(ids,language,{priority='interactive'}={}) {
     requestSignal()?.throwIfAborted();
-    const key=JSON.stringify([language,[...ids].sort()]);if(this.pending.has(key))return waitForRequest(this.pending.get(key));
+    // A visitor must reach the foreground source path even during a warm-up.
+    const key=JSON.stringify([priority,language,[...ids].sort()]);if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const job=sharedRequest(async()=>{
       const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',eurovocQuery(ids,language));url.searchParams.set('format','application/sparql-results+json');
       const source=await this.sources.get(url.href,{priority}),parsed=parseEurovoc(source.data,ids,language);
