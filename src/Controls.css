@@ -71,7 +71,7 @@
   line-height:var(--control-line-height);
 }
 
-/* Status is information, with no button enclosure or action-sized padding. */
+/* Status is information, with no action-sized padding. */
 .explorer-question-status,.explorer-motion-status {
   display:inline-flex;
   align-items:center;
@@ -90,6 +90,23 @@
 }
 .explorer-question-status[data-answered=true],.explorer-motion-status[data-outcome=adopted] { color:var(--positive); background:transparent; }
 .explorer-motion-status[data-outcome=rejected] { color:var(--danger); background:transparent; }
+
+/* Question states retain their compact pill treatment. */
+.explorer-question-status {
+  gap:7px;
+  width:max-content;
+  margin:6px 0;
+  padding:3px 9px 3px 5px;
+  border:1px solid var(--line-strong);
+  border-radius:20px;
+  font-weight:600;
+  line-height:1.3;
+  white-space:nowrap;
+}
+.explorer-question-status[data-answered=true] {
+  border-color:var(--positive);
+  background:var(--positive-soft);
+}
 
 /* Primary actions are explicit: DOM order never decides their emphasis. */
 :is(.explorer,.explorer-insights) .ui-primary-action {

@@ -97,6 +97,25 @@ test('a recent answer does not move an older question ahead of newer MEP work',(
     const second=s.page('257043',{limit:1,offset:1});assert.equal(second.items[0].sourceId,question.identifier);assert.equal(second.items[0].date,'2026-06-10');assert.equal(second.nextOffset,null);
   }finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
+test('default latest activities exclude speeches before counting and pagination, preserving explicit speech reads',()=>{
+  const dir=temp(),s=new ActivityStore(dir,{clock:instant});
+  try {
+    s.acquire();const {generation}=s.beginCycle();s.setMembers([{id:'257043',name:'MEP'}]);
+    s.putSource(generation,'/q','document',question,fetchedAt,documentRows(question,'/q',fetchedAt).rows);
+    const speech={activity_id:'MTG-PL-2026-10-07-OTH-2017097993206',activity_date:'2026-10-07',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:participant('SPEAKER')};
+    s.putSource(generation,'/speech','speech',speech,fetchedAt,speechRows(speech,fetchedAt));s.publish(generation);
+    const page=s.page('257043',{limit:1});
+    assert.equal(page.items[0].sourceId,question.identifier);
+    assert.equal(page.indexedTotal,1);assert.equal(page.total,1);assert.equal(page.nextOffset,null);
+    assert.deepEqual(s.page('257043',{limit:1,offset:1}).items,[]);
+    assert.equal(page.categoryCoverage['plenary-contributions'].indexedCount,1);
+    assert.equal(page.availability.some(source=>source.sourceKey==='plenary-contributions'),false);
+    const speeches=s.page('257043',{category:'plenary-contributions',limit:1});
+    assert.equal(speeches.items[0].sourceId,speech.activity_id);assert.equal(speeches.total,1);
+    assert.equal(speeches.availability[0].sourceKey,'plenary-contributions');
+    assert.equal(s.page('257043',{sourceId:speech.activity_id}).selectedItems[0].recordKind,'speech');
+  }finally{s.close();rmSync(dir,{recursive:true,force:true});}
+});
 test('document feeds are identifier inputs, not arbitrary outgoing URLs or HTML descriptions',()=> {
   assert.deepEqual(feedDocuments('<feed><entry><id>https://data.europarl.europa.eu/eli/dl/doc/E-10-2026-003031-ASW</id><updated>2026-10-01</updated></entry><entry><id>https://evil.example/path</id></entry></feed>','/parliamentary-questions'),[{id:'E-10-2026-003031-ASW',updated:'2026-10-01'}]);
   assert.throws(()=>feedDocuments('<!DOCTYPE feed><feed/>','/test'));assert.throws(()=>feedDocuments('<html/>','/test'));
@@ -273,7 +292,7 @@ test('missing EP search graph node stays as a durable detail retry while the ava
     await assert.rejects(worker.task(recovery),/500/);s.failTask(recovery,new Error('EP API returned 500'));
     assert.equal(s.status().complete,false);assert.throws(()=>s.publish(cycle.generation),/incomplete/);
     detailFails=false;await worker.task(recovery);assert.equal(s.sources(cycle.generation,'speech').length,2);assert.equal(s.status().pendingSpeechRecoveries.count,0);
-    assert.equal(s.page('257043').indexedTotal,2);
+    assert.equal(s.page('257043',{category:'plenary-contributions'}).indexedTotal,2);
   }finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
 

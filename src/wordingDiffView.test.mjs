@@ -45,13 +45,17 @@ test('wording comparison modes, accessible announcements, source language, defau
   }
   await render({original:'La vieille politique.\n',proposed:'La nouvelle politique.\n',language:'fr'});
   await render({});
-  assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
+  assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
+  assert.equal(container.querySelectorAll('.wording-diff__columns section').length,2);
   assert(container.querySelector('del'));assert(container.querySelector('ins'));
   assert.equal(container.querySelector('del .wording-diff__sr').textContent,'Deleted text: ');
   assert.equal(container.querySelector('ins .wording-diff__sr').textContent,'Inserted text: ');
   assert.equal(container.querySelector('ins .wording-diff__sr:last-child').textContent,' end');
   assert.equal(container.querySelector('.wording-diff__passage').lang,'fr');
   assert.equal(wordingText(container,'original'),props.original);assert.equal(wordingText(container,'proposed'),props.proposed);
+  await act(async()=>button('Changes').click());
+  assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
+  await render({});assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
   await act(async()=>button('Side by side').click());
   assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
   assert.equal(container.querySelectorAll('.wording-diff__columns section').length,2);
@@ -60,7 +64,7 @@ test('wording comparison modes, accessible announcements, source language, defau
   const unchanged='Existing employment policy. '.repeat(40);
   const addition=Array.from({length:145},(_,index)=>'skill'+index+' ').join('');
   await render({original:unchanged,proposed:unchanged+addition,language:'en'});
-  assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
+  assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
   assert.equal(container.querySelector('ins').textContent,'Inserted text: '+addition+' end');
   assert(!container.textContent.includes('Too extensively changed'));
   assert.equal(wordingText(container,'original'),unchanged);
@@ -68,13 +72,14 @@ test('wording comparison modes, accessible announcements, source language, defau
   await render({original:'Completely different',proposed:'Ново съдържание',language:'bg'});
   assert.match(container.textContent,/Mostly rewritten/);assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
   await act(async()=>button('Changes').click());assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
-  // Changing the wording resets an explicitly selected view to the operation's default.
-  await act(async()=>button('Side by side').click());
+  // Changing the wording resets an explicitly selected view to side by side.
   for(const [original,proposed,label,tag] of [['','Insertion','New text','ins'],['Deletion','','Deleted text','del']]){
     await render({original,proposed});
-    assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
+    assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
     assert.equal(container.querySelector('.wording-diff__note').textContent,label);
     assert(!container.textContent.includes('Mostly rewritten'));
+    assert.equal(container.querySelectorAll('.wording-diff__columns section').length,2);
+    await act(async()=>button('Changes').click());
     assert.equal(container.querySelectorAll('.wording-diff__passage').length,1);
     assert(container.querySelector('.wording-diff__passage>'+tag));
     assert.equal(wordingText(container,'original'),original);assert.equal(wordingText(container,'proposed'),proposed);
@@ -97,7 +102,9 @@ test('wording comparison modes, accessible announcements, source language, defau
     assert.match(container.textContent,/wording is unavailable/);
   }
   await render({original:'Completely different',proposed:'Ново съдържание',language:'bg',presentation:'context'});
-  assert.equal(button('Changes').getAttribute('aria-pressed'),'true');
+  assert.equal(button('Side by side').getAttribute('aria-pressed'),'true');
+  assert.equal(container.querySelectorAll('.wording-diff__columns section').length,2);
+  await act(async()=>button('Changes').click());
   assert.equal(container.querySelectorAll('.wording-diff__passage').length,1);
   assert(container.querySelector('del'));assert(container.querySelector('ins'));
   assert.equal(container.querySelector('.wording-diff__legend,.wording-diff__note'),null);

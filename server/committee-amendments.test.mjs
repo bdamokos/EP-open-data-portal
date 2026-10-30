@@ -235,6 +235,62 @@ test('bounded backfill resumes after queue saturation and does not reset another
   assert.deepEqual({...x.store.db.prepare("SELECT attempts,retry_at FROM tasks WHERE key='/documents/AGRI-AM-773343'").get()},{attempts:2,retry_at:12345});
 });
 
+for(const mode of ['preparation','discovery'])for(const phase of ['published','new-cycle']) {
+  test(`committee ${mode} yields a full queue to its dependencies in ${phase}`,async t=>{
+    const x=setup(t);let now=Date.parse(at);x.store.clock=x.worker.clock=()=>now;
+    if(mode==='preparation')for(let n=1;n<=201;n++) {
+      const id='2025-'+String(n).padStart(4,'0'),work=projectProcedure({id:'eli/dl/proc/'+id,process_id:id,consists_of:[]});
+      delete work.committeeProjectionVersion;
+      x.store.putSource(x.generation,'/procedures/'+id,'procedure',work,at);
+    }else {
+      const work=projectProcedure({id:'eli/dl/proc/2024-0318',process_id:'2024-0318',created_a_realization_of:Array.from({length:201},(_,n)=>'eli/dl/doc/AGRI-PR-'+(900000+n))});
+      x.store.putSource(x.generation,'/procedures/2024-0318','procedure',work,at);
+    }
+    x.store.publish(x.generation);
+    if(phase==='new-cycle')x.generation=x.store.beginCycle().generation;
+    const fetched=[];
+    x.worker.fetchRecord=async endpoint=>{
+      fetched.push(endpoint);const id=endpoint.split('/').at(-1);
+      const work=endpoint.startsWith('/procedures/')?{id:'eli/dl/proc/'+id,process_id:id,consists_of:[]}:
+        {id:'eli/dl/doc/'+id,identifier:id,document_date:day,work_type:'def/ep-document-types/REPORT_PARLIAMENTARY_COMMITTEE_DRAFT',parliamentary_term:'org/ep-10',inverse_foresees_change_of:[]};
+      return {payload:{data:[work]},fetchedAt:at};
+    };
+    prepareCommitteeAmendments(x.worker,x.generation);
+    const choose=()=>{
+      const core=x.store.nextTask(x.generation),amendment=nextAmendmentTask(x.store,x.generation);
+      return amendment&&(!core||amendment.priority>core.priority)?amendment:core;
+    };
+    const checkpoint=()=>{if(phase==='published'||x.store.source(x.generation,'amendment:continuations'))x.worker.checkpointContinuations(x.generation,{includeCore:phase==='published'});};
+    let blocked;
+    for(let n=0;n<80;n++) {
+      const task=choose();assert(task);
+      const before=JSON.stringify(task.body);
+      await x.worker.task(task);
+      const saved=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,task.key);
+      const count=x.store.db.prepare('SELECT COUNT(*) n FROM amendment_jobs WHERE generation=?').get(x.generation).n;
+      assert(count<=200,'Normal admission must preserve the queue cap');
+      if(count===200&&saved?.done===0&&(saved.retry_at>now||saved.body===before)) {blocked=saved;checkpoint();break;}
+      checkpoint();
+    }
+    assert(blocked,'Normal admission must reach capacity');
+    assert.equal(blocked.kind,'amendment-committee-'+(mode==='preparation'?'prepare':'discover'));
+    assert.equal(blocked.retry_at,now+60_000,'The producer must yield instead of selecting itself again');
+    assert.equal(blocked.attempts,0);assert.equal(blocked.error,null);
+    assert.equal(fetched.length,0);
+    assert(['document','procedure'].includes(choose().kind),'A lower-priority dependency can now run');
+    let drained=0;
+    for(let task;(task=choose());) {assert(drained++<250);await x.worker.task(task);checkpoint();}
+    assert.equal(fetched.length,199);
+    assert.equal(x.store.db.prepare('SELECT body FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,blocked.key).body,blocked.body,'Draining dependencies must not advance the blocked producer cursor');
+    now+=60_000;assert(x.store.renew());
+    assert.equal(choose().key,blocked.key);
+    for(let n=0,task;(task=choose());n++) {assert(n<30);await x.worker.task(task);checkpoint();}
+    assert.equal(fetched.length,201,'All dependencies finish through ordinary dispatch without manual deletion');
+    assert(!choose(),'No due dependency or producer remains');
+    assert.equal(x.store.source(x.generation,'committee:preparation').work.version,1);
+  });
+}
+
 test('an explicit cross-list revision keeps both observations and withholds combined distinct counts',t=>{
   const x=setup(t);roster(x);const first=seed(x);seed(x,'IMCO-AM-772127',{authors:['Martin Häusling'],number:51});
   first.replaces=['eli/dl/doc/IMCO-AM-772127'];x.store.putSource(x.generation,'amendment:list:'+first.identifier,'amendment-list',first,at);
