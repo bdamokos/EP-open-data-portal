@@ -31,3 +31,8 @@ test('record filters preserve overlapping collection failures without pulling in
   assert.deepEqual(coverageNotices(evidence,{sourceIds:[],onlyRelevant:true}),[{kind:'question-list',start:'2026-10-27',end:null}]);
   assert.deepEqual(coverageNotices(evidence,{sourceIds:[],onlyRelevant:true,end:'2026-10-20'}),[]);
 });
+test('bounded record summaries keep dates and counts without implying an identity in a filtered view',()=>{
+  const evidence=sourceAvailability({sourceKey:'questions',family:'questions',start:'2026-10-01',end:'2026-10-30',gaps:[{reason:'record-gap-summary',start:'2026-10-16',end:'2026-10-16',minimumCount:7000}]});
+  assert.deepEqual(coverageNotices([evidence,evidence]),[{kind:'record-reads',count:7000,family:'questions',start:'2026-10-16',end:'2026-10-16'}]);
+  assert.deepEqual(coverageNotices(evidence,{sourceIds:[],onlyRelevant:true}),[]);assert.deepEqual(coverageNotices(evidence,{end:'2026-10-15'}),[]);
+});

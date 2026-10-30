@@ -1,3 +1,3 @@
 import type {SourceAvailability} from '../server/source-availability.mjs';
-export type CoverageNotice={kind:'gap-overflow';count:number;family:string}|{kind:'speech-records';count:number;dates:string[]}|{kind:'question'|'document';id:string;sourceUrl:string;retained?:boolean}|{kind:'speaker-list'|'question-list'|'speech-list'|'dossier-list'|'records';start:string|null;end:string|null};
+export type CoverageNotice={kind:'gap-overflow';count:number;family:string}|{kind:'record-reads';count:number;family:string;start:string|null;end:string|null}|{kind:'speech-records';count:number;dates:string[]}|{kind:'question'|'document';id:string;sourceUrl:string;retained?:boolean}|{kind:'speaker-list'|'question-list'|'speech-list'|'dossier-list'|'records';start:string|null;end:string|null};
 export function coverageNotices(evidence:SourceAvailability|SourceAvailability[],scope?:{start?:string|null;end?:string|null;onlyRelevant?:boolean;sourceIds?:string[]}):CoverageNotice[];

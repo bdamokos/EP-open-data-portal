@@ -1,6 +1,6 @@
 import {brusselsDay} from './analysis-period.mjs';
 
-export const SOURCE_AVAILABILITY_VERSION=5;
+export const SOURCE_AVAILABILITY_VERSION=6;
 export const validDay=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T12:00Z'))&&new Date(value+'T12:00Z').toISOString().slice(0,10)===value;
 export function sourceTime(value) {
   const time=typeof value==='number'?value:typeof value==='string'&&/^\d+$/.test(value)?Number(value):Date.parse(value);
@@ -31,7 +31,7 @@ export function sourceAvailability({sourceKey,family=sourceKey,subtype=null,stag
   return {version:SOURCE_AVAILABILITY_VERSION,sourceKey,family,subtype,stage,language,
     latestObservedDate:latest,checkedAt:sourceTime(checkedAt),publicationMaturity:'unknown',authoritativeComplete:false,
     checkedIntervals:checkedIntervals??(validDay(start)&&validDay(end)?[{start,end,basis:'saved-records'}]:[]),
-    gaps:gaps.map(gap=>({start:validDay(gap.start)?gap.start:null,end:validDay(gap.end)?gap.end:null,reason:gap.reason||'source-gap',...(gap.sourceId?{sourceId:gap.sourceId}:{}),...(typeof gap.retained==='boolean'?{retained:gap.retained}:{}),...(Number.isSafeInteger(gap.minimumCount)&&gap.minimumCount>0?{minimumCount:gap.minimumCount}:{})})),limited:Boolean(limited),retention,snapshot,observedRecords,route};
+    gaps:gaps.map(gap=>({start:validDay(gap.start)?gap.start:null,end:validDay(gap.end)?gap.end:null,reason:gap.reason||'source-gap',...(gap.sourceId?{sourceId:gap.sourceId}:{}),...(gap.archiveOnly?{archiveOnly:true}:{}),...(typeof gap.retained==='boolean'?{retained:gap.retained}:{}),...(Number.isSafeInteger(gap.minimumCount)&&gap.minimumCount>0?{minimumCount:gap.minimumCount}:{})})),limited:Boolean(limited),retention,snapshot,observedRecords,route};
 }
 
 export function periodAvailability(period,evidence,observedCount,{today=brusselsDay()}={}) {
@@ -43,8 +43,8 @@ export function periodAvailability(period,evidence,observedCount,{today=brussels
   let usable=0,failed=false,partial=false;
   for(const source of sources) {
     const frontier=source.latestObservedDate;
-    const gaps=source.gaps.filter(gap=>gap.retained!==true&&(validDay(gap.start)||validDay(gap.end))&&overlaps(gap,{start:period.start,end}));
-    const unscoped=source.gaps.some(gap=>gap.retained!==true&&!validDay(gap.start)&&!validDay(gap.end));
+    const gaps=source.gaps.filter(gap=>!gap.archiveOnly&&gap.retained!==true&&(validDay(gap.start)||validDay(gap.end))&&overlaps(gap,{start:period.start,end}));
+    const unscoped=source.gaps.some(gap=>!gap.archiveOnly&&gap.retained!==true&&!validDay(gap.start)&&!validDay(gap.end));
     const through=validDay(frontier)&&frontier<=today?frontier:null;
     // The checked interval describes the saved selection. Its latest event is
     // a date on a record, not a missing-record or publication boundary.
@@ -68,7 +68,7 @@ export function periodAvailability(period,evidence,observedCount,{today=brussels
 export function availabilitySummary(evidence) {
   const sources=(Array.isArray(evidence)?evidence:[evidence]).filter(Boolean);
   const latest=sources.map(source=>source.latestObservedDate).filter(validDay).sort().at(-1)||null;
-  return {latestObservedDate:latest,partial:sources.some(source=>source.limited||source.gaps.length>0),sources};
+  return {latestObservedDate:latest,partial:sources.some(source=>source.limited||source.gaps.some(gap=>!gap.archiveOnly)),sources};
 }
 
 export const availabilityValue=(value,state)=>state==='unavailable'?'Unavailable':value===0&&state==='partial'?'0 so far':`${value??'—'}${state==='partial'?' · Partial':''}`;

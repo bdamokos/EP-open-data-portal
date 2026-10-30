@@ -17,21 +17,42 @@ export function availabilityGap(body,sourceId) {
 
 // Only small indexed gap metadata is read. No source bodies or corpus text
 // scans are needed to classify a date range.
-export function savedGaps(store,generation,family) {
+export function savedGaps(store,generation,family,{start='2024-07-16',end=brusselsDay(store.clock?.()??Date.now()),recordIds=null,restrictRecords=false}={}) {
   const question=family==='questions'||family==='answers',rootPresence=question||family==='procedures';
   const where=question?"((kind='document' AND key LIKE '/parliamentary-questions/%') OR (kind IN ('feed','catalog','coverage') AND json_extract(body,'$.endpoint')='/parliamentary-questions'))":family==='speeches'?"kind='speeches'":family==='procedures'?"(kind='procedure' OR (kind IN ('feed','catalog','coverage') AND json_extract(body,'$.endpoint')='/procedures'))":family==='documents'?"(kind='document' AND key NOT LIKE '/parliamentary-questions/%')":"kind='motion-outcomes'";
   const retainedDate=question?"(SELECT date FROM items INDEXED BY item_source WHERE items.generation=refresh_gaps.generation AND items.source_key=refresh_gaps.key AND date IS NOT NULL LIMIT 1)":'NULL';
   const selection=`SELECT key,COALESCE(json_extract(body,'$.start'),json_extract(body,'$.params.sitting-date'),substr(sitting_id,8,10),${retainedDate}) start,COALESCE(json_extract(body,'$.end'),json_extract(body,'$.params.sitting-date-end'),substr(sitting_id,8,10),${retainedDate}) end${rootPresence?",EXISTS(SELECT 1 FROM sources WHERE sources.generation=refresh_gaps.generation AND sources.key=refresh_gaps.key) retained":""} FROM refresh_gaps WHERE generation=? AND ${where}`;
-  let rows=store.db.prepare(selection+' LIMIT 501').all(generation);
-  const overflow=rows.length>500;
-  // Bound undated archive detail independently. Replacing dated evidence with
-  // an undated total would erase known failures from selected periods/bins.
-  if(overflow)rows=store.db.prepare(`WITH gaps AS (${selection}) SELECT * FROM gaps WHERE start IS NOT NULL OR end IS NOT NULL`).all(generation).filter(row=>validDay(row.start)||validDay(row.end));
-  return [...(overflow?[{reason:'gap-list-limit',minimumCount:501}]:[]),...rows.map(row=>({start:row.start,end:row.end,sourceId:row.key,reason:'source-gap',...(rootPresence&&/^\/(parliamentary-questions|procedures)\//.test(row.key)?{retained:Boolean(row.retained)}:{})}))];
+  const wanted=new Set(recordIds||[]),details=[],preferred=[],intervals=new Map();let total=0,unknown=false;
+  const stamp=(value,open)=>value?Date.parse(value+'T12:00Z'):open;
+  const merge=(key,gap)=>{
+    const ranges=intervals.get(key)||[];let value={...(key.startsWith('record:')?{}:{sourceId:gap.sourceId}),start:gap.start,end:gap.end,reason:key.startsWith('record:')?'record-gap-summary':'source-gap',minimumCount:1,...(typeof gap.retained==='boolean'?{retained:gap.retained}:{})},index=0;
+    while(index<ranges.length&&stamp(ranges[index].end,Infinity)+86400_000<stamp(value.start,-Infinity))index++;
+    while(index<ranges.length&&stamp(value.end,Infinity)+86400_000>=stamp(ranges[index].start,-Infinity)){
+      const other=ranges.splice(index,1)[0];value={...value,start:!value.start||!other.start?null:value.start<other.start?value.start:other.start,end:!value.end||!other.end?null:value.end>other.end?value.end:other.end,minimumCount:value.minimumCount+other.minimumCount};if(value.sourceId!==other.sourceId)delete value.sourceId;
+    }
+    ranges.splice(index,0,value);intervals.set(key,ranges);
+  };
+  // Stream small metadata only. Bound identity details independently of exact
+  // dated intervals, which coalesce without filling the days between failures.
+  const statement=store.db.prepare(selection);
+  for(const row of statement.iterate?statement.iterate(generation):statement.all(generation)) {
+    total++;
+    if(typeof row.key!=='string'){unknown=true;if(details.length<500)details.push({reason:'source-gap'});continue;}
+    const record=/^\/(?:parliamentary-questions|procedures|documents|plenary-documents|adopted-texts)\//.test(row.key)||/MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(row.key),exact=wanted.has(row.key)||wanted.has(row.key.split('/').at(-1));
+    if(record&&restrictRecords&&!exact)continue;
+    const gap={start:validDay(row.start)?row.start:null,end:validDay(row.end)?row.end:null,sourceId:row.key,reason:'source-gap',...(rootPresence&&/^\/(parliamentary-questions|procedures)\//.test(row.key)?{retained:Boolean(row.retained)}:{})};
+    if(start&&gap.end&&gap.end<start||end&&gap.start&&gap.start>end)continue;
+    if(details.length<500)details.push(gap);
+    if(exact&&preferred.length<1000)preferred.push(gap);
+    if(gap.start||gap.end){if(!exact)merge((record?'record:':'collection:')+String(gap.retained),gap);}
+    else if(gap.retained!==true)unknown=true;
+  }
+  if(total<=500)return details;
+  return [{reason:'gap-list-limit',minimumCount:501,archiveOnly:true},...preferred,...[...intervals.values()].flat(),...(unknown?[{reason:'source-gap'}]:[])];
 }
 export function indexAvailability(store,{sourceKey,family=sourceKey,subtype=null,stage='metadata',language=null,start='2024-07-16',end=brusselsDay(store.clock()),records=[],latestObservedDate=null,limited=false,generation=store.status().servingGeneration,gaps=null,checkedAt=store.get('lastSuccess'),revision=store.get('availabilityRevision')||0}={}) {
   return sourceAvailability({sourceKey,family,subtype,stage,language,start,end,records,latestObservedDate,limited,
-    gaps:gaps??savedGaps(store,generation,family),checkedAt,today:brusselsDay(store.clock()),
+    gaps:gaps??savedGaps(store,generation,family,{start,end}),checkedAt,today:brusselsDay(store.clock()),
     snapshot:{generation,revision}});
 }
 export function oralAvailability(store,{generation,start='2024-07-16',end=brusselsDay(store.clock()),limited=false,gaps=null}={}) {

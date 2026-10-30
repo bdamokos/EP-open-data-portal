@@ -15,10 +15,12 @@ export function coverageNotices(evidence,{start,end,onlyRelevant=false,sourceIds
       const speech=key.match(/(?:^|[:/])(MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+)$/)?.[1];
       const question=key.match(/^\/parliamentary-questions\/([EOP]-\d+-\d{4}-\d+(?:-ASW)?)$/)?.[1];
       const document=key.match(/^\/(?:documents|plenary-documents|adopted-texts)\/((?:A|B|RC|TA)-\d+-\d{4}-\d+)$/)?.[1];
+      if(gap.reason==='record-gap-summary'&&sourceIds)continue;
       if(sourceIds&&!exact&&(speech||question||document||!range))continue;
       if(!exact&&onlyRelevant&&!range)continue;
       if(!exact&&range&&(from&&range.end&&range.end<from||to&&range.start&&range.start>to))continue;
       if(gap.reason==='gap-list-limit'&&gap.minimumCount){ranges.set('overflow:'+source.family,{kind:'gap-overflow',count:gap.minimumCount,family:source.family});continue;}
+      if(gap.reason==='record-gap-summary'&&gap.minimumCount&&range){ranges.set(['record-reads',source.family,range.start,range.end,String(gap.retained)].join('|'),{kind:'record-reads',count:gap.minimumCount,family:source.family,...range});continue;}
       if(speech)records.set(speech,{kind:'speech',id:speech,date:validDay(speech.slice(7,17))?speech.slice(7,17):null});
       else if(question||document)records.set(question||document,{kind:question?'question':'document',id:question||document,sourceUrl:'https://data.europarl.europa.eu/api/v2'+key,...(typeof gap.retained==='boolean'?{retained:gap.retained}:{})});
       else if(range) {

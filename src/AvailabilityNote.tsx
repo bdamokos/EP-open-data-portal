@@ -7,6 +7,7 @@ const date=(value:string,language:string)=>new Intl.DateTimeFormat(language,{day
 export function PartialValue({partial}:{partial?:boolean}) {return partial?<small className="availability-partial" lang="en">Partial</small>:null;}
 function GapNotice({notice,language}:{notice:CoverageNotice;language:string}) {
   if(notice.kind==='gap-overflow')return <>At least {notice.count} {notice.family==='questions'?'question':'source'} reads failed.</>;
+  if(notice.kind==='record-reads')return <>{notice.count} {notice.family==='questions'?'question':'source'} {notice.count===1?'read failed':'reads failed'} · {!notice.start?'through ':!notice.end?'from ':''}<span lang={language}>{notice.start&&date(notice.start,language)}{notice.start&&notice.end&&notice.start!==notice.end?' – ':''}{notice.end&&notice.start!==notice.end&&date(notice.end,language)}</span></>;
   if(notice.kind==='speech-records')return <>Speech archive: {notice.count} {notice.count===1?'failed read':'failed reads'}{notice.dates.length>0&&<> · <span lang={language}>{notice.dates.map(day=>date(day,language)).join(', ')}</span></>}</>;
   if('sourceUrl' in notice)return <><SourceLink url={notice.sourceUrl} language={language}>{notice.kind==='question'?'Question':'Document'} {notice.id} ↗</SourceLink> {notice.retained===true?'could not be updated':notice.retained===false?'not loaded':'last read failed'}</>;
   const name=({'speaker-list':'Speaker list','question-list':'Question list','speech-list':'Speech list','dossier-list':'Dossier list',records:'Records'} as Record<string,string>)[notice.kind];

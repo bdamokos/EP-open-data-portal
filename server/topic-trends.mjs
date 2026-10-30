@@ -85,7 +85,10 @@ export class TopicTrends {
     requestSignal()?.throwIfAborted();
     const {page,...selection}=query,key=JSON.stringify([this.store.status().servingGeneration,this.store.get('availabilityRevision')||0,selection]);let state=this.states.get(key);
     if(state&&this.clock()-state.at>30*60_000){this.states.delete(key);state=null;}
-    if(!state){state=this.store.readSnapshot(()=>({at:this.clock(),...savedProcedureEvents(this.store,selection),generation:this.store.status().servingGeneration,revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),gaps:savedGaps(this.store,this.store.status().servingGeneration,'procedures'),indexComplete:this.store.status().complete,page:-1,result:null,pending:null}));this.states.set(key,state);while(this.states.size>4)this.states.delete(this.states.keys().next().value);}
+    if(!state){state=this.store.readSnapshot(()=>{
+      const saved=savedProcedureEvents(this.store,selection),generation=this.store.status().servingGeneration;
+      return {at:this.clock(),...saved,generation,revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),gaps:savedGaps(this.store,generation,'procedures',{start:query.start,end:query.end,recordIds:saved.procedures.map(procedure=>procedure.id),restrictRecords:true}),indexComplete:this.store.status().complete,page:-1,result:null,pending:null};
+    });this.states.set(key,state);while(this.states.size>4)this.states.delete(this.states.keys().next().value);}
     if(state.pending)await waitForRequest(state.pending);if(state.result&&!state.result.coverage.sourceError&&(state.page>=page||state.result.nextPage===null))return state.result;
     const job=sharedRequest(async()=>{
       const ids=state.procedures.map(p=>p.id),known=await this.catalog.known(ids,query.language),missing=ids.filter(id=>!known.has(id)||known.get(id).stale);let sourceError=false;
