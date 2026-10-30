@@ -142,6 +142,29 @@ test('declared DOCX sizes are checked against actual response bytes before parsi
   await assert.rejects(downloadDocxBuffer(url,{signal,expectedByteSize:bytes.length+1}),/does not match the selected edition/);
 });
 
+test('a shared URL preserves its pending owner without losing another exact record or blocking unrelated files',async t=>{
+  const {index,corpus,worker}=fixture(t),work=editionQuestion(100,'2026-10-01T08:00:00Z'),file=questionFiles(work)[0];
+  index.putSource(1,key,'document',work,fetched);
+  const otherId='E-10-2026-000003',otherUrl=file.url.replace('q_en.docx','other_en.docx');
+  index.putSource(1,'/parliamentary-questions/'+otherId,'document',{...work,identifier:otherId,is_realized_by:[{language:'en',is_embodied_by:[{format:'DOCX',is_exemplified_by:otherUrl}]}]},fetched);
+  const foreign={...file,sourceId:'E-10-2026-000002'};
+  corpus.enqueue('docx:'+file.url,'docx',foreign,50);corpus.failTask(corpus.task('docx:'+file.url),new Error('Existing URL retry'),3600);
+  const before=corpus.task('docx:'+file.url);
+  await discoverQuestionFiles(worker,1);
+  assert.deepEqual(corpus.task(before.key),before,'the other exact identity keeps its entire pending owner');
+  assert.deepEqual(corpus.db.prepare(changedQuestionsSql).all(1,'','all').map(row=>row.source_key),[key],'the blocked intent is not acknowledged away');
+  assert(corpus.task('docx:'+otherUrl),'unrelated files are still admitted');
+  const resumed=before.retry_at+1;corpus.clock=worker.clock=()=>resumed;assert(corpus.acquire());
+  worker.runUpstream=load=>load(worker.controller.signal);worker.download=async()=>({paragraphs:['Public shared-file text.']});
+  await worker.task(corpus.task(before.key));
+  assert.equal(corpus.db.prepare('SELECT source_id FROM documents').get().source_id,foreign.sourceId);
+  await discoverQuestionFiles(worker,1);
+  const admitted=corpus.task(before.key);assert.equal(admitted.body.sourceId,file.sourceId);assert.equal(admitted.done,0);
+  await worker.task(admitted);
+  assert.deepEqual(corpus.db.prepare('SELECT source_id FROM documents ORDER BY source_id').all().map(row=>row.source_id),[file.sourceId,foreign.sourceId]);
+  assert.equal(corpus.db.prepare(changedQuestionsSql).all(1,'','all').length,0);
+});
+
 test('policy widening, queue rollback and cancellation leave durable restartable discovery',async t=>{
   const {index,corpus,worker}=fixture(t);index.putSource(1,key,'document',question(),fetched);
   worker.languages='primary';await discoverQuestionFiles(worker,1);
