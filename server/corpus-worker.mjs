@@ -1,5 +1,7 @@
 import {cataloguePage,acquisitionMode} from './availability-history.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
+import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
+import {currentSpeechDetail,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import path from 'node:path';
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
@@ -121,6 +123,7 @@ export class CorpusWorker {
     if(this.store.get('speechInterventionClassificationVersion')!==INTERVENTION_CLASSIFICATION_VERSION)return true;
     if(this.store.get('speechLanguages')!==this.languages)return true;
     const index=this.store.indexState();
+    if(index.published&&declaredSpeechDiscoveryDue(this.store,index.generation))return true;
     if(index.generation!==null&&this.store.get('documentLanguages')!==this.languages)return true;
     const checked=this.store.get('discoveryCheckedAt');
     if(!checked||this.clock()-checked>=60*60_000)return true;
@@ -168,6 +171,7 @@ export class CorpusWorker {
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
     if(index.generation==null){this.store.set('discoveryCheckedAt',now);return;}
+    if(index.published)await discoverDeclaredSpeeches(this,index.generation);
     const discovered=this.store.get('discoveredAt'), sameIndex=this.store.get('discoveredGeneration')===index.generation && this.store.get('discoveredPublished')===index.published;
     if(discovered && sameIndex && this.store.get('documentLanguages')===this.languages && now-Date.parse(discovered)<DISCOVER_EVERY){this.store.set('discoveryCheckedAt',now);return;}
     await discoverQuestionFiles(this,index.generation);
@@ -224,12 +228,18 @@ export class CorpusWorker {
       this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature,availabilityCheck});
     } else if(task.kind==='speech'||task.kind==='speech-metadata-detail') {
       if(!SPEECH_ID.test(body.id))throw new Error('Invalid speech identifier.');
+      if(body.declaredIndex) {
+        const metadata=this.store.task('speech-metadata-detail:'+body.id);
+        if(metadata&&!metadata.done&&metadata.retry_at>this.clock()) {
+          this.store.assertWriter();this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=?').run(metadata.retry_at,task.key);return;
+        }
+      }
       const metadataOnly=task.kind==='speech-metadata-detail',params=metadataOnly?{}:{'include-output':'xml_fragment'};
       await this.pace();
       this.controller.signal.throwIfAborted();
       const record=await this.fetchRecord('/speeches/'+body.id,params,{signal:this.controller.signal});
       this.controller.signal.throwIfAborted();
-      const activity=record.payload.data.find(node=>node.activity_id===body.id);
+      const activity=body.declaredIndex?(body.declaredParent!==undefined?declaredSpeechDetail(record,body.id,body.declaredParent,this.clock()):currentSpeechDetail(record,body.id,this.clock())):record.payload.data.find(node=>node.activity_id===body.id);
       if(!activity)throw new Error(`Speech ${body.id} has no matching detail record.`);
       const url=new URL(ODP_BASE+'/speeches/'+body.id);for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,value);
       if(!metadataOnly) {

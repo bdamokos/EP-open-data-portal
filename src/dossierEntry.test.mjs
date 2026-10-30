@@ -30,7 +30,7 @@ async function harness(t,url) {
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
     if(route?.startsWith('latest-activities/'))return Response.json(activityPage);
     if(route==='insights/dossier-references')return Response.json({items:[procedure],coverage:{status:'complete',gaps:[]}});
-    if(route==='insights/dossier-activity')return Response.json({version:6,procedure,memberId:url.searchParams.get('member'),section:url.searchParams.get('section'),participants:[{id:'257727',name:'Named Member',roles:[role]}],items:url.searchParams.get('section')==='roles'?[role]:[],pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Only linked records shown.'],sources:[source]},generation:1});
+    if(route==='insights/dossier-activity')return Response.json({version:8,procedure,memberId:url.searchParams.get('member'),section:url.searchParams.get('section'),participants:[{id:'257727',name:'Named Member',roles:[role]}],items:url.searchParams.get('section')==='roles'?[role]:[],pagination:{offset:0,targetOffset:0,limit:25,next:null},coverage:{status:'partial',gaps:['Only linked records shown.'],sources:[source]},generation:1});
     if(route==='insights/procedure-context')return Response.json({reference:ref,title:procedure.title,language:'en',summaries:[],summary:null,subjects:[],topics:[],source});
     if(route==='insights/legislation')return Response.json(legislation);
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});

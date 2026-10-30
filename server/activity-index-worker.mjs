@@ -23,6 +23,7 @@ import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,docume
 import {reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending,amendmentDocumentRouteVerificationPending,scheduleAmendmentDocumentRouteVerification} from './document-route-recovery.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
+import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery,declaredDebateTask,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -106,6 +107,7 @@ export class ActivityWorker {
     if(this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
     if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))return true;
+    if(this.recoveryMode==='backfill'&&declaredDebateRecoveryDue(this.store,generation))return true;
     if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())||amendmentDocumentRouteVerificationPending(this.store,generation)))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
     if(amendmentParserUpgradeDue(this.store,generation)||committeePreparationDue(this.store,generation))return true;
@@ -244,7 +246,9 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
-    if(task.kind.startsWith('group-history-')) {
+    if(task.kind==='debate-links'||task.kind==='declared-event') {
+      await declaredDebateTask(this,task);
+    } else if(task.kind.startsWith('group-history-')) {
       await groupHistoryTask(this,task);
     } else if(task.kind==='membership') {
       await membershipTask(this,task);
@@ -280,12 +284,14 @@ export class ActivityWorker {
     } else if(task.kind==='speeches' && body.recoveryId) {
       if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(body.recoveryId))throw new Error('Invalid speech recovery identifier.');
       const r=await this.request('/speeches/'+body.recoveryId);
-      const activity=r.payload.data.find(node=>node.activity_id===body.recoveryId);
+      this.controller.signal.throwIfAborted();this.store.assertWriter();
+      const activity=body.declaredParent!==undefined?declaredSpeechDetail(r,body.recoveryId,body.declaredParent,this.clock()):r.payload.data.find(node=>node.activity_id===body.recoveryId);
       if(!activity)throw new Error(`Published speech ${body.recoveryId} has no matching detail record.`);
-      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task)});
+      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task),declaredParent:body.declaredParent});
       this.store.finishTask(task);
     } else if(task.kind==='speeches') {
       const r=await this.request('/speeches',{...body.params,limit:250,offset:body.offset});
+      this.controller.signal.throwIfAborted();this.store.assertWriter();
       // The search total saturates at 10,000. Partition the date window before
       // paging so a full term cannot be mistaken for a truncated search result.
       if(body.offset===0 && Number(r.payload.meta?.total)>=10000) {
@@ -423,16 +429,21 @@ export class ActivityWorker {
       const projected=projectProcedure(work);
       this.store.putSource(generation,body.endpoint,'procedure',projected,r.fetchedAt);
       scheduleCommitteeDiscovery(this,generation,projected,r.fetchedAt,body.endpoint);
+      if(this.recoveryMode==='backfill'&&this.store.get('working')?.generation===generation)this.store.enqueue(generation,'debate-links:'+body.endpoint,'debate-links',{endpoint:body.endpoint,offset:0},102,true);
       // Make verified report roles usable during the initial partial load; an
       // unrelated missing speech must not postpone an already supported join.
       this.refreshReportJoins(generation,tail(body.endpoint));
       this.store.finishTask(task);
     }
   }
-  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false,{acquisition='unknown'}={}) {
+  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false,{acquisition='unknown',declaredParent=null}={}) {
     const key='/speeches/'+activity.activity_id;
+    const retained=this.store.source(generation,key)?.work;
+    // The declaration comes from the separately observed debate. An ordinary
+    // catalogue refresh does not erase it or invent an omitted reverse edge.
+    declaredParent=declaredParent??retained?.declaredParent??null;
     let outside=outsideSpeech(activity,fetchedAt,queryUrl);
-    const previous=this.store.source(generation,key)?.work.outside;
+    const previous=retained?.outside;
     if(outside && previous) {
       outside={...outside,titles:{...previous.titles,...outside.titles},...(outside.headerChecked?{source:previous.source}:{} )};
     }
@@ -446,7 +457,7 @@ export class ActivityWorker {
       observeSource(this.store,{sourceId:activity.activity_id,family:'speeches',subtype:tail(activity.had_activity_type),date:activity.activity_date,fetchedAt,url:queryUrl,acquisition,existed});
       finishAvailabilityWrite(this.store);
     });return;}
-    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
+    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(declaredParent?{declaredParent}:{}),...(activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
     recordOutside(this.store,generation,outside);
     if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
   }
@@ -697,12 +708,13 @@ export class ActivityWorker {
       }
       // Core recovery changes items and their frozen Following summaries. It
       // must publish through a working generation, even between daily cycles.
-      const recover=this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||amendmentDocumentRouteVerificationPending(this.store,active));
+      const recover=this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
       const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
       this.controller.signal.throwIfAborted();
       this.store.assertWriter();
       if(cycle){
+        if(this.recoveryMode==='backfill')scheduleDeclaredDebateRecovery(this,generation);
         reconcileAmendmentDocumentGaps(this,generation,{restart:this.amendmentRouteStartupRepair});this.amendmentRouteStartupRepair=false;
         scheduleAdoptedTexts(this,cycle);scheduleAdoptedTextRepairs(this,cycle);
       }
@@ -787,13 +799,14 @@ export class ActivityWorker {
           // An iteration may spend 90 minutes on source jobs. Advance one
           // bounded local batch per dispatch rather than waiting for its end.
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
+          if(cycle&&this.recoveryMode==='backfill')scheduleDeclaredDebateRecovery(this,generation);
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
           const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
           const coreTask=this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;
           // Future jobs need no request; keep scanning across the async disk
           // checkpoint until the cursor completes or this run reaches a bound.
-          if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)))continue;
+          if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||this.recoveryMode==='backfill'&&(amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           // Publish a finished core generation before spending budget on optional metadata.
           if(!coreTask&&cycle&&this.store.get('working')){
             const counts=this.store.taskCounts(generation);
