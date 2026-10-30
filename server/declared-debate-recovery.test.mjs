@@ -10,6 +10,7 @@ import {CorpusWorker} from './corpus-worker.mjs';
 import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery} from './declared-debate-recovery.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
 import {recordTaskGap} from './refresh-policy.mjs';
+import {DossierActivity} from './dossier-activity.mjs';
 
 const time='2026-10-30T10:00:00.000Z',now=()=>Date.parse(time);
 const parent='MTG-PL-2024-10-07-PVCRE-ITM-17',child=n=>'MTG-PL-2024-10-07-OTH-'+n;
@@ -23,7 +24,7 @@ function fixture(t,records=new Map()) {
     assert(value,'Unexpected endpoint '+endpoint);return {payload:{data:Array.isArray(value)?value:[value]},fetchedAt:time};
   }});
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
-  const task=key=>{const row=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key);return row&&{...row,body:JSON.parse(row.body)};};
+  const task=(key,g=generation)=>{const row=store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(g,key);return row&&{...row,body:JSON.parse(row.body)};};
   const procedure=(id='2024-0212',debates=[parent])=>store.putSource(generation,'/procedures/'+id,'procedure',{id:'eli/dl/proc/'+id,consists_of:debates.map(id=>node(id,'PLENARY_DEBATE',{activity_date:'2024-10-07'}))},time);
   return {directory,store,worker,generation,calls,task,procedure,records};
 }
@@ -150,4 +151,76 @@ test('published exact speech metadata gives the existing corpus writer a transcr
   await worker.task(corpus.task('speech:'+child(1)));
   assert.equal(corpus.task('speech:'+child(1)).done,1);assert(corpus.db.prepare('SELECT 1 FROM texts WHERE chars>0').get());
   assert.deepEqual(corpus.task('speech:'+child(2)),before);
+});
+
+test('checkpoint-admitted future speech and event owners survive generation copies and late dispatch',async t=>{
+  const x=fixture(t);x.procedure();x.store.publish(x.generation);
+  for(const [key,kind,body] of [
+    ['recovery:/speeches/'+child(1),'speeches',{recoveryId:child(1),offset:250}],
+    ['/events/'+child(2),'declared-event',{id:child(2),role:'child',parent,childOffset:100}],
+  ]) {
+    x.store.enqueue(x.generation,key,kind,body,103);
+    x.store.db.prepare('UPDATE tasks SET attempts=3,retry_at=?,error=? WHERE generation=? AND key=?').run(now()+86400000,'saved future retry',x.generation,key);
+  }
+  x.worker.checkpointContinuations(x.generation);
+  const before=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? ORDER BY key').all(x.generation);
+  assert.equal(before.length,2);
+  const g=x.store.beginCycle().generation;
+  x.records.set('/events/'+parent,node(parent,'PLENARY_DEBATE',{consists_of:[1,2,3].map(n=>uri(child(n)))}));
+  scheduleDeclaredDebateRecovery(x.worker,g);await x.worker.task(x.task('debate-links:/procedures/2024-0212',g));await x.worker.task(x.task('/events/'+parent,g));
+  assert.equal(x.task('/events/'+child(1),g),undefined,'future admitted speech owner prevents classification fan-out');
+  assert.equal(x.task('/events/'+child(2),g),undefined,'future admitted event owner prevents a duplicate owner');
+  for(const prior of before)assert.deepEqual({...x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(g,prior.key),generation:x.generation},{...prior});
+  const key='recovery:/speeches/'+child(3);x.store.enqueue(g,key,'speeches',{recoveryId:child(3),offset:500},103);
+  x.store.db.prepare('UPDATE tasks SET attempts=2,retry_at=? WHERE generation=? AND key=?').run(now()+86400000,g,key);
+  x.worker.checkpointContinuations(g);
+  const owner=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(g,key);
+  const queued=x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(g,'/events/'+child(3));
+  await x.worker.task({...queued,body:JSON.parse(queued.body),amendmentJob:true});
+  assert.deepEqual(x.calls,['/events/'+parent],'late admitted owner prevents the generic request');
+  assert.deepEqual(x.store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(g,key),owner);
+});
+
+for(const [label,change] of [
+  ['URI',{id:uri(child(999))}],['activity identifier',{activity_id:child(999)}],
+  ['old date',{activity_date:'2023-01-01'}],['invalid date',{activity_date:'2024-02-30'}],
+  ['type',{had_activity_type:'def/ep-activities/PLENARY_PROCEEDING'}],
+  ['parent',{inverse_consists_of:[uri(parent+'0')]}],
+  ['extra parent',{inverse_consists_of:[uri(parent),uri(parent+'0')]}],
+  ['explicit term',{parliamentary_term:'org/ep-9'}],
+])test('speech detail preserves declared '+label+' safeguards after generic classification',async t=>{
+  const x=fixture(t),id=child(20),key='/events/'+id;
+  x.store.enqueue(x.generation,key,'declared-event',{id,role:'child',parent},103);
+  x.records.set(key,node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  await x.worker.task(x.task(key));
+  const recovery=x.task('recovery:/speeches/'+id);
+  x.records.set('/speeches/'+id,node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)],had_participation:[{had_participant_person:['person/42']}],...change}));
+  const error=await x.worker.task(recovery).then(()=>null,error=>error);
+  assert(error,'contradictory speech detail must not be accepted');
+  assert.equal(x.store.source(x.generation,'/speeches/'+id),undefined);assert.equal(x.store.db.prepare('SELECT COUNT(*) n FROM items').get().n,0);
+  assert(recordTaskGap(x.worker,{...recovery,attempts:4},error));
+  const gap=x.store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=? AND key=?').get(x.generation,recovery.key);
+  assert.equal(JSON.parse(gap.body).declaredParent,parent);
+  const reader=new DossierActivity(x.store,{reader:{record:async()=>({payload:{data:[node(parent,'PLENARY_DEBATE',{consists_of:[uri(id)]})]},url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:time})}});
+  const result={generation:x.generation,coverage:{sources:[],gaps:[]},pagination:{}};
+  await reader.speeches(result,{consists_of:[node(parent,'PLENARY_DEBATE')]},{targetOffset:0,language:'en',member:'42'},()=>{});
+  assert.equal(result.coverage.status,'partial');assert.deepEqual(result.coverage.missingSpeechIds,[id]);
+});
+
+test('a changed parent observation resets fan-out even if it committed before the cursor checkpoint failed',async t=>{
+  const x=fixture(t);let ms=now();x.store.clock=()=>ms;x.worker.clock=()=>ms;
+  x.worker.fetchRecord=async endpoint=>({payload:{data:[x.records.get(endpoint)]},fetchedAt:new Date(ms).toISOString()});
+  const key='/events/'+parent,old=Array.from({length:201},(_,i)=>uri(child(i)));
+  x.store.enqueue(x.generation,key,'declared-event',{id:parent,role:'debate'},103);
+  x.records.set(key,node(parent,'PLENARY_DEBATE',{consists_of:old}));await x.worker.task(x.task(key));
+  assert.equal(x.task(key).body.childOffset,100);
+  ms+=8*86400000;assert(x.store.acquire());
+  const added=child(99999);x.records.set(key,node(parent,'PLENARY_DEBATE',{consists_of:[uri(added),...old]}));
+  const progress=x.store.taskProgress;
+  x.store.taskProgress=()=>{throw new Error('fixture checkpoint rollback');};
+  try{await assert.rejects(x.worker.task(x.task(key)),/fixture checkpoint rollback/);}finally{x.store.taskProgress=progress;}
+  assert(x.store.source(x.generation,key).work.children.includes(added));assert.equal(x.task('/events/'+added),undefined);
+  while(!x.task(key).done)await x.worker.task(x.task(key));
+  assert(x.task('/events/'+added),'new reference before the saved offset must receive an owner');
+  assert.equal(x.store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='declared-event' AND key<>?").get(key).n,202);
 });

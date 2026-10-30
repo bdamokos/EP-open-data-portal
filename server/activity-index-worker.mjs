@@ -21,7 +21,7 @@ import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,docume
 import {reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending,amendmentDocumentRouteVerificationPending,scheduleAmendmentDocumentRouteVerification} from './document-route-recovery.mjs';
 import {retryAfterSeconds} from './upstream-queue.mjs';
 import { ActivityStore } from './activity-index-store.mjs';
-import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery,declaredDebateTask} from './declared-debate-recovery.mjs';
+import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery,declaredDebateTask,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import {activityGenerationTask} from './activity-generation-task.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -282,9 +282,9 @@ export class ActivityWorker {
     } else if(task.kind==='speeches' && body.recoveryId) {
       if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(body.recoveryId))throw new Error('Invalid speech recovery identifier.');
       const r=await this.request('/speeches/'+body.recoveryId);
-      const activity=r.payload.data.find(node=>node.activity_id===body.recoveryId);
+      const activity=body.declaredParent!==undefined?declaredSpeechDetail(r,body.recoveryId,body.declaredParent,this.clock()):r.payload.data.find(node=>node.activity_id===body.recoveryId);
       if(!activity)throw new Error(`Published speech ${body.recoveryId} has no matching detail record.`);
-      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task)});
+      this.saveSpeech(generation,activity,r.fetchedAt,body.outsideOnly,r.url,task.groupVoiceJob,{acquisition:acquisitionMode(this.store,task),declaredParent:body.declaredParent});
       this.store.finishTask(task);
     } else if(task.kind==='speeches') {
       const r=await this.request('/speeches',{...body.params,limit:250,offset:body.offset});
@@ -425,7 +425,7 @@ export class ActivityWorker {
       this.store.finishTask(task);
     }
   }
-  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false,{acquisition='unknown'}={}) {
+  saveSpeech(generation,activity,fetchedAt,outsideOnly=false,queryUrl=null,groupVoiceOnly=false,{acquisition='unknown',declaredParent=null}={}) {
     const key='/speeches/'+activity.activity_id;
     let outside=outsideSpeech(activity,fetchedAt,queryUrl);
     const previous=this.store.source(generation,key)?.work.outside;
@@ -442,7 +442,7 @@ export class ActivityWorker {
       observeSource(this.store,{sourceId:activity.activity_id,family:'speeches',subtype:tail(activity.had_activity_type),date:activity.activity_date,fetchedAt,url:queryUrl,acquisition,existed});
       finishAvailabilityWrite(this.store);
     });return;}
-    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
+    this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(declaredParent&&activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
     recordOutside(this.store,generation,outside);
     if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
   }
