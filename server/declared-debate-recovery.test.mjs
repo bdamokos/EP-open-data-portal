@@ -51,13 +51,14 @@ test('a declared URI-only child obtains a generic metadata owner without being a
   x.records.set('/speeches/'+child(2),node(child(2),'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-08',had_participation:[{had_participant_person:['person/42']}]}));
   await x.worker.task(owned);
   assert.equal(x.store.source(x.generation,'/speeches/'+child(2)).work.date,'2024-10-08');
+  assert.equal(x.store.source(x.generation,'/speeches/'+child(2)).work.declaredParent,parent);
   assert.equal(x.store.db.prepare('SELECT mep FROM items WHERE source_id=?').get(child(2)).mep,'42');
   assert.equal(x.task('/events/'+child(3)).done,0,'unrelated declarations keep their owners');
 });
 
 test('generic classification rejects foreign, duplicate, untyped, wrongly parented and undated speech records',async t=>{
   const x=fixture(t),key='/events/'+child(1);
-  for(const response of [node(child(2),'PLENARY_PROCEEDING'),[node(child(1),'PLENARY_PROCEEDING'),node(child(1),'PLENARY_PROCEEDING')],{id:uri(child(1))},node(child(1),'PLENARY_PROCEEDING',{inverse_consists_of:[uri(parent+'0')]}),node(child(1),'PLENARY_DEBATE_SPEECH')]) {
+  for(const response of [node(child(2),'PLENARY_PROCEEDING'),[node(child(1),'PLENARY_PROCEEDING'),node(child(1),'PLENARY_PROCEEDING')],[node(child(1),'PLENARY_PROCEEDING'),node(child(2),'PLENARY_PROCEEDING',{activity_id:child(1)})],{id:uri(child(1))},node(child(1),'PLENARY_PROCEEDING',{inverse_consists_of:[uri(parent+'0')]}),node(child(1),'PLENARY_DEBATE_SPEECH')]) {
     x.store.enqueue(x.generation,key,'declared-event',{id:child(1),role:'child',parent},103);
     x.records.set(key,response);await assert.rejects(x.worker.task(x.task(key)));
     assert.equal(x.store.source(x.generation,key),undefined);assert.equal(x.task(key).done,0);
@@ -184,6 +185,7 @@ test('checkpoint-admitted future speech and event owners survive generation copi
 for(const [label,change] of [
   ['URI',{id:uri(child(999))}],['activity identifier',{activity_id:child(999)}],
   ['old date',{activity_date:'2023-01-01'}],['invalid date',{activity_date:'2024-02-30'}],
+  ['future date',{activity_date:'2027-01-01'}],
   ['type',{had_activity_type:'def/ep-activities/PLENARY_PROCEEDING'}],
   ['parent',{inverse_consists_of:[uri(parent+'0')]}],
   ['extra parent',{inverse_consists_of:[uri(parent),uri(parent+'0')]}],
@@ -223,4 +225,17 @@ test('a changed parent observation resets fan-out even if it committed before th
   while(!x.task(key).done)await x.worker.task(x.task(key));
   assert(x.task('/events/'+added),'new reference before the saved offset must receive an owner');
   assert.equal(x.store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='declared-event' AND key<>?").get(key).n,202);
+});
+
+for(const [label,change] of [['URI',{id:uri(child(999))}],['date',{activity_date:'2023-01-01'}],['type',{had_activity_type:'def/ep-activities/PLENARY_PROCEEDING'}],['parent',{inverse_consists_of:[uri(parent+'0')]}]])test('corpus handoff preserves the declared '+label+' guard before retaining text',async t=>{
+  const x=fixture(t),id=child(30);
+  x.store.putSource(x.generation,'/speeches/'+id,'speech',{id,kind:'PLENARY_DEBATE_SPEECH',date:'2024-10-07',declaredParent:parent},time);
+  x.store.set('active',x.generation);
+  const corpus=new CorpusStore(path.join(x.directory,'corpus'),{indexFile:x.store.filename,clock:now});assert(corpus.acquire());t.after(()=>corpus.close());
+  const fragment='<oralStatements xml:lang="en"><intervention><p>Do not retain this contradictory body.</p></intervention></oralStatements>';
+  const worker=new CorpusWorker(corpus,{clock:now,fetchRecord:async()=>({payload:{data:[node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)],recorded_in_a_realization_of:[{id:'eli/dl/doc/CRE','api:xmlFragment':{en:fragment}}],...change})]},fetchedAt:time})});
+  await discoverDeclaredSpeeches(worker,x.generation);
+  const task=corpus.task('speech:'+id);assert.equal(task.body.declaredParent,parent);
+  await assert.rejects(worker.task(task));
+  assert.equal(corpus.task(task.key).done,0);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM texts').get().n,0);assert.equal(corpus.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n,0);
 });

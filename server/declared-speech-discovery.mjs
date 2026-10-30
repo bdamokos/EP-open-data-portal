@@ -7,7 +7,7 @@ export function declaredSpeechDiscoveryDue(store,generation) {return generation!
 // write through the attachment; normal corpus jobs own all transcript work.
 export async function discoverDeclaredSpeeches(worker,generation) {
   const {store}=worker,saved=state(store,generation);if(saved.complete)return;
-  const rows=store.db.prepare(`SELECT source.key,json_extract(source.body,'$.id') id,json_extract(source.body,'$.kind') kind
+  const rows=store.db.prepare(`SELECT source.key,json_extract(source.body,'$.id') id,json_extract(source.body,'$.kind') kind,json_extract(source.body,'$.declaredParent') parent
     FROM idx.sources source WHERE source.generation=? AND source.kind='speech' AND source.key>? ORDER BY source.key LIMIT 100`).all(generation,saved.afterKey);
   store.transaction(()=>{
     store.assertWriter();
@@ -16,7 +16,7 @@ export async function discoverDeclaredSpeeches(worker,generation) {
       if(store.db.prepare("SELECT 1 FROM documents WHERE source_id=? AND kind='speech'").get(row.id))continue;
       // INSERT OR IGNORE preserves every pending task's body, attempts and
       // future deadline. Only an already-completed empty job may be reopened.
-      const key='speech:'+row.id,body={id:row.id,declaredIndex:true};
+      const key='speech:'+row.id,body={id:row.id,declaredIndex:true,...(row.parent!=null?{declaredParent:row.parent}:{})};
       const prior=store.task(key),inserted=store.enqueue(key,'speech',body,61);
       if(!inserted)store.reopen(key,body,61);
       const metadata=store.task('speech-metadata-detail:'+row.id);

@@ -57,13 +57,18 @@ function enqueueEvent(worker,generation,id,role,parent=null) {
   store.enqueue(generation,'/events/'+id,'declared-event',{id,role,...(parent?{parent}:{} )},103);
 }
 function root(record,id) {
-  const nodes=record.payload.data.filter(node=>eventId(node)===id);
-  if(nodes.length!==1||nodes[0].activity_id!==undefined&&nodes[0].activity_id!==id||!type(nodes[0].had_activity_type))throw new Error('Declared event detail has no unique exact typed record.');
+  const nodes=record.payload.data.filter(node=>eventId(node)===id||node.activity_id===id);
+  if(nodes.length!==1||eventId(nodes[0])!==id||nodes[0].activity_id!==undefined&&nodes[0].activity_id!==id||!type(nodes[0].had_activity_type))throw new Error('Declared event detail has no unique exact typed record.');
   return nodes[0];
 }
-export function declaredSpeechDetail(record,id,parent,now=Date.now()) {
+export function currentSpeechDetail(record,id,now=Date.now()) {
   const node=root(record,id);
-  if(!childId.test(id)||!debateId.test(parent)||!declaredSpeechType(type(node.had_activity_type))||!currentTermSpeech(node,id,now)||!sameParent(node,parent))throw new Error('Declared speech detail conflicts with its exact identity, current-term date, type or parent.');
+  if(!childId.test(id)||!declaredSpeechType(type(node.had_activity_type))||!currentTermSpeech(node,id,now))throw new Error('Speech detail conflicts with its exact identity, current-term date or type.');
+  return node;
+}
+export function declaredSpeechDetail(record,id,parent,now=Date.now()) {
+  const node=currentSpeechDetail(record,id,now);
+  if(!debateId.test(parent)||!sameParent(node,parent))throw new Error('Declared speech detail conflicts with its parent.');
   return node;
 }
 export async function declaredDebateTask(worker,task) {

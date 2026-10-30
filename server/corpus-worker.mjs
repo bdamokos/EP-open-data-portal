@@ -1,6 +1,7 @@
 import {cataloguePage,acquisitionMode} from './availability-history.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
+import {currentSpeechDetail,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import path from 'node:path';
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
@@ -238,9 +239,8 @@ export class CorpusWorker {
       this.controller.signal.throwIfAborted();
       const record=await this.fetchRecord('/speeches/'+body.id,params,{signal:this.controller.signal});
       this.controller.signal.throwIfAborted();
-      const activity=record.payload.data.find(node=>node.activity_id===body.id);
+      const activity=body.declaredIndex?(body.declaredParent!==undefined?declaredSpeechDetail(record,body.id,body.declaredParent,this.clock()):currentSpeechDetail(record,body.id,this.clock())):record.payload.data.find(node=>node.activity_id===body.id);
       if(!activity)throw new Error(`Speech ${body.id} has no matching detail record.`);
-      if(body.declaredIndex&&!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(tail(activity.had_activity_type)))throw new Error('Declared contribution is no longer an eligible speech.');
       const url=new URL(ODP_BASE+'/speeches/'+body.id);for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,value);
       if(!metadataOnly) {
         const {document,texts}=await this.extractSpeech(activity,url.href,record.fetchedAt);
