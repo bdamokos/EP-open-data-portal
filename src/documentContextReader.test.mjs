@@ -1201,3 +1201,30 @@ test('an existing-act point keeps its source label when the amendment column omi
   const block=h.container.querySelector('[data-amendment-block]');assert.equal(block.querySelector('[data-source-label]').textContent,'(a)');
   await h.click([...block.querySelectorAll('button')].find(b=>b.textContent==='Side by side'));assert.equal(wordingText(block,'original'),originalText);assert.equal(wordingText(block,'proposed'),'Changed wording;');
 });
+
+const reportCover=['European Parliament\t\uFFFC','2024-2029','Plenary sitting','A10-0275/2025','22.12.2025','***I','REPORT','on defence procurement','Report body.'];
+function reportLogoText(paragraphs=reportCover){return {structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:ordinal!==0})),documentObjects:[{paragraph:0,offset:20,kind:'drawing',status:'unresolved'}],extractionWarnings:[logoWarning]};}
+test('report masthead logos produce neither image links nor missing-content notices and preserve source offsets',async t=>{
+  const id='A-10-2025-0275',extra={...reportLogoText(),noteAnchors:[{paragraph:8,offset:6,note:'fn1',label:'1'}],notes:[{id:'fn1',label:'1',text:'Report note.',links:[]}]};
+  const h=await harness(t,()=>response(id,sourceDocument(id,reportCover,extra)));await h.render({request:{documentId:id,view:'document'},language:'en'});
+  assert(!h.container.textContent.includes('Image in original'));
+  assert(!h.container.textContent.includes('Some content is only available'));
+  assert.equal(h.container.querySelector('[data-source-paragraph="0"]').textContent,'European Parliament\t');
+  assert(h.container.querySelector('[data-source-paragraph="8"] sup'));
+  assert(h.container.querySelector('[data-source-paragraph="8"]').textContent.includes('body.'));
+});
+test('report logo suppression retains real image, note and extraction gaps and rejects mismatched covers',async t=>{
+  for(const variant of ['body-image','note-image','warning','wrong-reference','unknown-structure','non-drawing','caption'])await t.test(variant,async t=>{
+    const id='A-10-2025-0275',paragraphs=[...reportCover],extra=reportLogoText();
+    if(variant==='body-image'){paragraphs[8]+='\uFFFC';extra.documentObjects.push({paragraph:8,offset:12,kind:'drawing',status:'unresolved'});}
+    if(variant==='note-image')extra.notes=[{id:'fn1',label:'1',text:'Note \uFFFC',links:[]}];
+    if(variant==='warning')extra.extractionWarnings.push('Unsupported numbering.');
+    if(variant==='wrong-reference')paragraphs[3]='A10-0276/2025';
+    if(variant==='unknown-structure')extra.structureStatus='not-extracted';
+    if(variant==='non-drawing')extra.documentObjects[0].kind='math';
+    if(variant==='caption')paragraphs[0]+=' Figure caption';
+    const h=await harness(t,()=>response(id,sourceDocument(id,paragraphs,extra)));await h.render({request:{documentId:id,view:'document'},language:'en'});
+    assert(h.container.textContent.includes('Some content is only available'));
+    assert.equal(h.container.querySelectorAll('.document-context-object').length,variant==='note-image'||variant==='warning'?0:1);
+  });
+});

@@ -610,3 +610,18 @@ test('amendment-only dossier participants render separate stage links and surviv
   assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);assert.doesNotMatch(h.container.querySelector('.dossier-participants').textContent,/plenary amendments/);
   await h.click('Retry people');assert.match(h.container.querySelector('.dossier-participants').textContent,/Amendment author/);assert.match(h.container.querySelector('.dossier-participants').textContent,/1\+ committee amendment/);
 });
+
+test('a sole document opens after Read text without a second Read report action',async t=>{
+  const item=structuredClone(rejection),id='A-10-2025-0275';item.vote.context.documentIds=[id];
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')==='votes')return Response.json(page('votes','257727',[item]));
+    if(url.pathname.includes('/document-context/'))return Response.json({documentId:id,requestedLanguage:'en',document:{id,selectedDocumentId:id,titles:{en:'Defence procurement'},files:[],selectedText:{status:'available',paragraphs:['Report text opens immediately.'],textLanguage:'en',availableTextLanguages:['en']}},related:{items:[],status:'not-requested'},target:{status:'not-requested'}});
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));
+  assert.equal(h.calls.filter(url=>url.pathname.includes('/document-context/')).length,0);
+  await h.click('Read text');
+  for(let i=0;i<100&&!h.container.textContent.includes('Report text opens immediately.');i++)await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
+  assert(h.container.textContent.includes('Report text opens immediately.'));
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Read report'));
+  assert.equal(h.container.querySelector('.document-context-back'),null);
+});
