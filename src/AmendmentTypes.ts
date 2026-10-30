@@ -17,7 +17,7 @@ export type AmendmentVariant = {
   proposerDate?:string|null;proposerDateBasis?:string|null;
   targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];authors?:AmendmentAuthor[];
   committeeProposer?:string|null;onBehalfOf?:string|string[]|null;sources?:AmendmentSource[];justification?:string|null;
-  wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
+  wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;fieldSources?:Record<string,AmendmentSource|null>;
 };
 export type Amendment = {
   id:string;number:number|string|null;listId?:string|null;targetDocumentId?:string|null;title?:string|null;titles?:Record<string,string>;date?:string|null;
@@ -27,7 +27,7 @@ export type Amendment = {
   wordingSource?:AmendmentSource|null;metadataSource?:AmendmentSource|null;proposerSource?:AmendmentSource|null;wordingRetained?:boolean;proposerRetained?:boolean;
   identifierBasis?:string;officialIds?:string[];
   procedureIds?:string[];targetLabel?:string|null;targetLabelLanguage?:string|null;targetLabelSource?:AmendmentSource|null;originalText?:string|null;proposedText?:string|null;originalFormatting?:WordingFormat[];proposedFormatting?:WordingFormat[];language?:string|null;
-  authors?:AmendmentAuthor[];onBehalfOf?:string|string[]|null;decisions?:AmendmentDecision[];splitParts?:AmendmentSplit[];
+  authors?:AmendmentAuthor[];onBehalfOf?:string|string[]|null;justification?:string|null;fieldSources?:Record<string,AmendmentSource|null>;decisions?:AmendmentDecision[];splitParts?:AmendmentSplit[];
   targetDocumentDate?:string|null;outcomeProofVersion?:number;splitCoverageComplete?:boolean;
   splitCoverage?:{requestId:string|null;registryRequestKey:string|null;componentCount:number|null;componentIds:string[];recordedComponentCount:number;recordedComponentIds:string[];boundComponentCount:number;boundComponentIds:string[];unboundComponentCount:number|null;complete:boolean}[];
   authorMatch?:{memberId:string;basis:'aggregate'|'variant'|'aggregate-and-variant';variantListIds:string[]};
