@@ -8,7 +8,7 @@ import type {SourceAvailability} from '../server/source-availability.mjs';
 const InsightQuestionReader=lazyView(()=>import('./InsightReaders').then(module=>({default:module.InsightQuestionReader})));
 
 type Result={id:string;type:string;title:string;titleLanguage:string|null;date:string|null;sittingId?:string;sourceUrl?:string};
-type Section={type:string;total:number;results:Result[];nextOffset:number|null;truncated:boolean;coverage:{complete:boolean;available:boolean;limited:boolean;missingAgendas?:number;pageLimitedAgendas?:number;conflicts?:{id:string}[];error?:boolean;availability?:SourceAvailability}};
+type Section={type:string;total:number;results:Result[];nextOffset:number|null;truncated:boolean;coverage:{complete:boolean;available:boolean;limited:boolean;missingAgendas?:number;pageLimitedAgendas?:number;incompleteCalendarYears?:number[];conflicts?:{id:string}[];error?:boolean;availability?:SourceAvailability}};
 type Response={offset:number;sections:Section[]};
 const labels:Record<string,string>={mep:'MEPs',topic:'Plenary topics',question:'Questions'};
 function resultUrl(result:Result,language:string) {
@@ -35,6 +35,7 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
     {data?.sections.map(section=><section key={section.type} aria-label={labels[section.type]}>
       <h4>{labels[section.type]} {section.coverage.available&&<span lang={language}>({section.total.toLocaleString(language)})</span>}</h4>
       {!section.coverage.available&&<p className="explorer-search-hint">Unavailable</p>}
+      {section.coverage.incompleteCalendarYears?.length? <p className="explorer-search-hint">Sitting calendar not fully loaded for {section.coverage.incompleteCalendarYears.join(', ')}.</p>:null}
       {section.coverage.missingAgendas? <p className="explorer-search-hint">{section.coverage.missingAgendas} sitting {section.coverage.missingAgendas===1?'agenda':'agendas'} not loaded.</p>:null}
       {section.coverage.conflicts?.length? <p className="explorer-search-hint">{new Set(section.coverage.conflicts.map(row=>row.id)).size} agenda records have conflicting details.</p>:null}
       {section.coverage.limited&&<p className="explorer-search-hint">{section.type==='question'?'Search limited to 50,000 question records.':section.coverage.pageLimitedAgendas?`Search reached 100 agenda records in ${section.coverage.pageLimitedAgendas} sittings.`:'Search reached its sitting limit.'}</p>}

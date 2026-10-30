@@ -71,6 +71,9 @@ export class ParliamentSearch {
       coverage.topic.available=catalogue.coverage.status!=='unavailable';
       coverage.topic.limited=catalogue.nodes.length>sittings.length;
       coverage.topic.catalogue=catalogue.coverage;
+      const years=(catalogue.coverage.years||[]).filter(row=>(!query.from||row.year>=Number(query.from.slice(0,4)))&&(!query.to||row.year<=Number(query.to.slice(0,4))));
+      coverage.topic.incompleteCalendarYears=years.filter(row=>row.state!=='complete').map(row=>row.year);
+      const calendarComplete=catalogue.coverage.status==='complete'||years.length>0&&!coverage.topic.incompleteCalendarYears.length;
       coverage.topic.agendasRead=0;
       coverage.topic.missingAgendas=0;
       coverage.topic.pageLimitedAgendas=0;
@@ -108,7 +111,7 @@ export class ParliamentSearch {
         }
       }
       if(coverage.topic.missingAgendas&&!coverage.topic.agendasRead)coverage.topic.available=false;
-      coverage.topic.complete=catalogue.coverage.status==='complete'&&!coverage.topic.missingAgendas&&!coverage.topic.limited&&!coverage.topic.error&&!coverage.topic.conflicts.length;
+      coverage.topic.complete=calendarComplete&&!coverage.topic.missingAgendas&&!coverage.topic.limited&&!coverage.topic.error&&!coverage.topic.conflicts.length;
     }
     const sections=selected.map(type=>{
       const rows=matches.get(type).sort(compare(type)),total=totals.get(type);

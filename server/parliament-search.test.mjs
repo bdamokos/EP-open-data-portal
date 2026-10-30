@@ -72,6 +72,15 @@ test('plenary topics use exact calendar-to-agenda relationships and retain dates
   assert.equal(section.coverage.complete,false,'retained agendas are never a whole-archive claim');
   assert.equal((await service.query(query('q=energy&type=topic&from=2026-11-01'))).sections[0].total,0);
 });
+test('a failed old calendar stays disclosed only when its year is in the selected search period',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const {service}=setup(t,{agenda:()=>({...fixture.foreseen,payload:{data:fixture.foreseen.payload.data.slice(0,5)},fetchedAt:clock()})});
+  service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'partial',years:[{year:2024,state:'partial'},{year:2026,state:'complete'}]}});
+  const broad=(await service.query(query('q=energy&type=topic'))).sections[0].coverage;
+  assert.deepEqual(broad.incompleteCalendarYears,[2024]);assert.equal(broad.complete,false);
+  const current=(await service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0].coverage;
+  assert.deepEqual(current.incompleteCalendarYears,[]);assert.equal(current.complete,true);
+});
 test('missing calendar observations remain unavailable while MEP and question results survive',async t=>{
   const {service}=setup(t,{missing:true});
   const response=await service.query(query('q=eva'));
