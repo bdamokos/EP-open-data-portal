@@ -9,8 +9,9 @@ export function citationHarnessSource(canonical) {
   // Keep the Node shebang at the start of the generated file.
   source=source.replace(/^(import[^\n]+\n)(#![^\n]+\n)/u,'$2$1');
   source=replaceOnce(source,'let target=null;','let target=null,citationCalibration=null;');
-  const hook='        // Keep coordinates and assertions, not a growing corpus of source text.';
-  source=replaceOnce(source,hook,"        if(replay&&process.env.EP_CITATION_CALIBRATION_MODE===CITATION_CALIBRATION_MODE)\n          citationCalibration=await pairedCitationVerification({mode:CITATION_CALIBRATION_MODE,canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});\n"+hook);
+  // The probe compares against ordinary verification, before native promotion.
+  const promotion="        if(replay) {\n          const native=await sourceBoundCitationVerification({canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});\n          stages.S6=native.verification;nativeCitationEvidence=native.evidence;\n        }\n";
+  source=replaceOnce(source,promotion,"        if(replay&&process.env.EP_CITATION_CALIBRATION_MODE===CITATION_CALIBRATION_MODE)\n          citationCalibration=await pairedCitationVerification({mode:CITATION_CALIBRATION_MODE,canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});\n");
   source=replaceOnce(source,'results.push({key:row.id,','results.push({...(citationCalibration?{citationCalibration}:{}),key:row.id,');
   source=replaceOnce(source,"const files=['scripts/amendment-benchmark.mjs'","const files=['scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','scripts/amendment-benchmark-citation-harness.mjs','scripts/amendment-benchmark.mjs'");
   return source;
