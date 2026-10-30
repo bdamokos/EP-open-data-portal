@@ -34,10 +34,10 @@ function fixture(t) {
   store.publish(generation);
   return {store,generation};
 }
-// Independent table reads on a small fixture preserve the former count and
+// Independent table reads on a small fixture verify the default document feed and explicit role
 // ordering contract, including one source projected into multiple roles.
 function expected(store,generation,category,limit=2,offset=0) {
-  const where='generation=? AND mep=? AND '+predicate+(category?' AND category=?':'');
+  const where='generation=? AND mep=? AND '+predicate+(category?' AND category=?':" AND category<>'plenary-contributions'");
   const args=[generation,'42',...(category?[category]:[])];
   return {
     total:store.db.prepare('SELECT COUNT(*) n FROM items NOT INDEXED WHERE '+where).get(...args).n,
@@ -58,17 +58,17 @@ test('member pages retain counts, role filters, source selection and pagination 
     assert.equal(page.unclassifiedMotionCount,1);
     assert.deepEqual(page.selectedItems.map(row=>[row.sourceId,row.recordKind]),[['answer','answer']]);
   }
-  assert.equal(store.page('42').indexedTotal,8); // Answers excluded; both report roles retained.
-  assert.equal(store.page('99').indexedTotal,1);assert.equal(store.page('100'),null);
+  assert.equal(store.page('42').indexedTotal,5); // Speeches and answers excluded; both report roles retained.
+  assert.equal(store.page('99').indexedTotal,0);assert.equal(store.page('100'),null);
 });
 
 test('member counts follow row eligibility, serving generation and incomplete coverage',t=>{
   const {store,generation}=fixture(t);
   const next=store.beginCycle();
   store.db.prepare("UPDATE items SET body=json_set(body,'$.recordKind','answer') WHERE generation=? AND source_id='speech-b'").run(next.generation);
-  assert.equal(store.page('42').indexedTotal,8); // Unpublished rows do not change the serving generation.
+  assert.equal(store.page('42').indexedTotal,5); // Unpublished rows do not change the serving generation.
   store.publish(next.generation);
-  assert.equal(store.page('42').indexedTotal,7);
+  assert.equal(store.page('42').indexedTotal,5);
   store.db.prepare("DELETE FROM items WHERE generation=? AND source_id='speech-c'").run(next.generation);
   assert.equal(store.page('42',{category:'plenary-contributions'}).indexedTotal,1);
   store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,'missing','speeches','{}')").run(next.generation);
@@ -80,7 +80,7 @@ test('member counts follow row eligibility, serving generation and incomplete co
   assert.equal(page.categoryCoverage['union-act-proposals'].total,null);
   assert.equal(page.availability[0].limited,true);
   assert.equal(page.availability[0].gaps[0].sourceId,'missing');
-  assert.equal(expected(store,generation,null).total,8);
+  assert.equal(expected(store,generation,null).total,5);
 });
 
 test('actual member counts are index-only and filtered pages avoid sorting or JSON evaluation',t=>{
