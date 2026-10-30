@@ -186,6 +186,13 @@ export function sourceReplay(cache,runtime) {
     },
     async proposal(options) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};
+      if(cache.sealed&&options.reportId&&options.language==='en'&&options.documentReferences?.some(r=>r.field==='DocRef'&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''))) {
+        const report=await request('/plenary-documents/'+options.reportId),identity=runtime.reportProposalReference(report.payload.data[0],options);
+        if(identity.status==='resolved'&&identity.procedure?.endsWith('(CNS)')) {
+          const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.proposalCandidatesSparql(identity.celex));url.searchParams.set('format','application/sparql-results+json');
+          if(!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',language:options.language,gaps:['consultation-source-not-in-snapshot']},items:[]};
+        }
+      }
       const source=await readProposal(options);cache.assertHealthy();
       const items=[];
       try {

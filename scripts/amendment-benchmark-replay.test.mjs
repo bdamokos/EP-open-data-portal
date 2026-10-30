@@ -90,6 +90,21 @@ function fixture(commission=true,referenceOnly=false,omittedLanguage=false,repor
   return {row,document,fetcher};
 }
 const sample={mode:'documents',asOf:'2026-10-27'};
+test('sealed CNS replay reports only a missing resolved discovery request as an acquisition gap',async()=>{
+  const original=await replayRuntime(root),examples=JSON.parse(await readFile(new URL('../server/fixtures/cns-source-identity-excerpts.json',import.meta.url))).examples;
+  for(const e of examples) {
+    let fallback=0;const calls=[],options={reportId:e.reportId,language:'en',documentReferences:[{field:'DocRef',raw:e.reportReference}]};
+    const runtime={...original,createProposalBaseline:()=>async()=>{fallback++;return {status:'unresolved',gaps:['normal-runtime-result'],items:[]};}};
+    const reportUrl=publicDocumentUrl(e.reportId),cache={sealed:new Set(),assertHealthy(){},get:async url=>{calls.push(url);assert.equal(url,reportUrl);return {ok:true,url,body:Buffer.from(JSON.stringify({data:[e.report]})),fetchedAt:'2026-10-30T11:00:00Z'};}};
+    const replay=sourceReplay(cache,runtime),missing=await replay.proposal(options);
+    assert.deepEqual(missing.baseline.gaps,['consultation-source-not-in-snapshot']);assert.deepEqual(missing.items,[]);assert.equal(fallback,0);assert.deepEqual(calls,[reportUrl]);
+    const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.proposalCandidatesSparql(e.celex));url.searchParams.set('format','application/sparql-results+json');
+    cache.sealed.add(JSON.stringify([url.href,{accept:'application/sparql-results+json'}]));
+    assert.deepEqual((await replay.proposal(options)).baseline.gaps,['normal-runtime-result']);assert.equal(fallback,1,'present discovery observations continue through the normal runtime');
+    cache.sealed.clear();assert.deepEqual((await replay.proposal({...options,language:'fr'})).baseline.gaps,['normal-runtime-result']);
+    assert.deepEqual((await replay.proposal({...options,documentReferences:[{field:'DocRef',raw:e.reportReference.replace('(CNS)','(COD)')}]})).baseline.gaps,['normal-runtime-result']);
+  }
+});
 test('raw existing-law acquisition binds a prospective citation to its own amendment, before extraction',async()=>{
   const runtime=await replayRuntime(root);
   const bytes=docx(p('<Date>{24/04/2026}24.4.2026</Date>')+p('Amendment 1')+p('Regulation (EC) No 1223/2009')+p('Article 15 – paragraph 2')+p('Present text')+p('https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A02009R1223-20260501')+p('Amendment 2')+p('Regulation (EU) 2023/956')+p('Article 5 – paragraph 1')+p('Present text'));
