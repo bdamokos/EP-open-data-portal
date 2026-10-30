@@ -34,7 +34,7 @@ function Comparison({original,proposed,language,emptySemantics,presentation='com
   const segments=useMemo(()=>diff?.status==='ok'?formattingDiff(diff.segments,originalFormatting,proposedFormatting):[],[diff,originalFormatting,proposedFormatting]);
   const oneSided=comparable&&(original===''||proposed==='');
   const mostlyRewritten=!oneSided&&diff?.status==='ok'&&diff.similarity<0.3;
-  const [mode,setMode]=useState<'changes'|'sides'>(presentation==='context'||!mostlyRewritten?'changes':'sides');
+  const [mode,setMode]=useState<'changes'|'sides'>('sides');
   const columns=([
     {side:'original',text:original,label:labels.original||'Original text',empty:labels.emptyOriginal??(emptySemantics==='insertion-deletion'?'No original text (insertion).':'No original wording.')},
     {side:'proposed',text:proposed,label:labels.proposed||'Proposed text',empty:labels.emptyProposed??(emptySemantics==='insertion-deletion'?'Text deleted.':'No proposed wording.')},
