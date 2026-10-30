@@ -12,7 +12,7 @@ const response=(picked=selection,extra={})=>({version:3,comparisonVersion:3,sele
 
 async function harness(t,respond) {
   const window=new Window({url:'http://localhost/'}),requests=[];
-  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value]of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loader,root;
@@ -22,13 +22,13 @@ async function harness(t,respond) {
     const request={url,signal:options.signal};requests.push(request);const value=await respond(request,requests.length);return value instanceof Response?value:Response.json(value);
   });
   loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {FinalTextCheck}=await loader('/src/FinalTextCheck.tsx'),{createRoot}=await import('react-dom/client');
+  const {FinalTextCheck}=await loader('/src/FinalTextCheck.tsx'),journey=await loader('/src/dossierJourney.ts'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const settle=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,15)));
   const render=async picked=>{await act(async()=>root.render(createElement(FinalTextCheck,picked)));await settle();};
   const toggle=async(open=true)=>{await act(async()=>{const detail=container.querySelector('.final-text-check');detail.open=open;detail.dispatchEvent(new window.Event('toggle'));});await settle();};
   const click=async label=>{const button=[...container.querySelectorAll('button')].find(node=>node.textContent===label);assert(button,label);await act(async()=>button.click());await settle();};
-  return {container,requests,render,toggle,click,settle};
+  return {window,container,requests,render,toggle,click,settle,remember:journey.rememberDossierOrigin};
 }
 
 test('closed disclosure does not fetch; opening requests the exact list, amendment and wording language once',async t=>{
@@ -95,4 +95,20 @@ test('same wording keeps each published passage without highlighting presentatio
   const passages=h.container.querySelectorAll('.wording-diff__passage');
   assert.equal(passages[0].textContent,'4.Questions regarding limitation periods.');assert.equal(passages[1].textContent,'4. Questions regarding limitation periods.');
   assert.equal(h.container.querySelectorAll('.wording-diff ins,.wording-diff del').length,0);
+});
+
+test('returning to an exact selection restores both disclosures after the comparison reloads',async t=>{
+  let finish;
+  const h=await harness(t,(_request,count)=>count===2?new Promise(resolve=>{finish=resolve;}):response());
+  h.window.history.replaceState({},'','/comparison-history');
+  await h.render(selection);await h.toggle();
+  await act(async()=>{const detail=h.container.querySelector('.final-text-check__comparison');detail.open=true;detail.dispatchEvent(new h.window.Event('toggle'));});
+  h.remember();
+  await h.render({...selection,wordingLanguage:'fr'});assert.equal(h.requests.length,1);assert.equal(h.container.querySelector('.final-text-check').open,false);
+  await h.render(selection);
+  assert.equal(h.requests.length,2);assert.equal(h.container.querySelector('.final-text-check').open,true);
+  assert.equal(h.container.querySelector('.final-text-check').dataset.readerPending,'true');
+  await act(async()=>finish(response()));await h.settle();
+  assert.equal(h.container.querySelector('.final-text-check__comparison').open,true);
+  assert.equal(h.container.querySelector('[data-reader-pending="true"]'),null);
 });
