@@ -159,11 +159,12 @@ test('HTTP 200 unavailable target retains continuation and can retry the failed 
 });
 
 test('a failed intermediate page cannot hide a later real amendment snapshot change',async t=>{
+  let failedTarget=true,amendmentVersion=4;
   const h=await harness(t,undefined,url=>{
     if(url.searchParams.get('section')!=='amendments')return;
-    const index=Number(url.searchParams.get('target-offset')),failed=index===1;
+    const index=Number(url.searchParams.get('target-offset')),failed=index===1&&failedTarget;
     return Response.json(page('amendments','257727',failed?[]:[{...amendment,id:'variant-'+index,amendment:{...amendment.amendment,number:index===0?3:5}}],{
-      checkedTarget:'A-10-2026-001'+index,amendmentGeneration:failed?undefined:index===0?4:5,
+      checkedTarget:'A-10-2026-001'+index,amendmentGeneration:failed?undefined:amendmentVersion,
       coverage:{status:failed?'unavailable':'complete',gaps:failed?['Exact target read failed.']:[],sources:[source]},
       pagination:{offset:0,targetOffset:index,limit:25,next:index<2?{offset:0,targetOffset:index+1}:null}
     }));
@@ -172,10 +173,35 @@ test('a failed intermediate page cannot hide a later real amendment snapshot cha
   await h.click('Load more amendments');
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1,'an absent generation must retain the earlier successful snapshot');
   assert.match(h.container.textContent,/Amendments for A10-0011\/2026 could not be loaded/);
-  await h.click('Load more amendments');
+  amendmentVersion=5;await h.click('Load more amendments');
   assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1,'a real known generation change must discard older snapshot rows');
   assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 5/);
   assert.doesNotMatch(h.container.querySelector('.dossier-amendment').textContent,/Amendment 3/);
+  assert.match(h.container.textContent,/Amendments for A10-0011\/2026 could not be loaded/,'the row-free failure must survive an amendment-only publication');
+  assert.equal(h.container.querySelector('[aria-label="Amendments coverage"] a').href,'https://www.europarl.europa.eu/doceo/document/A-10-2026-0011_EN.html');
+  failedTarget=false;await h.click('Retry amendments');
+  assert.equal(h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1).searchParams.get('target-offset'),'1');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,2);assert.doesNotMatch(h.container.textContent,/could not be loaded|Amendment 3/);
+});
+
+test('a terminal page after publication offers a direct reload of earlier results',async t=>{
+  let version=4;
+  const h=await harness(t,undefined,url=>{
+    if(url.searchParams.get('section')!=='amendments')return;
+    const index=Number(url.searchParams.get('target-offset'));
+    return Response.json(page('amendments','257727',[{...amendment,id:'snapshot-'+version+'-'+index,amendment:{...amendment.amendment,number:version*100+index}}],{
+      amendmentGeneration:version,coverage:{status:'complete',gaps:[],sources:[source]},
+      pagination:{offset:0,targetOffset:index,limit:25,next:index?null:{offset:0,targetOffset:1}}
+    }));
+  });
+  await h.render(createElement(h.module.DossierActivity,{reference}));version=5;
+  await h.click('Load more amendments');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 501/);
+  await h.click('Reload amendments');
+  const last=h.calls.filter(url=>url.searchParams.get('section')==='amendments').at(-1);
+  assert.equal(last.searchParams.get('offset'),'0');assert.equal(last.searchParams.get('target-offset'),'0');
+  assert.equal(h.container.querySelectorAll('.dossier-amendment').length,1);assert.match(h.container.querySelector('.dossier-amendment').textContent,/Amendment 500/);
+  assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Reload amendments'));
 });
 
 for(const cursor of [{offset:0,targetOffset:1},{offset:25,targetOffset:0}])test('activity publication preserves the incoming failed target at cursor '+JSON.stringify(cursor),async t=>{

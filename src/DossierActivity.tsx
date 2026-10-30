@@ -19,18 +19,20 @@ const voteAnchor=(id:string)=>'dossier-decision-'+encodeURIComponent(id);
 const stageLabel=(value:string)=>({RDG1:'First reading',RDG2:'Second reading',RDG3:'Third reading'} as Record<string,string>)[value]||value;
 const labels:Record<DossierFilter,string>={all:'All',roles:'Roles',speeches:'Speeches',amendments:'Amendments',votes:'Votes'};
 type SectionState={data:DossierActivityResponse|null;loading:boolean;error:string|null};
+const canRetryCoverage=(coverage:DossierCoverage|undefined)=>coverage?.retryable===true||coverage?.retryable!==false&&coverage?.status==='unavailable';
 function useDossierSection(reference:string,person:string|null,section:DossierSection,language:string,active:boolean) {
   const [state,setState]=useState<SectionState>({data:null,loading:active,error:null});
   const [request,setRequest]=useState<{key?:string;cursor:DossierCursor;attempt:number}>({cursor:{offset:0,targetOffset:0},attempt:0});
   const key=JSON.stringify([reference,person,section,language]),scope=useRef(key),lastCursor=useRef<DossierCursor>({offset:0,targetOffset:0});
   const previous=useRef<DossierActivityResponse|null>(null);
   const pages=useRef(new Map<string,DossierActivityResponse>()),failedCursor=useRef<DossierCursor|null>(null);
+  const earlierResultsRemoved=useRef(false);
   // Render fences prevent a new person from seeing the previous person's rows.
   const scoped=scope.current===key;
   useEffect(()=>{
     if(!active)return;
     const changed=scope.current!==key;scope.current=key;
-    if(changed){previous.current=null;pages.current.clear();failedCursor.current=null;lastCursor.current={offset:0,targetOffset:0};}
+    if(changed){previous.current=null;pages.current.clear();failedCursor.current=null;earlierResultsRemoved.current=false;lastCursor.current={offset:0,targetOffset:0};}
     const cursor=changed||request.key!==key?{offset:0,targetOffset:0}:request.cursor;lastCursor.current=cursor;
     let live=true;const controller=new AbortController();
     setState({data:previous.current,loading:true,error:null});
@@ -43,8 +45,12 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
       const knownAmendmentGeneration=[...pages.current.values()].find(saved=>saved.amendmentGeneration!==undefined)?.amendmentGeneration;
       const amendmentSnapshotChanged=knownAmendmentGeneration!==undefined&&page.amendmentGeneration!==undefined&&knownAmendmentGeneration!==page.amendmentGeneration;
       if(previous.current&&(previous.current.generation!==page.generation||amendmentSnapshotChanged)){
+        // An amendment publication invalidates rows, not an unresolved detail
+        // read in the same activity snapshot. Keep only its row-free retry page.
+        const failures=previous.current.generation===page.generation?[...pages.current.entries()].filter(([,saved])=>saved.amendmentGeneration===undefined&&!saved.items.length&&canRetryCoverage(saved.coverage)):[];
         pages.current.clear();
-        if(cursor.offset||cursor.targetOffset)page={...page,coverage:{...page.coverage,status:page.coverage.status==='complete'?'partial':page.coverage.status,gaps:[...page.coverage.gaps,'This dossier was updated. Reopen it to load earlier pages.']}};
+        for(const [key,failure]of failures)pages.current.set(key,failure);
+        if(cursor.offset||cursor.targetOffset){earlierResultsRemoved.current=true;page={...page,coverage:{...page.coverage,status:page.coverage.status==='complete'?'partial':page.coverage.status,checkedComplete:false}};}
       }
       const pageKey=JSON.stringify(cursor);page=retainDossierContributors(pages.current.get(pageKey),page);
       pages.current.set(pageKey,page);failedCursor.current=null;
@@ -54,9 +60,8 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
     }).catch(error=>{if(live){failedCursor.current=cursor;setState({data:previous.current,loading:false,error:error.message||'Section unavailable.'});}});
     return()=>{live=false;controller.abort();};
   },[key,active,request]);
-  const canRetry=(coverage:DossierCoverage|undefined)=>coverage?.retryable===true||coverage?.retryable!==false&&coverage?.status==='unavailable';
-  const unavailable=[...pages.current.values()].find(page=>canRetry(page.participantCoverage))||[...pages.current.values()].find(page=>canRetry(page.coverage));
-  return {...(scoped?state:{data:null,loading:active,error:null}),pages:[...pages.current.values()],retryableUnavailable:Boolean(unavailable),retry:()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable?{offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}:lastCursor.current),attempt:value.attempt+1})),more:()=>{if(state.data?.pagination.next&&!state.loading)setRequest(value=>({key,cursor:state.data!.pagination.next!,attempt:value.attempt+1}));}};
+  const unavailable=[...pages.current.values()].find(page=>canRetryCoverage(page.participantCoverage))||[...pages.current.values()].find(page=>canRetryCoverage(page.coverage));
+  return {...(scoped?state:{data:null,loading:active,error:null}),pages:[...pages.current.values()],earlierResultsRemoved:scoped&&earlierResultsRemoved.current,retryableUnavailable:Boolean(unavailable),retry:()=>setRequest(value=>({key,cursor:failedCursor.current||(unavailable?{offset:unavailable.pagination.offset,targetOffset:unavailable.pagination.targetOffset}:lastCursor.current),attempt:value.attempt+1})),restart:()=>{previous.current=null;pages.current.clear();failedCursor.current=null;earlierResultsRemoved.current=false;setState({data:null,loading:true,error:null});setRequest(value=>({key,cursor:{offset:0,targetOffset:0},attempt:value.attempt+1}));},more:()=>{if(state.data?.pagination.next&&!state.loading)setRequest(value=>({key,cursor:state.data!.pagination.next!,attempt:value.attempt+1}));}};
 }
 
 function Source({source,language,label='Source'}:{source:DossierSource;id?:string;language:string;label?:string}) {
@@ -124,7 +129,7 @@ export function DossierActivity({reference,language='en',onProcedure}:{reference
       {visibleSections.every(section=>states[section].data&&!states[section].loading&&!states[section].error&&dossierEmptyLabel(states[section].data!.coverage))&&!nonVotes.length&&!remaining.length&&filter!=='amendments'&&<p>No linked records.</p>}
       {filter==='amendments'&&amendments.data&&!amendments.loading&&!visibleAmendments.length&&dossierEmptyLabel(amendments.data.coverage)&&<p>No linked amendments.</p>}
     </>}
-    <div className="dossier-section-status">{visibleSections.map(section=>{const state=states[section];return <section key={section} aria-label={labels[section]+' coverage'}>{state.data&&<Coverage coverage={state.data.coverage} section={section} language={language} pages={state.pages}/>} {state.loading&&<p role="status">Loading {labels[section].toLowerCase()}…</p>}{state.error&&<p role="alert">{labels[section]} could not be loaded. <button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button></p>}{!state.error&&state.retryableUnavailable&&<button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button>}{state.data?.pagination.next&&<button type="button" disabled={state.loading} onClick={state.more}>Load more {!person?'people':labels[section].toLowerCase()}</button>}</section>;})}</div>
+    <div className="dossier-section-status">{visibleSections.map(section=>{const state=states[section];return <section key={section} aria-label={labels[section]+' coverage'}>{state.data&&<Coverage coverage={state.data.coverage} section={section} language={language} pages={state.pages}/>} {state.loading&&<p role="status">Loading {labels[section].toLowerCase()}…</p>}{state.error&&<p role="alert">{labels[section]} could not be loaded. <button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button></p>}{!state.error&&state.retryableUnavailable&&<button type="button" disabled={state.loading} onClick={state.retry}>Retry {!person?'people':labels[section].toLowerCase()}</button>}{state.earlierResultsRemoved&&<p className="dossier-muted">Earlier results need reloading. <button type="button" disabled={state.loading} onClick={state.restart}>Reload {!person?'people':labels[section].toLowerCase()}</button></p>}{state.data?.pagination.next&&<button type="button" disabled={state.loading} onClick={state.more}>Load more {!person?'people':labels[section].toLowerCase()}</button>}</section>;})}</div>
   </section>;
 }
 
