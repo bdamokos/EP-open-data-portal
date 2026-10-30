@@ -31,3 +31,10 @@ test('bounded date summaries retain exact separated intervals and requested iden
   assert.deepEqual(coverageNotices(evidence,{onlyRelevant:true,sourceIds:[key(7000)]}).map(notice=>notice.id),['E-10-2026-007000']);
   assert(coverageNotices(evidence).some(notice=>notice.kind==='gap-overflow'&&notice.count===501));
 });
+for(const publication of [false,true])test('unknown archive identities do not acquire a country during async publication: '+publication,async t=>{
+  const {store,generation}=fixture(t),id='E-10-2026-990001',endpoint='/parliamentary-questions/'+id,work={id:'eli/dl/doc/'+id,identifier:id,parliamentary_term:['org/ep-10'],work_type:'def/ep-document-types/QUESTION_WRITTEN',document_date:'2026-10-30',title_dcterms:{en:'Climate energy policy'},creator:['person/42']};
+  store.putSource(generation,endpoint,'document',work,clock(),documentRows(work,endpoint,clock()).rows);
+  const gap=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,'document','{}')");store.transaction(()=>{for(let i=1;i<=501;i++)gap.run(generation,'/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0'));});store.publish(generation);store.release();
+  const producer=new QuestionInsights(store,{clock,loadMetadata:async()=>{if(publication){store.acquire();const {generation:next}=store.beginCycle();store.publish(next);store.release();}return new Map();},loadQuestionBodies:async()=>new Map()}),data=await producer.query(insightQuery(new URLSearchParams({days:'90',country:'FR'}),{now:clock()}));
+  assert.equal(data.coverage.servingGeneration,generation);assert.equal(data.counts.selectedQuestions,0);assert(data.trend.bins.every(bin=>bin.availability==='observed'&&bin.count===0));
+});

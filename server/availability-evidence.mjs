@@ -22,7 +22,7 @@ export function savedGaps(store,generation,family,{start='2024-07-16',end=brusse
   const where=question?"((kind='document' AND key LIKE '/parliamentary-questions/%') OR (kind IN ('feed','catalog','coverage') AND json_extract(body,'$.endpoint')='/parliamentary-questions'))":family==='speeches'?"kind='speeches'":family==='procedures'?"(kind='procedure' OR (kind IN ('feed','catalog','coverage') AND json_extract(body,'$.endpoint')='/procedures'))":family==='documents'?"(kind='document' AND key NOT LIKE '/parliamentary-questions/%')":"kind='motion-outcomes'";
   const retainedDate=question?"(SELECT date FROM items INDEXED BY item_source WHERE items.generation=refresh_gaps.generation AND items.source_key=refresh_gaps.key AND date IS NOT NULL LIMIT 1)":'NULL';
   const selection=`SELECT key,COALESCE(json_extract(body,'$.start'),json_extract(body,'$.params.sitting-date'),substr(sitting_id,8,10),${retainedDate}) start,COALESCE(json_extract(body,'$.end'),json_extract(body,'$.params.sitting-date-end'),substr(sitting_id,8,10),${retainedDate}) end${rootPresence?",EXISTS(SELECT 1 FROM sources WHERE sources.generation=refresh_gaps.generation AND sources.key=refresh_gaps.key) retained":""} FROM refresh_gaps WHERE generation=? AND ${where}`;
-  const wanted=new Set(recordIds||[]),details=[],preferred=[],intervals=new Map();let total=0,unknown=false;
+  const wanted=new Set(recordIds||[]),details=[],preferred=[],intervals=new Map();let total=0,unknown=false,unknownRecord=false;
   const stamp=(value,open)=>value?Date.parse(value+'T12:00Z'):open;
   const merge=(key,gap)=>{
     const ranges=intervals.get(key)||[];let value={...(key.startsWith('record:')?{}:{sourceId:gap.sourceId}),start:gap.start,end:gap.end,reason:key.startsWith('record:')?'record-gap-summary':'source-gap',minimumCount:1,...(typeof gap.retained==='boolean'?{retained:gap.retained}:{})},index=0;
@@ -45,10 +45,10 @@ export function savedGaps(store,generation,family,{start='2024-07-16',end=brusse
     if(details.length<500)details.push(gap);
     if(exact&&preferred.length<1000)preferred.push(gap);
     if(gap.start||gap.end){if(!exact)merge((record?'record:':'collection:')+String(gap.retained),gap);}
-    else if(gap.retained!==true)unknown=true;
+    else if(gap.retained!==true){if(record)unknownRecord=true;else unknown=true;}
   }
   if(total<=500)return details;
-  return [{reason:'gap-list-limit',minimumCount:501,archiveOnly:true},...preferred,...[...intervals.values()].flat(),...(unknown?[{reason:'source-gap'}]:[])];
+  return [{reason:'gap-list-limit',minimumCount:501,archiveOnly:true},...preferred,...[...intervals.values()].flat(),...(unknownRecord?[{reason:'record-gap-summary'}]:[]),...(unknown?[{reason:'source-gap'}]:[])];
 }
 export function indexAvailability(store,{sourceKey,family=sourceKey,subtype=null,stage='metadata',language=null,start='2024-07-16',end=brusselsDay(store.clock()),records=[],latestObservedDate=null,limited=false,generation=store.status().servingGeneration,gaps=null,checkedAt=store.get('lastSuccess'),revision=store.get('availabilityRevision')||0}={}) {
   return sourceAvailability({sourceKey,family,subtype,stage,language,start,end,records,latestObservedDate,limited,
