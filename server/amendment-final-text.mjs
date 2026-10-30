@@ -22,7 +22,14 @@ const ep=value=>String(value?.id??value??'').replace(/^https?:\/\/data\.europarl
 const docId=value=>ep(value).match(/^eli\/dl\/doc\/([A-Z0-9-]+)$/u)?.[1]??null;
 const type=work=>ep(work?.work_type).replace('def/ep-document-types/','');
 const relationships=(work,field)=>work[field]==null?null:array(work[field]).every(value=>docId(value))?unique(array(work[field]).map(docId)):null;
-const procedures=work=>work.inverse_created_a_realization_of==null?null:array(work.inverse_created_a_realization_of).every(value=>/^eli\/dl\/proc\/\d{4}-\d{4}$/u.test(ep(value)))?unique(array(work.inverse_created_a_realization_of).map(value=>ep(value).split('/').at(-1))):null;
+const procedures=work=>{
+  if(work.inverse_created_a_realization_of==null)return null;
+  // A publication can be created by both a procedure and a sitting activity.
+  // Retain the exact procedure links without treating activity links as dossiers.
+  const links=array(work.inverse_created_a_realization_of).map(ep);
+  if(!links.every(value=>/^eli\/dl\/(?:proc\/\d{4}-\d{4}|event\/[A-Z0-9-]+)$/u.test(value)))return null;
+  return unique(links.filter(value=>value.startsWith('eli/dl/proc/')).map(value=>value.split('/').at(-1)));
+};
 const fail=code=>{throw Object.assign(new Error(code),{code});};
 const unavailable=gap=>({status:'unavailable',wholeProvision:null,operation:null,mapping:null,passages:null,components:[],gaps:[gap]});
 
@@ -52,16 +59,22 @@ function anchorMapping(original,proposed,baseline,candidates,signal) {
     const text=words.slice(i,i+5).join(' ');
     if(text.length>=24&&occurrences(original,text)===1&&occurrences(proposed,text)===1&&occurrences(baseline,text)===1)anchors.push(text);
   }
-  const matches=[];
-  for(const candidate of candidates) {
-    signal?.throwIfAborted();const present=anchors.filter(anchor=>occurrences(candidate.normal,anchor)===1);
-    let pair=null;
-    for(let i=0;i<present.length&&!pair;i++)for(let j=i+1;j<present.length;j++) {
-      const left=present[i],right=present[j];
-      if(original.indexOf(left)+left.length<=original.indexOf(right)&&candidate.normal.indexOf(left)+left.length<=candidate.normal.indexOf(right)){pair={left,right};break;}
-    }
-    if(pair)matches.push({...candidate,anchors:pair});
+  const pairs=[];
+  for(let i=0;i<anchors.length;i++)for(let j=i+1;j<anchors.length;j++) {
+    const left=anchors[i],right=anchors[j];
+    if(original.indexOf(left)+left.length<=original.indexOf(right)&&proposed.indexOf(left)+left.length<=proposed.indexOf(right))pairs.push({left,right,i,j,count:0});
   }
+  const observed=candidates.map(candidate=>{
+    signal?.throwIfAborted();
+    const positions=anchors.map(anchor=>occurrences(candidate.normal,anchor)===1?candidate.normal.indexOf(anchor):-1);
+    const present=pairs.filter(pair=>positions[pair.i]>=0&&positions[pair.j]>=positions[pair.i]+pair.left.length);
+    for(const pair of present)pair.count++;
+    return {candidate,present};
+  });
+  const matches=observed.flatMap(({candidate,present})=>{
+    const pair=present.find(pair=>pair.count===1);
+    return pair?[{...candidate,anchors:{left:pair.left,right:pair.right}}]:[];
+  });
   return matches.length===1?matches[0]:null;
 }
 

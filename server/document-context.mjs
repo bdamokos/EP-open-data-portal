@@ -25,7 +25,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=42;
+export const DOCUMENT_CONTEXT_VERSION=43;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-10-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
@@ -49,7 +49,7 @@ const declaredDocxFiles=list=>array(list.is_realized_by).flatMap(expression=>arr
 
 export function documentContextQuery(id,params) {
   if(!documentId(id))throw new HttpError(400,'invalid_document','Choose a plenary document or adopted resolution.');
-  for(const key of params.keys())if(!['lang','amendment','list','wording-lang','adopted','body','scope'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated document query parameter.');
+  for(const key of params.keys())if(!['lang','amendment','list','wording-lang','adopted','body','scope','final-text'].includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported or repeated document query parameter.');
   const amendmentId=params.get('amendment'),listId=params.get('list'),adopted=params.get('adopted');
   const committee=committeeAmendmentReference(amendmentId),committeeRoot=committeeDraftId(id)||committeeListId(id),scope=params.get('scope');
   if(scope!==null&&(!['committee','plenary'].includes(scope)||(scope==='committee')!==Boolean(committeeRoot)))throw new HttpError(400,'invalid_scope','Choose the document’s exact amendment stage.');
@@ -59,8 +59,10 @@ export function documentContextQuery(id,params) {
   if(wordingLanguage!==null&&(!amendmentId||!listId||wordingLanguage!=='unknown'&&!/^[a-z]{2}$/.test(wordingLanguage)))throw new HttpError(400,'invalid_query','wording-lang requires an exact amendment, list and source language.');
   if(adopted!==null&&adopted!=='1')throw new HttpError(400,'invalid_query','adopted must be 1.');
   if(adopted!==null&&(committeeRoot||amendmentId||listId||id.startsWith('TA-')))throw new HttpError(400,'invalid_query','Find adopted texts from the original report or motion.');
+  const finalText=params.get('final-text');
+  if(finalText!==null&&(finalText!=='1'||!amendmentId||!listId||wordingLanguage===null||adopted!==null))throw new HttpError(400,'invalid_query','A final-text comparison requires an exact amendment, list and wording language.');
   if(params.has('body')&&(params.get('body')!=='0'||!amendmentId||adopted!==null))throw new HttpError(400,'invalid_query','body=0 requires an exact amendment.');
-  return {id,...(committeeRoot?{scope:'committee'}:{}),language:odpLanguage(params.get('lang')||'en'),amendmentId,listId,...(wordingLanguage!==null?{wordingLanguage:wordingLanguage==='unknown'?null:wordingLanguage}:{}),adopted:adopted==='1',includeBody:params.get('body')!=='0'};
+  return {id,...(committeeRoot?{scope:'committee'}:{}),language:odpLanguage(params.get('lang')||'en'),amendmentId,listId,...(wordingLanguage!==null?{wordingLanguage:wordingLanguage==='unknown'?null:wordingLanguage}:{}),...(finalText!==null?{finalText:true}:{}),adopted:adopted==='1',includeBody:params.get('body')!=='0'};
 }
 
 // This reader discovers only exact linked records for the document being opened.

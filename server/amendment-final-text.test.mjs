@@ -36,6 +36,15 @@ test('AGRI 171 retains the bounded insertion in a rewritten complete provision',
   assert.equal(result.mapping.to,'Article 8(3)');assert.equal(result.components[0].proposed.trim(),'without delay');
 });
 
+test('a shared introductory sentence cannot compete with two uniquely identifying unchanged anchors',()=>{
+  const entry=row(171),other='4. The requested enforcement authority shall inform the applicant enforcement authority without delay of any refusal to comply with a request for mutual assistance, together with the reasons for that refusal.';
+  const destination=document([xhtml('8','3',entry.final),xhtml('13','4',other)]);
+  const result=compare(entry,{destination});
+  assert.equal(result.status,'change-retained');assert.equal(result.mapping.to,'Article 8(3)');
+  const competing=document([xhtml('8','3',entry.final),xhtml('13','4',entry.final.replace(/^3\./u,'4.'))]);
+  assert.equal(compare(entry,{destination:competing}).status,'unavailable');
+});
+
 test('AGRI 255 added request condition prevents a full or component equality claim',()=>{
   const result=compare(row(255));assert.equal(result.status,'different-wording');assert.equal(result.mapping.to,'Article 25(2)');assert.deepEqual(result.components,[]);
   const entry={...row(255),final:row(255).proposed.replace(/\.$/u,' if requested.')};
@@ -150,6 +159,21 @@ test('service obtains the exact selected context and keeps resolution-only TA an
 test('no explicit final act correspondence leaves the resolution-only publication unavailable',async()=>{
   const h=serviceHarness(undefined,{readText:async work=>({status:'available',textLanguage:'en',sourceUrl:work.is_realized_by[0].is_embodied_by[0].is_exemplified_by,paragraphs:['Parliament adopts its position.']})});
   const result=await h.service.query(h.query);assert.equal(result.wording.status,'unavailable');assert.equal(result.destination.kind,'parliament-adopted-text');assert.equal(h.counts().finalReads,0);
+});
+
+test('published adopted-text links may include a sitting activity alongside the exact procedure',async()=>{
+  const h=serviceHarness(),work=h.records['/adopted-texts/TA-10-2026-0048'];
+  work.inverse_created_a_realization_of.unshift('eli/dl/event/MTG-PL-2026-02-12-PVCRE-ITM-6-4');
+  assert.equal((await h.service.query(h.query)).wording.status,'same-wording');
+  for(const links of [
+    ['eli/dl/event/MTG-PL-2026-02-12-PVCRE-ITM-6-4'],
+    ['eli/dl/proc/2024-0319','eli/dl/event/MTG-PL-2026-02-12-PVCRE-ITM-6-4'],
+    ['eli/dl/proc/2024-0318','eli/dl/proc/2024-0319'],
+    ['eli/dl/proc/2024-0318','invalid-relationship'],
+  ]) {
+    work.inverse_created_a_realization_of=links;
+    assert((await h.service.query(h.query)).gaps.includes('adopted-identity-conflict'));
+  }
 });
 
 test('another report on the same procedure cannot supply the adopted text for a plenary amendment',async()=>{
