@@ -11,6 +11,7 @@ import {docxContent} from './document-text.mjs';
 import {instructionOperation} from './proposal-instructions.mjs';
 import {REGION_HEADINGS} from './proposal-regions.mjs';
 import {quotationClosed} from './proposal-quotation.mjs';
+import {resolveProposalPlacement} from './proposal-placement.mjs';
 
 function archive(documentXml,extra=[]) {
   const entries=[['word/document.xml',documentXml],...extra],locals=[],directory=[];let offset=0;
@@ -30,6 +31,41 @@ const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children)]);
 const fixture=name=>JSON.parse(readFileSync(new URL('./fixtures/'+name,import.meta.url),'utf8'));
 const path=unit=>unit.path.map(segment=>`${segment.kind}:${segment.value}`).join('/');
 const sourceUrl='https://publications.europa.eu/resource/cellar/731e787f-f4fb-11ef-b7db-01aa75ed71a1.0001.01/DOC_1';
+
+test('native recast fields preserve paragraph3 as the boundary after the complete paragraph2 continuation',()=>{
+  const sample=fixture('recast-subdivision-excerpts.json');
+  const bytes=archive(body(sample.paragraphs.map(p=>p.xml).join('')),[['word/styles.xml',sample.stylesXml]]);
+  const parsed=parseProposal(bytes,{language:'en',sourceUrl:sample.source.url});
+  assert.deepEqual(parsed.paragraphs.map(p=>p.text),docxContent(bytes).paragraphs,'all recast fields and wording remain visible');
+  const after=parsed.paragraphs.findIndex(p=>p.text===sample.paragraphs.find(p=>p.nativePath===sample.expectedBoundary.afterNativePath).text);
+  const before=parsed.paragraphs.findIndex(p=>p.text===sample.paragraphs.find(p=>p.nativePath===sample.expectedBoundary.beforeNativePath).text);
+  assert(after>=0&&before===after+1);
+  const [two]=proposalCandidates(parsed,'Article 5 – paragraph 2'),[three]=proposalCandidates(parsed,'Article 5 – paragraph 3');
+  assert(two&&three);assert.equal(two.extent.end,before);assert.equal(three.extent.start,before);
+  assert(after>=two.extent.start&&after<two.extent.end,'the full unnumbered continuation stays in paragraph2');
+  const placed=resolveProposalPlacement([{kind:'act',index:1,proposal:parsed}],{targetLabel:sample.expectedBoundary.target,language:'en',originalText:'',proposedText:'2a. A separate new paragraph.'});
+  assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,after);assert.equal(placed.insertBefore,before);
+  assert(parsed.paragraphs[before].text.startsWith('Ö\u00a03.'));
+});
+
+test('recast paragraph recognition needs the visible styled field and never strips a literal glyph',()=>{
+  const sample=fixture('recast-subdivision-excerpts.json');
+  const native=sample.paragraphs.map(p=>p.xml).join('');
+  const unstyled=native.replaceAll('<w:rStyle w:val="CRMarker" />','<w:rStyle w:val="Normal" />');
+  assert.notEqual(unstyled,native);
+  const plain=archive(body(unstyled),[['word/styles.xml',sample.stylesXml]]),unrecognised=parseProposal(plain,{language:'en'});
+  assert.equal(proposalCandidates(unrecognised,'Article 5 – paragraph 3').length,0);
+  assert.deepEqual(unrecognised.paragraphs.map(p=>p.text),docxContent(plain).paragraphs);
+  const literal=parseProposal(archive(body(p('Article 5','Titrearticle')+p('2. A paragraph.')+p('Ö 3. A literal string. Õ')+p('Article 6','Titrearticle'))));
+  assert.equal(proposalCandidates(literal,'Article 5 – paragraph 3').length,0);
+  assert(literal.paragraphs.some(p=>p.text==='Ö 3. A literal string. Õ'));
+  const hiddenStyles=sample.stylesXml.replace(/(<w:style\b[^>]*w:styleId="CRMarker"[\s\S]*?<w:rPr>)/u,'$1<w:vanish/>');
+  assert.notEqual(hiddenStyles,sample.stylesXml);
+  const hidden=archive(body(native),[['word/styles.xml',hiddenStyles]]),visible=parseProposal(hidden,{language:'en'});
+  const [three]=proposalCandidates(visible,'Article 5 – paragraph 3');assert(three);
+  assert(visible.paragraphs[three.extent.start].text.startsWith('3.'));
+  assert(!visible.paragraphs[three.extent.start].properties.recastLabelPrefix,'a hidden field supplies no structural evidence');
+});
 
 test('24 language grammars parse real Commission article headings and all five real EP outer target labels',()=>{
   const examples=fixture('proposal-language-excerpts.json');

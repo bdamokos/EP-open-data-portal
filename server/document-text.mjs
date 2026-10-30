@@ -90,7 +90,7 @@ const children=(nodes,key)=>child(nodes,key)?.[key];
 const attribute=(node,key)=>node?.[':@']?.['@_w:'+key];
 const rawAttribute=(node,name)=>node?.[':@']?.['@_'+name];
 const property=(nodes,key)=>attribute(child(nodes,key),'val');
-function hiddenValue(properties,key='vanish') {
+export function hiddenValue(properties,key='vanish') {
   const node=child(properties,'w:'+key);
   return node ? !['0','false','off'].includes(String(attribute(node,'val')).toLowerCase()) : undefined;
 }
@@ -104,7 +104,7 @@ function externalLinks(xml) {
   }
   return links;
 }
-function styleVisibility(stylesXml) {
+export function styleVisibility(stylesXml) {
   const styles=children(stylesXml?parser().parse(stylesXml):[],'w:styles') || [];
   const byId=new Map(styles.filter(node=>node['w:style']).map(node=>[attribute(node,'styleId'),{
     parent:property(node['w:style'],'w:basedOn'),toggle:hiddenValue(children(node['w:style'],'w:rPr'))===true,

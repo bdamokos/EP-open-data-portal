@@ -1,6 +1,7 @@
 import {committeeDraftId,committeeDocumentEndpoint} from './committee-amendments.mjs';
 import {CellarDocuments,proposalCelex,CELLAR_LIMITS} from './cellar-documents.mjs';
-import {commissionReferences,reportProposalReference,resolveProposalTree,resolveProposalCandidates} from './commission-proposal-identity.mjs';
+import {commissionReferences,commissionProcedures,reportProposalReference,resolveProposalTree,resolveProposalCandidates} from './commission-proposal-identity.mjs';
+import {nativeConsultationProcedure} from './commission-proposal-native-identity.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {docxParts} from './document-text.mjs';
@@ -27,17 +28,21 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         }
         const references=documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)),hints=references.flatMap(r=>commissionReferences(r.raw));
         if(hints.some(h=>h.celex!==sourceCelex||h.qualifier&&h.qualifier!=='final'))return unavailable('unresolved',['amendment-proposal-reference-conflict']);
-        const procedures=[...new Set(references.flatMap(r=>typeof r.raw==='string'?[...r.raw.matchAll(/\b(\d{4})\/(\d{4})\s*\(COD\)/g)].map(m=>`${m[1]}/${m[2]}(COD)`):[]))];
+        const procedures=[...new Set(references.flatMap(r=>commissionProcedures(r.raw)))];
         if(procedures.length>1||procedure&&procedures.some(p=>p!==procedure))return unavailable('unresolved',['amendment-procedure-reference-conflict']);
         procedure??=procedures[0];
+        const consultation=procedure?.endsWith('(CNS)');
+        if(consultation&&!reportId)return unavailable('unresolved',['consultation-report-reference-unavailable']);
+        if(consultation&&language!=='en')return unavailable('language-unavailable',['native-procedure-language-unavailable']);
         const candidates=await documents.candidates(sourceCelex),candidate=resolveProposalCandidates(candidates.data,{celex:sourceCelex});
         evidence.push({kind:'candidate-source',url:candidates.url,fetchedAt:candidates.fetchedAt,stale:Boolean(candidates.viewCache?.stale),refreshError:candidates.viewCache?.refreshError||null},...candidate.evidence);
         if(candidate.status!=='resolved')return unavailable(candidate.status,candidate.gaps);
         metadataStale ||= Boolean(candidates.viewCache?.stale);
-        const metadata=await documents.metadata(sourceCelex),identity=resolveProposalTree(metadata.xml,{celex:sourceCelex,language,procedure});
+        const metadata=consultation?await documents.metadataByWork(candidate.workId,{celex:sourceCelex}):await documents.metadata(sourceCelex),identity=resolveProposalTree(metadata.xml,{celex:sourceCelex,language,procedure});
         evidence.push({kind:'cellar-source',url:metadata.url,resolvedSourceUrl:metadata.resolvedSourceUrl,fetchedAt:metadata.fetchedAt,stale:Boolean(metadata.viewCache?.stale),refreshError:metadata.viewCache?.refreshError||null},...identity.evidence);
         if(identity.status!=='resolved')return unavailable(identity.status,identity.gaps,{workId:identity.workId});
         if(identity.workId!==candidate.workId)return unavailable('unresolved',['proposal-work-conflict']);
+        if(consultation&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DIR')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
         const items=[],gaps=[];let bytes=0;
         for(const item of identity.items) {
           try {
@@ -47,6 +52,13 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
             items.push({...item,source:content.source,buffer:content.buffer});
             if(content.source.stale)gaps.push({code:'stale-content',itemId:item.itemId,refreshError:content.source.refreshError});
           }catch(error){if(isLocalRequestFailure(error))throw error;gaps.push({code:error.code||'docx-unavailable',itemId:item.itemId,...(error.code==='missing-declared-representation'?{source:error.source,request:error.request,negotiation:error.negotiation}:{})});}
+        }
+        if(consultation) {
+          const acts=items.filter(item=>item.kind==='act');
+          if(acts.length!==1||identity.items.filter(item=>item.kind==='act').length!==1)return unavailable('unresolved',['native-procedure-act-unavailable'],{workId:identity.workId});
+          const native=nativeConsultationProcedure(acts[0].buffer,{procedure,language});
+          evidence.push({kind:'native-procedure',itemId:acts[0].itemId,...native});
+          if(native.status!=='verified')return unavailable('unresolved',[native.reason],{workId:identity.workId});
         }
         if(metadataStale||metadata.viewCache?.stale)gaps.push({code:'stale-metadata'});
         return {status:gaps.length?items.length?'partial':'unavailable':'available',celex:sourceCelex,workId:identity.workId,language,items,gaps,evidence};

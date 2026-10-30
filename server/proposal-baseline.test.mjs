@@ -11,6 +11,8 @@ import {OfficialContextSources} from './official-context.mjs';
 import {runWithRequestSignal,requestSignal,waitForRequest,requestTimeout,cancelledRequest} from './request-budget.mjs';
 import {comparisonHeading,isAmendmentHeading,COMPARISON_HEADINGS} from './amendment-baseline.mjs';
 import {extractAmendments} from './amendment-documents.mjs';
+import {nativeConsultationProcedure} from './commission-proposal-native-identity.mjs';
+import {documentContextPlacement} from './document-context-placement.mjs';
 
 const fixture=celex=>readFileSync(new URL(`./fixtures/proposal-${celex}.rdf`,import.meta.url),'utf8');
 const celex='52025PC0087',xml=fixture(celex),resolved=()=>resolveProposalTree(xml,{celex,language:'en'});
@@ -29,6 +31,74 @@ const item=()=>({...resolved().items[0],celex,language:resolved().items[0].langu
 const sourceOptions=fetchSource=>({directory:null,fetchSource,sources:new OfficialContextSources({directory:null,fetchSource})});
 const content=(buffer=docx(),extra={})=>new Response(buffer,{headers:{'content-type':CELLAR_DOCX_MIME,...extra}});
 const report=JSON.parse(readFileSync(new URL('./fixtures/proposal-report-reference.json',import.meta.url),'utf8')).report;
+const consultations=JSON.parse(readFileSync(new URL('./fixtures/cns-source-identity-excerpts.json',import.meta.url),'utf8')).examples;
+const nativeHeader=(example,xml=example.nativeHeadingXml)=>archive(Buffer.from('word/document.xml'),Buffer.from(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${xml}</w:body></w:document>`));
+
+test('consultation reports require their native typed reference and exact linked procedure',()=>{
+  for(const e of consultations) {
+    const refs=[{field:'DocRef',raw:e.reportReference}],actual=reportProposalReference(e.report,{reportId:e.reportId,documentReferences:refs});
+    assert.equal(actual.status,'resolved');assert.equal(actual.celex,e.celex);assert.equal(actual.procedure,`2025/${e.celex.slice(-4)}(CNS)`);
+    assert.equal(reportProposalReference(e.report,{reportId:e.reportId}).gaps[0],'missing-native-report-reference');
+    assert.equal(reportProposalReference({...e.report,inverse_created_a_realization_of:['eli/dl/proc/2025-9999']},{reportId:e.reportId,documentReferences:refs}).status,'unresolved');
+    const mixed=[...refs,{field:'DocRef',raw:e.reportReference.replace('(CNS)','(COD)')}];assert.equal(reportProposalReference(e.report,{reportId:e.reportId,documentReferences:mixed}).status,'unresolved');
+    const tree=resolveProposalTree(e.rdfExcerpt,{celex:e.celex,language:'en',procedure:actual.procedure});assert.equal(tree.status,'resolved');assert.equal(tree.workId,e.workId);assert.equal(tree.procedure,actual.procedure);
+    const untyped=resolveProposalTree(e.rdfExcerpt,{celex:e.celex,language:'en'});assert.equal(untyped.procedure,null,'numeric RDF codes never invent COD');assert.deepEqual(untyped.evidence[0].procedures,[]);
+    assert.deepEqual(untyped.evidence[0].procedureCodes,[actual.procedure.slice(0,9)]);
+  }
+});
+
+test('native CNS proof requires the visible source heading and preserves its printed number',()=>{
+  for(const e of consultations) {
+    const procedure=`2025/${e.celex.slice(-4)}(CNS)`,bytes=nativeHeader(e),actual=nativeConsultationProcedure(bytes,{procedure,language:'en'});
+    assert.equal(actual.status,'verified');assert.equal(actual.procedure,procedure);assert.match(actual.raw,e.celex.endsWith('580')?/^2025\/580 /:/^2025\/0581 /);
+    assert.equal(nativeConsultationProcedure(bytes,{procedure,language:'fr'}).status,'unresolved');
+    assert.equal(nativeConsultationProcedure(bytes,{procedure:'2025/9999(CNS)',language:'en'}).reason,'native-procedure-reference-conflict');
+    assert.equal(nativeConsultationProcedure(nativeHeader(e,e.nativeHeadingXml.repeat(2)),{procedure,language:'en'}).reason,'native-procedure-heading-ambiguous');
+    assert.equal(nativeConsultationProcedure(nativeHeader(e,e.nativeHeadingXml.replaceAll('Rfrenceinterinstitutionnelle','Normal')),{procedure,language:'en'}).status,'unresolved');
+    const hidden=e.nativeHeadingXml.replace(/<w:r\b([^>]*)>([\s\S]*?)<\/w:r>/gu,(_whole,attributes,body)=>{
+      const changed=body.replace(/^<w:rPr>/u,'<w:rPr><w:vanish/>');
+      return '<w:r'+attributes+'>'+(changed===body?'<w:rPr><w:vanish/></w:rPr>'+body:changed)+'</w:r>';
+    });
+    assert.notEqual(hidden,e.nativeHeadingXml);
+    assert.equal(nativeConsultationProcedure(nativeHeader(e,hidden),{procedure,language:'en'}).status,'unresolved');
+    assert.equal(nativeConsultationProcedure(nativeHeader(e,'<w:tbl><w:tr><w:tc>'+e.nativeHeadingXml+'</w:tc></w:tr></w:tbl>'),{procedure,language:'en'}).reason,'native-procedure-heading-incomplete');
+  }
+});
+
+test('candidate-work metadata uses its exact recorded request and validates that work',async()=>{
+  for(const e of consultations) {
+    const calls=[],docs=new CellarDocuments(sourceOptions(async(u,o)=>{calls.push({url:u,accept:o.headers.Accept});return new Response(e.rdfExcerpt,{headers:{'content-type':'application/rdf+xml'}});}));
+    const actual=await docs.metadataByWork(e.workId,{celex:e.celex});assert.equal(actual.url,e.rdfSource.url);assert.equal(actual.resolvedSourceUrl,e.rdfSource.url);
+    await docs.metadataByWork(e.workId,{celex:e.celex});assert.deepEqual(calls,[{url:e.rdfSource.url,accept:'application/rdf+xml;notice=tree'}]);
+    const other=e.workId.replace(/\/[^/]+$/,'/00000000-0000-0000-0000-000000000001');await assert.rejects(docs.metadataByWork(other,{celex:e.celex}),{code:'cellar_metadata'});
+  }
+});
+
+test('the CNS baseline binds current report, candidate work, declared items and native heading',async()=>{
+  for(const e of consultations) {
+    const procedure=`2025/${e.celex.slice(-4)}(CNS)`,calls=[],items=resolveProposalTree(e.rdfExcerpt,{celex:e.celex,language:'en',procedure}).items;
+    let mode='valid';
+    const documents={
+      candidates:async c=>({url:'https://publications.europa.eu/webapi/rdf/sparql',fetchedAt:0,data:{results:{bindings:[{work:{type:'uri',value:e.workId},celex:{type:'literal',value:c},version:{type:'literal',value:'final'}}]}}}),
+      metadata:async()=>{throw Error('CNS must not relabel a CELEX response');},
+      metadataByWork:async(w,{celex})=>{assert.equal(w,e.workId);assert.equal(celex,e.celex);calls.push('work');return {url:e.rdfSource.url,resolvedSourceUrl:e.rdfSource.url,fetchedAt:0,xml:mode==='wrong-type'?e.rdfExcerpt.replaceAll('/PROP_DIR','/PROP_REG'):e.rdfExcerpt};},
+      docx:async item=>{assert(items.some(x=>x.itemId===item.itemId));calls.push(item.kind);return {buffer:item.kind==='act'?(mode==='no-heading'?docx():nativeHeader(e)):docx('ANNEX'),source:{url:cellarTransportUrl(item.itemId,{redirect:true}),fetchedAt:0}};},
+    };
+    const baseline=createProposalBaseline({documents,request:async()=>({url:'https://data.europarl.europa.eu/api/v2/plenary-documents/'+e.reportId,payload:{data:[e.report]},fetchedAt:0})});
+    const options={reportId:e.reportId,language:'en',documentReferences:[{field:'DocRef',raw:e.reportReference}]};const good=await baseline(options);
+    assert.equal(good.status,'available',JSON.stringify(good.gaps));assert.equal(good.items.length,items.length);assert.equal(good.evidence.find(x=>x.kind==='native-procedure').procedure,procedure);assert.deepEqual(calls,['work',...items.map(x=>x.kind)]);
+    mode='no-heading';assert.equal((await baseline(options)).status,'unresolved');
+    mode='wrong-type';assert((await baseline(options)).gaps.includes('native-procedure-type-unavailable'));
+    assert.equal((await baseline({...options,language:'fr'})).status,'language-unavailable');
+  }
+});
+
+test('CNS compound body-and-note columns remain unresolved without changing their payload',()=>{
+  const chosen={language:'en',targetLabelLanguage:'en',baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false},documentReferences:[{field:'DocRef',raw:consultations[0].reportReference}],targetLabel:'Recital 2 a (new)',originalText:'',proposedText:'(2a) New provision1a.\n___________\n1a Published note.\n+ OJ: Retain this instruction.',proposedFormatting:[{kind:'superscript',start:18,end:20}]};
+  const before=structuredClone(chosen),placement=documentContextPlacement({chosen,items:[]});
+  assert.equal(placement.status,'unresolved');assert.equal(placement.reason,'proposal_note_scope_unavailable');assert.equal(placement.operation,'insert');assert(!placement.span&&placement.insertAfter===undefined&&placement.insertBefore===undefined);assert.deepEqual(chosen,before);
+  const plain={...chosen,proposedText:'(2a) Literal [OJ: retain the citation] stays in the provision.'};assert.equal(documentContextPlacement({chosen:plain,items:[]}).reason,'proposal_baseline_unavailable');
+});
 
 test('recorded CBAM, AI Act and Green Claims metadata resolve exact works and DOCX parts',()=>{
   const cases=[['52025PC0087','731e787f-f4fb-11ef-b7db-01aa75ed71a1','2025/0039(COD)',2],['52021PC0206','e0649735-a372-11eb-9585-01aa75ed71a1','2021/0106(COD)',2],['52023PC0166','cbafeec2-c94e-11ed-a05c-01aa75ed71a1','2023/0085(COD)',1]];

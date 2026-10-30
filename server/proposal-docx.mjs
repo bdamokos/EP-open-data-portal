@@ -1,5 +1,5 @@
 import {XMLParser} from 'fast-xml-parser';
-import {docxContent,docxParts} from './document-text.mjs';
+import {docxContent,docxParts,styleVisibility,hiddenValue} from './document-text.mjs';
 import {sourceIndex} from './docx-source-structure.mjs';
 import {ommlToMathML,officialDocumentUrl} from './proposal-math.mjs';
 import {proposalNumberingLabels} from './proposal-numbering.mjs';
@@ -13,6 +13,43 @@ function wrappedChildren(nodes,key) {
   return result;
 }
 
+// Commission recasts use a styled QUOTE field before a visible subdivision.
+// Keep that field in the wording; it supplies only a source-bound label prefix.
+function recastLabelPrefix(node,text,visibility,index) {
+  const paragraph=children(node?.['w:p'],'w:pPr');
+  const inherited=visibility.styledHidden(property(paragraph,'w:pStyle')||visibility.defaultParagraph,visibility.defaults);
+  let state='start',code='',result='',resultPath;
+  for(const entry of node?.['w:p']??[]) {
+    if(Object.entries(entry).every(([key,value])=>key==='#text'&&/^\s*$/u.test(value)))continue;
+    if(entry['w:pPr'])continue;
+    if(!entry['w:r'])return null;
+    const run=entry['w:r'],properties=children(run,'w:rPr'),style=property(properties,'w:rStyle');
+    const hidden=visibility.styledHidden(style||visibility.defaultCharacter,inherited);
+    if((hiddenValue(properties)??hidden.vanish)||(hiddenValue(properties,'webHidden')??hidden.webHidden))return null;
+    for(const part of run)for(const [name,value] of Object.entries(part)) {
+      if(name===':@'||name==='w:rPr')continue;
+      if(name==='#text'&&/^\s*$/u.test(value))continue;
+      if(name==='w:fldChar') {
+        const type=part[':@']?.['@_w:fldCharType'];
+        if(type==='begin'&&state==='start'){state='code';continue;}
+        if(type==='separate'&&state==='code'){state='result';continue;}
+        if(type==='end'&&state==='result') {
+          const match=/^\s*QUOTE\s+"(Ö)"\s*$/u.exec(code);
+          return match&&result===match[1]&&text.startsWith(result)&&/^\s+\d+\.\s/u.test(text.slice(result.length))
+            ?{text:result,paragraphPath:index.get(node).path,sourcePath:resultPath}:null;
+        }
+        return null;
+      }
+      if(name==='w:instrText'&&state==='code'){code+=value.map(x=>x['#text']??'').join('');continue;}
+      if(name==='w:t'&&state==='result'&&style==='CRMarker') {
+        result+=value.map(x=>x['#text']??'').join('');resultPath??=index.get(entry).path;continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
 // Reuse final-revision visibility, numbering, notes and source paths from the
 // shared extractor. Inspect the same bounded XML only for objects and tables;
 // never independently flatten hidden/deleted runs into the proposal text.
@@ -20,6 +57,7 @@ export function proposalDocx(buffer,{sourceUrl=null}={}) {
   let numbering;
   const content=docxContent(buffer,{includeParagraphProperties:true,includeNoteObjects:true,numbering:(...args)=>(numbering=proposalNumberingLabels(...args))});
   const parts=docxParts(buffer),document=new XMLParser({preserveOrder:true,ignoreAttributes:false,parseTagValue:false,trimValues:false}).parse(parts.get('word/document.xml'));
+  const visibility=styleVisibility(parts.get('word/styles.xml'));
   const index=sourceIndex(document),byPath=new Map(),tables=[];
   const paragraphByPath=new Map(content.paragraphSources.map((source,i)=>[source.path,i]));
   function indices(nodes) {
@@ -55,6 +93,8 @@ export function proposalDocx(buffer,{sourceUrl=null}={}) {
     const node=byPath.get(content.paragraphSources[i].path);
     const metadata=numbering.metadata(children(node?.['w:p'],'w:pPr'));
     if(metadata)content.paragraphProperties[i].numbering=metadata;
+    const prefix=recastLabelPrefix(node,content.paragraphs[i],visibility,index);
+    if(prefix)content.paragraphProperties[i].recastLabelPrefix=prefix;
   }
   function convert(object,nodes){
     return object.kind==='math'?{...object,...ommlToMathML(nodes.get(object.path),{sourceUrl})}:

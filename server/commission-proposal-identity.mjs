@@ -9,6 +9,9 @@ export function commissionReferences(raw) {
   if(typeof raw!=='string')return [];
   return [...raw.matchAll(/\bCOM\s*\(\s*((?:19|20)\d{2})\s*\)\s*(\d{1,4})(?:\s*(final(?:\s*\/\s*\d+)?|\/\s*\d+))?/giu)].map(m=>({raw:m[0],year:Number(m[1]),number:Number(m[2]),qualifier:m[3]?.replace(/\s+/g,'').toLowerCase()||null,celex:`5${m[1]}PC${m[2].padStart(4,'0')}`}));
 }
+export function commissionProcedures(raw) {
+  return typeof raw==='string'?[...raw.matchAll(/\b(\d{4})\/(\d{4})\s*\((COD|CNS)\)/gu)].map(m=>`${m[1]}/${m[2]}(${m[3]})`):[];
+}
 export function reportProposalReference(report,{reportId,documentReferences=[]}={}) {
   if(!report||report.id!==`eli/dl/doc/${reportId}`&&report.id!==`https://data.europarl.europa.eu/eli/dl/doc/${reportId}`)return unresolved('unresolved',['report-identity']);
   if(report.work_type&&report.work_type!=='def/ep-document-types/REPORT_PLENARY'&&!(committeeDraftId(reportId)&&committeeDocumentKind(report)))return unresolved('unresolved',['report-type']);
@@ -18,11 +21,15 @@ export function reportProposalReference(report,{reportId,documentReferences=[]}=
   const reportRefs=texts.flatMap(commissionReferences),docRefs=documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw));
   const refs=[...reportRefs,...docRefs],celexes=unique(refs.map(r=>r.celex));
   const referenceTexts=documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).map(r=>r.raw);
-  const procedures=unique([...texts,...referenceTexts].flatMap(t=>typeof t==='string'?[...t.matchAll(/\b(\d{4})\/(\d{4})\s*\(COD\)/g)].map(m=>`${m[1]}/${m[2]}(COD)`):[]));
+  const procedures=unique([...texts,...referenceTexts].flatMap(commissionProcedures));
   const linked=list(report.inverse_created_a_realization_of).map(v=>typeof v==='string'?v:v?.id).filter(Boolean);
   const evidence=[{kind:'report-reference',reportId,references:refs,procedures,procedureIds:linked}];
   if(celexes.length!==1||procedures.length!==1)return unresolved('unresolved',[celexes.length>1||procedures.length>1?'ambiguous-report-reference':'missing-report-reference'],evidence);
   const procedure=procedures[0],expected=`eli/dl/proc/${procedure.slice(0,4)}-${procedure.slice(5,9)}`;
+  if(procedure.endsWith('(CNS)')) {
+    const nativeReferences=documentReferences.filter(r=>r.field==='DocRef').map(r=>r.raw);
+    if(!nativeReferences.some(raw=>commissionProcedures(raw).includes(procedure)&&commissionReferences(raw).some(ref=>ref.celex===celexes[0])))return unresolved('unresolved',['missing-native-report-reference'],evidence);
+  }
   if(!linked.length||linked.some(id=>id!==expected&&id!==`https://data.europarl.europa.eu/${expected}`))return unresolved('unresolved',['report-procedure-mismatch'],evidence);
   const qualifiers=unique(refs.map(r=>r.qualifier).filter(Boolean));
   if(qualifiers.some(q=>q!=='final'))return unresolved('unresolved',['proposal-version-unresolved'],evidence,{celex:celexes[0]});
@@ -35,7 +42,7 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   if(works.length!==1)return unresolved('unresolved',[works.length?'ambiguous-proposal-work':'proposal-work-missing'],evidence,{celex,language});
   const workId=works[0],values=name=>graph.values(workId,name),aliases=graph.aliases(workId);
   const creators=values('work_created_by_agent'),types=values('work_has_resource-type'),versions=unique([...values('work_version'),...values('version')]);
-  const dossiers=unique([...values('act_preparatory_initiates_dossier'),...values('work_part_of_dossier')]).flatMap(uri=>{const m=uri.match(/^http:\/\/publications\.europa\.eu\/resource\/procedure\/(\d{4})_(\d+)$/);return m?[`${m[1]}/${m[2].padStart(4,'0')}(COD)`]:[];});
+  const dossierCodes=unique([...values('act_preparatory_initiates_dossier'),...values('work_part_of_dossier')]).flatMap(uri=>{const m=uri.match(/^http:\/\/publications\.europa\.eu\/resource\/procedure\/(\d{4})_(\d+)$/);return m?[`${m[1]}/${m[2].padStart(4,'0')}`]:[];});
   const gaps=[];
   if(!creators.includes('http://publications.europa.eu/resource/authority/corporate-body/COM'))gaps.push('commission-author-unverified');
   if(types.length!==1||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/resource-type\/PROP_(REG|DIR|DEC)$/.test(types[0]))gaps.push('proposal-type-unverified');
@@ -43,8 +50,11 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   if(values('resource_legal_id_celex').some(value=>value!==celex))gaps.push('proposal-celex-conflict');
   const year=celex.slice(1,5),number=String(Number(celex.slice(7))),comnat=`http://publications.europa.eu/resource/comnat/COM_${year}_${number.padStart(4,'0')}_FIN`;
   if(!aliases.includes(comnat)||values('resource_legal_internal_number_prefix').some(value=>value!=='COM')||!values('resource_legal_internal_number_year').includes(year)||!values('resource_legal_internal_number_sequential_number').includes(number))gaps.push('com-reference-unverified');
-  if(dossiers.length!==1||procedure&&dossiers[0]!==procedure)gaps.push('proposal-procedure-mismatch');
-  evidence.push({kind:'cellar-identity',workId,celex,aliases,creators,types,versions,procedures:dossiers});
+  const requested=procedure&&/^(\d{4}\/\d{4})\((COD|CNS)\)$/u.exec(procedure);
+  if(dossierCodes.length!==1||procedure&&(!requested||dossierCodes[0]!==requested[1]))gaps.push('proposal-procedure-mismatch');
+  // The RDF numeric code carries no procedure type. Keep the report's typed
+  // reference separate instead of inventing COD from the numeric URI.
+  evidence.push({kind:'cellar-identity',workId,celex,aliases,creators,types,versions,procedureCodes:dossierCodes,procedures:requested?[procedure]:[]});
   if(gaps.length)return unresolved('unresolved',gaps,evidence,{celex,workId,language});
   const expressions=[...graph.graph.keys()].filter(id=>new RegExp('^'+workId.replaceAll('.','\\.')+'\\.\\d{4,8}$').test(id)&&graph.values(id,'expression_belongs_to_work').some(v=>graph.aliases(workId).includes(v)));
   const matching=expressions.filter(id=>graph.values(id,'expression_uses_language').some(v=>languageCode(v)===language));
@@ -78,7 +88,7 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   }
   if(gaps.length)return unresolved('unresolved',unique(gaps),evidence,{celex,workId,language});
   evidence.push({kind:'cellar-manifest',expressionId,manifestationId,language:languageUris[0],items:items.map(({kind,index,itemId,aliases})=>({kind,index,itemId,aliases}))});
-  return {status:'resolved',celex,workId,language,procedure:dossiers[0],items,gaps:[],evidence};
+  return {status:'resolved',celex,workId,language,procedure:requested?procedure:null,items,gaps:[],evidence};
 }
 
 export function resolveProposalCandidates(data,{celex}={}) {
