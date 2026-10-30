@@ -566,6 +566,7 @@ for(const [reason,copy] of Object.entries({
   target_not_found:'The passage this amendment changes could not be found.',
   source_passage_incomplete:'The source passage is incomplete.',
   source_structure_unavailable:'The document structure is unavailable.',
+  proposal_note_scope_unavailable:'The footnotes in this amendment could not be placed.',
   matching_budget:'The amendment’s location could not be determined.',
   amendment_wording_unavailable:'The amendment wording is unavailable.',
   unknown_reason:'The amendment’s location could not be determined.',
@@ -719,6 +720,17 @@ test('proposal unresolved math retains the diff at the top and renders unchanged
   assert.equal(h.container.querySelector('[role="status"]').textContent,'The equations could not be compared.');
   assert.equal(h.container.querySelector('[data-amendment-block]').dataset.contextTarget,undefined);
   assert(h.container.querySelector('math'));assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
+});
+
+test('a compound proposal note stays separate with its complete wording and scope explanation',async t=>{
+  const value=proposalContextResponse(report,amendment,list,8),variant=value.amendment.variants[0];
+  variant.originalText='';variant.proposedText='(2a) Published provision1a.\n___________\n1a Published footnote.\n+ OJ: Retain the source instruction.';
+  value.placement={status:'unresolved',operation:'insert',reason:'proposal_note_scope_unavailable',evidence:[]};
+  const h=await harness(t,()=>value);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.equal(h.container.querySelector('[role="status"]').textContent,'The footnotes in this amendment could not be placed.');
+  assert.equal(wordingText(h.container,'proposed'),variant.proposedText);
+  assert.equal(h.container.querySelectorAll('[data-context-target="true"]').length,0);
+  assert.equal(h.container.querySelector('.proposal-context-text').firstElementChild.dataset.amendmentBlock,'true');
 });
 
 

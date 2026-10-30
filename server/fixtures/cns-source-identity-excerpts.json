@@ -1,0 +1,278 @@
+{
+  "description": "Bounded observed RDF alias/English-item and native Word legal-heading excerpts for unit tests; not replacement HTTP observations. Full raw captures remain outside Git.",
+  "examples": [
+    {
+      "celex": "52025PC0581",
+      "reportId": "A-10-2026-0160",
+      "report": {
+        "id": "eli/dl/doc/A-10-2026-0160",
+        "identifier": "A-10-2026-0160",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2025-0581"
+        ],
+        "is_realized_by": [
+          {
+            "title_alternative": {
+              "ga": "TUARASCÁIL - ar an togra le haghaidh Treoir ón gComhairle lena leasaítear Treoir (AE) 2020/262 a mhéid a bhaineann leis na socruithe ginearálta le haghaidh dleacht mháil i ndáil le tobac agus táirgí a bhaineann le tobac - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - An Coiste um Ghnóthaí Eacnamaíochta agus Airgeadaíochta - Rapóirtéir: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "hu": "JELENTÉS - az (EU) 2020/262 irányelvnek a dohánytermékek és a dohányzáshoz kapcsolódó termékek jövedéki adójára vonatkozó általános rendelkezések tekintetében történő módosításáról szóló tanácsi irányelvre irányuló javaslatról - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Gazdasági és Monetáris Bizottság - A vélemény előadója: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "sv": "BETÄNKANDE - om förslaget till rådets direktiv om ändring av direktiv (EU) 2020/262 vad gäller allmänna regler för punktskatt på tobak och tobaksrelaterade produkter - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Utskottet för ekonomi och valutafrågor - Föredragande av yttrande: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "cs": "ZPRÁVA - o návrhu směrnice Rady, kterou se mění směrnice (EU) 2020/262, pokud jde o obecnou úpravu spotřební daně z tabáku, tabákových výrobků a výrobků souvisejících s tabákovými výrobky - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Hospodářský a měnový výbor - Zpravodaj: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "hr": "IZVJEŠĆE - o Prijedlogu direktive Vijeća o izmjeni Direktive (EU) 2020/262 u pogledu općih aranžmana za trošarine na duhan i proizvode povezane s duhanom - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Odbor za ekonomsku i monetarnu politiku - Izvjestitelj: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "nl": "VERSLAG - over het voorstel voor een richtlijn van de Raad tot wijziging van Richtlijn (EU) 2020/262 wat betreft de algemene regeling inzake accijns op tabak en aan tabak verwante producten - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Commissie economische en monetaire zaken - Rapporteur: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "et": "RAPORT - ettepaneku kohta võtta vastu nõukogu direktiiv, millega muudetakse direktiivi (EL) 2020/262 tubaka ja tubakatootega seonduvate toodete aktsiisi üldise korra osas - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Majandus- ja rahanduskomisjon - Raportöör: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "fi": "MIETINTÖ - ehdotuksesta neuvoston direktiiviksi direktiivin (EU) 2020/262 muuttamisesta tupakan ja tupakanvastikkeiden valmisteveroa koskevan yleisen järjestelmän osalta - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Talous- ja raha-asioiden valiokunta - Esittelijä: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "lt": "PRANEŠIMAS - dėl pasiūlymo dėl Tarybos direktyvos, kuria iš dalies keičiamos Direktyvos (ES) 2020/262 nuostatos dėl bendrosios akcizų, taikomų tabako ir su tabako gaminiais susijusiems gaminiams, tvarkos - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Ekonomikos ir pinigų politikos komitetas - Pranešėjas: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "ro": "RAPORT - referitor la propunerea de directivă a Consiliului de modificare a Directivei (UE) 2020/262 în ceea ce privește regimul general al accizelor pentru tutun și produsele asimilate tutunului - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Comisia pentru afaceri economice și monetare - Raportor: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "pt": "RELATÓRIO - sobre a proposta de diretiva do Conselho que altera a Diretiva (UE) 2020/262 no que diz respeito às disposições gerais sobre os impostos especiais de consumo sobre o tabaco e produtos relacionados com o tabaco - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Comissão dos Assuntos Económicos e Monetários - Relator: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "sk": "SPRÁVA - o návrhu smernice Rady, ktorou sa mení smernica (EÚ) 2020/262, pokiaľ ide o všeobecný systém spotrebných daní týkajúcich sa tabaku a výrobkov súvisiacich s tabakom - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Výbor pre hospodárske a menové veci - Spravodajca: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "sl": "POROČILO - o predlogu direktive Sveta o spremembi Direktive (EU) 2020/262 glede splošnega režima za trošarino za tobak in s tobakom povezane izdelke - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Odbor za ekonomske in monetarne zadeve - Poročevalec: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "en": "REPORT - on the proposal for a Council directive amending Directive (EU) 2020/262 as regards the general arrangements for excise duty in respect of tobacco and tobacco related products - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Committee on Economic and Monetary Affairs - Rapporteur: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "fr": "RAPPORT - sur la proposition de directive du Conseil modifiant la directive (UE) 2020/262 en ce qui concerne le régime général d’accise applicable au tabac et aux produits connexes - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Commission des affaires économiques et monétaires - Rapporteur: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "de": "BERICHT - über den Vorschlag für eine Richtlinie des Rates zur Änderung der Richtlinie (EU) 2020/262 in Bezug auf das allgemeine Verbrauchsteuersystem für Tabak und mit Tabak verwandte Erzeugnisse - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Ausschuss für Wirtschaft und Währung - Berichterstatter: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "pl": "SPRAWOZDANIE - w sprawie wniosku dotyczącego dyrektywy Rady zmieniającej dyrektywę (UE) 2020/262 w odniesieniu do ogólnych zasad dotyczących podatku akcyzowego stosowanego do tytoniu i substytucyjnych wyrobów tytoniowych - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Komisja Gospodarcza i Monetarna - Sprawozdawca: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "bg": "ДОКЛАД - относно предложението за директива на Съвета за изменение на Директива (ЕС) 2020/262 по отношение на общия режим на облагане с акциз на тютюна и свързаните с тютюна изделия - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Комисия по икономически и парични въпроси - Докладчик по становище: Томаш Кубин"
+            }
+          },
+          {
+            "title_alternative": {
+              "es": "INFORME - sobre la propuesta de Directiva del Consejo por la que se modifica la Directiva (UE) 2020/262 en lo que respecta al régimen general del impuesto especial que grava el tabaco y los productos relacionados con el tabaco - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Comisión de Asuntos Económicos y Monetarios - Ponente: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "it": "RELAZIONE - sulla proposta di direttiva del Consiglio recante modifica della direttiva (UE) 2020/262 per quanto riguarda il regime generale delle accise sul tabacco e sui prodotti correlati - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Commissione per i problemi economici e monetari - Relatore: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "lv": "ZIŅOJUMS - par priekšlikumu Padomes direktīvai, ar kuru groza Direktīvu (ES) 2020/262 par akcīzes nodokļa piemērošanas vispārēju režīmu attiecībā uz tabaku un ar tabaku saistītiem izstrādājumiem - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Ekonomikas un monetārā komiteja - Referents: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "mt": "RAPPORT - dwar il-proposta għal direttiva tal-Kunsill li temenda d-Direttiva (UE) 2020/262 dwar l-arranġamenti ġenerali għad-dazju tas-sisa fir-rigward tat-tabakk u l-prodotti relatati mat-tabakk - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Kumitat għall-Affarijiet Ekonomiċi u Monetarji - Rapporteur: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "da": "BETÆNKNING - om forslag til Rådets direktiv om ændring af direktiv (EU) 2020/262 for så vidt angår den generelle ordning for punktafgifter på tobak og tobaksrelaterede produkter - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Økonomi- og Valutaudvalget - Ordfører for udtalelse: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "el": "ΕΚΘΕΣΗ - σχετικά με πρόταση οδηγίας του Συμβουλίου για την τροποποίηση της οδηγίας (ΕΕ) 2020/262 όσον αφορά το γενικό καθεστώς των ειδικών φόρων κατανάλωσης που επιβάλλονται στον καπνό και στα συναφή με τον καπνό προϊόντα - (COM(2025)0581 - C10-0296/2025 - 2025/0581(CNS)) - Επιτροπή Οικονομικής και Νομισματικής Πολιτικής - Εισηγητής: Tomáš Kubín"
+            }
+          }
+        ]
+      },
+      "reportReference": "(COM(2025)0581 – C10‑0296/2025 – 2025/0581(CNS))",
+      "workId": "http://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1",
+      "rdfSource": {
+        "url": "https://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1/rdf/tree/full",
+        "fetchedAt": "2026-10-30T11:16:26.512973+00:00",
+        "sha256": "30796f6d9366f524435c4718c573e68d7da9d4a392c4a0a3afc97f2a0423a2b5"
+      },
+      "rdfExcerpt": "<rdf:RDF xmlns:cdm=\"http://publications.europa.eu/ontology/cdm#\" xmlns:owl=\"http://www.w3.org/2002/07/owl#\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1.0001.01/DOC_1\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29581%20final.ENG.docx.1_EN_ACT_part1_v6.docx\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN.ENG.docx.1_EN_ACT_part1_v6.docx\" />\n    <cdm:item_belongs_to_manifestation rdf:resource=\"http://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1.0001.01\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29581%20final\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/celex/52025PC0581\" />\n  </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN\">\n    <cdm:work_part_of_dossier rdf:resource=\"http://publications.europa.eu/resource/procedure/2025_581\" />\n    <cdm:act_preparatory_initiates_dossier rdf:resource=\"http://publications.europa.eu/resource/procedure/2025_581\" />\n    <cdm:resource_legal_internal_number_sequential_number rdf:datatype=\"http://www.w3.org/2001/XMLSchema#positiveInteger\">581</cdm:resource_legal_internal_number_sequential_number>\n    <cdm:resource_legal_id_celex rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">52025PC0581</cdm:resource_legal_id_celex>\n    <cdm:resource_legal_internal_number_year rdf:datatype=\"http://www.w3.org/2001/XMLSchema#year\">2025</cdm:resource_legal_internal_number_year>\n    <cdm:resource_legal_internal_number_prefix rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">COM</cdm:resource_legal_internal_number_prefix>\n    <cdm:work_has_resource-type rdf:resource=\"http://publications.europa.eu/resource/authority/resource-type/PROP_DIR\" />\n    <cdm:work_created_by_agent rdf:resource=\"http://publications.europa.eu/resource/authority/corporate-body/COM\" />\n    <cdm:work_version rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">final</cdm:work_version>\n    <cdm:version rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">final</cdm:version>\n    <cdm:work_part_of_dossier rdf:resource=\"http://publications.europa.eu/resource/intproc/05BF91390B4F2C73FEE9495D583E293996B96F6112577FF922121F61829563EB\" />\n    <cdm:work_created_by_agent rdf:resource=\"http://publications.europa.eu/resource/authority/corporate-body/TAXUD\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN.ENG.docx\">\n    <cdm:manifestation_manifests_expression rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN.ENG\" />\n    <cdm:manifestation_type rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">docx</cdm:manifestation_type>\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN.ENG\">\n    <cdm:expression_uses_language rdf:resource=\"http://publications.europa.eu/resource/authority/language/ENG\" />\n    <cdm:version rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">final</cdm:version>\n    <cdm:expression_belongs_to_work rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/immc/COM%282025%29581%20final\">\n    <cdm:work_part_of_dossier rdf:resource=\"http://publications.europa.eu/resource/procedure/2025_581\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1.0001.01\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29581%20final.ENG.docx\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN.ENG.docx\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/celex/52025PC0581\">\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1.0001\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29581%20final.ENG\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0581_FIN.ENG\" />\n    </rdf:Description>\n  </rdf:RDF>",
+      "nativeSource": {
+        "url": "https://publications.europa.eu/resource/cellar/a6974710-62e5-11f0-bf4e-01aa75ed71a1.0001.01/DOC_1",
+        "fetchedAt": "2026-10-30T12:26:17.384103+00:00",
+        "sha256": "a1958ce92cda6cc6cb383104eb72ed01d7d7122f53b8b8c407592d7dfbc5e5c6",
+        "nativeHeadingPath": "/w:document[1]/w:body[1]/w:p[42]"
+      },
+      "nativeHeadingXml": "<w:p xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"006E72EC\" w:rsidRDefault=\"00E67E95\"><w:pPr><w:pStyle w:val=\"Rfrenceinterinstitutionnelle\" /><w:rPr><w:noProof /></w:rPr></w:pPr><w:r><w:rPr><w:noProof /></w:rPr><w:t>2025/0581 (CNS)</w:t></w:r></w:p><w:p xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"00090D28\" w:rsidRPr=\"00612FC9\" w:rsidRDefault=\"00D147CA\" w:rsidP=\"00D147CA\"><w:pPr><w:pStyle w:val=\"Statut\" /><w:rPr><w:noProof /></w:rPr></w:pPr><w:r w:rsidRPr=\"00D147CA\"><w:rPr><w:noProof /></w:rPr><w:t>Proposal for a</w:t></w:r></w:p><w:p xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"00090D28\" w:rsidRPr=\"00612FC9\" w:rsidRDefault=\"00D147CA\" w:rsidP=\"00D147CA\"><w:pPr><w:pStyle w:val=\"Typedudocument\" /><w:rPr><w:noProof /></w:rPr></w:pPr><w:r w:rsidRPr=\"00D147CA\"><w:rPr><w:noProof /></w:rPr><w:t>COUNCIL DIRECTIVE</w:t></w:r></w:p>"
+    },
+    {
+      "celex": "52025PC0580",
+      "reportId": "A-10-2026-0161",
+      "report": {
+        "id": "eli/dl/doc/A-10-2026-0161",
+        "identifier": "A-10-2026-0161",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2025-0580"
+        ],
+        "is_realized_by": [
+          {
+            "title_alternative": {
+              "sk": "SPRÁVA - o návrhu smernice Rady o štruktúre a sadzbách spotrebnej dane z tabaku a výrobkov súvisiacich s tabakom (prepracované znenie) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Výbor pre hospodárske a menové veci - Spravodajca: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "ro": "RAPORT - referitor la propunerea de Directivă a Consiliului privind structura și ratele accizelor aplicate tutunului și produselor asimilate tutunului (reformare) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Comisia pentru afaceri economice și monetare - Raportor: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "mt": "RAPPORT - dwar il-proposta għal direttiva tal-Kunsill dwar l-istruttura u r-rati tad-dazju tas-sisa fuq it-tabakk u fuq il-prodotti relatati mat-tabakk (riformulazzjoni) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Kumitat għall-Affarijiet Ekonomiċi u Monetarji - Rapporteur: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "et": "RAPORT - ettepaneku kohta võtta vastu nõukogu direktiiv tubakale ja tubakatootega seonduvatele toodetele kohaldatava aktsiisi struktuuri ja määrade kohta (uuesti sõnastatud) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Majandus- ja rahanduskomisjon - Raportöör: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "bg": "ДОКЛАД - относно предложението за директива на Съвета относно структурата и ставките на акциза върху тютюна и свързаните с тютюна изделия (преработен текст) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Комисия по икономически и парични въпроси - Докладчик по становище: Томаш Кубин"
+            }
+          },
+          {
+            "title_alternative": {
+              "el": "ΕΚΘΕΣΗ - σχετικά με την πρόταση οδηγίας του Συμβουλίου για τη διάρθρωση και τους συντελεστές του ειδικού φόρου κατανάλωσης που εφαρμόζονται στον καπνό και στα συναφή με τον καπνό προϊόντα (αναδιατύπωση) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Επιτροπή Οικονομικής και Νομισματικής Πολιτικής - Εισηγητής: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "cs": "ZPRÁVA - o návrhu směrnice Rady o struktuře a sazbách spotřební daně z tabáku, tabákových výrobků a výrobků souvisejících s tabákovými výrobky (přepracované znění) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Hospodářský a měnový výbor - Zpravodaj: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "lv": "ZIŅOJUMS - par priekšlikumu Padomes direktīvai par tabakai un ar tabaku saistītiem izstrādājumiem piemērotā akcīzes nodokļa struktūru un likmēm (pārstrādāta redakcija) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Ekonomikas un monetārā komiteja - Ziņotājs: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "ga": "TUARASCÁIL - ar an togra le haghaidh Treoir ón gComhairle maidir le struchtúr agus rátaí na dleachta máil a chuirtear i bhfeidhm ar thobac agus ar tháirgí a bhaineann le tobac (athmhúnlú) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - An Coiste um Ghnóthaí Eacnamaíochta agus Airgeadaíochta - Rapóirtéir: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "de": "BERICHT - über den Vorschlag für eine Richtlinie des Rates über die Struktur und die Sätze der Verbrauchsteuern auf Tabak und mit Tabak verwandte Erzeugnisse (Neufassung) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Ausschuss für Wirtschaft und Währung - Berichterstatter: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "pt": "RELATÓRIO - sobre a proposta de diretiva do Conselho relativa à estrutura e taxas dos impostos especiais sobre o consumo de tabaco e produtos relacionados com o tabaco (reformulação) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Comissão dos Assuntos Económicos e Monetários - Relator: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "nl": "VERSLAG - over het voorstel voor een richtlijn van de Raad betreffende de structuur en de tarieven van de accijns op tabak en aan tabak verwante producten (herschikking) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Commissie economische en monetaire zaken - Rapporteur: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "pl": "SPRAWOZDANIE - w sprawie wniosku dotyczącego dyrektywy Rady w sprawie struktury oraz stawek akcyzy stosowanych do tytoniu i substytucyjnych wyrobów tytoniowych (wersja przekształcona) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Komisja Gospodarcza i Monetarna - Sprawozdawca: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "sv": "BETÄNKANDE - om förslaget till rådets direktiv om strukturen och skattesatserna för punktskatten på tobak och tobaksrelaterade produkter (omarbetning) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Utskottet för ekonomi och valutafrågor - Föredragande: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "da": "BETÆNKNING - om forslag til Rådets direktiv om punktafgiftsstrukturen og -satserne for forarbejdet tobak og tobaksrelaterede produkter (omarbejdning) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Økonomi- og Valutaudvalget - Ordfører: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "sl": "POROČILO - o predlogu direktive Sveta o strukturi in stopnjah trošarine, ki velja za tobak in s tobakom povezane izdelke (prenovitev) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Odbor za ekonomske in monetarne zadeve - Poročevalec: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "fi": "MIETINTÖ - ehdotuksesta neuvoston direktiiviksi valmistettuun tupakkaan ja tupakanvastikkeisiin sovellettavan valmisteveron rakenteesta ja verokannoista (uudelleenlaadittu) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Talous- ja raha-asioiden valiokunta - Esittelijä: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "lt": "PRANEŠIMAS - dėl pasiūlymo dėl Tarybos direktyvos dėl akcizų, taikomų tabakui ir su tabako gaminiais susijusiems gaminiams, struktūros ir tarifų (nauja redakcija) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Ekonomikos ir pinigų politikos komitetas - Nuomonės referentas: Tomáš Kubín"
+            }
+          },
+          {
+            "title_alternative": {
+              "en": "REPORT - on the proposal for a Council directive on the structure and rates of excise duty applied to tobacco and tobacco related products (recast) - (COM(2025)0580 - C10-0207/2025 - 2025/0580(CNS)) - Committee on Economic and Monetary Affairs - Rapporteur: Tomáš Kubín"
+            }
+          }
+        ]
+      },
+      "reportReference": "(COM(2025)0580 – C10‑0207/2025 – 2025/0580(CNS))",
+      "workId": "http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1",
+      "rdfSource": {
+        "url": "https://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1/rdf/tree/full",
+        "fetchedAt": "2026-10-30T11:16:34.466207+00:00",
+        "sha256": "35319b4c56301367686ad471c7081dcd44dc59cebc2eb64d9e313359067275b6"
+      },
+      "rdfExcerpt": "<rdf:RDF xmlns:cdm=\"http://publications.europa.eu/ontology/cdm#\" xmlns:owl=\"http://www.w3.org/2002/07/owl#\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001.01/DOC_2\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29580%20final.ENG.docx.1_EN_annexe_proposition_part1_v7.docx\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG.docx.1_EN_annexe_proposition_part1_v7.docx\" />\n    <cdm:item_belongs_to_manifestation rdf:resource=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001.01\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN\">\n    <cdm:version rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">final</cdm:version>\n    <cdm:work_created_by_agent rdf:resource=\"http://publications.europa.eu/resource/authority/corporate-body/TAXUD\" />\n    <cdm:resource_legal_internal_number_prefix rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">COM</cdm:resource_legal_internal_number_prefix>\n    <cdm:work_version rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">final</cdm:work_version>\n    <cdm:work_part_of_dossier rdf:resource=\"http://publications.europa.eu/resource/intproc/05BF91390B4F2C73FEE9495D583E293996B96F6112577FF922121F61829563EB\" />\n    <cdm:resource_legal_internal_number_year rdf:datatype=\"http://www.w3.org/2001/XMLSchema#year\">2025</cdm:resource_legal_internal_number_year>\n    <cdm:act_preparatory_initiates_dossier rdf:resource=\"http://publications.europa.eu/resource/procedure/2025_580\" />\n    <cdm:resource_legal_id_celex rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">52025PC0580</cdm:resource_legal_id_celex>\n    <cdm:resource_legal_internal_number_sequential_number rdf:datatype=\"http://www.w3.org/2001/XMLSchema#positiveInteger\">580</cdm:resource_legal_internal_number_sequential_number>\n    <cdm:work_created_by_agent rdf:resource=\"http://publications.europa.eu/resource/authority/corporate-body/COM\" />\n    <cdm:work_part_of_dossier rdf:resource=\"http://publications.europa.eu/resource/procedure/2025_580\" />\n    <cdm:work_has_resource-type rdf:resource=\"http://publications.europa.eu/resource/authority/resource-type/PROP_DIR\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29580%20final\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/celex/52025PC0580\" />\n  </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001.01/DOC_1\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29580%20final.ENG.docx.1_EN_ACT_part1_v7.docx\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG.docx.1_EN_ACT_part1_v7.docx\" />\n    <cdm:item_belongs_to_manifestation rdf:resource=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001.01\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001.01\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29580%20final.ENG.docx\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG.docx\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG\">\n    <cdm:version rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">final</cdm:version>\n    <cdm:expression_uses_language rdf:resource=\"http://publications.europa.eu/resource/authority/language/ENG\" />\n    <cdm:expression_belongs_to_work rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG.docx\">\n    <cdm:manifestation_manifests_expression rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG\" />\n    <cdm:manifestation_type rdf:datatype=\"http://www.w3.org/2001/XMLSchema#string\">docx</cdm:manifestation_type>\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001\">\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/immc/COM%282025%29580%20final.ENG\" />\n    <owl:sameAs rdf:resource=\"http://publications.europa.eu/resource/comnat/COM_2025_0580_FIN.ENG\" />\n    </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/immc/COM%282025%29580%20final\">\n    <cdm:work_part_of_dossier rdf:resource=\"http://publications.europa.eu/resource/procedure/2025_580\" />\n  </rdf:Description>\n  <rdf:Description rdf:about=\"http://publications.europa.eu/resource/celex/52025PC0580\">\n    </rdf:Description>\n  </rdf:RDF>",
+      "nativeSource": {
+        "url": "https://publications.europa.eu/resource/cellar/d7f0f929-62e2-11f0-bf4e-01aa75ed71a1.0001.01/DOC_1",
+        "fetchedAt": "2026-10-30T12:26:19.502513+00:00",
+        "sha256": "ddee8a4993cdfe7445485f8e9e186ab71ad692e849d8a581b824aeabf4227563",
+        "nativeHeadingPath": "/w:document[1]/w:body[1]/w:p[122]"
+      },
+      "nativeHeadingXml": "<w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns1:paraId=\"61A7D3E2\" ns1:textId=\"443F2214\" w:rsidR=\"00377D60\" w:rsidRPr=\"009A395B\" w:rsidRDefault=\"00BE6E32\" w:rsidP=\"00BE6E32\"><w:pPr><w:pStyle w:val=\"Rfrenceinterinstitutionnelle\" /><w:rPr><w:lang w:val=\"fr-BE\" /></w:rPr></w:pPr><w:r w:rsidRPr=\"00BE6E32\"><w:rPr><w:lang w:val=\"fr-BE\" /></w:rPr><w:t>2025/580 (CNS)</w:t></w:r></w:p><w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns1:paraId=\"35E84639\" ns1:textId=\"5741C0AC\" w:rsidR=\"004E6959\" w:rsidRPr=\"002D6769\" w:rsidRDefault=\"00BE6E32\" w:rsidP=\"00BE6E32\"><w:pPr><w:pStyle w:val=\"Statut\" /></w:pPr><w:r w:rsidRPr=\"00BE6E32\"><w:t>Proposal for a</w:t></w:r></w:p><w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" ns1:paraId=\"2ADAC237\" ns1:textId=\"039706EE\" w:rsidR=\"004E6959\" w:rsidRPr=\"002D6769\" w:rsidRDefault=\"00BE6E32\" w:rsidP=\"00BE6E32\"><w:pPr><w:pStyle w:val=\"Typedudocument\" /></w:pPr><w:r w:rsidRPr=\"00BE6E32\"><w:t>COUNCIL DIRECTIVE</w:t></w:r></w:p>"
+    }
+  ]
+}

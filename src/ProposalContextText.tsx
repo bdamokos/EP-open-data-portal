@@ -20,6 +20,7 @@ export const proposalPlacementReasons:Record<string,string>={
   council_position_unavailable:'The Council position is unavailable here.',
   baseline_unknown:'The text this amendment changes isn’t identified.',
   proposal_baseline_unavailable:'The Commission proposal is unavailable here.',
+  proposal_note_scope_unavailable:'The footnotes in this amendment could not be placed.',
   math_comparison_unavailable:'The equations could not be compared.',
   parent_target_not_found:'The provision that would contain the new text could not be found.',
   conflicting_target_evidence:'The published location and original wording do not agree.',

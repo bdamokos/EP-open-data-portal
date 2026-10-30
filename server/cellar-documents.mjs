@@ -150,6 +150,21 @@ export class CellarDocuments {
       return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
     },{freshMs:CELLAR_LIMITS.metadataFreshMs,validate:record=>{if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');validateTree(record.xml,celex);}}));
   }
+  async metadataByWork(workId,{celex}={}) {
+    proposalCelex(celex);
+    if(!CELLAR_WORK_PATTERN.test(workId))throw failure('cellar_work','Invalid proposal work identifier.');
+    const url=cellarTransportUrl(workId+'/rdf/tree/full',{redirect:true});
+    const validate=xml=>{if(!cellarGraph(xml).values(workId,'resource_legal_id_celex').includes(celex))throw failure('cellar_metadata','The metadata tree does not identify the requested work.');};
+    return waitForRequest(this.sources.cache.get(['proposal-work-tree-v1',workId,celex],async()=>{
+      const result=await this.request(url,{accept:'application/rdf+xml;notice=tree'});
+      if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
+      const xml=result.buffer.toString('utf8');validate(xml);
+      return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
+    },{freshMs:CELLAR_LIMITS.metadataFreshMs,validate:record=>{
+      if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');
+      validate(record.xml);
+    }}));
+  }
   remember(key,record) {
     if(this.memory.has(key))this.bytes-=this.memory.get(key).buffer.length;
     this.memory.delete(key);this.memory.set(key,record);this.bytes+=record.buffer.length;
