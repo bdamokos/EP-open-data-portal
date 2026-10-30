@@ -85,5 +85,5 @@ export function verifyPlacementWithCitationCalibration(input) {
   const original=verifyPlacement(input);
   if(original.status!=='failed'||original.reason!=='oracle-original-span-mismatch')return original;
   const proposed=rawCitationMarkerAssertion(input);
-  return proposed.status==='unverified'?original:proposed;
+  return proposed.status==='verified'?proposed:original;
 }
