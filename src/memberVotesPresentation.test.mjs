@@ -95,6 +95,16 @@ test('display removes only procedure markers and labels exact amendment and part
   assert.equal(memberVoteLabel(vote,'fr'),'Texte de référence');assert.equal(memberVoteLabel(vote,'hu'),'Source reference');
 });
 
+test('split labels retain the published parent without inventing an amendment identity',()=>{
+  const vote=clone(projection.items[0]);vote.scope.kind='split-part';vote.context.amendmentIds=[];
+  vote.referenceTexts={en:'§ 14',fr:'§ 14'};
+  vote.parts=[{number:'1',requestScopeByLanguage:{en:'§ 14',fr:'Paragraphe 14'}}];
+  assert.equal(memberVoteLabel(vote),'§ 14 · Part 1');
+  assert.equal(memberVoteLabel(vote,'fr'),'Paragraphe 14 · Part 1');
+  assert.deepEqual(vote.context.amendmentIds,[]);
+  vote.parts[0].requestScopeByLanguage={};assert.equal(memberVoteLabel(vote),'§ 14 · Part 1');
+});
+
 test('actual positions, independent intentions, outcomes and supplied totals remain separate',()=>{
   const vote=clone(projection.items.find(item=>item.actualPosition.position==='for'));
   vote.method='VOTE_ELECTRONIC_ROLLCALL';vote.ballotStatus='conducted';vote.actualPosition={status:'recorded',position:'for'};vote.intention={status:'reported',positions:['abstaining']};vote.totals={for:454,against:86,abstaining:0};

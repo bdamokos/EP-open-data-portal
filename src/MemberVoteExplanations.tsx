@@ -51,7 +51,7 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
   const retry=<button className="vote-explanation-action" type="button" disabled={request.loading} onClick={request.retry}>Retry</button>;
   return <div className="member-vote-explanations">
     {request.loading&&!result&&<p className="vote-explanation-status" role="status">Checking this member’s oral explanation…</p>}
-    {(request.error||response&&!valid)&&<p className="vote-explanation-status" role="status">This member’s oral explanation is unavailable. {retry}</p>}
+    {(request.error||response&&!valid)&&<p className="vote-explanation-status" role="status">Could not check oral explanations. {retry}</p>}
     {items.map((item,index)=>{
       const open=reading===item.id,id=contentId+'-'+index;
       return <div className="vote-explanation" key={item.id}>
@@ -65,6 +65,6 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
         </div>}
       </div>;
     })}
-    {result&&!items.length&&<p className="vote-explanation-status">{result.coverage.searchComplete?'No oral explanation found for this member.':'This member’s oral explanation is unavailable.'}{!result.coverage.searchComplete&&canRetry&&<> {retry}</>}</p>}
+    {result&&!items.length&&<p className="vote-explanation-status">{result.coverage.searchComplete?'No oral explanation found for this member.':result.coverage.status==='unavailable'?'Oral explanation search unavailable.':'Oral explanation search incomplete.'}{!result.coverage.searchComplete&&canRetry&&<> {retry}</>}</p>}
   </div>;
 }
