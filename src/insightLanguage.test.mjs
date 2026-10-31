@@ -210,6 +210,7 @@ test('French question controls keep recognised English subjects and complete add
  await h.render(createElement(UiI18nProvider,{i18n,language:'fr'},createElement(Questions,{language:'fr',onBack(){}})));
  const subjects=[...h.container.querySelectorAll('span')].filter(node=>node.textContent==='United States');assert(subjects.length>=2);
  for(const node of subjects)assert.equal(effectiveLanguage(node),'en');
+ const resultsHeading=h.container.querySelector('.insight-question-results h2');assert.equal(effectiveLanguage(resultsHeading),'fr');assert.equal(resultsHeading.textContent,ui.t('batch4.questiontopics.tsx.subject.subject',{subject:'United States'}));assert.equal(effectiveLanguage(resultsHeading.querySelector('span')),'en');
  const allLabel=[...h.container.querySelectorAll('.insight-trend h2 span')].find(node=>node.textContent===ui.t('batch4.insightcharts.tsx.all.questions'));assert(allLabel);assert.equal(effectiveLanguage(allLabel),'fr');
  const scope=h.container.querySelector('.insight-trend svg').getAttribute('aria-label');
  assert(scope.includes(ui.t('batch4.questiontopics.tsx.to.the.addressees',{addressees:'Commission'})));

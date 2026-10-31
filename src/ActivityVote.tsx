@@ -51,6 +51,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
     href=url.href;
   }
   if(!route)return <>{children}</>;
+  if(!response.error&&data?.selected.status==='chairing')return null;
   const method=(vote?.ballotStatus==='not-conducted') ? ui.t("activityvote.not_put_to_a_vote") : (vote ? voteMethodLabel(vote.method, ui) : null);
   if(context)return <div className="activity-vote">{vote ? <><p className="member-votes-eyebrow">{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</p>
       {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p><UiMessage id="activityvote.vote_records_disagree"/></p><div aria-label={ui.t("activityvote.saved_activity_result")}>{children}</div></div>}

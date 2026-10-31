@@ -44,13 +44,13 @@ function setup({decisions=[finalDecision],results,agenda=fixture.foreseen.payloa
     if(override){const replacement=await override({...call,kind,rows,supplied});if(replacement!==undefined)return replacement;}
     return supplied;
   };
-  return {service:new MemberVotes({request,clock,limits}),calls};
+  return {service:new MemberVotes({readChairs:async()=>null,request,clock,limits}),calls};
 }
 
 test('single-sitting collection exposes its bounded period and reuses source reads across members',async()=>{
   const {service,calls}=setup();
   const first=await service.query(MEMBER,query('sitting='+SITTING));
-  assert.equal(first.version,8);
+  assert.equal(first.version,9);
   assert.equal(first.period.sittingId,SITTING);
   assert.equal(first.period.from,'2026-10-07');
   assert.equal(first.period.to,'2026-10-07');
@@ -203,7 +203,7 @@ test('repeated full decision responses require exact declared identities and a c
 test('retained 400-decision ODP census ignores offsets but reconciles every exact result child',async()=>{
   const retained=JSON.parse(readFileSync(new URL('./fixtures/member-votes-repeated-census.json',import.meta.url)));
   const sittingId='MTG-PL-2026-10-21',date='2026-10-21',calls=[];
-  const service=new MemberVotes({clock:()=>Date.parse('2026-10-25T12:00:00Z'),request:async(endpoint,params)=>{
+  const service=new MemberVotes({readChairs:async()=>null,clock:()=>Date.parse('2026-10-25T12:00:00Z'),request:async(endpoint,params)=>{
     calls.push({endpoint,params});
     const rows=endpoint.endsWith('/decisions')?retained.decisionRows.filter(n=>!params['vote-method']||n.decision_method.endsWith('/VOTE_ELECTRONIC_ROLLCALL')):endpoint.endsWith('/vote-results')?retained.results:[];
     return source(endpoint,params,rows);
@@ -797,4 +797,14 @@ test('period view returns every filtered decision despite a legacy offset and sm
   const recorded=await service.query(MEMBER,query('sitting='+SITTING+'&view=period&positions=recorded&snapshot='+page.snapshotId));
   assert(recorded.items.every(item=>item.actualPosition.status==='recorded'));
   assert.throws(()=>query('sitting='+SITTING+'&view=other'));
+});
+
+test('chairing omissions apply before counts, filters, pagination and direct selections and remain member-specific',async()=>{
+  const {service}=setup({results:[{...clone(finalResult),consists_of:[finalDecision.id],recorded_in_a_realization_of:['eli/dl/doc/PV-10-2026-10-07-VOT-ITM-007']}]});let reads=0;
+  service.readChairs=async(_request,sittingId)=>{reads++;assert.equal(sittingId,SITTING);return {status:'observed',byResultDocument:{'PV-10-2026-10-07-VOT-ITM-007':'999999'},sources:[],bytes:0};};
+  const q=query('sitting='+SITTING+'&decision='+finalDecision.activity_id);
+  const hidden=await service.query('999999',q);
+  assert.deepEqual(hidden.items,[]);assert.equal(hidden.pagination.observedTotal,0);assert.equal(hidden.pagination.filteredTotal,0);assert.equal(hidden.pagination.omittedWhileChairingTotal,1);assert.equal(hidden.pagination.recordedTotal,0);assert.equal(hidden.pagination.nextOffset,null);
+  assert.deepEqual(hidden.selected,{status:'chairing',item:null});assert.equal(hidden.subjects.flatMap(s=>s.wholeTextDecisions).length,0);
+  const other=await service.query(MEMBER,q);assert.equal(other.items.length,1);assert.equal(other.selected.status,'found');assert.equal(other.pagination.omittedWhileChairingTotal,undefined);assert.equal(reads,1,'chair sources are shared across members in the immutable period snapshot');
 });

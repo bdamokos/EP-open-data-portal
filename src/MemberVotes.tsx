@@ -232,7 +232,8 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     const refresh=snapshotRefresh.current;
     if(refresh){if(!refresh.started||request.data===refresh.baseline)return;snapshotRefresh.current=null;}
     const current=stateRef.current,week=((!current.sittingId) && candidateData.period.week) ? candidateData.period.week : current.week;
-    if(current.snapshotId!==candidateData.snapshotId||current.week!==week||candidateData.pagination.mode==='period'&&current.offset!==0)onStateChange({...current,week,offset:(candidateData.pagination.mode==='period') ? 0 : current.offset,snapshotId:candidateData.snapshotId},{replace:true});
+    const clearChair=candidateData.selected.status==='chairing'&&Boolean(current.decisionId||current.context);
+    if(clearChair||current.snapshotId!==candidateData.snapshotId||current.week!==week||candidateData.pagination.mode==='period'&&current.offset!==0)onStateChange({...current,...(clearChair?{decisionId:null,context:null}:{}),week,offset:(candidateData.pagination.mode==='period') ? 0 : current.offset,snapshotId:candidateData.snapshotId},{replace:true});
   },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,requestedWeek,memberId,language,unavailableEarlier,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
   useLayoutEffect(()=>{
     const pane=state.context ? null : (state.decisionId ? detailRef.current : listRef.current);
@@ -276,7 +277,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const expired=request.status===409;
   const rejected=Boolean(!route||request.data&&!valid);
   const coverageNotice=data ? memberVotesCoverageNotice(data,state, ui) : null;
-  const noRecordedPositions=data?.pagination.recordedTotal===0&&data.pagination.observedTotal>0;
+  const noRecordedPositions=data?.pagination.recordedTotal===0&&(data.pagination.observedTotal>0||(data.pagination.omittedWhileChairingTotal??0)>0);
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId ? exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId) : topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang={ui.language} aria-label={ui.t("membervotes.tsx.membername.votes", {memberName: String(memberName)})}>
     <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}><UiMessage id="membervotes.tsx.voting.records"/></h2><p>{periodLabel(data,state, ui)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
