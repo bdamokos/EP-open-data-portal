@@ -100,7 +100,7 @@ export class ActivityWorker {
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
     this.recoveryMode=recoveryMode;this.followupStartupRepair=true;this.amendmentRouteStartupRepair=true;
   }
-  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
+  coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
@@ -713,6 +713,7 @@ export class ActivityWorker {
       if(this.stopped)return;
       this.controller.signal.throwIfAborted();
       this.store.assertWriter();
+      if(cycle&&this.store.reclassifyMotions(generation))return;
       if(cycle){
         if(this.recoveryMode==='backfill')scheduleDeclaredDebateRecovery(this,generation);
         reconcileAmendmentDocumentGaps(this,generation,{restart:this.amendmentRouteStartupRepair});this.amendmentRouteStartupRepair=false;
