@@ -6,6 +6,30 @@ import contracts from './ui-counted-source.json' with {type:'json'};
 import neutral from './ui-counted-neutral.json' with {type:'json'};
 import english from './ui-locales/en.json' with {type:'json'};
 import {amendmentPlanSummary} from './amendmentModel.mjs';
+import cardinalCases from './test-support/cldr48-cardinal-cases.json' with {type:'json'};
+
+async function nativeCatalogues(){
+  return Object.fromEntries(await Promise.all(UI_LANGUAGES.filter(language=>language!=='en').map(async language=>[
+    language,(await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default,
+  ])));
+}
+
+test('native counted-message dispatch matches independently verified CLDR48 integer cases',async()=>{
+  const i18n=createAppUiI18n(await nativeCatalogues());
+  for(const language of UI_LANGUAGES){
+    const ui=i18n.forLocale(language);
+    assert.equal(ui.messageLocale('app.mepCountUnit'),normalizeUiLocale(language),language+' must use its native catalogue');
+    for(const count of cardinalCases.counts)assert.equal(ui.pluralCategoryFor('app.mepCountUnit',count),cardinalCases.expectedCategories[language][count],language+'/'+count);
+  }
+});
+
+test('Hungarian counted MEPs use singular nouns without changing standalone navigation',async()=>{
+  const ui=createAppUiI18n(await nativeCatalogues()).forLocale('hu');
+  for(const count of [0,1,2,5,21,101])assert.equal(ui.t('app.mepCountUnit',{}, {count}),'EP-képviselő');
+  assert.equal(ui.pluralCategoryFor('app.mepCountUnit',0),'other');
+  assert.equal(ui.t('app.mepCountUnknownUnit'),'EP-képviselők');
+  assert.equal(ui.t('batch4.parliamentheader.tsx.25.1'),'Képviselők');
+});
 
 test('counted source contracts support every native category and raw rich selectors',()=>{
   // Fractional values exercise diagnostic categories; production entity counts stay integers.

@@ -95,7 +95,7 @@
   },
   "da": {
     "batch4.dossiercontrols.tsx.64.1": "Gemt i denne browser",
-    "batch4.parliamentheader.tsx.25.1": "Medlemmer",
+    "batch4.parliamentheader.tsx.25.1": "Medlemmer af Europa-Parlamentet",
     "batch4.speakerpresentation.mjs.8.2": "Formand for Europa-Parlamentet",
     "batch4.speakerpresentation.mjs.8.3": "Næstformand for Europa-Parlamentet",
     "batch4.speakerpresentation.mjs.8.5": "Medlem af Kommissionen",
@@ -142,7 +142,7 @@
   },
   "de": {
     "batch4.dossiercontrols.tsx.64.1": "In diesem Browser gespeichert",
-    "batch4.parliamentheader.tsx.25.1": "Mitglieder",
+    "batch4.parliamentheader.tsx.25.1": "Abgeordnete",
     "batch4.speakerpresentation.mjs.8.2": "Präsident des Europäischen Parlaments",
     "batch4.speakerpresentation.mjs.8.3": "Vizepräsident des Europäischen Parlaments",
     "batch4.speakerpresentation.mjs.8.5": "Mitglied der Kommission",
@@ -189,7 +189,7 @@
   },
   "el": {
     "batch4.dossiercontrols.tsx.64.1": "Αποθηκεύτηκε σε αυτό το πρόγραμμα περιήγησης",
-    "batch4.parliamentheader.tsx.25.1": "Μέλη",
+    "batch4.parliamentheader.tsx.25.1": "Ευρωβουλευτές",
     "batch4.speakerpresentation.mjs.8.2": "Πρόεδρος του Ευρωπαϊκού Κοινοβουλίου",
     "batch4.speakerpresentation.mjs.8.3": "Αντιπρόεδρος του Ευρωπαϊκού Κοινοβουλίου",
     "batch4.speakerpresentation.mjs.8.5": "Μέλος της Επιτροπής",
@@ -236,7 +236,7 @@
   },
   "es": {
     "batch4.dossiercontrols.tsx.64.1": "Guardado en este navegador",
-    "batch4.parliamentheader.tsx.25.1": "Miembros",
+    "batch4.parliamentheader.tsx.25.1": "Diputados",
     "batch4.speakerpresentation.mjs.8.2": "Presidente del Parlamento Europeo",
     "batch4.speakerpresentation.mjs.8.3": "Vicepresidente del Parlamento Europeo",
     "batch4.speakerpresentation.mjs.8.5": "Miembro de la Comisión",
@@ -330,7 +330,7 @@
   },
   "fi": {
     "batch4.dossiercontrols.tsx.64.1": "Tallennettu tähän selaimeen",
-    "batch4.parliamentheader.tsx.25.1": "Jäsenet",
+    "batch4.parliamentheader.tsx.25.1": "Euroopan parlamentin jäsenet",
     "batch4.speakerpresentation.mjs.8.2": "Euroopan parlamentin puhemies",
     "batch4.speakerpresentation.mjs.8.3": "Euroopan parlamentin varapuhemies",
     "batch4.speakerpresentation.mjs.8.5": "Komission jäsen",
@@ -377,7 +377,7 @@
   },
   "fr": {
     "batch4.dossiercontrols.tsx.64.1": "Enregistré dans ce navigateur",
-    "batch4.parliamentheader.tsx.25.1": "Membres",
+    "batch4.parliamentheader.tsx.25.1": "Députés",
     "batch4.speakerpresentation.mjs.8.2": "Président du Parlement européen",
     "batch4.speakerpresentation.mjs.8.3": "Vice-président du Parlement européen",
     "batch4.speakerpresentation.mjs.8.5": "Membre de la Commission",
@@ -518,7 +518,7 @@
   },
   "hu": {
     "batch4.dossiercontrols.tsx.64.1": "Ebben a böngészőben mentve",
-    "batch4.parliamentheader.tsx.25.1": "Tagok",
+    "batch4.parliamentheader.tsx.25.1": "Képviselők",
     "batch4.speakerpresentation.mjs.8.2": "Az Európai Parlament elnöke",
     "batch4.speakerpresentation.mjs.8.3": "Az Európai Parlament alelnöke",
     "batch4.speakerpresentation.mjs.8.5": "A Bizottság tagja",
@@ -565,7 +565,7 @@
   },
   "it": {
     "batch4.dossiercontrols.tsx.64.1": "Salvato in questo browser",
-    "batch4.parliamentheader.tsx.25.1": "Membri",
+    "batch4.parliamentheader.tsx.25.1": "Deputati",
     "batch4.speakerpresentation.mjs.8.2": "Presidente del Parlamento europeo",
     "batch4.speakerpresentation.mjs.8.3": "Vicepresidente del Parlamento europeo",
     "batch4.speakerpresentation.mjs.8.5": "Membro della Commissione",
@@ -753,7 +753,7 @@
   },
   "nl": {
     "batch4.dossiercontrols.tsx.64.1": "Opgeslagen in deze browser",
-    "batch4.parliamentheader.tsx.25.1": "Leden",
+    "batch4.parliamentheader.tsx.25.1": "EP-leden",
     "batch4.speakerpresentation.mjs.8.2": "Voorzitter van het Europees Parlement",
     "batch4.speakerpresentation.mjs.8.3": "Ondervoorzitter van het Europees Parlement",
     "batch4.speakerpresentation.mjs.8.5": "Lid van de Commissie",
@@ -800,7 +800,7 @@
   },
   "pl": {
     "batch4.dossiercontrols.tsx.64.1": "Zapisano w tej przeglądarce",
-    "batch4.parliamentheader.tsx.25.1": "Członkowie",
+    "batch4.parliamentheader.tsx.25.1": "Posłowie",
     "batch4.speakerpresentation.mjs.8.2": "Przewodniczący Parlamentu Europejskiego",
     "batch4.speakerpresentation.mjs.8.3": "Wiceprzewodniczący Parlamentu Europejskiego",
     "batch4.speakerpresentation.mjs.8.5": "Członek Komisji",
@@ -847,7 +847,7 @@
   },
   "pt": {
     "batch4.dossiercontrols.tsx.64.1": "Guardado neste navegador",
-    "batch4.parliamentheader.tsx.25.1": "Membros",
+    "batch4.parliamentheader.tsx.25.1": "Deputados",
     "batch4.speakerpresentation.mjs.8.2": "Presidente do Parlamento Europeu",
     "batch4.speakerpresentation.mjs.8.3": "Vice-presidente do Parlamento Europeu",
     "batch4.speakerpresentation.mjs.8.5": "Membro da Comissão",
@@ -894,7 +894,7 @@
   },
   "ro": {
     "batch4.dossiercontrols.tsx.64.1": "Salvat în acest browser",
-    "batch4.parliamentheader.tsx.25.1": "Membri",
+    "batch4.parliamentheader.tsx.25.1": "Deputați",
     "batch4.speakerpresentation.mjs.8.2": "Președinte al Parlamentului European",
     "batch4.speakerpresentation.mjs.8.3": "Vicepreședinte al Parlamentului European",
     "batch4.speakerpresentation.mjs.8.5": "Membru al Comisiei",
