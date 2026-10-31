@@ -50,3 +50,25 @@ test('all declarations and a full reference suffix participate in conflict detec
   assert.equal(repeated.status,'known');assert.equal(repeated.code,'COD');assert.equal(repeated.reference,'2026/0001A(COD)');assert.equal(repeated.declarations.length,4);
   assert.equal(classifyProcedure({process_type:uri('MR')}).status,'unknown','a consent subtype is not a top-level procedure type');
 });
+
+test('all supplied object identities must agree, including malformed aliases',()=>{
+  for(const field of ['process_type','procedure_type','had_procedure_type']) {
+    for(const value of [
+      {id:uri('COD'),'@id':uri('RSP')},
+      {id:uri('RSP'),'@id':uri('COD')},
+      {id:uri('COD'),'@id':null},
+      {id:null,'@id':uri('COD')},
+      {id:uri('COD'),'@id':'not a type'},
+      {id:'not a type','@id':uri('COD')},
+    ]) {
+      const result=classifyProcedure({[field]:value});
+      assert.equal(result.status,'conflicting');assert.equal(result.code,null);
+      assert.deepEqual(result.declarations,[{field,value,code:null}]);
+    }
+    for(const value of [{id:uri('COD'),'@id':'COD'},{'@id':uri('COD'),id:'COD'}]) {
+      const result=classifyProcedure({[field]:value});
+      assert.equal(result.status,'known');assert.equal(result.code,'COD');assert.deepEqual(result.codes,['COD']);
+      assert.deepEqual(result.declarations,[{field,value,code:'COD'}]);
+    }
+  }
+});

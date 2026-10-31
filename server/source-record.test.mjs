@@ -32,12 +32,17 @@ test('source reader preserves the exact filtered request, bounds display/downloa
 test('type-only procedure links require one consistent declaration across representations and aliases',async()=>{
   const id='2026-0001A',url=base+'/procedures/'+id,type='def/ep-procedure-types/APP';
   const expected='https://oeil.europarl.europa.eu/oeil/fr/procedure-file?reference=2026%2F0001A%28APP%29';
-  for(const fields of [{process_type:type},{process_type:{id:type}},{process_type:{'@id':type}},{process_type:[type,{id:type},type]},{procedure_type:type,had_procedure_type:{id:type}}]) {
+  for(const fields of [{process_type:type},{process_type:{id:type}},{process_type:{'@id':type}},{process_type:{id:type,'@id':'APP'}},{process_type:{'@id':type,id:'APP'}},{process_type:[type,{id:type},type]},{procedure_type:type,had_procedure_type:{id:type}}]) {
     assert.equal(humanSourceUrl(url,{language:'fr',record:fields}),expected);
     const read=createSourceReader({request:async()=>({url,fetchedAt:Date.parse('2026-10-31T09:00:00Z'),payload:{data:[{id:'eli/dl/proc/'+id,...fields}]}})});
     assert.equal((await read(url,'fr')).records[0].websiteUrl,expected);
   }
   for(const fields of [{},{process_type:{}},{process_type:[type,{}]},{process_type:[type,null]},{process_type:[type,'def/ep-procedure-types/COD']},{process_type:['def/ep-procedure-types/COD',type]},{process_type:type,procedure_type:'COD'}])assert.equal(humanSourceUrl(url,{record:fields}),null);
+  for(const process_type of [{id:'COD','@id':'RSP'},{id:'RSP','@id':'COD'},{id:'COD','@id':null},{id:null,'@id':'COD'}]) {
+    assert.equal(humanSourceUrl(url,{record:{process_type}}),null);
+    const read=createSourceReader({request:async()=>({url,fetchedAt:Date.parse('2026-10-31T09:00:00Z'),payload:{data:[{id:'eli/dl/proc/'+id,process_type}]}})});
+    assert.equal((await read(url,'fr')).records[0].websiteUrl,null);
+  }
   const contradictory={process_type:['COD','RSP'],label:'2026/0001A(APP)'};
   assert.equal(humanSourceUrl(url,{language:'fr',record:contradictory}),expected,'an exact printed reference keeps its established path');
   assert.equal(humanSourceUrl(url,{language:'fr',reference:'2026/0001A(APP)',record:{process_type:{}}}),expected);

@@ -44,7 +44,7 @@ test('conflicting procedure fields or suffixes withhold agenda dossier links whi
   const directory=mkdtempSync(join(tmpdir(),'procedure-conflict-')),store=new ActivityStore(directory),clock=()=>Date.parse('2026-10-14T09:30:00Z');
   try {
     store.acquire();store.beginCycle();store.setMembers([{id:'257043',name:'Fixture member'}]);
-    for(const fields of [{process_type:['COD','CNS'],label:'2025/2117(COD)'},{process_type:'COD',had_procedure_type:'APP',label:'2025/2117(COD)'},{process_type:'COD',label:'2025/2117(CNS)'}]) {
+    for(const fields of [{process_type:['COD','CNS'],label:'2025/2117(COD)'},{process_type:'COD',had_procedure_type:'APP',label:'2025/2117(COD)'},{process_type:'COD',label:'2025/2117(CNS)'},{process_type:{id:'COD','@id':'RSP'},label:'2025/2117(COD)'},{process_type:{id:'RSP','@id':'COD'},label:'2025/2117(COD)'}]) {
       const procedure={...fixture.procedure,payload:{data:[{id:'eli/dl/proc/2025-2117',...fields,consists_of:[]}]}};
       const service=new LegislationInsights(store,{clock,loadMetadata:async()=>new Map(),request:yearCatalogue(async(endpoint,params)=>{
         if(endpoint==='/meetings')return params.offset===0?fixture.meetings:{...fixture.meetings,payload:{data:[]}};

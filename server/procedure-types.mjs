@@ -30,15 +30,21 @@ export const procedureTypes=Object.freeze(Object.fromEntries([
 
 const values=value=>Array.isArray(value)?value:value==null||value===''?[]:[value];
 const typeCode=value=>typeof value==='string'?value.match(/(?:^|\/)([A-Z]{2,8})$/)?.[1]||null:null;
+const identityCodes=value=>{
+  if(typeof value!=='object'||value===null)return [typeCode(value)];
+  const keys=['id','@id'].filter(key=>Object.hasOwn(value,key));
+  return keys.length?keys.map(key=>typeCode(value[key])):[null];
+};
 export function procedureClassification(work) {
-  const declarations=['process_type','procedure_type','had_procedure_type'].flatMap(field=>values(work?.[field]).map(value=>({field,value,code:typeCode(typeof value==='object'&&value!==null?value.id??value['@id']:value)})));
+  const observations=['process_type','procedure_type','had_procedure_type'].flatMap(field=>values(work?.[field]).map(value=>({field,value,codes:identityCodes(value)})));
+  const declarations=observations.map(({field,value,codes})=>({field,value,code:codes.every(code=>code===codes[0])?codes[0]:null}));
   // A canonical suffix checks declarations; it never replaces a missing type
   // observation. Titles and bare procedure IDs supply no type.
   const reference=typeof work?.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(work.label)?work.label:null;
   const referenceCode=reference?.match(/\(([A-Z]{2,8})\)$/)[1]||null;
-  const declaredCodes=declarations.map(row=>row.code).filter(Boolean);
+  const declaredCodes=observations.flatMap(row=>row.codes).filter(Boolean);
   const codes=[...new Set([...declaredCodes,...(declaredCodes.length&&referenceCode?[referenceCode]:[])])];
-  const malformed=declarations.some(row=>row.code===null);
+  const malformed=observations.some(row=>row.codes.includes(null));
   const status=codes.length>1||malformed&&codes.length?'conflicting':codes.length?(Object.hasOwn(procedureTypes,codes[0])?'known':'unknown'):declarations.length?'unknown':'missing';
   const code=status==='conflicting'?null:codes[0]||null;
   const type=status==='known'?procedureTypes[code]:null;

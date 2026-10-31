@@ -61,6 +61,8 @@ test('dossier identity rejects every declaration order and suffix conflict befor
     {process_type:'COD',procedure_type:'CNS'},{process_type:'CNS',procedure_type:'COD'},
     {process_type:'COD',had_procedure_type:'APP'},{process_type:'APP',had_procedure_type:'COD'},
     {process_type:'CNS'},
+    {process_type:{id:'COD','@id':'RSP'}},{process_type:{id:'RSP','@id':'COD'}},
+    {process_type:{id:'COD','@id':null}},{process_type:{id:null,'@id':'COD'}},
   ]) {
     const work={...procedure(),...fields};x.records.set('/procedures/'+PID,record('/procedures/'+PID,work));
     assert.equal(classifyProcedure(work).status,'conflicting');
@@ -68,6 +70,14 @@ test('dossier identity rejects every declaration order and suffix conflict befor
     await assert.rejects(x.service.query(x.q('roles')),e=>e.code==='dossier_reference');
     const resolver=await x.service.references({ids:[PID],language:'en'});
     assert.deepEqual(resolver.items,[]);assert.equal(resolver.coverage.status,'partial');
+  }
+});
+test('dossier identity accepts equivalent object aliases without selecting a field first',async t=>{
+  const x=setup(t);
+  for(const process_type of [{id:'COD','@id':'def/ep-procedure-types/COD'},{'@id':'COD',id:'def/ep-procedure-types/COD'}]) {
+    x.records.set('/procedures/'+PID,record('/procedures/'+PID,{...procedure(),process_type}));
+    assert.equal((await x.service.procedure(PID,'en',REF)).procedure.reference,REF);
+    assert.equal((await x.service.references({ids:[PID],language:'en'})).items[0].reference,REF);
   }
 });
 test('dossier identity preserves absent-type fallback, unknown codes and every published procedure type',async t=>{
