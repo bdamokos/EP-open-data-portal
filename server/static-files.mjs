@@ -6,6 +6,9 @@ import { config } from "./config.mjs";
 import { HttpError, setCommonSecurityHeaders } from "./http-utils.mjs";
 
 const contentTypes = new Map([
+  [".wasm", "application/wasm"],
+  [".bcmap", "application/octet-stream"],
+  [".pfb", "application/octet-stream"],
   [".avif", "image/avif"],
   [".css", "text/css; charset=utf-8"],
   [".gif", "image/gif"],
@@ -142,7 +145,7 @@ function staticSecurityHeaders(response) {
   setCommonSecurityHeaders(response);
   response.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; frame-src https://webstreaming.europarl.europa.eu https://audiovisual.ec.europa.eu; frame-ancestors 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+    "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self' data:; frame-src https://webstreaming.europarl.europa.eu https://audiovisual.ec.europa.eu; frame-ancestors 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; object-src 'none'; worker-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'",
   );
 }
 

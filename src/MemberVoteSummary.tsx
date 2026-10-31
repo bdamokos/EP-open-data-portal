@@ -1,7 +1,7 @@
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {selectLanguageText} from './language.mjs';
 import type {MemberVote} from './MemberVotesTypes';
-import {memberVoteOutcome,memberVotePosition,memberVoteTotals} from './memberVotesPresentation.mjs';
+import {memberVoteOutcome,memberVotePositionState,memberVotePosition,memberVoteTotals} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 type ResultVote=Pick<MemberVote,'outcome'|'totals'|'ballotStatus'>;
 type PositionVote=Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>;
@@ -20,13 +20,13 @@ export function Position({vote,memberName,compact=false}:{vote:PositionVote;memb
   const ui=useUiI18n();
   const label=memberVotePosition(vote,ui),recorded=vote.actualPosition.status==='recorded';
   const position=recorded?vote.actualPosition.position:'unknown';
-  return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}><UiMessage id={compact&&recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position'} values={{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>,position:<strong>{label}</strong>}}/></span>;
+  return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}>{ui.language==='ro'||ui.language==='lt' ? ui.rich('membervotesummary.fullPosition.'+memberVotePositionState(vote),{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>}).map((part,index)=>typeof part==='string'?<strong key={index}>{part}</strong>:<span key={index}>{part}</span>) : <UiMessage id={compact&&recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position'} values={{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>,position:<strong>{label}</strong>}}/>}</span>;
 }
 
 
 export function VotePartDescriptions({vote,language}:{vote:Pick<MemberVote,'parts'>;language:string}) {
   return <>{vote.parts.map(part=>{
     const text=selectLanguageText(Object.fromEntries(Object.entries(part.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
-    return text.text ? <section className="member-votes-part" key={part.componentId}><h3><UiMessage id="membervotesummary.published_description"/>{(part.number!==null) ? (' of part '+part.number) : ''}</h3><p lang={text.language}>{text.text}</p></section> : null;
+    return text.text ? <section className="member-votes-part" key={part.componentId}><h3><UiMessage id={part.number!==null ? "membervotesummary.published_description_of_part_number" : "membervotesummary.published_description"} values={{number:part.number??''}}/></h3><p lang={text.language}>{text.text}</p></section> : null;
   })}</>;
 }

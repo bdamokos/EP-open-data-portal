@@ -9,7 +9,7 @@ const activity=(sourceId,extra={})=>({id:'written-questions:'+sourceId,sourceId,
 const documentResult=id=>({id,selectedDocumentId:id,titles:{en:'Source title'},roles:['AUTHOR'],files:[],coAuthors:[],answers:id===questionId?[{id:answerId,date:'2026-10-23',files:[]}]:[],selectedText:{status:'available',paragraphs:[id===answerId?'Exact answer body.':id===questionId?'Exact question body.':'Exact document body.'],textLanguage:'en',availableTextLanguages:['en'],notes:[],noteAnchors:[],documentLinks:[]}});
 const page=(selectedItems,items=[],complete=false)=>({selectedItems,items,categories:{},categoryGroups:[],categoryCoverage:{},indexedTotal:items.length,cache:{complete}});
 
-async function harness(t,{sourceId=questionId,selected=[],items=[],complete=false,deferred=false,failFirst=false}={}) {
+async function harness(t,{sourceId=questionId,selected=[],items=[],complete=false,deferred=false,failFirst=false,selectedText}={}) {
   const window=new Window({url:'http://localhost/?view=saved'}),requests=[],unexpected=[],pending=[],opened=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -37,7 +37,7 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
       if(deferred)return new Promise(resolve=>pending.push(resolve));
       return Response.json(page(selected,items,complete));
     }
-    if(url.pathname.startsWith('/api/document/'))return Response.json(documentResult(url.pathname.split('/').at(-1)));
+    if(url.pathname.startsWith('/api/document/'))return Response.json({...documentResult(url.pathname.split('/').at(-1)),...(selectedText?{selectedText}: {})});
     if(url.pathname.startsWith('/api/speech-transcript/')) {
       const id=url.pathname.split('/').at(-1);
       return Response.json({id,available:true,xml:'<speech><p>Exact speech body.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en'],metadata:{id}});
@@ -133,4 +133,13 @@ test('inline motion controls keep local state across text choices without writin
   await h.click('Read motion');assert.match(h.container.textContent,/Exact document body/);
   assert(h.requests.some(url=>url.pathname==='/api/document-context/'+jointId));
   assert.equal(location.search,'?view=saved');assert.equal(history.length,1);
+});
+
+test('generic linked report readers omit the exact cover logo while keeping body figures',async t=>{
+ const sourceId='A-10-2025-0275',paragraphs=['European Parliament\t\uFFFC','2024-2029','Plenary sitting','A10-0275/2025','REPORT','Body \uFFFC'];
+ const selectedText={status:'available',paragraphs,textLanguage:'en',availableTextLanguages:['en'],structureStatus:'extracted',documentObjects:[{paragraph:0,offset:20,kind:'drawing',status:'unresolved'},{paragraph:5,offset:5,kind:'drawing',status:'unresolved'}],sourceUrl:'https://example.org/report.docx',notes:[],noteAnchors:[],documentLinks:[]};
+ const h=await harness(t,{sourceId,selectedText});
+ await h.click('Look it up');
+ assert(h.requests.some(url=>url.pathname==='/api/document/'+sourceId));
+ const text=h.container.querySelector('.explorer-transcript');assert(text);assert.equal(text.querySelector('p').textContent,'European Parliament\t');assert.equal(text.querySelectorAll('.document-context-object').length,1);
 });

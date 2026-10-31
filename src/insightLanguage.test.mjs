@@ -64,6 +64,7 @@ test('insight controls and charts restore selected Intl language inside English 
     assert.equal(option.getAttribute('lang'),language==='en'?'en':'','mixed native option remains unknown without copy changes');
     await act(async()=>h.container.querySelector('svg [role="button"]').dispatchEvent(new h.window.FocusEvent('focusin',{bubbles:true})));
     const shownDate=h.container.querySelector('.insight-chart-caption span[lang]');
+    assert(shownDate,'focused chart period must retain its selected-language boundary inside the English caption');
     assert.equal(effectiveLanguage(shownDate),language);
     assert.equal(shownDate.textContent,`${date('2026-10-01',language)}–${date('2026-10-07',language)}`);
     assert.equal(effectiveLanguage(shownDate.parentElement.lastChild),'en');

@@ -13,6 +13,7 @@
 
   /* Surfaces: page, raised panel and inset, from back to front. */
   --bg: light-dark(#f6f5f1, #141618);
+  --document-paper: #ffffff;
   --surface: light-dark(#ffffff, #1c1f22);
   --surface-2: light-dark(#efede8, #24282c);
   --surface-3: light-dark(#e3e0d8, #2e3237);

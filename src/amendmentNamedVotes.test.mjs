@@ -65,7 +65,7 @@ for(const scenario of ['ambiguous-result-binding','conflicting-result-source','c
  assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote record does not match this amendment/);
  assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
  assert.match(h.container.querySelector('.explorer-amendment-card').textContent,/Adopted/);
- assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/for2/);
+ assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
 });
 
 for(const scenario of [
@@ -79,7 +79,7 @@ for(const scenario of [
  const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
  assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);
  assert.match(h.container.querySelector('.amendment-named-votes').textContent,/Vote record does not match this amendment/);
- assert.match(h.container.querySelector('.explorer-amendment-card').textContent,/Adopted/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/for2/);
+ assert.match(h.container.querySelector('.explorer-amendment-card').textContent,/Adopted/);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For2/);
 });
 for(const scenario of [{wording:'missing'},{wording:'unreadable',context:'missing'},{ownership:'unknown',context:'missing'}])test('missing split context stays distinct from contradictions: '+JSON.stringify(scenario),async t=>{
  const f=splitBindingFixture(scenario),data=await f.read(),h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:f.indexed});await h.render();await h.open();
@@ -102,7 +102,7 @@ test('group sources show the captured membership generation and retrieval date',
 test('a missing tally does not hide a known mismatch or imply an unlisted author had no vote',async t=>{
  const f=voteFixture();f.raw.number_of_votes_favor=99;delete f.raw.number_of_votes_abstention;const data=await f.read();
  const h=await mount(t,async()=>Response.json(data),{integrated:true,indexedDecision:{...decision,totals:{for:99,against:1,abstaining:null}}});
- await h.render();await h.open();assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/for99/);
+ await h.render();await h.open();assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);assert.match(h.container.textContent,/Vote record does not match this amendment/);assert.equal(h.container.querySelector('[aria-label="Authors’ votes"]'),null);assert.match(h.container.querySelector('.explorer-amendment-totals').textContent,/For99/);
 });
 
 for(const [position,field] of [['for','number_of_votes_favor'],['against','number_of_votes_against'],['abstaining','number_of_votes_abstention']]){

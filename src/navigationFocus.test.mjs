@@ -1,9 +1,24 @@
 import {viewReady} from './test-support/viewReady.mjs';
-import test from 'node:test';
+import test, {after} from 'node:test';
+import {createServer,createServerModuleRunner} from 'vite';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
-import {freshLoader} from './test-support/viteRunner.mjs';
+
+// Share transforms for all gate choices, with fresh module state per harness.
+// The runtime guard delays only the requested view in each isolated runner.
+let navigationServer;
+after(async()=>{if(navigationServer)await (await navigationServer).close();});
+async function navigationLoader(options) {
+  navigationServer??=createServer({...options,plugins:[{name:'delay-view-fixture',transform(code,id){
+    const file=['Saved.tsx','Legislation.tsx','GroupVoices.tsx'].find(file=>id.endsWith('/'+file));
+    if(file)return 'if(globalThis.__navigationDelayedFile==='+JSON.stringify(file)+')await globalThis.__navigationViewGate;\n'+code;
+  }}]});
+  const server=await navigationServer,runner=createServerModuleRunner(server.environments.ssr,{hmr:false});
+  const load=path=>runner.import(path);
+  load.close=()=>runner.close();
+  return load;
+}
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
 const directory={day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}};
@@ -15,7 +30,8 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
   const window=new Window({url:'http://localhost/'+query}),pending=[],unexpected=[],portraitRequests=[];
   if(unavailableMemberships)delete window.IntersectionObserver;
   let releaseModule;const moduleGate=new Promise(resolve=>{releaseModule=resolve;});
-  const globals={__navigationViewGate:moduleGate,window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
+  const delayedFile=delayedModule==='saved'?'Saved.tsx':delayedModule==='legislation'?'Legislation.tsx':'GroupVoices.tsx';
+  const globals={__navigationDelayedFile:delayedModule?delayedFile:null,__navigationViewGate:moduleGate,window,document:window.document,location:window.location,history:window.history,Event:window.Event,DOMParser:window.DOMParser,HTMLElement:window.HTMLElement,HTMLButtonElement:window.HTMLButtonElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),innerWidth:1280,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,loadModule;
@@ -50,9 +66,8 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     if(route?.startsWith('insights/')||route?.startsWith('outside/'))return Response.json({error:{message:'Local fixture unavailable.'}},{status:503});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
   });
-  // The conditional transform plugin needs an isolated server for its delayed-view graph.
-  const delayedFile=delayedModule==='saved'?'Saved.tsx':delayedModule==='legislation'?'Legislation.tsx':'GroupVoices.tsx';
-  loadModule=await freshLoader({configFile:false,plugins:delayedModule?[{name:'delay-view-fixture',transform(code,id){if(id.endsWith('/'+delayedFile))return 'await globalThis.__navigationViewGate;\n'+code;}}]:[],server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const loaderOptions={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}};
+  loadModule=await navigationLoader(loaderOptions);
   const {default:App}=await loadModule('/src/App.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container,{onCaughtError:()=>{}});
@@ -275,7 +290,7 @@ test('a pending view can be left immediately and its late import cannot reopen i
 
 test('a cold deep link renders its destination shell before the view module resolves',async t=>{
   const h=await harness(t,'?view=groups&lang=fr',false,true);
-  assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Group voices');
+  assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Voix des groupes');
   assert.equal(h.container.querySelector('[role=status]').textContent,'Chargement de la vue…');
   assert.equal(h.container.querySelectorAll('main').length,1);
   assert(h.button('Membres'));

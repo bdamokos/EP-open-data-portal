@@ -125,9 +125,9 @@ function sourceLabel(labels,language) {
   if(!isObject(labels))return null;
   return [labels[language],labels.en,...Object.values(labels)].find(value=>typeof value==='string'&&value.trim())||null;
 }
-export function memberVoteParentLabel(vote,language='en') {
+export function memberVoteParentLabel(vote,language='en',ui=defaultUi) {
   const amendments=unique((vote.context?.amendmentIds||[]).filter(id=>amendmentDocument.test(id)).map(id=>id.slice(id.indexOf('-AM-')+4)));
-  if(amendments.length)return (amendments.length===1?'Amendment ':'Amendments ')+amendments.join(', ');
+  if(amendments.length)return ui.t(amendments.length===1?'membervotespresentation.amendment_numbers':'membervotespresentation.amendments_numbers',{numbers:amendments.join(', ')});
   const scopes=unique((vote.parts||[]).map(part=>sourceLabel(part.requestScopeByLanguage,language)).filter(Boolean));
   return scopes.length===1?scopes[0]:sourceLabel(vote.referenceTexts,language);
 }
@@ -135,10 +135,18 @@ export function memberVoteLabel(vote,language='en', ui = defaultUi) {
   if(vote.scope?.kind==='whole-text')return ui.t("membervotespresentation.final_vote");
   const parts=unique((vote.parts||[]).map(part=>part.number).filter(value=>typeof value==='string'&&value.trim()||typeof value==='number'&&Number.isFinite(value)).map(String));
   const label=[];
-  const parent=memberVoteParentLabel(vote,language);
+  const parent=memberVoteParentLabel(vote,language,ui);
   if(parent)label.push(parent);
   if(parts.length)label.push((parts.length===1)?ui.t("membervotespresentation.part_numbers", {numbers: String(parts.join(', '))}):(ui.t("membervotespresentation.parts_numbers", {numbers: String(parts.join(', '))})));
   return label.join(' · ')||sourceLabel(vote.referenceTexts,language)||ui.t("membervotespresentation.decision");
+}
+export function memberVotePositionState(vote) {
+  if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return 'notConducted';
+  const status=vote.actualPosition?.status;
+  if(status==='conflicting'||status==='unavailable')return status;
+  if(status==='not-individually-recorded')return 'notIndividuallyRecorded';
+  if(status==='recorded')return ['for','against','abstaining'].includes(vote.actualPosition.position)?vote.actualPosition.position:'unavailable';
+  return 'noRecordedPosition';
 }
 export function memberVotePosition(vote, ui = defaultUi) {
   if(vote.ballotStatus==='not-conducted'||vote.actualPosition?.status==='not-conducted')return ui.t("activityvote.not_put_to_a_vote");
@@ -150,10 +158,11 @@ export function memberVotePosition(vote, ui = defaultUi) {
 }
 
 export function memberVotePositionSummary(items, ui = defaultUi) {
-  const counts={For:0,Against:0,Abstained:0};
-  for(const item of items){const label=memberVotePosition(item, ui);if(Object.hasOwn(counts,label))counts[label]++;}
-  const recorded=Object.entries(counts).filter(([,count])=>count).map(([label,count])=>count+' '+label);
-  return (items.some(item=>item.actualPosition?.status==='not-individually-recorded'))?ui.t("membervotespresentation.positions_positions_count_not_individually_recorded", {positions: String(recorded.join(' · ')||'none'), count: String(items.filter(item=>item.actualPosition?.status==='not-individually-recorded').length)}):(ui.t("membervotespresentation.positions_positions", {positions: String(recorded.join(' · ')||'none')}));
+  const counts={for:0,against:0,abstaining:0};
+  for(const item of items){const state=memberVotePositionState(item);if(Object.hasOwn(counts,state))counts[state]++;}
+  const recorded=Object.entries(counts).filter(([,count])=>count).map(([position,count])=>ui.t('membervotespresentation.count_position',{count,position:memberVotePosition({actualPosition:{status:'recorded',position}},ui)})).join(' · ');
+  const count=items.filter(item=>memberVotePositionState(item)==='notIndividuallyRecorded').length;
+  return ui.t(recorded ? (count?'membervotespresentation.positions_positions_count_not_individually_recorded':'membervotespresentation.positions_positions') : (count?'membervotespresentation.positions_none_count_not_individually_recorded.9fd0f5':'membervotespresentation.positions_none'),{positions:recorded,count});
 }
 export function memberVoteOutcome(vote, ui = defaultUi) {
   return {ADOPTED:ui.t("membervotespresentation.adopted"),REJECTED:ui.t("membervotespresentation.rejected"),LAPSED:ui.t("membervotespresentation.lapsed"),WITHDRAWN:ui.t("membervotespresentation.withdrawn"),CANCELLED:ui.t("membervotespresentation.cancelled")}[vote.outcome]||ui.t("membervotespresentation.outcome_unavailable");

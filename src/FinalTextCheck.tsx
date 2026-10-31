@@ -42,6 +42,12 @@ function Stage({stage,source,readerKey}:{stage:FinalTextStage;source:FinalTextRe
   </section>;
 }
 
+export function VoteOutcome({outcome}:{outcome:string}) {
+  const ui=useUiI18n();
+  const keys:Record<string,string>={ADOPTED:'membervotespresentation.adopted',REJECTED:'membervotespresentation.rejected',LAPSED:'membervotespresentation.lapsed',WITHDRAWN:'membervotespresentation.withdrawn',CANCELLED:'membervotespresentation.cancelled'};
+  return Object.hasOwn(keys,outcome) ? <span lang={ui.language}>{ui.t(keys[outcome])}</span> : <span lang="">{outcome}</span>;
+}
+
 function Session({selection}:{selection:FinalTextSelection}) {
   const ui = useUiI18n();
   const readerKey=selectionKey(selection);
@@ -69,7 +75,7 @@ function Session({selection}:{selection:FinalTextSelection}) {
     <summary><UiMessage id="finalTextCheck.in_the_final_text"/></summary>
     {open&&<div className="final-text-check__body" aria-busy={state.loading}>
       {state.loading&&!data&&<p role="status"><UiMessage id="insightshared.loading"/></p>}
-      {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">{(data.vote.stage==='committee') ? <UiMessage id="finalTextCheck.committee_vote_outcome" values={{outcome: data.vote.outcome.toLowerCase().replaceAll('_',' ')}}/> : ((data.vote.stage==='plenary') ? <UiMessage id="finalTextCheck.plenary_vote_outcome" values={{outcome: data.vote.outcome.toLowerCase().replaceAll('_',' ')}}/> : <UiMessage id="finalTextCheck.vote_outcome" values={{outcome: data.vote.outcome.toLowerCase().replaceAll('_',' ')}}/>)}</p>}
+      {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">{(data.vote.stage==='committee') ? <UiMessage id="finalTextCheck.committee_vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/> : ((data.vote.stage==='plenary') ? <UiMessage id="finalTextCheck.plenary_vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/> : <UiMessage id="finalTextCheck.vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/>)}</p>}
       {data&&(shownStages.length ? shownStages.map(stage=><Stage key={stage.destination.kind+':'+stage.destination.id} stage={stage} source={data.selection.source} readerKey={readerKey}/>) : <p><UiMessage id="grouplabels.ts.unavailable"/></p>)}
       {state.error&&<p role="status">{data ? <UiMessage id="finalTextCheck.could_not_refresh_comparison"/> : <UiMessage id="finalTextCheck.could_not_load_comparison"/>}</p>}
       {(state.error||data)&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}>{state.error ? <UiMessage id="commissionfollowups.try_again"/> : <UiMessage id="batch6.procedureprogress.check.again.64"/>}</button>}

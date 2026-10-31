@@ -25,7 +25,7 @@ export function VotePeriodNavigation({state,resolvedWeek,language,sittingCoverag
   const dayButton=(day:{sittingId:string;date:string})=>{
     const noVotes=Array.isArray(sittingCoverage)&&sittingCoverage.some(observed=>observed&&typeof observed==='object'&&observed.sittingId===day.sittingId&&observed.date===day.date&&observed.state==='complete'&&observed.observedDecisionCount===0);
     const fullDate=new Intl.DateTimeFormat(language,{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(day.date+'T12:00:00Z'));
-    const label=fullDate+(noVotes ? ', no votes recorded' : '');
+    const label=noVotes ? ui.t('voteperiodnavigation.date_no_votes_recorded.700603',{date:fullDate}) : fullDate;
     return <button className={noVotes ? 'vote-period-no-votes' : undefined} key={day.sittingId} type="button" aria-label={label} title={label} aria-pressed={state.sittingId===day.sittingId} onClick={()=>choose(week,day.sittingId)}><span className="vote-period-full" aria-hidden="true">{format(day.date,language,true)}</span><span className="vote-period-compact" aria-hidden="true">{compactDay(day.date,language)}</span></button>;
   };
   return <div className="member-votes-period-navigation">

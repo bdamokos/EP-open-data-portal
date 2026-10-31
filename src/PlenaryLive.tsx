@@ -92,7 +92,7 @@ export function PlenaryLiveBanner({language='en'}:{language?:string}) {
   const label=item ? selectLanguageText(item.titles,language,item.id) : null;
   return <section className="plenary-live-banner" aria-label={ui.t("plenarylive.tsx.plenary.now")} lang={ui.language}>
     <div><div className="plenary-live-eyebrow"><span className="plenary-live-dot"/>{data.broadcast ? ui.t("plenarylive.tsx.plenary.live") : ui.t("plenarylive.tsx.plenary.now")}<span><UiMessage id="plenarylive.tsx.updated.time.brussels" values={{time: clockText(data.current?.updatedAt||data.checkedAt)}}/></span></div><p title={data.current?.title||data.broadcast?.title}>{data.current?.title||data.broadcast?.title}</p>{item&&label&&<small><AgendaLink data={data} id={item.id}><UiMessage id="plenarylive.tsx.open.scheduled.agenda.item"/></AgendaLink></small>}{data.agenda.state==='ambiguous'&&<small><UiMessage id="plenarylive.tsx.current.agenda.item.unclear"/></small>}</div>
-    {data.broadcast&&<button onClick={open}>{opened ? 'Show player' : 'Watch live'} <span aria-hidden="true">↗</span></button>}
+    {data.broadcast&&<button onClick={open}>{ui.t(opened ? 'plenarylive.tsx.show.player' : 'plenarylive.tsx.watch.live')}</button>}
   </section>;
 }
 

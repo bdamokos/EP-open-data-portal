@@ -29,7 +29,7 @@ test('document context HTTP contract is bounded, query-separated and never start
   const adopted=await read('/api/document-context/TA-10-2026-0342');assert.equal(adopted.status,200);assert.equal(adopted.body.document.selectedDocumentId,'TA-10-2026-0342');
   for(const suffix of ['?lang=en&lang=fr','?member=256918','?adopted=0','?amendment=RC-10-2026-0441-AM-1','?list=B-10-2026-0424-AM-001-020'])assert.equal((await read(endpoint+suffix)).status,400,suffix);
   assert.equal((await read(endpoint,{method:'POST'})).status,405);assert.equal((await read(endpoint,{headers:{Origin:'https://unrelated.example'}})).status,403);assert.equal((await read(endpoint,{method:'HEAD'})).text,'');
-  assert.equal((await read('/api/document-context/A-9-2026-0237')).status,400);assert.equal((await read('/api/poc/document-context/B-10-2026-0424')).status,404);
+  assert.equal((await read('/api/document-context/A-11-2026-0237')).status,400);assert.equal((await read('/api/poc/document-context/B-10-2026-0424')).status,404);
   assert.equal(worker.running,false);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_jobs').get().n,0);assert.equal(calls.length,2);
   assert(calls.every(url=>url.startsWith('https://data.europarl.europa.eu/api/v2/')));
 

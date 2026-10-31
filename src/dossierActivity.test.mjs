@@ -172,7 +172,7 @@ test('full dossier keeps exact participant roles; document role dates do not bec
   const docRole={...role,dateBasis:'document',documentId:'A-10-2026-0010'};
   const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>url.searchParams.get('section')==='roles'?Response.json(page('roles',null,[docRole],{participants:[{id:'257727',name:'Named member',roles:[docRole,{...role,id:'other-exact-role',role:'RAPPORTEUR_OPINION'}]}]})):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Opinion rapporteur/);assert.match(h.container.textContent,/document date/);
+  assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Opinion rapporteur/);assert.match(h.container.textContent,/Document date/);
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-activity')).length,1);
   const name=h.container.querySelector('.dossier-participants li>a');assert.equal(new URL(name.href).searchParams.get('module'),'profile');
   assert.equal(new URL([...h.container.querySelectorAll('a')].find(node=>node.textContent==='Work on this dossier').href).searchParams.get('dossier-person'),'257727');

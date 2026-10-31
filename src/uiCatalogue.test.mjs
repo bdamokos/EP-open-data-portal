@@ -20,7 +20,7 @@ test('catalogue IDs, aliases and plural contracts resolve without changing impor
   }
   const id='membervotes.tsx.count.decisions';
   const translated=Object.freeze({[id]:Object.freeze({plural:'count',one:'{count} decyzja',few:'{count} decyzje',many:'{count} decyzji',other:'{count} decyzji'})});
-  const i18n=createAppUiI18n({pl:translated});
+  const i18n=createAppUiI18n({pl:translated},{});
   assert.equal(i18n.forLocale('pl').t(id,{count:22}),'22 decyzje');
   assert.equal(i18n.forLocale('pl').t(id,{count:25}),'25 decyzji');
   assert.equal(i18n.forLocale('en').t(id,{count:1}),'1 decision');
@@ -37,7 +37,8 @@ test('every explicit static application message points to a real catalogue entry
   for(const file of await files(new URL('./',import.meta.url))) {
     if(!/\.(tsx|ts|mjs)$/.test(file.pathname)||/\.test\.|test-support/.test(file.pathname))continue;
     const text=await readFile(file,'utf8');
-    for(const match of text.matchAll(/(?:ui\.t\(|<Ui(?:Annotated)?Message id=)['"]([^'"]+)['"]/g))assert(Object.hasOwn(english,uiMessageId(match[1])),file.pathname+': '+match[1]);
+    const patterns=[/ui\.t\(\s*['"]([^'"]+)['"]\s*(?=[,)])/g,/<Ui(?:Annotated)?Message\s+id=['"]([^'"]+)['"]/g];
+    for(const pattern of patterns)for(const match of text.matchAll(pattern))assert(Object.hasOwn(english,uiMessageId(match[1])),file.pathname+': '+match[1]);
     assert(!text.includes('+v.values[i]+'),file.pathname);
   }
 });
@@ -93,9 +94,30 @@ test('startup shell uses explicit owned bindings and keeps numeric member IDs li
   assert.equal(window.document.querySelector('h1').textContent,'Európai parlamenti képviselők');
   assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Tagok');
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu',member:'1234567'}));
-  assert.equal(window.document.querySelector('h1').textContent,'MEP 1234567');
+  assert.equal(window.document.querySelector('h1').textContent,'EP-képviselő 1234567');
   window.document.getElementById('initial-shell').remove();
   const title=window.document.title;
   localizeInitialShell(window.document,new URLSearchParams({lang:'fr'}));
   assert.equal(window.document.title,title,'a late shell binding never inspects or rewrites the mounted app');
+});
+
+test('all reachable messages have translated values in each supported language',async()=>{
+  for(const language of 'bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ')) {
+    const catalogue=JSON.parse(await readFile(new URL(`./ui-locales/${language}.json`,import.meta.url),'utf8'));
+    for(const id of Object.keys(english)) {
+      // These whole-message variants are selected only by the corresponding
+      // grammatical branches; other languages use the common reviewed messages.
+      if(id.startsWith('MotionComparison.contextStage.')&&language!=='ro')continue;
+      if((id.startsWith('membervotesummary.fullPosition.')||id.startsWith('membervotes.summary.recorded.'))&&!['ro','lt'].includes(language))continue;
+      assert.equal(typeof catalogue[id],'string',language+': '+id);
+      assert(catalogue[id].trim(),language+': '+id);
+    }
+    const ui=createAppUiI18n({[language]:catalogue}).forLocale(language);
+    for(const pair of pairs)for(const count of [0,1,2,3,5,11,19,20,21,22,100,101,1000000]) {
+      const template=english[pair.other];
+      const values=Object.fromEntries([...template.matchAll(/(?<!\{)\{([A-Za-z_][A-Za-z0-9_]*)\}(?!\})/g)].map(match=>[match[1],match[1]===pair.count?count:'sample']));
+      values[pair.count]=count;
+      assert(ui.t(pair.other,values),language+': '+pair.other+' @ '+count);
+    }
+  }
 });

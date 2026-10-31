@@ -225,8 +225,8 @@ test('a subject without agenda/document context remains visible with only its ex
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{subjects:[subject([vote(1)],{titles:{en:'Exact result subject'},title:'Exact result subject'})]}))});
   assert.match(visiblePane(h.container).textContent,/Exact result subject/);
   assert.equal(h.container.querySelector('.member-votes-documents'),null);
-  const sources=h.container.querySelectorAll('.member-votes-source a');assert.equal(sources.length,1);
-  assert.equal(sources[0].href,'https://www.europarl.europa.eu/doceo/document/PV-10-2026-03-25-VOT_EN.html');
+  assert.equal(h.container.querySelectorAll('.member-votes-source a').length,0);
+  assert.doesNotMatch(h.container.textContent,/Parliament’s voting record/);
   assert(!visiblePane(h.container).textContent.includes(decision(1)));assert(!visiblePane(h.container).textContent.includes(SNAPSHOT));
 });
 
@@ -802,7 +802,7 @@ for(const coverage of ['complete','partial','unavailable'])test('alignment empty
   if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
   if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week · Partial coverage/);}
   if(coverage==='unavailable'){
-    assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
+    assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(Unavailable\)/);
     assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);
   }
 });

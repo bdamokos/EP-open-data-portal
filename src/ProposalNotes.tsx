@@ -1,3 +1,4 @@
+import {DocumentImage,type DocumentImageAssets} from './DocumentImage';
 import { Fragment } from 'react'
 import { DocumentNotes, ReferenceText } from './References'
 import { SourceLink } from './SourceLink'
@@ -5,7 +6,7 @@ import { ProposalMath } from './ProposalMath'
 import type { ProposalNote } from './proposalTypes'
 
 /** The shared note list keeps its anchors and links; only object text differs. */
-export function ProposalNotes({ notes, prefix }: { notes: ProposalNote[]; prefix: string }) {
+export function ProposalNotes({ notes, prefix, assets }: { notes: ProposalNote[]; prefix: string; assets?:DocumentImageAssets }) {
   return <DocumentNotes notes={notes} prefix={prefix} renderText={note => {
     const objects = (note as ProposalNote).objects.slice().sort((a, b) => a.offset - b.offset)
     let offset = 0
@@ -16,7 +17,9 @@ export function ProposalNotes({ notes, prefix }: { notes: ProposalNote[]; prefix
       const before = text(offset, object.offset)
       offset = object.offset + object.replacement.length
       const linkUrl = (note.linkSpans ?? []).find(link => link.start <= object.offset && link.end >= offset)?.url
-      const content = (((object.kind === 'symbol') && (object.status === 'mapped')) && object.complete) ? (linkUrl ? <SourceLink url={linkUrl} compact>{object.replacement}</SourceLink> : object.replacement) : <ProposalMath object={object} linkUrl={linkUrl} />
+      const content = object.image ? <DocumentImage image={object.image} assets={assets}/> : object.kind === 'symbol' && object.status === 'mapped' && object.complete
+        ? linkUrl ? <SourceLink url={linkUrl} compact>{object.replacement}</SourceLink> : object.replacement
+        : <ProposalMath object={object} linkUrl={linkUrl} />
       return <Fragment key={index}>{before}{content}</Fragment>
     })
     return <>{parts}{text(offset, note.text.length)}</>

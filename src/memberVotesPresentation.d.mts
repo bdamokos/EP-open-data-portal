@@ -9,7 +9,7 @@ export function validateMemberVotesResponse(data:unknown,request:{memberId:numbe
 export function groupMemberVotes(data:MemberVotesResponse):MemberVoteGroup[];
 export function displayVoteTitle(title:string|null|undefined):string;
 export function memberVoteLabel(vote:MemberVote,language?:string, ui?: import('./uiI18n.mjs').UiFormatter):string;
-export function memberVoteParentLabel(vote:MemberVote,language?:string):string|null;
+export function memberVoteParentLabel(vote:MemberVote,language?:string,ui?: import('./uiI18n.mjs').UiFormatter):string|null;
 export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVotePositionSummary(items:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>[], ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
@@ -17,3 +17,5 @@ export function memberVoteTotals(vote:Pick<MemberVote,'totals'|'ballotStatus'>):
 export function votingRecordUrl(vote:MemberVote):string|null;
 export function topLevelVoteDocuments(vote:MemberVote):string[];
 export function exactAmendmentTargets(vote:MemberVote):{documentId:string;amendmentId:string}[];
+
+export function memberVotePositionState(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>):string;

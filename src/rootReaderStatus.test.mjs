@@ -246,7 +246,7 @@ test('member reader uses exact structured ECR instead of the conflicting Bulgari
   const reader=h.container.querySelector('.explorer-speech-detail');
   assert.equal(reader.querySelector('strong').textContent,'Geadis Geadi');
   assert(!reader.querySelector('.insight-secondary'),'raw translated role must not contradict the exact group badge');
-  assert.equal(reader.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  assert.equal(reader.querySelector('.intervention-group').textContent,'От името на ECR');
   assert(!reader.textContent.includes('Verts/ALE'));
   assert(reader.textContent.includes('Exact source body.'));
 });

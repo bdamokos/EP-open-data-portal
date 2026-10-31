@@ -1,5 +1,8 @@
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
+import {DocumentObjectText} from './DocumentObjectText';
+import {type DocumentImageReference} from './DocumentImage';
+import {DocumentPages} from './DocumentPages';
 import {selectLanguageText} from './language.mjs';
 import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
@@ -30,7 +33,7 @@ export type DocumentContextReaderProps={
   onSelectedDocumentIdChange?:(id:string|null)=>void;
 };
 
-type InlineObject={paragraph:number;offset:number;kind:string;status:string};
+type InlineObject={paragraph:number;offset:number;kind:string;status:string;image?:DocumentImageReference};
 type DocumentText=NonNullable<PublicationDocument['selectedText']>&{documentObjects?:InlineObject[]};
 type Title={text:string;language:string};
 const safeHref=(value:string|null|undefined)=>{try{const url=new URL(value||'');return ((['https:','http:'].includes(url.protocol) && (!url.username)) && (!url.password)) ? url.href : null;}catch{return null;}};
@@ -91,28 +94,6 @@ export const placementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatter = defa
 
 const amendmentNumber=(id:string|undefined)=>id?.match(/(?:-AM-|:)(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'')||null;
 
-// Keep source offsets when replacing an unresolved inline object with a source link.
-// The surrounding text, references and note anchors remain in their original positions.
-function Paragraph({text,paragraph,from=0,to=text.length,final=true,objects,logo,sourceUrl,anchors,links,marks,notePrefix}:{text:string;paragraph:number;from?:number;to?:number;final?:boolean;objects:InlineObject[];logo:{paragraph:number;offset:number}|null;sourceUrl:string|null;anchors:NoteAnchor[];links:DocumentLink[];marks:FormatMark[];notePrefix:string}) {
-  const ui = useUiI18n();
-  const unresolved=new Map(objects.filter(object=>object.paragraph===paragraph&&object.status==='unresolved'&&Number.isInteger(object.offset)&&object.offset>=from&&object.offset<to&&text[object.offset]==='\uFFFC').map(object=>[object.offset,object]));
-  const nodes:ReactNode[]=[];let start=from;
-  // A slice ending at a replaced object owns the note anchored there; the label slice before a hanging tab does not.
-  const slice=(sliceFrom:number,sliceTo:number,ownsEnd:boolean)=>{
-    const spans=links.map(link=>({...link,start:Math.max(link.start,sliceFrom),end:Math.min(link.end,sliceTo)})).filter(link=>link.end>link.start);
-    return <ReferenceText key={'text-'+sliceFrom} text={text.slice(sliceFrom,sliceTo)} start={sliceFrom} final={ownsEnd} anchors={anchors} links={spans} marks={marks} notePrefix={notePrefix}/>;
-  };
-  if(!unresolved.size)return slice(from,to,final);
-  for(const [offset,object] of [...unresolved].sort(([a],[b])=>a-b)) {
-    nodes.push(slice(start,offset,true));
-    if(logo?.paragraph===paragraph&&logo.offset===offset){start=offset+1;continue;}
-    const label=(object.kind==='drawing') ? 'Image in original' : 'See original';
-    nodes.push(sourceUrl ? <a key={'object-'+offset} className="document-context-object" lang={ui.language} href={sourceUrl} target="_blank" rel="noreferrer">{label} ↗</a> : <span key={'object-'+offset} className="document-context-object" lang={ui.language}>{(object.kind==='drawing') ? <UiMessage id="batch6.documentcontextreader.image.unavailable.87"/> : <UiMessage id="batch6.documentcontextreader.content.unavailable.87"/>}</span>);
-    start=offset+1;
-  }
-  nodes.push(slice(start,to,final));
-  return <>{nodes}</>;
-}
 
 function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentRequest,showOriginalLink=true}:{id:string;showOriginalLink?:boolean;language:string;interfaceLanguage:string;onLanguageChange:(language:string)=>void;amendmentRequest?:DocumentContextRequest}) {
   const ui = useUiI18n();
@@ -203,10 +184,10 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return (sourceIndex===placement.span.start) ? amendmentBlock(true) : null;
               return ((placed && (placement?.operation==='insert')) && (sourceIndex===placement.insertAfter)) ? <Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment> : paragraph;
             }}
-            renderText={(sourceIndex,paragraph,from,to,final,marks)=><Paragraph text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes notes={notes} prefix={notePrefix}/></div>
+            renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
         </ReferenceScope>
       </> : (!state.loading&&!loadError&&<p><UiMessage id="batch6.documentcontextreader.document.text.unavailable.here.190"/></p>)}
-      {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
+      <DocumentPages documentId={id} language={actual||language}/>{showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="batch6.documentcontextreader.open.original.document.191"/></a></p>}
     </>}
   </div>;
 }
@@ -222,7 +203,7 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   const selectedChoice=choices.find(item=>item.id===selected),partial=data?.related.status==='partial';
   const pendingRelated=request.view==='adopted'&&related.loading&&(selected ? (!selectedChoice) : (!data));
   return <section className="document-context-reader" lang={ui.language} aria-label={ui.t("batch6.documentcontextreader.document.context.205")} data-context-pending={pendingRelated ? 'true' : undefined}>
-    {showBackButton&&<button type="button" className="document-context-back" onClick={request.onBack}><>← {(request.backLabel??'Back')}</></button>}
+    {showBackButton&&<button type="button" className="document-context-back" onClick={request.onBack}><>← {(request.backLabel??ui.t('interface.back'))}</></button>}
     {request.summary}
     {(request.view==='document') ? <DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request}/> : <>
       {selected ? <>

@@ -1,1 +1,3541 @@
-{}
+{
+  "bg": {},
+  "cs": {
+    "Saved.unreadMany": {
+      "few": "Sledované položky s nepřečtenými aktualizacemi: {count}.",
+      "many": "Sledované položky s nepřečtenými aktualizacemi: {count}."
+    },
+    "Saved.unavailableMany": {
+      "few": "Informace o aktualizacích nejsou k dispozici pro sledované položky v počtu {count}.",
+      "many": "Informace o aktualizacích nejsou k dispozici pro sledované položky v počtu {count}."
+    },
+    "app.knownMepMatchMany": {
+      "few": "Počet známých poslanců EP odpovídajících filtrům: {count}.",
+      "many": "Počet známých poslanců EP odpovídajících filtrům: {count}."
+    },
+    "app.mepMatchMany": {
+      "few": "Počet poslanců EP odpovídajících filtrům: {count}.",
+      "many": "Počet poslanců EP odpovídajících filtrům: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "few": "Počet odpovídajících řečníků: {count}.",
+      "many": "Počet odpovídajících řečníků: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "few": "Počet sledovaných položek s novými aktualizacemi: {count}",
+      "many": "Počet sledovaných položek s novými aktualizacemi: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "few": "{group}, {position}: počet poslanců EP: {count}",
+      "many": "{group}, {position}: počet poslanců EP: {count}"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "few": "{seconds} s",
+      "many": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "few": "{minutes} min",
+      "many": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "few": "Počet příspěvků: {count}",
+      "many": "Počet příspěvků: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "few": "Počet rozhodnutí: {count} · částečné pokrytí",
+      "many": "Počet rozhodnutí: {count} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "few": "Počet rozhodnutí: {count} · se zaznamenaným postojem: {recordedCount}",
+      "many": "Počet rozhodnutí: {count} · se zaznamenaným postojem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Počet rozhodnutí: {count} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí",
+      "many": "Počet rozhodnutí: {count} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "few": "Počet zaznamenaných postojů: {count} · částečné pokrytí",
+      "many": "Počet zaznamenaných postojů: {count} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount}",
+      "many": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí",
+      "many": "Počet zaznamenaných postojů: {count} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total}",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total} · částečné pokrytí",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total} · se zaznamenaným postojem: {recordedCount}",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total} · se zaznamenaným postojem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojů {total}",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojů {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · částečné pokrytí",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · částečné pokrytí"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount}",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojů {total} · se zaznamenaným postojem: {recordedCount} · částečné pokrytí"
+    },
+    "membervotes.tsx.count.decisions": {
+      "few": "Počet rozhodnutí: {count}",
+      "many": "Počet rozhodnutí: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "few": "Počet zaznamenaných postojů: {count}",
+      "many": "Počet zaznamenaných postojů: {count}"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "few": "Přiřazeno {assigned} z celkového počtu příspěvků {count}",
+      "many": "Přiřazeno {assigned} z celkového počtu příspěvků {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "few": "{title}: členění podle skupin není k dispozici. Počet zjištěných příspěvků: {count}.",
+      "many": "{title}: členění podle skupin není k dispozici. Počet zjištěných příspěvků: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "few": "Počet příspěvků v plénu: {count}",
+      "many": "Počet příspěvků v plénu: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "few": "Počet zpráv ve funkci zpravodaje: {count}",
+      "many": "Počet zpráv ve funkci zpravodaje: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "few": "Počet zpráv ve funkci stínového zpravodaje: {count}",
+      "many": "Počet zpráv ve funkci stínového zpravodaje: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "few": "Počet stanovisek ve funkci zpravodaje: {count}",
+      "many": "Počet stanovisek ve funkci zpravodaje: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "few": "Počet stanovisek ve funkci stínového zpravodaje: {count}",
+      "many": "Počet stanovisek ve funkci stínového zpravodaje: {count}"
+    },
+    "followUpdates.count_motions": {
+      "few": "Počet návrhů: {count}",
+      "many": "Počet návrhů: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "few": "Počet otázek k písemnému zodpovězení: {count}",
+      "many": "Počet otázek k písemnému zodpovězení: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "few": "Počet otázek k ústnímu zodpovězení: {count}",
+      "many": "Počet otázek k ústnímu zodpovězení: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "few": "Počet písemných vysvětlení hlasování: {count}",
+      "many": "Počet písemných vysvětlení hlasování: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "few": "Počet individuálních návrhů: {count}",
+      "many": "Počet individuálních návrhů: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "few": "Počet návrhů aktů Unie: {count}",
+      "many": "Počet návrhů aktů Unie: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "few": "Počet projevů: {count}",
+      "many": "Počet projevů: {count}"
+    },
+    "followUpdates.count_answers": {
+      "few": "Počet odpovědí: {count}",
+      "many": "Počet odpovědí: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "few": "Počet ostatních činností: {count}",
+      "many": "Počet ostatních činností: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "few": "Počet nenačtených příspěvků v rozpravě z {date}: {count}.",
+      "many": "Počet nenačtených příspěvků v rozpravě z {date}: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "few": "Zobrazit otázky ({count})",
+      "many": "Zobrazit otázky ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "few": "Navrhuje: {name}; počet dalších poslanců EP: {count}.",
+      "many": "Navrhuje: {name}; počet dalších poslanců EP: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "few": "Navrhuje: {name}; počet dalších navrhovatelů: {count}.",
+      "many": "Navrhuje: {name}; počet dalších navrhovatelů: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "few": "Počet pozměňovacích návrhů: {count}+ · {stage}",
+      "many": "Počet pozměňovacích návrhů: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "few": "Počet pozměňovacích návrhů nejméně {count} · {stage}",
+      "many": "Počet pozměňovacích návrhů nejméně {count} · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "few": "Počet pozměňovacích návrhů: {count}+ · {stage} · vyberte postup",
+      "many": "Počet pozměňovacích návrhů: {count}+ · {stage} · vyberte postup"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "few": "Vybráno: {date} · počet dnů zasedání: {count}",
+      "many": "Vybráno: {date} · počet dnů zasedání: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "few": "Počet dnů zasedání: {count}",
+      "many": "Počet dnů zasedání: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "few": "Počet otázek: {count}",
+      "many": "Počet otázek: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "few": "Počet autorů z řad poslanců EP: {count}",
+      "many": "Počet autorů z řad poslanců EP: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "few": "Počet poslanců EP s nedostupným věkem: {count}",
+      "many": "Počet poslanců EP s nedostupným věkem: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "few": "Počet projevů: {speeches}",
+      "many": "Počet projevů: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "few": "Počet písemných prohlášení: {statements}",
+      "many": "Počet písemných prohlášení: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "few": "Počet osob: {count}",
+      "many": "Počet osob: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "few": "Počet projevů: {transcripts}",
+      "many": "Počet projevů: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "few": "Počet projevů s tímto výrazem: {count}",
+      "many": "Počet projevů s tímto výrazem: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "few": "Počet nezařazených příspěvků: {count}.",
+      "many": "Počet nezařazených příspěvků: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "few": "Počet témat s ukazatelem {metric} v tomto výběru: {count}. Zobrazeno: {shown}.",
+      "many": "Počet témat s ukazatelem {metric} v tomto výběru: {count}. Zobrazeno: {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "few": "Počet odpovídajících otázek: {count} · {coverage}",
+      "many": "Počet odpovídajících otázek: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "few": "Počet odpovídajících dokumentů: {count} · {coverage}",
+      "many": "Počet odpovídajících dokumentů: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "few": "{dateRange} · počet dnů zasedání: {count}",
+      "many": "{dateRange} · počet dnů zasedání: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "few": "Počet řečníků: {count}",
+      "many": "Počet řečníků: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "few": "Zdroje · mezery v údajích: {count}",
+      "many": "Zdroje · mezery v údajích: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "few": "Počet pozměňovacích návrhů: {total}",
+      "many": "Počet pozměňovacích návrhů: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "few": "Počet pozměňovacích návrhů: {total} · kontrola pozměňovacích návrhů",
+      "many": "Počet pozměňovacích návrhů: {total} · kontrola pozměňovacích návrhů"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "few": "Počet pozměňovacích návrhů: {total} · částečné pokrytí",
+      "many": "Počet pozměňovacích návrhů: {total} · částečné pokrytí"
+    },
+    "Participation.availableAgendaMany": {
+      "few": "Počet dostupných bodů pořadu jednání v tomto výběru: {count}.",
+      "many": "Počet dostupných bodů pořadu jednání v tomto výběru: {count}."
+    },
+    "Participation.agendaMany": {
+      "few": "Počet bodů pořadu jednání v tomto výběru: {count}.",
+      "many": "Počet bodů pořadu jednání v tomto výběru: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "few": "Počet otázek odpovídajících filtrům: {count}.",
+      "many": "Počet otázek odpovídajících filtrům: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "few": "Počet událostí v tomto výběru: {count} · neúplné údaje",
+      "many": "Počet událostí v tomto výběru: {count} · neúplné údaje"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "few": "Počet událostí v tomto výběru: {count}",
+      "many": "Počet událostí v tomto výběru: {count}"
+    }
+  },
+  "da": {},
+  "de": {},
+  "el": {},
+  "es": {
+    "Saved.unreadMany": {
+      "many": "{count} de elementos seguidos tienen novedades sin leer."
+    },
+    "Saved.unavailableMany": {
+      "many": "La información sobre novedades no está disponible para {count} de elementos seguidos."
+    },
+    "app.knownMepMatchMany": {
+      "many": "{count} de eurodiputados conocidos coinciden con estos filtros."
+    },
+    "app.mepMatchMany": {
+      "many": "{count} de eurodiputados coinciden con estos filtros."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "many": "{count} de oradores coincidentes."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "many": "{count} de elementos seguidos tienen novedades"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "many": "{group}, {position}: {count} de eurodiputados"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "many": "{seconds} de segundos"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "many": "{minutes} de minutos"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "many": "{count} de intervenciones"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "many": "{count} de decisiones · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "many": "{count} de decisiones · {recordedCount} con una posición registrada"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{count} de decisiones · {recordedCount} con una posición registrada · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "many": "{count} de posiciones registradas · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "many": "{count} de posiciones registradas · {recordedCount} con una posición registrada"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{count} de posiciones registradas · {recordedCount} con una posición registrada · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "many": "{start}–{end} de {total} de decisiones"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "many": "{start}–{end} de {total} de decisiones · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "many": "{start}–{end} de {total} de decisiones · {recordedCount} con una posición registrada"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{start}–{end} de {total} de decisiones · {recordedCount} con una posición registrada · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "many": "{start}–{end} de {total} de posiciones registradas"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "many": "{start}–{end} de {total} de posiciones registradas · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "many": "{start}–{end} de {total} de posiciones registradas · {recordedCount} con una posición registrada"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{start}–{end} de {total} de posiciones registradas · {recordedCount} con una posición registrada · Cobertura parcial"
+    },
+    "membervotes.tsx.count.decisions": {
+      "many": "{count} de decisiones"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "many": "{count} de posiciones registradas"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "many": "{assigned} de {count} de intervenciones asignadas"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "many": "{title}: desglose por grupo no disponible. {count} de intervenciones observadas."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "many": "{count} de intervenciones en el Pleno"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "many": "{count} de informes como ponente"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "many": "{count} de informes como ponente alternativo"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "many": "{count} de opiniones como ponente"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "many": "{count} de opiniones como ponente alternativo"
+    },
+    "followUpdates.count_motions": {
+      "many": "{count} de propuestas de resolución"
+    },
+    "followUpdates.count_written_questions": {
+      "many": "{count} de preguntas escritas"
+    },
+    "followUpdates.count_oral_questions": {
+      "many": "{count} de preguntas orales"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "many": "{count} de explicaciones de voto por escrito"
+    },
+    "followUpdates.count_individual_motions": {
+      "many": "{count} de propuestas de resolución individuales"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "many": "{count} de propuestas de acto de la Unión"
+    },
+    "followUpdates.count_speeches": {
+      "many": "{count} de discursos"
+    },
+    "followUpdates.count_answers": {
+      "many": "{count} de respuestas"
+    },
+    "followUpdates.count_other_activities": {
+      "many": "{count} de otras actividades"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "many": "{count} de intervenciones del debate del {date} sin cargar."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "many": "Ver {count} de preguntas"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "many": "Propuesta por {name} junto con {count} de eurodiputados más."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "many": "Propuesta por {name} junto con {count} de proponentes más."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "many": "Enmiendas: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "many": "Al menos {count} de enmiendas · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "many": "Enmiendas: {count}+ · {stage} · elija un procedimiento"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "many": "Selección: {date} · {count} de días de sesión"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "many": "{count} de días de sesión"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "many": "{count} de preguntas"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "many": "{count} de eurodiputados autores"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "many": "Edad no disponible para {count} de eurodiputados"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "many": "{speeches} de discursos"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "many": "{statements} de declaraciones escritas"
+    },
+    "legislation.count_people.83f265": {
+      "many": "{count} de personas"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "many": "{transcripts} de discursos"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "many": "en {count} de discursos"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "many": "No se pudieron clasificar {count} de intervenciones."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "many": "{count} de temas con {metric} en esta selección. Se muestran {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "many": "{count} de preguntas coincidentes · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "many": "{count} de documentos coincidentes · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "many": "{dateRange} · {count} de días de sesión"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "many": "{count} de oradores"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "many": "Fuentes · {count} de lagunas"
+    },
+    "amendments.total_amendments.162421": {
+      "many": "{total} de enmiendas"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "many": "{total} de enmiendas · buscando enmiendas"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "many": "{total} de enmiendas · cobertura parcial"
+    },
+    "Participation.availableAgendaMany": {
+      "many": "{count} de puntos del orden del día disponibles en esta selección."
+    },
+    "Participation.agendaMany": {
+      "many": "{count} de puntos del orden del día en esta selección."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "many": "{count} de preguntas coinciden con estos filtros."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "many": "{count} de eventos en esta selección · datos incompletos"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "many": "{count} de eventos en esta selección"
+    }
+  },
+  "et": {},
+  "fi": {},
+  "fr": {},
+  "ga": {
+    "Saved.unreadMany": {
+      "two": "Tá nuashonruithe neamhléite ar na míreanna a leanann tú: {count}.",
+      "few": "Tá nuashonruithe neamhléite ar na míreanna a leanann tú: {count}.",
+      "many": "Tá nuashonruithe neamhléite ar na míreanna a leanann tú: {count}."
+    },
+    "Saved.unavailableMany": {
+      "two": "Níl faisnéis nuashonruithe ar fáil do na míreanna a leanann tú: {count}.",
+      "few": "Níl faisnéis nuashonruithe ar fáil do na míreanna a leanann tú: {count}.",
+      "many": "Níl faisnéis nuashonruithe ar fáil do na míreanna a leanann tú: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "two": "Líon Feisirí aitheanta a oireann do na scagairí seo: {count}.",
+      "few": "Líon Feisirí aitheanta a oireann do na scagairí seo: {count}.",
+      "many": "Líon Feisirí aitheanta a oireann do na scagairí seo: {count}."
+    },
+    "app.mepMatchMany": {
+      "two": "Líon Feisirí a oireann do na scagairí seo: {count}.",
+      "few": "Líon Feisirí a oireann do na scagairí seo: {count}.",
+      "many": "Líon Feisirí a oireann do na scagairí seo: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "two": "Líon cainteoirí meaitseála: {count}.",
+      "few": "Líon cainteoirí meaitseála: {count}.",
+      "many": "Líon cainteoirí meaitseála: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "two": "Tá nuashonruithe nua ar mhíreanna a leanann tú: {count}",
+      "few": "Tá nuashonruithe nua ar mhíreanna a leanann tú: {count}",
+      "many": "Tá nuashonruithe nua ar mhíreanna a leanann tú: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "two": "{group}, {position}: líon Feisirí: {count}",
+      "few": "{group}, {position}: líon Feisirí: {count}",
+      "many": "{group}, {position}: líon Feisirí: {count}"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "two": "{seconds} s",
+      "few": "{seconds} s",
+      "many": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "two": "{minutes} min",
+      "few": "{minutes} min",
+      "many": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "two": "Líon rannchuidithe: {count}",
+      "few": "Líon rannchuidithe: {count}",
+      "many": "Líon rannchuidithe: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "two": "Líon cinntí: {count} · Clúdach páirteach",
+      "few": "Líon cinntí: {count} · Clúdach páirteach",
+      "many": "Líon cinntí: {count} · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "two": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta",
+      "few": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta",
+      "many": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "few": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "many": "Líon cinntí: {count} · {recordedCount} le seasamh taifeadta · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "two": "Líon seasamh taifeadta: {count} · Clúdach páirteach",
+      "few": "Líon seasamh taifeadta: {count} · Clúdach páirteach",
+      "many": "Líon seasamh taifeadta: {count} · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "two": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta",
+      "few": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta",
+      "many": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "few": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "many": "Líon seasamh taifeadta: {count} · {recordedCount} le seasamh taifeadta · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "two": "Cinntí: {start}–{end} as {total}",
+      "few": "Cinntí: {start}–{end} as {total}",
+      "many": "Cinntí: {start}–{end} as {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "two": "Cinntí: {start}–{end} as {total} · Clúdach páirteach",
+      "few": "Cinntí: {start}–{end} as {total} · Clúdach páirteach",
+      "many": "Cinntí: {start}–{end} as {total} · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "two": "Cinntí: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
+      "few": "Cinntí: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
+      "many": "Cinntí: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Cinntí: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "few": "Cinntí: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "many": "Cinntí: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "two": "Seasaimh taifeadta: {start}–{end} as {total}",
+      "few": "Seasaimh taifeadta: {start}–{end} as {total}",
+      "many": "Seasaimh taifeadta: {start}–{end} as {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "two": "Seasaimh taifeadta: {start}–{end} as {total} · Clúdach páirteach",
+      "few": "Seasaimh taifeadta: {start}–{end} as {total} · Clúdach páirteach",
+      "many": "Seasaimh taifeadta: {start}–{end} as {total} · Clúdach páirteach"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "two": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
+      "few": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta",
+      "many": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "few": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta · Clúdach páirteach",
+      "many": "Seasaimh taifeadta: {start}–{end} as {total} · {recordedCount} le seasamh taifeadta · Clúdach páirteach"
+    },
+    "membervotes.tsx.count.decisions": {
+      "two": "Líon cinntí: {count}",
+      "few": "Líon cinntí: {count}",
+      "many": "Líon cinntí: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "two": "Líon seasamh taifeadta: {count}",
+      "few": "Líon seasamh taifeadta: {count}",
+      "many": "Líon seasamh taifeadta: {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "two": "{title}: níl miondealú grúpaí ar fáil. Líon rannchuidithe breathnaithe: {count}.",
+      "few": "{title}: níl miondealú grúpaí ar fáil. Líon rannchuidithe breathnaithe: {count}.",
+      "many": "{title}: níl miondealú grúpaí ar fáil. Líon rannchuidithe breathnaithe: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "two": "Líon rannchuidithe iomlánacha: {count}",
+      "few": "Líon rannchuidithe iomlánacha: {count}",
+      "many": "Líon rannchuidithe iomlánacha: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "two": "Líon tuarascálacha mar rapóirtéir: {count}",
+      "few": "Líon tuarascálacha mar rapóirtéir: {count}",
+      "many": "Líon tuarascálacha mar rapóirtéir: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "two": "Líon tuarascálacha mar scáthrapóirtéir: {count}",
+      "few": "Líon tuarascálacha mar scáthrapóirtéir: {count}",
+      "many": "Líon tuarascálacha mar scáthrapóirtéir: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "two": "Líon tuairimí mar rapóirtéir: {count}",
+      "few": "Líon tuairimí mar rapóirtéir: {count}",
+      "many": "Líon tuairimí mar rapóirtéir: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "two": "Líon tuairimí mar scáthrapóirtéir: {count}",
+      "few": "Líon tuairimí mar scáthrapóirtéir: {count}",
+      "many": "Líon tuairimí mar scáthrapóirtéir: {count}"
+    },
+    "followUpdates.count_motions": {
+      "two": "Líon tairiscintí: {count}",
+      "few": "Líon tairiscintí: {count}",
+      "many": "Líon tairiscintí: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "two": "Líon ceisteanna i scríbhinn: {count}",
+      "few": "Líon ceisteanna i scríbhinn: {count}",
+      "many": "Líon ceisteanna i scríbhinn: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "two": "Líon ceisteanna ó bhéal: {count}",
+      "few": "Líon ceisteanna ó bhéal: {count}",
+      "many": "Líon ceisteanna ó bhéal: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "two": "Líon mínithe i scríbhinn ar an vótáil: {count}",
+      "few": "Líon mínithe i scríbhinn ar an vótáil: {count}",
+      "many": "Líon mínithe i scríbhinn ar an vótáil: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "two": "Líon tairiscintí aonair: {count}",
+      "few": "Líon tairiscintí aonair: {count}",
+      "many": "Líon tairiscintí aonair: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "two": "Líon tograí le haghaidh gníomh ón Aontas: {count}",
+      "few": "Líon tograí le haghaidh gníomh ón Aontas: {count}",
+      "many": "Líon tograí le haghaidh gníomh ón Aontas: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "two": "Líon óráidí: {count}",
+      "few": "Líon óráidí: {count}",
+      "many": "Líon óráidí: {count}"
+    },
+    "followUpdates.count_answers": {
+      "two": "Líon freagraí: {count}",
+      "few": "Líon freagraí: {count}",
+      "many": "Líon freagraí: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "two": "Líon gníomhaíochtaí eile: {count}",
+      "few": "Líon gníomhaíochtaí eile: {count}",
+      "many": "Líon gníomhaíochtaí eile: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "two": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}.",
+      "few": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}.",
+      "many": "Líon rannchuidithe díospóireachta ó {date} nár lódáladh: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "two": "Féach ceisteanna ({count})",
+      "few": "Féach ceisteanna ({count})",
+      "many": "Féach ceisteanna ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "two": "Mhol {name} é seo i dteannta Feisirí eile: {count}.",
+      "few": "Mhol {name} é seo i dteannta Feisirí eile: {count}.",
+      "many": "Mhol {name} é seo i dteannta Feisirí eile: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "two": "Mhol {name} é seo i dteannta moltóirí eile: {count}.",
+      "few": "Mhol {name} é seo i dteannta moltóirí eile: {count}.",
+      "many": "Mhol {name} é seo i dteannta moltóirí eile: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "two": "Líon leasuithe ag céim {stage}: {count}+",
+      "few": "Líon leasuithe ag céim {stage}: {count}+",
+      "many": "Líon leasuithe ag céim {stage}: {count}+"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "two": "Líon íosta leasuithe ag céim {stage}: {count}",
+      "few": "Líon íosta leasuithe ag céim {stage}: {count}",
+      "many": "Líon íosta leasuithe ag céim {stage}: {count}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "two": "Líon leasuithe ag céim {stage}: {count}+ · roghnaigh nós imeachta",
+      "few": "Líon leasuithe ag céim {stage}: {count}+ · roghnaigh nós imeachta",
+      "many": "Líon leasuithe ag céim {stage}: {count}+ · roghnaigh nós imeachta"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "two": "Roghnaithe: {date} · líon laethanta suí: {count}",
+      "few": "Roghnaithe: {date} · líon laethanta suí: {count}",
+      "many": "Roghnaithe: {date} · líon laethanta suí: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "two": "Líon laethanta suí: {count}",
+      "few": "Líon laethanta suí: {count}",
+      "many": "Líon laethanta suí: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "two": "Líon ceisteanna: {count}",
+      "few": "Líon ceisteanna: {count}",
+      "many": "Líon ceisteanna: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "two": "Líon údar is Feisirí: {count}",
+      "few": "Líon údar is Feisirí: {count}",
+      "many": "Líon údar is Feisirí: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "two": "Níl aois ar fáil do líon Feisirí: {count}",
+      "few": "Níl aois ar fáil do líon Feisirí: {count}",
+      "many": "Níl aois ar fáil do líon Feisirí: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "two": "Líon óráidí: {speeches}",
+      "few": "Líon óráidí: {speeches}",
+      "many": "Líon óráidí: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "two": "Líon ráiteas i scríbhinn: {statements}",
+      "few": "Líon ráiteas i scríbhinn: {statements}",
+      "many": "Líon ráiteas i scríbhinn: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "two": "Líon daoine: {count}",
+      "few": "Líon daoine: {count}",
+      "many": "Líon daoine: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "two": "Líon óráidí: {transcripts}",
+      "few": "Líon óráidí: {transcripts}",
+      "many": "Líon óráidí: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "two": "i líon óráidí: {count}",
+      "few": "i líon óráidí: {count}",
+      "many": "i líon óráidí: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "two": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}.",
+      "few": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}.",
+      "many": "Líon rannchuidithe nárbh fhéidir a aicmiú: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "two": "Líon topaicí le {metric} sa rogha seo: {count}. {shown} ar taispeáint.",
+      "few": "Líon topaicí le {metric} sa rogha seo: {count}. {shown} ar taispeáint.",
+      "many": "Líon topaicí le {metric} sa rogha seo: {count}. {shown} ar taispeáint."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "two": "Líon ceisteanna meaitseála: {count} · {coverage}",
+      "few": "Líon ceisteanna meaitseála: {count} · {coverage}",
+      "many": "Líon ceisteanna meaitseála: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "two": "Líon doiciméad meaitseála: {count} · {coverage}",
+      "few": "Líon doiciméad meaitseála: {count} · {coverage}",
+      "many": "Líon doiciméad meaitseála: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "two": "{dateRange} · líon laethanta suí: {count}",
+      "few": "{dateRange} · líon laethanta suí: {count}",
+      "many": "{dateRange} · líon laethanta suí: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "two": "Líon cainteoirí: {count}",
+      "few": "Líon cainteoirí: {count}",
+      "many": "Líon cainteoirí: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "two": "Foinsí · bearnaí: {count}",
+      "few": "Foinsí · bearnaí: {count}",
+      "many": "Foinsí · bearnaí: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "two": "Líon leasuithe: {total}",
+      "few": "Líon leasuithe: {total}",
+      "many": "Líon leasuithe: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "two": "Líon leasuithe: {total} · leasuithe á seiceáil",
+      "few": "Líon leasuithe: {total} · leasuithe á seiceáil",
+      "many": "Líon leasuithe: {total} · leasuithe á seiceáil"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "two": "Líon leasuithe: {total} · clúdach páirteach",
+      "few": "Líon leasuithe: {total} · clúdach páirteach",
+      "many": "Líon leasuithe: {total} · clúdach páirteach"
+    },
+    "Participation.availableAgendaMany": {
+      "two": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}.",
+      "few": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}.",
+      "many": "Líon míreanna ar an gclár oibre atá ar fáil sa rogha seo: {count}."
+    },
+    "Participation.agendaMany": {
+      "two": "Líon míreanna ar an gclár oibre sa rogha seo: {count}.",
+      "few": "Líon míreanna ar an gclár oibre sa rogha seo: {count}.",
+      "many": "Líon míreanna ar an gclár oibre sa rogha seo: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "two": "Líon ceisteanna a oireann do na scagairí seo: {count}.",
+      "few": "Líon ceisteanna a oireann do na scagairí seo: {count}.",
+      "many": "Líon ceisteanna a oireann do na scagairí seo: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "two": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán",
+      "few": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán",
+      "many": "Líon imeachtaí sa rogha seo: {count} · neamhiomlán"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "two": "Líon imeachtaí sa rogha seo: {count}",
+      "few": "Líon imeachtaí sa rogha seo: {count}",
+      "many": "Líon imeachtaí sa rogha seo: {count}"
+    }
+  },
+  "hr": {
+    "Saved.unreadMany": {
+      "few": "Broj praćenih stavki s nepročitanim novostima: {count}."
+    },
+    "Saved.unavailableMany": {
+      "few": "Podaci o novostima nisu dostupni za ovoliko praćenih stavki: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "few": "Broj poznatih zastupnika koji odgovaraju ovim filtrima: {count}."
+    },
+    "app.mepMatchMany": {
+      "few": "Broj zastupnika koji odgovaraju ovim filtrima: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "few": "Broj podudarnih govornika: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "few": "Broj praćenih stavki s novostima: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "few": "{group}, {position}: broj zastupnika: {count}"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "few": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "few": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "few": "Broj doprinosa: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "few": "Broj odluka: {count} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "few": "Broj odluka: {count} · sa zabilježenim stajalištem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Broj odluka: {count} · sa zabilježenim stajalištem: {recordedCount} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "few": "Broj zabilježenih stajališta: {count} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "Broj zabilježenih stajališta: {count} · sa zabilježenim stajalištem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Broj zabilježenih stajališta: {count} · sa zabilježenim stajalištem: {recordedCount} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "few": "Odluke: {start}–{end} od {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "few": "Odluke: {start}–{end} od {total} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "few": "Odluke: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Odluke: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "few": "Zabilježena stajališta: {start}–{end} od {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "few": "Zabilježena stajališta: {start}–{end} od {total} · Djelomična pokrivenost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "Zabilježena stajališta: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Zabilježena stajališta: {start}–{end} od {total} · sa zabilježenim stajalištem: {recordedCount} · Djelomična pokrivenost"
+    },
+    "membervotes.tsx.count.decisions": {
+      "few": "Broj odluka: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "few": "Broj zabilježenih stajališta: {count}"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "few": "Dodijeljeni doprinosi: {assigned} od {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "few": "{title}: raščlamba po klubovima nije dostupna. Broj uočenih doprinosa: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "few": "Broj plenarnih doprinosa: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "few": "Broj izvješća kao izvjestitelj: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "few": "Broj izvješća kao izvjestitelj u sjeni: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "few": "Broj mišljenja kao izvjestitelj: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "few": "Broj mišljenja kao izvjestitelj u sjeni: {count}"
+    },
+    "followUpdates.count_motions": {
+      "few": "Broj prijedloga: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "few": "Broj pisanih pitanja: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "few": "Broj usmenih pitanja: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "few": "Broj pisanih obrazloženja glasovanja: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "few": "Broj pojedinačnih prijedloga: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "few": "Broj prijedloga akta Unije: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "few": "Broj govora: {count}"
+    },
+    "followUpdates.count_answers": {
+      "few": "Broj odgovora: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "few": "Broj drugih aktivnosti: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "few": "Broj neučitanih doprinosa raspravi od {date}: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "few": "Prikaži pitanja ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "few": "Predlagatelj: {name}, uz druge zastupnike: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "few": "Predlagatelj: {name}, uz druge predlagatelje: {count}."
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "few": "Odabrano: {date} · broj dana sjednice: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "few": "Broj dana sjednice: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "few": "Broj pitanja: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "few": "Broj autora zastupnika: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "few": "Broj zastupnika za koje dob nije dostupna: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "few": "Broj govora: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "few": "Broj pisanih izjava: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "few": "Broj osoba: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "few": "Broj govora: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "few": "u ovoliko govora: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "few": "Broj doprinosa koje nije moguće razvrstati: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "few": "Broj tema s mjerom {metric} u ovom odabiru: {count}. Prikazano: {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "few": "Broj podudarnih pitanja: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "few": "Broj podudarnih dokumenata: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "few": "{dateRange} · broj dana sjednice: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "few": "Broj govornika: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "few": "Izvori · broj praznina: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "few": "Broj amandmana: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "few": "Broj amandmana: {total} · provjera amandmana"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "few": "Broj amandmana: {total} · djelomična pokrivenost"
+    },
+    "Participation.availableAgendaMany": {
+      "few": "Broj dostupnih točaka dnevnog reda u ovom odabiru: {count}."
+    },
+    "Participation.agendaMany": {
+      "few": "Broj točaka dnevnog reda u ovom odabiru: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "few": "Broj pitanja koja odgovaraju ovim filtrima: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "few": "Broj događaja u ovom odabiru: {count} · nepotpuno"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "few": "Broj događaja u ovom odabiru: {count}"
+    }
+  },
+  "hu": {},
+  "it": {
+    "Saved.unreadMany": {
+      "many": "{count} di elementi seguiti hanno aggiornamenti da leggere."
+    },
+    "Saved.unavailableMany": {
+      "many": "Informazioni sugli aggiornamenti non disponibili per {count} di elementi seguiti."
+    },
+    "app.knownMepMatchMany": {
+      "many": "{count} di deputati noti corrispondono ai filtri."
+    },
+    "app.mepMatchMany": {
+      "many": "{count} di deputati corrispondono ai filtri."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "many": "{count} di oratori corrispondenti."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "many": "{count} di elementi seguiti hanno nuovi aggiornamenti"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "many": "{group}, {position}: {count} di deputati"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "many": "{seconds} di secondi"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "many": "{minutes} di minuti"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "many": "{count} di contributi"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "many": "{count} di decisioni · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "many": "{count} di decisioni · {recordedCount} con posizione registrata"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{count} di decisioni · {recordedCount} con posizione registrata · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "many": "{count} di posizioni registrate · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "many": "{count} di posizioni registrate · {recordedCount} con posizione registrata"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{count} di posizioni registrate · {recordedCount} con posizione registrata · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "many": "{start}–{end} di {total} di decisioni"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "many": "{start}–{end} di {total} di decisioni · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "many": "{start}–{end} di {total} di decisioni · {recordedCount} con posizione registrata"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{start}–{end} di {total} di decisioni · {recordedCount} con posizione registrata · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "many": "{start}–{end} di {total} di posizioni registrate"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "many": "{start}–{end} di {total} di posizioni registrate · Copertura parziale"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "many": "{start}–{end} di {total} di posizioni registrate · {recordedCount} con posizione registrata"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{start}–{end} di {total} di posizioni registrate · {recordedCount} con posizione registrata · Copertura parziale"
+    },
+    "membervotes.tsx.count.decisions": {
+      "many": "{count} di decisioni"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "many": "{count} di posizioni registrate"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "many": "{title}: ripartizione per gruppo non disponibile. {count} di contributi osservati."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "many": "{count} di contributi in plenaria"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "many": "{count} di relazioni come relatore"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "many": "{count} di relazioni come relatore ombra"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "many": "{count} di pareri come relatore"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "many": "{count} di pareri come relatore ombra"
+    },
+    "followUpdates.count_motions": {
+      "many": "{count} di proposte di risoluzione"
+    },
+    "followUpdates.count_written_questions": {
+      "many": "{count} di interrogazioni scritte"
+    },
+    "followUpdates.count_oral_questions": {
+      "many": "{count} di interrogazioni orali"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "many": "{count} di dichiarazioni di voto scritte"
+    },
+    "followUpdates.count_individual_motions": {
+      "many": "{count} di proposte di risoluzione individuali"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "many": "{count} di proposte di atto dell’Unione"
+    },
+    "followUpdates.count_speeches": {
+      "many": "{count} di interventi"
+    },
+    "followUpdates.count_answers": {
+      "many": "{count} di risposte"
+    },
+    "followUpdates.count_other_activities": {
+      "many": "{count} di altre attività"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "many": "{count} di contributi al dibattito del {date} non caricati."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "many": "Vedi {count} di interrogazioni"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "many": "Proposto da {name} con {count} di altri deputati."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "many": "Proposto da {name} con {count} di altri proponenti."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "many": "Emendamenti: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "many": "Almeno {count} di emendamenti · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "many": "Emendamenti: {count}+ · {stage} · scegli una procedura"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "many": "Selezione: {date} · {count} di giorni di seduta"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "many": "{count} di giorni di seduta"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "many": "{count} di interrogazioni"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "many": "{count} di deputati autori"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "many": "Età non disponibile per {count} di deputati"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "many": "{speeches} di interventi"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "many": "{statements} di dichiarazioni scritte"
+    },
+    "legislation.count_people.83f265": {
+      "many": "{count} di persone"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "many": "{transcripts} di interventi"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "many": "in {count} di interventi"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "many": "Impossibile classificare {count} di contributi."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "many": "{count} di temi con {metric} in questa selezione. Ne sono mostrati {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "many": "{count} di interrogazioni corrispondenti · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "many": "{count} di documenti corrispondenti · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "many": "{dateRange} · {count} di giorni di seduta"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "many": "{count} di oratori"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "many": "Fonti · {count} di lacune"
+    },
+    "amendments.total_amendments.162421": {
+      "many": "{total} di emendamenti"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "many": "{total} di emendamenti · ricerca di emendamenti"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "many": "{total} di emendamenti · copertura parziale"
+    },
+    "Participation.availableAgendaMany": {
+      "many": "{count} di punti all’ordine del giorno disponibili in questa selezione."
+    },
+    "Participation.agendaMany": {
+      "many": "{count} di punti all’ordine del giorno in questa selezione."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "many": "{count} di interrogazioni corrispondono ai filtri."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "many": "{count} di eventi in questa selezione · incompleta"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "many": "{count} di eventi in questa selezione"
+    }
+  },
+  "lt": {
+    "Saved.unreadMany": {
+      "few": "{count} sekami elementai turi neskaitytų naujinių.",
+      "many": "Sekamų elementų su neskaitytais naujiniais skaičius: {count}."
+    },
+    "Saved.unavailableMany": {
+      "few": "Sekamų elementų, kurių naujinių duomenys nepasiekiami, skaičius: {count}.",
+      "many": "Sekamų elementų, kurių naujinių duomenys nepasiekiami, skaičius: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "few": "Šiuos filtrus atitinka {count} žinomi EP nariai.",
+      "many": "Šiuos filtrus atitinkančių žinomų EP narių skaičius: {count}."
+    },
+    "app.mepMatchMany": {
+      "few": "Šiuos filtrus atitinka {count} EP nariai.",
+      "many": "Šiuos filtrus atitinkančių EP narių skaičius: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "few": "{count} atitinkantys kalbėtojai.",
+      "many": "Atitinkančių kalbėtojų skaičius: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "few": "{count} sekami elementai turi naujų naujinių",
+      "many": "Sekamų elementų su naujais naujiniais skaičius: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "few": "{group}, {position}: {count} EP nariai",
+      "many": "{group}, {position}: EP narių skaičius: {count}"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "few": "{seconds} s",
+      "many": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "few": "{minutes} min",
+      "many": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "few": "{count} pasisakymai",
+      "many": "Pasisakymų skaičius: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "few": "{count} sprendimai · dalinė aprėptis",
+      "many": "Sprendimų skaičius: {count} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{count} sprendimai · su užregistruota pozicija: {recordedCount}",
+      "many": "Sprendimų skaičius: {count} · su užregistruota pozicija: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{count} sprendimai · su užregistruota pozicija: {recordedCount} · dalinė aprėptis",
+      "many": "Sprendimų skaičius: {count} · su užregistruota pozicija: {recordedCount} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "few": "{count} užregistruotos pozicijos · dalinė aprėptis",
+      "many": "Užregistruotų pozicijų skaičius: {count} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{count} užregistruotos pozicijos · su užregistruota pozicija: {recordedCount}",
+      "many": "Užregistruotų pozicijų skaičius: {count} · su užregistruota pozicija: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{count} užregistruotos pozicijos · su užregistruota pozicija: {recordedCount} · dalinė aprėptis",
+      "many": "Užregistruotų pozicijų skaičius: {count} · su užregistruota pozicija: {recordedCount} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "few": "{start}–{end} iš {total} sprendimų",
+      "many": "Sprendimai: {start}–{end} iš {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "few": "{start}–{end} iš {total} sprendimų · dalinė aprėptis",
+      "many": "Sprendimai: {start}–{end} iš {total} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} iš {total} sprendimų · su užregistruota pozicija: {recordedCount}",
+      "many": "Sprendimai: {start}–{end} iš {total} · su užregistruota pozicija: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} iš {total} sprendimų · su užregistruota pozicija: {recordedCount} · dalinė aprėptis",
+      "many": "Sprendimai: {start}–{end} iš {total} · su užregistruota pozicija: {recordedCount} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "few": "{start}–{end} iš {total} užregistruotų pozicijų",
+      "many": "Užregistruotos pozicijos: {start}–{end} iš {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "few": "{start}–{end} iš {total} užregistruotų pozicijų · dalinė aprėptis",
+      "many": "Užregistruotos pozicijos: {start}–{end} iš {total} · dalinė aprėptis"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} iš {total} užregistruotų pozicijų · su užregistruota pozicija: {recordedCount}",
+      "many": "Užregistruotos pozicijos: {start}–{end} iš {total} · su užregistruota pozicija: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} iš {total} užregistruotų pozicijų · su užregistruota pozicija: {recordedCount} · dalinė aprėptis",
+      "many": "Užregistruotos pozicijos: {start}–{end} iš {total} · su užregistruota pozicija: {recordedCount} · dalinė aprėptis"
+    },
+    "membervotes.tsx.count.decisions": {
+      "few": "{count} sprendimai",
+      "many": "Sprendimų skaičius: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "few": "{count} užregistruotos pozicijos",
+      "many": "Užregistruotų pozicijų skaičius: {count}"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "few": "Priskirti pasisakymai: {assigned} iš {count}",
+      "many": "Priskirti pasisakymai: {assigned} iš {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "few": "{title}: pasiskirstymas pagal frakcijas nepasiekiamas. Rasti {count} pasisakymai.",
+      "many": "{title}: pasiskirstymas pagal frakcijas nepasiekiamas. Rastų pasisakymų skaičius: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "few": "{count} plenariniai pasisakymai",
+      "many": "Plenarinių pasisakymų skaičius: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "few": "{count} pranešėjo parengti pranešimai",
+      "many": "Pranešėjo parengtų pranešimų skaičius: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "few": "{count} pranešimai atliekant šešėlinio pranešėjo vaidmenį",
+      "many": "Pranešimų atliekant šešėlinio pranešėjo vaidmenį skaičius: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "few": "{count} pranešėjo parengtos nuomonės",
+      "many": "Pranešėjo parengtų nuomonių skaičius: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "few": "{count} nuomonės atliekant šešėlinio pranešėjo vaidmenį",
+      "many": "Nuomonių atliekant šešėlinio pranešėjo vaidmenį skaičius: {count}"
+    },
+    "followUpdates.count_motions": {
+      "few": "{count} pasiūlymai dėl rezoliucijos",
+      "many": "Pasiūlymų dėl rezoliucijos skaičius: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "few": "{count} klausimai, į kuriuos atsakoma raštu",
+      "many": "Klausimų, į kuriuos atsakoma raštu, skaičius: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "few": "{count} klausimai, į kuriuos atsakoma žodžiu",
+      "many": "Klausimų, į kuriuos atsakoma žodžiu, skaičius: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "few": "{count} rašytiniai paaiškinimai dėl balsavimo",
+      "many": "Rašytinių paaiškinimų dėl balsavimo skaičius: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "few": "{count} individualūs pasiūlymai dėl rezoliucijos",
+      "many": "Individualių pasiūlymų dėl rezoliucijos skaičius: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "few": "{count} pasiūlymai dėl Sąjungos akto",
+      "many": "Pasiūlymų dėl Sąjungos akto skaičius: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "few": "{count} kalbos",
+      "many": "Kalbų skaičius: {count}"
+    },
+    "followUpdates.count_answers": {
+      "few": "{count} atsakymai",
+      "many": "Atsakymų skaičius: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "few": "{count} kitos veiklos atvejai",
+      "many": "Kitos veiklos atvejų skaičius: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "few": "Neįkelti {count} diskusijos pasisakymai iš {date}.",
+      "many": "Neįkeltų diskusijos pasisakymų iš {date} skaičius: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "few": "Pasiūlė {name} kartu su kitais EP nariais: {count}.",
+      "many": "Pasiūlė {name}; kitų EP narių skaičius: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "few": "Pasiūlė {name} kartu su kitais teikėjais: {count}.",
+      "many": "Pasiūlė {name}; kitų teikėjų skaičius: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "few": "{count}+ pakeitimai · {stage}",
+      "many": "Pakeitimų skaičius: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "few": "Bent {count} pakeitimai · {stage}",
+      "many": "Mažiausias pakeitimų skaičius: {count} · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "few": "{count}+ pakeitimai · {stage} · pasirinkite procedūrą",
+      "many": "Pakeitimų skaičius: {count}+ · {stage} · pasirinkite procedūrą"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "few": "Pasirinkta: {date} · {count} posėdžių dienos",
+      "many": "Pasirinkta: {date} · posėdžių dienų skaičius: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "few": "{count} posėdžių dienos",
+      "many": "Posėdžių dienų skaičius: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "few": "{count} klausimai",
+      "many": "Klausimų skaičius: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "few": "{count} EP nariai autoriai",
+      "many": "EP narių autorių skaičius: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "few": "EP narių, kurių amžius nepasiekiamas, skaičius: {count}",
+      "many": "EP narių, kurių amžius nepasiekiamas, skaičius: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "few": "{speeches} kalbos",
+      "many": "Kalbų skaičius: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "few": "{statements} rašytiniai pareiškimai",
+      "many": "Rašytinių pareiškimų skaičius: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "few": "{count} asmenys",
+      "many": "Asmenų skaičius: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "few": "{transcripts} kalbos",
+      "many": "Kalbų skaičius: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "few": "Kalbų, kuriose yra šis terminas, skaičius: {count}",
+      "many": "Kalbų, kuriose yra šis terminas, skaičius: {count}"
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "few": "Šiame pasirinkime – {count} temos su rodikliu {metric}. Rodoma {shown}.",
+      "many": "Temų su rodikliu {metric} šiame pasirinkime skaičius: {count}. Rodoma {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "few": "{count} atitinkantys klausimai · {coverage}",
+      "many": "Atitinkančių klausimų skaičius: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "few": "{count} atitinkantys dokumentai · {coverage}",
+      "many": "Atitinkančių dokumentų skaičius: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "few": "{dateRange} · {count} posėdžių dienos",
+      "many": "{dateRange} · posėdžių dienų skaičius: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "few": "{count} kalbėtojai",
+      "many": "Kalbėtojų skaičius: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "few": "Šaltiniai · {count} spragos",
+      "many": "Šaltiniai · spragų skaičius: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "few": "{total} pakeitimai",
+      "many": "Pakeitimų skaičius: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "few": "{total} pakeitimai · tikrinami pakeitimai",
+      "many": "Pakeitimų skaičius: {total} · tikrinami pakeitimai"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "few": "{total} pakeitimai · dalinė aprėptis",
+      "many": "Pakeitimų skaičius: {total} · dalinė aprėptis"
+    },
+    "Participation.availableAgendaMany": {
+      "few": "Šiame pasirinkime pasiekiami {count} darbotvarkės punktai.",
+      "many": "Šiame pasirinkime pasiekiamų darbotvarkės punktų skaičius: {count}."
+    },
+    "Participation.agendaMany": {
+      "few": "Šiame pasirinkime – {count} darbotvarkės punktai.",
+      "many": "Darbotvarkės punktų šiame pasirinkime skaičius: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "few": "Šiuos filtrus atitinka {count} klausimai.",
+      "many": "Šiuos filtrus atitinkančių klausimų skaičius: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "few": "Šiame pasirinkime – {count} įvykiai · neišsamu",
+      "many": "Įvykių šiame pasirinkime skaičius: {count} · neišsamu"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "few": "Šiame pasirinkime – {count} įvykiai",
+      "many": "Įvykių šiame pasirinkime skaičius: {count}"
+    }
+  },
+  "lv": {
+    "Saved.unreadMany": {
+      "zero": "Sekoto vienumu ar nelasītiem jaunumiem skaits: {count}."
+    },
+    "Saved.unavailableMany": {
+      "zero": "Sekoto vienumu, kuru jaunumu informācija nav pieejama, skaits: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "zero": "Šiem filtriem atbilst {count} zināmu EP deputātu."
+    },
+    "app.mepMatchMany": {
+      "zero": "Šiem filtriem atbilst {count} EP deputātu."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "zero": "{count} atbilstošu runātāju."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "zero": "Sekoto vienumu ar jauniem jaunumiem skaits: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "zero": "{group}, {position}: {count} EP deputātu"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "zero": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "zero": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "zero": "{count} uzstāšanos"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "zero": "{count} lēmumu · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "zero": "{count} lēmumu · ar reģistrētu nostāju: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "zero": "{count} lēmumu · ar reģistrētu nostāju: {recordedCount} · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "zero": "{count} reģistrētu nostāju · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "zero": "{count} reģistrētu nostāju · ar reģistrētu nostāju: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "zero": "{count} reģistrētu nostāju · ar reģistrētu nostāju: {recordedCount} · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "zero": "Lēmumi: {start}–{end} no {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "zero": "Lēmumi: {start}–{end} no {total} · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "zero": "Lēmumi: {start}–{end} no {total} · ar reģistrētu nostāju: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "zero": "Lēmumi: {start}–{end} no {total} · ar reģistrētu nostāju: {recordedCount} · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "zero": "Reģistrētās nostājas: {start}–{end} no {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "zero": "Reģistrētās nostājas: {start}–{end} no {total} · daļējs tvērums"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "zero": "Reģistrētās nostājas: {start}–{end} no {total} · ar reģistrētu nostāju: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "zero": "Reģistrētās nostājas: {start}–{end} no {total} · ar reģistrētu nostāju: {recordedCount} · daļējs tvērums"
+    },
+    "membervotes.tsx.count.decisions": {
+      "zero": "{count} lēmumu"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "zero": "{count} reģistrētu nostāju"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "zero": "Piesaistītās uzstāšanās: {assigned} no {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "zero": "{title}: sadalījums pa politiskajām grupām nav pieejams. Atrasto uzstāšanos skaits: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "zero": "{count} uzstāšanos plenārsēdē"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "zero": "{count} ziņojumu referenta amatā"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "zero": "{count} ziņojumu ēnu referenta amatā"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "zero": "{count} atzinumu referenta amatā"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "zero": "{count} atzinumu ēnu referenta amatā"
+    },
+    "followUpdates.count_motions": {
+      "zero": "{count} rezolūcijas priekšlikumu"
+    },
+    "followUpdates.count_written_questions": {
+      "zero": "{count} jautājumu rakstiskai atbildei"
+    },
+    "followUpdates.count_oral_questions": {
+      "zero": "{count} jautājumu mutiskai atbildei"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "zero": "{count} rakstisku balsojuma skaidrojumu"
+    },
+    "followUpdates.count_individual_motions": {
+      "zero": "{count} individuālu rezolūcijas priekšlikumu"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "zero": "{count} Savienības akta priekšlikumu"
+    },
+    "followUpdates.count_speeches": {
+      "zero": "{count} runu"
+    },
+    "followUpdates.count_answers": {
+      "zero": "{count} atbilžu"
+    },
+    "followUpdates.count_other_activities": {
+      "zero": "{count} citu darbību"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "zero": "Neielādēto uzstāšanos debatēs no {date} skaits: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "zero": "Skatīt jautājumus ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "zero": "Ierosināja {name}; citu EP deputātu skaits: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "zero": "Ierosināja {name}; citu iesniedzēju skaits: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "zero": "{count}+ grozījumu · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "zero": "Vismaz {count} grozījumu · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "zero": "{count}+ grozījumu · {stage} · izvēlieties procedūru"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "zero": "Atlasīts: {date} · {count} sēžu dienu"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "zero": "{count} sēžu dienu"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "zero": "{count} jautājumu"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "zero": "{count} EP deputātu autoru"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "zero": "EP deputātu, kuru vecums nav pieejams, skaits: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "zero": "{speeches} runu"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "zero": "{statements} rakstisku paziņojumu"
+    },
+    "legislation.count_people.83f265": {
+      "zero": "{count} personu"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "zero": "{transcripts} runu"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "zero": "Runu skaits ar šo terminu: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "zero": "Neklasificēto uzstāšanās reižu skaits: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "zero": "Šajā atlasē ir {count} tematu ar rādītāju {metric}. Rāda {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "zero": "{count} atbilstošu jautājumu · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "zero": "{count} atbilstošu dokumentu · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "zero": "{dateRange} · {count} sēžu dienu"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "zero": "{count} runātāju"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "zero": "Avoti · {count} iztrūkumu"
+    },
+    "amendments.total_amendments.162421": {
+      "zero": "{total} grozījumu"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "zero": "{total} grozījumu · pārbauda grozījumus"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "zero": "{total} grozījumu · daļējs tvērums"
+    },
+    "Participation.availableAgendaMany": {
+      "zero": "Šajā atlasē pieejamo darba kārtības punktu skaits: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "zero": "Šiem filtriem atbilst {count} jautājumu."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "zero": "Šajā atlasē {count} notikumu · nepilnīgi"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "zero": "Šajā atlasē {count} notikumu"
+    }
+  },
+  "mt": {
+    "Saved.unreadMany": {
+      "two": "Għadd ta’ elementi segwiti b’aġġornamenti mhux moqrija: {count}.",
+      "few": "Għadd ta’ elementi segwiti b’aġġornamenti mhux moqrija: {count}.",
+      "many": "Għadd ta’ elementi segwiti b’aġġornamenti mhux moqrija: {count}."
+    },
+    "Saved.unavailableMany": {
+      "two": "L-informazzjoni dwar l-aġġornamenti mhijiex disponibbli għal dan l-għadd ta’ elementi segwiti: {count}.",
+      "few": "L-informazzjoni dwar l-aġġornamenti mhijiex disponibbli għal dan l-għadd ta’ elementi segwiti: {count}.",
+      "many": "L-informazzjoni dwar l-aġġornamenti mhijiex disponibbli għal dan l-għadd ta’ elementi segwiti: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "two": "Għadd ta’ Membri magħrufa tal-PE li jaqblu ma’ dawn il-filtri: {count}.",
+      "few": "Għadd ta’ Membri magħrufa tal-PE li jaqblu ma’ dawn il-filtri: {count}.",
+      "many": "Għadd ta’ Membri magħrufa tal-PE li jaqblu ma’ dawn il-filtri: {count}."
+    },
+    "app.mepMatchMany": {
+      "two": "Għadd ta’ Membri tal-PE li jaqblu ma’ dawn il-filtri: {count}.",
+      "few": "Għadd ta’ Membri tal-PE li jaqblu ma’ dawn il-filtri: {count}.",
+      "many": "Għadd ta’ Membri tal-PE li jaqblu ma’ dawn il-filtri: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "two": "Għadd ta’ kelliema korrispondenti: {count}.",
+      "few": "Għadd ta’ kelliema korrispondenti: {count}.",
+      "many": "Għadd ta’ kelliema korrispondenti: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "two": "Għadd ta’ elementi segwiti b’aġġornamenti ġodda: {count}",
+      "few": "Għadd ta’ elementi segwiti b’aġġornamenti ġodda: {count}",
+      "many": "Għadd ta’ elementi segwiti b’aġġornamenti ġodda: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "two": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
+      "few": "{group}, {position}: għadd ta’ Membri tal-PE: {count}",
+      "many": "{group}, {position}: għadd ta’ Membri tal-PE: {count}"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "two": "{seconds} s",
+      "few": "{seconds} s",
+      "many": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "two": "{minutes} min",
+      "few": "{minutes} min",
+      "many": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "two": "Għadd ta’ kontribuzzjonijiet: {count}",
+      "few": "Għadd ta’ kontribuzzjonijiet: {count}",
+      "many": "Għadd ta’ kontribuzzjonijiet: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "two": "Għadd ta’ deċiżjonijiet: {count} · Kopertura parzjali",
+      "few": "Għadd ta’ deċiżjonijiet: {count} · Kopertura parzjali",
+      "many": "Għadd ta’ deċiżjonijiet: {count} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "two": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "few": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "many": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "few": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "many": "Għadd ta’ deċiżjonijiet: {count} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "two": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · Kopertura parzjali",
+      "few": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · Kopertura parzjali",
+      "many": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "two": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "few": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "many": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "few": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "many": "Għadd ta’ pożizzjonijiet irreġistrati: {count} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "two": "Deċiżjonijiet: {start}–{end} minn {total}",
+      "few": "Deċiżjonijiet: {start}–{end} minn {total}",
+      "many": "Deċiżjonijiet: {start}–{end} minn {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "two": "Deċiżjonijiet: {start}–{end} minn {total} · Kopertura parzjali",
+      "few": "Deċiżjonijiet: {start}–{end} minn {total} · Kopertura parzjali",
+      "many": "Deċiżjonijiet: {start}–{end} minn {total} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "two": "Deċiżjonijiet: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "few": "Deċiżjonijiet: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "many": "Deċiżjonijiet: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Deċiżjonijiet: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "few": "Deċiżjonijiet: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "many": "Deċiżjonijiet: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "two": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total}",
+      "few": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total}",
+      "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "two": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · Kopertura parzjali",
+      "few": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · Kopertura parzjali",
+      "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · Kopertura parzjali"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "two": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "few": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}",
+      "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "few": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali",
+      "many": "Pożizzjonijiet irreġistrati: {start}–{end} minn {total} · b’pożizzjoni rreġistrata: {recordedCount} · Kopertura parzjali"
+    },
+    "membervotes.tsx.count.decisions": {
+      "two": "Għadd ta’ deċiżjonijiet: {count}",
+      "few": "Għadd ta’ deċiżjonijiet: {count}",
+      "many": "Għadd ta’ deċiżjonijiet: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "two": "Għadd ta’ pożizzjonijiet irreġistrati: {count}",
+      "few": "Għadd ta’ pożizzjonijiet irreġistrati: {count}",
+      "many": "Għadd ta’ pożizzjonijiet irreġistrati: {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "two": "{title}: it-tqassim skont il-grupp mhuwiex disponibbli. Għadd ta’ kontribuzzjonijiet osservati: {count}.",
+      "few": "{title}: it-tqassim skont il-grupp mhuwiex disponibbli. Għadd ta’ kontribuzzjonijiet osservati: {count}.",
+      "many": "{title}: it-tqassim skont il-grupp mhuwiex disponibbli. Għadd ta’ kontribuzzjonijiet osservati: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "two": "Għadd ta’ kontribuzzjonijiet fil-plenarja: {count}",
+      "few": "Għadd ta’ kontribuzzjonijiet fil-plenarja: {count}",
+      "many": "Għadd ta’ kontribuzzjonijiet fil-plenarja: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "two": "Għadd ta’ rapporti bħala rapporteur: {count}",
+      "few": "Għadd ta’ rapporti bħala rapporteur: {count}",
+      "many": "Għadd ta’ rapporti bħala rapporteur: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "two": "Għadd ta’ rapporti bħala rapporteur alternattiv: {count}",
+      "few": "Għadd ta’ rapporti bħala rapporteur alternattiv: {count}",
+      "many": "Għadd ta’ rapporti bħala rapporteur alternattiv: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "two": "Għadd ta’ opinjonijiet bħala rapporteur: {count}",
+      "few": "Għadd ta’ opinjonijiet bħala rapporteur: {count}",
+      "many": "Għadd ta’ opinjonijiet bħala rapporteur: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "two": "Għadd ta’ opinjonijiet bħala rapporteur alternattiv: {count}",
+      "few": "Għadd ta’ opinjonijiet bħala rapporteur alternattiv: {count}",
+      "many": "Għadd ta’ opinjonijiet bħala rapporteur alternattiv: {count}"
+    },
+    "followUpdates.count_motions": {
+      "two": "Għadd ta’ mozzjonijiet: {count}",
+      "few": "Għadd ta’ mozzjonijiet: {count}",
+      "many": "Għadd ta’ mozzjonijiet: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "two": "Għadd ta’ mistoqsijiet bil-miktub: {count}",
+      "few": "Għadd ta’ mistoqsijiet bil-miktub: {count}",
+      "many": "Għadd ta’ mistoqsijiet bil-miktub: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "two": "Għadd ta’ mistoqsijiet orali: {count}",
+      "few": "Għadd ta’ mistoqsijiet orali: {count}",
+      "many": "Għadd ta’ mistoqsijiet orali: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "two": "Għadd ta’ spjegazzjonijiet tal-vot bil-miktub: {count}",
+      "few": "Għadd ta’ spjegazzjonijiet tal-vot bil-miktub: {count}",
+      "many": "Għadd ta’ spjegazzjonijiet tal-vot bil-miktub: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "two": "Għadd ta’ mozzjonijiet individwali: {count}",
+      "few": "Għadd ta’ mozzjonijiet individwali: {count}",
+      "many": "Għadd ta’ mozzjonijiet individwali: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "two": "Għadd ta’ proposti għal att tal-Unjoni: {count}",
+      "few": "Għadd ta’ proposti għal att tal-Unjoni: {count}",
+      "many": "Għadd ta’ proposti għal att tal-Unjoni: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "two": "Għadd ta’ diskorsi: {count}",
+      "few": "Għadd ta’ diskorsi: {count}",
+      "many": "Għadd ta’ diskorsi: {count}"
+    },
+    "followUpdates.count_answers": {
+      "two": "Għadd ta’ tweġibiet: {count}",
+      "few": "Għadd ta’ tweġibiet: {count}",
+      "many": "Għadd ta’ tweġibiet: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "two": "Għadd ta’ attivitajiet oħra: {count}",
+      "few": "Għadd ta’ attivitajiet oħra: {count}",
+      "many": "Għadd ta’ attivitajiet oħra: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "two": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}.",
+      "few": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}.",
+      "many": "Għadd ta’ kontribuzzjonijiet tad-dibattitu minn {date} mhux mgħobbija: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "two": "Ara l-mistoqsijiet ({count})",
+      "few": "Ara l-mistoqsijiet ({count})",
+      "many": "Ara l-mistoqsijiet ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "two": "Propost minn {name} flimkien ma’ dan l-għadd ta’ Membri oħra tal-PE: {count}.",
+      "few": "Propost minn {name} flimkien ma’ dan l-għadd ta’ Membri oħra tal-PE: {count}.",
+      "many": "Propost minn {name} flimkien ma’ dan l-għadd ta’ Membri oħra tal-PE: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "two": "Propost minn {name} flimkien ma’ dan l-għadd ta’ proponenti oħra: {count}.",
+      "few": "Propost minn {name} flimkien ma’ dan l-għadd ta’ proponenti oħra: {count}.",
+      "many": "Propost minn {name} flimkien ma’ dan l-għadd ta’ proponenti oħra: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "two": "Għadd ta’ emendi fl-istadju {stage}: {count}+",
+      "few": "Għadd ta’ emendi fl-istadju {stage}: {count}+",
+      "many": "Għadd ta’ emendi fl-istadju {stage}: {count}+"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "two": "Għadd minimu ta’ emendi fl-istadju {stage}: {count}",
+      "few": "Għadd minimu ta’ emendi fl-istadju {stage}: {count}",
+      "many": "Għadd minimu ta’ emendi fl-istadju {stage}: {count}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "two": "Għadd ta’ emendi fl-istadju {stage}: {count}+ · agħżel proċedura",
+      "few": "Għadd ta’ emendi fl-istadju {stage}: {count}+ · agħżel proċedura",
+      "many": "Għadd ta’ emendi fl-istadju {stage}: {count}+ · agħżel proċedura"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "two": "Magħżul: {date} · għadd ta’ jiem ta’ seduta: {count}",
+      "few": "Magħżul: {date} · għadd ta’ jiem ta’ seduta: {count}",
+      "many": "Magħżul: {date} · għadd ta’ jiem ta’ seduta: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "two": "Għadd ta’ jiem ta’ seduta: {count}",
+      "few": "Għadd ta’ jiem ta’ seduta: {count}",
+      "many": "Għadd ta’ jiem ta’ seduta: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "two": "Għadd ta’ mistoqsijiet: {count}",
+      "few": "Għadd ta’ mistoqsijiet: {count}",
+      "many": "Għadd ta’ mistoqsijiet: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "two": "Għadd ta’ awturi Membri tal-PE: {count}",
+      "few": "Għadd ta’ awturi Membri tal-PE: {count}",
+      "many": "Għadd ta’ awturi Membri tal-PE: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "two": "Għadd ta’ Membri tal-PE li l-età tagħhom mhijiex disponibbli: {count}",
+      "few": "Għadd ta’ Membri tal-PE li l-età tagħhom mhijiex disponibbli: {count}",
+      "many": "Għadd ta’ Membri tal-PE li l-età tagħhom mhijiex disponibbli: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "two": "Għadd ta’ diskorsi: {speeches}",
+      "few": "Għadd ta’ diskorsi: {speeches}",
+      "many": "Għadd ta’ diskorsi: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "two": "Għadd ta’ dikjarazzjonijiet bil-miktub: {statements}",
+      "few": "Għadd ta’ dikjarazzjonijiet bil-miktub: {statements}",
+      "many": "Għadd ta’ dikjarazzjonijiet bil-miktub: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "two": "Għadd ta’ persuni: {count}",
+      "few": "Għadd ta’ persuni: {count}",
+      "many": "Għadd ta’ persuni: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "two": "Għadd ta’ diskorsi: {transcripts}",
+      "few": "Għadd ta’ diskorsi: {transcripts}",
+      "many": "Għadd ta’ diskorsi: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "two": "f’dan l-għadd ta’ diskorsi: {count}",
+      "few": "f’dan l-għadd ta’ diskorsi: {count}",
+      "many": "f’dan l-għadd ta’ diskorsi: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "two": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}.",
+      "few": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}.",
+      "many": "Għadd ta’ kontribuzzjonijiet li ma setgħux jiġu kklassifikati: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "two": "Għadd ta’ suġġetti b’{metric} f’din l-għażla: {count}. Qed jintwerew {shown}.",
+      "few": "Għadd ta’ suġġetti b’{metric} f’din l-għażla: {count}. Qed jintwerew {shown}.",
+      "many": "Għadd ta’ suġġetti b’{metric} f’din l-għażla: {count}. Qed jintwerew {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "two": "Għadd ta’ mistoqsijiet korrispondenti: {count} · {coverage}",
+      "few": "Għadd ta’ mistoqsijiet korrispondenti: {count} · {coverage}",
+      "many": "Għadd ta’ mistoqsijiet korrispondenti: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "two": "Għadd ta’ dokumenti korrispondenti: {count} · {coverage}",
+      "few": "Għadd ta’ dokumenti korrispondenti: {count} · {coverage}",
+      "many": "Għadd ta’ dokumenti korrispondenti: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "two": "{dateRange} · għadd ta’ jiem ta’ seduta: {count}",
+      "few": "{dateRange} · għadd ta’ jiem ta’ seduta: {count}",
+      "many": "{dateRange} · għadd ta’ jiem ta’ seduta: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "two": "Għadd ta’ kelliema: {count}",
+      "few": "Għadd ta’ kelliema: {count}",
+      "many": "Għadd ta’ kelliema: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "two": "Sorsi · għadd ta’ lakuni: {count}",
+      "few": "Sorsi · għadd ta’ lakuni: {count}",
+      "many": "Sorsi · għadd ta’ lakuni: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "two": "Għadd ta’ emendi: {total}",
+      "few": "Għadd ta’ emendi: {total}",
+      "many": "Għadd ta’ emendi: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "two": "Għadd ta’ emendi: {total} · qed jiġu ċċekkjati l-emendi",
+      "few": "Għadd ta’ emendi: {total} · qed jiġu ċċekkjati l-emendi",
+      "many": "Għadd ta’ emendi: {total} · qed jiġu ċċekkjati l-emendi"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "two": "Għadd ta’ emendi: {total} · kopertura parzjali",
+      "few": "Għadd ta’ emendi: {total} · kopertura parzjali",
+      "many": "Għadd ta’ emendi: {total} · kopertura parzjali"
+    },
+    "Participation.availableAgendaMany": {
+      "two": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}.",
+      "few": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}.",
+      "many": "Għadd ta’ punti tal-aġenda disponibbli f’din l-għażla: {count}."
+    },
+    "Participation.agendaMany": {
+      "two": "Għadd ta’ punti tal-aġenda f’din l-għażla: {count}.",
+      "few": "Għadd ta’ punti tal-aġenda f’din l-għażla: {count}.",
+      "many": "Għadd ta’ punti tal-aġenda f’din l-għażla: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "two": "Għadd ta’ mistoqsijiet li jaqblu ma’ dawn il-filtri: {count}.",
+      "few": "Għadd ta’ mistoqsijiet li jaqblu ma’ dawn il-filtri: {count}.",
+      "many": "Għadd ta’ mistoqsijiet li jaqblu ma’ dawn il-filtri: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "two": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut",
+      "few": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut",
+      "many": "Għadd ta’ avvenimenti f’din l-għażla: {count} · mhux komplut"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "two": "Għadd ta’ avvenimenti f’din l-għażla: {count}",
+      "few": "Għadd ta’ avvenimenti f’din l-għażla: {count}",
+      "many": "Għadd ta’ avvenimenti f’din l-għażla: {count}"
+    }
+  },
+  "nl": {},
+  "pl": {
+    "Saved.unreadMany": {
+      "few": "Liczba obserwowanych elementów z nieprzeczytanymi aktualizacjami: {count}.",
+      "many": "Liczba obserwowanych elementów z nieprzeczytanymi aktualizacjami: {count}."
+    },
+    "Saved.unavailableMany": {
+      "few": "Liczba obserwowanych elementów bez dostępnych informacji o aktualizacjach: {count}.",
+      "many": "Liczba obserwowanych elementów bez dostępnych informacji o aktualizacjach: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "few": "Znani posłowie pasujący do filtrów: {count}.",
+      "many": "Znani posłowie pasujący do filtrów: {count}."
+    },
+    "app.mepMatchMany": {
+      "few": "Posłowie pasujący do filtrów: {count}.",
+      "many": "Posłowie pasujący do filtrów: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "few": "Liczba pasujących mówców: {count}.",
+      "many": "Liczba pasujących mówców: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "few": "Obserwowane elementy z nowymi aktualizacjami: {count}",
+      "many": "Obserwowane elementy z nowymi aktualizacjami: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "few": "{group}, {position}: liczba posłów: {count}",
+      "many": "{group}, {position}: liczba posłów: {count}"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "few": "{seconds} s",
+      "many": "{seconds} s"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "few": "{minutes} min",
+      "many": "{minutes} min"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "few": "Liczba wystąpień: {count}",
+      "many": "Liczba wystąpień: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "few": "Liczba decyzji: {count} · niepełne pokrycie",
+      "many": "Liczba decyzji: {count} · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "few": "Liczba decyzji: {count} · z zapisanym stanowiskiem: {recordedCount}",
+      "many": "Liczba decyzji: {count} · z zapisanym stanowiskiem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Liczba decyzji: {count} · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie",
+      "many": "Liczba decyzji: {count} · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "few": "Liczba zapisanych stanowisk: {count} · niepełne pokrycie",
+      "many": "Liczba zapisanych stanowisk: {count} · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount}",
+      "many": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie",
+      "many": "Liczba zapisanych stanowisk: {count} · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "few": "{start}–{end} z {total} decyzji",
+      "many": "{start}–{end} z {total} decyzji"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "few": "{start}–{end} z {total} decyzji · niepełne pokrycie",
+      "many": "{start}–{end} z {total} decyzji · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} z {total} decyzji · z zapisanym stanowiskiem: {recordedCount}",
+      "many": "{start}–{end} z {total} decyzji · z zapisanym stanowiskiem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} z {total} decyzji · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie",
+      "many": "{start}–{end} z {total} decyzji · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "few": "{start}–{end} z {total} zapisanych stanowisk",
+      "many": "{start}–{end} z {total} zapisanych stanowisk"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "few": "{start}–{end} z {total} zapisanych stanowisk · niepełne pokrycie",
+      "many": "{start}–{end} z {total} zapisanych stanowisk · niepełne pokrycie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount}",
+      "many": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie",
+      "many": "{start}–{end} z {total} zapisanych stanowisk · z zapisanym stanowiskiem: {recordedCount} · niepełne pokrycie"
+    },
+    "membervotes.tsx.count.decisions": {
+      "few": "Liczba decyzji: {count}",
+      "many": "Liczba decyzji: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "few": "Liczba zapisanych stanowisk: {count}",
+      "many": "Liczba zapisanych stanowisk: {count}"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "few": "Przypisane wystąpienia: {assigned} z {count}",
+      "many": "Przypisane wystąpienia: {assigned} z {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "few": "{title}: podział według grup niedostępny. Liczba odnotowanych wystąpień: {count}.",
+      "many": "{title}: podział według grup niedostępny. Liczba odnotowanych wystąpień: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "few": "Liczba wystąpień plenarnych: {count}",
+      "many": "Liczba wystąpień plenarnych: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "few": "Liczba sprawozdań jako sprawozdawca: {count}",
+      "many": "Liczba sprawozdań jako sprawozdawca: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "few": "Liczba sprawozdań jako kontrsprawozdawca: {count}",
+      "many": "Liczba sprawozdań jako kontrsprawozdawca: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "few": "Liczba opinii jako sprawozdawca: {count}",
+      "many": "Liczba opinii jako sprawozdawca: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "few": "Liczba opinii jako kontrsprawozdawca: {count}",
+      "many": "Liczba opinii jako kontrsprawozdawca: {count}"
+    },
+    "followUpdates.count_motions": {
+      "few": "Liczba projektów rezolucji: {count}",
+      "many": "Liczba projektów rezolucji: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "few": "Liczba pytań pisemnych: {count}",
+      "many": "Liczba pytań pisemnych: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "few": "Liczba pytań ustnych: {count}",
+      "many": "Liczba pytań ustnych: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "few": "Liczba pisemnych wyjaśnień głosowania: {count}",
+      "many": "Liczba pisemnych wyjaśnień głosowania: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "few": "Liczba indywidualnych projektów rezolucji: {count}",
+      "many": "Liczba indywidualnych projektów rezolucji: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "few": "Liczba projektów aktów Unii: {count}",
+      "many": "Liczba projektów aktów Unii: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "few": "Liczba wystąpień: {count}",
+      "many": "Liczba wystąpień: {count}"
+    },
+    "followUpdates.count_answers": {
+      "few": "Liczba odpowiedzi: {count}",
+      "many": "Liczba odpowiedzi: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "few": "Liczba innych aktywności: {count}",
+      "many": "Liczba innych aktywności: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "few": "Niewczytane wystąpienia w debacie z {date}: {count}.",
+      "many": "Niewczytane wystąpienia w debacie z {date}: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "few": "Zobacz pytania ({count})",
+      "many": "Zobacz pytania ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "few": "Wnioskodawca: {name}, wraz z innymi posłami: {count}.",
+      "many": "Wnioskodawca: {name}, wraz z innymi posłami: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "few": "Wnioskodawca: {name}, wraz z innymi wnioskodawcami: {count}.",
+      "many": "Wnioskodawca: {name}, wraz z innymi wnioskodawcami: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "few": "Liczba poprawek: {count}+ · {stage}",
+      "many": "Liczba poprawek: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "few": "Liczba poprawek: co najmniej {count} · {stage}",
+      "many": "Liczba poprawek: co najmniej {count} · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "few": "Liczba poprawek: {count}+ · {stage} · wybierz procedurę",
+      "many": "Liczba poprawek: {count}+ · {stage} · wybierz procedurę"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "few": "Wybrano: {date} · liczba dni posiedzeń: {count}",
+      "many": "Wybrano: {date} · liczba dni posiedzeń: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "few": "Liczba dni posiedzeń: {count}",
+      "many": "Liczba dni posiedzeń: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "few": "Liczba pytań: {count}",
+      "many": "Liczba pytań: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "few": "Liczba autorów będących posłami: {count}",
+      "many": "Liczba autorów będących posłami: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "few": "Posłowie bez danych o wieku: {count}",
+      "many": "Posłowie bez danych o wieku: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "few": "Liczba wystąpień: {speeches}",
+      "many": "Liczba wystąpień: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "few": "Liczba oświadczeń pisemnych: {statements}",
+      "many": "Liczba oświadczeń pisemnych: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "few": "Liczba osób: {count}",
+      "many": "Liczba osób: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "few": "Liczba wystąpień: {transcripts}",
+      "many": "Liczba wystąpień: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "few": "Wystąpienia z terminem: {count}",
+      "many": "Wystąpienia z terminem: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "few": "Wystąpienia bez ustalonej klasyfikacji: {count}.",
+      "many": "Wystąpienia bez ustalonej klasyfikacji: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "few": "Tematy z miarą {metric} w tym wyborze: {count}. Wyświetlono: {shown}.",
+      "many": "Tematy z miarą {metric} w tym wyborze: {count}. Wyświetlono: {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "few": "Liczba pasujących pytań: {count} · {coverage}",
+      "many": "Liczba pasujących pytań: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "few": "Liczba pasujących dokumentów: {count} · {coverage}",
+      "many": "Liczba pasujących dokumentów: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "few": "{dateRange} · liczba dni posiedzeń: {count}",
+      "many": "{dateRange} · liczba dni posiedzeń: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "few": "Liczba mówców: {count}",
+      "many": "Liczba mówców: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "few": "Źródła · liczba luk: {count}",
+      "many": "Źródła · liczba luk: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "few": "Liczba poprawek: {total}",
+      "many": "Liczba poprawek: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "few": "Liczba poprawek: {total} · sprawdzanie poprawek",
+      "many": "Liczba poprawek: {total} · sprawdzanie poprawek"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "few": "Liczba poprawek: {total} · niepełne pokrycie",
+      "many": "Liczba poprawek: {total} · niepełne pokrycie"
+    },
+    "Participation.availableAgendaMany": {
+      "few": "Dostępne punkty porządku obrad w tym wyborze: {count}.",
+      "many": "Dostępne punkty porządku obrad w tym wyborze: {count}."
+    },
+    "Participation.agendaMany": {
+      "few": "Liczba punktów porządku obrad w tym wyborze: {count}.",
+      "many": "Liczba punktów porządku obrad w tym wyborze: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "few": "Pytania pasujące do filtrów: {count}.",
+      "many": "Pytania pasujące do filtrów: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "few": "Liczba wydarzeń w tym wyborze: {count} · dane niepełne",
+      "many": "Liczba wydarzeń w tym wyborze: {count} · dane niepełne"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "few": "Liczba wydarzeń w tym wyborze: {count}",
+      "many": "Liczba wydarzeń w tym wyborze: {count}"
+    }
+  },
+  "pt": {
+    "Saved.unreadMany": {
+      "many": "{count} de itens seguidos têm atualizações por ler."
+    },
+    "Saved.unavailableMany": {
+      "many": "Informação sobre atualizações indisponível para {count} de itens seguidos."
+    },
+    "app.knownMepMatchMany": {
+      "many": "{count} de deputados conhecidos correspondem a estes filtros."
+    },
+    "app.mepMatchMany": {
+      "many": "{count} de deputados correspondem a estes filtros."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "many": "{count} de oradores correspondentes."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "many": "{count} de itens seguidos têm novas atualizações"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "many": "{group}, {position}: {count} de deputados"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "many": "{seconds} de segundos"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "many": "{minutes} de minutos"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "many": "{count} de intervenções"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "many": "{count} de decisões · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "many": "{count} de decisões · {recordedCount} com posição registada"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{count} de decisões · {recordedCount} com posição registada · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "many": "{count} de posições registadas · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "many": "{count} de posições registadas · {recordedCount} com posição registada"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{count} de posições registadas · {recordedCount} com posição registada · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "many": "{start}–{end} de {total} de decisões"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "many": "{start}–{end} de {total} de decisões · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "many": "{start}–{end} de {total} de decisões · {recordedCount} com posição registada"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{start}–{end} de {total} de decisões · {recordedCount} com posição registada · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "many": "{start}–{end} de {total} de posições registadas"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "many": "{start}–{end} de {total} de posições registadas · Cobertura parcial"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "many": "{start}–{end} de {total} de posições registadas · {recordedCount} com posição registada"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "many": "{start}–{end} de {total} de posições registadas · {recordedCount} com posição registada · Cobertura parcial"
+    },
+    "membervotes.tsx.count.decisions": {
+      "many": "{count} de decisões"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "many": "{count} de posições registadas"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "many": "{assigned} de {count} de intervenções atribuídas"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "many": "{title}: Distribuição por grupo indisponível. {count} de intervenções observadas."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "many": "{count} de intervenções em plenário"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "many": "{count} de relatórios como relator"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "many": "{count} de relatórios como relator-sombra"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "many": "{count} de pareceres como relator"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "many": "{count} de pareceres como relator-sombra"
+    },
+    "followUpdates.count_motions": {
+      "many": "{count} de propostas de resolução"
+    },
+    "followUpdates.count_written_questions": {
+      "many": "{count} de perguntas escritas"
+    },
+    "followUpdates.count_oral_questions": {
+      "many": "{count} de perguntas orais"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "many": "{count} de declarações de voto escritas"
+    },
+    "followUpdates.count_individual_motions": {
+      "many": "{count} de propostas de resolução individuais"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "many": "{count} de propostas de atos da União"
+    },
+    "followUpdates.count_speeches": {
+      "many": "{count} de discursos"
+    },
+    "followUpdates.count_answers": {
+      "many": "{count} de respostas"
+    },
+    "followUpdates.count_other_activities": {
+      "many": "{count} de outras atividades"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "many": "{count} de intervenções no debate de {date} não carregadas."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "many": "Ver {count} de perguntas"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "many": "{name} apresentou esta proposta com {count} de outros deputados."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "many": "{name} apresentou esta proposta com {count} de outros proponentes."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "many": "Alterações: {count}+ ({stage})"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "many": "Pelo menos {count} de alterações ({stage})"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "many": "Alterações: {count}+ ({stage}) · escolha um processo"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "many": "Selecionado: {date} · {count} de dias de sessão"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "many": "{count} de dias de sessão"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "many": "{count} de perguntas"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "many": "{count} de deputados autores"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "many": "Idade indisponível para {count} de deputados"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "many": "{speeches} de discursos"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "many": "{statements} de declarações escritas"
+    },
+    "legislation.count_people.83f265": {
+      "many": "{count} de pessoas"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "many": "{transcripts} de discursos"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "many": "em {count} de discursos"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "many": "Não foi possível classificar {count} de intervenções."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "many": "{count} de temas com {metric} nesta seleção. A mostrar {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "many": "{count} de perguntas correspondentes · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "many": "{count} de documentos correspondentes · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "many": "{dateRange} · {count} de dias de sessão"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "many": "{count} de oradores"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "many": "Fontes · {count} de lacunas"
+    },
+    "amendments.total_amendments.162421": {
+      "many": "{total} de alterações"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "many": "{total} de alterações · a verificar alterações"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "many": "{total} de alterações · cobertura parcial"
+    },
+    "Participation.availableAgendaMany": {
+      "many": "{count} de pontos da ordem do dia disponíveis nesta seleção."
+    },
+    "Participation.agendaMany": {
+      "many": "{count} de pontos da ordem do dia nesta seleção."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "many": "{count} de perguntas correspondem a estes filtros."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "many": "{count} de eventos nesta seleção · cobertura incompleta"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "many": "{count} de eventos nesta seleção"
+    }
+  },
+  "ro": {
+    "Saved.unreadMany": {
+      "few": "{count} elemente urmărite au actualizări necitite."
+    },
+    "Saved.unavailableMany": {
+      "few": "Informațiile despre actualizări nu sunt disponibile pentru {count} elemente urmărite."
+    },
+    "app.knownMepMatchMany": {
+      "few": "{count} deputați cunoscuți corespund acestor filtre."
+    },
+    "app.mepMatchMany": {
+      "few": "{count} deputați corespund acestor filtre."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "few": "{count} vorbitori corespunzători."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "few": "{count} elemente urmărite au actualizări noi"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "few": "{group}, {position}: {count} deputați"
+    },
+    "readerretry.seconds_seconds.3724db": {
+      "few": "{seconds} secunde"
+    },
+    "readerretry.minutes_minutes.24f934": {
+      "few": "{minutes} minute"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "few": "{count} intervenții"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "few": "{count} decizii · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{count} decizii · {recordedCount} cu poziție înregistrată"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{count} decizii · {recordedCount} cu poziție înregistrată · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "few": "{count} poziții înregistrate · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{count} poziții înregistrate · {recordedCount} cu poziție înregistrată"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{count} poziții înregistrate · {recordedCount} cu poziție înregistrată · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "few": "{start}–{end} din {total} decizii"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "few": "{start}–{end} din {total} decizii · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} din {total} decizii · {recordedCount} cu poziție înregistrată"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} din {total} decizii · {recordedCount} cu poziție înregistrată · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "few": "{start}–{end} din {total} poziții înregistrate"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "few": "{start}–{end} din {total} poziții înregistrate · Acoperire parțială"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} din {total} poziții înregistrate · {recordedCount} cu poziție înregistrată"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} din {total} poziții înregistrate · {recordedCount} cu poziție înregistrată · Acoperire parțială"
+    },
+    "membervotes.tsx.count.decisions": {
+      "few": "{count} decizii"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "few": "{count} poziții înregistrate"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "few": "{assigned} din {count} intervenții atribuite"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "few": "{title}: Defalcarea pe grupuri nu este disponibilă. {count} intervenții observate."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "few": "{count} intervenții în plen"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "few": "{count} rapoarte în calitate de raportor"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "few": "{count} rapoarte în calitate de raportor alternativ"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "few": "{count} avize în calitate de raportor"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "few": "{count} avize în calitate de raportor alternativ"
+    },
+    "followUpdates.count_motions": {
+      "few": "{count} propuneri de rezoluție"
+    },
+    "followUpdates.count_written_questions": {
+      "few": "{count} întrebări cu solicitare de răspuns scris"
+    },
+    "followUpdates.count_oral_questions": {
+      "few": "{count} întrebări orale"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "few": "{count} explicații scrise ale votului"
+    },
+    "followUpdates.count_individual_motions": {
+      "few": "{count} propuneri individuale de rezoluție"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "few": "{count} propuneri de acte ale Uniunii"
+    },
+    "followUpdates.count_speeches": {
+      "few": "{count} discursuri"
+    },
+    "followUpdates.count_answers": {
+      "few": "{count} răspunsuri"
+    },
+    "followUpdates.count_other_activities": {
+      "few": "{count} alte activități"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "few": "{count} intervenții în dezbaterea din {date} neîncărcate."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "few": "Vedeți {count} întrebări"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "few": "{name} a depus această propunere împreună cu încă {count} deputați."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "few": "{name} a depus această propunere împreună cu încă {count} autori."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "few": "{count}+ amendamente ({stage})"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "few": "Cel puțin {count} amendamente ({stage})"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "few": "{count}+ amendamente ({stage}) · alegeți o procedură"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "few": "Selectat: {date} · {count} zile de ședință"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "few": "{count} zile de ședință"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "few": "{count} întrebări"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "few": "{count} deputați autori"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "few": "Vârstă indisponibilă pentru {count} deputați"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "few": "{speeches} discursuri"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "few": "{statements} declarații scrise"
+    },
+    "legislation.count_people.83f265": {
+      "few": "{count} persoane"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "few": "{transcripts} discursuri"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "few": "în {count} discursuri"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "few": "{count} intervenții nu au putut fi clasificate."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "few": "{count} teme cu {metric} în această selecție. Se afișează {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "few": "{count} întrebări corespunzătoare · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "few": "{count} documente corespunzătoare · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "few": "{dateRange} · {count} zile de ședință"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "few": "{count} vorbitori"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "few": "Surse · {count} lacune"
+    },
+    "amendments.total_amendments.162421": {
+      "few": "{total} amendamente"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "few": "{total} amendamente · se verifică amendamentele"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "few": "{total} amendamente · acoperire parțială"
+    },
+    "Participation.availableAgendaMany": {
+      "few": "{count} puncte disponibile pe ordinea de zi în această selecție."
+    },
+    "Participation.agendaMany": {
+      "few": "{count} puncte pe ordinea de zi în această selecție."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "few": "{count} întrebări corespund acestor filtre."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "few": "{count} evenimente în această selecție · incompletă"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "few": "{count} evenimente în această selecție"
+    }
+  },
+  "sk": {
+    "Saved.unreadMany": {
+      "few": "Sledované položky s neprečítanými aktualizáciami: {count}.",
+      "many": "Sledované položky s neprečítanými aktualizáciami: {count}."
+    },
+    "Saved.unavailableMany": {
+      "few": "Informácie o aktualizáciách nie sú k dispozícii pre sledované položky v počte {count}.",
+      "many": "Informácie o aktualizáciách nie sú k dispozícii pre sledované položky v počte {count}."
+    },
+    "app.knownMepMatchMany": {
+      "few": "Počet známych poslancov EP zodpovedajúcich filtrom: {count}.",
+      "many": "Počet známych poslancov EP zodpovedajúcich filtrom: {count}."
+    },
+    "app.mepMatchMany": {
+      "few": "Počet poslancov EP zodpovedajúcich filtrom: {count}.",
+      "many": "Počet poslancov EP zodpovedajúcich filtrom: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "few": "Počet zodpovedajúcich rečníkov: {count}.",
+      "many": "Počet zodpovedajúcich rečníkov: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "few": "Počet sledovaných položiek s novými aktualizáciami: {count}",
+      "many": "Počet sledovaných položiek s novými aktualizáciami: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "few": "{group}, {position}: počet poslancov EP: {count}",
+      "many": "{group}, {position}: počet poslancov EP: {count}"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "few": "Počet príspevkov: {count}",
+      "many": "Počet príspevkov: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "few": "Počet rozhodnutí: {count} · čiastočné pokrytie",
+      "many": "Počet rozhodnutí: {count} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "few": "Počet rozhodnutí: {count} · so zaznamenaným postojom: {recordedCount}",
+      "many": "Počet rozhodnutí: {count} · so zaznamenaným postojom: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Počet rozhodnutí: {count} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie",
+      "many": "Počet rozhodnutí: {count} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "few": "Počet zaznamenaných postojov: {count} · čiastočné pokrytie",
+      "many": "Počet zaznamenaných postojov: {count} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount}",
+      "many": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie",
+      "many": "Počet zaznamenaných postojov: {count} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total}",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total} · čiastočné pokrytie",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total} · so zaznamenaným postojom: {recordedCount}",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total} · so zaznamenaným postojom: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu rozhodnutí {total} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie",
+      "many": "{start}–{end} z celkového počtu rozhodnutí {total} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojov {total}",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojov {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · čiastočné pokrytie",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · čiastočné pokrytie"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount}",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "few": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie",
+      "many": "{start}–{end} z celkového počtu zaznamenaných postojov {total} · so zaznamenaným postojom: {recordedCount} · čiastočné pokrytie"
+    },
+    "membervotes.tsx.count.decisions": {
+      "few": "Počet rozhodnutí: {count}",
+      "many": "Počet rozhodnutí: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "few": "Počet zaznamenaných postojov: {count}",
+      "many": "Počet zaznamenaných postojov: {count}"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "few": "Priradené {assigned} z celkového počtu príspevkov {count}",
+      "many": "Priradené {assigned} z celkového počtu príspevkov {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "few": "{title}: členenie podľa skupín nie je k dispozícii. Počet zistených príspevkov: {count}.",
+      "many": "{title}: členenie podľa skupín nie je k dispozícii. Počet zistených príspevkov: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "few": "Počet príspevkov v pléne: {count}",
+      "many": "Počet príspevkov v pléne: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "few": "Počet správ vo funkcii spravodajcu: {count}",
+      "many": "Počet správ vo funkcii spravodajcu: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "few": "Počet správ vo funkcii tieňového spravodajcu: {count}",
+      "many": "Počet správ vo funkcii tieňového spravodajcu: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "few": "Počet stanovísk vo funkcii spravodajcu: {count}",
+      "many": "Počet stanovísk vo funkcii spravodajcu: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "few": "Počet stanovísk vo funkcii tieňového spravodajcu: {count}",
+      "many": "Počet stanovísk vo funkcii tieňového spravodajcu: {count}"
+    },
+    "followUpdates.count_motions": {
+      "few": "Počet návrhov: {count}",
+      "many": "Počet návrhov: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "few": "Počet otázok na písomné zodpovedanie: {count}",
+      "many": "Počet otázok na písomné zodpovedanie: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "few": "Počet otázok na ústne zodpovedanie: {count}",
+      "many": "Počet otázok na ústne zodpovedanie: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "few": "Počet písomných vysvetlení hlasovania: {count}",
+      "many": "Počet písomných vysvetlení hlasovania: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "few": "Počet individuálnych návrhov: {count}",
+      "many": "Počet individuálnych návrhov: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "few": "Počet návrhov aktov Únie: {count}",
+      "many": "Počet návrhov aktov Únie: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "few": "Počet prejavov: {count}",
+      "many": "Počet prejavov: {count}"
+    },
+    "followUpdates.count_answers": {
+      "few": "Počet odpovedí: {count}",
+      "many": "Počet odpovedí: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "few": "Počet ostatných činností: {count}",
+      "many": "Počet ostatných činností: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "few": "Počet nenačítaných príspevkov v rozprave z {date}: {count}.",
+      "many": "Počet nenačítaných príspevkov v rozprave z {date}: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "few": "Zobraziť otázky ({count})",
+      "many": "Zobraziť otázky ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "few": "Navrhuje: {name}; počet ďalších poslancov EP: {count}.",
+      "many": "Navrhuje: {name}; počet ďalších poslancov EP: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "few": "Navrhuje: {name}; počet ďalších navrhovateľov: {count}.",
+      "many": "Navrhuje: {name}; počet ďalších navrhovateľov: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "few": "Počet pozmeňujúcich návrhov: {count}+ · {stage}",
+      "many": "Počet pozmeňujúcich návrhov: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "few": "Počet pozmeňujúcich návrhov najmenej {count} · {stage}",
+      "many": "Počet pozmeňujúcich návrhov najmenej {count} · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "few": "Počet pozmeňujúcich návrhov: {count}+ · {stage} · vyberte postup",
+      "many": "Počet pozmeňujúcich návrhov: {count}+ · {stage} · vyberte postup"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "few": "Vybrané: {date} · počet dní zasadnutia: {count}",
+      "many": "Vybrané: {date} · počet dní zasadnutia: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "few": "Počet dní zasadnutia: {count}",
+      "many": "Počet dní zasadnutia: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "few": "Počet otázok: {count}",
+      "many": "Počet otázok: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "few": "Počet autorov z radov poslancov EP: {count}",
+      "many": "Počet autorov z radov poslancov EP: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "few": "Počet poslancov EP s nedostupným vekom: {count}",
+      "many": "Počet poslancov EP s nedostupným vekom: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "few": "Počet prejavov: {speeches}",
+      "many": "Počet prejavov: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "few": "Počet písomných vyhlásení: {statements}",
+      "many": "Počet písomných vyhlásení: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "few": "Počet osôb: {count}",
+      "many": "Počet osôb: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "few": "Počet prejavov: {transcripts}",
+      "many": "Počet prejavov: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "few": "Počet prejavov s týmto výrazom: {count}",
+      "many": "Počet prejavov s týmto výrazom: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "few": "Počet nezaradených príspevkov: {count}.",
+      "many": "Počet nezaradených príspevkov: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "few": "Počet tém s ukazovateľom {metric} v tomto výbere: {count}. Zobrazené: {shown}.",
+      "many": "Počet tém s ukazovateľom {metric} v tomto výbere: {count}. Zobrazené: {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "few": "Počet zodpovedajúcich otázok: {count} · {coverage}",
+      "many": "Počet zodpovedajúcich otázok: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "few": "Počet zodpovedajúcich dokumentov: {count} · {coverage}",
+      "many": "Počet zodpovedajúcich dokumentov: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "few": "{dateRange} · počet dní zasadnutia: {count}",
+      "many": "{dateRange} · počet dní zasadnutia: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "few": "Počet rečníkov: {count}",
+      "many": "Počet rečníkov: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "few": "Zdroje · medzery v údajoch: {count}",
+      "many": "Zdroje · medzery v údajoch: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "few": "Počet pozmeňujúcich návrhov: {total}",
+      "many": "Počet pozmeňujúcich návrhov: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "few": "Počet pozmeňujúcich návrhov: {total} · kontrola pozmeňujúcich návrhov",
+      "many": "Počet pozmeňujúcich návrhov: {total} · kontrola pozmeňujúcich návrhov"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "few": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie",
+      "many": "Počet pozmeňujúcich návrhov: {total} · čiastočné pokrytie"
+    },
+    "Participation.availableAgendaMany": {
+      "few": "Počet dostupných bodov programu v tomto výbere: {count}.",
+      "many": "Počet dostupných bodov programu v tomto výbere: {count}."
+    },
+    "Participation.agendaMany": {
+      "few": "Počet bodov programu v tomto výbere: {count}.",
+      "many": "Počet bodov programu v tomto výbere: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "few": "Počet otázok zodpovedajúcich filtrom: {count}.",
+      "many": "Počet otázok zodpovedajúcich filtrom: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "few": "Počet udalostí v tomto výbere: {count} · neúplné údaje",
+      "many": "Počet udalostí v tomto výbere: {count} · neúplné údaje"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "few": "Počet udalostí v tomto výbere: {count}",
+      "many": "Počet udalostí v tomto výbere: {count}"
+    }
+  },
+  "sl": {
+    "Saved.unreadMany": {
+      "two": "Število spremljanih postavk z neprebranimi novostmi: {count}.",
+      "few": "Število spremljanih postavk z neprebranimi novostmi: {count}."
+    },
+    "Saved.unavailableMany": {
+      "two": "Podatki o novostih niso na voljo za naslednje število spremljanih postavk: {count}.",
+      "few": "Podatki o novostih niso na voljo za naslednje število spremljanih postavk: {count}."
+    },
+    "app.knownMepMatchMany": {
+      "two": "Število znanih poslancev EP, ki ustrezajo filtrom: {count}.",
+      "few": "Število znanih poslancev EP, ki ustrezajo filtrom: {count}."
+    },
+    "app.mepMatchMany": {
+      "two": "Število poslancev EP, ki ustrezajo filtrom: {count}.",
+      "few": "Število poslancev EP, ki ustrezajo filtrom: {count}."
+    },
+    "outsidevoices.count_matching_speakers.488abf": {
+      "two": "Število ustreznih govorcev: {count}.",
+      "few": "Število ustreznih govorcev: {count}."
+    },
+    "savedcontrols.count.followed.items.have.new.updates": {
+      "two": "Število spremljanih postavk z novostmi: {count}",
+      "few": "Število spremljanih postavk z novostmi: {count}"
+    },
+    "legislation.grouplabel_position_count_meps.f476b0": {
+      "two": "{group}, {position}: število poslancev EP: {count}",
+      "few": "{group}, {position}: število poslancev EP: {count}"
+    },
+    "batch4.insightcharts.tsx.count.contributions": {
+      "two": "Število prispevkov: {count}",
+      "few": "Število prispevkov: {count}"
+    },
+    "batch2.membervotes.tsx.count.decisions.partial.coverage": {
+      "two": "Število sklepov: {count} · delna pokritost",
+      "few": "Število sklepov: {count} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position": {
+      "two": "Število sklepov: {count} · z zabeleženim stališčem: {recordedCount}",
+      "few": "Število sklepov: {count} · z zabeleženim stališčem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Število sklepov: {count} · z zabeleženim stališčem: {recordedCount} · delna pokritost",
+      "few": "Število sklepov: {count} · z zabeleženim stališčem: {recordedCount} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.partial.coverage": {
+      "two": "Število zabeleženih stališč: {count} · delna pokritost",
+      "few": "Število zabeleženih stališč: {count} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position": {
+      "two": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount}",
+      "few": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount} · delna pokritost",
+      "few": "Število zabeleženih stališč: {count} · z zabeleženim stališčem: {recordedCount} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions": {
+      "two": "{start}–{end} od skupnega števila sklepov {total}",
+      "few": "{start}–{end} od skupnega števila sklepov {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage": {
+      "two": "{start}–{end} od skupnega števila sklepov {total} · delna pokritost",
+      "few": "{start}–{end} od skupnega števila sklepov {total} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position": {
+      "two": "{start}–{end} od skupnega števila sklepov {total} · z zabeleženim stališčem: {recordedCount}",
+      "few": "{start}–{end} od skupnega števila sklepov {total} · z zabeleženim stališčem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "{start}–{end} od skupnega števila sklepov {total} · z zabeleženim stališčem: {recordedCount} · delna pokritost",
+      "few": "{start}–{end} od skupnega števila sklepov {total} · z zabeleženim stališčem: {recordedCount} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions": {
+      "two": "{start}–{end} od skupnega števila zabeleženih stališč {total}",
+      "few": "{start}–{end} od skupnega števila zabeleženih stališč {total}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage": {
+      "two": "{start}–{end} od skupnega števila zabeleženih stališč {total} · delna pokritost",
+      "few": "{start}–{end} od skupnega števila zabeleženih stališč {total} · delna pokritost"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position": {
+      "two": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount}",
+      "few": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount}"
+    },
+    "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage": {
+      "two": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount} · delna pokritost",
+      "few": "{start}–{end} od skupnega števila zabeleženih stališč {total} · z zabeleženim stališčem: {recordedCount} · delna pokritost"
+    },
+    "membervotes.tsx.count.decisions": {
+      "two": "Število sklepov: {count}",
+      "few": "Število sklepov: {count}"
+    },
+    "membervotes.tsx.count.recorded.positions": {
+      "two": "Število zabeleženih stališč: {count}",
+      "few": "Število zabeleženih stališč: {count}"
+    },
+    "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned": {
+      "two": "Dodeljeno {assigned} od skupnega števila prispevkov {count}",
+      "few": "Dodeljeno {assigned} od skupnega števila prispevkov {count}"
+    },
+    "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed": {
+      "two": "{title}: razčlenitev po skupinah ni na voljo. Število zaznanih prispevkov: {count}.",
+      "few": "{title}: razčlenitev po skupinah ni na voljo. Število zaznanih prispevkov: {count}."
+    },
+    "followUpdates.count_plenary_contributions": {
+      "two": "Število plenarnih prispevkov: {count}",
+      "few": "Število plenarnih prispevkov: {count}"
+    },
+    "followUpdates.count_reports_as_rapporteur": {
+      "two": "Število poročil v vlogi poročevalca: {count}",
+      "few": "Število poročil v vlogi poročevalca: {count}"
+    },
+    "followUpdates.count_reports_as_shadow_rapporteur": {
+      "two": "Število poročil v vlogi poročevalca v senci: {count}",
+      "few": "Število poročil v vlogi poročevalca v senci: {count}"
+    },
+    "followUpdates.count_opinions_as_rapporteur": {
+      "two": "Število mnenj v vlogi poročevalca: {count}",
+      "few": "Število mnenj v vlogi poročevalca: {count}"
+    },
+    "followUpdates.count_opinions_as_shadow_rapporteur": {
+      "two": "Število mnenj v vlogi poročevalca v senci: {count}",
+      "few": "Število mnenj v vlogi poročevalca v senci: {count}"
+    },
+    "followUpdates.count_motions": {
+      "two": "Število predlogov: {count}",
+      "few": "Število predlogov: {count}"
+    },
+    "followUpdates.count_written_questions": {
+      "two": "Število vprašanj za pisni odgovor: {count}",
+      "few": "Število vprašanj za pisni odgovor: {count}"
+    },
+    "followUpdates.count_oral_questions": {
+      "two": "Število vprašanj za ustni odgovor: {count}",
+      "few": "Število vprašanj za ustni odgovor: {count}"
+    },
+    "followUpdates.count_written_explanations_of_vote": {
+      "two": "Število pisnih obrazložitev glasovanja: {count}",
+      "few": "Število pisnih obrazložitev glasovanja: {count}"
+    },
+    "followUpdates.count_individual_motions": {
+      "two": "Število posameznih predlogov: {count}",
+      "few": "Število posameznih predlogov: {count}"
+    },
+    "followUpdates.count_proposals_for_a_union_act": {
+      "two": "Število predlogov aktov Unije: {count}",
+      "few": "Število predlogov aktov Unije: {count}"
+    },
+    "followUpdates.count_speeches": {
+      "two": "Število govorov: {count}",
+      "few": "Število govorov: {count}"
+    },
+    "followUpdates.count_answers": {
+      "two": "Število odgovorov: {count}",
+      "few": "Število odgovorov: {count}"
+    },
+    "followUpdates.count_other_activities": {
+      "two": "Število drugih dejavnosti: {count}",
+      "few": "Število drugih dejavnosti: {count}"
+    },
+    "dossieractivity.count_debate_contributions_from_date_not_loaded": {
+      "two": "Število nenaloženih prispevkov v razpravi z dne {date}: {count}.",
+      "few": "Število nenaloženih prispevkov v razpravi z dne {date}: {count}."
+    },
+    "batch4.questiontopics.tsx.view.count.questions": {
+      "two": "Poglej vprašanja ({count})",
+      "few": "Poglej vprašanja ({count})"
+    },
+    "amendments.name_proposed_this_with_count_other_meps.6c177a": {
+      "two": "Predlagatelji: {name}; število drugih poslancev EP: {count}.",
+      "few": "Predlagatelji: {name}; število drugih poslancev EP: {count}."
+    },
+    "amendments.name_proposed_this_with_count_other_proposers.aded25": {
+      "two": "Predlagatelji: {name}; število drugih predlagateljev: {count}.",
+      "few": "Predlagatelji: {name}; število drugih predlagateljev: {count}."
+    },
+    "dossieractivity.count_stage_amendments": {
+      "two": "Število predlogov sprememb: {count}+ · {stage}",
+      "few": "Število predlogov sprememb: {count}+ · {stage}"
+    },
+    "dossieractivity.at_least_count_stage_amendments": {
+      "two": "Najmanjše število predlogov sprememb: {count} · {stage}",
+      "few": "Najmanjše število predlogov sprememb: {count} · {stage}"
+    },
+    "dossieractivity.count_stage_amendments_choose_a_procedure": {
+      "two": "Število predlogov sprememb: {count}+ · {stage} · izberite postopek",
+      "few": "Število predlogov sprememb: {count}+ · {stage} · izberite postopek"
+    },
+    "outsidevoices.selected_date_count_sitting_days.1a5aa0": {
+      "two": "Izbrano: {date} · število dni zasedanja: {count}",
+      "few": "Izbrano: {date} · število dni zasedanja: {count}"
+    },
+    "outsidevoices.count_sitting_days.fa07e3": {
+      "two": "Število dni zasedanja: {count}",
+      "few": "Število dni zasedanja: {count}"
+    },
+    "batch4.questiontopics.tsx.count.questions": {
+      "two": "Število vprašanj: {count}",
+      "few": "Število vprašanj: {count}"
+    },
+    "batch4.questiontopics.tsx.count.mep.authors": {
+      "two": "Število avtorjev iz vrst poslancev EP: {count}",
+      "few": "Število avtorjev iz vrst poslancev EP: {count}"
+    },
+    "insightshared.age_unavailable_for_count_meps": {
+      "two": "Število poslancev EP brez podatka o starosti: {count}",
+      "few": "Število poslancev EP brez podatka o starosti: {count}"
+    },
+    "legislation.speeches_speeches.c01055": {
+      "two": "Število govorov: {speeches}",
+      "few": "Število govorov: {speeches}"
+    },
+    "legislation.statements_written_statements.7e4375": {
+      "two": "Število pisnih izjav: {statements}",
+      "few": "Število pisnih izjav: {statements}"
+    },
+    "legislation.count_people.83f265": {
+      "two": "Število oseb: {count}",
+      "few": "Število oseb: {count}"
+    },
+    "speechcloud.transcripts_speeches.851fc7": {
+      "two": "Število govorov: {transcripts}",
+      "few": "Število govorov: {transcripts}"
+    },
+    "speechcloud.in_count_speeches.a25a1a": {
+      "two": "Število govorov s tem izrazom: {count}",
+      "few": "Število govorov s tem izrazom: {count}"
+    },
+    "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified": {
+      "two": "Število nerazvrščenih prispevkov: {count}.",
+      "few": "Število nerazvrščenih prispevkov: {count}."
+    },
+    "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c": {
+      "two": "Število tem z merilom {metric} v tem izboru: {count}. Prikazano: {shown}.",
+      "few": "Število tem z merilom {metric} v tem izboru: {count}. Prikazano: {shown}."
+    },
+    "textsearch.count_matching_questions_coverage": {
+      "two": "Število ustreznih vprašanj: {count} · {coverage}",
+      "few": "Število ustreznih vprašanj: {count} · {coverage}"
+    },
+    "textsearch.count_matching_documents_coverage": {
+      "two": "Število ustreznih dokumentov: {count} · {coverage}",
+      "few": "Število ustreznih dokumentov: {count} · {coverage}"
+    },
+    "voteperiodnavigation.daterange_count_sitting_days.e5506d": {
+      "two": "{dateRange} · število dni zasedanja: {count}",
+      "few": "{dateRange} · število dni zasedanja: {count}"
+    },
+    "groupvoices.count_speakers.47ae64": {
+      "two": "Število govorcev: {count}",
+      "few": "Število govorcev: {count}"
+    },
+    "amendments.sources_count_gaps.2b2613": {
+      "two": "Viri · število vrzeli v podatkih: {count}",
+      "few": "Viri · število vrzeli v podatkih: {count}"
+    },
+    "amendments.total_amendments.162421": {
+      "two": "Število predlogov sprememb: {total}",
+      "few": "Število predlogov sprememb: {total}"
+    },
+    "amendments.total_amendments_checking_for_amendments.f0602d": {
+      "two": "Število predlogov sprememb: {total} · preverjanje predlogov sprememb",
+      "few": "Število predlogov sprememb: {total} · preverjanje predlogov sprememb"
+    },
+    "amendments.total_amendments_partial_coverage.9ca533": {
+      "two": "Število predlogov sprememb: {total} · delna pokritost",
+      "few": "Število predlogov sprememb: {total} · delna pokritost"
+    },
+    "Participation.availableAgendaMany": {
+      "two": "Število razpoložljivih točk dnevnega reda v tem izboru: {count}.",
+      "few": "Število razpoložljivih točk dnevnega reda v tem izboru: {count}."
+    },
+    "Participation.agendaMany": {
+      "two": "Število točk dnevnega reda v tem izboru: {count}.",
+      "few": "Število točk dnevnega reda v tem izboru: {count}."
+    },
+    "batch4.questiontopics.tsx.count.questions.match.these.filters": {
+      "two": "Število vprašanj, ki ustrezajo filtrom: {count}.",
+      "few": "Število vprašanj, ki ustrezajo filtrom: {count}."
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.incomplete.78": {
+      "two": "Število dogodkov v tem izboru: {count} · nepopolno",
+      "few": "Število dogodkov v tem izboru: {count} · nepopolno"
+    },
+    "batch6.procedureprogress.count.events.in.this.selection.78": {
+      "two": "Število dogodkov v tem izboru: {count}",
+      "few": "Število dogodkov v tem izboru: {count}"
+    }
+  },
+  "sv": {}
+}

@@ -17,7 +17,7 @@ import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
@@ -48,16 +48,17 @@ type WordingResponse={documentId:string;requestedLanguage:string;amendment:null|
 
 const memberVotesRoute=(memberId:number,state:MemberVotesState,language:string)=>memberVotesRequestRoute(memberId,state,language,{view:'period'});
 
-function votePageSummary(data:MemberVotesResponse, positions:string, ui:import('./uiI18n.mjs').UiFormatter) {
+export function votePageSummary(data:MemberVotesResponse, positions:string, ui:import('./uiI18n.mjs').UiFormatter) {
   const page=data.pagination;
   const prefix=(page.mode==='period') ? 'count' : (page.returned ? 'start.end.of.total' : '0');
   const unit=(positions==='recorded') ? 'recorded.positions' : 'decisions';
   const recorded=(page.recordedTotal!==null) ? '.recordedcount.with.a.recorded.position' : '';
   const partial=(data.coverage.status==='partial') ? '.partial.coverage' : '';
-  const id=(((prefix==='count') && (!recorded)) && (!partial)) ? (`membervotes.tsx.count.${unit}`) : (`batch2.membervotes.tsx.${prefix}.${unit}${recorded}${partial}`);
+  const reviewedRecorded=(ui.language==='ro'||ui.language==='lt')&&positions==='recorded'&&page.recordedTotal!==null;
+  const id=reviewedRecorded ? `membervotes.summary.recorded.${page.mode==='period'?'period':page.returned?'page':'emptyPage'}${data.coverage.status==='partial'?'.partial':''}` : (((prefix==='count') && (!recorded)) && (!partial)) ? (`membervotes.tsx.count.${unit}`) : (`batch2.membervotes.tsx.${prefix}.${unit}${recorded}${partial}`);
   return ui.t(id, {
     count:page.filteredTotal, start:page.offset+1, end:page.offset+page.returned,
-    total:page.filteredTotal, recordedCount:page.recordedTotal??'',
+    total:page.filteredTotal, ...(page.recordedTotal===null?{}:{recordedCount:page.recordedTotal}),
   });
 }
 function voteCount(count:number, positions:string, ui:import('./uiI18n.mjs').UiFormatter) {
@@ -73,7 +74,7 @@ const chosenTitle=(record:{titles:Record<string,string>;title:string|null;titleL
   const selected=selectVoteTitle(record.titles,language,record.title||'',record.titleLanguage||'en');
   return {raw:selected.sourceLiteral,text:displayVoteTitle(selected.text)||ui.t("membervotes.tsx.untitled.vote"),language:selected.language};
 };
-const periodLabel=(data:MemberVotesResponse|null,state:MemberVotesState, ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>state.sittingId ? ('Sitting · '+dateLabel(state.sittingId.slice(7))) : (data?.period.from ? ('Week of '+dateLabel(data.period.from)) : ((state.week==='latest') ? ui.t("membervotes.tsx.latest.sitting.week") : ('Week of '+dateLabel(state.week))));
+const periodLabel=(data:MemberVotesResponse|null,state:MemberVotesState, ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>state.sittingId ? ui.t("membervotes.tsx.sitting.date",{date:dateLabel(state.sittingId.slice(7))}) : (data?.period.from ? ui.t("membervotes.tsx.week.of.date",{date:dateLabel(data.period.from)}) : ((state.week==='latest') ? ui.t("membervotes.tsx.latest.sitting.week") : ui.t("membervotes.tsx.week.of.date",{date:dateLabel(state.week)})));
 
 function WholeText({vote,memberName,onDecision}:{vote:MemberVoteWholeTextDecision;memberName:string;onDecision:(id:string)=>void}) {
   const ui = useUiI18n();
@@ -128,7 +129,7 @@ function ContextVote({vote,memberName,language}:{vote:MemberVote;memberName:stri
 function Detail({vote,data,memberName,language,onDecision,openContext,explanationsActive}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;explanationsActive:boolean}) {
   const ui = useUiI18n();
   const subject=data.subjects.find(subject=>subject.id===vote.subjectId);
-  const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote),recordUrl=votingRecordUrl(vote);
+  const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote);
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
   const requestIds=new Set(vote.parts.map(part=>part.requestId));
   const siblingVotes=data.items.filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
@@ -142,7 +143,7 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
     {targets.map(target=><MemberVoteWording key={vote.id+':'+target.amendmentId+':'+language} {...target} language={language} openContext={openContext} showHeading={targets.length!==1||memberVoteLabel(vote,language, ui)!==ui.t("membervotes.tsx.amendment.number", {number: String(/-AM-(\d+(?:-\d+)?)$/.exec(target.amendmentId)?.[1]||'')})}/>)}
     {!targets.length&&vote.context.amendmentIds.length>0&&<p><UiMessage id="membervotes.tsx.amendment.wording.unavailable.here"/></p>}
     {explanationsActive&&<MemberVoteExplanations key={[data.member.id,vote.id,data.snapshotId,language].join(':')} vote={vote} data={data} memberId={data.member.id} language={language} onDecision={onDecision}/>}
-    {contexts.length>0&&<details className="member-votes-related"><summary>{memberVoteParentLabel(vote,language) ? <UiMessage id="membervotes.tsx.split.vote.parent" values={{parent: memberVoteParentLabel(vote,language)}}/> : <UiMessage id="membervotes.tsx.split.vote"/>}</summary>{contexts.map(component=>{
+    {contexts.length>0&&<details className="member-votes-related"><summary>{memberVoteParentLabel(vote,language,ui) ? <UiMessage id="membervotes.tsx.split.vote.parent" values={{parent: memberVoteParentLabel(vote,language,ui)}}/> : <UiMessage id="membervotes.tsx.split.vote"/>}</summary>{contexts.map(component=>{
       const text=selectLanguageText(Object.fromEntries(Object.entries(component.contentByLanguage).map(([code,value])=>[code,value.text??value.sourceLiteral])),language);
       return <div key={component.componentId}><h4>{(component.number!==null) ? ui.t("membervotes.tsx.part.number", {number: String(component.number)}) : ui.t("membervotes.tsx.another.part")}</h4>{text.text ? <p lang={text.language}>{text.text}</p> : <p><UiMessage id="membervotes.tsx.part.wording.unavailable.here"/></p>}</div>;
     })}</details>}
@@ -150,7 +151,6 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
     {siblingVotes.length>0&&<section className="member-votes-siblings"><h3><UiMessage id="membervotes.tsx.other.decisions.shown.for.this.split.vote"/></h3>{siblingVotes.map(item=><button type="button" key={item.id} onClick={()=>onDecision(item.id)}><>{memberVoteLabel(item,language, ui)} · {memberVoteOutcome(item, ui)}</></button>)}</section>}
     {(vote.ballotStatus==='not-conducted'||voteMethodLabel(vote.method, ui))&&<p className="member-votes-muted">{(vote.ballotStatus==='not-conducted') ? ui.t("activityvote.not_put_to_a_vote") : voteMethodLabel(vote.method, ui)}</p>}
     {requesterLabels.length>0&&<p className="member-votes-requester"><UiMessage id="activityvote.roll_call_requested_by_requesters" values={{requesters: requesterLabels.map((label,index)=><span key={index} lang={label.language}>{(index>0) ? ', ' : ''}{label.text}</span>)}}/></p>}
-    {recordUrl&&<p className="member-votes-source"><a href={recordUrl} target="_blank" rel="noreferrer"><UiMessage id="activityvote.parliament_s_voting_record"/></a></p>}
     {documents.length>0&&<section className="member-votes-documents"><h3><UiMessage id="membervotes.tsx.about.the.text"/></h3>{documents.map(documentId=><div key={documentId}><button type="button" onClick={()=>openContext({documentId,view:'document'})}>{documentId.startsWith('A-') ? <UiMessage id="membervotes.tsx.read.report.documentid" values={{documentId: String(documentId ?? '')}}/> : (documentId.startsWith('RC-') ? <UiMessage id="membervotes.tsx.read.joint.motion.documentid" values={{documentId: String(documentId ?? '')}}/> : <UiMessage id="membervotes.tsx.read.motion.documentid" values={{documentId: String(documentId ?? '')}}/>)}</button><button type="button" onClick={()=>openContext({documentId,view:'adopted'})}><UiMessage id="membervotes.tsx.find.adopted.text"/></button></div>)}</section>}
   </article>;
 }
@@ -296,7 +296,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
             <div hidden={!state.expandedSubjectIds.includes(group.id)}>{state.expandedSubjectIds.includes(group.id)&&group.items.map(vote=><button type="button" className="member-votes-row" key={vote.id} data-vote-id={vote.id} onClick={()=>selectDecision(vote.id)}><span className="member-votes-row-copy"><span>{memberVoteLabel(vote,language, ui)}</span>{vote.ballotStatus!=='not-conducted'&&<span className="member-votes-muted">{voteMethodLabel(vote.method, ui)}</span>}{vote.alignment==='against'&&<span className="member-votes-against-outcome"><UiMessage id="membervotes.tsx.against.outcome"/></span>}{vote.intention.status==='reported'&&<span className="member-votes-muted"><UiMessage id="membervotes.tsx.intention.declared"/></span>}</span><Position vote={vote} memberName={memberName}/><Result vote={vote}/><span aria-hidden="true">›</span></button>)}</div>
           </section>;
         })}
-        {!groups.length&&data.coverage.status!=='unavailable'&&<p className="member-votes-empty">{((((data.coverage.status==='complete') && (data.pagination.observedTotal===0)) && Array.isArray(data.coverage.sittings)) && data.coverage.sittings.some(day=>day?.state==='complete'&&day.observedDecisionCount===0&&(!state.sittingId||day.sittingId===state.sittingId))) ? (state.sittingId ? ui.t("membervotes.tsx.no.votes.were.recorded.at.this.sitting") : ui.t("membervotes.tsx.no.votes.were.recorded.in.this.week")) : ((data.pagination.filteredTotal>0) ? ui.t("membervotes.tsx.no.matching.voting.records.on.this.page") : ((state.alignment!=='all') ? ((data.coverage.status==='partial') ? (state.sittingId ? ui.t("membervotes.tsx.no.matching.recorded.votes.among.the.available.records.for.this.s") : ui.t("membervotes.tsx.no.matching.recorded.votes.among.the.available.records.for.this.w")) : (`No recorded ${(state.alignment==='abstained') ? 'abstentions' : (`votes ${state.alignment} Parliament’s outcome`)} ${state.sittingId ? 'on this sitting day' : 'in this week'}.`)) : ((state.positions==='recorded') ? ui.t("membervotes.tsx.no.recorded.positions.in.this.period.choose.all.decisions.to.see.") : ui.t("membervotes.tsx.no.decisions.are.available.for.this.period"))))}</p>}
+        {!groups.length&&data.coverage.status!=='unavailable'&&<p className="member-votes-empty">{((((data.coverage.status==='complete') && (data.pagination.observedTotal===0)) && Array.isArray(data.coverage.sittings)) && data.coverage.sittings.some(day=>day?.state==='complete'&&day.observedDecisionCount===0&&(!state.sittingId||day.sittingId===state.sittingId))) ? (state.sittingId ? ui.t("membervotes.tsx.no.votes.were.recorded.at.this.sitting") : ui.t("membervotes.tsx.no.votes.were.recorded.in.this.week")) : ((data.pagination.filteredTotal>0) ? ui.t("membervotes.tsx.no.matching.voting.records.on.this.page") : ((state.alignment!=='all') ? ((data.coverage.status==='partial') ? (state.sittingId ? ui.t("membervotes.tsx.no.matching.recorded.votes.among.the.available.records.for.this.s") : ui.t("membervotes.tsx.no.matching.recorded.votes.among.the.available.records.for.this.w")) : (ui.t(state.alignment==='abstained' ? (state.sittingId?'membervotes.tsx.no.recorded.abstentions.on.this.sitting.day':'membervotes.tsx.no.recorded.abstentions.in.this.week') : state.alignment==='with' ? (state.sittingId?'membervotes.tsx.no.recorded.votes.with.parliament.s.outcome.on.this.sitting.day':'membervotes.tsx.no.recorded.votes.with.parliament.s.outcome.in.this.week') : (state.sittingId?'membervotes.tsx.no.recorded.votes.against.parliament.s.outcome.on.this.sitting.da':'membervotes.tsx.no.recorded.votes.against.parliament.s.outcome.in.this.week')))) : ((state.positions==='recorded') ? ui.t("membervotes.tsx.no.recorded.positions.in.this.period.choose.all.decisions.to.see.") : ui.t("membervotes.tsx.no.decisions.are.available.for.this.period"))))}</p>}
         {(state.offset>0||data.pagination.nextOffset!==null)&&<nav className="member-votes-pages" aria-label={ui.t("membervotes.tsx.voting.records.pages")}><button type="button" disabled={state.offset===0} onClick={()=>{listScroll.current=0;change({offset:Math.max(0,state.offset-MEMBER_VOTES_PAGE_SIZE)});}}><UiMessage id="membervotes.tsx.previous.page"/></button><button type="button" disabled={data.pagination.nextOffset===null} onClick={()=>{listScroll.current=0;change({offset:data.pagination.nextOffset??state.offset});}}><UiMessage id="membervotes.tsx.next.page"/></button></nav>}
         </>}
       </div>

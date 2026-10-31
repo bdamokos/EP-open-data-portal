@@ -3,7 +3,7 @@ import {voteMethodLabel} from './voteMethod.mjs';
 import {useEffect,useState,type ReactNode} from 'react';
 import {useData} from './data';
 import type {MemberVotesResponse,MemberVote} from './MemberVotesTypes';
-import {memberVotesRoute,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {memberVotesRoute,validateMemberVotesResponse} from './memberVotesPresentation.mjs';
 import {memberVotesJourneyParams} from './memberVotesJourney.mjs';
 import {Position,Result} from './MemberVoteSummary';
 import {selectLanguageText} from './language.mjs';
@@ -51,7 +51,6 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
     href=url.href;
   }
   if(!route)return <>{children}</>;
-  const record=vote ? votingRecordUrl(vote) : null;
   const method=(vote?.ballotStatus==='not-conducted') ? ui.t("activityvote.not_put_to_a_vote") : (vote ? voteMethodLabel(vote.method, ui) : null);
   if(context)return <div className="activity-vote">{vote ? <><p className="member-votes-eyebrow">{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</p>
       {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p><UiMessage id="activityvote.vote_records_disagree"/></p><div aria-label={ui.t("activityvote.saved_activity_result")}>{children}</div></div>}
@@ -76,6 +75,6 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
     </> : children}
     {response.loading&&!vote&&<p className="activity-vote__meta" role="status"><UiMessage id="activityvote.loading_member_s_vote"/></p>}
     {!response.loading&&!vote&&<p className="activity-vote__meta">{(response.error||response.data&&!data||data?.coverage.status!=='complete'||data?.selected.status==='unavailable') ? ui.t("activityvote.additional_vote_details_could_not_be_loaded") : ui.t("activityvote.no_additional_details_were_found_for_this_decision")} <button type="button" onClick={response.retry}><UiMessage id="activityvote.retry_vote_details"/></button></p>}
-    <div className="activity-vote__links">{href&&<a href={href}><UiMessage id="activityvote.view_vote_details"/></a>}{record&&<a href={record} target="_blank" rel="noreferrer"><UiMessage id="activityvote.parliament_s_voting_record"/></a>}</div>
+    <div className="activity-vote__links">{href&&<a href={href}><UiMessage id="activityvote.view_vote_details"/></a>}</div>
   </div>;
 }

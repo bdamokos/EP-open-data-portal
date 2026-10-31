@@ -3,7 +3,7 @@ import {availabilitySummary,type SourceAvailability} from '../server/source-avai
 import './AvailabilityNote.css';
 
 const date=(value:string,language:string)=>new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(value.slice(0,10)+'T12:00Z'));
-export function PartialValue({partial}:{partial?:boolean}) {return partial ? <small className="availability-partial"><UiMessage id="availabilitynote.partial"/></small> : null;}
+export function PartialValue({partial}:{partial?:boolean}) {const ui=useUiI18n();return partial ? <small className="availability-partial" lang={ui.language}><UiMessage id="availabilitynote.partial"/></small> : null;}
 type AvailabilityKind='record'|'event'|'question'|'speech'|'speech.record'|'text'|'vote';
 export function AvailabilityNote({sources,label='record',kind,language='en',end,partial=false}:{sources?:SourceAvailability|SourceAvailability[]|null;label?:string;kind?:AvailabilityKind;language?:string;end?:string|null;partial?:boolean}) {
   const ui=useUiI18n();

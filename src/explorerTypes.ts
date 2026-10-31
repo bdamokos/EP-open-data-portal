@@ -1,3 +1,4 @@
+import type {DocumentImageAssets,DocumentImageReference} from './DocumentImage';
 import type {SourceAvailability} from '../server/source-availability.mjs';
 import type {DocumentTable,ParagraphFormat} from './DocumentFormatting';
 import type { MemberSummary } from "./types";
@@ -160,7 +161,7 @@ export interface ActivityPage {
 }
 export interface DocumentFile { url: string; language: string | null; format: string; byteSize?: number | null }
 export interface CoAuthor { id:number; name:string|null; personUri:string; profileAvailable:boolean; role:'AUTHOR'|'QUESTION_AUTHOR'; sourceDocumentId:string; relationships:string[] }
-export interface DocumentNote { id: string; label: string; text: string; links: string[]; linkSpans?: { start: number; end: number; url: string }[] }
+export interface DocumentNote { objects?:Array<{offset:number;replacement:string;kind:string;image?:DocumentImageReference}>; id: string; label: string; text: string; links: string[]; linkSpans?: { start: number; end: number; url: string }[] }
 export interface DocumentLink { paragraph: number; start: number; end: number; url: string }
 export interface NoteAnchor { paragraph: number; offset: number; note: string; label: string }
 export interface DocumentParagraphSource {
@@ -172,6 +173,7 @@ export interface DocumentParagraphSource {
   complete: boolean;
 }
 export interface DocumentObject {
+  image?:DocumentImageReference;
   paragraph: number;
   offset: number;
   path: string;
@@ -222,6 +224,8 @@ export interface PublicationDocument {
     structureStatus?: 'extracted' | 'not-extracted';
     paragraphSources?: DocumentParagraphSource[];
     documentObjects?: DocumentObject[];
+    imageAssets?:DocumentImageAssets;
+    sourceHash?:string|null;
     formatStatus?: 'extracted' | 'not-extracted';
     paragraphFormats?: ParagraphFormat[];
     tables?: DocumentTable[];

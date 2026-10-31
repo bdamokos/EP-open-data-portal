@@ -20,6 +20,10 @@ interface Comparison {
 const names:Record<Stage,[string,string]>={'original-joint':['Original','Joint'],'original-adopted':['Original','Adopted'],'joint-adopted':['Joint','Adopted']};
 export const namesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof names => ({'original-joint':[ui.t("speechplayer.original.c0a806"),ui.t("MotionComparison.joint")],'original-adopted':[ui.t("speechplayer.original.c0a806"),ui.t("membervotespresentation.adopted")],'joint-adopted':[ui.t("MotionComparison.joint"),ui.t("membervotespresentation.adopted")]});
 
+export const contextNamesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi):Record<'original'|'joint'|'adopted',string> => ui.language==='ro'
+  ? {original:ui.t('MotionComparison.contextStage.original'),joint:ui.t('MotionComparison.contextStage.joint'),adopted:ui.t('MotionComparison.contextStage.adopted')}
+  : {original:namesUi(ui)['original-joint'][0].toLowerCase(),joint:namesUi(ui)['original-joint'][1].toLowerCase(),adopted:namesUi(ui)['original-adopted'][1].toLowerCase()};
+
 const documentNames:Record<Stage,[string,string]>={'original-joint':['Original motion','Joint motion'],'original-adopted':['Original motion','Adopted text'],'joint-adopted':['Joint motion','Adopted text']};
 export const documentNamesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof documentNames => ({'original-joint':[ui.t("MotionComparison.original_motion"),ui.t("batch6.documentcontextreader.joint.motion.40")],'original-adopted':[ui.t("MotionComparison.original_motion"),ui.t("batch6.documentcontextreader.adopted.text.40")],'joint-adopted':[ui.t("batch6.documentcontextreader.joint.motion.40"),ui.t("batch6.documentcontextreader.adopted.text.40")]});
 
@@ -29,12 +33,12 @@ function Wording({segments,side}:{segments:Segment[];side?:'before'|'after'}) {
   return <>{segments.filter(part=>!side||part.type!==((side==='before') ? 'added' : 'removed')).map((part,i)=>(part.type==='removed') ? <del key={i}><UiAnnotatedMessage id="MotionComparison.removedWording" values={{text:<span>{part.text}</span>}} srClassName="explorer-diff-sr"/></del> : ((part.type==='added') ? <ins key={i}><UiAnnotatedMessage id="MotionComparison.addedWording" values={{text:<span>{part.text}</span>}} srClassName="explorer-diff-sr"/></ins> : <span key={i}>{part.text}</span>))}</>;
 }
 
-const changeLabel=(row:Row,labels:[string,string], ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>(row.kind==='changed') ? ui.t("MotionComparison.wording_changed") : ((row.kind==='removed') ? ui.t("MotionComparison.onlyIn", {stage: String(labels[0].toLowerCase())}) : ((row.kind==='added') ? ui.t("MotionComparison.onlyIn", {stage: String(labels[1].toLowerCase())}) : (row.referenceChanged ? ui.t("MotionComparison.same_wording_different_reference") : ui.t("finalTextCheck.same_wording"))));
+const changeLabel=(row:Row,labels:[string,string], ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>(row.kind==='changed') ? ui.t("MotionComparison.wording_changed") : ((row.kind==='removed') ? ui.t("MotionComparison.onlyIn", {stage: String(labels[0])}) : ((row.kind==='added') ? ui.t("MotionComparison.onlyIn", {stage: String(labels[1])}) : (row.referenceChanged ? ui.t("MotionComparison.same_wording_different_reference") : ui.t("finalTextCheck.same_wording"))));
 function InlinePassage({row,labels}:{row:Row;labels:[string,string]}) {
   const ui = useUiI18n();
   const block=row.after || row.before!;
   return <div className="explorer-diff-passage explorer-diff-inline-passage">
-    <p className="explorer-diff-reference" lang={ui.language}>{reference(block, ui)}{(row.referenceChanged && row.before) ? (` · was ${reference(row.before, ui)}`) : ''}<span className="explorer-diff-change-label">{changeLabel(row,labels, ui)}</span></p>
+    <p className="explorer-diff-reference" lang={ui.language}>{row.referenceChanged && row.before ? ui.t('MotionComparison.referenceChanged',{reference:reference(block,ui),previousReference:reference(row.before,ui)}) : reference(block,ui)}<span className="explorer-diff-change-label">{changeLabel(row,labels, ui)}</span></p>
     <p className="explorer-diff-wording"><Wording segments={row.segments}/></p>
   </div>;
 }
@@ -56,6 +60,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const [attempt,setAttempt]=useState(0);
   const state=useData<Comparison>(`motion-comparison/${encodeURIComponent(originalId)}?joint=${encodeURIComponent(jointId)}&stage=${stage}&lang=${selectedLanguage}`);
   const data=state.data,labels=namesUi(ui)[stage],summary=data?.summary;
+  const context=contextNamesUi(ui),contextLabels:[string,string]=stage==='original-joint'?[context.original,context.joint]:stage==='original-adopted'?[context.original,context.adopted]:[context.joint,context.adopted];
   const languageScope=JSON.stringify([originalId,jointId,stage]);
   const languageCatalog=useRef<{scope:string;values:string[];shown:boolean}|null>(null);
   const previousLanguages=(languageCatalog.current?.scope===languageScope) ? languageCatalog.current : null;
@@ -70,8 +75,8 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
   const fullNames=documentNamesUi(ui)[stage],readIndex=(readSide==='before') ? 0 : 1;
   const noDifferences=summary&&summary.changed===0&&summary.added===0&&summary.removed===0&&summary.referenceChanged===0;
 
-  const comparisonName=ui.t("MotionComparison.name", {fromStage: String(labels[0]), toStage: String(labels[1].toLowerCase())});
-  const status=state.error ? (data ? ui.t("MotionComparison.refreshFailed", {comparisonName: String(comparisonName)}) : ui.t("MotionComparison.loadFailed", {comparisonName: String(comparisonName)})) : (data ? ((data.status==='unavailable') ? ui.t("MotionComparison.unavailable", {comparisonName: String(comparisonName)}) : ui.t("MotionComparison.available", {comparisonName: String(comparisonName), languageStatus: String(data.textLanguage ? ui.t("MotionComparison.textLanguage", {language: String(data.textLanguage.toUpperCase())}) : ''), countStatus: String(summary ? ui.t("MotionComparison.statusCounts", {changed: String(summary.changed), removed: String(summary.removed), fromStage: String(labels[0].toLowerCase()), added: String(summary.added), toStage: String(labels[1].toLowerCase())}) : ui.t("MotionComparison.countsUnavailable"))})) : null);
+  const comparisonName=ui.t("MotionComparison.name", {fromStage: ui.language==='ro'?contextLabels[0]:labels[0], toStage: contextLabels[1]});
+  const status=state.error ? (data ? ui.t("MotionComparison.refreshFailed", {comparisonName: String(comparisonName)}) : ui.t("MotionComparison.loadFailed", {comparisonName: String(comparisonName)})) : (data ? ((data.status==='unavailable') ? ui.t("MotionComparison.unavailable", {comparisonName: String(comparisonName)}) : ui.t("MotionComparison.available", {comparisonName: String(comparisonName), languageStatus: String(data.textLanguage ? ui.t("MotionComparison.textLanguage", {language: String(data.textLanguage.toUpperCase())}) : ''), countStatus: String(summary ? ui.t("MotionComparison.statusCounts", {changed: String(summary.changed), removed: String(summary.removed), fromStage: contextLabels[0], added: String(summary.added), toStage: contextLabels[1]}) : ui.t("MotionComparison.countsUnavailable"))})) : null);
   const retry=()=>{setAttempt(value=>value+1);state.retry();};
   return <section className="explorer-motion-comparison" lang={ui.language} aria-label={ui.t("MotionComparison.motion_wording_comparison")}>
     <h4><UiMessage id="finalTextCheck.compare_wording"/></h4>
@@ -89,7 +94,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
         <TextLanguageFallback requested={selectedLanguage} actual={data.textLanguage} interfaceLanguage={language} comparison/>
         {data.documents.length===2&&<div className="explorer-diff-documents">{data.documents.map((doc,i)=><div key={doc.id}><strong><>{labels[i]} · {doc.reference}</></strong>{doc.date&&<span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(doc.date))}</span>}{doc.sourceUrl&&<a href={doc.sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="MotionComparison.sourceDocx" values={{language: doc.language?.toUpperCase()}}/></a>}</div>)}</div>}
         {(data.status==='unavailable') ? <p className="explorer-diff-notice">{data.reason} <button type="button" onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p> : <>
-          <p className="explorer-diff-summary"><UiMessage id="MotionComparison.summary" values={{changed: (summary?.changed ?? '—'), removed: (summary?.removed ?? '—'), fromStage: labels[0].toLowerCase(), added: (summary?.added ?? '—'), toStage: labels[1].toLowerCase()}}/></p>
+          <p className="explorer-diff-summary"><UiMessage id="MotionComparison.summary" values={{changed: (summary?.changed ?? '—'), removed: (summary?.removed ?? '—'), fromStage: contextLabels[0], added: (summary?.added ?? '—'), toStage: contextLabels[1]}}/></p>
           <div className="explorer-diff-views" role="group" aria-label={ui.t("MotionComparison.reading_view")}>{([['inline',ui.t("MotionComparison.inline_changes")],['text',ui.t("MotionComparison.full_text")],['columns',ui.t("WordingDiff.side_by_side")]] as const).map(([value,label])=><button key={value} type="button" aria-pressed={view===value} onClick={()=>setView(value)}>{label}</button>)}</div>
           {(view==='text') ? <>
             <label className="explorer-diff-read-control"><UiMessage id="MotionComparison.read"/><select value={readSide} onChange={e=>setReadSide(e.target.value as 'before'|'after')}><option value="before">{fullNames[0]}</option><option value="after">{fullNames[1]}</option></select></label>
@@ -104,7 +109,7 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
             {noDifferences&&<p><UiMessage id="MotionComparison.no_wording_differences"/></p>}
             {!rows.length&&!noDifferences&&<p>{summary ? <UiMessage id="MotionComparison.nothing_to_compare"/> : <UiMessage id="MotionComparison.comparison_unavailable"/>}</p>}
             <div className="explorer-diff-rows" data-view={view} lang={data.textLanguage || ''}>{rows.map((row,i)=><article key={i} className="explorer-diff-row" data-kind={row.kind}>
-              {(view==='inline') ? <InlinePassage row={row} labels={labels}/> : <><p className="explorer-diff-row-label" lang={ui.language}>{changeLabel(row,labels, ui)}</p><div className="explorer-diff-columns"><Passage row={row} side="before" name={labels[0]}/><Passage row={row} side="after" name={labels[1]}/></div></>}
+              {(view==='inline') ? <InlinePassage row={row} labels={contextLabels}/> : <><p className="explorer-diff-row-label" lang={ui.language}>{changeLabel(row,contextLabels, ui)}</p><div className="explorer-diff-columns"><Passage row={row} side="before" name={labels[0]}/><Passage row={row} side="after" name={labels[1]}/></div></>}
             </article>)}</div>
           </>}
         </>}

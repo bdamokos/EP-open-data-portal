@@ -1,5 +1,6 @@
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
+import {DocumentImage} from './DocumentImage';
 import {mapWordingFormatting} from './contextAnnotations.mjs';
 import {useId,useRef,type ReactNode} from 'react';
 import type {DocumentContextResponse} from './DocumentContextTypes';
@@ -66,6 +67,7 @@ export const proposalPlacementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatte
 type Placement=NonNullable<DocumentContextResponse['placement']>;
 type Variant=NonNullable<DocumentContextResponse['amendment']>['variants'][number];
 function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:ProposalDocument;itemIndex:number;placement:Placement|null|undefined;block:(inPlace:boolean,proposal?:ProposalDocument)=>ReactNode;prefix:string}) {
+  const ui=useUiI18n();
   const anchors=proposal.anchors as NoteAnchor[],links=proposal.links as DocumentLink[],active=placement?.status==='placed'&&placement.itemIndex===itemIndex;
   function sourceSlice(index:number,start=0,end=proposal.paragraphs[index].text.length) {
     const paragraph=proposal.paragraphs[index],text=paragraph.text;
@@ -74,7 +76,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     const objects=paragraph.objects.filter(o=>o.offset>=start&&o.offset<end&&text[o.offset]==='\uFFFC').sort((a,b)=>a.offset-b.offset);
     const nodes:ReactNode[]=[];let from=start;
     const textPart=(a:number,b:number)=><ReferenceText key={'t'+a} text={text.slice(a,b)} start={a} anchors={selectedAnchors.filter(n=>n.offset>a&&n.offset<=b||a===0&&n.offset===0)} links={selectedLinks.map(l=>({...l,start:Math.max(a,l.start),end:Math.min(b,l.end)})).filter(l=>l.end>l.start)} final={b===end} notePrefix={prefix}/>;
-    for(const object of objects){nodes.push(textPart(from,object.offset));nodes.push((object.kind==='math') ? <ProposalMath key={'o'+object.offset} object={object} linkUrl={selectedLinks.find(link=>link.start<=object.offset&&link.end>=object.offset+1)?.url}/> : <span className="document-context-object" key={'o'+object.offset}><UiMessage id="proposalcontexttext.content.in.original"/>{safeHref(object.sourceUrl)&&<> <a href={safeHref(object.sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.view.original"/></a></>}</span>);from=object.offset+1;const after=selectedAnchors.filter(a=>a.offset===from);if(after.length)nodes.push(<ReferenceText key={'n'+from} text="" start={from} anchors={after} links={[]} final notePrefix={prefix}/>);}
+    for(const object of objects){nodes.push(textPart(from,object.offset));nodes.push(object.image?<DocumentImage key={'o'+object.offset} image={object.image} assets={proposal.imageAssets}/>: (object.kind==='math') ? <ProposalMath key={'o'+object.offset} object={object} linkUrl={selectedLinks.find(link=>link.start<=object.offset&&link.end>=object.offset+1)?.url}/> : <span className="document-context-object" lang={ui.language} key={'o'+object.offset}><UiMessage id="proposalcontexttext.content.in.original"/>{safeHref(object.sourceUrl)&&<> <a href={safeHref(object.sourceUrl)!} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.view.original"/></a></>}</span>);from=object.offset+1;const after=selectedAnchors.filter(a=>a.offset===from);if(after.length)nodes.push(<ReferenceText key={'n'+from} text="" start={from} anchors={after} links={[]} final notePrefix={prefix}/>);}
     nodes.push(textPart(from,end));return nodes;
   }
   const topTables=units(proposal.units).filter(u=>u.kind==='table'&&u.table).map(u=>u.table!);
@@ -131,7 +133,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
     const table=topTables.find(t=>t.paragraphs[0]===index);
     const empty=topTables.filter(t=>!t.paragraphs.length&&t.anchor===index).map(tableNode);
     return [...empty,...(table ? ([tableNode(table)]) : (tableParagraphs.has(index) ? ([]) : row(p.index)))];
-  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes notes={proposal.notes} prefix={prefix}/></>;
+  })}{topTables.filter(t=>!t.paragraphs.length&&t.anchor===proposal.paragraphs.length).map(tableNode)}<ProposalNotes assets={proposal.imageAssets} notes={proposal.notes} prefix={prefix}/></>;
 }
 
 export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string}) {
@@ -185,12 +187,12 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
     {baseline.items.some(item=>item.source.stale||item.source.refreshError)&&<p className="document-context-notice">{existing ? ui.t("proposalcontexttext.saved.text") : (baseline.items.some(item=>item.source.refreshError) ? ui.t("proposalcontexttext.couldn.t.update.the.proposal.showing.saved.text") : ui.t("proposalcontexttext.showing.saved.proposal.text"))}</p>}
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];
-      return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading">{((item.kind==='act') && existing) ? ui.t("proposalcontexttext.existing.act") : ((((item.kind==='act') && (!existing)) && council) ? ui.t("proposalcontexttext.council.position") : ((((item.kind==='act') && (!existing)) && (!council)) ? ui.t("proposalcontexttext.proposal") : ui.t("proposalcontexttext.annexes")))}{(item.index>1) ? (' · part '+item.index) : ''}</h4>
+      return <section key={index} data-proposal-item={item.kind+'-'+item.index}><h4 className="proposal-item-heading">{ui.t('proposalcontexttext.'+(item.kind==='act' ? existing?'existing.act':council?'council.position':'proposal' : 'annexes')+(item.index>1?'.part.index':''),{index:item.index})}</h4>
         {p.gaps.length>0&&<p className="document-context-notice">{p.gaps.some(gap=>gap.code==='excerpted-source') ? ui.t("proposalcontexttext.excerpt") : ((p.contentComplete===false) ? ui.t("proposalcontexttext.some.content.unavailable") : ui.t("proposalcontexttext.some.content.could.not.be.read"))}</p>}
         <ReferenceScope texts={readerTexts(p.paragraphs.map(p=>p.text),notes,links)} notes={notes} notePrefix={prefix+'-'+index} language={language} textLanguage={baseline.language} renderQuestion={question=><InsightQuestionReader id={question} language={language} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers/>}>
           <ItemText proposal={p} itemIndex={index} placement={effective} block={amendmentBlock} prefix={prefix+'-'+index}/>
         </ReferenceScope>
-        {showOriginalLink&&safeHref((council||existing) ? official : baseline.items[index]?.source.url)&&<p className="document-context-source"><a href={safeHref((council||existing) ? official : baseline.items[index].source.url)!} target="_blank" rel="noreferrer"><>{(existing ? 'Open existing act' : (council ? 'Open Council position' : ('Open original '+((item.kind==='act') ? 'proposal' : 'annex')+' DOCX')))} ↗</></a></p>}
+        {showOriginalLink&&safeHref((council||existing) ? official : baseline.items[index]?.source.url)&&<p className="document-context-source"><a href={safeHref((council||existing) ? official : baseline.items[index].source.url)!} target="_blank" rel="noreferrer">{ui.t(existing?'proposalcontexttext.open.existing.act':council?'proposalcontexttext.open.council.position':item.kind==='act'?'proposalcontexttext.open.original.proposal.docx':'proposalcontexttext.open.original.annex.docx')}</a></p>}
       </section>;
     })}</div>
     <p className="document-context-source">{baseline.attribution}</p>
