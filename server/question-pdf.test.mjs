@@ -23,9 +23,9 @@ const work=()=>{
 };
 const fixture=t=>{const directory=mkdtempSync(path.join(tmpdir(),'question-pdf-'));t.after(()=>rmSync(directory,{recursive:true,force:true}));return directory;};
 const pdf=(stream='BT /F1 12 Tf 50 750 Td (An official answer.) Tj ET')=>{
- const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`];
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 4 0 R /F2 6 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'];
  let body='%PDF-1.4\n',offsets=[0];for(const [index,object] of objects.entries()){offsets.push(Buffer.byteLength(body));body+=`${index+1} 0 obj\n${object}\nendobj\n`;}
- const xref=Buffer.byteLength(body);body+=`xref\n0 6\n0000000000 65535 f \n`+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+ const count=objects.length+1,xref=Buffer.byteLength(body);body+=`xref\n0 ${count}\n0000000000 65535 f \n`+offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
  return Buffer.from(body);
 };
 
@@ -37,6 +37,16 @@ test('PDF extraction uses bounded actual PDF text and rejects invalid or empty f
  await assert.rejects(extractPdfText(Buffer.from('html')),/Invalid/);
  const controller=new AbortController();controller.abort(Error('cancelled'));
  await assert.rejects(extractPdfText(buffer,{signal:controller.signal}),/cancelled/);
+});
+
+test('PDF extraction preserves searchable words across font runs and keeps declared or geometric word spaces',async t=>{
+ const adjacent=await extractPdfText(pdf('BT /F1 12 Tf 50 750 Td (Parlia) Tj /F2 12 Tf (ment) Tj /F1 12 Tf ( policy) Tj ET'));
+ assert.deepEqual(adjacent.paragraphs,['Parliament policy']);
+ const gap=await extractPdfText(pdf('BT /F1 12 Tf 50 750 Td (One) Tj 1 0 0 1 90 750 Tm (two) Tj ET'));
+ assert.deepEqual(gap.paragraphs,['One two']);
+ const {store}=corpusFixture(t);
+ store.putDocument({sourceId:'E-10-2026-700001-ASW',kind:'answer'},[{sourceKey:'en',language:'en',translationType:'original',sourceFormat:'pdf',sourceUrl:'https://data.europarl.europa.eu/distribution/fixture/split.pdf',fetchedAt:new Date(now()).toISOString(),body:adjacent.paragraphs.join('\n'),raw:null}]);
+ assert.equal(store.search({query:'Parliament'}).total,1);
 });
 
 test('only a unique API-declared same-language question PDF is eligible',()=>{
@@ -275,11 +285,13 @@ test('a shared PDF URL keeps the selected language edition and refreshes only th
  const unchanged=await documentText(item,'de',options);assert.equal(unchanged.stale,false);assert.equal(unchanged.refreshInProgress,false);assert.equal(unchanged.sourceVersion.byteSize,36595);assert.equal(downloads,2);
 });
 
-test('PDF caches from before manifestation-bound descriptors are not reused',async t=>{
+test('earlier PDF extraction caches are not reused',async t=>{
+ for(const extractionVersion of [2,3]) {
  const directory=fixture(t),item=work(),file=questionPdf(item,'en'),key=JSON.stringify(['pdf',item.identifier,'en',file.url]);
  const folder=path.join(directory,'document-text-v1');mkdirSync(folder);
- const record={schemaVersion:1,extractionVersion:2,sourceId:item.identifier,sourceUrl:file.url,sourceFormat:'PDF',sourceLanguage:'en',source:{byteSize:100,issued:'2026-01-01T00:00:00Z'},fetchedAt:new Date(now()).toISOString(),paragraphs:['Old text with an unverified manifestation descriptor']};
+ const record={schemaVersion:1,extractionVersion,sourceId:item.identifier,sourceUrl:file.url,sourceFormat:'PDF',sourceLanguage:'en',source:{byteSize:file.byteSize,issued:file.issued},fetchedAt:new Date(now()).toISOString(),paragraphs:['Old PDF text']};
  writeFileSync(path.join(folder,createHash('sha256').update(key).digest('hex')+'.json'),JSON.stringify(record));
  let downloads=0;const result=await documentText(item,'en',{directory,clock:now,cacheOnly:true,downloadPdf:async()=>{downloads++;return {paragraphs:['Unexpected download']};}});
  assert.equal(result.status,'unavailable');assert.deepEqual(result.paragraphs,[]);assert.equal(downloads,0);
+ }
 });

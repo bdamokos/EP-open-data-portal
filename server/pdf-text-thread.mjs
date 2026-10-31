@@ -44,7 +44,7 @@ if(!isMainThread&&workerData?.type==='question-pdf-text') {
         if(typeof item.str!=='string')continue;
         if(item.str.trim()&&!position)position={x:item.transform?.[4],y:item.transform?.[5],height:item.height};
         if(Buffer.byteLength(item.str)>PDF_TEXT_LIMITS.textBytes)throw new Error('PDF text exceeds the extraction limit.');
-        line+=item.str+' ';if(item.hasEOL)flush();
+        line+=item.str;if(item.hasEOL)flush();
         if(Buffer.byteLength(line)>PDF_TEXT_LIMITS.textBytes)throw new Error('PDF text exceeds the extraction limit.');
       }
       flush();let paragraph='',previous;

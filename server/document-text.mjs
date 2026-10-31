@@ -25,7 +25,7 @@ import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
 import {questionPdf,downloadQuestionPdf} from './question-pdf.mjs';
 import {invalidDocx,pdfFallbackEligible} from './document-file-failure.mjs';
 import {documentFileEdition} from './document-file-edition.mjs';
-export const DOCUMENT_TEXT_VERSION=6;
+export const DOCUMENT_TEXT_VERSION=7;
 const failureEvidence=Symbol('document failure');
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
@@ -391,7 +391,7 @@ export function documentNotes(record) {
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
 async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false,format='DOCX',selectedFile=null}={}) {
-  const extractionVersion=format==='PDF'?3:EXTRACTION_VERSION;
+  const extractionVersion=format==='PDF'?4:EXTRACTION_VERSION;
   requestSignal()?.throwIfAborted();
   const files=selectedFile?[selectedFile]:documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
