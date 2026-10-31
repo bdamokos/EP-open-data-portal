@@ -5,6 +5,7 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {QuestionInsights,insightQuery} from './insights-store.mjs';
 import {createInsights} from './insights.mjs';
 import {documentRows} from './activity-index-model.mjs';
+import {ActivityWorker} from './activity-index-worker.mjs';
 
 const now=()=>Date.parse('2026-10-31T10:00:00Z');
 function fixture(t){
@@ -112,6 +113,25 @@ test('first publication cannot mark earlier mutable question inputs complete',as
   assert.equal(first.coverage.indexComplete,false);assert.equal(first.counts.totalQuestions,null);assert.equal(first.counts.analyzedQuestions,1);
   const next=await reader.query(query);
   assert.equal(next.coverage.indexComplete,true);assert.equal(next.counts.totalQuestions,2);assert.equal(next.counts.analyzedQuestions,2);
+});
+
+for(const assembled of [false,true])test('in-flight roster completion preserves captured member provenance and fresh gaps: assembled='+assembled,async t=>{
+  const {store,generation,options}=fixture(t);store.publish(generation);const working=store.beginCycle().generation;
+  let entered,release,once=true;const started=new Promise(resolve=>entered=resolve),pending=new Promise(resolve=>release=resolve);
+  const settings={...options,loadMetadata:async()=>{if(once){once=false;entered();await pending;}return new Map();}};
+  const reader=assembled?createInsights(store,settings):new QuestionInsights(store,settings);
+  const read=()=>assembled?reader.query('questions',new URLSearchParams('days=90')):reader.query(insightQuery(new URLSearchParams('days=90'),{now:now()}));
+  const originalRoster=store.get('rosterFetchedAt'),first=read();await started;store.clock=()=>now()+1000;
+  const worker=new ActivityWorker(store,{clock:store.clock,fetchRecord:async()=>({payload:{data:[]},fetchedAt:new Date(store.clock()).toISOString()})});
+  store.enqueue(working,'roster','roster',{offset:1,nodes:[{id:'99',name:'Replacement member'}]},110);
+  await worker.task(store.nextTask(working));
+  const nextRoster=store.get('rosterFetchedAt');assert.notEqual(nextRoster,originalRoster);
+  store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,'feed:/parliamentary-questions','feed',?)").run(generation,JSON.stringify({endpoint:'/parliamentary-questions',start:'2026-10-15',end:'2026-10-20'}));
+  store.set('availabilityRevision',(store.get('availabilityRevision')||0)+1);release();
+  const result=await first;assert.equal(result.selectedStats.uniqueCurrentMeps,1);assert.equal(result.coverage.rosterFetchedAt,originalRoster);
+  assert.equal(result.coverage.indexComplete,false);
+  assert(result.availability.every(source=>source.gaps.some(gap=>gap.sourceId==='feed:/parliamentary-questions')));
+  const next=await read();assert.equal(next.selectedStats.uniqueCurrentMeps,0);assert.equal(next.coverage.rosterFetchedAt,nextRoster);
 });
 
 test('a publication during async preparation keeps the original source and availability together',async t=>{
