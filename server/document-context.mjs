@@ -1,3 +1,4 @@
+import {isDeepStrictEqual} from 'node:util';
 import {publishDocumentImages} from './document-image-store.mjs';
 import {committeeAmendmentReference,committeeListId,committeeDraftId,committeeDocumentEndpoint,COMMITTEE_DOCUMENT_TYPES,validCommitteeWork} from './committee-amendments.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
@@ -282,8 +283,19 @@ export class DocumentContext {
         if(declared.length!==1||files.length!==1)return unavailable('native-reference-list-declaration');
         selected={list,metadataSource,file:files[0],...await this.readList(list,files[0],query.id)};sources.push(selected.source);
       }
-      const hash=chosen.source?.contentHash||chosen.source?.sha256;
-      if(!hash||hash!==selected.source.contentHash||chosen.source?.contentHashConflict||chosen.source?.url!==selected.source.url||['byteSize','issued'].some(key=>chosen.source?.sourceVersion?.[key]!==selected.source.sourceVersion[key]))return unavailable('native-reference-list-version-conflict');
+      const hashes=[chosen.source?.contentHash,chosen.source?.sha256].filter(hash=>hash!=null);
+      if(!hashes.length||hashes.some(hash=>hash!==selected.source.contentHash)||chosen.source?.contentHashConflict||chosen.source?.url!==selected.source.url||chosen.source?.language!==chosen.language||['byteSize','issued'].some(key=>chosen.source?.sourceVersion?.[key]!==selected.source.sourceVersion[key]))return unavailable('native-reference-list-version-conflict');
+      const identity=amendmentReference('eli/dl/doc/'+query.amendmentId),rows=array(selected.extraction?.amendments).filter(row=>row.number===identity?.number);
+      if(identity?.targetDocumentId!==query.id||rows.length!==1)return unavailable('native-reference-selected-amendment-unavailable');
+      const row=rows[0];
+      if(amendmentTextLosses(selected.extraction,row).length||['originalText','proposedText'].some(field=>typeof row[field]!=='string'||row[field]!==chosen[field]))return unavailable('native-reference-selected-wording-conflict');
+      // Retrieval dates can differ for the same verified bytes; the complete
+      // baseline/target meaning and their supplied source URLs must still agree.
+      const meaning=value=>{if(!value)return null;const {sourceUrl,fetchedAt,...fields}=value;return fields;};
+      const sourceUrls=[selected.source.url,selected.source.resolvedSourceUrl].filter(Boolean);
+      if(chosen.targetLabelLanguage!==chosen.language||chosen.targetLabel!==row.targetLabel||chosen.baseline!==(row.baseline??'unknown')||
+        !isDeepStrictEqual(chosen.documentReferences??[],row.documentReferences??[])||
+        ['baselineSource','targetPath'].some(field=>chosen[field]?.sourceUrl&&!sourceUrls.includes(chosen[field].sourceUrl)||!isDeepStrictEqual(meaning(chosen[field]),meaning(row[field]))))return unavailable('native-reference-selected-target-conflict');
       const declared=declaredDocxFiles(report).filter(f=>f.language===chosen.language),files=documentFiles(report).filter(f=>f.format==='DOCX'&&f.language===chosen.language&&allowedDownload(f.url));
       if(declared.length!==1||files.length!==1)return unavailable('native-reference-report-declaration');
       const nativeReport=await this.readList(report,files[0],query.id);sources.push(nativeReport.source);

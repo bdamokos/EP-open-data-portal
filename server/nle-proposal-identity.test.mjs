@@ -1,3 +1,4 @@
+import {DocumentContext} from './document-context.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -107,4 +108,37 @@ test('the live DocumentContext caller binds downloaded report and selected list 
   assert.equal(result.baseline.status,'partial',JSON.stringify(result));assert.equal(result.placement.status,'placed',JSON.stringify(result.placement));assert.equal(discoveries,1);assert.deepEqual(downloads,[url(lid),url(rid)]);
   assert.equal(result.baseline.evidence.find(e=>e.kind==='native-nle-list-reference').source.contentHash,hash(listBytes));
   assert.equal(JSON.stringify(result).includes('"type":"Buffer"'),false);
+});
+
+
+test('indexed NLE proof binds the exact selected number, complete columns, target evidence and every supplied hash',async()=>{
+  const listId=reportId+'-AM-001-033',query={id:reportId,amendmentId:reportId+'-AM-7'},native=pair();
+  const source={url:'https://example.invalid/list.docx',language:'en',contentHash:'a'.repeat(64),sourceVersion:{byteSize:100,issued:'2026-10-01'}};
+  const row={number:7,baseline:'commission-proposal',baselineSource:{category:'commission-proposal',conflicted:false,language:'en',headings:[]},documentReferences:[{field:'DocRef',raw:reference}],targetPath:{proposal:[{raw:'Recital 4'}],underlying:[],language:'en'},targetLabel:'Recital 4',originalText:'Original complete column.',proposedText:'Proposed complete column.'};
+  const selected={...row,listId,language:'en',targetLabelLanguage:'en',source};
+  const publication={...report,inverse_foresees_change_of:['eli/dl/doc/'+listId],is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/report.docx'}]}]};
+  const cases=[
+    ['published selection',()=>{},true],
+    ['equivalent supplied hash',s=>s.chosen.source.sha256=s.chosen.source.contentHash,true],
+    ['different retrieval time',s=>s.chosen.baselineSource.fetchedAt='2000-01-01',true],
+    ['number outside selected list',s=>s.query.amendmentId=reportId+'-AM-38',false],
+    ['changed original',s=>s.chosen.originalText+=' Different.',false],
+    ['changed proposed',s=>s.chosen.proposedText+=' Different.',false],
+    ['changed target',s=>s.chosen.targetLabel='Recital 5',false],
+    ['changed baseline evidence',s=>s.chosen.baselineSource.headings=[{left:{category:'motion-resolution'}}],false],
+    ['changed reference',s=>s.chosen.documentReferences[0].raw=reference.replace('0510','0511'),false],
+    ['changed target path',s=>s.chosen.targetPath.proposal[0].raw='Recital 5',false],
+    ['conflicting hash aliases',s=>s.chosen.source.sha256='0'.repeat(64),false],
+    ['duplicate native number',s=>s.rows.push(structuredClone(row)),false],
+    ['native text loss',s=>s.rows[0].gaps=[{code:'comparison-columns',number:7}],false],
+  ];
+  for(const [name,mutate,expected] of cases){
+    const state={query:structuredClone(query),chosen:structuredClone(selected),rows:[structuredClone(row)]};mutate(state);
+    const reader=new DocumentContext();let reportReads=0;
+    reader.readList=async()=>{reportReads++;return {source,nativeReference:native.report};};
+    const selections=new Map([[listId+'|en',{source,extraction:{amendments:state.rows},nativeReference:native.list}]]);
+    const actual=await reader.readNleReferences(state.query,state.chosen,publication,()=>assert.fail('No metadata fetch'),[],selections,{});
+    assert.equal(actual.list.status==='verified',expected,name);
+    assert.equal(reportReads,expected?1:0,name+' rejects before loading another source');
+  }
 });
