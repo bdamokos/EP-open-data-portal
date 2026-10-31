@@ -185,11 +185,14 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
       const {input,value}=translated&&!structured?languageVariantContext(translated,pair.plain,runtime):pair[commission?'proposal':'plain'];
       let items=value?.proposal?.items,text=value?.document?.selectedText,baseline=value?.baseline,nativeProposalInputs;
       if(replay) {
-        const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?wording.documentDate:null]:[]]);
+        // Native proposal validation belongs to this exact selected wording,
+        // including its list, amendment number and captured byte observation.
+        const selectedProposal=commission?{listId:variant.listId,number:row.number,wordingSource:{url:fetched.url,sha256:fetched.sha256},originalText:wording.originalText,proposedText:wording.proposedText}:null;
+        const key=JSON.stringify([language,wording.baseline,structured?[wording.documentReferences,existing?wording.targetPath:null,existing?wording.documentDate:null]:[],selectedProposal?[selectedProposal.listId,selectedProposal.number,selectedProposal.wordingSource]:null]);
         if(!projected.has(key)) {
           if(commission) {
             const explicit=[...new Set((wording.documentReferences||[]).filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>(runtime?.commissionReferences||commissionReferences)(r.raw).map(r=>r.celex)))];
-            projected.set(key,await replay.proposal({...(row.targetDocumentId.startsWith('A-')?{reportId:row.targetDocumentId}:{celex:explicit.length===1?explicit[0]:undefined}),language,documentReferences:wording.documentReferences||[]}));
+            projected.set(key,await replay.proposal({...(row.targetDocumentId.startsWith('A-')?{reportId:row.targetDocumentId}:{celex:explicit.length===1?explicit[0]:undefined}),language,documentReferences:wording.documentReferences||[]},selectedProposal));
           } else if(council)projected.set(key,await replay.council({reportId:row.targetDocumentId,language,documentReferences:wording.documentReferences||[]}));
           else if(existing)projected.set(key,await replay.existingLaw({...wording,language}));
           else projected.set(key,{text:await replay.text(work,language)});

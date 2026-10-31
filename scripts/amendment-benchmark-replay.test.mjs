@@ -4,7 +4,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {InputCache,allowedSource} from './amendment-benchmark-cache.mjs';
+import {InputCache,allowedSource,digest} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,replaySourceClients,publicDocumentUrl,rawExistingLawReferences,missingDeclaredRepresentation} from './amendment-benchmark-replay.mjs';
 import {acquireReport,evaluateReport,contextUrl} from './amendment-benchmark.mjs';
 import {metrics,compareBaseline} from './amendment-benchmark-model.mjs';
@@ -274,4 +274,26 @@ test('a406 without the declared advertisement and a404 are not mapped to a repre
   for(const input of [{status:404,body:Buffer.from('resource mimetype [application/zip;type=akn4eu]')},{status:406,body:Buffer.from('resource mimetype [application/xml]')}]) {
     const cache={sealed:new Set([JSON.stringify([url,standard])]),get:async()=>input};assert.equal(await missingDeclaredRepresentation(cache,url,declared),null);
   }
+});
+
+
+test('proposal replay binds each selected list, amendment and captured source despite shared references',async()=>{
+  const document='A-10-2026-0001',firstList=document+'-AM-001-002',secondList=document+'-AM-003-003';
+  const firstUrl='https://data.europarl.europa.eu/distribution/test/first-list.docx';
+  const secondUrl='https://data.europarl.europa.eu/distribution/test/second-list.docx';
+  const block=number=>p('<Amend><NumAm>'+number+'</NumAm>')+p('<DocRef>COM(2026)1 final – 2026/0001(NLE)</DocRef>')+
+    p('<Article>Recital 1</Article>')+'<w:tbl><w:tr><w:tc>'+p('Text proposed by the Commission')+'</w:tc><w:tc>'+p('Amendment')+'</w:tc></w:tr><w:tr><w:tc>'+p('Original wording.')+'</w:tc><w:tc>'+p('Changed wording '+number+'.')+'</w:tc></w:tr></w:tbl>'+p('</Amend>');
+  const bytes=new Map([[firstUrl,docx(block(1)+block(2))],[secondUrl,docx(block(3))]]);
+  const rows=[1,2,3].map(number=>{
+    const id=document+'-AM-'+number,listId=number<3?firstList:secondList,url=number<3?firstUrl:secondUrl;
+    return {id,targetDocumentId:document,number,listId,language:'en',baseline:'commission-proposal',wordingSource:{url},decisions:[{id:'vote-'+number,date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[id],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]};
+  });
+  const cache={apiBase,json:async url=>({input:{url},value:{documentId:document,document:{selectedText:null},proposal:null,baseline:null}}),get:async url=>({ok:true,url,body:bytes.get(url),sha256:digest(bytes.get(url)),fetchedAt:'2026-10-27T00:00:00Z',status:200})};
+  const calls=[],replay={observeFiles(){},request:async()=>({payload:{data:[{id:'eli/dl/doc/'+document}]}}),proposal:async(options,selected)=>{
+    calls.push({options,selected});return {baseline:{status:'unresolved',language:'en',gaps:['source-test-unavailable']},items:[]};
+  }};
+  const runtime=await replayRuntime(root),result=await evaluateReport(rows,sample,cache,{runtime,replay});
+  assert.equal(result.length,3);assert.equal(calls.length,3,'each exact selected amendment needs its own source validation');
+  assert.deepEqual(calls.map(c=>c.selected),rows.map(row=>({listId:row.listId,number:row.number,wordingSource:{url:row.wordingSource.url,sha256:digest(bytes.get(row.wordingSource.url))},originalText:'Original wording.',proposedText:'Changed wording '+row.number+'.'})));
+  assert.deepEqual(calls.map(c=>c.options.documentReferences),[calls[0].options.documentReferences,calls[0].options.documentReferences,calls[0].options.documentReferences]);
 });
