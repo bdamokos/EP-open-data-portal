@@ -500,6 +500,7 @@ function seedSource(key, record, {memory, signal}) {
     if (signal?.aborted || pending.has(key) || [disk, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
     const serialized = JSON.stringify(record);
     refreshFailures.delete(key);
+    rememberOrganizationBody(key, record);
     if (memory || latest) rememberSource(key, record, serialized);
     if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) await publishLocked(key, serialized);
   }), signal ?? null);
