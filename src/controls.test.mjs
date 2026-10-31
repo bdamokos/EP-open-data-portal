@@ -16,6 +16,7 @@ function fixture(url) {
   if(route==='directory')return directory;
   if(route?.startsWith('profile/'))return member;
   if(route?.startsWith('latest-activities/'))return activities;
+  if(route==='vote-periods')return {version:3,weeks:[],coverage:{status:'unavailable',years:[]}};
   if(route?.startsWith('speech-statistics/'))return {items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null};
   if(route==='insights/speech-cloud')return {scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null};
   if(route==='insights/following-status')return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
