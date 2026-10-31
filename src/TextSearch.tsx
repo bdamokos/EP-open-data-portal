@@ -146,7 +146,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
       {loading&&<p role="status" className="explorer-search-status">Searching…</p>}
       {error&&<p role="alert" className="explorer-search-status">{error} <button className="explorer-search-link" type="button" onClick={()=>setAttempt(v=>v+1)}>Retry</button></p>}
       {data&&<div className="explorer-search-results" aria-busy={loading}>
-        <p role="status" className="explorer-search-count"><span lang={language}>{data.total.toLocaleString(language)}</span> {group==='question'?(data.total===1?'matching question':'matching questions'):(data.total===1?'matching document':'matching documents')}{data.coverage.backfillComplete||data.coverage.complete?' · Available texts':' · Partial coverage'}</p>
+        <p role="status" className="explorer-search-count"><span lang={language}>{data.total.toLocaleString(language)}</span> {group==='question'?(data.total===1?'matching question':'matching questions'):(data.total===1?'matching document':'matching documents')}</p>
         {!data.total&&<p>No matches in available text. Try another phrase, language or period.</p>}
         {data.results.map(result=>{
           const sources=[...new Set(result.hits.map(hit=>hit.sourceId))];

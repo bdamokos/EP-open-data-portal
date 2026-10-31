@@ -192,7 +192,6 @@ export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,
       <AmendmentSources sources={item.sources||[]} language={language}/>
       {item.scope!=='committee'&&item.procedureIds?.length?<p>Procedures: {item.procedureIds.map((reference,index)=><Fragment key={reference}>{index?', ':''}<span lang="">{reference}</span></Fragment>)}</p>:null}
       {item.topics?.length?<ul>{item.topics.map(topic=><li key={topic.id}><span lang={topic.language??''}>{topic.label}</span> <small>· {topic.basis==='dossier'?'dossier subject':'target provision'}</small></li>)}</ul>:null}
-      {item.gaps?.length?<p className="explorer-amendment-secondary">Partial coverage</p>:null}
     </details>}
   </article>;
 }

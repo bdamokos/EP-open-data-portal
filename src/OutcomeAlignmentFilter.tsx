@@ -8,6 +8,6 @@ export function OutcomeAlignmentFilter({value,counts,coverage,sitting,onChange}:
     <div className="member-votes-filter member-votes-alignment-controls" role="group" aria-label="Agreement with Parliament’s outcome" aria-describedby={id}>
       {choices.map(([key,label])=><button type="button" key={key} data-vote-alignment={key} aria-pressed={value===key} onClick={()=>onChange(key)}>{label}{key!=='all'&&` (${counts===null?'unavailable':counts[key]})`}</button>)}
     </div>
-    <p id={id} className="member-votes-muted">{counts===null?'Counts unavailable':`Counts ${scope}${coverage==='partial'?' · Partial coverage':''}`}</p>
+    <p id={id} className="member-votes-muted">{counts===null?'Counts unavailable':`Counts ${scope}`}</p>
   </div>;
 }

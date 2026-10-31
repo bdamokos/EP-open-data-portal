@@ -17,15 +17,18 @@ test('procedure event frontiers ignore the selected end date and the dossier cap
   assert.equal(older.frontiers.debates.map(e=>e.date).sort().at(-1),'2026-10-20');
 });
 
-test('topic mapping gaps preserve positive events and never connect an unknown period to zero',()=>{
+test('unmapped dossiers and unrelated archive gaps do not qualify an already mapped topic',()=>{
   const start='2026-10-01',end='2026-10-24';
   const procedures=savedProcedureEvents(store([row(1,'2026-10-16')]),{start,end}).procedures;
   const mappings=new Map([['2026-0001',{state:'mapped',reference:'2026/0001(COD)',concepts:[{id:'topic',label:'Climate',language:'en'}]}]]);
   const evidence=sourceAvailability({sourceKey:'procedure-debates',start,end,latestObservedDate:'2026-10-16',gaps:[{start:'2026-10-05',end:'2026-10-11'}],limited:true});
   const result=topicTimeline(procedures,mappings,{start,end},{debates:evidence,votes:evidence,committee:evidence});
   const bins=result.topics[0].series;
-  assert.equal(bins.find(b=>b.week==='2026-10-05').debates,null);
+  assert.equal(bins.find(b=>b.week==='2026-10-05').debates,0);
   assert.equal(bins.find(b=>b.week==='2026-10-12').debates,1);
-  assert.equal(bins.find(b=>b.week==='2026-10-12').availability.debates,'partial');
-  assert.equal(bins.find(b=>b.week==='2026-10-19').debates,null);
+  assert.equal(bins.find(b=>b.week==='2026-10-12').availability.debates,'observed');
+  assert.equal(bins.find(b=>b.week==='2026-10-19').debates,0);
+  const capped=topicTimeline(procedures,mappings,{start,end},{debates:evidence,votes:evidence,committee:evidence},{truncated:true}).topics[0].series;
+  assert.equal(capped.find(b=>b.week==='2026-10-12').availability.debates,'partial','a real procedure cap still limits positive topic counts');
+  assert.equal(capped.find(b=>b.week==='2026-10-19').debates,null,'a capped empty bin is not an observed zero');
 });

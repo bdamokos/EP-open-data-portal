@@ -141,18 +141,18 @@ test('existing answer rows receive the parent subject without reindexing or chan
   }finally{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
-test('question trend distinguishes trailing unknown days, earlier zeroes and partial weeks',()=>{
+test('question trend reports checked saved selections without manufacturing a publication frontier',()=>{
   const all=[{date:'2026-10-09'},{date:'2026-10-16'}],window={start:'2026-10-09',end:'2026-10-22',days:14};
   const daily=questionTrend(all,[],window);
   assert.equal(daily.latestObservedDate,'2026-10-16');
   assert.deepEqual(daily.bins.find(b=>b.start==='2026-10-11'),{start:'2026-10-11',end:'2026-10-11',availability:'observed',count:0,total:0,share:null});
   assert.equal(daily.bins.find(b=>b.start==='2026-10-16').share,0);
-  assert.equal(daily.bins.find(b=>b.start==='2026-10-16').availability,'partial');
-  for(const bin of daily.bins.filter(b=>b.start>'2026-10-16'))assert.deepEqual([bin.availability,bin.count,bin.total,bin.share],['unavailable',null,null,null]);
+  assert(daily.bins.every(b=>b.availability==='observed'));
+  assert(daily.bins.filter(b=>b.start>'2026-10-16').every(b=>b.count===0&&b.total===0));
   const filtered=questionTrend([all[0]],[],window,daily.latestObservedDate);
-  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'partial','country/topic absence does not move the source frontier');
+  assert.equal(filtered.bins.find(b=>b.start==='2026-10-16').availability,'observed','filters do not change saved selection evidence');
   const weekly=questionTrend(all,all,{...window,days:31});
-  const partial=weekly.bins.find(b=>b.start==='2026-10-12');assert.equal(partial.availability,'partial');assert.equal(partial.count,1);assert.equal(partial.total,1);
-  assert.equal(weekly.bins.at(-1).count,null);
-  assert(questionTrend([],[],window).bins.every(b=>b.availability==='unavailable'&&b.count===null));
+  const observed=weekly.bins.find(b=>b.start==='2026-10-12');assert.equal(observed.availability,'observed');assert.equal(observed.count,1);assert.equal(observed.total,1);
+  assert.equal(weekly.bins.at(-1).count,0);
+  assert(questionTrend([],[],window).bins.every(b=>b.availability==='observed'&&b.count===0));
 });

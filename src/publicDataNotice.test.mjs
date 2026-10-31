@@ -77,6 +77,7 @@ test('the group route through InsightShared renders the public-data notice and s
   assert.equal(container.querySelector('.insight-intro h1')?.textContent,'Group voices');
   assert.equal(container.querySelector('.parliament-header [aria-current="page"]')?.textContent,'Group voices');
   assert.ok(requests.includes('/api/insights/group-voices'));
-  assert.equal(container.querySelector('.availability-note p')?.textContent,'Unavailable.');
+  assert.equal(container.querySelector('.availability-note'),null,'unknown archive scope creates no speculative gap warning');
+  assert.match(container.textContent,/Unavailable|No contributions in this selection/);
   await assertPublicNotice(container);
 });

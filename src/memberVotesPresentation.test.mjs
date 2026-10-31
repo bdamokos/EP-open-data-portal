@@ -191,7 +191,7 @@ test('coverage notices preserve calendar gaps, unavailable records and missing s
   assert.equal(memberVotesCoverageNotice({coverage:{...incomplete,incompleteSittingIds:[]}}),'Sitting dates incomplete');
   assert.equal(memberVotesCoverageNotice({coverage:{status:'unavailable',catalogue:{state:'unavailable'}}}),'Voting records unavailable');
   const missing={coverage:incomplete,selected:{status:'not-found-in-scanned-data',item:null}};
-  assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999'}),'Partial coverage');
+  assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999'}),null);
   assert.equal(memberVotesCoverageNotice(missing,{decisionId:sittingId+'-DEC-999',context:{documentId:'A-10-2026-0001'}}),null);
 });
 
