@@ -42,7 +42,7 @@ test('recorded page summaries preserve filtered and unfiltered scopes, null and 
  votePageSummary(data,positions,{language,t:(id,values)=>{call={id,values};return id;}});
  const approved=language!=='fr'&&positions==='recorded'&&recordedTotal!==null;
  assert.equal(call.id.startsWith('membervotes.summary.recorded.'),approved);
- if(approved){assert.equal(call.id,`membervotes.summary.recorded.${mode==='period'?'period':returned?'page':'emptyPage'}${status==='partial'?'.partial':''}`);assert.equal(call.values.recordedCount,recordedTotal);assert.equal(call.values.total,17);assert.equal(call.values.start,51);assert.equal(call.values.end,50+returned);}
+ if(approved){assert.equal(call.id,`membervotes.summary.recorded.${mode==='period'?'period':returned?'page':'emptyPage'}`);assert.equal(call.values.recordedCount,recordedTotal);assert.equal(call.values.total,17);assert.equal(call.values.start,51);assert.equal(call.values.end,50+returned);}
  if(recordedTotal===null)assert(!call.id.includes('recordedcount'));
  assert.equal(JSON.stringify(data),before);
  }
@@ -157,4 +157,26 @@ test('Lithuanian followed report and opinion summaries use complete role constru
    if(count===1)assert.equal(summary.replace(/^1 /,''),categoryLabelsUi(ui)[category][0]);
   }
  }
+});
+
+test('proposal controls and missing amendment targets use UI language around French source text',async t=>{
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
+ const {createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{default:hu}=await load('/src/ui-locales/hu.json'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx');
+ const {ProposalContextText}=await load('/src/ProposalContextText.tsx');
+ const source={url:'https://example.test/exact-original.docx',stale:false,refreshError:null};
+ const proposal={paragraphs:[{index:0,text:'Texte français exact.',objects:[],formatting:[],complete:true,source:null,properties:null}],anchors:[],links:[],notes:[],units:[],gaps:[{code:'excerpted-source'}],contentComplete:false};
+ const data={documentId:'A-10-2026-0042',baseline:{kind:'proposal',language:'fr',celex:null,items:[{source}],gaps:[],attribution:'Exact source attribution'},proposal:{items:[{kind:'act',index:1,proposal}]},placement:{status:'unresolved',reason:'target_not_found'}};
+ const before=JSON.stringify(data),i18n=createAppUiI18n({hu}),window=new Window();t.after(()=>window.happyDOM.close());
+ const html=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'hu'},h('div',{lang:'hu'},h(ProposalContextText,{data,wording:null,language:'hu'}))));window.document.body.innerHTML=html;
+ for(const selector of ['.proposal-item-heading','.proposal-context-text .document-context-notice','.proposal-context-text .document-context-source'])assert.equal(window.document.querySelector(selector).closest('[lang]').getAttribute('lang'),'hu');
+ const text=[...window.document.querySelectorAll('.proposal-context-text p')].find(node=>node.textContent==='Texte français exact.');assert(text);assert.equal(text.closest('[lang]').getAttribute('lang'),'fr');assert.equal(JSON.stringify(data),before);
+ const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event};
+ const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+ for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+ t.after(()=>{for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+ const {AmendmentCard}=await load('/src/Amendments.tsx');
+ const item={id:'A-10-2026-0042-AM-1',targetDocumentId:'A-10-2026-0042',number:1,titles:{},language:'fr',targetLabel:null,originalText:'Texte initial.',proposedText:'Texte proposé.',authors:[],sources:[],decisions:[],splitParts:[],outcome:'unavailable'};
+ const card=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'hu'},h(AmendmentCard,{item,language:'hu',reader:true,showOutcome:false})));
+ window.document.body.innerHTML=card;
+ const target=window.document.querySelector('.explorer-amendment-target');assert.equal(target.getAttribute('lang'),'hu');assert.equal(target.textContent,i18n.forLocale('hu').t('amendmentmodel.mjs.target.provision.unavailable'));
 });

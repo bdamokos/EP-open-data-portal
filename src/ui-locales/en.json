@@ -2363,5 +2363,6 @@
   "coverage.dossierList": "Dossier list not loaded · {period}",
   "coverage.records": "Records not loaded · {period}",
   "coverage.matchingQuestions": "Matching questions: {count}",
-  "coverage.matchingDocuments": "Matching documents: {count}"
+  "coverage.matchingDocuments": "Matching documents: {count}",
+  "outsidevoices.agendaAndSittingCounts": "Agenda items: {appearances} · Sitting days: {sittingDays}"
 }

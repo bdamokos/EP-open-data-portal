@@ -39,7 +39,7 @@ function ContributionCard({contribution:c,person,language,selected,onPerson}:{co
   const [reading,setReading]=useState(false),readerId='gv-speech-'+useId();
   return <article className="gv-contribution">
     <div className="gv-contribution-meta"><time dateTime={c.date} lang={language}>{humanDate(c.date,language)}</time><span>{subjectsUi(ui)[c.subject]}</span></div>
-    <h3><button className="gv-contribution-title" aria-expanded={reading} aria-controls={reading ? readerId : undefined} onClick={()=>setReading(value=>!value)}><span lang={c.titleLanguage||'en'}>{c.title||ui.t("groupvoices.read_contribution.0bb6a3")}</span><span aria-hidden="true">{reading ? '−' : '+'}</span></button></h3>
+    <h3><button className="gv-contribution-title" aria-expanded={reading} aria-controls={reading ? readerId : undefined} onClick={()=>setReading(value=>!value)}><span lang={c.title ? (c.titleLanguage||'') : ui.messageLocale("groupvoices.read_contribution.0bb6a3")}>{c.title||ui.t("groupvoices.read_contribution.0bb6a3")}</span><span aria-hidden="true">{reading ? '−' : '+'}</span></button></h3>
     {person&&<button className="gv-contribution-person" data-gv-contribution={c.id+':'+person.id} aria-pressed={selected} onClick={onPerson}><Name person={person} language={language}/></button>}
     {reading&&<div id={readerId}><InsightSpeechReader id={c.id} language={language}/></div>}
   </article>;

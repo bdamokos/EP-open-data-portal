@@ -61,7 +61,7 @@ test('coverage messages use the selected formatter and keep exact source identif
   const id='E-10-2026-001715';
   const i18n=createAppUiI18n({fr:{
     'coverage.questionOverflow':'Lectures de questions échouées : au moins {count}.',
-    'coverage.questionReference':'Question {id}',
+    'coverage.questionReference':'Question officielle {id}',
     'coverage.question.unloaded':'{record} non chargée',
   }});
   const html=renderToStaticMarkup(createElement(UiI18nProvider,{i18n,language:'fr'},createElement(AvailabilityNote,{
@@ -73,6 +73,12 @@ test('coverage messages use the selected formatter and keep exact source identif
   assert(html.includes('Lectures de questions échouées : au moins '+new Intl.NumberFormat('fr').format(1234)+'.'));
   assert(html.includes('<span lang="">'+id+'</span>'));
   assert(html.includes('non chargée'));
+  assert(html.includes('<span lang="fr">Question officielle <span lang="">'+id+'</span>'));
+  const documentId='A-10-2026-0042';
+  const documentUi=createAppUiI18n({fr:{'coverage.documentReference':'Document officiel {id}','coverage.document.unloaded':'{record} non chargé'}});
+  const documentHtml=renderToStaticMarkup(createElement(UiI18nProvider,{i18n:documentUi,language:'fr'},createElement(AvailabilityNote,{archive:true,language:'fr',sources:sourceAvailability({sourceKey:'documents',family:'documents',gaps:[{sourceId:'/plenary-documents/'+documentId,retained:false}]})})));
+  assert(documentHtml.includes('<span lang="fr">Document officiel <span lang="">'+documentId+'</span>'));
+  assert(documentHtml.includes('document/'+documentId+'_FR.html'));
   assert(html.includes('document/'+id+'_FR.html'));
   assert(!html.includes('data.europarl.europa.eu'));
 });

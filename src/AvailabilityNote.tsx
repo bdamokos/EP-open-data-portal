@@ -14,7 +14,7 @@ function GapNotice({notice,language}:{notice:CoverageNotice;language:string}) {
   if(notice.kind==='speech-records')return <UiMessage id={notice.dates.length?'coverage.speechReadsDates':'coverage.speechReads'} values={{count:notice.count,dates:<span lang={language}>{notice.dates.map(day=>date(day,language)).join(', ')}</span>}}/>;
   if('sourceUrl' in notice){
     const state=notice.retained===true?'updateFailed':notice.retained===false?'unloaded':'readFailed';
-    return <UiMessage id={`coverage.${notice.kind}.${state}`} values={{record:<SourceLink url={notice.sourceUrl} language={language}><UiMessage id={notice.kind==='question'?'coverage.questionReference':'coverage.documentReference'} values={{id:<span lang="">{notice.id}</span>}}/> ↗</SourceLink>}}/>;
+    return <UiMessage id={`coverage.${notice.kind}.${state}`} values={{record:<SourceLink url={notice.sourceUrl} language={language} contentLanguage={ui.language}><UiMessage id={notice.kind==='question'?'coverage.questionReference':'coverage.documentReference'} values={{id:<span lang="">{notice.id}</span>}}/> ↗</SourceLink>}}/>;
   }
   const period=notice.start&&notice.end?<>{dateNode(notice.start)}{notice.start!==notice.end?<> – {dateNode(notice.end)}</>:null}</>:<UiMessage id={notice.start?'coverage.periodFrom':'coverage.periodThrough'} values={{date:dateNode((notice.start||notice.end)!)}}/>;
   if(notice.kind==='record-reads')return <UiMessage id={notice.family==='questions'?'coverage.questionReads':'coverage.sourceReads'} values={{count:notice.count,period}}/>;

@@ -197,3 +197,21 @@ test('insight cards use exact directory names, retain source labels and keep mis
   assert.deepEqual([...h.container.querySelectorAll('strong')].map(node=>node.textContent),['Mika AALTOLA','Guest McDONALD','MEP','Name unavailable']);
   assert.equal(h.calls.some(url=>url.pathname.endsWith('/directory')),false,'display components do not fetch a roster themselves');
 });
+
+test('French question controls keep recognised English subjects and complete addressee phrases',async t=>{
+ const h=await harness(t,'fr','?view=questions&q-view=time&q-subject=USA&q-addressee=org%2FCOM');
+ const data=questions('en');data.selection={subject:'USA',subjectLabel:'United States',addressee:'org/COM'};
+ data.questions[0].subjects=[{id:'USA',label:'United States'}];
+ data.trend={interval:'week',bins:[{start:'2026-10-01',end:'2026-10-07',count:5,total:5,share:100}]};
+ h.respond(()=>data);
+ const Questions=await h.load('QuestionTopics','QuestionTopics'),UiI18nProvider=await h.load('UiI18nReact','UiI18nProvider');
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs'),{default:fr}=await import('./ui-locales/fr.json',{with:{type:'json'}});
+ const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr');
+ await h.render(createElement(UiI18nProvider,{i18n,language:'fr'},createElement(Questions,{language:'fr',onBack(){}})));
+ const subjects=[...h.container.querySelectorAll('span')].filter(node=>node.textContent==='United States');assert(subjects.length>=2);
+ for(const node of subjects)assert.equal(effectiveLanguage(node),'en');
+ const allLabel=[...h.container.querySelectorAll('.insight-trend h2 span')].find(node=>node.textContent===ui.t('batch4.insightcharts.tsx.all.questions'));assert(allLabel);assert.equal(effectiveLanguage(allLabel),'fr');
+ const scope=h.container.querySelector('.insight-trend svg').getAttribute('aria-label');
+ assert(scope.includes(ui.t('batch4.questiontopics.tsx.to.the.addressees',{addressees:'Commission'})));
+ assert(!scope.includes('toCommission'));assert.equal(data.questions[0].subjects[0].label,'United States');
+});
