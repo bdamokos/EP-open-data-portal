@@ -190,9 +190,6 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const attendanceRequest=useData<MemberAttendanceResponse>(attendanceRoute);
   const attendance=attendanceRoute&&!attendanceRequest.error&&validateMemberAttendanceResponse(attendanceRequest.data,{memberId,sittingIds:attendanceIds})?attendanceRequest.data:null;
   const selected=state.decisionId&&data?.selected.status==='found'&&data.selected.item?.id===state.decisionId?data.selected.item:null;
-  useEffect(()=>{
-    if(data?.selected.status==='chairing'&&state.decisionId)onStateChange({...state,decisionId:null,context:null},{replace:true});
-  },[data,state,onStateChange]);
   const stateRef=useRef(state);stateRef.current=state;
   useEffect(()=>{
     const refresh=snapshotRefresh.current;
@@ -215,7 +212,8 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     const refresh=snapshotRefresh.current;
     if(refresh){if(!refresh.started||request.data===refresh.baseline)return;snapshotRefresh.current=null;}
     const current=stateRef.current,week=!current.sittingId&&candidateData.period.week?candidateData.period.week:current.week;
-    if(current.snapshotId!==candidateData.snapshotId||current.week!==week||candidateData.pagination.mode==='period'&&current.offset!==0)onStateChange({...current,week,offset:candidateData.pagination.mode==='period'?0:current.offset,snapshotId:candidateData.snapshotId},{replace:true});
+    const clearChair=candidateData.selected.status==='chairing'&&Boolean(current.decisionId||current.context);
+    if(clearChair||current.snapshotId!==candidateData.snapshotId||current.week!==week||candidateData.pagination.mode==='period'&&current.offset!==0)onStateChange({...current,...(clearChair?{decisionId:null,context:null}:{}),week,offset:candidateData.pagination.mode==='period'?0:current.offset,snapshotId:candidateData.snapshotId},{replace:true});
   },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,requestedWeek,memberId,language,unavailableEarlier,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
   useLayoutEffect(()=>{
     const pane=state.context?null:state.decisionId?detailRef.current:listRef.current;

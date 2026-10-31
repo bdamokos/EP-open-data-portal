@@ -53,7 +53,25 @@ test('bounded official-source collection retains metadata, chair identity and XM
 test('unavailable or unsafe optional chair sources withhold the heuristic',async()=>{
   for(const target of ['https://example.invalid/x.xml','http://data.europarl.europa.eu/distribution/x.xml',url+'?token=x','https://user@data.europarl.europa.eu/distribution/x.xml']){
     const p=metadata();p.data[0].is_realized_by[0].is_embodied_by[0].is_exemplified_by=target;
-    const result=await collectVoteChairs(async()=>record(p,'https://data.europarl.europa.eu/api/v2/source'),sitting,{download:async()=>{assert.fail('unsafe metadata must never start a download');}});assert.equal(result.status,'unavailable');
+    let downloads=0;
+    const result=await collectVoteChairs(async()=>record(p,'https://data.europarl.europa.eu/api/v2/source'),sitting,{download:async()=>{downloads++;return '';}});assert.equal(result.status,'unavailable');assert.equal(downloads,0,'unsafe metadata must never start a download');
   }
   assert.equal((await collectVoteChairs(async()=>{throw Error('Unavailable');},sitting)).status,'unavailable');
+});
+
+test('unavailable chair observations charge every measured source to the period budget',async()=>{
+  const meta=metadata(),chairs=payload(),metaBytes=Buffer.byteLength(JSON.stringify(meta)),chairBytes=Buffer.byteLength(JSON.stringify(chairs));
+  const request=async endpoint=>record(endpoint==='/speeches'?chairs:meta,'https://data.europarl.europa.eu/api/v2'+endpoint);
+  const invalid=metadata();invalid.data[0].document_date='2026-10-21';
+  const badMeta=await collectVoteChairs(async()=>record(invalid,url),sitting);
+  assert.equal(badMeta.status,'unavailable');assert.equal(badMeta.bytes,Buffer.byteLength(JSON.stringify(invalid)));
+  const failedCatalogue=await collectVoteChairs(async endpoint=>{if(endpoint==='/speeches')throw Error('Source unavailable');return record(meta,url);},sitting);
+  assert.equal(failedCatalogue.status,'unavailable');assert.equal(failedCatalogue.bytes,metaBytes);
+  const failedDownload=await collectVoteChairs(request,sitting,{download:async()=>{throw Error('Download unavailable');}});
+  assert.equal(failedDownload.status,'unavailable');assert.equal(failedDownload.bytes,metaBytes+chairBytes);
+  const badXml=await collectVoteChairs(request,sitting,{download:async()=>'<broken'});
+  assert.equal(badXml.status,'unavailable');assert.equal(badXml.bytes,metaBytes+chairBytes+7);
+  let downloads=0;
+  const exhausted=await collectVoteChairs(request,sitting,{maxBytes:metaBytes+1,download:async()=>{downloads++;return '';}});
+  assert.equal(exhausted.status,'unavailable');assert.equal(exhausted.bytes,metaBytes+chairBytes);assert.equal(downloads,0);
 });

@@ -1274,3 +1274,12 @@ test('chairing-only periods show no vote entries or Parliament outcome controls 
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{items:[],subjects:[],pagination:{omittedWhileChairingTotal:1},selected:stateFrom(url).decisionId?{status:'chairing',item:null}:{status:'not-requested',item:null}}))});
   assert.equal(h.state.decisionId,null);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);assert.equal(h.container.querySelector('.member-votes-tools'),null);assert.equal(h.container.querySelector('.member-votes-subject'),null);assert.doesNotMatch(h.container.textContent,/Not individually recorded|Vote unavailable|No votes were recorded/);
 });
+
+test('an omitted deep link clears selection in the same update that pins its first snapshot',async t=>{
+  const h=await mount(t,{state:{week:WEEK,snapshotId:null,decisionId:decision(1),context:{documentId:DOCUMENT,view:'document'}},handler:url=>Response.json(responseFor(url,{items:[],subjects:[],pagination:{omittedWhileChairingTotal:1},selected:stateFrom(url).decisionId?{status:'chairing',item:null}:{status:'not-requested',item:null}}))});
+  assert.equal(h.state.decisionId,null);assert.equal(h.state.context,null);assert.equal(h.state.snapshotId,SNAPSHOT);
+  const pinned=h.changes.filter(change=>change.state.snapshotId===SNAPSHOT);
+  assert(pinned.length>0);assert(pinned.every(change=>change.state.decisionId===null&&change.state.context===null),'snapshot pinning must never reintroduce the omitted selection');
+  assert.equal(h.calls.filter(route=>{const p=new URL(route,'http://localhost').searchParams;return p.get('snapshot')===SNAPSHOT&&p.get('decision')===decision(1);}).length,0);
+  assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
+});

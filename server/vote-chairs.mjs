@@ -83,23 +83,24 @@ export function extractVoteChairs(xml,chairPayload,date){
 }
 
 export async function collectVoteChairs(request,sittingId,{download=downloadMinutesXml,clock=Date.now,maxBytes=6*MAX_BYTES}={}){
-  const date=sittingId.slice(7),unavailable={status:'unavailable',byResultDocument:{},sources:[],bytes:0};let bytes=0;
+  const date=sittingId.slice(7);let bytes=0;
+  const unavailable=()=>({status:'unavailable',byResultDocument:{},sources:[],bytes});
   const parent=requestSignal(),signal=AbortSignal.any([AbortSignal.timeout(10_000),...(parent?[parent]:[])]);
   try{return await runWithRequestSignal(signal,async()=>{
-    if(maxBytes<=0)return unavailable;
+    if(maxBytes<=0)return unavailable();
     const options={priority:'interactive',staleWhileRevalidate:true,ttl:15*60_000};
     const metadata=await request('/plenary-session-documents/PV-10-'+date,{},options);
     bytes+=Buffer.byteLength(JSON.stringify(metadata.payload));
-    if(metadata.refreshError||bytes>Math.min(MAX_BYTES,maxBytes))return unavailable;
-    const url=distribution(metadata.payload,date);if(!url)return unavailable;
+    if(metadata.refreshError||bytes>Math.min(MAX_BYTES,maxBytes))return unavailable();
+    const url=distribution(metadata.payload,date);if(!url)return unavailable();
     const chairs=await request('/speeches',{'sitting-date':date,'activity-type':'MEETING_NAME_CHAIR','include-output':'xml_fragment',language:'en','sort-by':'numbering:asc',limit:100,offset:0},options);
     const chairBytes=Buffer.byteLength(JSON.stringify(chairs.payload));bytes+=chairBytes;
-    if(chairs.refreshError||chairBytes>MAX_BYTES||bytes>=maxBytes)return unavailable;
+    if(chairs.refreshError||chairBytes>MAX_BYTES||bytes>=maxBytes)return unavailable();
     const xml=await download(url);bytes+=Buffer.byteLength(xml);
-    if(bytes>maxBytes)return unavailable;
+    if(bytes>maxBytes)return unavailable();
     const byResultDocument=extractVoteChairs(xml,chairs.payload,date);
-    if(!byResultDocument)return unavailable;
+    if(!byResultDocument)return unavailable();
     const source={url,fetchedAt:new Date(clock()).toISOString(),contentHash:createHash('sha256').update(xml).digest('hex'),stale:false,refreshInProgress:false,refreshError:null};
     return {status:'observed',byResultDocument,sources:[sourceEvidence(metadata,metadata.payload),sourceEvidence(chairs,chairs.payload),source],bytes};
-  });}catch(error){if(parent?.aborted)throw error;return unavailable;}
+  });}catch(error){if(parent?.aborted)throw error;return unavailable();}
 }
