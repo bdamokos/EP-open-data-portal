@@ -14,7 +14,7 @@ function setup({rows=[meeting('2024-07-16'),meeting('2026-10-07'),meeting('2026-
 }
 test('votes, periods and insights share one year observation and identical paging evidence',async()=>{
  const {reader,request,clock,calls}=setup();
- const votes=new MemberVotes({request,clock,meetings:reader}),periods=new VotePeriods({meetings:reader,clock}),insights=new LegislationInsights(null,{request,clock,meetings:reader});
+ const votes=new MemberVotes({readChairs:async()=>null,request,clock,meetings:reader}),periods=new VotePeriods({meetings:reader,clock}),insights=new LegislationInsights(null,{request,clock,meetings:reader});
  const budget={bytes:0};const [selected,dates,catalogue]=await Promise.all([votes.catalogue(memberVotesQuery(new URLSearchParams('week=2026-10-05'),{now:NOW}),budget),periods.query(),insights.catalogue()]);
  assert.equal(calls.length,3);assert.deepEqual(new Set(calls.map(([,p])=>p.year)),new Set([2024,2025,2026]));
  assert.equal(selected.nodes.length,1);assert.equal(dates.weeks[0].week,'2026-10-05');assert(catalogue.sittings.some(n=>n.activity_date==='2026-10-20'));
@@ -44,7 +44,7 @@ test('cached catalogue bytes cannot bypass a selected period budget',async()=>{
  const {reader,request,clock}=setup();
  const query=memberVotesQuery(new URLSearchParams('week=2026-10-05'),{now:NOW});
  for(let attempt=0;attempt<2;attempt++){
-   const service=new MemberVotes({request,clock,meetings:reader,limits:{periodBytes:1}});
+   const service=new MemberVotes({readChairs:async()=>null,request,clock,meetings:reader,limits:{periodBytes:1}});
    await assert.rejects(service.catalogue(query,{bytes:0}),e=>e.code==='vote_period_budget');
  }
 });

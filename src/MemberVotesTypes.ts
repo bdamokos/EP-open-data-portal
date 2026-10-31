@@ -97,7 +97,7 @@ export type MemberVoteSittingCoverage = {
 };
 
 export type MemberVotesResponse = {
-  version:8;
+  version:9;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;
@@ -105,9 +105,9 @@ export type MemberVotesResponse = {
   alignment:'all'|'with'|'against'|'abstained';
   alignmentCounts:Record<MemberVoteAlignment,number>|null;
   subjects:MemberVoteSubject[];
-  pagination:{mode?:'period';offset:number;limit:number;returned:number;observedTotal:number;recordedTotal:number|null;filteredTotal:number;nextOffset:number|null};
+  pagination:{mode?:'period';omittedWhileChairingTotal?:number;offset:number;limit:number;returned:number;observedTotal:number;recordedTotal:number|null;filteredTotal:number;nextOffset:number|null};
   items:MemberVote[];
-  selected:{status:'found'|'not-found-in-scanned-data'|'unavailable'|'not-requested';item:MemberVote|null};
+  selected:{status:'found'|'not-found-in-scanned-data'|'unavailable'|'not-requested'|'chairing';item:MemberVote|null};
   coverage:{
     status:'complete'|'partial'|'unavailable';
     collectionComplete:boolean;

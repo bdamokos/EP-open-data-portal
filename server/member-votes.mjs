@@ -8,8 +8,9 @@ import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
 import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
+import {collectVoteChairs} from './vote-chairs.mjs';
 
-export const MEMBER_VOTES_VERSION=8;
+export const MEMBER_VOTES_VERSION=9;
 // Period reads include every observed decision; keep a separate finite transport budget.
 export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=32*1024*1024;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
@@ -44,7 +45,7 @@ export function memberVotesQuery(search,{now=Date.now()}={}) {
 // Period snapshots are independent of the requested member, language, and page.
 // No activity store or writer is opened by this reader.
 export class MemberVotes extends VoteSourceReader {
-  constructor({request=odp,clock=Date.now,limits={},meetings}={}){super();this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
+  constructor({request=odp,clock=Date.now,limits={},meetings,readChairs=collectVoteChairs}={}){super();this.readChairs=readChairs;this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
 
   async catalogue(query,budget) {
     if(query.sitting){
@@ -149,7 +150,10 @@ export class MemberVotes extends VoteSourceReader {
     completeness.complete=[all,named,results,agenda].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,errors].some(a=>a.length);
     const anySource=[all,named,results].some(c=>c.coverage.pages>0);
     const coverage={sittingId,date,state:votingRecordsComplete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length};
-    return {sittingId,date,decisions,results:resultNodes,requests,conflictingResults:results.conflicts,resultEvidence:results.evidence,decisionEvidence:Object.fromEntries([...new Set([...Object.keys(all.evidence),...Object.keys(named.evidence)])].map(key=>[key,[...(all.evidence[key]||[]),...(named.evidence[key]||[])]])),agenda:agendaNodes,sources:{decisions:[...all.coverage.sources,...named.coverage.sources],results:results.coverage.sources,agenda:agenda.coverage.sources},coverage};
+    const chairing=decisions.length?await this.readChairs(this.request,sittingId,{clock:this.clock,maxBytes:Math.max(0,this.limits.periodBytes-budget.bytes)}):null;
+    budget.bytes+=chairing?.bytes||0;
+    coverage.chairing=chairing?{status:chairing.status,sources:chairing.sources}:null;
+    return {sittingId,date,decisions,chairing,results:resultNodes,requests,conflictingResults:results.conflicts,resultEvidence:results.evidence,decisionEvidence:Object.fromEntries([...new Set([...Object.keys(all.evidence),...Object.keys(named.evidence)])].map(key=>[key,[...(all.evidence[key]||[]),...(named.evidence[key]||[])]])),agenda:agendaNodes,sources:{decisions:[...all.coverage.sources,...named.coverage.sources],results:results.coverage.sources,agenda:agenda.coverage.sources},coverage};
   }
 
   async collect(query){
@@ -206,6 +210,7 @@ export class MemberVotes extends VoteSourceReader {
     const {period,coverage}=snapshot;
     if(query.decision&&period.from&&(query.decision.slice(7,17)<period.from||query.decision.slice(7,17)>period.to))throw new HttpError(400,'decision_outside_period','Choose a decision in the resolved period.');
     const projected=snapshot.days.map(day=>projectMemberSitting(day,id,query.language));
+    const omitted=new Set(projected.flatMap(day=>day.omittedWhileChairing));
     const items=projected.flatMap(day=>day.items).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.id.localeCompare(b.id));
     const positions=query.positions||'all',alignment=query.alignment||'all';
     const alignmentCounts=coverage.status==='unavailable'?null:items.reduce((counts,item)=>{counts[memberVoteAlignment(item)]++;return counts;},{with:0,against:0,abstained:0,unclassified:0});
@@ -213,7 +218,7 @@ export class MemberVotes extends VoteSourceReader {
     const periodView=query.view==='period',offset=periodView?0:query.offset;
     const page=periodView?filtered:filtered.slice(offset,offset+query.limit),selected=query.decision?items.find(item=>item.id===query.decision)||null:null;
     const subjects=projected.flatMap(day=>day.subjects).map(subject=>({...subject,counts:{observed:items.filter(item=>item.subjectId===subject.id).length,filtered:filtered.filter(item=>item.subjectId===subject.id).length,page:page.filter(item=>item.subjectId===subject.id).length}}));
-    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{...(periodView?{mode:'period'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:offset+page.length<filtered.length?offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
+    return {version:MEMBER_VOTES_VERSION,member:{id,uri:'https://data.europarl.europa.eu/person/'+id,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},period,snapshotId:snapshot.id,positions,alignment,alignmentCounts,subjects,pagination:{...(periodView?{mode:'period'}:{}),offset,limit:query.limit,returned:page.length,observedTotal:items.length,...(omitted.size?{omittedWhileChairingTotal:omitted.size}:{}),recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:filtered.length,nextOffset:offset+page.length<filtered.length?offset+page.length:null},items:page,selected:{status:query.decision?(selected?'found':omitted.has(query.decision)?'chairing':coverage.status==='unavailable'?'unavailable':'not-found-in-scanned-data'):'not-requested',item:selected},coverage,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   }
 }
 

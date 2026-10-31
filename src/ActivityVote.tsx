@@ -49,6 +49,7 @@ export function ActivityVote({decisionId,memberId,memberName,language,children,i
     href=url.href;
   }
   if(!route)return <>{children}</>;
+  if(!response.error&&data?.selected.status==='chairing')return null;
   const method=vote?.ballotStatus==='not-conducted'?'Not put to a vote':vote?voteMethodLabel(vote.method):null;
   if(context)return <div className="activity-vote">{vote?<><p className="member-votes-eyebrow">{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(vote.date))}</p>
       {(conflict||sourceConflict)&&<div className="activity-vote__meta"><p>Vote records disagree</p><div aria-label="Saved activity result">{children}</div></div>}
