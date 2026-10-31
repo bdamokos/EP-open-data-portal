@@ -3,13 +3,15 @@ import english from './ui-locales/en.json' with {type:'json'};
 import existing from './ui-locales/existing.json' with {type:'json'};
 import aliases from './ui-locales/aliases.json' with {type:'json'};
 import reviewedPluralForms from './ui-locales/plural-forms.json' with {type:'json'};
+import neutral from './ui-counted-neutral.json' with {type:'json'};
+import counted from './ui-counted-source.json' with {type:'json'};
 import pairs from './ui-locales/plural-pairs.json' with {type:'json'};
 
 export const uiMessageId = key => Object.hasOwn(aliases,key)?aliases[key]:key;
 
 /** Snapshot UI dictionaries; caller-owned dictionaries and parliamentary data stay untouched. */
 export function createAppUiI18n(catalogues = {}, pluralForms = reviewedPluralForms) {
-  const source={...english};
+  const source={...english,...neutral,...counted};
   for(const pair of pairs)source[pair.other]={plural:pair.count,one:english[pair.one],other:english[pair.other]};
   const translations={};
   for(const language of new Set([...Object.keys(existing),...Object.keys(catalogues),...Object.keys(pluralForms)])) {
@@ -17,6 +19,12 @@ export function createAppUiI18n(catalogues = {}, pluralForms = reviewedPluralFor
     for(const pair of pairs) {
       const other=messages[pair.other],one=messages[pair.one];
       if(typeof other==='string')messages[pair.other]={plural:pair.count,other,...(typeof one==='string'?{one}:{})};
+    }
+    // Existing IDs gain explicit numeric contracts. Native other text is a
+    // compatibility fallback until reviewed category forms are imported.
+    for(const [id,original] of Object.entries(counted)) {
+      const base=messages[id];
+      if(typeof base==='string')messages[id]={plural:original.plural,other:base};
     }
     for(const [key,forms] of Object.entries(pluralForms[language]??{})) {
       const id=uiMessageId(key),original=source[id];
@@ -33,7 +41,7 @@ export function createAppUiI18n(catalogues = {}, pluralForms = reviewedPluralFor
   return Object.freeze({sourceLocale:i18n.sourceLocale,forLocale(language) {
     const formatter=i18n.forLocale(language);
     return Object.freeze({...formatter,
-      t:(id,values)=>formatter.t(uiMessageId(id),values),
+      t:(id,values,counts)=>formatter.t(uiMessageId(id),values,counts),
       messageLocale:id=>formatter.messageLocale(uiMessageId(id)),
       pluralCategoryFor:(id,value,type)=>formatter.pluralCategoryFor(uiMessageId(id),value,type),
       rich:(id,values,counts)=>formatter.rich(uiMessageId(id),values,counts),
