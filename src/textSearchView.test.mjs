@@ -97,7 +97,7 @@ test('a finished local backfill keeps the search scoped to available texts',asyn
     if(url.pathname.endsWith('/corpus/search'))return Response.json({...results(body,[]),total:0,coverage:{complete:true,backfillComplete:true,authoritativeComplete:false}});
   }});
   await view.render();
-  assert.match(view.find('.explorer-search-count').textContent,/0 matching documents · Available texts/);
+  assert.match(view.find('.explorer-search-count').textContent,/^0 matching documents$/);
   assert.match(view.container.textContent,/No matches in available text\./,'a complete local backfill is not an authoritative empty result');
 });
 
@@ -119,11 +119,29 @@ test('global search surfaces MEPs, exact plenary links and question titles and f
   const before=view.searches().length;
   await view.select('select', 'mep');
   assert.equal(type.value,'mep');assert.equal(view.searches().length,before,'MEP selection never starts a corpus query');
-  assert.equal(view.calls.filter(call=>call.url.pathname.endsWith('/insights/search')).at(-1).url.searchParams.get('type'),'mep');
+  assert.deepEqual(view.calls.filter(call=>call.url.pathname.endsWith('/insights/search')).map(call=>call.url.searchParams.get('type')),['mep','topic','question'],'the individual source result is reused when narrowing the filter');
   assert.equal(view.container.querySelector('.explorer-search-text-heading'),null);
   await view.select('select','topic');assert.match(view.container.textContent,/Clean energy/);assert.doesNotMatch(view.container.textContent,/Energy Example/);
   await view.select('select','question');assert.equal(view.searches().at(-1).body.kinds[0],'question');assert.match(view.container.textContent,/Read question and answers/);
   await view.select('select','speech');assert.equal(view.container.querySelector('.explorer-catalog-results'),null);assert.deepEqual(view.searches().at(-1).body.kinds,['speech']);
+});
+test('a pending or failed topic lookup cannot hide member and question title results',async t=>{
+  let finish,topicAttempts=0;
+  const calls=[],section=type=>({type,total:1,nextOffset:null,truncated:false,coverage:{available:true,complete:true},results:[type==='mep'?{id:'42',type,title:'Housing Member',date:null}:type==='question'?{id:'E-10-2026-001715',type,title:'Housing question',date:'2026-10-01',sourceUrl:'https://www.europarl.europa.eu/doceo/document/E-10-2026-001715_EN.html'}:{id:'MTG-PL-2026-10-07-OJ-ITM-D-1',sittingId:'MTG-PL-2026-10-07',type,title:'Housing debate',date:'2026-10-07'}]});
+  const view=await setup(t,{query:'global-fts-search=housing',respond:({url})=>{
+    if(!url.pathname.endsWith('/insights/search'))return;
+    const type=url.searchParams.get('type');calls.push(type);
+    if(type==='topic'||type==='all'){topicAttempts++;return new Promise(resolve=>finish=resolve);}
+    return Response.json({offset:0,sections:[section(type)]});
+  }});
+  await view.render({global:true,prefix:'global-fts'});
+  assert.match(view.container.textContent,/Housing Member/);assert.match(view.container.textContent,/Housing question/);
+  assert.match(view.container.textContent,/Searching plenary topics/);assert.deepEqual(calls,['mep','topic','question']);
+  await act(async()=>finish(Response.json({error:{message:'Lookup timed out.'}},{status:503})));
+  assert.match(view.container.textContent,/Plenary topics search unavailable/);assert.match(view.container.textContent,/Housing question/);
+  await view.click('Retry');assert.equal(topicAttempts,2);assert.deepEqual(calls,['mep','topic','question','topic']);
+  await act(async()=>finish(Response.json({offset:0,sections:[section('topic')]})));
+  assert.match(view.container.textContent,/Housing debate/);assert.equal(view.container.querySelector('[role="alert"]'),null);
 });
 
 test('global result filters, dates and title paging survive close and remount without entering dormant URLs',async t=>{
@@ -144,12 +162,12 @@ test('global result filters, dates and title paging survive close and remount wi
   assert.equal(view.searches().at(-1).body.from,'2026-01-01');assert.equal(view.searches().at(-1).body.to,'2026-10-07');
 });
 
-test('search coverage stays partial independently of unavailable corpus status',async t=>{
+test('a global corpus status failure does not label a successful scoped result partial',async t=>{
   const view=await setup(t,{query:'fixture-fts-search=energy',respond:({url})=>{
     if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
   }});
   await view.render();
-  assert.match(view.find('.explorer-search-count').textContent,/1 matching document · Partial coverage/);
+  assert.match(view.find('.explorer-search-count').textContent,/^1 matching document$/);
   assert.equal(view.calls.some(call=>call.url.pathname.endsWith('/corpus/status')),false,'search does not turn unavailable global counts into zero coverage');
   assert.equal(view.container.querySelector('[role="alert"]'),null);
 });

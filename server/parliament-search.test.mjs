@@ -40,6 +40,41 @@ test('names and exact question metadata are searchable without a text corpus',as
   assert.equal((await service.query(query('q=Blue&type=question&from=2026-08-01'))).sections[0].total,0);
   assert.equal(calls.length,0,'question/name selection never reads agenda sources');
 });
+test('question search names its own failed records instead of inheriting unrelated archive failures',async t=>{
+  const {service,store,generation}=setup(t);store.acquire();
+  const put=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,'document','{}')");
+  put.run(generation,'/plenary-documents/A-10-2026-0001');
+  const read=async()=>(await service.query(query('q=Blue&type=question'))).sections[0];
+  assert.equal((await read()).coverage.complete,true);
+  const missing='/parliamentary-questions/E-10-2026-001715';put.run(generation,missing);
+  const section=await read();assert.equal(section.coverage.complete,false);
+  assert.deepEqual(section.coverage.availability.gaps.map(gap=>gap.sourceId),[missing]);
+  assert.equal(section.total,1,'a failed other record does not erase retained matches');
+});
+test('dated question failures qualify only the matching search interval',async t=>{
+  const {service,store,generation}=setup(t);store.acquire();
+  const put=store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,'document',?)");
+  put.run(generation,'/parliamentary-questions/E-10-2024-000999',JSON.stringify({start:'2024-10-01',end:'2024-10-01'}));
+  const read=async period=>(await service.query(query('q=nonexistent&type=question'+period))).sections[0];
+  assert.equal((await read('&from=2026-01-01&to=2026-10-15')).coverage.complete,true);
+  assert.equal((await read('&from=2024-07-16&to=2026-10-15')).coverage.complete,false);
+  put.run(generation,'/parliamentary-questions/E-10-2026-000999',JSON.stringify({start:'2026-10-14',end:'2026-10-14'}));
+  assert.equal((await read('&from=2026-01-01&to=2026-10-15')).coverage.complete,false);
+});
+
+test('a fully read saved agenda is complete for search, while a full last page keeps its real limit',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const topics=fixture.foreseen.payload.data.slice(0,5);
+  const {service}=setup(t,{agenda:()=>({...fixture.foreseen,payload:{data:topics},fetchedAt:clock()})});
+  service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'complete'}});
+  const section=(await service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0];
+  assert.equal(section.coverage.missingAgendas,0);assert.equal(section.coverage.limited,false);assert.equal(section.coverage.complete,true);
+  const full=Array.from({length:50},(_,i)=>({id:'eli/dl/event/'+sitting.activity_id+'-UNRELATED-'+i,activity_id:sitting.activity_id+'-UNRELATED-'+i}));
+  const limited=setup(t,{agenda:()=>({...fixture.foreseen,payload:{data:full},fetchedAt:clock()})});
+  limited.service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'complete'}});
+  const result=(await limited.service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0];
+  assert.equal(result.coverage.pageLimitedAgendas,1);assert.equal(result.coverage.limited,true);assert.equal(result.coverage.complete,false);
+});
 test('plenary topics use exact calendar-to-agenda relationships and retain dates and provenance',async t=>{
   const {service}=setup(t);
   const result=await service.query(query('q='+encodeURIComponent('energy')+'&type=topic'));
@@ -47,6 +82,24 @@ test('plenary topics use exact calendar-to-agenda relationships and retain dates
   for(const row of section.results){assert(row.id.startsWith(row.sittingId+'-'));assert.match(row.title,/energy/i);assert(row.source.url);assert.equal(row.source.fetchedAt,new Date(clock()).toISOString());}
   assert.equal(section.coverage.complete,false,'retained agendas are never a whole-archive claim');
   assert.equal((await service.query(query('q=energy&type=topic&from=2026-11-01'))).sections[0].total,0);
+});
+test('a failed old calendar stays disclosed only when its year is in the selected search period',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const {service}=setup(t,{agenda:()=>({...fixture.foreseen,payload:{data:fixture.foreseen.payload.data.slice(0,5)},fetchedAt:clock()})});
+  service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'partial',years:[{year:2024,state:'partial'},{year:2026,state:'complete'}]}});
+  const broad=(await service.query(query('q=energy&type=topic'))).sections[0].coverage;
+  assert.deepEqual(broad.incompleteCalendarYears,[2024]);assert.equal(broad.complete,false);
+  const current=(await service.query(query('q=energy&type=topic&from=2026-10-07&to=2026-10-07'))).sections[0].coverage;
+  assert.deepEqual(current.incompleteCalendarYears,[]);assert.equal(current.complete,true);
+});
+test('a missing second agenda page retains the first page but cannot establish a complete search',async t=>{
+  const sitting=fixture.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+  const first=[...fixture.foreseen.payload.data.slice(0,5),...Array.from({length:45},(_,i)=>({id:'eli/dl/event/'+sitting.activity_id+'-X-'+i,activity_id:sitting.activity_id+'-X-'+i}))];
+  const {service}=setup(t,{agenda:(_endpoint,params)=>{if(params.offset)throw Object.assign(new Error('Not retained'),{code:'odp_cache_miss'});return {...fixture.foreseen,payload:{data:first},fetchedAt:clock()};}});
+  service.meetings.catalogue=async()=>({nodes:[sitting],coverage:{status:'complete'}});
+  const section=(await service.query(query('q=energy&type=topic'))).sections[0];
+  assert.equal(section.coverage.complete,false);assert.equal(section.coverage.agendasRead,1);
+  assert.deepEqual(section.coverage.missingAgendaPages,[{sittingId:sitting.activity_id,offset:50}]);
 });
 test('missing calendar observations remain unavailable while MEP and question results survive',async t=>{
   const {service}=setup(t,{missing:true});
@@ -91,4 +144,15 @@ test('question title pages retain exact totals, newest ordering and expression-o
 test('query validation bounds types, dates, offsets and repeated parameters',()=>{
   assert.deepEqual(query('q=%22blue+flag%22+beach').terms,['blue flag','beach']);
   for(const value of ['q=','q=a&type=wrong','q=a&offset=-1','q=a&offset=1001','q=a&offset=1.5','q=a&from=2026-02-30','q=a&from=2026-10-01&to=2026-09-01','q=a&q=b','q=a&other=x'])assert.throws(()=>query(value),error=>error.status===400,value);
+});
+
+for(const boundary of ['2026-10-14','2026-10-15'])test('question scan cap is scoped to the unprocessed ordered boundary '+boundary,async t=>{
+ const {service,store}=setup(t),prepare=store.db.prepare.bind(store.db);
+ t.mock.method(store.db,'prepare',sql=>sql.includes('FROM sources INDEXED BY question_window')?{iterate:function*(){
+   for(let i=0;i<50000;i++)yield {id:'invalid',key:'/invalid',date:'2026-10-15'};
+   yield {id:'invalid',key:'/invalid',date:boundary};
+ }}:prepare(sql));
+ const section=(await service.query(query('q=none&type=question&from=2026-10-15&to=2026-10-15'))).sections[0];
+ assert.equal(section.coverage.limited,boundary==='2026-10-15');
+ assert.equal(section.coverage.complete,boundary==='2026-10-14');
 });

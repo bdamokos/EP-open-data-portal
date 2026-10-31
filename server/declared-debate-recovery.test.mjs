@@ -206,7 +206,9 @@ for(const [label,change] of [
   const reader=new DossierActivity(x.store,{reader:{record:async()=>({payload:{data:[node(parent,'PLENARY_DEBATE',{consists_of:[uri(id)]})]},url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:time})}});
   const result={generation:x.generation,coverage:{sources:[],gaps:[]},pagination:{}};
   await reader.speeches(result,{consists_of:[node(parent,'PLENARY_DEBATE')]},{targetOffset:0,language:'en',member:'42'},()=>{});
-  assert.equal(result.coverage.status,'partial');assert.deepEqual(result.coverage.missingSpeechIds,[id]);
+  // The rejected detail cannot attribute this URI-only declaration to person42.
+  // Recovery remains owned, but this person's count must not inherit that gap.
+  assert.equal(result.coverage.status,'complete');assert.deepEqual(result.coverage.missingSpeechIds,[]);assert.deepEqual(result.coverage.unresolvedChildIds,[id]);
 });
 
 test('a changed parent observation resets fan-out even if it committed before the cursor checkpoint failed',async t=>{

@@ -128,7 +128,7 @@ export class QuestionInsights {
         count:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where).get(...params).n,
         rows:this.store.db.prepare('SELECT key,body,fetched_at FROM sources INDEXED BY question_window WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
-        gaps:savedGaps(this.store,status.servingGeneration,'questions'),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),
+        gaps:savedGaps(this.store,status.servingGeneration,'questions',{start:query.start,end:query.end}),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),
         frontiers:questionCoverageRecords(this.store,status.servingGeneration,types)
       }));
       const {count,rows,members,undatedQuestions}=frozen;
@@ -139,7 +139,7 @@ export class QuestionInsights {
       const availability=questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:frozen.gaps,limited:count>rows.length,checkedAt:frozen.checkedAt,revision:frozen.revision,
         records:frozen.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}));
       const value={...analysis,...geography,members,metadata,status,undatedQuestions,availability,groupOn,groupCodes,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
-      const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography}));
+      const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography,availability}));
       signal.throwIfAborted();
       if(bytes<=INSIGHTS_LIMITS.cacheBytes) {
         if(this.cache.has(key)){this.cacheBytes-=this.cache.get(key).bytes;this.cache.delete(key);}
@@ -167,6 +167,12 @@ export class QuestionInsights {
     const hasAddressee=q=>matchesAddressee(q.addressees,query.addressee)&&hasGroup(q);
     const subjectBase=a.questions.filter(q=>!query.subject||q.places.some(place=>place.id===query.subject));
     const recipientBase=subjectBase.filter(hasAddressee),timeBase=recipientBase.filter(inTime),countryBase=timeBase.filter(hasCountry),selected=countryBase.filter(hasTopic);
+    const filtered=Boolean(query.country||query.group||query.addressee||query.subject||query.cluster||query.word),overflow=a.availability.some(source=>source.gaps.some(gap=>gap.reason==='gap-list-limit')),hasGaps=a.availability.some(source=>source.gaps.length);
+    const sameGeneration=this.store.status().servingGeneration===a.status.servingGeneration;
+    const availability=hasGaps&&(filtered||overflow)&&sameGeneration?this.store.readSnapshot(()=>{
+      const gaps=savedGaps(this.store,a.status.servingGeneration,'questions',{start:query.start,end:query.end,recordIds:selected.slice(query.offset,query.offset+query.limit).map(question=>question.id),restrictRecords:filtered});
+      return a.availability.map(source=>({...source,gaps}));
+    }):filtered?a.availability.map(source=>({...source,gaps:source.gaps.filter(gap=>gap.reason!=='record-gap-summary'&&(!gap.sourceId?.startsWith('/parliamentary-questions/')||selected.some(question=>gap.sourceId==='/parliamentary-questions/'+question.id)))})):a.availability;
     const geography=query.from||query.addressee||query.subject||query.group?countryQuestions({...a,questions:query.group?timeBase.map(q=>({...q,authors:groupAuthors(q)})):timeBase},a.members,a.metadata):a;
     const countryAnalysis=query.country?geography.countries.find(c=>c.code===query.country):null,countryFeatures=new Map((countryAnalysis?.features||[]).map(f=>[f.id,f]));
     const wordCounts=new Map(),clusterCounts=new Map();for(const q of countryBase){for(const token of q.tokens)wordCounts.set(token,(wordCounts.get(token)||0)+1);if(q.clusterId)clusterCounts.set(q.clusterId,(clusterCounts.get(q.clusterId)||0)+1);}
@@ -201,8 +207,8 @@ export class QuestionInsights {
       counts:{indexedMatchingQuestions:a.indexedMatchingQuestions,analyzedQuestions:a.questions.length,totalQuestions:a.status.complete&&!a.truncated?a.indexedMatchingQuestions:null,selectedQuestions:selected.length,contextUnassignedQuestions:countryBase.filter(q=>q.clusterId===null).length,countryUnassignedQuestions:query.country?countryBase.filter(q=>q.clusterId===null).length:null,clusters:a.clusters.length},
       selection:{subject:query.subject||null,subjectLabel:subjectPlace(query.subject)?.label||null,cluster:query.cluster,word:query.word,wordLabel:query.word?(a.termLabels?.[query.word]||query.word):null,country:query.country,group:query.group||null,addressee:query.addressee,from:query.from||null,to:query.to||null},facets:{countries:countryFacets,addressees:addresseeFacets,availableQuestions:countryBase.length},stats:stats(recipientBase),selectedStats:stats(selected,true),clusters:a.clusters.map(c=>({...c,contextQuestionCount:clusterCounts.get(c.id)||0,countryQuestionCount:query.country?clusterCounts.get(c.id)||0:null})),words:shownWords.map(w=>({...w,countryQuestionCount:query.country?w.contextQuestionCount:null})),analysis:a.analysis,
       geography:{countries:geography.countries.map(c=>({...c,features:[...new Map([...c.features.filter(f=>f.highlighted).slice(0,8),...c.features.filter(f=>f.id===(query.word?'word:'+query.word:'cluster:'+query.cluster))].map(f=>[f.id,f])).values()]})),selected:countryAnalysis,unknownCountryQuestions:geography.unknownCountryQuestions,method:geography.method},
-      trend:questionTrend(recipientBase.filter(hasCountry),recipientBase.filter(q=>hasCountry(q)&&hasTopic(q)),query,a.availability),questions:selected.slice(query.offset,query.offset+query.limit).map(present),offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
-      availability:a.availability,coverage:{undatedQuestions:a.undatedQuestions,undatedQuestionsScope:'All saved questions; excluded from date-window analysis because tabling document_date is unavailable',indexComplete:a.status.complete,truncated:a.truncated,scope:'Saved term-10 question sources, with all explicitly supplied authors. Country, gender and age demographics cover only people on the current saved MEP roster. Political groups count author-question contributions at tabling.',servingGeneration:a.status.servingGeneration,sourceCounts:a.status.sourceCounts,rosterFetchedAt:a.status.rosterFetchedAt,lastSuccessfulRefresh:a.status.lastSuccessfulRefresh,pendingSpeechRecoveries:a.status.pendingSpeechRecoveries?.count||0,sourceFetchedFrom:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort()[0]||null,sourceFetchedTo:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort().at(-1)||null},
+      trend:questionTrend(recipientBase.filter(hasCountry),recipientBase.filter(q=>hasCountry(q)&&hasTopic(q)),query,availability),questions:selected.slice(query.offset,query.offset+query.limit).map(present),offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
+      availability,coverage:{undatedQuestions:a.undatedQuestions,undatedQuestionsScope:'All saved questions; excluded from date-window analysis because tabling document_date is unavailable',indexComplete:a.status.complete,truncated:a.truncated,scope:'Saved term-10 question sources, with all explicitly supplied authors. Country, gender and age demographics cover only people on the current saved MEP roster. Political groups count author-question contributions at tabling.',servingGeneration:a.status.servingGeneration,sourceCounts:a.status.sourceCounts,rosterFetchedAt:a.status.rosterFetchedAt,lastSuccessfulRefresh:a.status.lastSuccessfulRefresh,pendingSpeechRecoveries:a.status.pendingSpeechRecoveries?.count||0,sourceFetchedFrom:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort()[0]||null,sourceFetchedTo:a.questions.map(q=>q.fetchedAt).filter(Boolean).sort().at(-1)||null},
       cache:{computedAt:a.computedAt,ttlSeconds:60,readOnly:true},attribution:'European Parliament Open Data API v2, CC BY 4.0',limits:INSIGHTS_LIMITS};
   }
 }
