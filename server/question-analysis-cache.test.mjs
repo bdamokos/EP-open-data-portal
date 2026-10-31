@@ -77,6 +77,32 @@ test('published input reuse retains the existing sixty-second analysis lifetime'
   time+=2;await reader.query(query);assert.equal(loads().bodyLoads,2);
 });
 
+test('a gap arriving during async metadata preparation remains visible in the same generation',async t=>{
+  const {store,generation,options}=fixture(t);store.publish(generation);
+  const reader=new QuestionInsights(store,{...options,loadMetadata:async()=>{
+    store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,'feed:/parliamentary-questions','feed',?)").run(generation,JSON.stringify({endpoint:'/parliamentary-questions',start:'2026-10-15',end:'2026-10-20'}));
+    store.set('availabilityRevision',(store.get('availabilityRevision')||0)+1);return new Map();
+  }});
+  const result=await reader.query(insightQuery(new URLSearchParams('days=90'),{now:now()}));
+  assert.equal(result.coverage.servingGeneration,generation);assert.equal(result.coverage.indexComplete,false);
+  assert.equal(result.counts.totalQuestions,null);
+  assert(result.availability.every(source=>source.gaps.some(gap=>gap.sourceId==='feed:/parliamentary-questions')));
+});
+
+test('readers sharing pending analysis each receive new same-generation gaps',async t=>{
+  const {store,generation,options}=fixture(t);store.publish(generation);
+  let entered,release;const started=new Promise(resolve=>entered=resolve),pending=new Promise(resolve=>release=resolve);
+  const reader=new QuestionInsights(store,{...options,loadMetadata:async()=>{entered();await pending;return new Map();}});
+  const read=language=>reader.query(insightQuery(new URLSearchParams({days:'90',lang:language}),{now:now()}));
+  const first=read('en');await started;const second=read('fr');
+  store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,'feed:/parliamentary-questions','feed',?)").run(generation,JSON.stringify({endpoint:'/parliamentary-questions',start:'2026-10-15',end:'2026-10-20'}));
+  store.set('availabilityRevision',(store.get('availabilityRevision')||0)+1);release();
+  for(const result of await Promise.all([first,second])){
+    assert.equal(result.coverage.indexComplete,false);
+    assert(result.availability.every(source=>source.gaps.some(gap=>gap.sourceId==='feed:/parliamentary-questions')));
+  }
+});
+
 test('a publication during async preparation keeps the original source and availability together',async t=>{
   const {store,generation,put,options}=fixture(t);store.publish(generation);
   const reader=new QuestionInsights(store,{...options,loadMetadata:async()=>{

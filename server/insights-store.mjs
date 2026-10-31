@@ -117,11 +117,21 @@ export class QuestionInsights {
     // Initial loading still needs the mutable working generation's revisions.
     const published=this.store.get('active')===status.servingGeneration;
     const key=JSON.stringify([status.servingGeneration,historyCacheKey(this.store,status.servingGeneration),this.store.get('demographicRevision')||0,published?'published':[status.availabilityRevision,status.complete,status.progress?.completed],status.rosterFetchedAt,query.start,query.end]);
-    const evidence=this.store.readSnapshot(()=>({gaps:savedGaps(this.store,status.servingGeneration,'questions',{start:query.start,end:query.end}),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess')}));
-    const current=value=>({...value,status,availability:questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:evidence.gaps,limited:value.truncated,checkedAt:evidence.checkedAt,revision:evidence.revision,
-      records:value.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}))});
+    const readEvidence=()=>({gaps:savedGaps(this.store,status.servingGeneration,'questions',{start:query.start,end:query.end}),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess')});
+    const evidence=this.store.readSnapshot(readEvidence);
+    const current=(value,afterWait=false)=>{
+      const original={status,...evidence};
+      const state=afterWait?this.store.readSnapshot(()=>{
+        const latest=this.store.status();
+        // New failures can arrive during local async reads. Refresh only the
+        // original generation; never attach another publication's evidence.
+        return latest.servingGeneration===status.servingGeneration?{status:latest,...readEvidence()}:original;
+      }):original;
+      return {...value,status:state.status,availability:questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:state.gaps,limited:value.truncated,checkedAt:state.checkedAt,revision:state.revision,
+        records:value.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}))};
+    };
     const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return current(old.value);
-    if(this.pending.has(key))return current(await waitForRequest(this.pending.get(key)));
+    if(this.pending.has(key))return current(await waitForRequest(this.pending.get(key)),true);
     const groupCodes=groupOn.codes||new Set();
     // Language and filter views share this analysis, but each view has its own
     // owner. Expiring one view must cancel only its wait on the shared work.
@@ -152,7 +162,7 @@ export class QuestionInsights {
       }
       return value;
     }).finally(()=>{if(this.pending.get(key)===job)this.pending.delete(key);});
-    this.pending.set(key,job);return current(await waitForRequest(job));
+    this.pending.set(key,job);return current(await waitForRequest(job),true);
   }
   async query(query) {
     const a=await this.analysis(query);
