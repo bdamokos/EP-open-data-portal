@@ -29,6 +29,22 @@ test('source reader preserves the exact filtered request, bounds display/downloa
   const data=await read(url,'en');assert.equal(calls.length,1);assert.equal(calls[0].params.limit,25);assert.equal(calls[0].params.offset,'50');assert.equal(calls[0].params['person-id'],'125065');assert.equal(calls[0].params['include-output'],'xml_fragment');assert(!('format' in calls[0].params));assert.equal(calls[0].options.staleWhileRevalidate,true);
   assert.equal(data.sourceUrl,url);assert.equal(data.records.length,25);assert.equal(data.payload.data.length,25);assert.equal(data.limited,true);assert.equal(data.stale,true);assert.equal(data.records[0].websiteUrl,null);
 });
+test('type-only procedure links require one consistent declaration across representations and aliases',async()=>{
+  const id='2026-0001A',url=base+'/procedures/'+id,type='def/ep-procedure-types/APP';
+  const expected='https://oeil.europarl.europa.eu/oeil/fr/procedure-file?reference=2026%2F0001A%28APP%29';
+  for(const fields of [{process_type:type},{process_type:{id:type}},{process_type:{'@id':type}},{process_type:[type,{id:type},type]},{procedure_type:type,had_procedure_type:{id:type}}]) {
+    assert.equal(humanSourceUrl(url,{language:'fr',record:fields}),expected);
+    const read=createSourceReader({request:async()=>({url,fetchedAt:Date.parse('2026-10-31T09:00:00Z'),payload:{data:[{id:'eli/dl/proc/'+id,...fields}]}})});
+    assert.equal((await read(url,'fr')).records[0].websiteUrl,expected);
+  }
+  for(const fields of [{},{process_type:{}},{process_type:[type,{}]},{process_type:[type,null]},{process_type:[type,'def/ep-procedure-types/COD']},{process_type:['def/ep-procedure-types/COD',type]},{process_type:type,procedure_type:'COD'}])assert.equal(humanSourceUrl(url,{record:fields}),null);
+  const contradictory={process_type:['COD','RSP'],label:'2026/0001A(APP)'};
+  assert.equal(humanSourceUrl(url,{language:'fr',record:contradictory}),expected,'an exact printed reference keeps its established path');
+  assert.equal(humanSourceUrl(url,{language:'fr',reference:'2026/0001A(APP)',record:{process_type:{}}}),expected);
+  assert.equal(humanSourceUrl(url,{reference:'2026/0001(APP)',record:{process_type:type}}),null,'the letter suffix is part of identity');
+  assert.equal(humanSourceUrl(url,{record:{label:'2026/0002A(APP)',process_type:type}}),null);
+  assert.equal(new URL(humanSourceUrl(url,{record:{process_type:'XYZ'}})).searchParams.get('reference'),'2026/0001A(XYZ)','unknown future codes retain exact syntax');
+});
 test('source reader rejects mismatched identities and oversized responses without inventing a website',async()=>{
   const read=payload=>createSourceReader({request:async()=>({url:base+'/procedures/2025-0407',fetchedAt:Date.now(),payload})});
   await assert.rejects(()=>read({data:[{id:'eli/dl/proc/2025-0408'}]})(base+'/procedures/2025-0407'),error=>error.code==='source_identity');

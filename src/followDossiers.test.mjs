@@ -56,6 +56,24 @@ test('OEIL observation keys cannot replace a Cellar Following baseline or announ
   h.store.observeProgress(id,progress('2026-10-23T09:01:00Z',[event('oeil:label-derived')],{basis:'oeil'}),h.expected());
   assert.deepEqual(h.item().observations.progress,baseline);assert.equal(h.item().entries.length,0);assert(h.item().gaps.progress);
 });
+test('generic progress copy covers legislative, non-legislative and budgetary updates without changing event baselines',()=>{
+  for(const reference of ['2026/0001(COD)','2026/0002(RSP)','2026/0003(BUD)']) {
+    const values=new Map(),storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)},now=Date.parse('2026-10-31T10:00:00Z');
+    const store=createDossiersStore(storage,()=>{},()=>now);store.toggle({id:reference});
+    const item=()=>store.snapshot().items[0],response=(time,events)=>({reference,state:'mapped',coverage:{},source:{fetchedAt:time},events});
+    store.observeProgress(reference,response('2026-10-31T08:00:00Z',[]),item());assert.equal(item().entries.length,0,'initial observation stays quiet');
+    const published=event('published','2026-10-30','recorded','Decision by Parliament'),unlabelled=event('unlabelled','2026-10-30','recorded','');
+    store.observeProgress(reference,response('2026-10-31T09:00:00Z',[published,unlabelled]),item());
+    const added=structuredClone(item().entries),known=structuredClone(item().observations.progress.known);
+    assert.deepEqual(added.map(row=>row.title),['Decision by Parliament','Procedure progress']);assert(added.every(row=>row.change==='event'&&row.date==='2026-10-30'&&row.readAt===null));
+    assert.equal(added[1].id,'progress:unlabelled:'+JSON.stringify(['recorded','2026-10-30',[]]));
+    store.markEntryRead(reference,added[0].id);assert.equal(item().entries.find(row=>row.id===added[0].id).readAt,now);
+    store.observeProgress(reference,response('2026-10-31T09:30:00Z',[{...published,label:'Updated published wording'},unlabelled]),item());
+    assert.deepEqual(item().observations.progress.known,known);assert.equal(item().entries.length,2,'label changes create no new update');
+    assert.equal(item().entries.find(row=>row.id===added[0].id).readAt,now);assert.equal(item().entries.find(row=>row.id===added[1].id).readAt,null);assert.equal(item().entries.find(row=>row.id===added[0].id).title,'Decision by Parliament');
+    assert.deepEqual(createDossiersStore(storage,()=>{},()=>now).snapshot().items[0].entries,item().entries);
+  }
+});
 test('press catch-up is independent of OEIL failures, latest-five previews and old publication dates',()=>{
   const h=setup();h.store.observePress(id,press(10),h.expected());assert.equal(h.item().entries.length,0);
   const releases=Array.from({length:8},(_,i)=>({id:'release-'+i,linkedAt:11+i,publishedAt:'2020-01-01',title:'Press '+i,url:'https://www.europarl.europa.eu/news/en/press-room/example'}));

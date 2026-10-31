@@ -7,7 +7,7 @@ import {ProcedureContext} from './ProcedureContext';
 import {InsightQuestionReader} from './InsightReaders';
 import {publicAmendmentsEnabled} from './publicFeatures';
 import './DossierCard.css';
-const labels:Record<string,string>={document:'Document',stage:'Procedure stage',vote:'Vote recorded','amendment-list':'Amendment list',summary:'Dossier summary',press:'Press release',scheduled:'Scheduled',cancelled:'Cancelled',date:'Date changed',status:'Status changed',event:'Legislative progress'};
+const labels:Record<string,string>={document:'Document',stage:'Procedure stage',vote:'Vote recorded','amendment-list':'Amendment list',summary:'Dossier summary',press:'Press release',scheduled:'Scheduled',cancelled:'Cancelled',date:'Date changed',status:'Status changed',event:'Procedure progress'};
 const publicEntry=(entry:DossierEntry)=>publicAmendmentsEnabled||entry.eventKind!=='amendment-list';
 const officialPress=(value:string|undefined)=>{try{const url=new URL(value||'');return url.protocol==='https:'&&url.hostname==='www.europarl.europa.eu'&&url.pathname.startsWith('/news/')?url.href:null;}catch{return null;}};
 export function DossierCard({item,language,now}:{item:FollowedDossier;language:string;now:number}) {

@@ -64,7 +64,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
       const known={...old?.known},entries=[];
       for(const event of data.events) {
         const fingerprint=JSON.stringify([event.status,event.date,event.statuses?.map(status=>status.code).sort()||[]]),previous=known[event.id];
-        if(old&&previous!==fingerprint)entries.push({id:'progress:'+event.id+':'+fingerprint,eventKind:'progress',title:event.label||'Legislative progress',titleLanguage:event.labelLanguage||'en',date:event.date||'',previousDate:previous?JSON.parse(previous)[1]:undefined,change:previous?event.status==='cancelled'?'cancelled':JSON.parse(previous)[1]!==event.date?'date':'status':event.status==='projected'?'scheduled':event.status==='cancelled'?'cancelled':'event',source:data.source});
+        if(old&&previous!==fingerprint)entries.push({id:'progress:'+event.id+':'+fingerprint,eventKind:'progress',title:event.label||'Procedure progress',titleLanguage:event.labelLanguage||'en',date:event.date||'',previousDate:previous?JSON.parse(previous)[1]:undefined,change:previous?event.status==='cancelled'?'cancelled':JSON.parse(previous)[1]!==event.date?'date':'status':event.status==='projected'?'scheduled':event.status==='cancelled'?'cancelled':'event',source:data.source});
         known[event.id]=fingerprint;
       }
       return {baseline:{at:fetched,known},entries};
