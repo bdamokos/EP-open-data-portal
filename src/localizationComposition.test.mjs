@@ -5,7 +5,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {freshLoader} from './test-support/viteRunner.mjs';
 import {Window} from 'happy-dom';
 import {createUiI18n} from './uiI18n.mjs';
-import {memberVotePositionState,memberVotePositionSummary} from './memberVotesPresentation.mjs';
+import {memberVotePositionState,memberVotePositionSummary,memberVotePosition} from './memberVotesPresentation.mjs';
 
 const cases=[
  ['notConducted',{ballotStatus:'not-conducted',actualPosition:{status:'recorded',position:'for'}}],
@@ -33,6 +33,20 @@ test('approved locales render every full semantic state in both layouts and pres
  assert(markup.includes('Žąsis &lt;raw&gt;'));assert(markup.includes('· '+state));assert(markup.includes('lang=""'));assert.equal(JSON.stringify(vote),before);
  }
  const legacy=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(Position,{vote:cases[5][1],compact:true,memberName:'Raw'})));assert(legacy.includes('voted'));
+});
+test('compact position wording and styling follow ballot precedence in every composition path',async t=>{
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
+ const {Position}=await load('/src/MemberVoteSummary.tsx'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await load('/src/uiCatalogues.mjs');
+ const catalogues={};for(const language of ['fr','ro','lt'])catalogues[language]=(await load('/src/ui-locales/'+language+'.json')).default;
+ const i18n=createAppUiI18n(catalogues),window=new Window();t.after(()=>window.happyDOM.close());
+ for(const language of ['en','fr','ro','lt'])for(const [state,input] of cases){
+  const vote={ballotStatus:'conducted',method:null,actualPosition:{status:'not-reported'},...input},before=JSON.stringify(vote),ui=i18n.forLocale(language);
+  window.document.body.innerHTML=renderToStaticMarkup(h(UiI18nProvider,{i18n,language},h(Position,{vote,compact:true,memberName:'Raw member'})));
+  const node=window.document.querySelector('.member-votes-position'),recorded=['for','against','abstaining'].includes(state);
+  assert(node.classList.contains('member-votes-position-'+(recorded?state:'unknown')));
+  if(!['ro','lt'].includes(language))assert.equal(node.textContent,ui.t(recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position',{memberName:'Raw member',position:memberVotePosition(vote,ui)}));
+  assert.equal(node.querySelector('.member-votes-position-label').lang,'');assert.equal(JSON.stringify(vote),before);
+ }
 });
 test('recorded page summaries preserve filtered and unfiltered scopes, null and zero pages, and restrict new contracts to approved locales',async t=>{
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());

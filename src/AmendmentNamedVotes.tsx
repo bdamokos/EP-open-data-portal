@@ -5,7 +5,7 @@ import {useEffect,useRef,useState} from 'react';
 import {useData} from './data';
 import {PersonName} from './PersonName';
 import {insightMemberHref} from './InsightShared';
-import {groupLabel} from './InsightCharts';
+import {groupLabel,groupLabelLanguage} from './groupLabels';
 import {knownVoteMethodLabel} from './voteMethod.mjs';
 import type {Amendment,AmendmentDecision} from './AmendmentTypes';
 import type {DecisionVoter,DecisionVotesResponse} from './DecisionVotesTypes';
@@ -20,7 +20,7 @@ const keyOf=(voter:DecisionVoter)=>voter.group?.groupId??'unavailable';
 function GroupVotes({voters,code,language}:{voters:DecisionVoter[];code:string|null;language:string}) {
   const ui = useUiI18n();
   const [showAll,setShowAll]=useState(false),name=code ? groupLabel(code,ui) : ui.t("amendmentnamedvotes.tsx.group.unknown");
-  return <details className="amendment-named-votes__group"><summary><span lang={code ? '' : 'en'}>{name}</span><span className="amendment-vote-strip" aria-hidden="true">{choices.map(position=><span key={position} data-position={labels[position]} style={{flexGrow:voters.filter(v=>v.position===position).length}}/>)}</span><span className="amendment-group-counts">{choices.map(position=><span key={position}><b>{voters.filter(v=>v.position===position).length.toLocaleString(language)}</b> {labelsUi(ui)[position].toLocaleLowerCase(ui.locale)}</span>)}</span></summary>
+  return <details className="amendment-named-votes__group"><summary><span lang={code ? groupLabelLanguage(code,ui) : ui.messageLocale('amendmentnamedvotes.tsx.group.unknown')}>{name}</span><span className="amendment-vote-strip" aria-hidden="true">{choices.map(position=><span key={position} data-position={labels[position]} style={{flexGrow:voters.filter(v=>v.position===position).length}}/>)}</span><span className="amendment-group-counts">{choices.map(position=><span key={position}><b>{voters.filter(v=>v.position===position).length.toLocaleString(language)}</b> {labelsUi(ui)[position].toLocaleLowerCase(ui.locale)}</span>)}</span></summary>
     <div className="amendment-named-votes__people" aria-label={ui.t("amendmentnamedvotes.tsx.named.voters.group", {group: String(name)})}>{choices.map(position=>{const people=voters.filter(v=>v.position===position);return people.length>0&&<section key={position}><h6><>{labelsUi(ui)[position]} ({people.length.toLocaleString(language)})</></h6><ul>{(showAll ? people : people.slice(0,12)).map(voter=><li key={voter.personId}><a href={insightMemberHref(voter.personId,language)}><PersonName id={voter.personId} fallback={ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(voter.personId)})}/></a><RecordMemberAffiliation id={voter.personId} datedGroup={voter.group?.code} language={language}/></li>)}</ul></section>;})}{choices.some(position=>voters.filter(v=>v.position===position).length>12)&&<button type="button" onClick={()=>setShowAll(!showAll)}>{showAll ? <UiMessage id="amendmentnamedvotes.tsx.show.fewer.names"/> : <UiMessage id="amendmentnamedvotes.tsx.show.all.names"/>}</button>}</div>
   </details>;
 }

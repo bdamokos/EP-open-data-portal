@@ -7,16 +7,16 @@ import {voteFixture,contradictoryVoteFixture,splitBindingFixture,decisionId,amen
 
 const item={id:amendmentId,number:114,targetDocumentId:'B-10-2026-0424',outcome:'ADOPTED',authors:[{name:'Author One',personId:'197591'},{name:'Author Two',personId:'197481'},{name:'Unresolved Author',personId:null},{name:'Unlisted Author',personId:'999'}]};
 const decision={id:decisionId,outcome:'ADOPTED',method:'VOTE_ELECTRONIC_ROLLCALL',totals:{for:2,against:1,abstaining:1}};
-async function mount(t,handler,{integrated=false,indexedDecision=decision,members}={}) {
+async function mount(t,handler,{integrated=false,indexedDecision=decision,members,language='en',i18n}={}) {
  const window=new Window({url:'http://localhost/?member=197591&module=amendments'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  const calls=[];t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);calls.push(url);if(url.pathname.endsWith('/amendments'))return Response.json({items:[{...item,decisions:[indexedDecision]}],total:1,offset:0,limit:20,coverage:{complete:false,pending:false}});return handler(url);});
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
  const {AmendmentNamedVotes}=await load('/src/AmendmentNamedVotes.tsx'),{Amendments}=await load('/src/Amendments.tsx'),{createRoot}=await import('react-dom/client');
- const {PersonNamesProvider}=await load('/src/PersonName.tsx');
+ const {PersonNamesProvider}=await load('/src/PersonName.tsx'),{UiI18nProvider}=await load('/src/UiI18nReact.tsx');
  const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
- const render=patch=>act(async()=>root.render(createElement(PersonNamesProvider,{members},createElement(integrated?Amendments:AmendmentNamedVotes,integrated?{member:197591,language:'en'}:{item,decision,language:'en',...patch}))));
+ const render=patch=>{const view=createElement(PersonNamesProvider,{members},createElement(integrated?Amendments:AmendmentNamedVotes,integrated?{member:197591,language}:{item,decision,language,...patch}));return act(async()=>root.render(i18n?createElement(UiI18nProvider,{i18n,language},view):view));};
  const open=async()=>{const details=container.querySelector('.amendment-named-votes__groups');await act(async()=>{if(details){details.open=true;details.dispatchEvent(new window.Event('toggle'));}});};
  return {window,container,calls,render,open};
 }
@@ -144,4 +144,15 @@ test('amendment author metadata stays country-only independently of vote-date af
  const h=await mount(t,async()=>Response.json(await voteFixture().read()),{integrated:true,members:[{id:197591,countryCode:'HU',groupCode:'PPE'}]});await h.render();
  const tag=h.container.querySelector('.explorer-amendment-authors .member-affiliation');
  assert.equal(tag.textContent,'HUHungary');assert.equal(tag.querySelector('i'),null);
+});
+
+test('named-vote group headings use the French UI language for unknown and translated groups',async t=>{
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs'),{default:fr}=await import('./ui-locales/fr.json',{with:{type:'json'}});
+ const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr'),data=await voteFixture().read();
+ data.voters[0].group=null;data.voters[0].groupStatus='ambiguous';
+ const h=await mount(t,async()=>Response.json(data),{language:'fr',i18n});await h.render();await h.open();
+ const headings=[...h.container.querySelectorAll('.amendment-named-votes__group summary>span:first-child')];assert(headings.length);
+ const unknown=headings.find(node=>node.textContent===ui.t('amendmentnamedvotes.tsx.group.unknown'));assert(unknown);assert.equal(unknown.lang,'fr');
+ const translated=headings.find(node=>node.textContent===ui.t('grouplabels.ts.epp'));assert(translated);assert.equal(translated.lang,'fr');
+ const literal=headings.find(node=>node.textContent==='S&D');assert(literal);assert.equal(literal.lang,'');
 });

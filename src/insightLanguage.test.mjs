@@ -216,3 +216,26 @@ test('French question controls keep recognised English subjects and complete add
  assert(scope.includes(ui.t('batch4.questiontopics.tsx.to.the.addressees',{addressees:'Commission'})));
  assert(!scope.includes('toCommission'));assert.equal(data.questions[0].subjects[0].label,'United States');
 });
+
+test('French group labels and voter controls keep UI language while literal group codes stay neutral',async t=>{
+ const h=await harness(t,'fr','?view=legislation&pl-sitting='+sitting.id+'&agenda-topic=exact-topic');
+ const UiI18nProvider=await h.load('UiI18nReact','UiI18nProvider'),People=await h.load('InsightShared','InsightPeople'),Affiliation=await h.load('components/MemberAffiliation','MemberAffiliation');
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs'),{default:fr}=await import('./ui-locales/fr.json',{with:{type:'json'}});
+ const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr'),codes=['NI','TheLeft','Verts/ALE','PPE','SOURCE_GROUP'];
+ const wrap=child=>createElement(UiI18nProvider,{i18n,language:'fr'},child);
+ await h.render(wrap(createElement('div',null,...codes.map(group=>createElement(Affiliation,{key:group,group,language:'fr'})),createElement(People,{language:'fr',people:codes.map((group,i)=>({id:String(i+1),name:'Source name',group,currentMep:false}))}))));
+ for(const selector of ['.member-affiliation__group','.insight-person-group']){
+  const nodes=[...h.container.querySelectorAll(selector)];assert.equal(nodes.length,codes.length);
+  for(const [i,node] of nodes.entries())assert.equal(node.lang,codes[i]==='SOURCE_GROUP'?'':'fr');
+  assert.equal(nodes[0].textContent,ui.t('grouplabels.ts.non.attached'));assert.equal(nodes.at(-1).textContent,'SOURCE_GROUP');
+ }
+ const person={id:'1',name:'Source name',group:'NI',country:'FR',currentMep:false},positions={for:[person],against:[],abstaining:[]};
+ const vote={id:'exact-vote',date:sitting.date,scope:'final-text',outcome:'ADOPTED',subjects:{en:'Source subject'},titles:{},aggregateTotals:{for:1,against:0,abstaining:0},namedVotersAvailable:true,totalsMatchNamed:true,groups:positions,politicalGroups:[{code:'NI',positions}],intendedCorrections:{for:[],against:[],abstaining:[]}};
+ const topic={id:'exact-topic',title:'Source topic',titleLanguage:'en',date:sitting.date,kind:'PLENARY_VOTE',documentIds:[]};
+ h.respond(()=>({view:'legislation',sitting,sittings:[sitting],topics:[topic],coverage:{agendaError:null},detail:{...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats,speeches:[],votes:[{...vote,title:'Source summary',subject:null}],selectedVote:vote,voteCoverage:{truncated:false},coverage:{roleRowsTruncated:false,gaps:[],speechAssociations:{sources:[],truncated:false}}}}));
+ const Legislation=await h.load('Legislation','Legislation');await h.render(wrap(createElement(Legislation,{language:'fr',onBack(){}})));
+ const row=h.container.querySelector('.insight-vote-group-row');assert(row);assert.equal(effectiveLanguage(row.firstElementChild),'fr');
+ for(const button of row.querySelectorAll('button'))assert.equal(effectiveLanguage(button),'fr');
+ await act(async()=>row.querySelector('button').click());
+ const selectedGroup=h.container.querySelector('.insight-voter-list h3 span');assert(selectedGroup);assert.equal(effectiveLanguage(selectedGroup),'fr');assert.equal(selectedGroup.textContent,ui.t('grouplabels.ts.non.attached'));
+});

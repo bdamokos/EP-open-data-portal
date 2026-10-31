@@ -18,9 +18,9 @@ export function Result({vote,showMissingTotals=true,showPartialTotals=false}:{vo
 
 export function Position({vote,memberName,compact=false}:{vote:PositionVote;memberName:string;compact?:boolean}) {
   const ui=useUiI18n();
-  const label=memberVotePosition(vote,ui),recorded=vote.actualPosition.status==='recorded';
-  const position=recorded?vote.actualPosition.position:'unknown';
-  return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}>{ui.language==='ro'||ui.language==='lt' ? ui.rich('membervotesummary.fullPosition.'+memberVotePositionState(vote),{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>}).map((part,index)=>typeof part==='string'?<strong key={index}>{part}</strong>:<span key={index}>{part}</span>) : <UiMessage id={compact&&recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position'} values={{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>,position:<strong>{label}</strong>}}/>}</span>;
+  const label=memberVotePosition(vote,ui),state=memberVotePositionState(vote),recorded=['for','against','abstaining'].includes(state);
+  const position=recorded?state:'unknown';
+  return <span className={'member-votes-position member-votes-position-'+position+(compact?' member-votes-position-compact':'')}>{ui.language==='ro'||ui.language==='lt' ? ui.rich('membervotesummary.fullPosition.'+state,{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>}).map((part,index)=>typeof part==='string'?<strong key={index}>{part}</strong>:<span key={index}>{part}</span>) : <UiMessage id={compact&&recorded?'membervotesummary.membername_voted_position':'membervotesummary.membername_position'} values={{memberName:<span className="member-votes-position-label" lang="">{memberName}</span>,position:<strong>{label}</strong>}}/>}</span>;
 }
 
 
