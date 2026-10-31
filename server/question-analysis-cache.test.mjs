@@ -103,6 +103,17 @@ test('readers sharing pending analysis each receive new same-generation gaps',as
   }
 });
 
+test('first publication cannot mark earlier mutable question inputs complete',async t=>{
+  const {store,generation,put,options}=fixture(t);let initial=true;
+  const reader=new QuestionInsights(store,{...options,loadMetadata:async()=>{
+    if(initial){initial=false;put(generation,'E-10-2026-000002');store.publish(generation);}return new Map();
+  }}),query=insightQuery(new URLSearchParams('days=90'),{now:now()});
+  const first=await reader.query(query);
+  assert.equal(first.coverage.indexComplete,false);assert.equal(first.counts.totalQuestions,null);assert.equal(first.counts.analyzedQuestions,1);
+  const next=await reader.query(query);
+  assert.equal(next.coverage.indexComplete,true);assert.equal(next.counts.totalQuestions,2);assert.equal(next.counts.analyzedQuestions,2);
+});
+
 test('a publication during async preparation keeps the original source and availability together',async t=>{
   const {store,generation,put,options}=fixture(t);store.publish(generation);
   const reader=new QuestionInsights(store,{...options,loadMetadata:async()=>{

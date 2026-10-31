@@ -121,10 +121,11 @@ export class QuestionInsights {
     const evidence=this.store.readSnapshot(readEvidence);
     const current=(value,afterWait=false)=>{
       const original={status,...evidence};
-      const state=afterWait?this.store.readSnapshot(()=>{
+      const state=afterWait&&published?this.store.readSnapshot(()=>{
         const latest=this.store.status();
         // New failures can arrive during local async reads. Refresh only the
-        // original generation; never attach another publication's evidence.
+        // already published generation; never promote older mutable inputs
+        // to the complete state of their first publication.
         return latest.servingGeneration===status.servingGeneration?{status:latest,...readEvidence()}:original;
       }):original;
       return {...value,status:state.status,availability:questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:state.gaps,limited:value.truncated,checkedAt:state.checkedAt,revision:state.revision,
