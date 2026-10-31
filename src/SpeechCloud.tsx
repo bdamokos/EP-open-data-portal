@@ -16,7 +16,7 @@ import './SpeechCloud.css';
 
 type CloudPerson=SpeechSpeaker&{currentMep:boolean};
 type CloudSpeech={id:string;date:string;title:string;titleLanguage?:string|null;machineTranslation:boolean;people:CloudPerson[]};
-export type SpeechCloudResult={availability?:SourceAvailability;restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{catalogueComplete?:boolean;basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
+export type SpeechCloudResult={availability?:SourceAvailability;restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{catalogueComplete?:boolean;basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;missingLanguageAlternatives?:{language:string;count:number}[];unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
 const client=createSpeechCloudClient(api);
 const languages='bg cs da de el en es et fi fr ga hr hu it lt lv nl pl pt ro sk sl sv'.split(' ');
 const wordLabel=(word:string)=>['ai','gdp','nato'].includes(word) ? word.toUpperCase() : word;
@@ -65,6 +65,7 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
   const initialTerms=member ? 8 : 16;
   const frequencies=data?.words.map(term=>(data.coverage.transcripts===1) ? term.occurrences : term.speechCount)||[];
   const speakers=new Set(data?.speeches.flatMap(speech=>speech.people.map(person=>person.id))||[]).size;
+  const missingAlternatives=data&&(data.coverage.missingLanguage>0||data.coverage.unreadableText>0)?(data.coverage.missingLanguageAlternatives||[]).filter(item=>languages.includes(item.language)&&item.language!==language&&Number.isSafeInteger(item.count)&&item.count>0):[];
   function choose(term:string){setWord(previous=>(previous===term) ? null : term);setReading(null);requestAnimationFrame(()=>{examples.current?.focus({preventScroll:true});examples.current?.scrollIntoView({block:'start'});});}
   function readSpeech(id:string){
     if(onSpeech){onSpeech(id,language);return;}
@@ -81,6 +82,7 @@ export function SpeechCloud({member,sitting,week,topic,country,interfaceLanguage
     {data&&!loading&&(data.coverage.missingLanguage>0||data.coverage.unreadableText>0)&&<p className="explorer-cloud-caption">{(data.coverage.missingLanguage>0) ? ui.t("speechcloud.missinglanguage_without_text_in_this_language.ad0413", {missingLanguage: String(data.coverage.missingLanguage)}, {missingLanguage: data.coverage.missingLanguage}) : ''} { (data.coverage.unreadableText>0) ? ui.t("speechcloud.unreadabletext_texts_unreadable.20c3fb", {unreadableText: String(data.coverage.unreadableText)}, {unreadableText: data.coverage.unreadableText}) : ''}</p>}
     {data&&!loading&&data.coverage.truncated&&<p className="explorer-cloud-caption"><UiMessage id="coverage.speechAnalysisLimit" values={{count:data.coverage.transcripts}}/></p>}
     {loading&&data&&<p className="explorer-cloud-progress" role="status"><UiMessage id="speechcloud.loading_more_speeches.a3ae37"/></p>}
+    {!loading&&missingAlternatives.length>0&&<div className="explorer-cloud-alternatives"><span><UiMessage id="commissionfollowups.other_languages"/>:</span>{missingAlternatives.map(item=><button type="button" key={item.language} lang={interfaceLanguage} onClick={()=>setLanguage(item.language)}>{languageLabel(item.language)} ({item.count})</button>)}</div>}
     {error&&<p role="alert">{data?.words.length ? ui.t("speechcloud.some_speech_text_could_not_be_loaded.be591a") : ui.t("speechcloud.speech_text_could_not_be_loaded.9d3271")} <button onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
     {selected&&<section className="explorer-cloud-examples">
       <h4 ref={examples} tabIndex={-1}><span lang={data?.language??''} style={{fontSize:'inherit'}}>{selected.label||wordLabel(selected.word)}</span> <small>{<UiMessage id="speechcloud.in_count_speeches.a25a1a" values={{count: selected.speechCount}} counts={{count: selected.speechCount}}/>}</small></h4>

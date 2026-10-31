@@ -4,11 +4,12 @@ import {languagePreference} from './language-order.mjs';
 import {readFile,stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
-import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import stopwordLists from './insights-speech-stopwords.json' with {type:'json'};
 import {HttpError} from './http-utils.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
+import {speechParagraphText} from './transcript-text.mjs';
+export const SPEECH_WORDS_VERSION=2;
 import {retainedSpeechData} from './corpus-speeches.mjs';
 export const speechWordLanguages=Object.freeze(Object.keys(stopwordLists));
 const filterKey=(word,language)=>word.normalize('NFKC').toLocaleLowerCase(language).normalize('NFD').replace(/\p{M}/gu,'');
@@ -24,12 +25,7 @@ export function speechWordsQuery(search,{now=Date.now()}={}) {
   if(!filters.has(query.language))throw new HttpError(400,'unsupported_analysis_language','Word filtering is not available for this language.');
   return {...query,member};
 }
-const text=node=>typeof node==='string'?node:typeof node==='number'?String(node):Array.isArray(node)?node.map(text).join(' '):node&&typeof node==='object'?Object.entries(node).filter(([key])=>!key.startsWith('@_')).map(([,value])=>text(value)).join(' '):'';
-export function speechParagraphText(xml) {
-  if(typeof xml!=='string'||Buffer.byteLength(xml)>1024*1024||/<!DOCTYPE|<!ENTITY/i.test(xml)||XMLValidator.validate(xml)!==true)return '';
-  const tree=new XMLParser({ignoreAttributes:false,removeNSPrefix:true}).parse(xml),paragraphs=[];
-  function visit(node){if(!node||typeof node!=='object')return;for(const [key,value] of Object.entries(node)){if(key==='p'){for(const paragraph of Array.isArray(value)?value:[value])paragraphs.push(text(paragraph?.time??paragraph));}else if(!key.startsWith('@_')){for(const child of Array.isArray(value)?value:[value])visit(child);}}}visit(tree);return paragraphs.join(' ');
-}
+export {speechParagraphText} from './transcript-text.mjs';
 export function speechWordTokens(text,language){const filter=filters.get(language);if(!filter)return [];const normalized=text.normalize('NFKC').toLocaleLowerCase(language);return [...normalized.matchAll(/(?:\bai\b|\p{L}[\p{L}\p{M}]{2,39})/gu)].filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index))).map(match=>match[0]).filter(word=>!filter.has(filterKey(word,language)));}
 export const speechWordStopwords=language=>new Set(filters.get(language)||[]);
 export class SpeechWordInsights {

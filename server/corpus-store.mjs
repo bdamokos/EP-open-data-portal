@@ -495,7 +495,7 @@ export class CorpusStore {
         text={body,language:selected.language,sourceFragmentKey:selected.source_key,translationType:selected.translation_type,
           sourceUrl:selected.source_url,fetchedAt:selected.fetched_at,checkedAt:selected.checked_at};
       }
-      const record={id,metadata,metadataUnavailable,text,availableLanguages:[...new Set(variants.map(row=>row.language))]};
+      const record={id,metadata,metadataUnavailable,text,availableLanguages:[...new Set(variants.filter(row=>row.chars>0&&row.chars<=2*1024*1024).map(row=>row.language))]};
       const size=Buffer.byteLength(JSON.stringify(record));
       if(bytes+size>4*1024*1024)return {records,truncated:true};
       bytes+=size;records.push(record);
@@ -548,15 +548,19 @@ export class CorpusStore {
     return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
   });}
 
-  speechTranscript({sourceId,language}) {
+  speechTranscript({sourceId,language,allowFallback=false}) {
     return this.snapshot(()=>{
-      const rows=this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.sha256
+      const rows=this.db.prepare(`SELECT t.id,t.language,t.source_key,t.translation_type,t.source_url,t.fetched_at,t.checked_at,t.sha256,t.chars,d.date document_date
         FROM documents d JOIN texts t ON t.document_id=d.id
         WHERE d.source_id=? AND d.kind='speech' AND t.source_format='xml-fragment' AND t.raw IS NOT NULL
         ORDER BY t.source_key`).all(sourceId);
-      // Exact language only: the authoritative detail reader owns language fallback.
-      const row=rows.filter(t=>t.language===language).sort((a,b)=>
+      // The public retained-only route stays exact. Only the authoritative
+      // detail reader opts into a stored original after its source read fails.
+      const order=languagePreference(rows.map(row=>row.language),language);
+      const row=rows.filter(t=>(allowFallback||t.language===language)&&(!allowFallback||t.chars>0&&t.chars<=2*1024*1024)).sort((a,b)=>
+        Number(b.language===language)-Number(a.language===language) ||
         Number(b.translation_type==='original')-Number(a.translation_type==='original') ||
+        order.indexOf(a.language)-order.indexOf(b.language) ||
         Number(b.source_key===language)-Number(a.source_key===language))[0];
       if(!row)return {id:sourceId,available:false};
       const raw=this.db.prepare('SELECT raw FROM texts WHERE id=?').get(row.id).raw;
@@ -575,7 +579,7 @@ export class CorpusStore {
           }catch {metadataUnavailable=true;}
         }
       }
-      return {id:sourceId,available:true,xml,textLanguage:row.language,sourceFragmentKey:row.source_key,metadataRecord,metadataUnavailable,
+      return {id:sourceId,available:true,xml,textLanguage:row.language,sourceFragmentKey:row.source_key,metadataRecord,metadataUnavailable,...(allowFallback?{documentDate:row.document_date}:{}),
         translationType:row.translation_type,availableTextLanguages:[...new Set(rows.map(t=>t.language))],
         sourceUrl:row.source_url,fetchedAt:row.fetched_at,checkedAt:row.checked_at};
     });

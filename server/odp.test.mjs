@@ -180,3 +180,10 @@ test('single-language originals in mul select their XML language before an unrel
   const mixed=chooseTranscript([{'api:xmlFragment':{mul:'<oralStatements><speech><from xml:lang="en"/><p xml:lang="fr">Deux langues</p></speech></oralStatements>'}}],'en');
   assert.equal(mixed.textLanguage,'mul');assert(!mixed.sourceFragmentKey);
 });
+test('readable text selection preserves a translation when the original only contains a header',async()=>{
+  const {chooseTranscript}=await import('./odp.mjs');
+  const original='<speech xml:lang="de"><from>Original header</from><p/></speech>',translated='<speech xml:lang="fr-t-de-mtec"><p>Lesbarer Beitrag.</p></speech>';
+  const docs=[{'api:xmlFragment':{de:translated,mul:original}}];
+  assert.equal(chooseTranscript(docs,'de').xml,original,'header-only selection remains compatible');
+  const body=chooseTranscript(docs,'de',{readableOnly:true});assert.equal(body.xml,translated);assert.equal(body.translationType,'machine');
+});
