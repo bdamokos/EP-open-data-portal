@@ -514,7 +514,9 @@ export class CorpusStore {
     if(member!==null){where.push('EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)');args.push(String(member));}
     if(sourceIds!==null){where.push('source_id IN ('+sourceIds.map(()=>'?').join(',')+')');args.push(...sourceIds);}
     const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM speech_catalog WHERE '+where.join(' AND ')).get(...args);
-    const total=selection.n,revision=total+':'+selection.revision+':'+(this.get('availabilityCoverageRevision')||0);
+    // Pagination follows the selected records. Background availability checks
+    // change the labels below, without changing offsets or speech contents.
+    const total=selection.n,revision=total+':'+selection.revision;
     if(params.expectedRevision!==undefined&&params.expectedRevision!==revision)return {changed:true};
     // Filter the selection before probing retained texts. SQLite can otherwise
     // run the correlated text lookup for every speech in the date window,
@@ -531,7 +533,7 @@ export class CorpusStore {
     const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
     const latestKindDate=this.db.prepare('SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=?').get(...kinds,today).date||null;
     let availability=null;
-    if(offset===0){
+    {
       // Start at the language index: an absent language is an empty index lookup.
       const latestTextDate=params.metadataOnly||!params.language?null:this.db.prepare(`SELECT MAX(d.date) date FROM texts t INDEXED BY text_language JOIN documents d ON d.id=t.document_id JOIN speech_catalog c ON c.source_id=d.source_id WHERE t.language=? AND t.source_format='xml-fragment' AND t.chars>0 AND d.kind='speech' AND d.date<=? AND c.kind IN (${kinds.map(()=>'?').join(',')})`).get(params.language,today,...kinds)?.date||null;
       const pending=Boolean(this.db.prepare("SELECT 1 FROM tasks WHERE done=0 AND kind IN ('speeches','speech','speech-metadata','speech-metadata-detail') LIMIT 1").get());

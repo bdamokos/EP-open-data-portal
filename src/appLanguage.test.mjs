@@ -190,22 +190,24 @@ for(const language of ['en','hu','fr']) {
       assert.equal(effectiveLanguage(body.querySelector('p')),fixture.language||'');
       assert.equal(effectiveLanguage(reader.querySelector('.legal-notes li')),fixture.language||'');
       assert.equal(effectiveLanguage(reader.querySelector('.legal-notes summary')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-download summary')),'en');
+      assert.equal(reader.querySelector('.explorer-reader-download'),null);
       assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),'en');
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-publication-files select')),'en');
+
       for(const option of reader.querySelectorAll('.explorer-reader-heading option[value]:not([value=""])'))assert.equal(effectiveLanguage(option),option.value);
       assert(reader.querySelector('sup a[href*="-note-1"]'),'superscript source note marker remains available');
       assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
       const author=reader.querySelector('.explorer-coauthors strong');assert.equal(author.textContent,'Mika Aaltola');assert.equal(effectiveLanguage(author),'');assert.equal(author.querySelector('a'),null,'the current author remains strong, not a self-link');
-      assert.equal(reader.querySelector('.explorer-publication-files a').href,download);
+      assert.equal(reader.querySelector('.explorer-publication-files'),null);
       if(index===0) {
-        const header=reader.querySelector('.explorer-reader-download > p');assert.equal(header.textContent,fixture.paragraphs[0]);assert.equal(effectiveLanguage(header),'en');
+
         assert(!body.textContent.includes(fixture.paragraphs[0]),'the existing recognised-header split stays intact');
         const save=rows[index].querySelector('.explorer-save-button');
         const label={en:'Save question',hu:'Kérdés mentése',fr:'Enregistrer la question'}[language];
         assert.equal(save.getAttribute('aria-label'),label+' · Titre de la question');assert.equal(save.getAttribute('aria-labelledby'),null);assert.equal(effectiveLanguage(save),language==='fr'?'fr':'','the French title remains separate from a differing UI language');
         assert.equal(save.querySelector('span[lang]').textContent,label);assert.equal(effectiveLanguage(save.querySelector('span[lang]')),language);
         const answer=reader.querySelector('#document-'+answerId),answerHeading='Answer · '+date('2026-10-02',language);
+        assert.equal(answer.querySelector('.explorer-coauthors'),null,'answers do not repeat question authors');
+        assert.equal(answer.querySelector('.explorer-reader-download'),null);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
         const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),'Text language');assert.equal(effectiveLanguage(answerSelect),'en');
         await h.click(save);
@@ -238,12 +240,12 @@ test('oral-question deep links show the body first and retain header, note and l
   const reader=h.container.querySelector('#document-'+id),body=reader.querySelector('.explorer-transcript'),details=reader.querySelector('.explorer-reader-download');
   assert(body.textContent.startsWith('Exact oral'));
   assert(!body.textContent.includes(paragraphs[0]));assert(!body.textContent.includes(paragraphs[3]));
-  assert.deepEqual([...details.querySelectorAll(':scope > p')].map(p=>p.textContent),paragraphs.slice(0,5));
+  assert.equal(details,null);
   const anchor=body.querySelector('a[aria-label="Note 1"]'),link=body.querySelector(`a[href="${url}"]`);
   assert(anchor,'the note anchor keeps its original paragraph index');
   assert.equal(link?.textContent,'source link');
   assert(body.textContent.includes(note.text));
-  assert.equal(details.querySelector('.explorer-publication-files a')?.href,sourceUrl);
+  assert.equal(reader.querySelector('.explorer-publication-files'),null);
 });
 
 const readableXml='<speech><p>Exact transcript text.</p><p>Second source paragraph.</p></speech>';

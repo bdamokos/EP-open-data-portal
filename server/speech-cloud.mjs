@@ -83,10 +83,12 @@ export class SpeechCloudInsights {
   }
   async query(query,restarts=0) {
     requestSignal()?.throwIfAborted();
-    const status=this.store.status(),{page,...selection}=query,key=JSON.stringify([status.servingGeneration,status.availabilityRevision||0,this.store.get?.('demographicRevision')||0,selection]);let state=this.states.get(key);
+    const status=this.store.status(),{page,...selection}=query,key=JSON.stringify([status.servingGeneration,this.store.get?.('demographicRevision')||0,selection]);let state=this.states.get(key);
+    // A fresh visit refreshes coverage, while an ongoing walk keeps its cursor.
+    if(state&&page===0&&state.availabilityRevision!==status.availabilityRevision){this.states.delete(key);state=null;}
     if(state?.scope?.catalogue&&calendarNeedsRefresh(state.scope.catalogue)&&this.clock()-state.at>=60_000){this.states.delete(key);return {...await this.query({...query,page:0},restarts),restarted:true};}
     if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
-    if(!state) {state={at:this.clock(),scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
+    if(!state) {state={at:this.clock(),availabilityRevision:status.availabilityRevision,scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,invalidText:0,xmlBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
     try {
       if(state.pending)await waitForRequest(state.pending);
       if(state.result&&(state.page>=page||state.cursor===null))return state.result;
@@ -183,7 +185,7 @@ export class SpeechCloudInsights {
       requestSignal()?.throwIfAborted();
       if(!result)throw new HttpError(503,'corpus_unavailable','Saved speeches are temporarily unavailable. Please retry.');
       if(result.changed)throw new HttpError(409,'corpus_changed','Saved speeches changed during loading. Please retry.');
-      state.corpusRevision=result.revision;state.availability??=result.coverage?.availability?.text||null;state.corpusFirst=null;state.storedTotal=result.total;
+      state.corpusRevision=result.revision;state.availability=result.coverage?.availability?.text||state.availability||null;state.corpusFirst=null;state.storedTotal=result.total;
       for(const record of result.records) {
         if(state.seen.has(record.id)){state.duplicates++;state.sourceIssues.add('overlapping-pages');continue;}
         state.seen.add(record.id);state.rawRecords++;

@@ -96,7 +96,7 @@ export class SpeechInterventions {
         let record;
         if(saved) {
           state.corpusRevision=saved.revision;
-          state.latestDataDate=saved.coverage?.latestDataDate||null;state.availability??=saved.coverage?.availability?.metadataSources||saved.coverage?.availability?.metadata||null;
+          state.latestDataDate=saved.coverage?.latestDataDate||null;state.availability=saved.coverage?.availability?.metadataSources||saved.coverage?.availability?.metadata||state.availability||null;
           state.issues.add('retained-corpus');
           if(saved.truncated)state.issues.add('retained-byte-limit');
           const rows=saved.records.filter(row=>row.metadata);
