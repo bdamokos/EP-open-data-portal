@@ -11,7 +11,7 @@ function response({member='197494',id=decision,method='VOTE_ELECTRONIC_ROLLCALL'
     method,outcome,ballotStatus,scope:{kind:'whole-text'},actualPosition:position,intention:{status:'reported',positions:['against']},
     totals:{for:445,against:37,abstaining:97},alignment:'with',subjectId:null,context:{documentIds:['RC-10-2026-0443'],amendmentIds:[],componentIds:[]},
     parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
-  return {version:8,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
+  return {version:9,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
     pagination:{offset:0,limit:50,returned:0,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:0},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
 }
 function exactResponse(patch) {
@@ -118,4 +118,9 @@ for(const outcome of ['LAPSED','WITHDRAWN'])test('activity labels an unheld '+ou
   await h.render();
   assert.match(h.container.querySelector('.activity-vote__meta').textContent,/Not put to a vote/);
   assert.doesNotMatch(h.container.textContent,/Roll-call vote/);
+});
+
+test('verified chairing removes the complete activity vote block, including indexed results and position fallback text',async t=>{
+  const h=await mount(t,async()=>{const value=exactResponse();value.selected={status:'chairing',item:null};return Response.json(value);});
+  for(const context of [false,true]){await h.render({context});assert.equal(h.container.textContent,'');assert.equal(h.container.querySelector('.activity-vote'),null);}
 });

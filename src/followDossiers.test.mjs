@@ -71,7 +71,7 @@ test('generic progress copy covers legislative, non-legislative and budgetary up
     store.observeProgress(reference,response('2026-10-31T09:30:00Z',[{...published,label:'Updated published wording'},unlabelled]),item());
     assert.deepEqual(item().observations.progress.known,known);assert.equal(item().entries.length,2,'label changes create no new update');
     assert.equal(item().entries.find(row=>row.id===added[0].id).readAt,now);assert.equal(item().entries.find(row=>row.id===added[1].id).readAt,null);assert.equal(item().entries.find(row=>row.id===added[0].id).title,'Decision by Parliament');
-    assert.deepEqual(createDossiersStore(storage,()=>{},()=>now).snapshot().items[0].entries,item().entries);
+    assert.deepEqual(createDossiersStore(storage,()=>{},()=>now).snapshot().items[0].entries,JSON.parse(JSON.stringify(item().entries)));
   }
 });
 test('press catch-up is independent of OEIL failures, latest-five previews and old publication dates',()=>{
