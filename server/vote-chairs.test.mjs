@@ -1,5 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import https from 'node:https';
+import {Readable} from 'node:stream';
+import {EventEmitter} from 'node:events';
 import {extractVoteChairs,collectVoteChairs} from './vote-chairs.mjs';
 
 const date='2026-10-22',sitting='MTG-PL-'+date;
@@ -74,4 +77,23 @@ test('unavailable chair observations charge every measured source to the period 
   let downloads=0;
   const exhausted=await collectVoteChairs(request,sitting,{maxBytes:metaBytes+1,download:async()=>{downloads++;return '';}});
   assert.equal(exhausted.status,'unavailable');assert.equal(exhausted.bytes,metaBytes+chairBytes);assert.equal(downloads,0);
+});
+
+test('ambiguous repeated result references invalidate earlier or later known chair assignments',()=>{
+  const known=change('Katarina BARLEY')+vote(1),unknown=change('Unknown Chair')+vote(1);
+  const handover='<PV.Vote.Text><Pv.Reference.Text Pv.AnnexVote="1"/>'+change('Roberta METSOLA')+'</PV.Vote.Text>';
+  for(const body of [known+unknown,unknown+known,known+handover,handover+known,known+unknown+known])assert.deepEqual(extractVoteChairs(xml(body),payload(),date),{});
+});
+
+test('oversized and interrupted XML streams charge every downloaded byte even when no XML is returned',async t=>{
+  const meta=metadata(),chairs=payload(),baseBytes=Buffer.byteLength(JSON.stringify(meta))+Buffer.byteLength(JSON.stringify(chairs));
+  const request=async endpoint=>record(endpoint==='/speeches'?chairs:meta,'https://data.europarl.europa.eu/api/v2'+endpoint);
+  for(const [size,interrupted] of [[2*1024*1024+1,false],[123,true]]){
+    const response=Readable.from((async function*(){yield Buffer.alloc(size,120);if(interrupted)throw Error('Connection lost');})());
+    response.statusCode=200;response.headers={'content-type':'application/xml'};
+    t.mock.method(https,'get',(_url,_options,resolve)=>{queueMicrotask(()=>resolve(response));return new EventEmitter();});
+    const result=await collectVoteChairs(request,sitting);
+    assert.equal(result.status,'unavailable');assert.equal(result.bytes,baseBytes+size);
+    t.mock.restoreAll();
+  }
 });

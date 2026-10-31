@@ -34,8 +34,10 @@ export async function downloadMinutesXml(url){
     if(failure){response.resume();throw failure;}
     if(response.statusCode!==200||!/(?:xml|octet-stream)/i.test(response.headers['content-type']||'')){response.resume();throw new Error('Minutes XML unavailable.');}
     const chunks=[];let bytes=0;
-    for await(const chunk of response){bytes+=chunk.length;if(bytes>MAX_BYTES){response.destroy();throw new Error('Minutes XML exceeds the supported size.');}chunks.push(chunk);}
-    return Buffer.concat(chunks).toString('utf8');
+    try{
+      for await(const chunk of response){bytes+=chunk.length;if(bytes>MAX_BYTES){response.destroy();throw new Error('Minutes XML exceeds the supported size.');}chunks.push(chunk);}
+      return Buffer.concat(chunks).toString('utf8');
+    }catch(error){throw Object.assign(new Error(error.message,{cause:error}),{downloadedBytes:bytes});}
   },{source:'documents',priority:'interactive',signal});
 }
 
@@ -71,12 +73,14 @@ export function extractVoteChairs(xml,chairPayload,date){
     const descendants=[...walk(node.children)];
     // A handover within a voting block cannot establish who chaired each
     // ballot. Preserve every decision there until finer evidence is available.
-    if(!current||descendants.some(n=>n.tag==='Orator.ChangeOfPresident.Text'))continue;
+    const owner=current&&!descendants.some(n=>n.tag==='Orator.ChangeOfPresident.Text')?current:null;
     for(const ref of descendants.filter(n=>n.tag==='Pv.Reference.Text')){
       const number=ref.attributes['@_Pv.AnnexVote'];
       if(!/^[1-9]\d{0,3}$/.test(String(number||'')))continue;
       const id='PV-10-'+date+'-VOT-ITM-'+String(number).padStart(3,'0');
-      result.set(id,result.has(id)&&result.get(id)!==current?null:current);
+      // Unknown occurrences are tombstones too: a later known occurrence
+      // cannot revive a reference already seen with ambiguous chair evidence.
+      result.set(id,!owner||result.has(id)&&result.get(id)!==owner?null:owner);
     }
   }
   return Object.fromEntries([...result].filter(([,id])=>id));
@@ -96,7 +100,9 @@ export async function collectVoteChairs(request,sittingId,{download=downloadMinu
     const chairs=await request('/speeches',{'sitting-date':date,'activity-type':'MEETING_NAME_CHAIR','include-output':'xml_fragment',language:'en','sort-by':'numbering:asc',limit:100,offset:0},options);
     const chairBytes=Buffer.byteLength(JSON.stringify(chairs.payload));bytes+=chairBytes;
     if(chairs.refreshError||chairBytes>MAX_BYTES||bytes>=maxBytes)return unavailable();
-    const xml=await download(url);bytes+=Buffer.byteLength(xml);
+    let xml;
+    try{xml=await download(url);}catch(error){if(Number.isSafeInteger(error.downloadedBytes)&&error.downloadedBytes>0)bytes+=error.downloadedBytes;throw error;}
+    bytes+=Buffer.byteLength(xml);
     if(bytes>maxBytes)return unavailable();
     const byResultDocument=extractVoteChairs(xml,chairs.payload,date);
     if(!byResultDocument)return unavailable();
