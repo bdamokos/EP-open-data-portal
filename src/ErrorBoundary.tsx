@@ -1,3 +1,4 @@
+import {reportUiError} from './errorDiagnostics.mjs';
 import {useUiI18n} from './UiI18nReact';
 import {Component,Fragment,useEffect,useId,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
 import {interfaceLanguages} from './interfaceCopy';
@@ -40,6 +41,7 @@ export class ErrorBoundary extends Component<Props,State> {
   static getDerivedStateFromProps(props:Props,state:State) {
     return (props.resetKey!==state.resetKey) ? ({failed:false,reloadRequired:false,resetKey:props.resetKey,attempt:0}) : null;
   }
+  componentDidCatch(error:Error) {reportUiError(error);}
   render() {
     if(this.state.failed)return <Recovery language={this.props.language} navigation={this.props.navigation} retry={this.state.reloadRequired ? undefined : (()=>{
       this.props.onRetry?.();

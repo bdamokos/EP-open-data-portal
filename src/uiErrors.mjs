@@ -1,3 +1,4 @@
+import {reportUiError} from './errorDiagnostics.mjs';
 import {defaultUi} from './uiDefault.mjs';
 /** Only errors constructed by the application carry a translatable message ID. */
 export class UiMessageError extends Error {
@@ -8,5 +9,6 @@ export class UiMessageError extends Error {
   }
 }
 export function uiErrorText(error,formatter=defaultUi) {
+  reportUiError(error);
   return error instanceof UiMessageError?formatter.t(error.uiMessageId,error.uiValues):error?.message??String(error);
 }

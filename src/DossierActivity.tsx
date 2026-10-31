@@ -1,3 +1,4 @@
+import {reportUiError} from './errorDiagnostics.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
@@ -66,7 +67,7 @@ function useDossierSection(reference:string,person:string|null,section:DossierSe
       const ordered=[...pages.current.values()].sort((a,b)=>a.pagination.targetOffset-b.pagination.targetOffset||a.pagination.offset-b.pagination.offset);
       const data=ordered.reduce<DossierActivityResponse|null>((all,page)=>mergeDossierPage(all,page),null)!;
       previous.current=data;setState({data,loading:false,error:null});
-    }).catch(error=>{if(live){failedCursor.current=cursor;setState({data:previous.current,loading:false,error:error.message||'Section unavailable.'});}});
+    }).catch(error=>{if(live){reportUiError(error,{request:'/api/insights/dossier-activity'});failedCursor.current=cursor;setState({data:previous.current,loading:false,error:error.message||'Section unavailable.'});}});
     return()=>{live=false;controller.abort();};
   },[key,active,request]);
   const unavailable=[...pages.current.values()].find(page=>canRetryCoverage(page.participantCoverage))||[...pages.current.values()].find(page=>canRetryCoverage(page.coverage));
