@@ -840,7 +840,7 @@ export default function App() {
           </section> : null)}
           <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
-            {organization&&<p className="explorer-organization-filter"><strong>{organizationName||organization}</strong> <button type="button" onClick={()=>{setOrganization('');setOrganizationName('');}}>{c.all}</button></p>}
+            {organization&&<p className="explorer-organization-filter"><strong>{organizationName||organization}</strong> <button type="button" onClick={()=>{setOrganization('');setOrganizationName('');}}><UiMessage id="app.clear_filter"/></button></p>}
             <div className="explorer-filters">
               <label lang={lang}>
                 {c.committee}
