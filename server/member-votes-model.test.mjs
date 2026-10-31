@@ -254,3 +254,29 @@ test('whole-text summaries retain authoritative non-named status without classif
   const summaries=projected.subjects.flatMap(subject=>subject.wholeTextDecisions);
   assert.equal(summaries.length,1);assert.deepEqual(summaries[0].actualPosition,{status:'not-individually-recorded',position:null});
 });
+
+test('verified voting-section chairs omit missing and non-named votes, including whole-text summaries',()=>{
+  const doc='PV-10-2026-10-07-VOT-ITM-007';
+  const chairing={status:'observed',byResultDocument:{[doc]:'999999'},sources:[]};
+  const state={...snapshot,chairing,decisions:[fullDecision]};
+  const absent=projectMemberSitting(state,'999999');
+  assert.deepEqual(absent.items,[]);assert.deepEqual(absent.omittedWhileChairing,[fullDecision.activity_id]);
+  assert.equal(absent.subjects.flatMap(s=>s.wholeTextDecisions).length,0);
+  const hand={...fullDecision,decision_method:'def/ep-decision-methods/VOTE_HAND'};
+  for(const key of Object.keys(hand))if(key.startsWith('had_voter_'))delete hand[key];
+  assert.equal(projectMemberSitting({...state,decisions:[hand]},'999999').items.length,0);
+  for(const position of ['favor','against','abstention']){
+    const raw=structuredClone(fullDecision);raw['had_voter_'+position].push('person/999999');
+    const kept=projectMemberSitting({...state,decisions:[raw]},'999999');
+    assert.equal(kept.items.length,1);assert.equal(kept.items[0].actualPosition.status,'recorded');
+  }
+});
+
+test('missing, conflicting and unrelated chair evidence never removes voting observations',()=>{
+  const doc='PV-10-2026-10-07-VOT-ITM-007',base={...snapshot,decisions:[fullDecision]};
+  for(const chairing of [undefined,{status:'unavailable',byResultDocument:{[doc]:'999999'}},{status:'observed',byResultDocument:{[doc]:'197433'}},{status:'observed',byResultDocument:{'PV-10-2026-10-08-VOT-ITM-007':'999999'}}])assert.equal(projectMemberSitting({...base,chairing},'999999').items.length,1);
+  const chairing={status:'observed',byResultDocument:{[doc]:'999999'}};
+  for(const mutate of [s=>s.results[0].recorded_in_a_realization_of=[],s=>s.results[0].recorded_in_a_realization_of.push('eli/dl/doc/OTHER'),s=>s.decisions[0]._conflictingSourceObservations={fields:['decision_method']},s=>s.decisions[0].had_voter_favor='unavailable']){
+    const state=structuredClone({...base,chairing});mutate(state);assert.equal(projectMemberSitting(state,'999999').items.length,1);
+  }
+});
