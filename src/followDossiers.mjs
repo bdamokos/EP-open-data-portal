@@ -66,7 +66,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now, ui = d
       const known={...old?.known},entries=[];
       for(const event of data.events) {
         const fingerprint=JSON.stringify([event.status,event.date,event.statuses?.map(status=>status.code).sort()||[]]),previous=known[event.id];
-        if(old&&previous!==fingerprint)entries.push({id:'progress:'+event.id+':'+fingerprint,eventKind:'progress',title:event.label||ui.t("dossierCard.event.11"),titleLanguage:event.labelLanguage||'en',date:event.date||'',previousDate:previous?JSON.parse(previous)[1]:undefined,change:previous?event.status==='cancelled'?'cancelled':JSON.parse(previous)[1]!==event.date?'date':'status':event.status==='projected'?'scheduled':event.status==='cancelled'?'cancelled':'event',source:data.source});
+        if(old&&previous!==fingerprint)entries.push({id:'progress:'+event.id+':'+fingerprint,eventKind:'progress',title:event.label||ui.t("batch6.procedureprogress.procedure.progress.57"),titleLanguage:event.label?(event.labelLanguage||'en'):ui.messageLocale("batch6.procedureprogress.procedure.progress.57"),date:event.date||'',previousDate:previous?JSON.parse(previous)[1]:undefined,change:previous?event.status==='cancelled'?'cancelled':JSON.parse(previous)[1]!==event.date?'date':'status':event.status==='projected'?'scheduled':event.status==='cancelled'?'cancelled':'event',source:data.source});
         known[event.id]=fingerprint;
       }
       return {baseline:{at:fetched,known},entries};
