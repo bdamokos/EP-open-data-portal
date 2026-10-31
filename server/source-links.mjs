@@ -1,6 +1,10 @@
 import {committeeDraftId,committeeListId} from './committee-amendments.mjs';
 import {languagePreference} from './language-order.mjs';
 import {speechWebsite} from './ep-links.mjs';
+import {procedureClassification} from './procedure-types.mjs';
+
+// /source-record includes the human website links derived by this helper.
+export const SOURCE_RECORD_VERSION=1;
 
 export const SOURCE_LANGUAGES='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
 const languages=new Set(SOURCE_LANGUAGES);
@@ -63,8 +67,8 @@ export function humanSourceUrl(value,{language='en',reference,record}={}) {
     const {family,id}=target;
     if(languages.has(target.params.language))language=target.params.language;
     if(family==='procedures'){
-      const type=String(record?.process_type||'').split('/').at(-1);
-      const supplied=reference||record?.label||(/^[A-Z]{2,8}$/.test(type)?id.replace('-','/')+'('+type+')':null);
+      let supplied=reference||record?.label;
+      if(!supplied){const {code,status}=procedureClassification(record);if(code&&status!=='conflicting')supplied=id.replace('-','/')+'('+code+')';}
       return procedureWebsite(id,supplied,language);
     }
     if(family==='meps')return 'https://www.europarl.europa.eu/meps/'+language+'/'+id;

@@ -1,0 +1,282 @@
+{
+  "app.termContributions": {
+    "plural": "count",
+    "one": "Term 10 · {count} contribution",
+    "other": "Term 10 · {count} contributions"
+  },
+  "batch6.analysisperiod.days.days.5": {
+    "plural": "days",
+    "one": "{days} day",
+    "other": "{days} days"
+  },
+  "amendments.count_votes.ef5396": {
+    "plural": "count",
+    "one": "{count} vote",
+    "other": "{count} votes"
+  },
+  "dossierCard.updateCount": {
+    "plural": "count",
+    "one": "{count} dossier update. Open dossier",
+    "other": "{count} dossier updates. Open dossier"
+  },
+  "dossieractivity.first_3_of_count_procedures_shown": {
+    "plural": "count",
+    "one": "First 3 of {count} procedure shown.",
+    "other": "First 3 of {count} procedures shown."
+  },
+  "groupvoices.count_matching_speakers.777f9a": {
+    "plural": "count",
+    "one": "{count} matching speaker",
+    "other": "{count} matching speakers"
+  },
+  "groupvoices.show_all_count_people.289649": {
+    "plural": "count",
+    "one": "Show {count} person",
+    "other": "Show all {count} people"
+  },
+  "groupvoices.showing_count_matches_refine_the_name_search_to_find_others.1fbbb2": {
+    "plural": "count",
+    "one": "Showing {count} match. Refine the name search to find others.",
+    "other": "Showing {count} matches. Refine the name search to find others."
+  },
+  "groupvoices.total_contributions_shown_below.9817c4": {
+    "plural": "total",
+    "one": "{total} contribution shown below ↓",
+    "other": "{total} contributions shown below ↓"
+  },
+  "insightshared.all_count_people": {
+    "plural": "count",
+    "one": "{count} person",
+    "other": "All {count} people"
+  },
+  "legislation.count_agenda_items.2d249f": {
+    "plural": "count",
+    "one": "{count} agenda item",
+    "other": "{count} agenda items"
+  },
+  "legislation.count_agenda_items_partial.0f8e0a": {
+    "plural": "count",
+    "one": "{count} agenda item · partial",
+    "other": "{count} agenda items · partial"
+  },
+  "legislation.count_agenda_items_partial_upcoming.f82584": {
+    "plural": "count",
+    "one": "{count} agenda item · partial · upcoming",
+    "other": "{count} agenda items · partial · upcoming"
+  },
+  "legislation.count_agenda_items_upcoming.f32904": {
+    "plural": "count",
+    "one": "{count} agenda item · upcoming",
+    "other": "{count} agenda items · upcoming"
+  },
+  "motionamendments.count_amendments_loaded.2f242a": {
+    "plural": "count",
+    "one": "{count} amendment loaded.",
+    "other": "{count} amendments loaded."
+  },
+  "batch4.questiontopics.tsx.count.undated.questions.not.counted": {
+    "plural": "count",
+    "one": "{count} undated question not counted",
+    "other": "{count} undated questions not counted"
+  },
+  "speechcloud.missinglanguage_without_text_in_this_language.ad0413": {
+    "plural": "missingLanguage",
+    "one": "{missingLanguage} without text in this language.",
+    "other": "{missingLanguage} without text in this language."
+  },
+  "speechcloud.showing_count_examples.915265": {
+    "plural": "count",
+    "one": "Showing {count} example",
+    "other": "Showing {count} examples"
+  },
+  "speechcloud.unreadabletext_texts_unreadable.20c3fb": {
+    "plural": "unreadableText",
+    "one": "{unreadableText} text unreadable.",
+    "other": "{unreadableText} texts unreadable."
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers.d20a0b": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_archive_incomplete.a15b2d": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · archive incomplete",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · archive incomplete"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_archive_incomplete_first_600_matching_do.cdcddb": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · archive incomplete · first 600 matching dossiers",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · archive incomplete · first 600 matching dossiers"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_first_600_matching_dossiers.ccbb37": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · first 600 matching dossiers",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · first 600 matching dossiers"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics.95b98b": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics…",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics…"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_archive_incomplete.75cd7e": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics… · archive incomplete",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics… · archive incomplete"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_archive_incomplete_f.1ff152": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics… · archive incomplete · first 600 matching dossiers",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics… · archive incomplete · first 600 matching dossiers"
+  },
+  "topictrends.eurovoc_topics_mapped_of_procedures_dossiers_loading_more_topics_first_600_matching_d.f8573d": {
+    "plural": "procedures",
+    "one": "EuroVoc topics · {mapped} of {procedures} dossier · loading more topics… · first 600 matching dossiers",
+    "other": "EuroVoc topics · {mapped} of {procedures} dossiers · loading more topics… · first 600 matching dossiers"
+  },
+  "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.choose.a.topic.or.word.above.to.see.its.share.of.questions": {
+    "plural": "count",
+    "one": "{count} question in the analysis period · per day · Choose a topic or word above to see its share of questions.",
+    "other": "{count} questions in the analysis period · per day · Choose a topic or word above to see its share of questions."
+  },
+  "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.day.grey.all.topics": {
+    "plural": "count",
+    "one": "{count} question in the analysis period · per day · grey: all topics",
+    "other": "{count} questions in the analysis period · per day · grey: all topics"
+  },
+  "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.week.choose.a.topic.or.word.above.to.see.its.share.of.question": {
+    "plural": "count",
+    "one": "{count} question in the analysis period · per week · Choose a topic or word above to see its share of questions.",
+    "other": "{count} questions in the analysis period · per week · Choose a topic or word above to see its share of questions."
+  },
+  "batch4.insightcharts.tsx.count.questions.in.the.analysis.period.per.week.grey.all.topics": {
+    "plural": "count",
+    "one": "{count} question in the analysis period · per week · grey: all topics",
+    "other": "{count} questions in the analysis period · per week · grey: all topics"
+  },
+  "batch4.insightcharts.tsx.count.questions.total.total": {
+    "plural": "count",
+    "one": "{count} question, {total} total",
+    "other": "{count} questions, {total} total"
+  },
+  "batch4.insightcharts.tsx.partial.count.questions.total.total": {
+    "plural": "count",
+    "one": "Partial. {count} question, {total} total",
+    "other": "Partial. {count} questions, {total} total"
+  },
+  "batch4.insightcharts.tsx.partial.percentage.of.questions.count.questions.total.total": {
+    "plural": "count",
+    "one": "Partial. {percentage}% of questions. {count} question, {total} total",
+    "other": "Partial. {percentage}% of questions. {count} questions, {total} total"
+  },
+  "batch4.insightcharts.tsx.partial.share.unavailable.count.questions.total.total": {
+    "plural": "count",
+    "one": "Partial. Share unavailable. {count} question, {total} total",
+    "other": "Partial. Share unavailable. {count} questions, {total} total"
+  },
+  "batch4.insightcharts.tsx.percentage.of.questions.count.questions.total.total": {
+    "plural": "count",
+    "one": "{percentage}% of questions. {count} question, {total} total",
+    "other": "{percentage}% of questions. {count} questions, {total} total"
+  },
+  "batch4.insightcharts.tsx.share.unavailable.count.questions.total.total": {
+    "plural": "count",
+    "one": "Share unavailable. {count} question, {total} total",
+    "other": "Share unavailable. {count} questions, {total} total"
+  },
+  "insightshared.count_current_meps_each_person_counted_once": {
+    "plural": "count",
+    "one": "{count} current MEP · each person counted once",
+    "other": "{count} current MEPs · each person counted once"
+  },
+  "insightshared.country_gender_and_age_count_current_meps_each_person_counted_once.63a8e0": {
+    "plural": "count",
+    "one": "Country, gender and age: {count} current MEP · each person counted once",
+    "other": "Country, gender and age: {count} current MEPs · each person counted once"
+  },
+  "app.mepCountUnit": {
+    "plural": "count",
+    "one": "MEP",
+    "other": "MEPs"
+  },
+  "ui.mepCount": {
+    "plural": "count",
+    "one": "{count} MEP",
+    "other": "{count} MEPs"
+  },
+  "ui.contributionUnit": {
+    "plural": "count",
+    "one": "contribution",
+    "other": "contributions"
+  },
+  "ui.groupContributionUnit": {
+    "plural": "count",
+    "one": "recorded oral contribution",
+    "other": "recorded oral contributions"
+  },
+  "ui.subjectUnit": {
+    "plural": "count",
+    "one": "subject",
+    "other": "subjects"
+  },
+  "ui.speakerUnit": {
+    "plural": "count",
+    "one": "speaker",
+    "other": "speakers"
+  },
+  "ui.formerMepUnit": {
+    "plural": "count",
+    "one": "former MEP",
+    "other": "former MEPs"
+  },
+  "outsidevoices.date_availabilityvalue_agenda_items.84907a": {
+    "plural": "count",
+    "one": "{date}: {count} agenda item",
+    "other": "{date}: {count} agenda items"
+  },
+  "amendmentmodel.mjs.text.count.expected.occurrences": {
+    "plural": "count",
+    "one": "{text} · {count} expected occurrence",
+    "other": "{text} · {count} expected occurrences"
+  },
+  "amendmentmodel.mjs.text.occurrences.numbers": {
+    "plural": "count",
+    "one": "{text} · occurrence {numbers}",
+    "other": "{text} · occurrences {numbers}"
+  },
+  "ui.speechStat.total": {
+    "plural": "count",
+    "one": "Total contribution",
+    "other": "Total contributions"
+  },
+  "ui.speechStat.groupOrations": {
+    "plural": "count",
+    "one": "On behalf of a group",
+    "other": "On behalf of a group"
+  },
+  "ui.speechStat.written": {
+    "plural": "count",
+    "one": "Written statement",
+    "other": "Written statements"
+  },
+  "ui.speechStat.blueQuestions": {
+    "plural": "count",
+    "one": "Blue card raised",
+    "other": "Blue cards raised"
+  },
+  "ui.speechStat.blueAnswers": {
+    "plural": "count",
+    "one": "Blue card answered",
+    "other": "Blue cards answered"
+  },
+  "ui.speechStat.blueReactions": {
+    "plural": "count",
+    "one": "Blue-card reaction",
+    "other": "Blue-card reactions"
+  },
+  "ui.speechStat.chair": {
+    "plural": "count",
+    "one": "Chairing contribution",
+    "other": "Chairing contributions"
+  }
+}

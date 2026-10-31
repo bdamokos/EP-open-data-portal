@@ -5,7 +5,7 @@ import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
 import {languagePreference} from './language-order.mjs';
 
-export const OUTSIDE_COVERAGE_VERSION=2;
+export const OUTSIDE_COVERAGE_VERSION=3;
 const parse = value => JSON.parse(value);
 const boundedIntervals = rows => rows.length>500?[{reason:'source-gap'}]:rows.map(({body,sourceId})=>{
   const gap=availabilityGap(body,sourceId);

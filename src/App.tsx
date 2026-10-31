@@ -470,7 +470,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     <InterventionStatistics key={'statistics:'+id} member={id} onItems={setEnrichedSpeeches} onStatus={setStatisticsStatus} filter={{selected:category,href:filterHref,select:selectCategory}}/>
     <SpeechCloud key={'cloud:'+id} member={id} interfaceLanguage={lang} onSpeech={(speech,language)=>{focusedSpeech.current=null;speechOrigin.current={key:id+':'+speech,owner:document.activeElement};resetSpeechSearch.current?.();setSpeechSearchReset(value=>value+1);setSpeechSearch('');setSpeechSearchRead('');setCategory('');setSpeechLanguage(language);onOpen(speech);}}/>
     {filtered&&<div className="explorer-section-title" lang={ui.language}><h3 ref={filterHeading} id={'speech-filter-results-'+id} tabIndex={-1}><UiMessage id="app.filteredSpeechCount" values={{category: speechCategoriesUi(ui).find(([key])=>key===category)?.[1], count: filtered.length}}/></h3>{speechSearchActive&&<button onClick={()=>{speechSearchInput.current?.focus({preventScroll:true});setCategory('');}}><UiMessage id="app.clear_category"/></button>}</div>}
-    <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} resetRef={resetSpeechSearch} prefix="mep-speech-fts" label={ui.t("app.search_this_mep_s_speeches")} language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={(category && (statisticsStatus!=='ready')) ? ((statisticsStatus==='loading') ? ui.t("app.loading_category") : ui.t("app.category_unavailable")) : undefined} onActiveChange={setSpeechSearchActive} summary={<>{state.data ? <UiMessage id="app.termContributions" values={{count: state.data.indexedTotal}}/> : <UiMessage id="batch4.speechinterventions.tsx.term.10"/>}</>}/>
+    <TextSearch key={'search:'+id} inline inputRef={speechSearchInput} resetRef={resetSpeechSearch} prefix="mep-speech-fts" label={ui.t("app.search_this_mep_s_speeches")} language={lang} member={id} kinds={['speech']} from="2024-07-16" sourceIds={filtered?.map(speech=>speech.id)} disabledReason={(category && (statisticsStatus!=='ready')) ? ((statisticsStatus==='loading') ? ui.t("app.loading_category") : ui.t("app.category_unavailable")) : undefined} onActiveChange={setSpeechSearchActive} summary={<>{state.data ? <UiMessage id="app.termContributions" values={{count: state.data.indexedTotal}} counts={{count: state.data.indexedTotal}}/> : <UiMessage id="batch4.speechinterventions.tsx.term.10"/>}</>}/>
     {!speechSearchActive&&<>
     {!filtered&&state.loading && !state.data && <p role="status" lang={ui.language}><UiMessage id="app.loading_speeches"/></p>}
     {!filtered&&state.error && <ErrorView message={state.error} retry={state.retry} />}
@@ -915,7 +915,7 @@ export default function App() {
                 <div className="explorer-results">
                   <strong>{partialCommittee ? (filtered.length ? (`${filtered.length}+`) : "—") : filtered.length}</strong>
                   <span lang={lang}>
-                    {c.members}{" "}
+                    {partialCommittee && !filtered.length ? <UiMessage id="app.mepCountUnknownUnit"/> : <UiMessage id="app.mepCountUnit" counts={{count:filtered.length}}/>}{" "}
                     <small lang={ui.language}><UiMessage id="app.currentAt" values={{date: <time lang={lang} dateTime={directory.day}>{date(directory.day, lang)}</time>}}/></small>
                   </span>
                   <button

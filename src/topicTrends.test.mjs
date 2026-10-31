@@ -28,7 +28,7 @@ test('timeline titles, milestones and missing metadata stay attached to exact do
   await act(async()=>root.render(createElement(TopicTrends,{language:'en'})));
   const cards=[...container.querySelectorAll('.insight-trend-dossier')];assert.equal(cards.length,5);
   const first=cards[0].querySelector('button');assert.equal(first.title,title);assert.equal(first.querySelector('[lang]').lang,'fr');
-  assert.deepEqual(cards.map(card=>card.querySelector('.insight-trend-dossier-status').textContent.split(' · ')[0]),['Published in Official Journal','Final act signed','Parliament position adopted','Adoption not recorded','Status unavailable']);
+  assert.deepEqual(cards.map(card=>card.querySelector('.insight-trend-dossier-status').textContent.split(' · ')[0]),['Published in Official Journal','Final act signed','Parliament position adopted','No milestone recorded','Status unavailable']);
   assert.equal(cards[4].querySelector('.insight-trend-dossier-title').textContent,'Title unavailable');
   assert.equal(cards[0].querySelector('a').href,'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2025%2F0000%28COD%29');
   assert.doesNotMatch(cards[0].querySelector('.insight-trend-dossier-source').textContent,/Retrieved/);assert.equal(cards[4].querySelector('.insight-trend-dossier-source').textContent,'Dossier ↗');assert.equal(calls.length,1,'rows do not fetch individual dossier pages');

@@ -128,7 +128,7 @@ test('sequence preloads are bounded, skip procedural rows, stop on close and fol
   await h.tick(150);assert.equal(reads.length,13,'the batch stops at its bound');
   assert.equal(reads.length,13);assert(reads.slice(1).every(url=>url.searchParams.get('lang')==='fr'));
   assert(reads.every(url=>!url.pathname.endsWith(prefix+'5')&&!url.pathname.endsWith(prefix+'6')));
-  assert(h.container.textContent.includes('25 of 26 debate records available'),'preloading preserves incomplete coverage');
+  assert(h.container.textContent.includes('Debate records available: 25 of 26'),'preloading preserves incomplete coverage');
 });
 
 test('rapid speech navigation shares the speculative queue and cancels obsolete debate preloads',async t=>{
@@ -178,7 +178,7 @@ test('member deep links and restored routes keep meaningful titles with intentio
     assert.equal(document.title,`${title} — European Parliament data explorer`);
   }
   await restore(routes[2],'Questions');await restore(routes[3],'Outside voices');
-  await h.click(h.button('Members'));
+  await h.click(h.button('MEPs'));
   assert.equal(document.title,'Members of the European Parliament — European Parliament data explorer');
 });
 

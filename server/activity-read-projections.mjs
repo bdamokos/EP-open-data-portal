@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {questionFiles} from './question-files.mjs';
 
-export const activityReadVersion=2;
+export const activityReadVersion=3;
 export const activityOnly="COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
 export const answersOnly="json_extract(body,'$.recordKind')='answer'";
 // Match isMotion(), including the unqualified vocabulary value.

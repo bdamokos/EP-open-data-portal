@@ -7,27 +7,30 @@ import {documentFiles,array,tail} from './activity-index-model.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
 import {HttpError} from './http-utils.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
 
-export const DOCUMENT_PAGES_VERSION=1;
+export const DOCUMENT_PAGES_VERSION=2;
 export const PDF_MAX_BYTES=16*1024*1024;
 export function allowedPdf(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&!u.search&&!u.hash&&u.pathname.endsWith('.pdf')&&((u.hostname==='data.europarl.europa.eu'&&u.pathname.startsWith('/distribution/'))||(u.hostname==='redmapl3.europarl.europa.eu'&&u.pathname.startsWith('/RedmapFront/media/')));}catch{return false;}}
 export function pdfEdition(work,language){
   const candidates=array(work.is_realized_by).filter(e=>languageCode(e.language)===language).flatMap(e=>array(e.is_embodied_by).filter(m=>tail(m.format)==='PDF').flatMap(m=>{
     const file=documentFiles({is_realized_by:[{...e,is_embodied_by:[m]}]})[0];
-    return file&&allowedPdf(file.url)?[{...file,expressionId:e.id||null,manifestationId:m.id||null,issued:m.issued||null}]:[];
+    return file&&allowedPdf(file.url)?[{...file,...documentFileEdition(m),expressionId:e.id||null,manifestationId:m.id||null}]:[];
   }));
   const unique=[...new Map(candidates.map(file=>[JSON.stringify(file),file])).values()];return unique.length===1?unique[0]:null;
 }
-export async function downloadPdf(url,{signal=requestSignal()}={}){
+export async function downloadPdf(url,{signal=requestSignal(),maxBytes=PDF_MAX_BYTES}={}){
+  maxBytes=Math.min(PDF_MAX_BYTES,maxBytes);
   for(let hop=0;hop<4;hop++){
+    signal?.throwIfAborted();
     if(!allowedPdf(url))throw new HttpError(400,'unsupported_pdf','Unsupported document address.');
     const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'application/pdf','User-Agent':userAgent('document pages')},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
     const limited=upstreamResponseError(response,{source:'documents'});if(limited){response.resume();throw limited;}
     if([301,302,303,307,308].includes(response.statusCode)){const next=response.headers.location;response.destroy();if(!next)throw Error('Missing document redirect.');url=new URL(next,url).href;continue;}
     if(response.statusCode!==200){response.resume();throw new HttpError(502,'pdf_unavailable','Document pages unavailable.');}
-    if(Number(response.headers['content-length'])>PDF_MAX_BYTES){response.destroy();throw new HttpError(413,'pdf_size_limit','Document exceeds the page-view size limit.');}
+    if(Number(response.headers['content-length'])>maxBytes){response.destroy();throw new HttpError(413,'pdf_size_limit','Document exceeds the page-view size limit.');}
     const chunks=[];let length=0;
-    for await(const chunk of response){length+=chunk.length;if(length>PDF_MAX_BYTES){response.destroy();throw new HttpError(413,'pdf_size_limit','Document exceeds the page-view size limit.');}chunks.push(chunk);}
+    for await(const chunk of response){length+=chunk.length;if(length>maxBytes){response.destroy();throw new HttpError(413,'pdf_size_limit','Document exceeds the page-view size limit.');}chunks.push(chunk);}
     const body=Buffer.concat(chunks);if(body.length<5||body.toString('ascii',0,5)!=='%PDF-')throw new HttpError(502,'invalid_pdf','Document pages unavailable.');
     return {body,resolvedSourceUrl:url,sha256:createHash('sha256').update(body).digest('hex'),fetchedAt:new Date().toISOString()};
   }throw Error('Too many document redirects.');
