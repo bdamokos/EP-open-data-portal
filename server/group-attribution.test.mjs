@@ -71,12 +71,14 @@ test('question authors use the response generation even when publication changes
   }}};
   const clock=()=>Date.parse('2026-10-23T12:00:00Z');
   const service=new QuestionInsights(store,{clock,loadMetadata:async()=>{generation=2;return new Map();},loadQuestionBodies:async()=>new Map()});
+  const analysis=service.analysis.bind(service);let captured;
+  service.analysis=async query=>(captured=await analysis(query));
   const response=await service.query(insightQuery(new URLSearchParams('days=term&end=2026-06-16'),{now:clock()}));
   assert.equal(response.coverage.servingGeneration,1);assert.equal(response.questions[0].authors[0].affiliationGroup,'S&D');assert.equal(response.questions[0].authors[0].group,'Renew');assert.equal(reads,1);
   assert.equal(response.selectedStats.groupContributions.rows[0].label,'S&D');
   assert.equal(response.selectedStats.groupContributions.rows[0].answered,1);
   assert.equal(response.selectedStats.groupContributions.rows[0].medianAnswerDays,4);
-  const captured=service.cache.values().next().value.value;service.analysis=async()=>captured;
+  service.analysis=async()=>captured;
   const query=insightQuery(new URLSearchParams('days=term&end=2026-06-16'),{now:clock()});
   assert.equal((await service.query({...query,group:'Renew'})).counts.selectedQuestions,0);
   const oldGroup=await service.query({...query,group:'S&D'});assert.equal(oldGroup.counts.selectedQuestions,1);assert.equal(oldGroup.selectedStats.groupContributions.rows[0].answered,1);
