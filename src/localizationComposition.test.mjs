@@ -141,3 +141,20 @@ test('PPE legend and hovered caption use UI language while raw group labels rema
  const caption=container.querySelector('.insight-donut-caption');assert.equal(caption.textContent,groupLabel('PPE',ui));assert.equal(caption.getAttribute('lang'),'fr');
  assert.equal(groupLabel('constructor',ui),'constructor');assert.equal(groupLabelLanguage('constructor',ui),'');
 });
+
+test('Lithuanian followed report and opinion summaries use complete role constructions at every native count',async()=>{
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs');
+ const {default:lt}=await import('./ui-locales/lt.json',{with:{type:'json'}});
+ const {summarizeByType,categoryLabelsUi}=await import('./followUpdates.mjs');
+ const ui=createAppUiI18n({lt}).forLocale('lt');
+ for(const category of ['reports-rapporteur','reports-shadow','opinions-rapporteur','opinions-shadow']) {
+  assert(!categoryLabelsUi(ui)[category][0].includes('kaip'));
+  for(const count of [1,2,10,11,21]) {
+   const entries=Array.from({length:count},(_,i)=>({id:'exact-'+i,recordKind:'document',category,title:'Source title',titleLanguage:'fr'}));
+   const before=JSON.stringify(entries),summary=summarizeByType(entries,0,ui);
+   assert(!summary.includes('kaip pranešėjo'));assert(!summary.includes('kaip šešėlinio pranešėjo'));
+   assert(summary.includes(String(count)));assert.equal(JSON.stringify(entries),before);
+   if(count===1)assert.equal(summary.replace(/^1 /,''),categoryLabelsUi(ui)[category][0]);
+  }
+ }
+});
