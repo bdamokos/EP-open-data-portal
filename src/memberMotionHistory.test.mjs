@@ -120,7 +120,7 @@ test('activity page/category are controlled App history and survive Profile, bro
  await h.go(-1);assert.equal(location.href,page);
 });
 
-for(const exit of ['Back to members','Members'])test('opening another MEP through '+exit+' resets the activity category and page',async t=>{
+for(const exit of ['Back to members','MEPs'])test('opening another MEP through '+exit+' resets the activity category and page',async t=>{
  const h=await harness(t,query({activity:'','activity-category':'motions','activity-offset':'10'}));
  const firstMemberPage=location.href;
  await h.click(button(h.container,exit==='Back to members'?/←/:exit));

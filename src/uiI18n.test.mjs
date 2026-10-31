@@ -123,3 +123,10 @@ test('rich plural selection keeps the caller node separate from its numeric coun
   assert.deepEqual(i18n.forLocale('pl').rich('items',{count:node},{count:22}),[node,' rzeczy']);
   assert.deepEqual(i18n.forLocale('en').rich('items',{count:node},{count:1}),[node,' item']);
 });
+
+test('text rendering can select with a raw count independently of formatted lower bounds',()=>{
+  const ui=createUiI18n({source:{items:{plural:'count',one:'{count} item',other:'{count} items'}}}).forLocale('en');
+  assert.equal(ui.t('items',{count:'1+'},{count:1}),'1+ item');
+  assert.equal(ui.t('items',{count:'1,234+'},{count:1234}),'1,234+ items');
+  for(const count of [null,'1+',NaN,Infinity])assert.throws(()=>ui.t('items',{count:'—'},{count}),/finite number/);
+});
