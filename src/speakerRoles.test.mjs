@@ -2,9 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {contributorOffice} from './speakerRoles.mjs';
 import {legislationOffice,mergeSpeechSpeakers} from './legislationContributors.mjs';
+import {createAppUiI18n} from './uiCatalogues.mjs';
+import hu from './ui-locales/hu.json' with {type:'json'};
+import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS,GROUP_VOICE_GROUPSUi,GROUP_VOICE_SUBJECTSUi} from './groupVoiceTerms.mjs';
 const bg={text:'Член на Комисията',language:'bg'},en={text:'Member of the Commission',language:'en'},fr={text:'Membre de la Commission',language:'fr'};
 const person={id:'220921',name:'Jessika Roswall',role:bg.text,roleLanguage:'bg',roleLabels:{bg,en,fr}};
 const detail={speeches:[{sourceId:'s1',date:'2026-10-19',start:'2026-10-19T10:00:00Z',people:[{id:'220921'}]}]};
+test('server defaults stay English while UI callers supply translated fallback labels',()=>{
+  const ui=createAppUiI18n({hu}).forLocale('hu');
+  assert.deepEqual(contributorOffice(null,'hu'),{text:'Role translation unavailable',language:'en'});
+  assert.deepEqual(contributorOffice(null,'hu',ui),{text:ui.t('batch5.speakerroles.mjs.9.117'),language:'hu'});
+  assert.deepEqual(GROUP_VOICE_GROUPSUi(),GROUP_VOICE_GROUPS);
+  assert.deepEqual(GROUP_VOICE_SUBJECTSUi(),GROUP_VOICE_SUBJECTS);
+  assert.equal(GROUP_VOICE_GROUPSUi(ui).VERTS_ALE,ui.t('grouplabels.ts.greens.efa'));
+  assert.equal(GROUP_VOICE_SUBJECTSUi(ui).rights,ui.t('groupVoices.subject.1'));
+});
 test('contributor uses supplied current-language labels, then English, never first-fragment Bulgarian',()=>{
   assert.deepEqual(contributorOffice(person,'en'),en);assert.deepEqual(contributorOffice(person,'fr'),fr);assert.deepEqual(contributorOffice(person,'bg'),bg);
   assert.deepEqual(contributorOffice(person,'hu'),en);
