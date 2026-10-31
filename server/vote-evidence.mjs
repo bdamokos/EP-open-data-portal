@@ -132,11 +132,11 @@ export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
     const resultUris=unique([...inverse,...forward]);
     const ambiguous=resultUris.length>1;
     const resultRelationship={inverseResultIds:inverse.map(identifier),forwardResultIds:forward.map(identifier),binding:ambiguous?'ambiguous':inverse.length&&forward.length?'consistent':resultUris.length?'single-direction':'unlinked'};
-    const gaps=invalid(raw,{inverse_consists_of:'event',decided_on_a_realization_of:'doc',was_motivated_by:'event'}),parts=[],requesters=[],bindingConflicts=[];
+    const gaps=invalid(raw,{inverse_consists_of:'event',decided_on_a_realization_of:'doc',decided_on_a_part_of_a_realization_of:'doc',was_motivated_by:'event'}),parts=[],requesters=[],bindingConflicts=[];
     if(raw._conflictingSourceObservations)gaps.push({code:'conflicting-decision-source'});
     if(ambiguous)gaps.push({code:'ambiguous-result-binding'});
     for(const ruri of resultUris)if(!results.has(ruri)||results.get(ruri).conflicting)gaps.push({code:results.has(ruri)?'conflicting-result-source':'missing-result',id:identifier(ruri)});
-    const eligible=!raw._conflictingSourceObservations&&!ambiguous&&!gaps.some(gap=>['invalid-reference','missing-result','conflicting-result-source'].includes(gap.code)&&gap.field!=='decided_on_a_realization_of'&&gap.field!=='was_motivated_by');
+    const eligible=!raw._conflictingSourceObservations&&!ambiguous&&!gaps.some(gap=>['invalid-reference','missing-result','conflicting-result-source'].includes(gap.code)&&!['decided_on_a_realization_of','decided_on_a_part_of_a_realization_of','was_motivated_by'].includes(gap.field));
     const subjectUri=eligible&&resultUris.length===1?resultUris[0]:null;
     for(const target of references(raw.decided_on_a_realization_of,'doc')) {
       const entry=components.get(target);
@@ -176,6 +176,8 @@ export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
   for(const [uri,entry] of results) {
     const raw=entry.node,declared=references(raw.consists_of),observed=[...decisions].filter(([,evidence])=>evidence.subjectId===identifier(uri)).map(([uri])=>identifier(uri));
     const gaps=[...invalid(raw,{consists_of:'event',based_on_a_realization_of:'doc',executed:'event'}),...globalGaps];
+    // Results can be contained by both the sitting and its procedure.
+    list(raw.inverse_consists_of).forEach((value,index)=>{if(!exactReference(value,'event')&&!exactReference(value,'proc'))gaps.push({code:'invalid-reference',field:'inverse_consists_of',index});});
     for(const duri of declared)if(!decisions.has(duri))gaps.push({code:'missing-declared-decision',id:identifier(duri)});else if(decisions.get(duri).evidenceGaps.some(gap=>gap.code==='conflicting-decision-source'))gaps.push({code:'conflicting-declared-decision',id:identifier(duri)});
     for(const [duri,evidence] of decisions)if(evidence.resultRelationship.binding==='ambiguous'&&[...evidence.resultRelationship.inverseResultIds,...evidence.resultRelationship.forwardResultIds].includes(identifier(uri)))gaps.push({code:'ambiguous-decision-result-binding',id:identifier(duri)});
     if(entry.conflicting)gaps.push({code:'conflicting-result-source'});
@@ -183,5 +185,5 @@ export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
     if(!references(raw.based_on_a_realization_of,'doc').length)gaps.push({code:'document-context-not-established'});
     subjects.push({id:identifier(uri),uri,titles:entry.conflicting?{}:labels(raw.activity_label),documentIds:entry.conflicting?[]:references(raw.based_on_a_realization_of,'doc').map(identifier),agendaItemIds:entry.conflicting?[]:references(raw.executed).map(identifier),declaredDecisionIds:declared.map(identifier),observedDecisionIds:observed,gaps,evidencePaths:deduplicatePaths(entry.paths)});
   }
-  return {decisions,subjects,gaps:globalGaps};
+  return {decisions,subjects,gaps:globalGaps,requestTypes:new Map([...requests].map(([uri,entry])=>[uri,term(entry.node.had_activity_type)]))};
 }

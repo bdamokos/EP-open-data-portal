@@ -9,9 +9,9 @@ const sitting='MTG-PL-2026-10-08',decision=sitting+'-DEC-198251';
 function response({member='197494',id=decision,method='VOTE_ELECTRONIC_ROLLCALL',position={status:'recorded',position:'for'},outcome='ADOPTED',ballotStatus='conducted'}={}) {
   const vote={id,sittingId:sitting,date:'2026-10-08',title:'Exact decision',titleLanguage:'en',titles:{en:'Exact decision'},referenceTexts:{en:'Motion for a resolution'},
     method,outcome,ballotStatus,scope:{kind:'whole-text'},actualPosition:position,intention:{status:'reported',positions:['against']},
-    totals:{for:445,against:37,abstaining:97},alignment:'with',subjectId:null,context:{documentIds:['RC-10-2026-0443'],amendmentIds:[],componentIds:[]},
+    totals:{for:445,against:37,abstaining:97},alignment:'with',subjectId:null,context:{documentIds:['RC-10-2026-0443'],amendmentIds:[],componentIds:[],partialReferenceIds:[]},
     parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
-  return {version:9,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
+  return {version:10,member:{id:member},period:{kind:'sitting',week:null,sittingId:sitting,from:'2026-10-08',to:'2026-10-08'},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[],subjects:[],
     pagination:{offset:0,limit:50,returned:0,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:0},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
 }
 function exactResponse(patch) {

@@ -17,7 +17,7 @@ export function decisionVotesRoute(id,language) {
   return 'decision-votes/'+id+'?'+new URLSearchParams({lang:language});
 }
 export function validateDecisionVotes(data,id) {
-  if(!object(data)||data.version!==5||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
+  if(!object(data)||data.version!==6||data.decisionId!==id||data.sittingId!==id.slice(0,17)||! /^[a-f0-9]{64}$/.test(data.snapshotId)||!['complete','partial','unavailable'].includes(data.coverage)||!['found','unavailable'].includes(data.status)||!['complete','partial','conflicting','unavailable'].includes(data.integrity)||!Array.isArray(data.voters))return false;
   if(data.status==='unavailable')return data.decision===null&&data.voters.length===0&&data.integrity==='unavailable';
   const vote=data.decision;
   if(!object(vote)||vote.id!==id||vote.date!==id.slice(7,17)||!['method','outcome'].every(key=>vote[key]===null||typeof vote[key]==='string')||!['conducted','not-conducted','unknown'].includes(vote.ballotStatus)||typeof vote.referencesValid!=='boolean'||!refs(vote.amendmentIds)||!refs(vote.componentIds)||!object(vote.totals)||!positions.every(p=>vote.totals[p]===null||Number.isSafeInteger(vote.totals[p])&&vote.totals[p]>=0))return false;
