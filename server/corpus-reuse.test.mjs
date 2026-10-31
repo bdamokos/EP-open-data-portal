@@ -289,7 +289,7 @@ test('public cloud parses separate selected-language XML parts without losing an
 test('public cloud offers only bounded readable language alternatives',async t=>{
   const {index}=fixture(t,{realReaders:false});
   const fragments=['<oralStatements><speech xml:lang="de"><p/></speech></oralStatements>','   ','<speech><p>Broken',
-    '<oralStatements><speech xml:lang="de"><p>'+('x'.repeat(1024*1024))+'</p></speech></oralStatements>',
+    '<oralStatements><speech xml:lang="de"><p>'+('x'.repeat(2*1024*1024))+'</p></speech></oralStatements>',
     '<oralStatements><speech xml:lang="de"><p>Lesbarer Beitrag.</p></speech></oralStatements>'];
   const nodes=fragments.map((xml,i)=>activity(7071+i,{fragments:{de:xml}}));
   const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:nodes,meta:{total:nodes.length}},url,fetchedAt:now()})});
@@ -297,14 +297,33 @@ test('public cloud offers only bounded readable language alternatives',async t=>
   assert.equal(result.coverage.missingLanguage,5);assert.equal(result.coverage.transcripts,0);
   assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:1}]);
 });
-test('alternative verification stops at its XML budget and reports bounded counts',async t=>{
+test('readable alternative counts are not capped by aggregate temporary XML size',async t=>{
   const {index}=fixture(t,{realReaders:false}),xml='<speech xml:lang="de"><p>'+('x'.repeat(900*1024))+'</p></speech>';
   const nodes=Array.from({length:5},(_,i)=>activity(7081+i,{fragments:{de:xml}}));
   const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:nodes,meta:{total:5}},url,fetchedAt:now()})});
   const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
-  assert.equal(result.coverage.missingLanguage,5);assert.equal(result.coverage.languageAlternativesLimited,true);
-  assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:4}]);
-  assert(result.coverage.sourceRecords.issues.includes('language-choice-byte-limit'));
+  assert.equal(result.coverage.missingLanguage,5);assert.equal(result.coverage.truncated,false);
+  assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:5}]);
+  assert.deepEqual(result.coverage.sourceRecords.issues,[]);
+});
+test('an empty or oversized mul original cannot mask a readable translation in cloud selection',async t=>{
+  const {index}=fixture(t,{realReaders:false}),valid='<speech xml:lang="fr-t-de-mtec"><p>Lesbarer Klimaschutz Beitrag.</p></speech>';
+  for(const [i,mul] of ['<speech xml:lang="de"><p/></speech>','<speech xml:lang="de"><p>'+('x'.repeat(2*1024*1024))+'</p></speech>'].entries()) {
+    const node=activity(7091+i,{fragments:{de:valid,mul}}),cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:[node],meta:{total:1}},url,fetchedAt:now()})});
+    const query=language=>speechCloudQuery(new URLSearchParams('member=42&days=term&lang='+language),{now:now()});
+    assert.deepEqual((await cloud.query(query('en'))).coverage.missingLanguageAlternatives,[{language:'de',count:1}]);
+    const selected=await cloud.query(query('de'));assert.equal(selected.coverage.transcripts,1);assert.equal(selected.coverage.unreadableText,0);
+    assert.equal(selected.speeches[0].machineTranslation,true);
+  }
+});
+test('public cloud retains clean text instead of discarding speeches for temporary timing markup',async t=>{
+  const {index}=fixture(t,{realReaders:false});
+  const xml='<speech xml:lang="en"><p>'+('<time begin="00:00:00.000" end="00:00:00.100" speaker="42" timing-reference="'+('t'.repeat(100))+'">climate </time>').repeat(1000)+'</p></speech>';
+  const nodes=Array.from({length:50},(_,i)=>activity(7301+i,{fragments:{en:xml}}));
+  const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:nodes,meta:{total:50}},url,fetchedAt:now()})});
+  const first=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
+  assert.equal(first.coverage.transcripts,50);assert(first.coverage.xmlBytes>4*1024*1024);
+  assert(first.coverage.textBytes<4*1024*1024);assert.equal(first.coverage.truncated,false);
 });
 test('a successful detail response with no matching activity still allows an exact retained original',async t=>{
   const {add}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>';

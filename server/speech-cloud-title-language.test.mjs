@@ -127,7 +127,7 @@ test('missing requested XML is still missing even when translated English XML an
   const result=await service.query(query(`member=${member}&days=term&lang=hu`));
   assert.deepEqual(result.speeches,[]);
   assert.deepEqual(result.words,[]);
-  assert.deepEqual(result.coverage,{transcripts:0,matchedSpeechRecords:1,missingLanguage:1,missingLanguageAlternatives:[{language:'en',count:1}],unreadableText:0,complete:true,truncated:false,sourceRecords:{unique:1,declared:1,duplicates:0,issues:[]},associationUnavailable:false,xmlBytes:0});
+  assert.deepEqual(result.coverage,{transcripts:0,matchedSpeechRecords:1,missingLanguage:1,missingLanguageAlternatives:[{language:'en',count:1}],unreadableText:0,complete:true,truncated:false,sourceRecords:{unique:1,declared:1,duplicates:0,issues:[]},associationUnavailable:false,xmlBytes:0,textBytes:0});
   assert.equal(result.nextPage,null);
   assert.equal(calls.length,1);
   assert.deepEqual(result.sources,[{url:source.url,fetchedAt:new Date(now()).toISOString(),stale:false}]);

@@ -20,6 +20,7 @@ import {profileMemberships,createProfileMembershipReader,reference} from './prof
 import {interventionMetadata} from './speech-interventions.mjs';
 import {requestSignal,runWithRequestSignal,waitForRequest,cancelledRequest,createRequestBudget,sharedRequest,isLocalRequestFailure} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
+import {speechParagraphText} from './transcript-text.mjs';
 import {compareMembers} from '../src/memberOrder.mjs';
 
 export const ODP_BASE = "https://data.europarl.europa.eu/api/v2";
@@ -972,7 +973,7 @@ export async function odpSpeeches(id, language, offset) {
     fetchedAt: new Date(record.fetchedAt).toISOString(),
   };
 }
-export function chooseTranscript(docs, language) {
+export function transcriptFragments(docs,{readableOnly=false}={}) {
   const fragments = Object.assign(
     {},
     ...docs
@@ -980,16 +981,26 @@ export function chooseTranscript(docs, language) {
       .map((d) => d["api:xmlFragment"] || {}),
   );
   const sourceKeys=Object.fromEntries(Object.keys(fragments).map(key=>[key,key]));
+  const paragraphs={};
+  if(readableOnly)for(const [key,xml] of Object.entries(fragments)) {
+    const text=speechParagraphText(xml);if(text.trim())paragraphs[key]=text;
+    else {delete fragments[key];delete sourceKeys[key];}
+  }
   // Some originals are stored under `mul` even when the XML identifies one
   // actual language. Expose that language to the reader without losing its key.
   if(typeof fragments.mul==='string') {
     const info=transcriptLanguage(fragments.mul);
     const actual=info.tags.length===1&&allowedLanguages.has(info.tags[0])&&!info.machine?info.tags[0]:null;
     if(actual) {
-      if(!fragments[actual] || transcriptLanguage(fragments[actual]).machine){fragments[actual]=fragments.mul;sourceKeys[actual]='mul';}
+      if(!fragments[actual] || transcriptLanguage(fragments[actual]).machine){fragments[actual]=fragments.mul;sourceKeys[actual]='mul';if(readableOnly)paragraphs[actual]=paragraphs.mul;}
       delete fragments.mul;delete sourceKeys.mul;
+      delete paragraphs.mul;
     }
   }
+  return {fragments,sourceKeys,paragraphs};
+}
+export function chooseTranscript(docs, language,options) {
+  const {fragments,sourceKeys}=transcriptFragments(docs,options);
   const entries = Object.entries(fragments).filter(
     ([, xml]) => typeof xml === "string" && xml,
   );
@@ -1028,7 +1039,7 @@ export function chooseTranscript(docs, language) {
     ...(textLanguage&&sourceKeys[textLanguage]!==textLanguage?{sourceFragmentKey:sourceKeys[textLanguage]}:{}),
   };
 }
-export const SPEECH_DETAIL_VERSION=2;
+export const SPEECH_DETAIL_VERSION=3;
 export async function odpSpeech(id, language) {
   const {speechTranscript}=await import('./speech-transcript.mjs');
   let retainedBody=null;
@@ -1062,7 +1073,7 @@ export async function odpSpeech(id, language) {
     const retained=await fallback(refreshFailure||error);if(retained)return retained;throw error;
   }
   const docs = activity.recorded_in_a_realization_of || [];
-  let selected=chooseTranscript(docs,language),bodySource=null;
+  let selected=chooseTranscript(docs,language,{readableOnly:true}),bodySource=null;
   if(!selected.xml){
     const retained=await fallback(refreshFailure);if(retained)return retained;
     const relative=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;

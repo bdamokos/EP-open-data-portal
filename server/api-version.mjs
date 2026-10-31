@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 424;
-export const API_VERSION = 424;
+export const API_CONTRACT_REVISION = 425;
+export const API_VERSION = 425;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -428,6 +428,7 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   422: 'ddcfcd4a3b576d5316cf4b25d09609b3ba6fd4637c5b3414d63f54a6326841b8',
   423: 'a434269e611976d9f42719f8213fd4d22b6579b3e0b2cfedbe24c7351a7b4fb6',
   424: 'e9d6ba08352e84c8508ce6a7d91fd3407d96432b331b3d559a0c5df3b2488d3e',
+  425: 'd9447d62bd319894ca7d96ec2b6170a90973dc2ac9a99580f673c1ee31349de5',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.
