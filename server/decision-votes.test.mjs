@@ -47,6 +47,14 @@ test('invalid exact references remain explicit even when another reference is va
  assert.equal((await f.read()).decision.referencesValid,false);
 });
 
+test('a part-of reference cannot validate a whole-amendment named-vote binding',async()=>{
+ for(const reference of ['eli/dl/doc/'+amendmentId,'https://other.test/eli/dl/doc/'+amendmentId]){
+  const f=voteFixture();f.raw.decided_on_a_part_of_a_realization_of=reference;
+  const data=await f.read();assert.equal(data.decision.referencesValid,false);
+  assert.equal(data.decision.outcome,'ADOPTED');
+ }
+});
+
 test('contradictory result and component ownership withhold every named join',async()=>{
  for(const scenario of ['ambiguous-result-binding','conflicting-result-source','component-outside-result']) {
   const f=contradictoryVoteFixture(scenario),data=await f.read();

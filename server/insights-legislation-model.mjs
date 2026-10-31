@@ -4,6 +4,8 @@ import {XMLParser} from 'fast-xml-parser';
 import {readFileSync} from 'node:fs';
 import { array,tail } from './activity-index-model.mjs';
 import { canonical,personId,officialApi,memberPeople,demographicStats } from './insights-model.mjs';
+import {deriveVoteEvidence} from './vote-evidence.mjs';
+import {explicitVoteScope,isWholeProposalVote} from './vote-scope.mjs';
 
 export const refs = value => array(value).map(canonical).filter(Boolean);
 const committeeLabels=JSON.parse(readFileSync(new URL('./insights-committee-labels.json',import.meta.url),'utf8')).committees;
@@ -44,14 +46,17 @@ export function classifyProcedure(work) {
   const nonlegislative=new Set(['INI','RSP','RSO','NLE','IMM','INS','REG','RPS','DEA','DCE']);
   return {code:code||null,classification:legislative.has(code)?'legislative':nonlegislative.has(code)?'non-legislative':code==='BUD'?'budgetary':'unresolved',label:legislative.has(code)?'Legislative procedure':nonlegislative.has(code)?'Non-legislative procedure':code==='BUD'?'Budget procedure':'Procedure type not supplied'};
 }
-export function voteScope(vote) {
-  const reference=vote.referenceText?.en || '';
+export function voteScope(vote,derived) {
+  const explicit=explicitVoteScope(vote);
+  if(explicit)return explicit.kind==='unclassified'?'unclassified':'amendment';
+  const reference=typeof vote.referenceText?.en==='string'?vote.referenceText.en:'';
+  if(isWholeProposalVote(vote,derived))return 'final-text';
   if (/^(?:Motion for a resolution|Draft legislative resolution|Legislative resolution) \(as a whole\)$/i.test(reference.trim()))return 'final-text';
   if(vote.decisionAboutId || /\b(?:Am(?:endment)?s?\s*\d|oral amendment|provisional agreement)\b/i.test(reference))return 'amendment';
   if(/^(?:Request|Referral|Motion to refer|Postponement|Closure|Adjournment)\b/i.test(reference))return 'procedural';
   return 'unclassified';
 }
-export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=>'unavailable') {
+export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=>'unavailable',derived) {
   const fields={for:'had_voter_favor',against:'had_voter_against',abstaining:'had_voter_abstention'};
   const rawGroups=Object.fromEntries(Object.entries(fields).map(([key,field])=>[key,[...new Set(array(vote[field]).map(personId).filter(Boolean))]]));
   const positions=new Map();for(const [position,ids] of Object.entries(rawGroups))for(const id of ids){const old=positions.get(id)||new Set();old.add(position);positions.set(id,old);}
@@ -62,7 +67,7 @@ export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=
   const intendedFields={for:'had_voter_intended_favor',against:'had_voter_intended_against',abstaining:'had_voter_intended_abstention'};
   const intendedCorrections=Object.fromEntries(Object.entries(intendedFields).map(([position,field])=>[position,memberPeople(array(vote[field]).map(personId).filter(Boolean),members,metadata).map(person=>({...datedPerson(person,vote.activity_date,groupOn),contributionGroup:contributionGroup(person.id,vote.activity_date,groupOn)}))]));
   const malformedVoterReferences=Object.values(fields).reduce((count,field)=>count+array(vote[field]).filter(v=>!personId(v)).length,0);
-  return {id:vote.activity_id||tail(vote.id),date:vote.activity_date||null,start:vote.activity_start_date||null,titles:vote.activity_label||{},subjects:vote.referenceText||{},scope:voteScope(vote),outcome:tail(vote.decision_outcome),method:tail(vote.decision_method),
+  return {id:vote.activity_id||tail(vote.id),date:vote.activity_date||null,start:vote.activity_start_date||null,titles:vote.activity_label||{},subjects:vote.referenceText||{},scope:voteScope(vote,derived),outcome:tail(vote.decision_outcome),method:tail(vote.decision_method),
     parentIds:refs(vote.inverse_consists_of),recordedDocumentIds:refs(vote.recorded_in_a_realization_of).map(documentId).filter(Boolean),
     aggregateTotals:totals,namedCounts:hasNamedData?Object.fromEntries(Object.entries(groups).map(([key,people])=>[key,people.length])):null,namedVotersAvailable:hasNamedData,groups:hasNamedData?groups:null,
     uniqueNamedVoters:hasNamedData?positions.size:null,currentRosterWithoutNamedRecord:hasNamedData?[...members.keys()].filter(id=>!positions.has(id)).length:null,conflictingVoterIds:conflicts,malformedVoterReferences,
@@ -74,9 +79,10 @@ export function namedVote(vote,record,members,metadata,referenceDate,groupOn=()=
     countBasis:'Actual named roll-call positions only. Intended corrections are shown separately. Members of the current roster without a named record are not classified as absent or abstaining. Vote counts and unique people are different denominators.'};
 }
 export function topicVotes(topic,results,decisions,members,metadata,referenceDate,groupOn=()=>'unavailable') {
+  const derived=deriveVoteEvidence({results:results.payload.data,decisions:decisions.payload.data});
   const parents=results.payload.data.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE_RESULTS'&&refs(n.executed).includes(topic.uri));
   const parentIds=new Set(parents.map(n=>canonical(n.id)));
-  return decisions.payload.data.filter(n=>refs(n.inverse_consists_of).some(p=>parentIds.has(p))).map(n=>({...namedVote(n,decisions,members,metadata,referenceDate,groupOn),
+  return decisions.payload.data.filter(n=>refs(n.inverse_consists_of).some(p=>parentIds.has(p))).map(n=>({...namedVote(n,decisions,members,metadata,referenceDate,groupOn,derived),
     associations:parents.filter(p=>refs(n.inverse_consists_of).includes(canonical(p.id))).map(p=>({resultId:p.activity_id,documentIds:refs(p.based_on_a_realization_of).map(documentId).filter(Boolean),procedureIds:refs(p.inverse_consists_of).map(procedureId).filter(Boolean),agendaItemId:topic.id,resultApiUrl:results.url,resultFetchedAt:sourceDate(results)}))})).sort((a,b)=> (a.scope==='final-text'?0:1)-(b.scope==='final-text'?0:1)||a.id.localeCompare(b.id));
 }
 export function finalVotePatterns(votes,members,metadata,groupOn=()=>'unavailable') {

@@ -18,12 +18,12 @@ const directory={day:'2026-10-18',members,committees:[],index:{complete:true,loa
 function vote(number) {
   return {id:decision(number),sittingId:SITTING,date:'2026-03-25',title:'Decision '+number,titleLanguage:'en',titles:{en:'Decision '+number},referenceTexts:{en:'Decision '+number},
     alignment:'with',method:'VOTE_ELECTRONIC_ROLLCALL',outcome:'ADOPTED',ballotStatus:'conducted',scope:{kind:'amendment'},actualPosition:{status:'recorded',position:'for'},intention:{status:'not-reported',positions:[]},totals:{for:400,against:200,abstaining:0},
-    subjectId:SUBJECT,parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'},context:{documentIds:[DOCUMENT],amendmentIds:number===2?[AMENDMENT]:[],componentIds:[]}};
+    subjectId:SUBJECT,parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'},context:{documentIds:[DOCUMENT],amendmentIds:number===2?[AMENDMENT]:[],componentIds:[],partialReferenceIds:[]}};
 }
 function response(url) {
   const query=url.searchParams,offset=Number(query.get('offset')||0),id=query.get('decision'),items=offset?[vote(3),vote(4)]:[vote(1),vote(2)];
   const week=query.get('week')==='latest'?WEEK:query.get('week'),sitting=query.get('sitting');
-  return {version:9,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
+  return {version:10,member:{id:url.pathname.split('/').at(-1)},positions:query.get('positions'),alignment:query.get('alignment')||'all',alignmentCounts:{with:4,against:0,abstained:0,unclassified:0},snapshotId:query.get('snapshot')||SNAPSHOT,
     period:sitting?{kind:'sitting',week:null,sittingId:sitting,from:sitting.slice(7),to:sitting.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     items,pagination:{offset,limit:50,returned:2,observedTotal:4,recordedTotal:4,filteredTotal:4,nextOffset:offset?null:2},
     selected:id?Number(id.split('-').at(-1))<=4?{status:'found',item:vote(Number(id.split('-').at(-1)))}:{status:'not-found-in-scanned-data',item:null}:{status:'not-requested',item:null},
@@ -77,7 +77,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     if(url.pathname.startsWith('/api/document/'))return Response.json({...contextDocument(decodeURIComponent(url.pathname.split('/').at(-1))),roles:['AUTHOR'],coAuthors:[]});
     if(url.pathname.startsWith('/api/member-votes/'))return Response.json(response(url));
     if(url.pathname.startsWith('/api/commission-followups/'))return Response.json({documentId:decodeURIComponent(url.pathname.split('/').at(-1)),requestedLanguage:url.searchParams.get('lang')||'en',status:'none-listed',items:[],gaps:[],sources:[]});
-    if(url.pathname.startsWith('/api/member-vote-explanations/'))return Response.json({version:2,memberId:url.pathname.split('/').at(-1),decisionId:url.searchParams.get('decision'),sittingId:SITTING,snapshotId:url.searchParams.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
+    if(url.pathname.startsWith('/api/member-vote-explanations/'))return Response.json({version:3,memberId:url.pathname.split('/').at(-1),decisionId:url.searchParams.get('decision'),sittingId:SITTING,snapshotId:url.searchParams.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
     if(url.pathname.startsWith('/api/document-context/')){
       const id=decodeURIComponent(url.pathname.split('/').at(-1));
       const choices=[ADOPTED,OTHER_ADOPTED].map(id=>({...contextDocument(id),relationship:{from:id,field:'adopts',to:DOCUMENT}}));

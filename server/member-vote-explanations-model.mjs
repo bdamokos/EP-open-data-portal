@@ -5,8 +5,8 @@ import {projectMemberSitting} from './member-votes-model.mjs';
 
 const validRefs=(value,kind='event')=>list(value).every(value=>exactReference(value,kind));
 const sameDay=(node,day)=>eventUri(node)&&node.activity_id===identifier(eventUri(node))&&node.activity_date===day.date&&node.activity_id.startsWith(day.sittingId+'-');
-const whole=vote=>vote.ballotStatus==='conducted'&&!vote.sourceConflicts&&vote.scope.basis!=='invalid-component-reference'&&!['amendment','split-part','procedural'].includes(vote.scope.kind)&&
-  !vote.context.amendmentIds.length&&!vote.context.componentIds.length&&
+const whole=vote=>vote.ballotStatus==='conducted'&&!vote.sourceConflicts&&vote.scope.basis!=='invalid-component-reference'&&!['amendment','split-part','partial-text','procedural'].includes(vote.scope.kind)&&
+  !vote.context.amendmentIds.length&&!vote.context.componentIds.length&&!vote.context.partialReferenceIds.length&&
   (vote.scope.kind==='whole-text'||vote.referenceTexts.en?.trim()==='Text as a whole');
 
 function graphGaps(day) {

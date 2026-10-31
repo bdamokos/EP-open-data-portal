@@ -13,7 +13,7 @@ type Source={url:string;fetchedAt:string;contentHash:string};
 type Explanation={id:string;kind:'oral';matchScope:'subject';subjectId:string;presentationAnchorDecisionId:string|null;
   speech:Speech;parentId:string;documentIds:string[];agendaItemId:string;sources:Source[];
   classification:{basis:string;sources:{url:string}[]}};
-type Explanations={version:2;memberId:string;decisionId:string;sittingId:string;snapshotId:string;subjectId:string|null;
+type Explanations={version:3;memberId:string;decisionId:string;sittingId:string;snapshotId:string;subjectId:string|null;
   matchScope:'subject';presentationAnchorDecisionId:string|null;written:{status:'unsupported';count:null};items:Explanation[];
   coverage:{status:'searched'|'partial'|'unavailable';searchComplete:boolean;gaps:{code:string}[]}};
 
@@ -38,7 +38,7 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
     ...((data.period.kind==='sitting') ? ({sitting:vote.sittingId}) : ({week:data.period.week!}))});
   const request=useData<Explanations>('member-vote-explanations/'+memberId+'?'+params);
   const response=request.data;
-  const valid=response?.version===2&&response.memberId===memberId&&response.decisionId===vote.id&&response.sittingId===vote.sittingId&&response.snapshotId===data.snapshotId&&
+  const valid=response?.version===3&&response.memberId===memberId&&response.decisionId===vote.id&&response.sittingId===vote.sittingId&&response.snapshotId===data.snapshotId&&
     response.subjectId===vote.subjectId&&response.matchScope==='subject'&&Array.isArray(response.items)&&
     ['searched','partial','unavailable'].includes(response.coverage?.status)&&typeof response.coverage.searchComplete==='boolean'&&
     Array.isArray(response.coverage.gaps)&&response.coverage.gaps.every(gap=>gap&&typeof gap.code==='string')&&response.items.every(item=>item&&item.kind==='oral'&&item.matchScope==='subject'&&item.subjectId===vote.subjectId&&Array.isArray(item.sources)&&Array.isArray(item.classification?.sources)&&

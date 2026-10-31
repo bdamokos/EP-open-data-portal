@@ -15,7 +15,7 @@ import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {declaredSpeechEvidence} from './declared-speech-evidence.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=12;
+export const DOSSIER_ACTIVITY_VERSION=13;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
