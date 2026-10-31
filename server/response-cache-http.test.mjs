@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 
 test('HTTP reads, conditional responses and failures preserve the intended browser/CDN policy',loopback, async t => {
   const directory = await mkdtemp(path.join(tmpdir(), 'response-cache-http-'));
@@ -13,6 +14,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   const previousDirectory = process.env.ODP_CACHE_DIR;
   process.env.ODP_CACHE_DIR = directory;
   let profileLoads = 0, rosterLoads = 0, imageLoads = 0;
+  const originalPortrait = await sharp({create: {width: 900, height: 1200, channels: 3, background: '#ccc'}}).jpeg().toBuffer();
   globalThis.fetch = async value => {
     const url = new URL(value);
     if (url.origin === 'https://data.europarl.europa.eu' && url.pathname === '/api/v2/meps/show-current') {
@@ -25,7 +27,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
     }
     if (url.href === 'https://www.europarl.europa.eu/mepphoto/43.jpg') {
       imageLoads++;
-      return new Response('fixture portrait', {headers: {'content-type': 'image/jpeg'}});
+      return new Response(originalPortrait, {headers: {'content-type': 'image/jpeg'}});
     }
     assert.fail(`Unexpected upstream request: ${url}`);
   };
@@ -104,9 +106,17 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
 
   const independent = await originalFetch(base + versionedPortraitUrl('/api/portrait/43'));
   assert.equal(independent.status,200);
+  assert.equal(independent.headers.get('content-type'),'image/webp');
   assert(independent.headers.get('cdn-cache-control').startsWith('public,'));
   const independentTag=independent.headers.get('etag');
-  await independent.arrayBuffer();
+  const derived = Buffer.from(await independent.arrayBuffer());
+  assert.equal((await sharp(derived).metadata()).width,480);
+  assert(derived.length < originalPortrait.length);
+  const legacy = await originalFetch(base + '/api/portrait/43?v=1');
+  assert.equal(legacy.status,200);
+  assert.equal(legacy.headers.get('content-type'),'image/jpeg');
+  assert.deepEqual(Buffer.from(await legacy.arrayBuffer()),originalPortrait);
+  assert.notEqual(legacy.headers.get('etag'),independentTag);
   const independentHead=await originalFetch(base + versionedPortraitUrl('/api/portrait/43'),{method:'HEAD',headers:{'If-None-Match':independentTag}});
   assert.equal(independentHead.status,304);
   assert(independentHead.headers.get('cdn-cache-control').startsWith('public,'));
@@ -115,7 +125,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
   assert.equal(portrait.headers.get('cache-control'), 'public, max-age=86400');
   assert.equal(portrait.headers.get('vary'), 'Origin');
   assert.match(portrait.headers.get('cdn-cache-control'), /^public, max-age=604\d{3}, stale-if-error=0$/);
-  assert.equal(await portrait.text(), 'fixture portrait');
+  assert.deepEqual(Buffer.from(await portrait.arrayBuffer()), originalPortrait);
   const sameImage = await get('/api/portrait/43', {headers: {'If-None-Match': portrait.headers.get('etag')}});
   assert.equal(sameImage.status, 304);
   assert.equal(sameImage.headers.get('vary'), 'Origin');
@@ -126,7 +136,7 @@ test('HTTP reads, conditional responses and failures preserve the intended brows
     assert.equal(authenticated.status, status);
     assertNoStore(authenticated);
     assert.equal(authenticated.headers.get('vary'), 'Origin');
-    assert.equal(await authenticated.text(), method === 'GET' && !conditional ? 'fixture portrait' : '');
+    assert.deepEqual(Buffer.from(await authenticated.arrayBuffer()), method === 'GET' && !conditional ? originalPortrait : Buffer.alloc(0));
   }
   assert.equal(imageLoads, 1);
 

@@ -48,6 +48,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
       if(delay)return new Promise(resolve=>pending.push({url,resolve}));
       return Response.json(page(Number(url.searchParams.get('offset'))));
     }
+  if(route==='vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
@@ -100,7 +101,7 @@ test('global search stays remembered across top-level navigation while its share
 
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
   const h=await harness(t,'',false,false,false,true);
-  assert.match(h.container.querySelector('[data-member-id="257043"] img').getAttribute('src'),/^\/api\/portrait\/257043\?v=1$/);
+  assert.match(h.container.querySelector('[data-member-id="257043"] img').getAttribute('src'),/^\/api\/portrait\/257043\?v=2$/);
   assert.deepEqual(h.portraitRequests,[], 'portraits use native image loading');
   assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
 });

@@ -1,7 +1,7 @@
 import type {MemberVotesState} from './MemberVotes';
 export type PlenarySitting={id:string;date:string;phase?:string};
-export type VotePeriodWeek={week:string;sittings:{sittingId:string;date:string}[]};
-export type VotePeriodsResponse={version:2;weeks:VotePeriodWeek[];coverage:{status:'complete'|'partial'|'unavailable';years:{year:number;state:string;sources:unknown[]}[]}};
+export type VotePeriodWeek={week:string;sittings:{sittingId:string;date:string;location?:string|null}[]};
+export type VotePeriodsResponse={version:2|3;weeks:VotePeriodWeek[];coverage:{status:'complete'|'partial'|'unavailable';years:{year:number;state:string;sources:unknown[]}[]}};
 export function plenaryMonday(value:string):string|null;
 export function groupPlenaryWeeks<T extends PlenarySitting>(sittings:T[]):{week:string;sittings:T[]}[];
 export function votePeriodWeek(state:Pick<MemberVotesState,'week'|'sittingId'>,resolvedWeek:string|null|undefined,weeks?:VotePeriodWeek[]):string;

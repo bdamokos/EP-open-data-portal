@@ -16,6 +16,20 @@ const {SpeechInterventions}=await import('./speech-intervention-service.mjs');
 const {SpeechCloudInsights,speechCloudQuery}=await import('./speech-cloud.mjs');
 const {ActivityStore}=await import('./activity-index-store.mjs');
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
+// Deliberately start after multiple turns: real disk fallback need not enter
+// the blocked read during the first setImmediate.
+function delayedRead() {
+  const entered=Promise.withResolvers(),result=Promise.withResolvers();
+  return {entered:entered.promise,finish:result.resolve,async read(){
+    await turn();await turn();
+    entered.resolve();
+    return result.promise;
+  }};
+}
+async function expireAfterEntry(t,first,read) {
+  await Promise.race([read.entered,first.then(()=>assert.fail('Request expired before entering the controlled read.'))]);
+  t.mock.timers.tick(50_000);await first;
+}
 const interventionFixture=JSON.parse(readFileSync(new URL('./fixtures/speech-interventions-live-20261015.json',import.meta.url)));
 const cloudFixture=JSON.parse(readFileSync(new URL('./fixtures/plenary-context-live-20261015.json',import.meta.url)));
 
@@ -23,14 +37,14 @@ test('expired ODP disk readers cannot replace a successful newer source',async t
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+180_000});
   const endpoint='/expired-disk-reader',url='https://data.europarl.europa.eu/api/v2'+endpoint+'?format=application%2Fld%2Bjson';
   const file=path.join(directory,createHash('sha256').update(url).digest('hex')+'.json'),realRead=fs.createReadStream;
-  let finish,reads=0,calls=0;
-  const mock=t.mock.method(fs,'createReadStream',(filename,...args)=>String(filename)===file&&reads++===0?(async function*(){yield Buffer.from(await new Promise(resolve=>finish=resolve));})():realRead(filename,...args));
+  const blocked=delayedRead();let reads=0,calls=0;
+  const mock=t.mock.method(fs,'createReadStream',(filename,...args)=>String(filename)===file&&reads++===0?(async function*(){yield Buffer.from(await blocked.read());})():realRead(filename,...args));
   syncBuiltinESMExports();t.after(()=>{mock.mock.restore();syncBuiltinESMExports();});
   t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({data:[{id:'replacement'}]});});
   const first=assert.rejects(sharedRequest(()=>odp(endpoint)),e=>e.code==='request_timeout');
-  await turn();assert(finish);t.mock.timers.tick(50_000);await first;
+  await expireAfterEntry(t,first,blocked);
   const replacement=await odp(endpoint,{}, {force:true});assert.equal(replacement.payload.data[0].id,'replacement');
-  finish(JSON.stringify({url,fetchedAt:Date.now(),payload:{data:[{id:'expired'}]}}));await turn();
+  blocked.finish(JSON.stringify({url,fetchedAt:Date.now(),payload:{data:[{id:'expired'}]}}));await turn();
   assert.equal(await odp(endpoint),replacement);assert.equal(calls,1);
 });
 
@@ -38,12 +52,12 @@ test('expired member statistics cannot mutate replacement rows, sources or cover
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+360_000});
   const activity=interventionFixture.activities.find(a=>a.recorded_in_a_realization_of?.[0]?.numbering===173);
   const record=title=>({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:Date.now(),payload:{data:[{...activity,activity_label:{en:title}}],meta:{total:1},searchResults:{hits:[{id:activity.id}]}}});
-  let finish,calls=0;
-  const service=new SpeechInterventions({request:()=>++calls===1?new Promise(resolve=>finish=resolve):Promise.resolve(record('replacement'))});
+  const blocked=delayedRead();let calls=0;
+  const service=new SpeechInterventions({request:()=>++calls===1?blocked.read():Promise.resolve(record('replacement'))});
   const first=assert.rejects(service.member('256971'),e=>e.code==='request_timeout');
-  await turn();t.mock.timers.tick(50_000);await first;
+  await expireAfterEntry(t,first,blocked);
   const replacement=structuredClone(await service.member('256971'));assert.equal(replacement.items[0].titles.en,'replacement');
-  finish(record('expired'));await turn();
+  blocked.finish(record('expired'));await turn();
   assert.deepEqual(await service.member('256971'),replacement);assert.equal(calls,2);
 });
 
@@ -51,12 +65,12 @@ test('expired speech-cloud loads cannot add duplicate sources or corrupt replace
   t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()+540_000});
   const store=new ActivityStore(path.join(directory,'cloud-store'));t.after(()=>store.close());
   store.acquire();store.beginCycle();store.setMembers([{id:'125065',name:'Saved speaker'}]);
-  let finish,calls=0;
-  const service=new SpeechCloudInsights(store,{request:()=>++calls===1?new Promise(resolve=>finish=resolve):Promise.resolve(cloudFixture.speeches)});
+  const blocked=delayedRead();let calls=0;
+  const service=new SpeechCloudInsights(store,{request:()=>++calls===1?blocked.read():Promise.resolve(cloudFixture.speeches)});
   const query=speechCloudQuery(new URLSearchParams('member=125065&days=term'));
   const first=assert.rejects(service.query(query),e=>e.code==='request_timeout');
-  await turn();assert(finish);t.mock.timers.tick(50_000);await first;
+  await expireAfterEntry(t,first,blocked);
   const replacement=structuredClone(await service.query(query));assert(replacement.coverage.transcripts>0);
-  finish(cloudFixture.speeches);await turn();
+  blocked.finish(cloudFixture.speeches);await turn();
   assert.deepEqual(await service.query(query),replacement);assert.equal(calls,2);
 });
