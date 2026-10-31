@@ -122,3 +122,9 @@ for(const mode of ['gap','observed','partial'])test(`group summary and selected 
  assert.equal(Boolean(h.container.querySelector('.gv-subjects .gv-empty')),mode!=='partial');
  assert.equal(values.length,5);assert(values.every(value=>value===(mode==='partial'?'Unavailable':'0')),JSON.stringify(values));
 });
+
+for(const limited of [false,true])test('People empty message requires an observed zero, limited='+limited,async t=>{
+ const availability=sourceAvailability({sourceKey:'oral-speeches',start:'2026-09-01',end:'2026-09-30',latestObservedDate:'2026-10-16',limited,today:'2026-10-30'});
+ const h=await harness(t,'?view=groups&gv-period=2026-09&gv-tab=people',{response:{availability,people:[],contributions:[],total:0,window:{from:'2026-09-01',to:'2026-09-30'}}});
+ assert.equal(Boolean(h.container.querySelector('.gv-people .gv-empty')),!limited);
+});
