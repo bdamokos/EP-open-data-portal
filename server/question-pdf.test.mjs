@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync,readFileSync,writeFileSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {ActivityStore} from './activity-index-store.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
@@ -217,4 +217,30 @@ test('actual discovery invalidates a saved PDF phase when the failed DOCX editio
  const updated=store.task(task.key);assert.equal(updated.retry_at,before.retry_at);assert.equal(updated.attempts,before.attempts);assert.equal(updated.body.edition.byteSize,101);
  instant=updated.retry_at;let words=0,pdfs=0;const next=new CorpusWorker(store,{clock,budget:1,runUpstream:fn=>fn(next.controller.signal),download:async()=>{words++;return {paragraphs:['Readable replacement DOCX']};},downloadPdf:async()=>{pdfs++;return {paragraphs:['Obsolete PDF phase']};}});next.dispatches=1;
  await next.task(updated);assert.equal(words,1);assert.equal(pdfs,0);assert.equal(store.task(task.key).done,1);assert.equal(store.task(task.key).body.pdfPending,undefined);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).sourceFormat,'docx');
+});
+
+
+test('a shared PDF URL keeps the selected language edition and refreshes only that edition',async t=>{
+ const directory=fixture(t),item=work(),file=item.is_realized_by[0].is_embodied_by.find(file=>file.format==='PDF'),url=file.is_exemplified_by;
+ item.is_realized_by=[{language:'ENG',is_embodied_by:[{...file,id:'english-pdf',byteSize:100,issued:'2026-01-01T00:00:00Z'}]},
+  {language:'DEU',is_embodied_by:[{...file,id:'german-pdf',byteSize:36594,issued:'2026-04-23T11:22:43+02:00',is_exemplified_by:url}]}];
+ let downloads=0,release,started;const gate=new Promise(resolve=>release=resolve),refreshStarted=new Promise(resolve=>started=resolve);
+ const options={directory,clock:now,downloadPdf:async selected=>{downloads++;assert.equal(selected.language,'de');if(downloads===2){started();await gate;}return {paragraphs:['Selected German PDF'],observedByteSize:33245,byteSizeMatches:false};}};
+ const first=await documentText(item,'de',options);assert.equal(first.sourceVersion.byteSize,36594);assert.equal(first.sourceVersion.issued,'2026-04-23T11:22:43+02:00');assert.equal(first.textLanguage,'de');
+ const german=item.is_realized_by[1].is_embodied_by[0];german.byteSize=36595;german.issued='2026-05-01T00:00:00Z';
+ const changed=await documentText(item,'de',options);assert.equal(changed.stale,true);assert.equal(changed.refreshInProgress,true);assert.equal(changed.sourceVersion.byteSize,36594);await refreshStarted;assert.equal(downloads,2);release();
+ let current=changed;const deadline=performance.now()+5000;
+ while(current.refreshInProgress&&performance.now()<deadline){await new Promise(resolve=>setTimeout(resolve,10));current=await documentText(item,'de',options);}
+ assert.equal(current.refreshInProgress,false);assert.equal(current.stale,false);assert.equal(current.sourceVersion.byteSize,36595);assert.equal(current.sourceVersion.issued,'2026-05-01T00:00:00Z');
+ const english=item.is_realized_by[0].is_embodied_by[0];english.byteSize=101;english.issued='2026-06-01T00:00:00Z';
+ const unchanged=await documentText(item,'de',options);assert.equal(unchanged.stale,false);assert.equal(unchanged.refreshInProgress,false);assert.equal(unchanged.sourceVersion.byteSize,36595);assert.equal(downloads,2);
+});
+
+test('PDF caches from before manifestation-bound descriptors are not reused',async t=>{
+ const directory=fixture(t),item=work(),file=questionPdf(item,'en'),key=JSON.stringify(['pdf',item.identifier,'en',file.url]);
+ const folder=path.join(directory,'document-text-v1');mkdirSync(folder);
+ const record={schemaVersion:1,extractionVersion:2,sourceId:item.identifier,sourceUrl:file.url,sourceFormat:'PDF',sourceLanguage:'en',source:{byteSize:100,issued:'2026-01-01T00:00:00Z'},fetchedAt:new Date(now()).toISOString(),paragraphs:['Old text with an unverified manifestation descriptor']};
+ writeFileSync(path.join(folder,createHash('sha256').update(key).digest('hex')+'.json'),JSON.stringify(record));
+ let downloads=0;const result=await documentText(item,'en',{directory,clock:now,cacheOnly:true,downloadPdf:async()=>{downloads++;return {paragraphs:['Unexpected download']};}});
+ assert.equal(result.status,'unavailable');assert.deepEqual(result.paragraphs,[]);assert.equal(downloads,0);
 });
