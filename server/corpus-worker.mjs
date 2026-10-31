@@ -34,6 +34,12 @@ const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
 const PRIORITY={speeches:60,speech:61,speechClassification:63};
 const FRAGMENT_LIMIT=2*1024*1024;
 
+function questionPdfFailure(docx,pdf) {
+  const message=String(docx.message).slice(0,160)+' PDF alternative: '+String(pdf.message).slice(0,160);
+  return Object.assign(new Error(message,{cause:pdf}),{code:docx.code,status:docx.status,
+    retryAfter:Math.max(Number(docx.retryAfter)||0,Number(pdf.retryAfter)||0)});
+}
+
 // Retain only language attributes. Returning false from updateTag discards
 // each parsed node instead of attaching its body/children to an XML tree.
 // Oversized bodies still supply provenance for other, bounded fragments.
@@ -268,6 +274,7 @@ export class CorpusWorker {
         if(sameFile) {
           let outcome;
           try {outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});}
+          catch(error) {this.controller.signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(pending.error,error);}
           finally {if(!this.controller.signal.aborted){this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}}
           if(outcome!=='unavailable')throw Object.assign(new Error(pending.error.message),pending.error);
         } else {this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}
@@ -282,14 +289,17 @@ export class CorpusWorker {
       } catch(error) {
         signal.throwIfAborted();
         if(pdfFallbackEligible(error)) {
-          const outcome=await this.retainQuestionPdf(task,signal);
+          let outcome;
+          try {outcome=await this.retainQuestionPdf(task,signal);}
+          catch(pdfError) {signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(error,pdfError);}
           if(outcome==='deferred') {
             this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status}};
             this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);
           }
         }
         // A retained PDF is independently useful, but never settles the failed
-        // DOCX owner or changes its retry policy.
+        // DOCX owner. Failed alternatives keep that failure context and honor
+        // their own Retry-After through the owner's normal retry policy.
         throw error;
       }
       signal.throwIfAborted();

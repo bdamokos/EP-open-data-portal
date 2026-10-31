@@ -215,7 +215,7 @@ export interface PublicationDocument {
     refreshInProgress: boolean;
     refreshError: string | null;
     reason: string | null;
-    extraction: 'official-docx-paragraphs' | null;
+    extraction: 'official-docx-paragraphs' | 'official-pdf-text' | null;
     nextRetryAt?: string | null;
     notesStatus?: 'extracted' | 'not-extracted';
     notes?: DocumentNote[];
@@ -230,7 +230,7 @@ export interface PublicationDocument {
     paragraphFormats?: ParagraphFormat[];
     tables?: DocumentTable[];
     extractionVersion?: number | null;
-    sourceVersion?: { byteSize: number | null; issued: string | null } | null;
+    sourceVersion?: { byteSize: number | null; issued: string | null; observedByteSize?: number; byteSizeMatches?: boolean | null } | null;
   };
 }
 export interface SpeechPage {
