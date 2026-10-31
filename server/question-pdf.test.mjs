@@ -117,6 +117,7 @@ test('a declared size mismatch requires the exact printed reference and records 
  const buffer=pdf(),file={url:'https://data.europarl.europa.eu/distribution/fixture/a.pdf',sourceId:'E-10-2026-001715-ASW',byteSize:buffer.length+1};
  const download=async()=>({body:buffer}),extract=async()=>({paragraphs:['E-001715/2026','Official answer text']});
  const result=await downloadQuestionPdf(file,{download,extract});assert.equal(result.byteSizeMatches,false);assert.equal(result.observedByteSize,buffer.length);
+ const shortYear=await downloadQuestionPdf(file,{download,extract:async()=>({paragraphs:['E-001715/26','Official answer']})});assert.equal(shortYear.byteSizeMatches,false);
  await assert.rejects(downloadQuestionPdf({...file,sourceId:'E-10-2026-001716-ASW'},{download,extract}),/exact parliamentary reference/);
  await assert.rejects(downloadQuestionPdf({...file,sourceId:'E-10-2025-001715-ASW'},{download,extract}),/exact parliamentary reference/);
 });

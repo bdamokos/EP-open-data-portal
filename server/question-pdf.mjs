@@ -26,7 +26,7 @@ export async function downloadQuestionPdf(file,{signal,download=downloadPdf,extr
   // as additional evidence, retaining both the declaration and actual digest.
   if(byteSizeMatches===false) {
     const match=/^([EP])-\d+-(\d{4})-(\d{6})(?:-ASW)?$/.exec(file.sourceId||'');
-    const reference=match&&new RegExp('(?<![A-Z0-9])'+match[1]+'\\s*[-–−]\\s*'+match[3]+'\\s*/\\s*'+match[2]+'(?![0-9])');
+    const reference=match&&new RegExp('(?<![A-Z0-9])'+match[1]+'\\s*[-–−]\\s*'+match[3]+'\\s*/\\s*'+'(?:'+match[2]+'|'+match[2].slice(-2)+')(?![0-9])');
     if(!reference?.test(text.paragraphs.join('\n')))throw new Error('Official PDF size differs and its exact parliamentary reference could not be verified.');
   }
   return {...text,resolvedSourceUrl:result.resolvedSourceUrl,sourceHash:createHash('sha256').update(body).digest('hex'),observedByteSize:body.length,byteSizeMatches};
