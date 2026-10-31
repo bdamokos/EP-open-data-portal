@@ -34,6 +34,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
+  if(url.pathname==='/api/vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
