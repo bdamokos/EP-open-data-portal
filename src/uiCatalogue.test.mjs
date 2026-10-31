@@ -92,7 +92,7 @@ test('startup shell uses explicit owned bindings and keeps numeric member IDs li
   const {localizeInitialShell}=await load('/src/initialShell.ts');
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu'}));
   assert.equal(window.document.querySelector('h1').textContent,'Európai parlamenti képviselők');
-  assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Tagok');
+  assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Képviselők');
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu',member:'1234567'}));
   assert.equal(window.document.querySelector('h1').textContent,'EP-képviselő 1234567');
   window.document.getElementById('initial-shell').remove();

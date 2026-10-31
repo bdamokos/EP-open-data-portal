@@ -68,7 +68,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
 test('Back and Forward restore Membership, every URL filter and actual directory results',async t=>{
   const h=await harness(t);h.agree('member');
   const initial=location.href;
-  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'Members',hu:'Tagok',fr:'Membres'}[h.language().value]);
+  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'MEPs',hu:'Képviselők',fr:'Députés'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');h.agree('substitute');
   const later=location.href,length=history.length,incoming=[];
   h.window.addEventListener('popstate',()=>incoming.push(location.href));
@@ -79,7 +79,7 @@ test('Back and Forward restore Membership, every URL filter and actual directory
 
 test('language follows history alongside Membership without overwriting restored parameters',async t=>{
   const h=await harness(t,'lang=hu&'+selection+'&role=member');h.agree('member','hu');
-  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'Members',hu:'Tagok',fr:'Membres'}[h.language().value]);
+  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'MEPs',hu:'Képviselők',fr:'Députés'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');await h.select(h.language(),'fr');h.agree('substitute','fr');
   await h.go(-2);h.agree('member','hu');
   await h.go(1);assert.equal(new URLSearchParams(location.search).get('view'),'saved');assert.equal(h.language().value,'hu');
@@ -88,7 +88,7 @@ test('language follows history alongside Membership without overwriting restored
 
 for(const query of [selection,selection+'&role=invalid&lang=invalid'])test('history applies initial-load defaults for '+query,async t=>{
   const h=await harness(t,query);h.agree('both');
-  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'Members',hu:'Tagok',fr:'Membres'}[h.language().value]);
+  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'MEPs',hu:'Képviselők',fr:'Députés'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');await h.select(h.language(),'hu');
   // Retain the raw old URL so popstate must validate absent/unsupported values.
   await act(async()=>{history.replaceState(null,'','/?'+query);h.window.dispatchEvent(new h.window.PopStateEvent('popstate'));});

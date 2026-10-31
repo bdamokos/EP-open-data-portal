@@ -35,7 +35,7 @@ test('group charts distinguish observed, assigned, unavailable and zero contribu
 
   await render({rows,total:6,unavailable:0});
   assert.equal(total(),'6');assert.match(figure().textContent,/6 contributions/);
-  assert.equal(figure().querySelector('.insight-donut-caption').textContent,'Contributions');
+  assert.equal(figure().querySelector('.insight-donut-caption').textContent,'contributions');
   assert.match(figure().querySelector('svg circle[aria-label]').getAttribute('aria-label'),/66.7% of contributions/);
   assert.doesNotMatch(figure().textContent,/assigned|unavailable/);
   await render({rows:[],total:0,unavailable:0});
