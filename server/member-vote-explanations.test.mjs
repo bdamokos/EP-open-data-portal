@@ -29,6 +29,16 @@ function setup({day=dayFixture(),speeches=rows('speeches').filter(row=>row.had_p
 }
 const query=(decision=FINAL)=>({sitting:SITTING,week:null,decision,snapshot:SNAPSHOT,language:'en'});
 
+test('explicit part-of context cannot anchor an explanation even under Text as a whole',()=>{
+  const day=dayFixture(),final=day.decisions.find(row=>row.activity_id===FINAL);
+  assert.equal(explanationVoteContext(day,MEMBER,FINAL).anchor,FINAL);
+  final.referenceText={en:'Text as a whole'};
+  final.decided_on_a_part_of_a_realization_of='eli/dl/doc/A-10-2026-0001-AM-1';
+  const context=explanationVoteContext(day,MEMBER,FINAL);
+  assert.equal(context.anchor,null);
+  assert.equal(context.vote.scope.kind,'partial-text');
+});
+
 test('real public report → agenda → result joins keep explanations subject-scoped and anchor the unique final',async()=>{
   const {service,day}=setup();const result=await service.query(MEMBER,query());
   assert.equal(result.items.length,1);assert.equal(result.items[0].id,SITTING+'-OTH-2017069542706');

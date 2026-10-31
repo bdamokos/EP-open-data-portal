@@ -11,10 +11,22 @@ const projection=projectMemberSitting(fixture.snapshots[0],String(memberId),'en'
 const clone=value=>structuredClone(value);
 function response(overrides={}) {
   const items=projection.items.filter(item=>item.actualPosition.status==='recorded');
-  return {version:9,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
+  return {version:10,member:{id:String(memberId)},period:{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'},snapshotId,positions:'recorded',alignment:'all',alignmentCounts:projection.items.reduce((counts,item)=>{counts[item.alignment]++;return counts;},{with:0,against:0,abstained:0,unclassified:0}),items:clone(items),subjects:projection.subjects.map(subject=>({...clone(subject),counts:{observed:projection.items.filter(item=>item.subjectId===subject.id).length,filtered:items.filter(item=>item.subjectId===subject.id).length,page:items.filter(item=>item.subjectId===subject.id).length}})),pagination:{offset:0,limit:50,returned:items.length,observedTotal:projection.items.length,recordedTotal:items.length,filteredTotal:items.length,nextOffset:null},selected:{status:'not-requested',item:null},coverage:{status:'complete',termWide:false},...overrides};
 }
 const state={week:'latest',sittingId,positions:'recorded',offset:0,decisionId:null,snapshotId:null};
 const accepts=(data,requestState=state)=>validateMemberVotesResponse(data,{memberId,state:requestState});
+
+test('native proposal labels retain their language and native part references never supply whole-amendment targets',()=>{
+  const native=JSON.parse(readFileSync(new URL('../server/fixtures/whole-proposal-votes.json',import.meta.url))).snapshot;
+  const projected=projectMemberSitting(native,String(memberId),'en');
+  const proposal=projected.items.find(vote=>vote.id.endsWith('-199470'));
+  assert.equal(memberVoteLabel(proposal),'Commission proposal');
+  assert.equal(memberVoteLabel(proposal,'hu'),'A Bizottság javaslata');
+  const partial=projected.items.find(vote=>vote.id.endsWith('-199472'));
+  assert.equal(memberVoteLabel(partial),'Text as a whole');
+  assert.deepEqual(exactAmendmentTargets(partial),[]);
+  assert.deepEqual(partial.context.partialReferenceIds,['A-10-2026-0104-AM-118']);
+});
 
 test('request route explicitly defaults to all decisions and retains exact page, selection and snapshot',()=>{
   assert.equal(MEMBER_VOTES_PAGE_SIZE,50);
