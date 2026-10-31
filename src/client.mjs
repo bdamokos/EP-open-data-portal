@@ -1,3 +1,4 @@
+import {reportUiError} from './errorDiagnostics.mjs';
 import {UiMessageError} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {versionedApiUrl} from '../server/api-version.mjs';
@@ -72,6 +73,9 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
       waited += delay;
       await pause(delay, active);
     }
+  } catch(error) {
+    if(!signal?.aborted)reportUiError(active.aborted?timeoutError:error,{request:url});
+    throw error;
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);

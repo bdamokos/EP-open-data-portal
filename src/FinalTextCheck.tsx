@@ -1,3 +1,4 @@
+import {reportUiError} from './errorDiagnostics.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useEffect,useState} from 'react';
@@ -63,7 +64,7 @@ function Session({selection}:{selection:FinalTextSelection}) {
     api<FinalTextResponse>(route,controller.signal, undefined, ui).then(data=>{
       if(!pinned(data,selection))throw new Error('Selection changed');
       if(active)setState({data,loading:false,error:false});
-    }).catch(()=>{if(active)setState(previous=>({...previous,loading:false,error:true}));});
+    }).catch(error=>{if(active){reportUiError(error,{request:'/api/'+route});setState(previous=>({...previous,loading:false,error:true}));}});
     return ()=>{active=false;controller.abort();};
   // The keyed session pins every selection field for this disclosure's lifetime.
   // eslint-disable-next-line react-hooks/exhaustive-deps

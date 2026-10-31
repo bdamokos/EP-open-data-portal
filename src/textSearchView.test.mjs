@@ -734,3 +734,17 @@ test('search attribution skips unnamed people and preserves the answer fallback'
     assert.equal(view.find('.explorer-search-attribution').textContent,expected);
   });
 });
+
+test('handled invalid HTTP 200 search response reports context without the search text',async t=>{
+ const view=await setup(t,{query:'fixture-fts-search=private-search',respond:({url})=>{
+   if(url.pathname.endsWith('/client-errors'))return new Response(null,{status:204});
+   if(url.pathname.endsWith('/corpus/search'))return new Response('broken JSON',{status:200});
+ }});
+ const {installErrorDiagnostics}=await view.loadModule('/src/errorDiagnostics.mjs');
+ installErrorDiagnostics({fetch:globalThis.fetch,location:view.window.location,addEventListener:()=>{}},'/api/client-errors');
+ await view.render();
+ assert.match(view.container.textContent,/Search failed/);
+ const reports=view.calls.filter(call=>call.url.pathname.endsWith('/client-errors'));
+ assert.equal(reports.length,1);assert.equal(reports[0].body.request,'/api/corpus/search');
+ assert(!JSON.stringify(reports[0].body).includes('private-search'));
+});

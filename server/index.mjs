@@ -1,3 +1,4 @@
+import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
 import {portraitRenditions} from './portrait-renditions.mjs';
@@ -7,7 +8,7 @@ import {savedPostQuery,savedStates} from './insights-saved.mjs';
 import {groupVoicesQuery} from './group-voices-model.mjs';
 import {groupVoicesPage} from './group-voices-store.mjs';
 import http from 'node:http';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {measureEventLoopDelay} from './event-loop-delay.mjs';
 import {prepareStartupIndexes} from './migrate-indexes.mjs';
@@ -126,10 +127,23 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 }
 
 // Browser transport for this app. The gateway admits the same finite route set.
-const apiEndpoints=new Set(['healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+let diagnosticWindow=0,diagnosticCount=0;
+const apiEndpoints=new Set(['client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
+ if(url.pathname===apiPrefix+'/client-errors') {
+   requireMethod(request,['POST']);
+   if(Date.now()-diagnosticWindow>60_000){diagnosticWindow=Date.now();diagnosticCount=0;}
+   if(++diagnosticCount>120)throw new HttpError(429,'diagnostics_busy','Diagnostics busy');
+   const body=await jsonRequestBody(request,{limit:4096,subject:'diagnostic',size:'4 KiB'});
+   const event=clientErrorEvent(body);
+   if(!event)throw new HttpError(400,'invalid_diagnostic','Invalid diagnostic');
+   errorLog.write(event);
+   setCommonSecurityHeaders(response);response.statusCode=204;
+   response.setHeader('Cache-Control','no-store');response.setHeader('CDN-Cache-Control','no-store');response.end();return;
+ }
+
  const versions=url.searchParams.getAll('v');
  if(versions.length>1 || versions.length===1 && (!/^[1-9][0-9]*$/.test(versions[0]) || !Number.isSafeInteger(Number(versions[0]))))
    throw new HttpError(400,'invalid_api_version','v must be a single positive integer.');
@@ -360,6 +374,8 @@ async function handleApi(request,response,url,apiPrefix){
 }
 export async function handleRequest(request, response) {
   const started=performance.now(),eventLoop=performance.eventLoopUtilization();let route='/';
+  const requestId=randomUUID();
+  response.setHeader('X-Request-Id',requestId);
   response.explorerStartedAt=started;
   try {
     const target = request.url || "/";
@@ -393,6 +409,7 @@ export async function handleRequest(request, response) {
     }
     throw new HttpError(404, "not_found", "The requested resource does not exist");
   } catch (error) {
+    if(!request.url?.startsWith('/api/client-errors')&&error.code!=='request_cancelled')errorLog.write(serverErrorEvent(request,error,{requestId,elapsedMs:Math.round(performance.now()-started)}));
     if(error.code==='request_timeout')console.warn('[request-budget]',JSON.stringify({code:error.code,route,elapsedMs:Math.round(performance.now()-started),upstream:upstreamStatus(),odpHeaders:odpHeaderStatus(),eventLoopDelay:eventLoopDelay?.snapshot(),eventLoopUtilization:performance.eventLoopUtilization(eventLoop).utilization}));
     if(response.destroyed||response.writableEnded)return;
     if (!response.headersSent) {

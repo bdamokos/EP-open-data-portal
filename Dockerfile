@@ -22,7 +22,7 @@ LABEL org.opencontainers.image.title="European Parliament data explorer" \
       org.opencontainers.image.revision=${APP_REVISION}
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8790 APP_REVISION=${APP_REVISION} \
-    ODP_CACHE_DIR=/data/cache ACTIVITY_INDEX_DIR=/data/index \
+    ODP_CACHE_DIR=/data/cache ACTIVITY_INDEX_DIR=/data/index ERROR_LOG_DIR=/data/diagnostics \
     ACTIVITY_INDEX_ENABLED=false
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json /app/package-lock.json ./
@@ -30,7 +30,7 @@ COPY --from=build /runtime-server ./server
 COPY --from=build /app/src/speakerNames.mjs /app/src/speakerRoles.mjs /app/src/groupVoiceTerms.mjs /app/src/memberOrder.mjs /app/src/amendmentLanguageScope.mjs /app/src/amendmentJustification.mjs ./src/
 COPY --from=build /app/dist ./dist
 COPY THIRD_PARTY_NOTICES.md ./
-RUN mkdir -p /data/cache /data/index && chown -R node:node /data
+RUN mkdir -p /data/cache /data/index /data/diagnostics && chown -R node:node /data
 USER node
 EXPOSE 8790
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60m \

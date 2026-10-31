@@ -1,3 +1,5 @@
+import {installErrorDiagnostics} from './errorDiagnostics.mjs';
+import {API_ROOT} from './api';
 import {PlenaryLiveProvider} from './PlenaryLive';
 import {appUiI18n} from './appUiI18n';
 import {interfaceTerm} from './terms.mjs';
@@ -9,6 +11,7 @@ import './theme.css';
 import './base.css';
 import {applyColourScheme,readColourScheme} from './colourScheme.mjs';
 import {RootBoundary} from './ErrorBoundary';
+installErrorDiagnostics(window,API_ROOT+'/client-errors');
 applyColourScheme(readColourScheme());
 const initialLanguage=new URLSearchParams(window.location.search).get('lang');
 const loading=interfaceTerm('loading-view',initialLanguage||'en');

@@ -8,12 +8,13 @@ import path from 'node:path';
 
 test('flat browser API preserves bounded reads, search POSTs and conditional responses',loopback,async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'flat-api-'));
+  process.env.ERROR_LOG_DIR=path.join(directory,'diagnostics');
   process.env.ACTIVITY_INDEX_ENABLED='true';process.env.ACTIVITY_INDEX_DIR=directory;
   process.env.CORPUS_ENABLED='false';delete process.env.ODP_CACHE_DIR;
   const {server}=await import('./index.mjs');
   const {activityIndex}=await import('./activity-index-worker.mjs');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));activityIndex().store.close();await rm(directory,{recursive:true,force:true});});
+  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));activityIndex().store.close();await (await import('./error-log.mjs')).errorLog.flush();await rm(directory,{recursive:true,force:true});});
   const base=`http://127.0.0.1:${server.address().port}`,read=globalThis.fetch;
   t.mock.method(globalThis,'fetch',()=>{throw Error('Route tests must not read public sources');});
   const request=(route,options)=>read(versionedApiUrl(`${base}/api/${route}`),options);
@@ -28,6 +29,10 @@ test('flat browser API preserves bounded reads, search POSTs and conditional res
   const get=await request('activity-index/status');assert.equal(get.status,200);const etag=get.headers.get('ETag');await get.json();
   const head=await request('activity-index/status',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
   const cached=await request('activity-index/status',{headers:{'If-None-Match':etag}});assert.equal(cached.status,304);assert.equal(await cached.text(),'');
+  const reported=await request('client-errors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'http',request:'/api/profile/1?lang=hu&q=private',status:502,method:'GET'})});
+  assert.equal(reported.status,204);assert.equal(reported.headers.get('Cache-Control'),'no-store');
+  assert.match(reported.headers.get('X-Request-Id'),/^[a-f0-9-]{36}$/);
+  assert.equal((await request('client-errors',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json'},body:'{}'})).status,403);
   const discovery=await (await read(base+'/api')).json();assert(discovery.endpoints.includes('directory'));assert(!discovery.endpoints.includes('poc'));
   for(const route of ['poc/directory','poc/profile/1','poc/corpus/search','poc/motion-amendments/B-10-2026-0424','poc/member-votes/43','poc/healthz','poc/poc/directory'])for(const method of ['GET','HEAD','POST','OPTIONS'])assert.equal((await request(route,{method})).status,404,`${method} ${route}`);
 });
