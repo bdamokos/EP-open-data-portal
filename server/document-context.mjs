@@ -1,3 +1,4 @@
+import {isDeepStrictEqual} from 'node:util';
 import {publishDocumentImages} from './document-image-store.mjs';
 import {committeeAmendmentReference,committeeListId,committeeDraftId,committeeDocumentEndpoint,COMMITTEE_DOCUMENT_TYPES,validCommitteeWork} from './committee-amendments.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
@@ -21,12 +22,13 @@ import {parsePublicLegalXhtml} from './public-legal-xhtml.mjs';
 import {parseProposal} from './proposal-structure.mjs';
 import {documentContextPlacement} from './document-context-placement.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
-import {commissionReferences} from './commission-proposal-identity.mjs';
+import {commissionReferences,commissionProcedures} from './commission-proposal-identity.mjs';
+import {nativeNleReferencePair} from './commission-proposal-native-identity.mjs';
 import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=49;
+export const DOCUMENT_CONTEXT_VERSION=50;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
@@ -50,12 +52,13 @@ function indexedWordingSource(row) {
   const conflict=[source.contentHash,source.sha256].filter(Boolean).some(hash=>hash!==publication.sourceHash)||source.sourceVersion&&Object.keys(version).some(key=>source.sourceVersion[key]!=null&&String(source.sourceVersion[key])!==String(version[key]));
   return {...source,contentHash:publication.sourceHash,sourceVersion:version,notesComplete:publication.notesComplete,...(conflict?{contentHashConflict:true}:{})};
 }
+const distributionUrl=value=>{try{return typeof value==='string'?new URL(value,'https://data.europarl.europa.eu/').href:null;}catch{return null;}};
 const distributionVersion=(list,url)=>{
   const manifestations=array(list.is_realized_by).flatMap(expression=>array(expression.is_embodied_by)).filter(manifestation=>{try{return new URL(manifestation.is_exemplified_by,'https://data.europarl.europa.eu/').href===url;}catch{return false;}});
   return manifestationVersion(manifestations.length===1?manifestations[0]:null);
 };
 // Declaration identity is independent of whether its download URL is supported.
-const declaredDocxFiles=list=>array(list.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).filter(manifestation=>tail(manifestation?.format)==='DOCX').map(manifestation=>({url:typeof manifestation.is_exemplified_by==='string'?manifestation.is_exemplified_by:null,language:languageCode(expression?.language),sourceVersion:manifestationVersion(manifestation)})));
+const declaredDocxFiles=list=>array(list.is_realized_by).flatMap(expression=>array(expression?.is_embodied_by).filter(manifestation=>tail(manifestation?.format)==='DOCX').map(manifestation=>({url:typeof manifestation.is_exemplified_by==='string'?manifestation.is_exemplified_by:null,language:languageCode(expression?.language),expressionId:expression.id??null,manifestationId:manifestation.id??null,languageUri:expression.language??null,sourceVersion:manifestationVersion(manifestation)})));
 
 export function documentContextQuery(id,params) {
   if(!documentId(id))throw new HttpError(400,'invalid_document','Choose a plenary document or adopted resolution.');
@@ -115,9 +118,13 @@ export class DocumentContext {
     let job=this.extractionPending.get(key);
     if(!job) {
       job=sharedRequest(async signal=>{
-        const {buffer,resolvedSourceUrl}=await this.download(file.url);signal.throwIfAborted();
-        const source={url:file.url,resolvedSourceUrl,fetchedAt:new Date(this.clock()).toISOString(),language:file.language,contentHash:createHash('sha256').update(buffer).digest('hex'),retrievedByteSize:buffer.byteLength,sourceVersion:distributionVersion(list,file.url),stale:false,refreshInProgress:false,refreshError:null};
-        const extraction=extractAmendments(buffer,{listId,targetDocumentId,...(committeeListId(listId)?{scope:'committee',sourceKind:'amendment-list'}:{}),language:file.language,sourceUrl:file.url,fetchedAt:source.fetchedAt}),value={extraction,source},bytes=Buffer.byteLength(JSON.stringify(value));
+        const downloaded=await this.download(file.url),{buffer,resolvedSourceUrl}=downloaded;signal.throwIfAborted();
+        const source={url:file.url,resolvedSourceUrl,fetchedAt:downloaded.fetchedAt??new Date(this.clock()).toISOString(),language:file.language,contentHash:createHash('sha256').update(buffer).digest('hex'),retrievedByteSize:buffer.byteLength,sourceVersion:distributionVersion(list,file.url),stale:false,refreshInProgress:false,refreshError:null,...(downloaded.requests?{requests:downloaded.requests}:{}),...(downloaded.freshnessAssessed===false?{freshnessAssessed:false}:{})};
+        const declarations=declaredDocxFiles(list).filter(d=>d.language===file.language&&distributionUrl(d.url)===file.url);
+        const declaration=declarations.length===1?{documentId:listId,...declarations[0]}:null;
+        const kind=listId===targetDocumentId?'report':'list';
+        const nativeReference=file.language==='en'&&/^A-\d+-\d{4}-\d{4,6}$/.test(targetDocumentId)?nativeNleReferencePair({[kind]:{reportId:targetDocumentId,listId,buffer,source:{...source,sha256:source.contentHash,declaration}}},{reportId:targetDocumentId,language:file.language})[kind]:null;
+        const extraction=extractAmendments(buffer,{listId,targetDocumentId,...(committeeListId(listId)?{scope:'committee',sourceKind:'amendment-list'}:{}),language:file.language,sourceUrl:file.url,fetchedAt:source.fetchedAt}),value={extraction,source,nativeReference},bytes=Buffer.byteLength(JSON.stringify(value));
         signal.throwIfAborted();
         if(bytes<=this.limits.extractionBytes) {
           while(this.extractions.size&&(this.extractions.size>=this.limits.extractionEntries||this.extractionBytes+bytes>this.limits.extractionBytes)){const oldest=this.extractions.keys().next().value;this.extractionBytes-=this.extractions.get(oldest).bytes;this.extractions.delete(oldest);}
@@ -194,7 +201,8 @@ export class DocumentContext {
       }
       document={...documentSummary(work,null),selectedDocumentId:query.id,selectedDocumentDate:work.document_date||null,selectedText,requestedLanguage:query.language,fetchedAt:new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null}};
     }
-    let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read,rootSource):null;
+    const nativeSelections=new Map();
+    let amendment=query.amendmentId?await this.amendment(query,indexed,work,sources,read,rootSource,nativeSelections):null;
     const wordingSelected=Object.hasOwn(query,'wordingLanguage');
     let candidates=amendment?.variants.filter(variant=>!wordingSelected||variant.listId===query.listId&&variant.language===query.wordingLanguage)||[];
     const listIds=[...new Set(candidates.map(variant=>variant.listId))];
@@ -236,7 +244,9 @@ export class DocumentContext {
       const explicit=[...new Set(documentReferences.filter(r=>r.field==='DocRef'||/^DocAmend\d?$/.test(r.field)).flatMap(r=>commissionReferences(r.raw).map(r=>r.celex)))];
       const reportBaseline=query.id.startsWith('A-')||committeeDraftId(query.id);
       const eligible=typeof chosen.language==='string'&&(reportBaseline||explicit.length===1);
-      const source=existingKind?await this.readExistingLaw(chosen):councilKind?(typeof chosen.language==='string'&&reportBaseline?await this.readCouncil({reportId:query.id,language:chosen.language,documentReferences}):null):eligible?await this.readProposal({...(reportBaseline?{reportId:query.id}:{celex:explicit[0]}),language:chosen.language,documentReferences}):null;
+      const nle=proposalKind&&[...array(work.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flat()),...documentReferences.map(r=>r.raw)].some(raw=>commissionProcedures(raw).some(p=>p.endsWith('(NLE)')));
+      const nativeReferencePair=nle&&eligible?await this.readNleReferences(query,chosen,work,read,sources,nativeSelections,rootSource):undefined;
+      const source=existingKind?await this.readExistingLaw(chosen):councilKind?(typeof chosen.language==='string'&&reportBaseline?await this.readCouncil({reportId:query.id,language:chosen.language,documentReferences}):null):eligible?await this.readProposal({...(reportBaseline?{reportId:query.id}:{celex:explicit[0]}),language:chosen.language,documentReferences,...(nle?{nativeReferencePair}:{})}):null;
       baseline={actLabel:existingKind?chosen.targetPath?.underlying?.[0]?.document??null:null,productionWorkId:source?.productionWorkId??null,productionVersion:source?.productionVersion??null,productionExpressionId:source?.productionExpressionId??null,baseCelex:source?.baseCelex??null,consolidationDate:source?.date??null,amendmentDate:source?.amendmentDate??null,selectionBasis:source?.selectionBasis??null,kind:existingKind?'existing-act':councilKind?'council-position':'commission-proposal',celex:source?.celex??null,workId:source?.workId??null,language:chosen.language,status:source?.status??'unresolved',items:[],gaps:source?.gaps??['proposal-identity-unavailable'],evidence:source?.evidence??[],attribution:'Legal text © European Union.'};
       const items=[];
       try {
@@ -259,7 +269,43 @@ export class DocumentContext {
     if(proposal&&document)document={...document,selectedText:undefined};
     return {version:DOCUMENT_CONTEXT_VERSION,baseline,proposal,documentId:query.id,requestedLanguage:query.language,...(wordingSelected?{requestedWordingLanguage:query.wordingLanguage}:{}),wordingLanguageFallback,document,related,amendment,placement,target:{...target,evidence:chosen?{amendmentId:query.amendmentId,listId:chosen.listId,wordingLanguage:chosen.language,wordingSource:chosen.source,targetLabelLanguage:chosen.targetLabelLanguage,targetLabelSource:chosen.targetLabelSource,fieldSources:chosen.fieldSources,referenceDecisions:referenceDecisions.map(decision=>({id:decision.id,reference:decision.reference,language:'en',source:decision.source}))}:null},sources};
   }
-  async amendment(query,indexed,work,sources,read,rootSource) {
+  async readNleReferences(query,chosen,report,read,sources,selections,reportMetadataSource) {
+    const unavailable=reason=>({report:{status:'unresolved',reason},list:{status:'unresolved',reason}});
+    if(chosen.language!=='en'||!/^A-\d+-\d{4}-\d{4,6}$/.test(query.id))return unavailable('native-reference-language-or-report');
+    try {
+      const linked=array(report.inverse_foresees_change_of).filter(value=>ref(value)==='eli/dl/doc/'+chosen.listId);
+      if(linked.length!==1)return unavailable('native-reference-list-relationship');
+      let selected=selections.get(chosen.listId+'|'+chosen.language);
+      if(!selected) {
+        const {work:list,source:metadataSource}=typeof linked[0]==='object'&&Object.hasOwn(linked[0],'is_realized_by')?{work:linked[0],source:reportMetadataSource}:await read('/documents/'+chosen.listId,chosen.listId);
+        if(workId(list)!==chosen.listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id))return unavailable('native-reference-list-relationship');
+        const declared=declaredDocxFiles(list).filter(f=>f.language===chosen.language),files=documentFiles(list).filter(f=>f.format==='DOCX'&&f.language===chosen.language&&allowedDownload(f.url));
+        if(declared.length!==1||files.length!==1)return unavailable('native-reference-list-declaration');
+        selected={list,metadataSource,file:files[0],...await this.readList(list,files[0],query.id)};sources.push(selected.source);
+      }
+      const hashes=[chosen.source?.contentHash,chosen.source?.sha256].filter(hash=>hash!=null);
+      if(!hashes.length||hashes.some(hash=>hash!==selected.source.contentHash)||chosen.source?.contentHashConflict||chosen.source?.url!==selected.source.url||chosen.source?.language!==chosen.language||['byteSize','issued'].some(key=>chosen.source?.sourceVersion?.[key]!==selected.source.sourceVersion[key]))return unavailable('native-reference-list-version-conflict');
+      const identity=amendmentReference('eli/dl/doc/'+query.amendmentId),rows=array(selected.extraction?.amendments).filter(row=>row.number===identity?.number);
+      if(identity?.targetDocumentId!==query.id||rows.length!==1)return unavailable('native-reference-selected-amendment-unavailable');
+      const row=rows[0];
+      if(amendmentTextLosses(selected.extraction,row).length||['originalText','proposedText'].some(field=>typeof row[field]!=='string'||row[field]!==chosen[field]))return unavailable('native-reference-selected-wording-conflict');
+      // Retrieval dates can differ for the same verified bytes; the complete
+      // baseline/target meaning and their supplied source URLs must still agree.
+      const meaning=value=>{if(!value)return null;const {sourceUrl,fetchedAt,...fields}=value;return fields;};
+      const sourceUrls=[selected.source.url,selected.source.resolvedSourceUrl].filter(Boolean);
+      if(chosen.targetLabelLanguage!==chosen.language||chosen.targetLabel!==row.targetLabel||chosen.baseline!==(row.baseline??'unknown')||
+        !isDeepStrictEqual(chosen.documentReferences??[],row.documentReferences??[])||
+        ['baselineSource','targetPath'].some(field=>chosen[field]?.sourceUrl&&!sourceUrls.includes(chosen[field].sourceUrl)||!isDeepStrictEqual(meaning(chosen[field]),meaning(row[field]))))return unavailable('native-reference-selected-target-conflict');
+      const declared=declaredDocxFiles(report).filter(f=>f.language===chosen.language),files=documentFiles(report).filter(f=>f.format==='DOCX'&&f.language===chosen.language&&allowedDownload(f.url));
+      if(declared.length!==1||files.length!==1)return unavailable('native-reference-report-declaration');
+      const nativeReport=await this.readList(report,files[0],query.id);sources.push(nativeReport.source);
+      return {report:nativeReport.nativeReference,list:selected.nativeReference,selection:{reportMetadataSource,listMetadataSource:selected.metadataSource,relationship:{from:chosen.listId,field:'foresees_change_of',to:query.id}}};
+    }catch(error) {
+      requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;
+      return unavailable('native-reference-source-unavailable');
+    }
+  }
+  async amendment(query,indexed,work,sources,read,rootSource,nativeSelections=new Map()) {
     const base={id:query.amendmentId,status:'unavailable',basis:null,variants:[],gaps:[]};
     const variants=indexed?.variants?.length?indexed.variants:indexed?[indexed]:[];
     const selectedVariants=variants.filter(row=>(!query.listId||row.listId===query.listId)&&typeof row.listId==='string');
@@ -298,7 +344,8 @@ export class DocumentContext {
         if(!file){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
       }
       try {
-        const {extraction,source}=await this.readList(list,file,query.id);sources.push(source);
+        const loaded=await this.readList(list,file,query.id),{extraction,source}=loaded;sources.push(source);
+        nativeSelections.set(listId+'|'+language,{...loaded,list,file,metadataSource});
         const rows=extraction.amendments.filter(row=>row.number===number);
         if(rows.length!==1){base.gaps.push('amendment-not-in-published-list');continue;}
         const row=rows[0],losses=amendmentTextLosses(extraction,row);

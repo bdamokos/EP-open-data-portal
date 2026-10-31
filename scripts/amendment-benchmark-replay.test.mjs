@@ -4,7 +4,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {InputCache,allowedSource} from './amendment-benchmark-cache.mjs';
+import {InputCache,allowedSource,digest} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,replaySourceClients,publicDocumentUrl,rawExistingLawReferences,missingDeclaredRepresentation} from './amendment-benchmark-replay.mjs';
 import {acquireReport,evaluateReport,contextUrl} from './amendment-benchmark.mjs';
 import {metrics,compareBaseline} from './amendment-benchmark-model.mjs';
@@ -274,4 +274,63 @@ test('a406 without the declared advertisement and a404 are not mapped to a repre
   for(const input of [{status:404,body:Buffer.from('resource mimetype [application/zip;type=akn4eu]')},{status:406,body:Buffer.from('resource mimetype [application/xml]')}]) {
     const cache={sealed:new Set([JSON.stringify([url,standard])]),get:async()=>input};assert.equal(await missingDeclaredRepresentation(cache,url,declared),null);
   }
+});
+
+
+test('proposal replay binds each native NLE or unresolved selection despite shared references',async()=>{
+  for(const procedure of [' – 2026/0001(NLE)','']) {
+  const document='A-10-2026-0001',firstList=document+'-AM-001-002',secondList=document+'-AM-003-003';
+  const firstUrl='https://data.europarl.europa.eu/distribution/test/first-list.docx';
+  const secondUrl='https://data.europarl.europa.eu/distribution/test/second-list.docx';
+  const block=number=>p('<Amend><NumAm>'+number+'</NumAm>')+p('<DocRef>COM(2026)1 final'+procedure+'</DocRef>')+
+    p('<Article>Recital 1</Article>')+'<w:tbl><w:tr><w:tc>'+p('Text proposed by the Commission')+'</w:tc><w:tc>'+p('Amendment')+'</w:tc></w:tr><w:tr><w:tc>'+p('Original wording.')+'</w:tc><w:tc>'+p('Changed wording '+number+'.')+'</w:tc></w:tr></w:tbl>'+p('</Amend>');
+  const bytes=new Map([[firstUrl,docx(block(1)+block(2))],[secondUrl,docx(block(3))]]);
+  const rows=[1,2,3].map(number=>{
+    const id=document+'-AM-'+number,listId=number<3?firstList:secondList,url=number<3?firstUrl:secondUrl;
+    return {id,targetDocumentId:document,number,listId,language:'en',baseline:'commission-proposal',wordingSource:{url},decisions:[{id:'vote-'+number,date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[id],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]};
+  });
+  const cache={apiBase,json:async url=>({input:{url},value:{documentId:document,document:{selectedText:null},proposal:null,baseline:null}}),get:async url=>({ok:true,url,body:bytes.get(url),sha256:digest(bytes.get(url)),fetchedAt:'2026-10-27T00:00:00Z',status:200})};
+  const runtime=await replayRuntime(root),eligibility=sourceReplay(cache,runtime);
+  const calls=[],replay={proposalRequiresSelection:eligibility.proposalRequiresSelection,observeFiles(){},request:async()=>({payload:{data:[{id:'eli/dl/doc/'+document}]}}),proposal:async(options,selected)=>{
+    calls.push({options,selected});return {baseline:{status:'unresolved',language:'en',gaps:['source-test-unavailable']},items:[]};
+  }};
+  const result=await evaluateReport(rows,sample,cache,{runtime,replay});
+  assert.equal(result.length,3);assert.equal(calls.length,3,'each exact selected amendment needs its own source validation');
+  assert.deepEqual(calls.map(c=>c.selected),rows.map(row=>({listId:row.listId,number:row.number,wordingSource:{url:row.wordingSource.url,sha256:digest(bytes.get(row.wordingSource.url))},originalText:'Original wording.',proposedText:'Changed wording '+row.number+'.'})));
+  assert.deepEqual(calls.map(c=>c.options.documentReferences),[calls[0].options.documentReferences,calls[0].options.documentReferences,calls[0].options.documentReferences]);
+  }
+});
+
+test('native selection eligibility keeps unresolved NLE contexts and excludes explicit COD/CNS and legacy runtimes',async()=>{
+  const runtime=await replayRuntime(root),reader=sourceReplay({},runtime),report=raw=>({is_realized_by:[{title_alternative:{en:raw}}]});
+  const options=raw=>({reportId:'A-10-2026-0001',language:'en',documentReferences:raw?[{field:'DocRef',raw}]:[]});
+  for(const type of ['COD','CNS']) {
+    assert.equal(reader.proposalRequiresSelection(options('COM(2026)1 – 2026/0001('+type+')'),report('')),false);
+    assert.equal(reader.proposalRequiresSelection(options(),report('COM(2026)1 – 2026/0001('+type+')')),false);
+  }
+  assert.equal(reader.proposalRequiresSelection(options('COM(2026)1 – 2026/0001(NLE)'),report('')),true);
+  assert.equal(reader.proposalRequiresSelection(options(),report('COM(2026)1 – 2026/0001(NLE)')),true);
+  assert.equal(reader.proposalRequiresSelection(options(),report('COM(2026)1')),true,'unresolved procedure identity cannot share native selections');
+  assert.equal(reader.proposalRequiresSelection(options('2026/0001(COD)'),report('2026/0001(NLE)')),true,'conflicting NLE evidence remains selected');
+  const legacy=sourceReplay({},{...runtime,DocumentContext:undefined});
+  assert.equal(legacy.proposalRequiresSelection(options('2026/0001(NLE)'),report('')),false);
+});
+
+test('ordinary Commission projections keep their first availability after an intervening later source observation',async()=>{
+  const document='A-10-2026-0001',listId=document+'-AM-001-003',listUrl='https://data.europarl.europa.eu/distribution/test/mixed-list.docx';
+  const block=(number,baseline)=>p('<Amend><NumAm>'+number+'</NumAm>')+p('<DocRef>COM(2024)0531 – 2024/0001(COD)</DocRef>')+p('<Article>Article 1</Article>')+
+    '<w:tbl><w:tr><w:tc>'+p(baseline)+'</w:tc><w:tc>'+p('Amendment')+'</w:tc></w:tr><w:tr><w:tc>'+p('Original.')+'</w:tc><w:tc>'+p('Changed '+number+'.')+'</w:tc></w:tr></w:tbl>'+p('</Amend>');
+  const bytes=docx(block(1,'Text proposed by the Commission')+block(2,'Present text')+block(3,'Text proposed by the Commission'));
+  const rows=[1,2,3].map(number=>({id:document+'-AM-'+number,targetDocumentId:document,number,listId,language:'en',baseline:'unknown',wordingSource:{url:listUrl},decisions:[{id:'vote-'+number,date:'2026-10-22',sittingId:'MTG-PL-2026-10-22',amendmentIds:[document+'-AM-'+number],source:{url:'https://data.europarl.europa.eu/api/v2/example',fetchedAt:'2026-10-23T00:00:00Z'}}]}));
+  const cache={apiBase,json:async url=>({input:{url},value:{documentId:document,document:{selectedText:null},proposal:null,baseline:null}}),get:async()=>({ok:true,url:listUrl,body:bytes,sha256:digest(bytes),fetchedAt:'2026-10-27T00:00:00Z',status:200})};
+  const runtime=await replayRuntime(root),eligibility=sourceReplay(cache,runtime),oldRdf=await readFile(new URL('../server/fixtures/proposal-52024PC0531.rdf',import.meta.url)),laterRdf=await readFile(new URL('../server/fixtures/proposal-52025PC0087.rdf',import.meta.url));
+  const calls=[],clients=replaySourceClients({get:async url=>{const later=url.endsWith('52025PC0087');calls.push(url);return {url,body:later?laterRdf:oldRdf,fetchedAt:later?'2026-10-27T23:34:00.867Z':'2026-10-27T16:51:59.253Z',status:200,headers:{'content-type':'application/rdf+xml'}};}},runtime);
+  let proposalCalls=0;
+  const replay={observeFiles(){},request:async()=>({payload:{data:[{id:'eli/dl/doc/'+document}]}}),proposalRequiresSelection:eligibility.proposalRequiresSelection,
+    proposal:async(options,selected)=>{proposalCalls++;assert.equal(selected,undefined);const metadata=await clients.documents.metadata('52024PC0531');return {baseline:{language:'en',status:metadata.viewCache.stale?'partial':'available',gaps:metadata.viewCache.stale?['stale-metadata']:[]},items:[]};},
+    existingLaw:async()=>{await clients.documents.metadata('52025PC0087');return {baseline:{language:'en',status:'available',gaps:[]},items:[]};}};
+  const result=await evaluateReport(rows,sample,cache,{runtime,replay});
+  assert.equal(proposalCalls,1);assert.equal(calls.length,2,'ordinary sharing must not re-read old metadata after the clock advances');
+  for(const index of [0,2]){assert.equal(result[index].stages.S4.projection.status,'available');assert.deepEqual(result[index].stages.S4.gaps,[]);}
+  const uncached=await clients.documents.metadata('52024PC0531');assert.equal(uncached.viewCache.stale,true,'the source freshness policy itself is unchanged');
 });

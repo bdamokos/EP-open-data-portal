@@ -356,13 +356,15 @@ export function allowedDownload(value) {
     && u.pathname.endsWith('.docx');}catch{return false;}
 }
 export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expectedByteSize=null}={}) {
-  let url=sourceUrl;
+  let url=sourceUrl;const requests=[];
   for(let hop=0;hop<4;hop++) {
     signal?.throwIfAborted();
     if(!allowedDownload(url))throw new Error('Unapproved official document download URL.');
     // This published distribution route returns 500 to Node fetch but a normal
     // 302 to Node HTTPS/Python. Use standard HTTPS without browser impersonation.
-    const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'*/*','User-Agent':userAgent('document text')},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
+    const headers={Accept:'*/*','User-Agent':userAgent('document text')};
+    const response=await new Promise((resolve,reject)=>https.get(url,{headers,signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
+    requests.push({url,method:'GET',headers,response:{status:response.statusCode,contentType:response.headers['content-type']??null,...(response.headers.location?{location:response.headers.location}:{})}});
     const limited=upstreamResponseError(response,{source:'documents'});
     if(limited){response.resume();throw limited;}
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
@@ -371,7 +373,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
     if(Number.isSafeInteger(expectedByteSize)&&expectedByteSize>=0&&size!==expectedByteSize)throw new Error('Official document size does not match the selected edition.');
-    return {buffer:Buffer.concat(chunks),resolvedSourceUrl:url};
+    return {buffer:Buffer.concat(chunks),resolvedSourceUrl:url,fetchedAt:new Date().toISOString(),requests};
   }
   throw new Error('Too many document download redirects.');
 }

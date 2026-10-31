@@ -139,7 +139,7 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
 export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string}) {
   const ui = useUiI18n();
   const reader=useRef<HTMLDivElement>(null),prefix='proposal-'+useId().replace(/[^A-Za-z0-9_-]/g,''),baseline=data.baseline!,items=data.proposal!.items;
-  const fileFailures=(baseline.gaps||[]).filter((gap):gap is {code:string;itemId:string}=>Boolean(gap&&typeof gap==='object'&&typeof (gap as {itemId?:unknown}).itemId==='string'&&!['stale-metadata','stale-content','bundle-too-large'].includes(String((gap as {code?:unknown}).code))));
+  const fileFailures=(baseline.gaps||[]).filter((gap):gap is {code:string;itemId:string}=>Boolean(gap&&typeof gap==='object'&&typeof (gap as {itemId?:unknown}).itemId==='string'&&!['stale-metadata','stale-content','bundle-too-large','native-annex-ordinal-unverified'].includes(String((gap as {code?:unknown}).code))));
   const missingFiles=new Set(fileFailures.map(gap=>gap.itemId)).size;
   const fileLimit=(baseline.gaps||[]).some(gap=>gap&&typeof gap==='object'&&(gap as {code?:unknown}).code==='bundle-too-large');
   const placement=data.placement,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language;

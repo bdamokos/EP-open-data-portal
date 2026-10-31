@@ -944,6 +944,18 @@ test('proposal content gaps name missing files without counting saved-text fresh
   assert(h.container.querySelector('[data-amendment-block] del'),'readable text remains usable');
 });
 
+test('an unresolved native annex ordinal is distinct from a missing source file',async t=>{
+  const value=proposalContextResponse(report,amendment,list,7);
+  value.baseline.status='partial';value.baseline.gaps=[{code:'native-annex-ordinal-unverified',itemId:'annex-1',reason:'native-annex-unnumbered'},{code:'download-failed',itemId:'annex-2'}];
+  const original=structuredClone(value.baseline.gaps);
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
+  assert(notices.includes('Document files not loaded: 1.'));
+  assert(!notices.includes('Document files not loaded: 2.'));
+  assert.equal(value.baseline.status,'partial');assert.deepEqual(value.baseline.gaps,original,'native source and legal-placement gaps remain literal');
+  assert(h.container.querySelector('[data-amendment-block] del'));
+});
+
 for(const [name,mutate] of [
   ['nested document ID',d=>{d.document.id=otherAdopted;}],
   ['selected document ID',d=>{d.document.selectedDocumentId=otherAdopted;}],

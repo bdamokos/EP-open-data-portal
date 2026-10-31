@@ -15,7 +15,7 @@ export async function replayRuntime(root) {
   const xhtml=await load('public-legal-xhtml').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
   const existing=await load('existing-law-baseline').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
   return {...amendments,...text,...baseline,...cellar,...official,...structure,...placement,...model,...order,...amendmentModel,...identity,...council,...xhtml,...existing,
-    documentContextVersion:context.DOCUMENT_CONTEXT_VERSION,documentExtractionVersion:docx.DOCX_EXTRACTION_VERSION};
+    DocumentContext:context.DocumentContext,documentContextVersion:context.DOCUMENT_CONTEXT_VERSION,documentExtractionVersion:docx.DOCX_EXTRACTION_VERSION};
 }
 export const publicDocumentUrl=id=>'https://data.europarl.europa.eu/api/v2/plenary-documents/'+id+'?format=application%2Fld%2Bjson';
 
@@ -112,15 +112,17 @@ export function sourceReplay(cache,runtime) {
     return {work:{...work,is_realized_by:[...runtime.array(work.is_realized_by),{language,is_embodied_by:[{format:'DOCX',is_exemplified_by:declaration.url}]}]},declaration};
   };
   const request=async endpoint=>{
-    const input=await cache.get(publicDocumentUrl(endpoint.split('/').at(-1)),{accept:'application/ld+json'});
+    const id=endpoint.split('/').at(-1),list=endpoint.startsWith('/documents/');
+    const url=list?'https://data.europarl.europa.eu/api/v2/documents/'+id+'?format=application%2Fld%2Bjson':publicDocumentUrl(id);
+    const input=await cache.get(url,{accept:'application/ld+json'});
     if(!input.ok)return {payload:{data:[]},url:input.url,fetchedAt:Date.parse(input.fetchedAt),status:input.status};
     let payload;try{payload=JSON.parse(input.body.toString('utf8'));}catch{throw new Error('Invalid public document JSON: '+input.url);}
-    const id=endpoint.split('/').at(-1),nodes=payload?.data;
+    const nodes=payload?.data;
     if(!Array.isArray(nodes)||nodes.length!==1||!['eli/dl/doc/'+id,'https://data.europarl.europa.eu/eli/dl/doc/'+id].includes(nodes[0].id))throw new Error('Public document identity mismatch: '+id);
     const type=String(nodes[0].work_type?.id||nodes[0].work_type||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
-    const expected='def/ep-document-types/'+(id.startsWith('A-')?'REPORT_PLENARY':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION');
+    const expected='def/ep-document-types/'+(list?'AMENDMENT_LIST':id.startsWith('A-')?'REPORT_PLENARY':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION');
     if(type!==expected)throw new Error('Public document type mismatch: '+id);
-    return {payload,url:input.url,fetchedAt:Date.parse(input.fetchedAt)};
+    return {payload,url:input.url,fetchedAt:Date.parse(input.fetchedAt),sourceHash:input.sha256};
   };
   // Keep the production metadata validation, negotiation and redirect rules.
   // InputCache owns the single writer, request spacing/cap and immutable bytes.
@@ -128,9 +130,40 @@ export function sourceReplay(cache,runtime) {
   const readProposal=runtime.createProposalBaseline({documents,request});
   const readCouncil=runtime.createCouncilPositionBaseline?.({documents,request});
   const readExisting=runtime.createExistingLawBaseline?.({documents});
+  const nativeCaller=typeof runtime.DocumentContext?.prototype.readNleReferences==='function'?new runtime.DocumentContext({request,readProposal,download:async url=>{
+    const input=await cache.get(url);
+    if(!input.ok)throw new Error('document-source-http-'+input.status);
+    return {buffer:input.body,resolvedSourceUrl:input.resolvedSourceUrl||url,fetchedAt:input.fetchedAt,freshnessAssessed:false};
+  }}):null;
+  const selectionRequirements=new WeakMap();
+  const proposalRequiresSelection=(options,report)=>{
+    if(!nativeCaller||!options.reportId){selectionRequirements.set(options,false);return false;}
+    const references=[...(options.documentReferences||[]).map(reference=>reference.raw),...runtime.array(report?.is_realized_by).flatMap(expression=>Object.values(expression.title_alternative||{}).flat())];
+    const procedures=references.flatMap(raw=>runtime.commissionProcedures(raw));
+    // Unknown procedure identity must keep each selected native context. A
+    // legacy runtime or an explicitly non-NLE source retains ordinary sharing.
+    const required=!procedures.length||procedures.some(procedure=>procedure.endsWith('(NLE)'));
+    selectionRequirements.set(options,required);return required;
+  };
+  const readNativeSelection=async(options,selection,record)=>{
+    const query={id:options.reportId,language:options.language,wordingLanguage:options.language,listId:selection.listId,amendmentId:options.reportId+'-AM-'+selection.number};
+    const sources=[],selections=new Map(),source=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),contentHash:record.sourceHash,stale:Boolean(record.stale),refreshError:record.refreshError||null});
+    const read=async(endpoint)=>{const record=await request(endpoint);return {work:record.payload.data[0],record,source:source(record)};};
+    const amendment=await nativeCaller.amendment(query,null,record.payload.data[0],sources,read,source(record),selections);
+    const variants=amendment.variants.filter(v=>v.listId===selection.listId&&v.language===options.language&&v.wordingStatus==='available');
+    if(variants.length!==1)return {gap:'nle-selected-wording-unavailable',evidence:amendment};
+    const chosen=variants[0],expected=selection.wordingSource;
+    if(!expected?.sha256||expected.sha256!==chosen.source.contentHash||![chosen.source.url,chosen.source.resolvedSourceUrl].includes(expected.url)||selection.originalText!==chosen.originalText||selection.proposedText!==chosen.proposedText)return {gap:'nle-selected-wording-conflict'};
+    // This is the live caller's validator, including declaration, edition,
+    // language and selected-byte hash checks. No native witness is imported.
+    const selectedChosen=Object.hasOwn(expected,'sourceVersion')?{...chosen,source:{...chosen.source,sourceVersion:expected.sourceVersion}}:chosen;
+    const pair=await nativeCaller.readNleReferences(query,selectedChosen,record.payload.data[0],read,sources,selections,source(record));
+    return {pair,chosen,sources};
+  };
   const lawHints=new Map();
   return {
     request,
+    proposalRequiresSelection,
     observeFiles(id,contexts) {
       for(const [language,{plain}] of contexts) {
         const document=plain.value?.document;
@@ -184,8 +217,28 @@ export function sourceReplay(cache,runtime) {
       }});
       cache.assertHealthy();return {...text,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
     },
-    async proposal(options) {
+    async proposal(options,selection) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};
+      let boundOptions=options;
+      const typed=(options.documentReferences||[]).flatMap(r=>runtime.commissionProcedures(r.raw));
+      if(nativeCaller&&options.reportId&&selectionRequirements.get(options)!==false&&(!typed.length||typed.some(p=>p.endsWith('(NLE)')))) {
+        const report=await request('/plenary-documents/'+options.reportId);
+        const texts=runtime.array(report.payload.data[0]?.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flat());
+        const nle=[...texts,...(options.documentReferences||[]).map(r=>r.raw)].some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)')));
+        if(nle) {
+          const gap=(code,evidence=[])=>({baseline:{status:'unresolved',language:options.language,gaps:[code],evidence},items:[]});
+          if(!selection?.listId||!Number.isSafeInteger(selection.number)||selection.number<1)return gap('nle-selected-source-context-unavailable');
+          const bound=await readNativeSelection(options,selection,report);cache.assertHealthy();
+          if(bound.gap)return gap(bound.gap,bound.evidence?[bound.evidence]:[]);
+          boundOptions={...options,nativeReferencePair:bound.pair};
+          const identity=runtime.reportProposalReference(report.payload.data[0],boundOptions);
+          if(identity.status==='resolved'&&identity.procedure?.endsWith('(NLE)')&&cache.sealed) {
+            const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.proposalCandidatesSparql(identity.celex));url.searchParams.set('format','application/sparql-results+json');
+            const request={accept:'application/sparql-results+json'};
+            if(!cache.sealed.has(JSON.stringify([url.href,request])))return gap('nle-source-not-in-snapshot',[...identity.evidence,{kind:'declared-source-capability-gap',protocol:'proposed-nle-native-selection-v1',request:{url:url.href,...request},stage:'candidate'}]);
+          }
+        }
+      }
       if(cache.sealed&&options.reportId&&options.language==='en'&&options.documentReferences?.some(r=>r.field==='DocRef'&&/\b\d{4}\/\d{4}\s*\(CNS\)/u.test(r.raw||''))) {
         const report=await request('/plenary-documents/'+options.reportId),identity=runtime.reportProposalReference(report.payload.data[0],options);
         if(identity.status==='resolved'&&identity.procedure?.endsWith('(CNS)')) {
@@ -193,7 +246,7 @@ export function sourceReplay(cache,runtime) {
           if(!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',language:options.language,gaps:['consultation-source-not-in-snapshot']},items:[]};
         }
       }
-      const source=await readProposal(options);cache.assertHealthy();
+      const source=await readProposal(boundOptions);cache.assertHealthy();
       const items=[];
       try {
         for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parseProposal(item.buffer,{language:options.language,item:item.kind,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId}})});

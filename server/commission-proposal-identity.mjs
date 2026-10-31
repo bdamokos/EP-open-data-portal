@@ -1,3 +1,4 @@
+import {isNativeNleReference} from './commission-proposal-native-identity.mjs';
 import {committeeDraftId,committeeDocumentKind} from './committee-amendments.mjs';
 import {languageCode} from './ep-links.mjs';
 import {CELLAR_WORK_PATTERN,CELLAR_LIMITS,cellarGraph,cellarTransportUrl,proposalCelex} from './cellar-documents.mjs';
@@ -10,9 +11,9 @@ export function commissionReferences(raw) {
   return [...raw.matchAll(/\bCOM\s*\(\s*((?:19|20)\d{2})\s*\)\s*(\d{1,4})(?:\s*(final(?:\s*\/\s*\d+)?|\/\s*\d+))?/giu)].map(m=>({raw:m[0],year:Number(m[1]),number:Number(m[2]),qualifier:m[3]?.replace(/\s+/g,'').toLowerCase()||null,celex:`5${m[1]}PC${m[2].padStart(4,'0')}`}));
 }
 export function commissionProcedures(raw) {
-  return typeof raw==='string'?[...raw.matchAll(/\b(\d{4})\/(\d{4})\s*\((COD|CNS)\)/gu)].map(m=>`${m[1]}/${m[2]}(${m[3]})`):[];
+  return typeof raw==='string'?[...raw.matchAll(/\b(\d{4})\/(\d{4})\s*\((COD|CNS|NLE)\)/gu)].map(m=>`${m[1]}/${m[2]}(${m[3]})`):[];
 }
-export function reportProposalReference(report,{reportId,documentReferences=[]}={}) {
+export function reportProposalReference(report,{reportId,documentReferences=[],nativeReferencePair}={}) {
   if(!report||report.id!==`eli/dl/doc/${reportId}`&&report.id!==`https://data.europarl.europa.eu/eli/dl/doc/${reportId}`)return unresolved('unresolved',['report-identity']);
   if(report.work_type&&report.work_type!=='def/ep-document-types/REPORT_PLENARY'&&!(committeeDraftId(reportId)&&committeeDocumentKind(report)))return unresolved('unresolved',['report-type']);
   // Alternative titles carry the explicit COM/procedure reference. The report
@@ -26,6 +27,19 @@ export function reportProposalReference(report,{reportId,documentReferences=[]}=
   const evidence=[{kind:'report-reference',reportId,references:refs,procedures,procedureIds:linked}];
   if(celexes.length!==1||procedures.length!==1)return unresolved('unresolved',[celexes.length>1||procedures.length>1?'ambiguous-report-reference':'missing-report-reference'],evidence);
   const procedure=procedures[0],expected=`eli/dl/proc/${procedure.slice(0,4)}-${procedure.slice(5,9)}`;
+  if(procedure.endsWith('(NLE)')) {
+    if(report.work_type!=='def/ep-document-types/REPORT_PLENARY')return unresolved('unresolved',['report-type'],evidence);
+    // The numeric dossier and an API title cannot alone establish this type.
+    // Keep separately inspected report/list native observations separate from
+    // extracted wording, including a list-cover ReferenceNo omitted by it.
+    for(const kind of ['report','list']) {
+      const native=nativeReferencePair?.[kind];
+      if(native)evidence.push({kind:`native-nle-${kind}-reference`,...native});
+      if(!isNativeNleReference(native)||native.reportId!==reportId||!native.references?.length)return unresolved('unresolved',[`native-nle-${kind}-reference-unavailable`],evidence);
+      const raw=native.references.map(r=>r.raw),typed=unique(raw.flatMap(commissionProcedures)),coms=unique(raw.flatMap(commissionReferences).map(r=>r.celex));
+      if(typed.length!==1||typed[0]!==procedure||coms.length!==1||coms[0]!==celexes[0]||raw.flatMap(commissionReferences).some(r=>r.qualifier&&r.qualifier!=='final'))return unresolved('unresolved',[`native-nle-${kind}-reference-conflict`],evidence);
+    }
+  }
   if(procedure.endsWith('(CNS)')) {
     const nativeReferences=documentReferences.filter(r=>r.field==='DocRef').map(r=>r.raw);
     if(!nativeReferences.some(raw=>commissionProcedures(raw).includes(procedure)&&commissionReferences(raw).some(ref=>ref.celex===celexes[0])))return unresolved('unresolved',['missing-native-report-reference'],evidence);
@@ -50,7 +64,7 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
   if(values('resource_legal_id_celex').some(value=>value!==celex))gaps.push('proposal-celex-conflict');
   const year=celex.slice(1,5),number=String(Number(celex.slice(7))),comnat=`http://publications.europa.eu/resource/comnat/COM_${year}_${number.padStart(4,'0')}_FIN`;
   if(!aliases.includes(comnat)||values('resource_legal_internal_number_prefix').some(value=>value!=='COM')||!values('resource_legal_internal_number_year').includes(year)||!values('resource_legal_internal_number_sequential_number').includes(number))gaps.push('com-reference-unverified');
-  const requested=procedure&&/^(\d{4}\/\d{4})\((COD|CNS)\)$/u.exec(procedure);
+  const requested=procedure&&/^(\d{4}\/\d{4})\((COD|CNS|NLE)\)$/u.exec(procedure);
   if(dossierCodes.length!==1||procedure&&(!requested||dossierCodes[0]!==requested[1]))gaps.push('proposal-procedure-mismatch');
   // The RDF numeric code carries no procedure type. Keep the report's typed
   // reference separate instead of inventing COD from the numeric URI.
@@ -74,7 +88,7 @@ export function resolveProposalTree(xml,{celex,language,procedure}={}) {
     try{cellarTransportUrl(itemId,{redirect:true});}catch{return unresolved('unresolved',['invalid-item-url'],evidence,{celex,workId,language});}
     const itemAliases=graph.aliases(itemId),roles=[];
     for(const alias of itemAliases) {
-      const m=alias.match(/_(ACT|annexe_proposition)_part(\d+)(?:_v\d+)?\.docx$/i);
+      const m=alias.match(procedure?.endsWith('(NLE)')?/_(ACT|annexe_proposition(?:_cp)?)_part(\d+)(?:_v\d+)?\.docx$/i:/_(ACT|annexe_proposition)_part(\d+)(?:_v\d+)?\.docx$/i);
       if(m)roles.push({kind:m[1].toLowerCase()==='act'?'act':'annex',index:Number(m[2])});
     }
     const choices=unique(roles.map(r=>JSON.stringify(r)));
