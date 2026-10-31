@@ -32,6 +32,24 @@ const result=(rows,nextPage=null,restarted=false)=>({
   window:{start:'2026-10-07',end:'2026-10-07'},nextPage,
 });
 
+test('missing translation counts offer known language choices and switch the analysis language',async t=>{
+  const calls=[];
+  const ui=await cloud(t,async input=>{
+    const language=new URL(input,'http://localhost').searchParams.get('lang');calls.push(language);
+    const data=result(speeches.slice(0,1));data.language=language;
+    if(language==='en')Object.assign(data.coverage,{missingLanguage:2,missingLanguageAlternatives:[{language:'de',count:1},{language:'ro',count:1}]});
+    return Response.json(data);
+  });
+  await ui.render({member:1});
+  assert.match(ui.container.textContent,/2 without text in this language/);
+  const alternative=[...ui.container.querySelectorAll('.explorer-cloud-alternatives button')].find(node=>node.textContent==='German (1)');
+  assert(alternative);assert.match(ui.container.textContent,/Romanian \(1\)/);
+  await act(async()=>alternative.click());
+  assert.deepEqual(calls,['en','de']);
+  assert.equal(ui.container.querySelector('.explorer-cloud-alternatives'),null);
+  assert.equal(ui.container.querySelector('select').value,'de');
+});
+
 test('a restarted cloud discards cached selection pages and finishes all remaining pages',async t=>{
   const pages=[],seen=[];let changed=false;
   const ui=await cloud(t,async input=>{

@@ -239,6 +239,79 @@ test('legacy speech detail and media metadata reuse corpus data',async t=>{
   const speech=await odpSpeech(id,'en');assert.equal(speech.id,id);assert.equal(speech.xml,xml);assert.equal(speech.speakers[0].name,'Exact Speaker');
   const media=await speechMedia(id,'en','en',{directory});assert.equal(media.status,'missing-times');
 });
+test('speech detail keeps a retained original readable when the requested translation and upstream are unavailable',async t=>{
+  const {add,store}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Klimabeitrag.</p></speech></oralStatements>';
+  const id=add(activity(7001,{fragments:{mul:original}}));
+  const before=store.db.prepare('SELECT id,sha256,checked_at FROM texts ORDER BY id').all();
+  const speech=await odpSpeech(id,'en');
+  assert.equal(speech.id,id);assert.equal(speech.textLanguage,'de');assert.equal(speech.xml,original);
+  assert.equal(speech.sourceFragmentKey,'mul');assert.equal(speech.translationType,'original');
+  assert.equal(speech.sourceReadError.code,'speech_source_unavailable');assert.equal(speech.textCache.refreshError,null);
+  assert.equal(speech.fetchedAt,fetchedAt);assert.equal(speech.metadataSource.url,url);
+  assert.deepEqual(store.db.prepare('SELECT id,sha256,checked_at FROM texts ORDER BY id').all(),before);
+});
+test('stored language fallback requires exact metadata and prefers the original over an unrelated translation',async t=>{
+  const {add}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>';
+  const id=add(activity(7021,{fragments:{mul:original,en:xml}}));
+  const result=await odpSpeech(id,'fr');assert.equal(result.textLanguage,'de');assert.equal(result.xml,original);
+  const missing=add(activity(7022,{fragments:{de:original}}),{metadata:false});
+  await assert.rejects(odpSpeech(missing,'en'),/Upstream requests forbidden/);
+});
+test('cloud omissions expose bounded real alternative languages without mixing them into the selected language',async t=>{
+  const {index,add}=fixture(t);
+  add(activity(7002,{fragments:{mul:'<oralStatements><speech xml:lang="de"><p>Klimaschutz.</p></speech></oralStatements>'}}));
+  add(activity(7003,{fragments:{ro:'<oralStatements><speech xml:lang="ro"><p>Protecția climei.</p></speech></oralStatements>'}}));
+  add(activity(7004));
+  const cloud=new SpeechCloudInsights(index,{clock:now});
+  const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
+  assert.equal(result.coverage.missingLanguage,2);assert.equal(result.coverage.transcripts,1);
+  assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:1},{language:'ro',count:1}]);
+  assert.equal(result.speeches.length,1);assert(!result.words.some(word=>word.word==='klimaschutz'));
+});
+test('public cloud recognizes a single-language mul original and reports only known alternatives for omitted speeches',async t=>{
+  const {index}=fixture(t,{realReaders:false});
+  const nodes=[activity(7011,{fragments:{mul:'<oralStatements><speech xml:lang="en"><p>Climate action.</p></speech></oralStatements>'}}),
+    activity(7012,{fragments:{mul:'<oralStatements><speech xml:lang="de"><p>Klimaschutz.</p></speech></oralStatements>'}})];
+  const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:nodes,meta:{total:2}},url,fetchedAt:now()})});
+  const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
+  assert.equal(result.coverage.transcripts,1);assert.equal(result.coverage.missingLanguage,1);
+  assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:1}]);
+  assert.deepEqual(result.speeches.map(speech=>speech.id),[nodes[0].activity_id]);
+});
+test('public cloud parses separate selected-language XML parts without losing an existing English fragment',async t=>{
+  const {index}=fixture(t,{realReaders:false}),node=activity(7031,{fragments:{en:xml}});
+  node.recorded_in_a_realization_of.push({'api:xmlFragment':{mul:'<oralStatements><speech xml:lang="en"><p>Renewable energy.</p></speech></oralStatements>'}});
+  const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:[node],meta:{total:1}},url,fetchedAt:now()})});
+  const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
+  assert.equal(result.coverage.transcripts,1);assert.equal(result.coverage.unreadableText,0);
+  assert(result.words.some(word=>word.word==='climate'));assert(result.words.some(word=>word.word==='renewable'));
+});
+test('a successful detail response with no matching activity still allows an exact retained original',async t=>{
+  const {add}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>';
+  const id=add(activity(7032,{fragments:{de:original}}));
+  t.mock.method(globalThis,'fetch',async()=>Response.json({data:[]}));
+  const result=await odpSpeech(id,'en');assert.equal(result.textLanguage,'de');assert.equal(result.xml,original);
+  assert.equal(result.sourceReadError.code,'speech_not_found');
+});
+test('retained original XML can use exact upstream headers when the separate metadata retention is missing',async t=>{
+  const {add}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>';
+  const node=activity(7051,{fragments:{de:original}}),id=add(node,{metadata:false}),fresh=structuredClone(node);
+  delete fresh.recorded_in_a_realization_of[0]['api:xmlFragment'];
+  t.mock.method(globalThis,'fetch',async input=>{if(String(input).includes('/speeches/'))return Response.json({data:[fresh]});throw new Error('No profile request allowed');});
+  const result=await odpSpeech(id,'en');
+  assert.equal(result.xml,original);assert.equal(result.textLanguage,'de');assert.equal(result.fetchedAt,fetchedAt);
+  assert.equal(result.textCache.sourceUrl,url);assert.equal(result.textCache.sourceFetchedAt,fetchedAt);
+  assert.notEqual(result.metadataSource.fetchedAt,fetchedAt);assert(result.metadataSource.url.includes('/speeches/'+id));
+});
+test('fresh headers with conflicting date or URI cannot relabel retained XML',async t=>{
+  const {add}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>';
+  for(const [i,change] of [{activity_date:'2026-10-08'},{id:'eli/dl/event/FOREIGN'},{'@id':'eli/dl/event/FOREIGN'},{had_activity_type:'https://foreign.invalid/PLENARY_DEBATE_SPEECH'},{parliamentary_term:'org/ep-11'}].entries()) {
+    const node=activity(7061+i,{fragments:{de:original}}),id=add(node,{metadata:false}),fresh=structuredClone(node);
+    delete fresh.recorded_in_a_realization_of[0]['api:xmlFragment'];Object.assign(fresh,change);
+    t.mock.method(globalThis,'fetch',async input=>{if(String(input).includes('/speeches/'))return Response.json({data:[fresh]});throw new Error('No profile request allowed');});
+    assert.equal((await odpSpeech(id,'en')).xml,null);
+  }
+});
 test('legislation associations use exact saved speech and document metadata without redundant source requests',async t=>{
   const {index,add}=fixture(t),id=add(activity(1)),work={id:'eli/dl/doc/B-10-2026-0001',identifier:'B-10-2026-0001',title_dcterms:{en:'Exact saved work'},inverse_based_on_a_realization_of:[]};
   const generation=index.status().servingGeneration;index.putSource(generation,'/plenary-documents/'+work.identifier,'document',work,fetchedAt,[]);

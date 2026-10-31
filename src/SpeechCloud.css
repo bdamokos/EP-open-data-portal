@@ -34,3 +34,6 @@
   .explorer-cloud-controls select {width:100%;max-width:none;}
   .explorer-cloud-words {gap:6px 12px;}
 }
+
+.explorer-cloud-alternatives {display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:14px;color:var(--cloud-muted);}
+.explorer-cloud-alternatives button {min-height:44px;padding:6px 10px;font:inherit;color:var(--cloud-ink);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);}

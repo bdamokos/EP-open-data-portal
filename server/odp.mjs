@@ -1028,33 +1028,72 @@ export function chooseTranscript(docs, language) {
     ...(textLanguage&&sourceKeys[textLanguage]!==textLanguage?{sourceFragmentKey:sourceKeys[textLanguage]}:{}),
   };
 }
+export const SPEECH_DETAIL_VERSION=2;
 export async function odpSpeech(id, language) {
   const {speechTranscript}=await import('./speech-transcript.mjs');
+  let retainedBody=null;
+  const fallback=async error=>{
+    requestSignal()?.throwIfAborted();
+    try {
+      const retained=await speechTranscript(id,language,{allowFallback:true});
+      requestSignal()?.throwIfAborted();
+      if(retained.available)retainedBody=retained;
+      if(retained.available&&retained.metadata)return {...retained.metadata,xml:retained.xml,
+        ...(error?{sourceReadError:{code:error.code||'speech_source_unavailable',
+          ...(typeof error.message==='string'?{message:error.message.slice(0,250)}:{}),
+          ...(Number.isFinite(error.retryAt)?{retryAt:new Date(error.retryAt).toISOString()}:{})}}:{})};
+    }catch {requestSignal()?.throwIfAborted();}
+    return null;
+  };
   try {
     const retained=await speechTranscript(id,language);
     if(retained.available&&retained.metadata)return {...retained.metadata,xml:retained.xml};
   }catch {requestSignal()?.throwIfAborted();}
-  const record = await odp(`/speeches/${id}`, {
-    "include-output": "xml_fragment",
-  }, {staleWhileRevalidate:true});
+  let record;
+  try {
+    record = await odp(`/speeches/${id}`, {"include-output": "xml_fragment"}, {staleWhileRevalidate:true});
+  }catch(error) {
+    const retained=await fallback(error);if(retained)return retained;throw error;
+  }
+  const refreshFailure=record.refreshError?{code:'speech_source_refresh_failed',message:record.refreshError}:undefined;
   const activity = record.payload.data.find(item=>item.activity_id===id);
-  if (!activity)
-    throw new HttpError(404, "speech_not_found", "This speech is unavailable.");
+  if (!activity) {
+    const error=new HttpError(404, "speech_not_found", "This speech is unavailable.");
+    const retained=await fallback(refreshFailure||error);if(retained)return retained;throw error;
+  }
   const docs = activity.recorded_in_a_realization_of || [];
-  const selected=chooseTranscript(docs,language);
+  let selected=chooseTranscript(docs,language),bodySource=null;
+  if(!selected.xml){
+    const retained=await fallback(refreshFailure);if(retained)return retained;
+    const relative=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
+    const expected='eli/dl/event/'+id,identityKeys=['id','@id'].filter(key=>Object.hasOwn(activity,key));
+    const exact=record.payload.data.filter(node=>node.activity_id===id||['id','@id'].some(key=>relative(node?.[key])===expected));
+    const terms=activity.parliamentary_term===undefined?null:Array.isArray(activity.parliamentary_term)?activity.parliamentary_term:[activity.parliamentary_term];
+    const termMatches=terms===null||terms.length>0&&terms.every(term=>{
+      if(typeof term==='string')return relative(term)==='org/ep-10';
+      const keys=['id','@id'].filter(key=>Object.hasOwn(term||{},key));return keys.length>0&&keys.every(key=>relative(term[key])==='org/ep-10');
+    });
+    if(retainedBody&&exact.length===1&&identityKeys.length>0&&identityKeys.every(key=>relative(activity[key])===expected)&&
+      termMatches&&retainedBody.documentDate===activity.activity_date&&['def/ep-activities/PLENARY_DEBATE_SPEECH','def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(relative(activity.had_activity_type))) {
+      bodySource=retainedBody;
+      selected={xml:retainedBody.xml,textLanguage:retainedBody.textLanguage,sourceFragmentKey:retainedBody.sourceFragmentKey,
+        translationType:retainedBody.translationType,availableTextLanguages:retainedBody.availableTextLanguages,languageTags:transcriptLanguage(retainedBody.xml).tags};
+    }
+  }
   const details=speechSpeakerDetails(activity);
   const speakers=await speakerIdentities.enrich(details,activity.activity_date,{chairs:details.filter(person=>person.sittingRole==='chair').map(person=>person.id),profileIds:details.map(person=>person.id)});
   return {
     ...speechSummary(activity),
     ...selected,
     speakers,
-    textCache:{sourceFetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError || null,availableLanguages:selected.availableTextLanguages,coverage:'returned-languages-only'},
+    textCache:bodySource?{sourceFetchedAt:bodySource.fetchedAt,sourceUrl:bodySource.sourceUrl,checkedAt:bodySource.checkedAt,stale:false,refreshInProgress:false,refreshError:null,availableLanguages:selected.availableTextLanguages,coverage:'returned-languages-only'}:{sourceFetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError || null,availableLanguages:selected.availableTextLanguages,coverage:'returned-languages-only'},
     video: {
       available: false,
       reason:
         "A recording lookup and interpretation-track API is not available in the documented speech service.",
     },
-    fetchedAt: new Date(record.fetchedAt).toISOString(),
+    fetchedAt: bodySource?bodySource.fetchedAt:new Date(record.fetchedAt).toISOString(),
+    ...(bodySource&&refreshFailure?{sourceReadError:refreshFailure}:{}),
     metadataSource:{url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString()},
   };
 }

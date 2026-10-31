@@ -205,6 +205,36 @@ test('all supplied speech languages survive expired disk cache and failed refres
     assert.deepEqual(JSON.parse(await readFile(filename,'utf8')),record);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
+test('retained original fallback preserves a failed stale metadata refresh without rewriting text provenance',async t=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'speech-original-refresh-'));
+  try {
+    const id='MTG-PL-2026-10-07-OTH-7041',url='https://data.europarl.europa.eu/api/v2/speeches/'+id+'?include-output=xml_fragment&format=application%2Fld%2Bjson';
+    const activity={id:'eli/dl/event/'+id,activity_id:id,activity_date:'2026-10-07',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',recorded_in_a_realization_of:[{originalLanguage:['http://publications.europa.eu/resource/authority/language/DEU']}]};
+    const record={url,fetchedAt:Date.now()-7*3600000,payload:{data:[activity]}};
+    const filename=path.join(dir,createHash('sha256').update(url).digest('hex')+'.json');await writeFile(filename,JSON.stringify(record));
+    const script=`
+      import assert from 'node:assert/strict';
+      const {CorpusStore}=await import(${JSON.stringify(new URL('./corpus-store.mjs',import.meta.url).href)});
+      const store=new CorpusStore(process.env.CORPUS_DIR);assert(store.acquire());
+      const activity=${JSON.stringify(activity)},xml='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>',fetchedAt='2026-10-17T10:00:00Z';
+      store.putDocument({sourceId:activity.activity_id,kind:'speech',date:activity.activity_date,term:10,originalLanguages:['de']},[{sourceKey:'de',language:'de',translationType:'original',sourceFormat:'xml-fragment',sourceUrl:${JSON.stringify(url)},fetchedAt,body:'Originaler Beitrag.',raw:xml}]);
+      store.putSpeechMetadata(activity,${JSON.stringify(url)},fetchedAt);store.release();
+      let requests=0,finish,started;const refreshStarted=new Promise(resolve=>started=resolve);
+      globalThis.fetch=()=>{requests++;started();return new Promise(resolve=>finish=()=>resolve(new Response('{}',{status:500,headers:{'content-type':'application/json'}})));};
+      const {odpSpeech}=await import(${JSON.stringify(new URL('./odp.mjs',import.meta.url).href)});
+      const first=await odpSpeech(activity.activity_id,'en');assert.equal(first.xml,xml);await refreshStarted;finish();
+      let result;const deadline=performance.now()+110_000;
+      do {result=await odpSpeech(activity.activity_id,'en');if(result.sourceReadError)break;await new Promise(resolve=>setImmediate(resolve));}while(performance.now()<deadline);
+      assert.equal(result.sourceReadError.code,'speech_source_refresh_failed');assert.match(result.sourceReadError.message,/500/);
+      assert.equal(result.xml,xml);assert.equal(result.textLanguage,'de');assert.equal(result.fetchedAt,fetchedAt);assert.equal(result.textCache.refreshError,null);assert.equal(requests,1);
+      store.close();console.log(JSON.stringify({sourceReadError:result.sourceReadError,requests}));
+    `;
+    const scriptFile=path.join(dir,'refresh-probe.mjs');await writeFile(scriptFile,script);
+    const out=JSON.parse((await execFileAsync(t,process.execPath,[scriptFile],{env:{...process.env,ODP_CACHE_DIR:dir,CORPUS_ENABLED:'true',CORPUS_DIR:path.join(dir,'corpus')},encoding:'utf8'})).stdout);
+    assert.equal(out.requests,1);assert.equal(out.sourceReadError.code,'speech_source_refresh_failed');
+    assert.deepEqual(JSON.parse(await readFile(filename,'utf8')),record);
+  }finally{await rm(dir,{recursive:true,force:true});}
+});
 test('document text coalesces cold reads, persists actual language and serves last-good text after refresh failure',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'document-text-test-'));
   const url='https://data.europarl.europa.eu/distribution/test-'+Date.now()+'/answer_ga.docx';
