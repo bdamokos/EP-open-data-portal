@@ -15,7 +15,7 @@ import {useData} from './data';
 import {selectLanguageText} from './language.mjs';
 import {selectVoteTitle} from './voteTitles.mjs';
 import type {MemberVote,MemberVotesResponse,MemberVoteWholeTextDecision} from './MemberVotesTypes';
-import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse,votingRecordUrl} from './memberVotesPresentation.mjs';
+import {MEMBER_VOTES_PAGE_SIZE,memberVotesCoverageNotice,displayVoteTitle,exactAmendmentTargets,groupMemberVotes,memberVoteLabel,memberVoteParentLabel,memberVoteOutcome,memberVotePositionSummary,memberVotesRoute as memberVotesRequestRoute,topLevelVoteDocuments,validateMemberVotesResponse} from './memberVotesPresentation.mjs';
 import './MemberVotes.css';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
@@ -108,7 +108,7 @@ function ContextVote({vote,memberName,language}:{vote:MemberVote;memberName:stri
 
 function Detail({vote,data,memberName,language,onDecision,openContext,explanationsActive}:{vote:MemberVote;data:MemberVotesResponse;memberName:string;language:string;onDecision:(id:string)=>void;openContext:(context:MemberVotesContext)=>void;explanationsActive:boolean}) {
   const subject=data.subjects.find(subject=>subject.id===vote.subjectId);
-  const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote),recordUrl=votingRecordUrl(vote);
+  const targets=exactAmendmentTargets(vote),documents=topLevelVoteDocuments(vote);
   const requesterLabels=vote.rollCallRequesters.filter(requester=>requester.binding==='exact-decision-was_motivated_by').map(requester=>selectLanguageText(requester.organizationLabels,language)).filter(label=>label.text);
   const requestIds=new Set(vote.parts.map(part=>part.requestId));
   const siblingVotes=data.items.filter(item=>item.id!==vote.id&&item.parts.some(part=>requestIds.has(part.requestId)));
@@ -130,7 +130,6 @@ function Detail({vote,data,memberName,language,onDecision,openContext,explanatio
     {siblingVotes.length>0&&<section className="member-votes-siblings"><h3>Other decisions shown for this split vote</h3>{siblingVotes.map(item=><button type="button" key={item.id} onClick={()=>onDecision(item.id)}>{memberVoteLabel(item,language)} · {memberVoteOutcome(item)}</button>)}</section>}
     {(vote.ballotStatus==='not-conducted'||voteMethodLabel(vote.method))&&<p className="member-votes-muted">{vote.ballotStatus==='not-conducted'?'Not put to a vote':voteMethodLabel(vote.method)}</p>}
     {requesterLabels.length>0&&<p className="member-votes-requester">Roll call requested by {requesterLabels.map((label,index)=><span key={index} lang={label.language}>{index>0?', ':''}{label.text}</span>)}.</p>}
-    {recordUrl&&<p className="member-votes-source"><a href={recordUrl} target="_blank" rel="noreferrer">Parliament’s voting record ↗</a></p>}
     {documents.length>0&&<section className="member-votes-documents"><h3>About the text</h3>{documents.map(documentId=><div key={documentId}><button type="button" onClick={()=>openContext({documentId,view:'document'})}>Read {documentId.startsWith('A-')?'report':documentId.startsWith('RC-')?'joint motion':'motion'} · {documentId}</button><button type="button" onClick={()=>openContext({documentId,view:'adopted'})}>Find adopted text</button></div>)}</section>}
   </article>;
 }

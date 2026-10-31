@@ -211,29 +211,30 @@ function assertOrdinaryText(reader) {
   assert.equal(transcript.closest('[aria-live],[role="status"],[role="alert"]'),null,'no enclosing live region may absorb the reader');
   for(const region of document.querySelectorAll('[aria-live],[role="status"],[role="alert"]'))for(const paragraph of paragraphs)assert(!region.textContent.includes(paragraph));
 }
-function assertDownloads(reader,language='en') {
-  for(const file of files.filter(file=>file.language===language))assert([...reader.querySelectorAll('a[href]')].some(link=>link.href===file.url),file.format+' download remains accessible');
+function assertNoDownloads(reader) {
+  assert.equal(reader.querySelector('.explorer-reader-download'),null);
+  assert.equal(reader.querySelector('.explorer-publication-files'),null);
 }
 
-test('selected written question keeps full text and downloads while announcing settled, unavailable and refresh-error outcomes',async t=>{
+test('selected written question keeps full text without repeated source downloads while announcing settled, unavailable and refresh-error outcomes',async t=>{
   const h=await harness(t),toggle=h.container.querySelector('.explorer-speech-toggle');toggle.focus();await h.click(toggle);
   const reader=h.container.querySelector('.explorer-document-text'),announcement=status(reader);
   assert.equal(announcement.textContent,'');
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,documentResult());await h.wait();
   assert.equal(status(reader),announcement);assert.equal(announcement.textContent,'Question: Text loaded.');
-  assertOrdinaryText(reader);assertDownloads(reader);assert.equal(document.activeElement,toggle);
+  assertOrdinaryText(reader);assertNoDownloads(reader);assert.equal(document.activeElement,toggle);
 
   // A later source check expires document reads. Reopening revalidates the
   // cached text, which must survive a failed refresh together with its files.
   h.expireActivityReads();await h.click(toggle);await h.click(toggle);
   const refreshed=h.container.querySelector('.explorer-document-text');assertOrdinaryText(refreshed);
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,{error:{message:'Document fixture temporarily unavailable.'}},503);await h.wait();
-  assert.equal(status(refreshed).textContent,'Question: Text temporarily unavailable.');assertOrdinaryText(refreshed);assertDownloads(refreshed);
+  assert.equal(status(refreshed).textContent,'Question: Text temporarily unavailable.');assertOrdinaryText(refreshed);assertNoDownloads(refreshed);
   assert.equal(refreshed.querySelectorAll('[role="status"],[role="alert"]').length,1,'the reader error has one narrow announcement');
   const language=refreshed.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   await h.finish(`document/${questionId}?member=${member.id}&lang=fr`,documentResult('fr',false));await h.wait();
-  assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assert.match(refreshed.textContent,/Text unavailable\./);assertDownloads(refreshed,'fr');
+  assert.equal(status(refreshed).textContent,'Question: Text unavailable.');assert.match(refreshed.textContent,/Text unavailable\./);assertNoDownloads(refreshed);
   assert.equal(document.activeElement,toggle,'reader outcomes must not move focus from the activity control');
 });
 
@@ -334,7 +335,7 @@ test('an explicitly checked linked activity keeps its nested document outside th
   assert.equal(h.pending.length,0,'a linked source is checked only after the explicit action');
   await h.click([...fallback.querySelectorAll('button')].find(button=>button.textContent==='Look it up'));
   await h.finish(`document/${questionId}?member=${member.id}&lang=en`,documentResult());await h.wait();
-  const reader=fallback.querySelector('.explorer-document-text');assert(reader);assertOrdinaryText(reader);assertDownloads(reader);
+  const reader=fallback.querySelector('.explorer-document-text');assert(reader);assertOrdinaryText(reader);assertNoDownloads(reader);
   const fallbackStatus=[...fallback.children].find(node=>node.matches('[role="status"]'));
   assert.equal(fallbackStatus.textContent,'Linked item loaded.');assert.equal(status(reader).textContent,'Question: Text loaded.');
   assert.equal(h.pending.length,1,'the nested reader reuses the completed exact-source request');
@@ -372,7 +373,7 @@ test('member question retries the selected source language locally and keeps sav
   assert.equal(h.pending.filter(request=>request.route===route).length,3,'initial read, failed refresh and exactly one retry');
   await h.finish(route,{error:{message:'Still busy.'}},503);assert.equal(reopened.querySelector('.explorer-transcript'),text);assert(reopened.querySelector('.reader-retry button'));
   await h.click(reopened.querySelector('.reader-retry button'));await h.finish(route,documentResult('fr'));await h.wait();
-  assert.equal(reopened.querySelector('.reader-retry'),null);assert.equal(reopened.querySelector('.explorer-transcript').lang,'fr');assertOrdinaryText(reopened);assertDownloads(reopened,'fr');
+  assert.equal(reopened.querySelector('.reader-retry'),null);assert.equal(reopened.querySelector('.explorer-transcript').lang,'fr');assertOrdinaryText(reopened);assertNoDownloads(reopened);
   assert.equal(document.activeElement,heading);assert.equal(status(reopened).textContent,'Question: Text loaded.');
 });
 
