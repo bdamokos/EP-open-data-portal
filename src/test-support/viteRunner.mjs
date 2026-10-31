@@ -11,13 +11,15 @@ after(async()=>{
 // harness fresh module instances. Keep the caller's server options and logging.
 // The caller owns disposal: await load.close() after consumer teardown, including
 // any dynamic imports it performs. Registering a hook here would run too early.
-export async function freshLoader(options) {
+export async function freshLoader(options,{sharedServerKey}={}) {
   // Plugin hooks can carry per-harness state and cannot be keyed as JSON.
-  const isolated=Boolean(options.plugins?.length);
+  // Stateless fixture hooks may opt in with one stable key for that configuration;
+  // only the transform server is shared, never evaluated module instances.
+  const isolated=Boolean(options.plugins?.length&&!sharedServerKey);
   let server;
   if(isolated)server=createServer(options);
   else {
-    const key=JSON.stringify(options);
+    const key=sharedServerKey??JSON.stringify(options);
     if(!servers.has(key))servers.set(key,createServer(options));
     server=servers.get(key);
   }

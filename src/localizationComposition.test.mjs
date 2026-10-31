@@ -103,9 +103,18 @@ test('translated chart and intervention labels keep their UI language and raw gr
  const {createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{default:fr}=await load('/src/ui-locales/fr.json');
  const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{GroupDonut}=await load('/src/InsightCharts.tsx');
  const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr');
- const markup=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(GroupDonut,{rows:[{label:'NI',count:10}],contributions:{total:10,unavailable:0}})));
+ const markup=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(GroupDonut,{rows:[{label:'NI',count:5},{label:'EPP',count:5}],contributions:{total:10,unavailable:0}})));
  assert(markup.includes(ui.t('batch4.insightcharts.tsx.contributions')));assert(!markup.includes('lang="en"'));
  assert(!markup.includes('of contributions'));
+ const window=new Window();t.after(()=>window.happyDOM.close());
+ window.document.body.innerHTML=markup;
+ for(const node of window.document.querySelectorAll('circle[aria-label]'))assert.equal(node.closest('[lang]').getAttribute('lang'),'fr');
+ const {QuestionTrend}=await load('/src/InsightCharts.tsx');
+ const trend=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(QuestionTrend,{language:'fr',selected:true,scope:'Eau',scopeLanguage:'fr',comparison:true,onRange(){},data:{interval:'week',bins:[{start:'2026-01-12',end:'2026-01-18',count:3,total:8,share:37.5}]}})));
+ window.document.body.innerHTML=trend;
+ for(const selector of ['svg[role="group"]','svg g[role="button"]','option[value="2026-01-12"]'])assert.equal(window.document.querySelector(selector).closest('[lang]').getAttribute('lang'),'fr');
+ assert.equal(window.document.querySelector('h2 span').getAttribute('lang'),'fr');
+
  const {InterventionBadges}=await load('/src/SpeechInterventions.tsx');
  const badge=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(InterventionBadges,{value:{type:'written',onBehalfOf:[]},language:'fr'})));
  assert(badge.includes('lang="fr"'));assert(!badge.includes('lang="en"'));assert(badge.includes(ui.t('insightshared.written_statement')));

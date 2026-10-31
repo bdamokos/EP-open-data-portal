@@ -1,23 +1,18 @@
 import {viewReady} from './test-support/viewReady.mjs';
-import test, {after} from 'node:test';
-import {createServer,createServerModuleRunner} from 'vite';
+import test from 'node:test';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
 
-// Share transforms for all gate choices, with fresh module state per harness.
-// The runtime guard delays only the requested view in each isolated runner.
-let navigationServer;
-after(async()=>{if(navigationServer)await (await navigationServer).close();});
+// The transform hook has no per-harness closure state. Share its transform
+// server while freshLoader creates/disposes a new module runner for each case.
+const navigationServerKey=Symbol('navigation fixtures');
 async function navigationLoader(options) {
-  navigationServer??=createServer({...options,plugins:[{name:'delay-view-fixture',transform(code,id){
+  return freshLoader({...options,plugins:[{name:'delay-view-fixture',transform(code,id){
     const file=['Saved.tsx','Legislation.tsx','GroupVoices.tsx'].find(file=>id.endsWith('/'+file));
     if(file)return 'if(globalThis.__navigationDelayedFile==='+JSON.stringify(file)+')await globalThis.__navigationViewGate;\n'+code;
-  }}]});
-  const server=await navigationServer,runner=createServerModuleRunner(server.environments.ssr,{hmr:false});
-  const load=path=>runner.import(path);
-  load.close=()=>runner.close();
-  return load;
+  }}]},{sharedServerKey:navigationServerKey});
 }
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[],accounts:[]};
