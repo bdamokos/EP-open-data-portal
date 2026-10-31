@@ -140,3 +140,40 @@ test('unheld proposal decisions retain outcome, null tallies and not-conducted s
     assert.notEqual(vote.scope.kind,'whole-text');assert.notEqual(general(decision,state),'final-text');
   }
 });
+
+
+test('whole-proposal promotion requires exact nonempty declared and usable observed parent membership',()=>{
+  const mutations=[
+    s=>delete s.results[0].consists_of,
+    s=>s.results[0].consists_of=[],
+    s=>s.results[0].consists_of=s.results[0].consists_of.filter(id=>!String(id).endsWith('-199470')),
+    s=>s.decisions.find(row=>row.activity_id===referral.activity_id).inverse_consists_of=['https://example.com/eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335'],
+    s=>s.decisions.find(row=>row.activity_id===referral.activity_id).decided_on_a_part_of_a_realization_of=['https://example.com/eli/dl/doc/A-10-2026-0276-AM-1'],
+  ];
+  for(const mutate of mutations){
+    const state=structuredClone(snapshot);mutate(state);const decision=changedVote(state);
+    assert.notEqual(project(decision,state).scope.kind,'whole-text');
+    assert.notEqual(general(decision,state),'final-text');
+    const subject=projectMemberSitting(state,member).subjects.find(row=>row.id.endsWith('-993335'));
+    assert.equal(subject.wholeTextDecisions.length,0);
+    assert(subject.gaps.some(gap=>gap.code==='whole-text-outcome-not-established'));
+  }
+  const unrelated=structuredClone(snapshot);delete unrelated.results[1].consists_of;
+  assert.equal(project(changedVote(unrelated),unrelated).scope.kind,'whole-text','an unrelated incomplete parent does not block this complete graph');
+});
+
+test('exact split, separate, unresolved and untyped requests block proposal scope while roll-call requests remain eligible',()=>{
+  for(const type of ['REQUEST_VOTE_SPLIT','REQUEST_VOTE_SEPARATE','REQUEST_VOTE_ROLLCALL',null,'unresolved']){
+    const state=structuredClone(snapshot),decision=changedVote(state),parent=state.results[0];
+    const request={id:parent.id+'-SPLIT-999',...(type&&type!=='unresolved'?{had_activity_type:'def/ep-activities/'+type}:{})};
+    decision.was_motivated_by=[request.id];
+    if(type!=='unresolved')parent.was_motivated_by.push(request);
+    const expected=type==='REQUEST_VOTE_ROLLCALL';
+    assert.equal(project(decision,state).scope.kind==='whole-text',expected,String(type));
+    assert.equal(general(decision,state)==='final-text',expected,String(type));
+    if(!expected){
+      assert.deepEqual(project(decision,state).parts,[],'request identity alone does not establish a part extent');
+      assert(!projectMemberSitting(state,member).subjects.flatMap(row=>row.wholeTextDecisions).some(row=>row.id===decision.activity_id));
+    }
+  }
+});

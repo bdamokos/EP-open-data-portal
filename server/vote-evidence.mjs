@@ -185,5 +185,5 @@ export function deriveVoteEvidence(snapshot,{includeBindingEvidence=false}={}) {
     if(!references(raw.based_on_a_realization_of,'doc').length)gaps.push({code:'document-context-not-established'});
     subjects.push({id:identifier(uri),uri,titles:entry.conflicting?{}:labels(raw.activity_label),documentIds:entry.conflicting?[]:references(raw.based_on_a_realization_of,'doc').map(identifier),agendaItemIds:entry.conflicting?[]:references(raw.executed).map(identifier),declaredDecisionIds:declared.map(identifier),observedDecisionIds:observed,gaps,evidencePaths:deduplicatePaths(entry.paths)});
   }
-  return {decisions,subjects,gaps:globalGaps};
+  return {decisions,subjects,gaps:globalGaps,requestTypes:new Map([...requests].map(([uri,entry])=>[uri,term(entry.node.had_activity_type)]))};
 }

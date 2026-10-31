@@ -23,7 +23,10 @@ export function isWholeProposalVote(raw,derived) {
   if(!namedArrays&&!['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT'].includes(term(raw.decision_method)))return false;
   const evidence=derived?.decisions.get(eventUri(raw));
   if(!evidence?.subjectId||!['consistent','single-direction'].includes(evidence.resultRelationship.binding))return false;
-  if(evidence.evidenceGaps.some(gap=>!['roll-call-requester-not-established','missing-request'].includes(gap.code)))return false;
+  const usable=record=>record&&!record.evidenceGaps.some(gap=>gap.code!=='roll-call-requester-not-established');
+  if(!usable(evidence)||references(raw.was_motivated_by).some(uri=>derived.requestTypes?.get(uri)!=='REQUEST_VOTE_ROLLCALL'))return false;
   const subject=derived.subjects.find(subject=>subject.id===evidence.subjectId);
-  return Boolean(subject&&!subject.gaps.length&&subject.observedDecisionIds.includes(identifier(eventUri(raw))));
+  if(!subject||subject.gaps.length||!subject.declaredDecisionIds.length||subject.declaredDecisionIds.length!==subject.observedDecisionIds.length)return false;
+  const observed=new Set(subject.observedDecisionIds),eventPrefix=subject.uri.slice(0,subject.uri.lastIndexOf('/')+1);
+  return subject.declaredDecisionIds.includes(identifier(eventUri(raw)))&&subject.declaredDecisionIds.every(id=>observed.has(id)&&usable(derived.decisions.get(eventPrefix+id)));
 }
