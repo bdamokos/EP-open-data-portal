@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows, tail } from './activity-index-model.mjs';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GAPS, localize, documentFiles, documentRows, tail, MOTION_CLASSIFICATION_VERSION } from './activity-index-model.mjs';
 import { isMotion, motionOutcome, motionReference, motionSourceKey } from './motion-outcomes.mjs';
 import {committeeAmendmentIndexVersion,prepareCommitteeAmendmentIndexes} from './amendments-store.mjs';
 import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, amendmentLinkIndexes, amendmentParserSourceRevisionKey, amendmentsSchema, amendmentsCopy, amendmentsPrune, amendmentFailureSummary, amendmentGeneration } from './amendments-store.mjs';
@@ -287,6 +287,25 @@ export class ActivityStore {
   *iterateSources(generation,kind) {
     for(const source of this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?').iterate(generation,kind))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
+  }
+  motionClassificationPending(generation) {
+    return Boolean(this.db.prepare("SELECT 1 FROM sources INDEXED BY motion_documents WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? LIMIT 1").get(generation,MOTION_CLASSIFICATION_VERSION));
+  }
+  reclassifyMotions(generation,limit=100) {
+    this.transaction(()=>{
+      this.assertWriter();
+      // Work only on the unpublished generation. Retain metadata and retrieval times.
+      if(this.get('working')?.generation!==generation)throw new Error('Motion classification requires a working generation.');
+      const rows=this.db.prepare("SELECT key,body,fetched_at FROM sources INDEXED BY motion_documents WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? ORDER BY key LIMIT ?").all(generation,MOTION_CLASSIFICATION_VERSION,limit);
+      const update=this.db.prepare('UPDATE sources SET body=? WHERE generation=? AND key=?');
+      for(const row of rows) {
+        const work=parse(row.body);
+        this.replaceRows(generation,row.key,documentRows(work,row.key,row.fetched_at).rows);
+        work.motionClassificationVersion=MOTION_CLASSIFICATION_VERSION;
+        update.run(JSON.stringify(work),generation,row.key);
+      }
+    });
+    return this.motionClassificationPending(generation);
   }
   *motionDocuments(generation) {
     for(const source of this.db.prepare('SELECT key,body,fetched_at FROM sources INDEXED BY motion_documents WHERE generation=? AND '+motionDocuments).iterate(generation))
