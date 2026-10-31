@@ -4,8 +4,9 @@ import {sourceTitles} from './source-titles.mjs';
 import {isMotion,motionOutcome,motionSourceKey} from './motion-outcomes.mjs';
 import {procedureReference} from './official-context.mjs';
 import {HttpError} from './http-utils.mjs';
+import {procedureClassification} from './procedure-types.mjs';
 
-export const FOLLOWING_DOSSIERS_VERSION=2;
+export const FOLLOWING_DOSSIERS_VERSION=3;
 const key=(kind,id)=>createHash('sha256').update(JSON.stringify([kind,id])).digest('hex');
 const stages={REFERRAL:'Referred to committee',COMMITTEE_ADOPTING_REPORT:'Committee report adopted',TABLING_PLENARY:'Document tabled',PLENARY_ADOPT_POSITION:'Parliament position adopted',SIGNATURE:'Act signed',PUBLICATION_OFFICIAL_JOURNAL:'Published in the Official Journal'};
 const documentId=value=>String(value?.id||value||'').match(/(?:^|\/)eli\/dl\/doc\/([A-Z0-9-]{1,100})$/)?.[1];
@@ -71,7 +72,10 @@ function readFollowingDossiers(store,search) {
   const entries=store.db.prepare(`SELECT event.body,mark.mark FROM dossier_events event JOIN procedure_marks mark USING(procedure,kind,source_id) WHERE generation=? AND procedure=? ORDER BY mark.mark DESC,event.kind,event.source_id LIMIT 1001`);
   const items=references.map(reference=>{
     const procedure=reference.replace(/\([A-Z]+\)$/,'').replace('/','-'),source=store.source(generation,'/procedures/'+procedure);
-    const types=[...new Set(array(source?.work.process_type).map(value=>tail(typeof value==='string'?value:typeof value?.id==='string'?value.id:'').trim()))];
+    // New projections retain every alias. Older frozen snapshots keep their
+    // previous interpretation rather than acquiring newly inferred identities.
+    const code=source?.work.procedureTypeProjectionVersion===1?procedureClassification(source.work).code:null;
+    const types=source?.work.procedureTypeProjectionVersion===1?(code?[code]:[]):[...new Set(array(source?.work.process_type).map(value=>tail(typeof value==='string'?value:typeof value?.id==='string'?value.id:'').trim()))];
     if(types.length!==1||types[0]!==reference.match(/\(([A-Z]+)\)$/)[1])return {reference,status:'unavailable',entries:[]};
     const rows=entries.all(generation,procedure),titles=sourceTitles(source?.work.process_title);
     return {reference,status:source||rows.length?'available':'unavailable',title:titles.en||null,titleLanguage:titles.en?'en':null,limited:rows.length>1000,entries:rows.slice(0,1000).map(row=>({...JSON.parse(row.body),mark:row.mark}))};

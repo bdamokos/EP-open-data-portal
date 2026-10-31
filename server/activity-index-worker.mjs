@@ -28,6 +28,7 @@ import {activityGenerationTask} from './activity-generation-task.mjs';
 import { array, tail, projectDocument, projectProcedure, documentRows, procedureIds, speechRows, CATEGORIES } from './activity-index-model.mjs';
 import { HttpError } from './http-utils.mjs';
 import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
+import {procedureClassification} from './procedure-types.mjs';
 import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} from './outside-store.mjs';
 
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
@@ -43,6 +44,13 @@ const customFeeds=new Set(['/procedures','/adopted-texts']);
 const day = t => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
 const hour = t => Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Brussels',hour:'2-digit',hourCycle:'h23'}).format(new Date(t)));
 const safeId = id => /^[A-Z0-9-]{1,100}$/.test(id);
+function exactProcedure(record,id) {
+  const identity=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null,expected='eli/dl/proc/'+id;
+  const matches=record.payload.data.filter(work=>['id','@id'].some(key=>identity(work?.[key])===expected));
+  const work=matches[0];
+  if(matches.length!==1||identity(work.id)!==expected||Object.hasOwn(work,'@id')&&identity(work['@id'])!==expected||work.process_id!=null&&work.process_id!==''&&work.process_id!==id)throw new Error('Invalid or conflicting exact procedure metadata.');
+  return matches[0];
+}
 export function speechWindows(until) {
   const windows=[];
   for(let year=2024,month=6;year*12+month<=Number(until.slice(0,4))*12+Number(until.slice(5,7))-1;month++) {
@@ -424,10 +432,12 @@ export class ActivityWorker {
     } else if(task.kind==='motion-outcomes') {
       await this.loadMotionOutcomes(task);
     } else if(task.kind==='procedure') {
-      const r=await this.request(body.endpoint),matches=r.payload.data.filter(work=>String(work?.id||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/proc/'+tail(body.endpoint));
-      const work=matches[0];if(matches.length!==1||work.process_id&&work.process_id!==tail(body.endpoint))throw new Error('Invalid or conflicting exact procedure metadata.');
+      const r=await this.request(body.endpoint);this.controller.signal.throwIfAborted();
+      const work=exactProcedure(r,tail(body.endpoint));
       const projected=projectProcedure(work);
       this.store.putSource(generation,body.endpoint,'procedure',projected,r.fetchedAt);
+      const id=tail(body.endpoint);
+      if(this.store.source(generation,'outside:procedure:'+id))this.saveOutsideProcedure(generation,id,work,r.fetchedAt);
       scheduleCommitteeDiscovery(this,generation,projected,r.fetchedAt,body.endpoint);
       if(this.recoveryMode==='backfill'&&this.store.get('working')?.generation===generation)this.store.enqueue(generation,'debate-links:'+body.endpoint,'debate-links',{endpoint:body.endpoint,offset:0},102,true);
       // Make verified report roles usable during the initial partial load; an
@@ -485,6 +495,15 @@ export class ActivityWorker {
     }
     this.store.putSource(generation,'outside:state','outside-state',{version:1,terms:[9,10]},new Date(this.clock()).toISOString());
   }
+  saveOutsideProcedure(generation,id,work,fetchedAt) {
+    this.controller.signal.throwIfAborted();
+    const classification=procedureClassification(work);
+    const typeDeclarations=Object.fromEntries(['process_type','procedure_type','had_procedure_type'].filter(key=>Object.hasOwn(work,key)).map(key=>[key,work[key]]));
+    this.store.putSource(generation,'outside:procedure:'+id,'outside-procedure',{
+      id,type:classification.code,typeStatus:classification.status,typeDeclarations,label:work.label??null,
+      source:{url:ODP_BASE+'/procedures/'+id+'?format=application%2Fld%2Bjson',fetchedAt},
+    },fetchedAt);
+  }
   async outsideTask(task) {
     const {generation,body}=task;
     if(task.kind==='outside-roster') {
@@ -530,10 +549,9 @@ export class ActivityWorker {
     } else if(task.kind==='outside-procedure') {
       const endpoint='/procedures/'+body.id;
       const r=await this.request(endpoint);
-      const work=r.payload.data.find(node=>tail(node.id)===body.id);
-      if(!work)throw new Error('Outside procedure has no matching record.');
-      const raw=work.process_type || work.procedure_type || work.had_procedure_type;
-      this.store.putSource(generation,'outside:procedure:'+body.id,'outside-procedure',{id:body.id,type:raw?tail(array(raw)[0]):null,source:{url:ODP_BASE+endpoint+'?format=application%2Fld%2Bjson',fetchedAt:r.fetchedAt}},r.fetchedAt);
+      this.controller.signal.throwIfAborted();
+      const work=exactProcedure(r,body.id);
+      this.saveOutsideProcedure(generation,body.id,work,r.fetchedAt);
     } else throw new Error('Unknown outside-speaker task.');
     this.store.finishTask(task);
   }
