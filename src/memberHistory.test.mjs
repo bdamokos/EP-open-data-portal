@@ -17,7 +17,7 @@ const members=[
 const directory={day:'2026-10-17',members,committees:[{id:'6567',code:'BUDG',names:{en:'Budgets',hu:'Költségvetés'},classification:'COMMITTEE'}],index:{complete:true,loaded:members.length,total:members.length,failed:0,error:null}};
 const selection='committee=6567&country=HU&group=PfE';
 
-async function harness(t,query='lang=en&'+selection+'&role=member') {
+async function harness(t,query='lang=en&'+selection+'&role=member',sourceDirectory=directory) {
   const window=new Window({url:'http://localhost/?'+query}),unexpected=[];
   const globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,HTMLElement:window.HTMLElement,ResizeObserver:window.ResizeObserver,IntersectionObserver:window.IntersectionObserver,getComputedStyle:window.getComputedStyle.bind(window),IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
@@ -32,7 +32,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href);
     if(url.pathname==='/api/profile/1')return Response.json({...members[0],currentAffiliation:{status:'matched',day:'2026-10-31'},membershipHistory:{observationAvailable:true,observationComplete:true,items:[{index:0,section:'national-parties',bodyId:'org/6831',role:'def/ep-roles/MEMBER',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',start:'2024-07-16',end:null,body:{prefLabel:{en:'Example party'}}}]}});
-    if(url.pathname==='/api/directory')return Response.json(directory);
+    if(url.pathname==='/api/directory')return Response.json(sourceDirectory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
   if(url.pathname==='/api/vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
@@ -121,4 +121,11 @@ test('opening and leaving an MEP from the member wall are Back/Forward steps',as
   await h.go(1);await viewReady(h.container);assert.equal(new URLSearchParams(location.search).get('organization'),'6831');
   await act(async()=>h.container.querySelector('.explorer-organization-filter button').click());
   assert.equal(new URLSearchParams(location.search).get('organization'),null);
+ });
+
+ test('uncertain observations never make a loaded organisation filter count definitive',async t=>{
+  const sourceDirectory={...directory,members:members.map(m=>({...m,organizationMemberships:m.id===4?[{id:'6831',current:true}]:[{id:'6831',current:null}],organizationMembershipsComplete:m.id===4}))};
+  const h=await harness(t,'organization=6831',sourceDirectory);
+  assert.equal(h.container.querySelector('.explorer-results strong').textContent,'1+');
+  assert.deepEqual([...h.container.querySelectorAll('[data-member-id]')].map(n=>Number(n.dataset.memberId)),[4]);
  });

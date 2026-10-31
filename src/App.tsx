@@ -9,7 +9,7 @@ import {useSpeechTranslation} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
 import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
-import {matchesCommittee,matchesOrganization,organizationId} from './memberFilters.mjs';
+import {matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
@@ -640,7 +640,7 @@ export default function App() {
   }, [lang, member, tab, committee, organization, organizationName, role, country, group, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
   const filtered = useMemo(
     () =>
-      directory?.members.filter(
+      (organization&&directoryState.loading?[]:directory?.members)?.filter(
         (m) =>
           matchesOrganization(m,organization) &&
           matchesCountry(country,m.countryCode) &&
@@ -651,9 +651,9 @@ export default function App() {
             )) &&
           matchesCommittee(m,committee,role),
       ).sort(compareMembers) || [],
-    [directory, country, group, search, committee, role,organization],
+    [directory, country, group, search, committee, role,organization,directoryState.loading],
   );
-  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directory?.members.some(m=>m.organizationMemberships==null))));
+  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directoryState.loading)||Boolean(organization&&directory?.members.some(m=>!organizationCoverageComplete(m,organization)))));
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
@@ -734,7 +734,7 @@ export default function App() {
   };
   const openOrganization=(id:string,name:string)=>{
     votes.remember();motions.remember();memberStep.current=true;
-    setOrganization(id);setOrganizationName(name);setCommittee('');setCountry('');setGroup('');setSearch('');setRole('both');
+    directoryState.retry();setOrganization(id);setOrganizationName(name);setCommittee('');setCountry('');setGroup('');setSearch('');setRole('both');
     setMember(null);setSpeechLink(null);setActivityLink(null);setActivityCategory('');setActivityOffset(0);
     wallScroll.current={page:0,portraits:0};pendingDestination.current={view:null,member:null};
   };

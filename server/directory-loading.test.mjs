@@ -175,3 +175,27 @@ test('completion of another committee detail cannot revert a newer exact-ID feed
   assert.deepEqual(out.complete.committees.find(body=>body.id==='6572').names,{en:'New A'});
   assert.deepEqual(out.complete.committees.find(body=>body.id==='6573').names,{en:'Committee B'});
 });
+
+test('a profile body observation applies exact ended bounds to the existing directory without extra reads',async t=>{
+ const out=await run(t,`
+  const party={id:'org/6831',identifier:'6831',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',prefLabel:{en:'Example party'},temporal:{startDate:'2024-07-16',endDate:'2025-01-01'}};
+  const p={...person(43),hasMembership:[{id:'membership/43',organization:{id:'org/6831'},role:'def/ep-roles/MEMBER',membershipClassification:party.classification,memberDuring:{startDate:'2024-09-01'}}]};
+  let reads=0;
+  globalThis.fetch=async url=>{
+   reads++;const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:[p]});
+   if(endpoint.endsWith('/corporate-bodies/show-current'))return Response.json({data:[]});
+   if(endpoint.endsWith('/meps/43'))return Response.json({data:[p]});
+   if(endpoint.endsWith('/corporate-bodies/6831'))return Response.json({data:[party]});
+   throw Error('Unexpected fixture '+url);
+  };
+  const {odpDirectory,odpProfileWithMemberships}=await import(${moduleUrl});
+  await odpDirectory();const before=await until(async()=>{const d=await odpDirectory();return d.index.complete&&d;});
+  await odpProfileWithMemberships(43);const readCount=reads;
+  const after=await odpDirectory();console.log(JSON.stringify({before,after,readCount,reads}));process.exit(0);
+ `);
+ assert.equal(out.before.members[0].organizationMemberships[0].id,'6831');
+ assert.equal(out.before.members[0].organizationMemberships[0].current,true);
+ assert.equal(out.after.members[0].organizationMemberships[0].current,false);
+ assert.equal(out.reads,out.readCount,'directory applies known metadata without fetching bodies');
+});
