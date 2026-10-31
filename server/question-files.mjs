@@ -1,3 +1,4 @@
+import {questionPdf} from './question-pdf.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
 import {languageCode} from './ep-links.mjs';
 import {allowedDownload} from './document-text.mjs';
@@ -20,7 +21,7 @@ export function questionFiles(work,policy='all') {
       if(!file||file.format!=='DOCX'||!file.language||!allowedDownload(file.url))return [];
       const primary=originals.includes(file.language)||file.language==='en';
       if(policy==='primary' && !primary)return [];
-      return [{sourceId:entry.sourceId,kind:entry.kind,parentId:entry.parentId,date:entry.work.document_date||null,originalLanguages:originals,language:file.language,translationType:file.translationType,url:file.url,primary,edition:questionFileEdition(manifestation)}];
+      return [{sourceId:entry.sourceId,kind:entry.kind,parentId:entry.parentId,date:entry.work.document_date||null,originalLanguages:originals,language:file.language,translationType:file.translationType,url:file.url,primary,edition:questionFileEdition(manifestation),pdf:questionPdf(entry.work,file.language)}];
     }));
   });
 }

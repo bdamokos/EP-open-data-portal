@@ -203,7 +203,7 @@ export interface PublicationDocument {
     requestedLanguage: string;
     availableTextLanguages: string[];
     translationType: 'original' | 'unspecified' | null;
-    sourceFormat: 'DOCX' | null;
+    sourceFormat: 'DOCX' | 'PDF' | null;
     adoptedTextXml?: {
       documentId: string; language: string; preference: 'held';
       status: 'unavailable' | 'declared' | 'ambiguous'; reason: string; gaps: string[];
