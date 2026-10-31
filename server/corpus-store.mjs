@@ -1,3 +1,4 @@
+import {corpusTextVersion,prepareCorpusTexts} from './corpus-text-schema.mjs';
 import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
 import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
@@ -84,7 +85,7 @@ export class CorpusStore {
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
     this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
-      try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1)throw new Error('Unprepared corpus indexes.');}
+      try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -102,9 +103,9 @@ export class CorpusStore {
       CREATE TABLE IF NOT EXISTS texts (
         id INTEGER PRIMARY KEY, document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
         language TEXT NOT NULL, source_key TEXT NOT NULL, translation_type TEXT NOT NULL CHECK(translation_type IN ('original','machine','unspecified')),
-        source_format TEXT NOT NULL CHECK(source_format IN ('xml-fragment','docx')), source_url TEXT NOT NULL,
+        source_format TEXT NOT NULL CHECK(source_format IN ('xml-fragment','docx','pdf')), source_url TEXT NOT NULL,
         fetched_at TEXT NOT NULL, checked_at TEXT NOT NULL, sha256 TEXT NOT NULL, chars INTEGER NOT NULL,
-        body TEXT NOT NULL, raw BLOB, UNIQUE(document_id,source_key));
+        body TEXT NOT NULL, raw BLOB, source_edition TEXT, UNIQUE(document_id,source_key));
       CREATE INDEX IF NOT EXISTS text_language ON texts(language,document_id);
       CREATE INDEX IF NOT EXISTS text_source_url ON texts(source_url);
       CREATE INDEX IF NOT EXISTS text_status_metadata ON texts(document_id,language,chars);
@@ -154,9 +155,10 @@ export class CorpusStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
       const initialize=this.get('resourceIndexes')!==1;
-      if((initialize||this.get('questionDiscoveryVersion')!==1)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if((initialize||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
+      if(this.get('corpusTextVersion')!==corpusTextVersion){prepareCorpusTexts(this.db);this.set('corpusTextVersion',corpusTextVersion);initialized=true;}
       if(initialize) {
         this.db.exec('CREATE TABLE IF NOT EXISTS speech_catalog_dirty (source_id TEXT PRIMARY KEY)');
         for(const sql of [
@@ -246,18 +248,18 @@ export class CorpusStore {
         .run(document.sourceId,document.kind,document.parentId||null,document.date||null,document.term??null,JSON.stringify(document.originalLanguages||[]));
       const id=this.db.prepare('SELECT id FROM documents WHERE source_id=?').get(document.sourceId).id;
       const existing=this.db.prepare('SELECT id,sha256 FROM texts WHERE document_id=? AND source_key=?');
-      const insert=this.db.prepare(`INSERT INTO texts(document_id,language,source_key,translation_type,source_format,source_url,fetched_at,checked_at,sha256,chars,body,raw) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
-      const update=this.db.prepare(`UPDATE texts SET language=?,translation_type=?,source_format=?,source_url=?,fetched_at=?,checked_at=?,sha256=?,chars=?,body=?,raw=? WHERE id=?`);
+      const insert=this.db.prepare(`INSERT INTO texts(document_id,language,source_key,translation_type,source_format,source_url,fetched_at,checked_at,sha256,chars,body,raw,source_edition) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      const update=this.db.prepare(`UPDATE texts SET language=?,translation_type=?,source_format=?,source_url=?,fetched_at=?,checked_at=?,sha256=?,chars=?,body=?,raw=?,source_edition=? WHERE id=?`);
       // Same text from a replacement file: keep the body and its FTS entry, update the link.
-      const confirm=this.db.prepare('UPDATE texts SET checked_at=?,translation_type=?,language=?,source_format=?,source_url=? WHERE id=?');
+      const confirm=this.db.prepare('UPDATE texts SET checked_at=?,translation_type=?,language=?,source_format=?,source_url=?,source_edition=? WHERE id=?');
       for(const text of texts) {
         const hash=sha((text.raw ?? text.body)), old=existing.get(id,text.sourceKey);
         observeSource(this,{sourceId:document.sourceId,family:document.kind==='speech'?'speeches':document.kind==='answer'?'answers':'questions',stage:'text',language:text.language,variant:text.sourceKey,date:document.date,fetchedAt:text.fetchedAt,url:text.sourceUrl,acquisition,existed:Boolean(old)});
-        if(old?.sha256===hash){confirm.run(text.fetchedAt,text.translationType,text.language,text.sourceFormat,text.sourceUrl,old.id);continue;}
+        if(old?.sha256===hash){confirm.run(text.fetchedAt,text.translationType,text.language,text.sourceFormat,text.sourceUrl,text.sourceEdition==null?null:JSON.stringify(text.sourceEdition),old.id);continue;}
         const raw=text.raw==null?null:zstdCompressSync(Buffer.from(text.raw));
-        const values=[text.language,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw];
+        const values=[text.language,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw,text.sourceEdition==null?null:JSON.stringify(text.sourceEdition)];
         if(old)update.run(...values,old.id);
-        else insert.run(id,text.language,text.sourceKey,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw);
+        else insert.run(id,text.language,text.sourceKey,text.translationType,text.sourceFormat,text.sourceUrl,text.fetchedAt,text.fetchedAt,hash,text.body.length,text.body,raw,text.sourceEdition==null?null:JSON.stringify(text.sourceEdition));
       }
       if(document.kind==='speech')this.db.prepare('UPDATE speech_catalog SET revision=? WHERE source_id=?').run(this.nextSpeechRevision(),document.sourceId);
       finishAvailabilityWrite(this);
@@ -584,7 +586,7 @@ export class CorpusStore {
   text(params){return this.snapshot(()=>this.textSnapshot(params));}
   textSnapshot({sourceId,sourceKey,query=null,highlightBytes=CORPUS_LIMITS.highlightBytes,highlightRangeLimit=CORPUS_LIMITS.highlightRanges}) {
     const row=this.db.prepare(`SELECT d.source_id,d.kind,d.parent_id,d.date,d.original_languages,
-      t.source_key,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,t.checked_at,t.sha256,t.body
+      t.source_key,t.language,t.translation_type,t.source_format,t.source_url,t.fetched_at,t.checked_at,t.sha256,t.body,t.source_edition
       FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=? AND t.source_key=?`).get(sourceId,sourceKey);
     if(!row)return null;
     const match=query===null?null:corpusQuery(query);
@@ -594,7 +596,7 @@ export class CorpusStore {
     // Large texts keep one body plus exact UTF-16 match ranges. Duplicating a
     // multilingual body can otherwise exceed the API response budget.
     const highlights=query===null?{}:Buffer.byteLength(JSON.stringify(highlighted))<=highlightBytes?{highlightedBody:highlighted}:matchRanges(highlighted,highlightRangeLimit);
-    return {...this.variant(row),originalLanguages:parse(row.original_languages),checkedAt:row.checked_at,body:row.body,...highlights};
+    return {...this.variant(row),originalLanguages:parse(row.original_languages),checkedAt:row.checked_at,sourceVersion:parse(row.source_edition),body:row.body,...highlights};
   }
 
   variant(row) {

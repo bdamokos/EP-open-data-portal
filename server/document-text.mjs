@@ -22,7 +22,11 @@ import {sourceIndex,OBJECT_REPLACEMENT,symbolText,skippedCounterRisk,documentStr
 import {styleFormatting,paragraphFormat,tableLayout,documentFormatting,DOCX_FORMATTING_VERSION as FORMATTING_VERSION} from './docx-formatting.mjs';
 import {documentAuthorIdentities} from './document-authors.mjs';
 import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
-export const DOCUMENT_TEXT_VERSION=3;
+import {questionPdf,downloadQuestionPdf} from './question-pdf.mjs';
+import {invalidDocx,pdfFallbackEligible} from './document-file-failure.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
+export const DOCUMENT_TEXT_VERSION=7;
+const failureEvidence=Symbol('document failure');
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
 
@@ -47,7 +51,7 @@ function diskBudget(directory){
 function fileDescriptor(work,url){
   for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
     let href=null;try{href=new URL(m.is_exemplified_by,'https://data.europarl.europa.eu/').href;}catch{}
-    if(href===url)return {byteSize:m.byteSize!=null&&m.byteSize!==''&&Number.isFinite(Number(m.byteSize))?Number(m.byteSize):null,issued:typeof m.issued==='string'&&Number.isFinite(Date.parse(m.issued))?m.issued:null};
+    if(href===url)return documentFileEdition(m);
   }
   return {byteSize:null,issued:null};
 }
@@ -363,7 +367,7 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
     if(limited){response.resume();throw limited;}
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
     if(response.statusCode!==200){response.resume();const hint=response.headers['retry-after'];throw Object.assign(new Error(`Official document download unavailable (${response.statusCode}).`),{status:response.statusCode,retryAfter:hint?retryAfterSeconds(hint):0});}
-    if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw new Error('Unexpected document download format.');}
+    if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw Object.assign(new Error('Unexpected document download format.'),{code:'unexpected_document_format'});}
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
     if(Number.isSafeInteger(expectedByteSize)&&expectedByteSize>=0&&size!==expectedByteSize)throw new Error('Official document size does not match the selected edition.');
@@ -373,7 +377,8 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
 }
 export async function downloadDocx(sourceUrl,options={}) {
   const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
-  return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};
+  try{return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};}
+  catch(error){throw invalidDocx(error);}
 }
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
@@ -385,33 +390,38 @@ export function documentNotes(record) {
     &&record.links.every(link=>Number.isInteger(link?.paragraph)&&link.paragraph>=0&&link.paragraph<paragraphs.length&&validSpan(link,paragraphs[link.paragraph]));
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
-export async function documentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false}={}) {
+async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false,format='DOCX',selectedFile=null}={}) {
+  const extractionVersion=format==='PDF'?4:EXTRACTION_VERSION;
   requestSignal()?.throwIfAborted();
-  const files=documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
+  const files=selectedFile?[selectedFile]:documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
   const originals=array(work.originalLanguage).map(languageCode);
   const chosen=files.find(f=>f.language===languages[0]) || files[0];
   const adoptedTextXml=adoptedTextXmlSources(work,chosen?.language??language);
   const base={status:'unavailable',paragraphs:[],authorBylineParagraphs:[],extractionWarnings:[],notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[],
     structureStatus:'not-extracted',paragraphSources:[],documentObjects:[],formatStatus:'not-extracted',paragraphFormats:[],tables:[],extractionVersion:null,sourceVersion:null,
-    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?'DOCX':null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?'official-docx-paragraphs':null,
+    textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?format:null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?(format==='PDF'?'official-pdf-text':'official-docx-paragraphs'):null,
     ...(adoptedTextXml?{adoptedTextXml}:{})};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
-  const key=chosen.url,name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
-  const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,key);
+  const sourceId=work.identifier||tail(work.id),sourceUrl=chosen.url;
+  const key=format==='PDF'?JSON.stringify(['pdf',sourceId,chosen.language,sourceUrl]):sourceUrl;
+  const name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
+  const budget=directory?diskBudget(directory):null,descriptor=format==='PDF'?documentFileEdition(chosen):fileDescriptor(work,sourceUrl);
   let saved=memory.get(key);
   if(saved)budget?.used(name);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===EXTRACTION_VERSION && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;remember(key,record);budget.used(name);}}catch{}
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===extractionVersion && record.sourceUrl===sourceUrl
+    &&(format!=='PDF'||record.sourceId===sourceId&&record.sourceLanguage===chosen.language&&record.sourceFormat==='PDF')
+    &&Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;remember(key,record);budget.used(name);}}catch{}
   requestSignal()?.throwIfAborted();
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(key,{signal});signal.throwIfAborted();const record={schemaVersion:1,extractionVersion:EXTRACTION_VERSION,sourceId:work.identifier || tail(work.id),sourceUrl:key,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(sourceUrl,{signal});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
       if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
       remember(key,record);failures.delete(key);return record;
-    },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:clock()+30000,message:String(error.message).slice(0,250)});throw error;}).finally(()=>pending.delete(key));
+    },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(key));
     pending.set(key,job);return job;
   };
   // The URL can be reused for a republished edition. Its predecessor's failed
@@ -420,15 +430,29 @@ export async function documentText(work,language,{directory=process.env.ODP_CACH
   const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
   const failure=changedEdition?null:previousFailure;
   const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory}),sourceHash:record.sourceHash||null,
-    extractionVersion:record.extractionVersion,sourceVersion:record.source||null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
+    extractionVersion:record.extractionVersion,sourceVersion:record.source?{...record.source,...(format==='PDF'?{observedByteSize:record.observedByteSize,byteSizeMatches:record.byteSizeMatches}:{} )}:null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
   // Keep saved text readable while a background read adds formatting/byline metadata.
-  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
+  if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=format==='DOCX'&&(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
     if((stale||reformat) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
       void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});
     }return {...await present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
-  if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString()};
+  if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString(),[failureEvidence]:failure};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
-  catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString()};}
+  catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString(),[failureEvidence]:error};}
+}
+
+// A readable DOCX remains preferred. Only a declared PDF of that same language
+// can replace a missing/broken question file; upstream failures do not fan out.
+export async function documentText(work,language,options={}) {
+  const result=await readDocumentText(work,language,options);
+  if(result.status==='available'||result.status==='error'&&!pdfFallbackEligible(result[failureEvidence]))return result;
+  const available=documentFiles(work).filter(f=>f.format==='PDF').map(f=>f.language).filter(Boolean);
+  const chosen=result.textLanguage||languagePreference(available,language)[0];
+  const file=questionPdf(work,chosen);
+  if(!file||Date.parse(file.issued)>(options.clock||Date.now)())return result;
+  const fallback=await readDocumentText(work,language,{...options,format:'PDF',selectedFile:file,
+    download:(_url,{signal})=>(options.downloadPdf||downloadQuestionPdf)(file,{signal})});
+  return {...fallback,availableTextLanguages:languagePreference([...result.availableTextLanguages,...available.filter(code=>questionPdf(work,code))],language)};
 }
