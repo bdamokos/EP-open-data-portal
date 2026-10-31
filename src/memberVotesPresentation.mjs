@@ -5,7 +5,7 @@ export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}
   if(context)return null;
   if(decisionId){
     const vote=data.selected?.status==='found'&&data.selected.item?.id===decisionId?data.selected.item:null;
-    if(!vote)return data.coverage.status==='partial'?ui.t("membervotespresentation.partial_coverage"):null;
+    if(!vote)return null; // The selected-vote pane names the unavailable decision.
     if(vote.sourceConflicts||vote.evidenceGaps?.some(gap=>['missing-result','conflicting-result-source','conflicting-decision-source'].includes(gap.code)))return ui.t("membervotespresentation.vote_result_incomplete");
     return null;
   }

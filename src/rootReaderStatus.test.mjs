@@ -91,7 +91,7 @@ test('inline full-text results replace the list, combine with exact chair record
   const h=await harness(t,{module:'speeches',items:[speechItem],summary,search:'energy'});
   await act(async()=>{});
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
-  assert.match(h.container.querySelector('.explorer-search-count')?.textContent||h.container.textContent,/0 matching documents · Partial coverage/);
+  assert.match(h.container.querySelector('.explorer-search-count')?.textContent||h.container.textContent,/Matching documents: 0/);
   assert.equal(h.searches.at(-1).member,member.id);assert.deepEqual(h.searches.at(-1).kinds,['speech']);
   await h.click(h.container.querySelector('a[aria-label^="Chairing contributions:"]'));
   assert.deepEqual(h.searches.at(-1).sourceIds,[speechId]);
@@ -144,7 +144,7 @@ for(const outcome of ['unavailable','empty'])test('category transcript search di
     assert.equal(h.container.querySelector('.explorer-search-count'),null);
   }else{
     assert.equal(h.searches.length,1);assert.deepEqual(h.searches[0].sourceIds,[]);
-    assert.match(h.container.querySelector('.explorer-search-count').textContent,/0 matching documents/);
+    assert.match(h.container.querySelector('.explorer-search-count').textContent,/Matching documents: 0/);
   }
   const clear=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Clear category');clear.focus();
   await h.click(clear);

@@ -576,8 +576,8 @@ test('coverage notice names incomplete sitting days and leaves unaffected detail
   const item=vote(1,{context:{...vote(1).context,documentIds:[DOCUMENT]}});
   const h=await mount(t,{state:{week:WEEK,expandedSubjectIds:[SUBJECT]},handler:url=>Response.json(responseFor(url,{items:[item],coverage:{status:'partial',collectionComplete:false,incompleteSittingIds:[SITTING],sittings:[{sittingId:SITTING,date:SITTING.slice(7),state:'partial',observedDecisionCount:1}]}}))});
   assert.equal(h.container.querySelector('.member-votes-notice').textContent,'Incomplete voting records · 25 Mar 2026');
-  assert.match(h.container.querySelector('.member-votes-tools').textContent,/Partial coverage/);
-  assert.match(h.container.querySelector('.member-votes-alignment').textContent,/Partial coverage/);
+  assert.doesNotMatch(h.container.querySelector('.member-votes-tools').textContent,/Partial coverage/);
+  assert.doesNotMatch(h.container.querySelector('.member-votes-alignment').textContent,/Partial coverage/);
   await act(async()=>h.container.querySelector('[data-vote-id]').click());
   assert.equal(h.container.querySelector('.member-votes-notice'),null);
   await h.click('Read report · '+DOCUMENT);
@@ -800,7 +800,7 @@ for(const coverage of ['complete','partial','unavailable'])test('alignment empty
   const h=await mount(t,{state:{week:WEEK,alignment:'against'},handler:url=>Response.json(responseFor(url,{items:[],coverage:{status:coverage},alignmentCounts:coverage==='unavailable'?null:{with:0,against:0,abstained:0,unclassified:0}}))});
   const text=h.container.textContent;
   if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
-  if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week · Partial coverage/);}
+  if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week/);}
   if(coverage==='unavailable'){
     assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(Unavailable\)/);
     assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);

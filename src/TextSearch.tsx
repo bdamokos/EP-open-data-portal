@@ -150,7 +150,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
       {loading&&<p role="status" className="explorer-search-status"><UiMessage id="textsearch.searching"/></p>}
       {error&&<p role="alert" className="explorer-search-status">{error} <button className="explorer-search-link" type="button" onClick={()=>setAttempt(v=>v+1)}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
       {data&&<div className="explorer-search-results" aria-busy={loading}>
-        <p role="status" className="explorer-search-count"><UiMessage id={group==='question'?'textsearch.count_matching_questions_coverage':'textsearch.count_matching_documents_coverage'} values={{count:<span lang={language}>{data.total.toLocaleString(language)}</span>,coverage:ui.t(data.coverage.backfillComplete||data.coverage.complete?'textsearch.available_texts':'membervotespresentation.partial_coverage')}} counts={{count:data.total}}/></p>
+        <p role="status" className="explorer-search-count"><UiMessage id={group==='question'?'coverage.matchingQuestions':'coverage.matchingDocuments'} values={{count:<span lang={language}>{data.total.toLocaleString(language)}</span>}} counts={{count:data.total}}/></p>
         {!data.total&&<p><UiMessage id="textsearch.no_matches_in_available_text_try_another_phrase_language_or_"/></p>}
         {data.results.map(result=>{
           const sources=[...new Set(result.hits.map(hit=>hit.sourceId))];

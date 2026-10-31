@@ -66,7 +66,7 @@ for(const [label,initialOffset,destination] of [['Next',0,25],['Previous',25,0]]
   assert.equal(new URL(location.href).searchParams.get('q-range'),'2026-10-01_2026-10-11');
   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,400));});
   assert.match(h.status().textContent,new RegExp('27 questions match these filters. Showing '+(destination+1)+' to '+(destination?27:25)));
-  assert.match(h.status().textContent,/Question archive incomplete/);
+  assert.doesNotMatch(h.status().textContent,/Question archive incomplete/);
   await h.flushFrames();assert.equal(document.activeElement,h.resultHeading(),'no late callback refocuses the removed pagination control');
   assert.equal(h.reveals.length,1,'settled statuses and late callbacks do not repeat the destination reveal');
 });

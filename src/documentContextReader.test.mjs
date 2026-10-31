@@ -911,14 +911,15 @@ test('overlays preserve surrounding paragraph formatting and complete source tab
 for(const [name,status,stale,refreshError] of [
   ['saved','available',true,null],
   ['refresh failed','available',false,'download-failed'],
-  ['partial','partial',false,null],
-  ['partial saved','partial',true,'download-failed'],
+  ['stale metadata','partial',false,null],
+  ['stale content','partial',true,'download-failed'],
 ])test(`proposal ${name} distinguishes saved text from unavailable content`,async t=>{
   const value=proposalContextResponse(report,amendment,list,7);
-  value.baseline.status=status;value.baseline.items[0].source={...value.baseline.items[0].source,stale,refreshError};
+  value.baseline.status=status;value.baseline.gaps=status==='partial'?['stale-metadata','stale-content']:[];value.baseline.items[0].source={...value.baseline.items[0].source,stale,refreshError};
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
-  assert.equal(notices.includes('Some proposal content is unavailable.'),status==='partial');
+  assert.equal(notices.includes('Some proposal content is unavailable.'),false,'a stale observation does not mean missing text');
+  assert.doesNotMatch(notices.join(' '),/Partial text|Document files not loaded/);
   assert.equal(notices.includes('Couldn’t update the proposal. Showing saved text.'),!!refreshError);
   assert.equal(notices.includes('Showing saved proposal text.'),stale&&!refreshError);
   assert(!h.container.textContent.includes('authoritative'));assert(!h.container.textContent.includes('consolidated'));
@@ -926,6 +927,22 @@ for(const [name,status,stale,refreshError] of [
   assert.equal(h.container.querySelector('.document-context-document>.document-context-source:last-child').textContent,'Legal text © European Union.');
 });
 
+
+test('proposal content gaps name missing files without counting saved-text freshness warnings',async t=>{
+  const value=proposalContextResponse(report,amendment,list,7);
+  value.baseline.status='partial';value.baseline.gaps=[
+    {code:'download-failed',itemId:'annex-1'},
+    {code:'parse-failed',itemId:'annex-1'},
+    {code:'download-failed',itemId:'annex-2'},
+    {code:'stale-content',itemId:'act'},
+    {code:'bundle-too-large'},
+  ];
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
+  assert(notices.includes('Document files not loaded: 2.'));
+  assert(notices.includes('Document file limit reached.'));
+  assert(h.container.querySelector('[data-amendment-block] del'),'readable text remains usable');
+});
 
 for(const [name,mutate] of [
   ['nested document ID',d=>{d.document.id=otherAdopted;}],

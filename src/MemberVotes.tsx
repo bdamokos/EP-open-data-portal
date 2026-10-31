@@ -53,9 +53,9 @@ export function votePageSummary(data:MemberVotesResponse, positions:string, ui:i
   const prefix=(page.mode==='period') ? 'count' : (page.returned ? 'start.end.of.total' : '0');
   const unit=(positions==='recorded') ? 'recorded.positions' : 'decisions';
   const recorded=(page.recordedTotal!==null) ? '.recordedcount.with.a.recorded.position' : '';
-  const partial=(data.coverage.status==='partial') ? '.partial.coverage' : '';
+  const partial='';
   const reviewedRecorded=(ui.language==='ro'||ui.language==='lt')&&positions==='recorded'&&page.recordedTotal!==null;
-  const id=reviewedRecorded ? `membervotes.summary.recorded.${page.mode==='period'?'period':page.returned?'page':'emptyPage'}${data.coverage.status==='partial'?'.partial':''}` : (((prefix==='count') && (!recorded)) && (!partial)) ? (`membervotes.tsx.count.${unit}`) : (`batch2.membervotes.tsx.${prefix}.${unit}${recorded}${partial}`);
+  const id=reviewedRecorded ? `membervotes.summary.recorded.${page.mode==='period'?'period':page.returned?'page':'emptyPage'}` : (((prefix==='count') && (!recorded)) && (!partial)) ? (`membervotes.tsx.count.${unit}`) : (`batch2.membervotes.tsx.${prefix}.${unit}${recorded}${partial}`);
   return ui.t(id, {
     count:page.filteredTotal, start:page.offset+1, end:page.offset+page.returned,
     total:page.filteredTotal, ...(page.recordedTotal===null?{}:{recordedCount:page.recordedTotal}),

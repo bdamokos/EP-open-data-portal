@@ -63,6 +63,7 @@ function mergeCoverage(before,after,unavailableStatus=null) {
   const otherPartial=[before,after].some(coverage=>coverage.checkedComplete===false||coverage.checkedComplete===undefined&&coverage.status==='partial'&&!coverage.uncheckedTargets?.length);
   return {...after,status:unavailableStatus||(gaps.length||uncheckedTargets.length||otherPartial?'partial':'complete'),checkedComplete:!otherPartial&&!unavailableStatus,checkedTargets,uncheckedTargets,gaps,
     retryable:Boolean(before.retryable||after.retryable),failedDebates:[...new Set([...(before.failedDebates||[]),...(after.failedDebates||[])])],
+    unresolvedChildIds:[...new Set([...(before.unresolvedChildIds||[]),...(after.unresolvedChildIds||[])])],
     missingSpeechIds:[...new Set([...(before.missingSpeechIds||[]),...(after.missingSpeechIds||[])])],retained:Boolean(before.retained||after.retained),
     sources:[...new Map([...before.sources,...after.sources].map(source=>[JSON.stringify(source),source])).values()]};
 }

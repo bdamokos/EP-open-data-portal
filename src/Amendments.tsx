@@ -193,7 +193,6 @@ export function AmendmentCard({item,language,onMember,showOutcome=true,memberId,
       <AmendmentSources sources={item.sources||[]} language={language}/>
       {((item.scope!=='committee') && item.procedureIds?.length) ? <p><UiMessage id="amendments.procedures_references.54e0fa" values={{references: item.procedureIds.map((reference,index)=><Fragment key={reference}>{index ? ', ' : ''}<span lang="">{reference}</span></Fragment>)}}/></p> : null}
       {item.topics?.length ? <ul>{item.topics.map(topic=><li key={topic.id}><>{<span lang={topic.language??''}>{topic.label}</span>} {<small>· {(topic.basis==='dossier') ? ui.t("amendments.dossier_subject.d03afd") : ui.t("amendments.target_provision.5a9506")}</small>}</></li>)}</ul> : null}
-      {item.gaps?.length ? <p className="explorer-amendment-secondary"><UiMessage id="membervotespresentation.partial_coverage"/></p> : null}
     </details>}
   </article>;
 }

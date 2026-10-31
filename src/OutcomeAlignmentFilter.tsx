@@ -10,6 +10,6 @@ export function OutcomeAlignmentFilter({value,counts,coverage,sitting,onChange}:
     <div className="member-votes-filter member-votes-alignment-controls" role="group" aria-label={ui.t("outcomealignmentfilter.agreement_with_parliament_s_outcome")} aria-describedby={id}>
       {choices.map(([key,label])=><button type="button" key={key} data-vote-alignment={key} aria-pressed={value===key} onClick={()=>onChange(key)}>{label}{key!=='all'&&` (${(counts===null) ? ui.t('grouplabels.ts.unavailable') : counts[key]})`}</button>)}
     </div>
-    <p id={id} className="member-votes-muted">{(counts===null) ? ui.t("outcomealignmentfilter.counts_unavailable") : ui.t(sitting ? (coverage==='partial'?'outcomealignmentfilter.counts_on_this_sitting_day_partial_coverage':'outcomealignmentfilter.counts_on_this_sitting_day') : (coverage==='partial'?'outcomealignmentfilter.counts_in_this_week_partial_coverage':'outcomealignmentfilter.counts_in_this_week'))}</p>
+    <p id={id} className="member-votes-muted">{(counts===null) ? ui.t("outcomealignmentfilter.counts_unavailable") : ui.t(sitting ? 'outcomealignmentfilter.counts_on_this_sitting_day' : 'outcomealignmentfilter.counts_in_this_week')}</p>
   </div>;
 }

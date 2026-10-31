@@ -73,7 +73,10 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
     </header>
     {data&&<>
       {data.state==='mapped'&&<>
-        {partial(data.coverage)&&<p className="procedure-progress-status">{data.coverage.limited ? <UiMessage id="batch6.procedureprogress.timeline.incomplete.68"/> : <UiMessage id="membervotespresentation.partial_coverage"/>}</p>}
+        {data.coverage.limited&&<p className="procedure-progress-status"><UiMessage id="coverage.timelineLimit" values={{count:events.length}}/></p>}
+        {data.coverage.invalidRows>0&&<p className="procedure-progress-status"><UiMessage id="coverage.timelineUnreadable" values={{count:data.coverage.invalidRows}}/></p>}
+        {data.coverage.incompleteEvents>0&&<p className="procedure-progress-status"><UiMessage id="coverage.eventsIncomplete" values={{count:data.coverage.incompleteEvents}}/></p>}
+        {data.coverage.timeline==='unavailable'&&<p className="procedure-progress-status"><UiMessage id="coverage.earlierTimeline"/></p>}
         {events.length>0&&<div className="procedure-progress-overview">
           {latest ? <p className="procedure-progress-latest">{latest.institutions.length>0&&<EventInstitutions event={latest}/>}<strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p> : <p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.no.dated.milestone.70"/></p>}
           <button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{expanded ? <UiMessage id="batch6.procedureprogress.hide.timeline.71"/> : <UiMessage id="batch6.procedureprogress.show.timeline.71"/>}</button>
@@ -86,7 +89,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
             <p className="procedure-progress-muted" role="status"><UiMessage id={data.coverage.limited?'batch6.procedureprogress.count.events.in.this.selection.incomplete.78':'batch6.procedureprogress.count.events.in.this.selection.78'} values={{count:visible.length}}/></p>
             <ol className="procedure-progress-timeline">{visible.map(event=><li key={event.id} className={(event.status==='projected') ? 'procedure-progress-scheduled' : undefined}>
               <div className="procedure-progress-event-date">{event.date ? <EventDate event={event} language={language}/> : <span><UiMessage id="dossieractivity.date_unavailable"/></span>}</div><EventInstitutions event={event}/><div className="procedure-progress-event-detail"><Status event={event} today={today}/><h4><EventName event={event}/></h4>
-                {event.issues.length>0&&<p className="procedure-progress-muted"><UiMessage id="batch6.procedureprogress.partial.details.81"/></p>}
+                {event.issues.some(issue=>['type','label','status'].includes(issue))&&<p className="procedure-progress-muted">{[...new Set(event.issues.map(issue=>({type:ui.t('coverage.eventType'),label:ui.t('coverage.eventDescription'),status:ui.t('coverage.eventStatus')} as Record<string,string>)[issue]).filter(Boolean))].join(' · ')}</p>}
                 {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docFreshness.stale||docFreshness.failed)&&!documents.loading&&docRetryAt<=Date.now())documents.retry();}}}><summary><UiMessage id="batch6.procedureprogress.documents.82"/></summary>
                   {documents.loading&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.loading.document.links.83"/></p>}
                   {documents.error&&!docData&&<p role="status"><UiMessage id="batch6.procedureprogress.document.links.unavailable.84"/> <button type="button" onClick={documents.retry} disabled={docRetryAt>Date.now()}><UiMessage id="commissionfollowups.try_again"/></button></p>}
