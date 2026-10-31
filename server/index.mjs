@@ -1,5 +1,6 @@
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
+import {portraitRenditions} from './portrait-renditions.mjs';
 import {followingDossiers} from './follow-dossiers.mjs';
 import {followingResponse} from './insights-following.mjs';
 import {savedPostQuery,savedStates} from './insights-saved.mjs';
@@ -134,7 +135,8 @@ async function handleApi(request,response,url,apiPrefix){
    throw new HttpError(400,'invalid_api_version','v must be a single positive integer.');
  const segments=routeSegments(url.pathname,apiPrefix);
  // Keep current API-versioned URLs working for clients from before the split.
- const currentVersion=versions[0]===String(API_VERSION)||segments.length===2&&segments[0]==='portrait'&&versions[0]===String(PORTRAIT_VERSION);
+ const portraitRoute=segments.length===2&&segments[0]==='portrait';
+ const currentVersion=versions[0]===String(API_VERSION)||portraitRoute&&[String(PORTRAIT_VERSION),'1'].includes(versions[0]);
  url.searchParams.delete('v');
  if(versions.length && !currentVersion){
    sendJson(request,response,409,{error:{code:'api_version_mismatch',message:'A new version of the explorer is available.',apiVersion:API_VERSION}});
@@ -152,7 +154,8 @@ async function handleApi(request,response,url,apiPrefix){
     if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
     if (segments.length === 2 && segments[0] === "portrait") {
-      const image = await odpPortrait(positiveId(segments[1]));
+      const original = await odpPortrait(positiveId(segments[1]));
+      const image = versions[0] === String(PORTRAIT_VERSION) ? await portraitRenditions.get(original) : original;
       setCommonSecurityHeaders(response);
       const policy = request.headers.authorization ? {cacheControl: 'no-store', cdnCacheControl: 'no-store'} : portraitCachePolicy(image);
       const etag = `"${createHash('sha256').update(image.body).digest('base64url')}"`;

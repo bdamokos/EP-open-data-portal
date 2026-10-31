@@ -40,7 +40,7 @@
 /* Photo above the complete name; long names wrap below instead of covering the face. */
 .explorer .explorer-portrait-item .portrait { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; width: 100%; height: auto; padding: 0; border: 0; border-radius: var(--radius); background: transparent; overflow: visible; }
 .explorer .explorer-portrait-item .portrait:hover:not(:disabled) { background: transparent; }
-.explorer-portrait-item .portrait img { width: 100%; height: auto; aspect-ratio: 6 / 7; border-radius: var(--radius); background: var(--surface-2); }
+.explorer-portrait-item .portrait__photo { height: auto; aspect-ratio: 6 / 7; border-radius: var(--radius); }
 .explorer-portrait-item .portrait:hover img { filter: brightness(.94); }
 .explorer-portrait-item .portrait:hover .portrait__label strong:last-child { text-decoration: underline; text-underline-offset: 3px; }
 .explorer-portrait-item .portrait__label { position: static; grid-area: 2 / 1; min-width: 0; width: 100%; }
