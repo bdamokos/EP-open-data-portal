@@ -18,6 +18,7 @@ export interface DirectoryMember extends MemberSummary {
   hasNews?:boolean|null;
   hasVideo?:boolean|null;
   memberships: Membership[] | null;
+  organizationMemberships?: Membership[] | null;
 }
 export interface Committee {
   id: string;

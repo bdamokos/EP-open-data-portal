@@ -6,7 +6,7 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 // Synthetic directory: each unrelated row exercises one of the URL facets.
-const makeMember=(id,firstName,lastName,role,overrides={})=>({id,firstName,lastName,sortName:lastName+' '+firstName,gender:'',countryCode:'HU',groupCode:'PfE',memberships:[{id:'6567',role,classification:'COMMITTEE',current:true}],accounts:[],...overrides});
+const makeMember=(id,firstName,lastName,role,overrides={})=>({id,firstName,lastName,sortName:lastName+' '+firstName,gender:'',countryCode:'HU',groupCode:'PfE',memberships:[{id:'6567',role,classification:'COMMITTEE',current:true}],organizationMemberships:[{id:id===2||id===4?'6831':'9999',current:true}],accounts:[],...overrides});
 const members=[
   makeMember(1,'Tamás','Deutsch','MEMBER'),
   makeMember(2,'Annamária','Vicsek','MEMBER_SUBSTITUTE'),
@@ -31,6 +31,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
   });
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href);
+    if(url.pathname==='/api/profile/1')return Response.json({...members[0],currentAffiliation:{status:'matched',day:'2026-10-31'},membershipHistory:{observationAvailable:true,observationComplete:true,items:[{index:0,section:'national-parties',bodyId:'org/6831',role:'def/ep-roles/MEMBER',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',start:'2024-07-16',end:null,body:{prefLabel:{en:'Example party'}}}]}});
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
@@ -108,3 +109,16 @@ test('opening and leaving an MEP from the member wall are Back/Forward steps',as
   assert.equal(history.length,length+2,'leaving the MEP adds one history entry');h.agree('member');
   await h.go(-1);assert.equal(location.href,profile);assert(h.container.querySelector('.explorer-profile'));
 });
+
+ test('profile organisation link clears unrelated facets and Back restores the profile',async t=>{
+  const h=await harness(t,'member=1&module=profile&'+selection+'&role=substitute');
+  const link=[...h.container.querySelectorAll('a')].find(a=>a.textContent==='Example party');assert(link);
+  await act(async()=>link.click());await viewReady(h.container);
+  assert.equal(new URLSearchParams(location.search).get('organization'),'6831');
+  for(const key of ['member','committee','group','country','role'])assert.equal(new URLSearchParams(location.search).get(key),null,key);
+  assert.deepEqual([...h.container.querySelectorAll('[data-member-id]')].map(n=>Number(n.dataset.memberId)),[4,2]);
+  await h.go(-1);await viewReady(h.container);assert.equal(new URLSearchParams(location.search).get('member'),'1');
+  await h.go(1);await viewReady(h.container);assert.equal(new URLSearchParams(location.search).get('organization'),'6831');
+  await act(async()=>h.container.querySelector('.explorer-organization-filter button').click());
+  assert.equal(new URLSearchParams(location.search).get('organization'),null);
+ });

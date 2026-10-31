@@ -1,9 +1,11 @@
+import {membershipHref,organizationId} from './memberFilters.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import type {Committee,MemberProfile} from './explorerTypes';
 import {Period} from './Period';
 import {committeeOrder,orderedMemberships} from './memberships.mjs';
 
-export function CommitteeMemberships({profile,committees,lang,roleName,date,retry}:{
+export function CommitteeMemberships({profile,committees,lang,roleName,date,retry,onOrganization}:{
+  onOrganization?:(id:string,name:string)=>void;
   profile:MemberProfile;committees:Committee[];lang:string;roleName:(role:string)=>string;date:(value:string,lang:string)=>string;retry:()=>void;
 }) {
   const ui = useUiI18n();
@@ -24,8 +26,8 @@ export function CommitteeMemberships({profile,committees,lang,roleName,date,retr
       const name=names[lang] ? ({text:names[lang],language:lang}) : (names.en ? ({text:names.en,language:'en'}) : null);
       const periods=card.periods.slice().reverse();
       return <section className="explorer-membership" key={card.identity} aria-label={body?.code||card.code}>
-        <strong><span lang="">{body?.code||card.code}</span>{currentRosterMatched&&card.roles.length>0&&<> · <span lang={card.roles.every(role=>ranks.includes(role)) ? lang : ''}>{card.roles.map(roleName).join(' / ')}</span></>}</strong>
-        {name&&<p lang={name.language}>{name.text}</p>}
+        <strong>{organizationId(card.id) ? <a lang="" href={membershipHref(card.id,lang,name?.text||body?.code||card.code)} onClick={event=>{if(onOrganization&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();onOrganization(card.id,name?.text||body?.code||card.code);}}}>{body?.code||card.code}</a> : <span lang="">{body?.code||card.code}</span>}{currentRosterMatched&&card.roles.length>0&&<> · <span lang={card.roles.every(role=>ranks.includes(role)) ? lang : ''}>{card.roles.map(roleName).join(' / ')}</span></>}</strong>
+        {name&&<p lang={name.language}>{organizationId(card.id) ? <a href={membershipHref(card.id,lang,name?.text||body?.code||card.code)} onClick={event=>{if(onOrganization&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();onOrganization(card.id,name.text);}}}>{name.text}</a> : name.text}</p>}
         <ol className="explorer-membership-periods" aria-label={ui.t("committeememberships.tsx.roles.in.this.committee")} lang={ui.language}>
           {periods.map((p,i)=><li key={i} className={(currentRosterMatched && p.current) ? 'is-current' : ''}>
             <span className="explorer-membership-role" lang={ranks.includes(p.role) ? lang : ''}>{roleName(p.role)}</span>

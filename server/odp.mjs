@@ -571,6 +571,19 @@ export function memberships(person, day) {
       current: validDuring(m.memberDuring, day),
     }));
 }
+const validOrganizationDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
+const currentOrganizationMembership=(row,day)=>validOrganizationDate(row.start)&&row.start<=day&&(row.end==null||validOrganizationDate(row.end)&&row.end>=day);
+// Exact temporal body IDs; no name/code/canonical-family expansion.
+export function organizationMemberships(person, day=today()) {
+  if(!Array.isArray(person.hasMembership))return null;
+  return person.hasMembership.flatMap(m=>{
+    const id=typeof m?.organization==='string'?m.organization.replace(/^https:\/\/data\.europarl\.europa\.eu\//,''):'';
+    if(!/^org\/(?:[1-9]\d*|ep-[1-9]\d*)$/.test(id))return [];
+    const start=m.memberDuring?.startDate,end=m.memberDuring?.endDate;
+    return [{id:id.slice(4),membershipId:m.id||null,role:tail(m.role),classification:tail(m.membershipClassification),start:start??null,end:end??null,
+      current:currentOrganizationMembership({start,end},day)}];
+  });
+}
 export function memberSummary(p) {
   return {
     id: Number(p.identifier),
@@ -597,8 +610,8 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 6;
+export const DIRECTORY_VERSION = 3;
+export const PROFILE_VERSION = 7;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -805,6 +818,7 @@ async function loadProfile(id, force = false, {priority='interactive'}={}) {
     parliamentaryService: parliamentaryService(person,day,affiliationError?'unavailable':current?'matched':'not-current'),
     email: firstString(person.hasEmail).replace(/^mailto:/, ""),
     memberships: memberships(person),
+    organizationMemberships: organizationMemberships(person),
     accounts: (person.account || []).map((a) => a.id),
     fetchedAt: new Date(record.fetchedAt).toISOString(),
     sources: [sourceSummary(record), ...affiliationSources],
@@ -917,6 +931,7 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
     members: d.members.map((m) => ({
       ...m,
       hasEmail: profileIndex.get(m.id)?.hasEmail ?? m.hasEmail,
+      organizationMemberships: profileIndex.get(m.id)?.organizationMemberships?.map(row=>({...row,current:currentOrganizationMembership(row,today())})) ?? null,
       birthDate: profileIndex.get(m.id)?.birthDate,
       gender: profileIndex.get(m.id)?.gender || m.gender,
       memberships: profileIndex.get(m.id)?.memberships.map(membership => ({

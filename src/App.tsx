@@ -9,7 +9,7 @@ import {useSpeechTranslation} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
 import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
-import {matchesCommittee} from './memberFilters.mjs';
+import {matchesCommittee,matchesOrganization,organizationId} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
@@ -498,6 +498,8 @@ export default function App() {
   const [member, setMember] = useState<number | null>(
     /^\d+$/.test(initial.get("member") || "") ? Number(initial.get("member")) : null,
   );
+  const [organization,setOrganization]=useState(()=>organizationId(initial.get('organization')));
+  const [organizationName,setOrganizationName]=useState(()=>initial.get('organization-name')?.slice(0,512)||'');
   const [committee, setCommittee] = useState(initial.get("committee") || "");
   const [role, setRole] = useState(() => queryRole(initial));
   const [country, setCountry] = useState(initial.get("view") ? "" : filterCountry(initial.get("country")));
@@ -617,6 +619,7 @@ export default function App() {
       ...Object.fromEntries(ownParams),
       ...((lang!=='en') ? ({lang}) : ({})),
       ...(((!view) && member) ? ({ member: String(member), module: tab }) : ({})),
+      ...((!view && organization) ? {organization,...(organizationName?{'organization-name':organizationName}:{})} : {}),
       ...(((!view) && committee) ? ({ committee }) : ({})),
       ...(((!view) && country) ? ({ country }) : ({})),
       ...(((!view) && group) ? ({ group }) : ({})),
@@ -634,11 +637,12 @@ export default function App() {
     if (u.href !== location.href) step ? history.pushState(history.state, "", u) : history.replaceState(history.state, "", u);
     window.dispatchEvent(new Event('explorer-query-change'));
     document.documentElement.lang = lang;
-  }, [lang, member, tab, committee, role, country, group, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
+  }, [lang, member, tab, committee, organization, organizationName, role, country, group, view, speechLink, activityLink, activityCategory,activityOffset,votes.journey,motions.query]);
   const filtered = useMemo(
     () =>
       directory?.members.filter(
         (m) =>
+          matchesOrganization(m,organization) &&
           matchesCountry(country,m.countryCode) &&
           (!group || group === m.groupCode) &&
           (!search ||
@@ -647,9 +651,9 @@ export default function App() {
             )) &&
           matchesCommittee(m,committee,role),
       ).sort(compareMembers) || [],
-    [directory, country, group, search, committee, role],
+    [directory, country, group, search, committee, role,organization],
   );
-  const partialCommittee = Boolean(committee && !directory?.index.complete);
+  const partialCommittee = Boolean((committee||organization) && (!directory?.index.complete||Boolean(organization&&directory?.members.some(m=>m.organizationMemberships==null))));
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
@@ -679,7 +683,7 @@ export default function App() {
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
       const restored=publicExplorerView(next);
-      setLang(queryLanguage(query));setRole(queryRole(query));
+      setLang(queryLanguage(query));setRole(queryRole(query));setOrganization(organizationId(query.get('organization')));setOrganizationName(query.get('organization-name')?.slice(0,512)||'');
       const nextMember=/^\d+$/.test(query.get('member')||'') ? Number(query.get('member')) : null;
       votes.restore(query,nextMember);
       motions.restore(query,nextMember);
@@ -727,6 +731,12 @@ export default function App() {
     motions.remember();
     navigateView(null);setMember(null);setSpeechLink(null);setActivityLink(null);
     pendingDestination.current={view:null,member:null};
+  };
+  const openOrganization=(id:string,name:string)=>{
+    votes.remember();motions.remember();memberStep.current=true;
+    setOrganization(id);setOrganizationName(name);setCommittee('');setCountry('');setGroup('');setSearch('');setRole('both');
+    setMember(null);setSpeechLink(null);setActivityLink(null);setActivityCategory('');setActivityOffset(0);
+    wallScroll.current={page:0,portraits:0};pendingDestination.current={view:null,member:null};
   };
   const leaveMember=()=>{
     votes.remember();
@@ -821,15 +831,16 @@ export default function App() {
                         </p>}
                       {!(profile.data.committeeMemberships?.complete && !profile.data.committeeMemberships.items.length) && <>
                         <h2 lang={ui.language}>{(profile.data.currentAffiliation?.status==='matched') ? c.committee : ui.t("app.committee_records")}</h2>
-                        <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
+                        <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry} onOrganization={openOrganization}/>
                       </>}
-                      <ProfileMemberships profile={profile.data} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
+                      <ProfileMemberships profile={profile.data} lang={lang} roleName={roleName} date={date} retry={profile.retry} onOrganization={openOrganization}/>
                     </>}
                 </>))))}
             </div>
           </section> : null)}
           <section className="explorer-wall" hidden={!wallVisible}>
             <h1 lang={lang}>{c.title}</h1>
+            {organization&&<p className="explorer-organization-filter"><strong>{organizationName||organization}</strong> <button type="button" onClick={()=>{setOrganization('');setOrganizationName('');}}>{c.all}</button></p>}
             <div className="explorer-filters">
               <label lang={lang}>
                 {c.committee}
@@ -899,7 +910,7 @@ export default function App() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Status scope={JSON.stringify([lang,committee,country,group,search,role])} pending={directoryState.loading} oncePerScope message={(() => {
+            <Status scope={JSON.stringify([lang,committee,organization,country,group,search,role])} pending={directoryState.loading} oncePerScope message={(() => {
               if(!directory||error)return null;
               const resultMessage=partialCommittee
                 ? filtered.length ? ui.t("app.knownMepMatchMany",{count:filtered.length}) : ui.t("app.no_matches_in_the_loaded_memberships_yet")
@@ -921,6 +932,7 @@ export default function App() {
                   <button
                     lang={lang}
                     onClick={() => {
+                      setOrganization("");setOrganizationName("");
                       setCommittee("");
                       setCountry("");
                       setGroup("");
