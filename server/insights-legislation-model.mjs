@@ -6,6 +6,7 @@ import { array,tail } from './activity-index-model.mjs';
 import { canonical,personId,officialApi,memberPeople,demographicStats } from './insights-model.mjs';
 import {deriveVoteEvidence} from './vote-evidence.mjs';
 import {explicitVoteScope,isWholeProposalVote} from './vote-scope.mjs';
+import {procedureClassification} from './procedure-types.mjs';
 
 export const refs = value => array(value).map(canonical).filter(Boolean);
 const committeeLabels=JSON.parse(readFileSync(new URL('./insights-committee-labels.json',import.meta.url),'utf8')).committees;
@@ -39,12 +40,7 @@ export function agendaTopics(meeting,foreseen) {
   })).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
 }
 export function classifyProcedure(work) {
-  // A report or a procedure ID alone does not establish legislative status.
-  const raw=work?.process_type || work?.procedure_type || work?.had_procedure_type;
-  const code=tail(array(raw)[0]);
-  const legislative=new Set(['COD','CNS']);
-  const nonlegislative=new Set(['INI','RSP','RSO','NLE','IMM','INS','REG','RPS','DEA','DCE']);
-  return {code:code||null,classification:legislative.has(code)?'legislative':nonlegislative.has(code)?'non-legislative':code==='BUD'?'budgetary':'unresolved',label:legislative.has(code)?'Legislative procedure':nonlegislative.has(code)?'Non-legislative procedure':code==='BUD'?'Budget procedure':'Procedure type not supplied'};
+  return procedureClassification(work);
 }
 export function voteScope(vote,derived) {
   const explicit=explicitVoteScope(vote);

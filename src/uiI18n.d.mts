@@ -6,7 +6,7 @@ export type UiTextValues = Readonly<Record<string, string | number | bigint>>;
 export interface UiFormatter {
   readonly locale: string;
   readonly language: UiLanguage;
-  t(id: string, values?: UiTextValues): string;
+  t(id: string, values?: UiTextValues, counts?: Readonly<Record<string, number>>): string;
   /** Numbers are formatted; other values (including React nodes) retain identity. */
   rich<T = never>(id: string, values?: Readonly<Record<string, T | string | number | bigint>>, counts?: Readonly<Record<string, number>>): Array<string | T>;
   number(value: number | bigint): string;

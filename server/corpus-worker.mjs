@@ -1,5 +1,9 @@
 import {cataloguePage,acquisitionMode} from './availability-history.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
+import {downloadQuestionPdf} from './question-pdf.mjs';
+import {pdfFallbackEligible} from './document-file-failure.mjs';
+import {allowedPdf} from './document-pages.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
 import {currentSpeechDetail,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import path from 'node:path';
@@ -29,6 +33,12 @@ const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
 const PRIORITY={speeches:60,speech:61,speechClassification:63};
 const FRAGMENT_LIMIT=2*1024*1024;
+
+function questionPdfFailure(docx,pdf) {
+  const message=String(docx.message).slice(0,160)+' PDF alternative: '+String(pdf.message).slice(0,160);
+  return Object.assign(new Error(message,{cause:pdf}),{code:docx.code,status:docx.status,
+    retryAfter:Math.max(Number(docx.retryAfter)||0,Number(pdf.retryAfter)||0)});
+}
 
 // Retain only language attributes. Returning false from updateTag discards
 // each parsed node instead of attaching its body/children to an XML tree.
@@ -84,9 +94,10 @@ export function speechTexts(activity,sourceUrl,fetchedAt) {
 export {questionFiles} from './question-files.mjs';
 
 export class CorpusWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=0,languages='all',pageSize=25}={}) {
-    Object.assign(this,{store,runUpstream,fetchRecord,download,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,download=downloadDocx,downloadPdf=downloadQuestionPdf,clock=Date.now,budget=300,maxDuration=60*60_000,diskLimit=2*1024**3,interval=0,languages='all',pageSize=25}={}) {
+    Object.assign(this,{store,runUpstream,fetchRecord,download,downloadPdf,clock,budget,maxDuration,diskLimit,interval,languages,pageSize});
     this.running=false;this.stopped=false;this.controller=new AbortController();this.lastRequest=0;
+    this.dispatches=0;this.fallbackRequests=0;
   }
   async pace() {
     const wait=this.lastRequest+this.interval-this.clock();
@@ -255,17 +266,71 @@ export class CorpusWorker {
       if(issued>this.clock()) {
         this.store.assertWriter();this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,task.key);return;
       }
+      const pending=body.pdfPending;
+      if(pending) {
+        const edition=documentFileEdition(body.edition);
+        const sameDocx=pending.docx?.url===body.url&&['byteSize','issued'].every(key=>edition[key]===(pending.docx?.[key]??null));
+        const sameFile=sameDocx&&body.pdf&&['url','byteSize','issued'].every(key=>(body.pdf[key]??null)===(pending.file?.[key]??null));
+        if(sameFile) {
+          let outcome;
+          try {outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});}
+          catch(error) {this.controller.signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(pending.error,error);}
+          finally {if(!this.controller.signal.aborted){this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}}
+          if(outcome!=='unavailable')throw Object.assign(new Error(pending.error.message),pending.error);
+        } else {this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}
+      }
       await this.pace();
       this.controller.signal.throwIfAborted();
       const signal=this.controller.signal;
-      const result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize}),{source:'documents',priority:'background',signal});
+      let result;
+      try {
+        result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize}),{source:'documents',priority:'background',signal});
+        if(!result.paragraphs?.some(text=>text.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});
+      } catch(error) {
+        signal.throwIfAborted();
+        if(pdfFallbackEligible(error)) {
+          let outcome;
+          try {outcome=await this.retainQuestionPdf(task,signal);}
+          catch(pdfError) {signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(error,pdfError);}
+          if(outcome==='deferred') {
+            this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status}};
+            this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);
+          }
+        }
+        // A retained PDF is independently useful, but never settles the failed
+        // DOCX owner. Failed alternatives keep that failure context and honor
+        // their own Retry-After through the owner's normal retry policy.
+        throw error;
+      }
       signal.throwIfAborted();
       const text=result.paragraphs.join('\n');
       if(!text.trim())throw new Error('Official document contains no readable text.');
       this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
-        [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,fetchedAt:new Date(this.clock()).toISOString(),body:text,raw:null}],{acquisition:acquisitionMode(this.store,task,{corpus:true})});
+        [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'docx',sourceUrl:body.url,sourceEdition:body.edition,fetchedAt:new Date(this.clock()).toISOString(),body:text,raw:null}],{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       this.store.finishTask(task);
     } else throw new Error('Unknown corpus task.');
+  }
+  async retainQuestionPdf(task,signal,{withinDispatch=false}={}) {
+    const body=task.body,file=body.pdf;
+    if(!['question','answer'].includes(body.kind)||!file||file.language!==body.language||!allowedPdf(file.url)||Date.parse(file.issued)>this.clock())return 'unavailable';
+    const saved=this.store.db.prepare(`SELECT text.source_format,text.source_url,text.source_edition FROM documents document JOIN texts text ON text.document_id=document.id
+      WHERE document.source_id=? AND document.kind=? AND text.source_key=? AND text.language=? AND text.chars>0`).get(body.sourceId,body.kind,body.language,body.language);
+    if(saved?.source_format==='docx')return 'retained';
+    const edition={byteSize:file.byteSize??null,issued:file.issued??null,expressionId:file.expressionId??null,manifestationId:file.manifestationId??null};
+    if(saved?.source_format==='pdf'&&saved.source_url===file.url) {
+      const previous=JSON.parse(saved.source_edition||'null');
+      if(previous&&Object.entries(edition).every(([key,value])=>previous[key]===value))return 'retained';
+    }
+    if(!withinDispatch&&this.dispatches+this.fallbackRequests>=this.budget)return 'deferred';
+    await this.pace();signal.throwIfAborted();if(!withinDispatch)this.fallbackRequests++;
+    const result=await this.runUpstream(admittedSignal=>this.downloadPdf(file,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
+    signal.throwIfAborted();this.store.assertWriter();
+    const text=result.paragraphs.join('\n');if(!text.trim())throw new Error('Official PDF contains no readable text.');
+    this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
+      [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'pdf',sourceUrl:file.url,
+        sourceEdition:{...edition,observedByteSize:result.observedByteSize,byteSizeMatches:result.byteSizeMatches,sha256:result.sourceHash,resolvedSourceUrl:result.resolvedSourceUrl},
+        fetchedAt:new Date(this.clock()).toISOString(),body:text,raw:null}],{acquisition:acquisitionMode(this.store,task,{corpus:true})});
+    return 'retained';
   }
   async run() {
     if(this.stopped || this.running)return;
@@ -275,7 +340,7 @@ export class CorpusWorker {
   async runIteration() {
     if(this.stopped || this.running || !this.due() || !this.store.acquire())return;
     const controller=new AbortController();this.controller=controller;
-    this.running=true;const started=this.clock();let requests=0;
+    this.running=true;const started=this.clock();let requests=0;this.dispatches=0;this.fallbackRequests=0;
     const heartbeat=setInterval(()=>{
       try {if(!this.store.renew())controller.abort(new Error('Corpus writer lease was lost.'));}
       catch(error){controller.abort(error);}
@@ -284,7 +349,7 @@ export class CorpusWorker {
       this.store.assertWriter();
       this.store.set('phase',this.store.get('backfilledAt')?'refreshing':'backfilling');
       if(this.discoveryDue())await this.discover();
-      while(!this.stopped && !controller.signal.aborted && requests<this.budget && this.clock()-started<this.maxDuration) {
+      while(!this.stopped && !controller.signal.aborted && requests+this.fallbackRequests<this.budget && this.clock()-started<this.maxDuration) {
         const taskIteration=loopTimer('corpus-task',{threshold:5000});
         try {
           const diskBytes=await this.store.diskBytes();
@@ -292,7 +357,7 @@ export class CorpusWorker {
           if(diskBytes>this.diskLimit){this.store.set('phase','paused: disk limit reached');break;}
           const task=this.store.nextTask();
           if(!task)break;
-          requests++;
+          requests++;this.dispatches=requests;
           try{await this.task(task);}
           catch(error){if(this.stopped||controller.signal.aborted)break;this.store.failTask(task,error,error.retryAfter||0);}
         } finally {taskIteration();}

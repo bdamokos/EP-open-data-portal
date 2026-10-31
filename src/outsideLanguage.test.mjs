@@ -107,7 +107,7 @@ test('outside directory keeps English UI, locale months and exact aggregate role
     const mark=q('[data-ov-focus="mark:42:'+day+'"]');
     expectLanguage(mark,'');
     const formatted=new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(day+'T12:00:00Z'));
-    assert.equal(mark.getAttribute('aria-label'),`Source speaker, ${formatted}: 7 agenda items`,'mixed attributes retain the existing exact copy pending arbitration');
+    assert.equal(mark.getAttribute('aria-label'),`Source speaker, ${formatted}: Agenda items: 7`,'source speaker and locale date retain exact boundaries around the neutral count label');
     assert.equal(mark.title,formatted);
     const updated=q('.ov-sources span');expectLanguage(updated,new Intl.DateTimeFormat().resolvedOptions().locale);
     assert.equal(updated.textContent,new Date(source.fetchedAt).toLocaleDateString(),'the existing browser-default date stays intact');

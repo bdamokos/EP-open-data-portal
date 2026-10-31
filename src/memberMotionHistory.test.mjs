@@ -74,6 +74,7 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
   if(url.pathname==='/api/insights/saved')return Response.json({members:[],questions:[]});
   if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
   if(url.pathname==='/api/insights/search')return Response.json({offset:0,sections:[]});
+  if(url.pathname==='/api/vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
   if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
   if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
   unexpected.push(url.href);throw Error('Unexpected fixture request '+url.href);
@@ -119,7 +120,7 @@ test('activity page/category are controlled App history and survive Profile, bro
  await h.go(-1);assert.equal(location.href,page);
 });
 
-for(const exit of ['Back to members','Members'])test('opening another MEP through '+exit+' resets the activity category and page',async t=>{
+for(const exit of ['Back to members','MEPs'])test('opening another MEP through '+exit+' resets the activity category and page',async t=>{
  const h=await harness(t,query({activity:'','activity-category':'motions','activity-offset':'10'}));
  const firstMemberPage=location.href;
  await h.click(button(h.container,exit==='Back to members'?/←/:exit));

@@ -82,6 +82,16 @@ test('reviewed category overrides merge without manufacturing English locale ent
   assert.equal(portuguese.pluralCategory(0),'other');
 });
 
+test('historical compatibility labels remain intact while loaded catalogues supply revised MEP wording',async()=>{
+  const id='batch4.parliamentheader.tsx.25.1';
+  const historical=createAppUiI18n({},{}).forLocale('hu');
+  assert.equal(historical.t(id),'Tagok');
+  const hungarian=JSON.parse(await readFile(new URL('./ui-locales/hu.json',import.meta.url),'utf8'));
+  const current=createAppUiI18n({hu:hungarian}).forLocale('hu');
+  assert.equal(current.t(id),'Képviselők');
+  assert.equal(current.t('app.mepCountUnit',{}, {count:0}),'EP-képviselő');
+});
+
 test('startup shell uses explicit owned bindings and keeps numeric member IDs literal',async t=>{
   const {Window}=await import('happy-dom');
   const window=new Window({url:'http://localhost/?lang=hu',settings:{disableJavaScriptEvaluation:true,disableJavaScriptFileLoading:true,disableCSSFileLoading:true}});
@@ -90,9 +100,11 @@ test('startup shell uses explicit owned bindings and keeps numeric member IDs li
   const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   t.after(()=>load.close());
   const {localizeInitialShell}=await load('/src/initialShell.ts');
+  const {loadUiLocale}=await load('/src/appUiI18n.ts');
+  await loadUiLocale('hu');
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu'}));
   assert.equal(window.document.querySelector('h1').textContent,'Európai parlamenti képviselők');
-  assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Tagok');
+  assert.equal(window.document.querySelector('a[data-view="members"]').textContent,'Képviselők');
   localizeInitialShell(window.document,new URLSearchParams({lang:'hu',member:'1234567'}));
   assert.equal(window.document.querySelector('h1').textContent,'EP-képviselő 1234567');
   window.document.getElementById('initial-shell').remove();

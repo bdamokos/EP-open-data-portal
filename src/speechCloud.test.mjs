@@ -96,7 +96,7 @@ test('retry resumes a failed proxy page without depending on expired earlier pag
   await act(async()=>{finish();await new Promise(resolve=>setImmediate(resolve));});
   assert.equal(Boolean(ui.container.querySelector('[role="alert"],.explorer-cloud-progress')),false);
   assert.match(ui.container.querySelector('.explorer-cloud-caption').textContent,/102 speeches/);
-  assert.match(ui.container.textContent,/3 without text in this language\. 1 texts unreadable\./);
+  assert.match(ui.container.textContent,/3 without text in this language\. 1 text unreadable\./);
   assert.equal(ui.container.querySelector('.availability-note'),null,'the concrete load error or missing-language counts explain the limitation');
   assert.deepEqual(seen.at(-1),speeches.map(row=>row.id));
 });

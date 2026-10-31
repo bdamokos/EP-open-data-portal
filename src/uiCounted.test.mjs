@@ -1,0 +1,63 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createAppUiI18n} from './uiCatalogues.mjs';
+import {UI_LANGUAGES,normalizeUiLocale} from './uiI18n.mjs';
+import contracts from './ui-counted-source.json' with {type:'json'};
+import neutral from './ui-counted-neutral.json' with {type:'json'};
+import english from './ui-locales/en.json' with {type:'json'};
+import {amendmentPlanSummary} from './amendmentModel.mjs';
+import cardinalCases from './test-support/cldr48-cardinal-cases.json' with {type:'json'};
+
+async function nativeCatalogues(){
+  return Object.fromEntries(await Promise.all(UI_LANGUAGES.filter(language=>language!=='en').map(async language=>[
+    language,(await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default,
+  ])));
+}
+
+test('native counted-message dispatch matches independently verified CLDR48 integer cases',async()=>{
+  const i18n=createAppUiI18n(await nativeCatalogues());
+  for(const language of UI_LANGUAGES){
+    const ui=i18n.forLocale(language);
+    assert.equal(ui.messageLocale('app.mepCountUnit'),normalizeUiLocale(language),language+' must use its native catalogue');
+    for(const count of cardinalCases.counts)assert.equal(ui.pluralCategoryFor('app.mepCountUnit',count),cardinalCases.expectedCategories[language][count],language+'/'+count);
+  }
+});
+
+test('Hungarian counted MEPs use singular nouns without changing standalone navigation',async()=>{
+  const ui=createAppUiI18n(await nativeCatalogues()).forLocale('hu');
+  for(const count of [0,1,2,5,21,101])assert.equal(ui.t('app.mepCountUnit',{}, {count}),'EP-képviselő');
+  assert.equal(ui.pluralCategoryFor('app.mepCountUnit',0),'other');
+  assert.equal(ui.t('app.mepCountUnknownUnit'),'EP-képviselők');
+  assert.equal(ui.t('batch4.parliamentheader.tsx.25.1'),'Képviselők');
+});
+
+test('counted source contracts support every native category and raw rich selectors',()=>{
+  // Fractional values exercise diagnostic categories; production entity counts stay integers.
+  const samples=[0,1,2,3,4,5,7,11,21,22,101,1000000,0.1,1.5,2.5];
+  for(const language of UI_LANGUAGES){
+    const categories=new Intl.PluralRules(normalizeUiLocale(language)).resolvedOptions().pluralCategories;
+    const messages=Object.fromEntries(Object.entries(contracts).map(([id,message])=>[id,{...message,...Object.fromEntries(categories.map(category=>[category,message.other+' ['+category+']']))}]));
+    const ui=createAppUiI18n(language==='en'?{}:{[language]:messages},{}).forLocale(language);
+    for(const [id,message] of Object.entries(contracts))for(const count of samples){
+      const values=Object.fromEntries([...message.other.matchAll(/\{(\w+)\}/g)].map(m=>[m[1],'<retained slot>']));
+      const parts=ui.rich(id,values,{[message.plural]:count});
+      if(language!=='en')assert(parts.join('').endsWith('['+new Intl.PluralRules(normalizeUiLocale(language)).select(count)+']'),language+'/'+id+'/'+count);
+    }
+  }
+});
+
+test('neutral independent-count contracts retain their original named slots',()=>{
+  for(const [id,message] of Object.entries(neutral))assert.equal(message,english[id]);
+  const ui=createAppUiI18n().forLocale('en');
+  assert.equal(ui.t('legislation.shownpeople_of_totalpeople_contributors_shownspeeches_of_totalspeeches_listed_speeche.8f434c',{shownPeople:1,totalPeople:2,shownSpeeches:3,totalSpeeches:21}),'Contributors: 1 of 2 · Listed speeches: 3 of 21');
+});
+
+test('new families preserve unknown units, lower-bound display and quoted occurrence identifiers',()=>{
+  const ui=createAppUiI18n().forLocale('en');
+  assert.equal(ui.t('app.mepCountUnknownUnit'),'MEPs');
+  assert.equal(ui.t('app.mepCountUnit',{}, {count:0}),'MEPs');
+  assert.equal(ui.t('app.mepCountUnit',{}, {count:1}),'MEP');
+  assert.equal(ui.t('outsidevoices.date_availabilityvalue_agenda_items.84907a',{date:'2026-10',count:'1+'},{count:1}),'2026-10: 1+ agenda item');
+  assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact {source}',expectedCount:1},ui),['The text “exact {source}” · 1 expected occurrence']);
+  assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact',occurrences:[21]},ui),['The text “exact” · occurrence 21']);
+});

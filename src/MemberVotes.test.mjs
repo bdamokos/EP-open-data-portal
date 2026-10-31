@@ -674,7 +674,7 @@ test('collapsed subjects expose final positions, page-scoped summaries and off-p
   const whole=vote(99,{scope:{kind:'whole-text',basis:'exact-component-reference'}});
   const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT},handler:url=>Response.json(responseFor(url,{items,subjects:[subject(items,{wholeTextDecisions:[whole]})],selected:stateFrom(url).decisionId?{status:'found',item:whole}:{status:'not-requested',item:null}}))});
   const group=h.container.querySelector('[data-vote-group]');assert.equal(group.getAttribute('aria-expanded'),'false');
-  assert.match(group.textContent,/Positions: 1 For · 1 Against · 1 Abstained/);
+  assert.match(group.textContent,/Positions: For: 1 · Against: 1 · Abstained: 1/);
   const final=h.container.querySelector('button.member-votes-whole');assert.match(final.textContent,/Final vote · Adopted · Test member voted For/);
   await act(async()=>final.click());assert.equal(h.state.decisionId,whole.id);assert.equal(h.state.snapshotId,SNAPSHOT);
   assert.equal(visiblePane(h.container).querySelector('h2').textContent,'Final vote');

@@ -130,7 +130,7 @@ export function createUiI18n({source, translations = {}, sourceLocale = 'en'}) {
       messageLocale: id => catalogues.get(languageCode)?.has(id) || languageCode === baseLanguage ? locale : baseLocale,
       pluralCategoryFor: (id, value, type = 'cardinal') => pluralCategory(value, type,
         catalogues.get(languageCode)?.has(id) || languageCode === baseLanguage ? locale : baseLocale),
-      t: (id, values = {}) => render(id, values, false),
+      t: (id, values = {}, counts = {}) => render(id, values, false, counts),
       rich: (id, values = {}, counts = {}) => render(id, values, true, counts)});
   }
   return Object.freeze({sourceLocale: baseLocale, forLocale});

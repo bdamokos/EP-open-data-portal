@@ -46,7 +46,7 @@ async function harness(t,{response=questions(),language='en'}={}) {
 test('Questions counts current and former authors together and labels former MEPs without changing current-roster charts or navigation',async t=>{
   const h=await harness(t);
   assert.equal(h.container.querySelector('.insight-question-results > .insight-section-heading > span').textContent,'1 question · 3 MEP authors');
-  assert.equal(h.caption().textContent,'1 current MEPs · 2 former MEPs · each person counted once');
+  assert.equal(h.caption().textContent,'Current MEPs: 1 · former MEPs: 2 · each person counted once');
   assert.doesNotMatch(h.caption().textContent,/other speakers|outside the current roster/);
   assert.equal(h.container.querySelector('.insight-donut-total').textContent,'1','former authors do not inflate the current-roster charts');
   assert.equal(h.container.querySelector('.insight-country-table li strong').textContent,'1');
@@ -62,7 +62,7 @@ test('Questions counts current and former authors together and labels former MEP
   assert.equal(former.target,'_blank');
   await act(async()=>current.click());
   assert.deepEqual(h.memberCalls,[[1001,undefined]]);
-  assert.equal(cards[0].querySelector('img').getAttribute('src'),'/api/portrait/1001?v=1','author portraits render their real URL directly');
+  assert.equal(cards[0].querySelector('img').getAttribute('src'),'/api/portrait/1001?v=2','author portraits render their real URL directly');
 });
 
 test('Questions labels former MEPs in English when the selected display language is Hungarian',async t=>{
@@ -78,7 +78,7 @@ test('Questions suppresses the former-MEP caption when zero and uses singular wo
   for(const formerCount of [0,1])await t.test(String(formerCount),async t=>{
     const selectedStats={...stats(),uniquePeople:1+formerCount,peopleOutsideCurrentRoster:formerCount};
     const h=await harness(t,{response:questions(selectedStats,authors().slice(0,1+formerCount))});
-    assert.equal(h.caption().textContent,'1 current MEPs'+(formerCount?' · 1 former MEP':'')+' · each person counted once');
+    assert.equal(h.caption().textContent,formerCount?'Current MEPs: 1 · former MEP: 1 · each person counted once':'1 current MEP · each person counted once');
     assert.equal(h.container.querySelectorAll('.insight-person-membership').length,formerCount);
     assert.equal(h.container.querySelector('.insight-question-results > .insight-section-heading > span').textContent,`1 question · ${1+formerCount} MEP author${formerCount?'s':''}`);
   });
@@ -89,7 +89,7 @@ test('shared plenary demographics and people keep their default captions and do 
   await h.render(createElement('div',null,
     createElement(h.shared.InsightDemographics,{stats:stats()}),
     createElement(h.shared.InsightPeople,{people:authors()})));
-  assert.equal(h.caption().textContent,'1 current MEPs · 2 other speakers · each person counted once');
+  assert.equal(h.caption().textContent,'Current MEPs: 1 · other speakers: 2 · each person counted once');
   assert.equal(h.container.querySelectorAll('.insight-person-membership').length,0,'the question-specific label does not affect plenary or other callers');
   assert.equal(h.container.querySelectorAll('.insight-people article').length,3);
 });
@@ -111,5 +111,5 @@ test('political groups count dated contributions while person demographics retai
   assert.equal(h.container.querySelector('.insight-donut-caption').textContent,'Assigned');
   assert.match(h.container.querySelector('.insight-demographics').textContent,/3 of 4 contributions assigned · Percentages of assigned contributions/);
   assert.equal(h.container.querySelector('.insight-country-table li strong').textContent,'1');
-  assert.match(h.caption().textContent,/Country, gender and age: 1 current MEPs/);
+  assert.match(h.caption().textContent,/Country, gender and age: Current MEPs: 1 · former MEPs: 2 · each person counted once/);
 });

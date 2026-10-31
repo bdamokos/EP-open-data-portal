@@ -9,8 +9,8 @@ import {ProcedureContext} from './ProcedureContext';
 import {InsightQuestionReader} from './InsightReaders';
 import {publicAmendmentsEnabled} from './publicFeatures';
 import './DossierCard.css';
-const labels:Record<string,string>={document:'Document',stage:'Procedure stage',vote:'Vote recorded','amendment-list':'Amendment list',summary:'Dossier summary',press:'Press release',scheduled:'Scheduled',cancelled:'Cancelled',date:'Date changed',status:'Status changed',event:'Legislative progress'};
-export const labelsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof labels => ({document:ui.t("dossierCard.event.1"),stage:ui.t("dossierCard.event.2"),vote:ui.t("dossierCard.event.3"),'amendment-list':ui.t("dossierCard.event.4"),summary:ui.t("dossierCard.event.5"),press:ui.t("dossierCard.event.6"),scheduled:ui.t("dossierCard.event.7"),cancelled:ui.t("membervotespresentation.cancelled"),date:ui.t("dossierCard.event.9"),status:ui.t("dossierCard.event.10"),event:ui.t("dossierCard.event.11")});
+const labels:Record<string,string>={document:'Document',stage:'Procedure stage',vote:'Vote recorded','amendment-list':'Amendment list',summary:'Dossier summary',press:'Press release',scheduled:'Scheduled',cancelled:'Cancelled',date:'Date changed',status:'Status changed',event:'Procedure progress'};
+export const labelsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof labels => ({document:ui.t("dossierCard.event.1"),stage:ui.t("dossierCard.event.2"),vote:ui.t("dossierCard.event.3"),'amendment-list':ui.t("dossierCard.event.4"),summary:ui.t("dossierCard.event.5"),press:ui.t("dossierCard.event.6"),scheduled:ui.t("dossierCard.event.7"),cancelled:ui.t("membervotespresentation.cancelled"),date:ui.t("dossierCard.event.9"),status:ui.t("dossierCard.event.10"),event:ui.t("batch6.procedureprogress.procedure.progress.57")});
 
 const publicEntry=(entry:DossierEntry)=>publicAmendmentsEnabled||entry.eventKind!=='amendment-list';
 const officialPress=(value:string|undefined)=>{try{const url=new URL(value||'');return (((url.protocol==='https:') && (url.hostname==='www.europarl.europa.eu')) && url.pathname.startsWith('/news/')) ? url.href : null;}catch{return null;}};
@@ -39,7 +39,7 @@ export function DossierCard({item,language,now}:{item:FollowedDossier;language:s
     {partial&&<p className="dossier-follow-gap"><UiMessage id="dossierCard.partial"/></p>}
     <div className="explorer-saved-actions"><a href={href}><UiMessage id="dossierCard.detail.3"/></a><button aria-expanded={dossierOpen} onClick={()=>setDossierOpen(value=>!value)}>{dossierOpen ? <UiMessage id="dossierCard.actions.2"/> : <UiMessage id="dossierCard.actions.3"/>}</button>{hasNew&&<button onClick={()=>dossierStore.markRead(item.id)}><UiMessage id="dossierCard.actions.4"/></button>}</div>
     {dossierOpen&&<ProcedureContext reference={item.id} language={language} showTitle showIdentity={false}/>}
-    {(freshEntries.length>LIST_LIMIT||omitted) ? <p><a href={href}><UiMessage id="dossierCard.updateCount" values={{count:freshEntries.length+omitted}}/></a></p> : listed.map(row)}
+    {(freshEntries.length>LIST_LIMIT||omitted) ? <p><a href={href}><UiMessage id="dossierCard.updateCount" values={{count:freshEntries.length+omitted}} counts={{count: freshEntries.length+omitted}}/></a></p> : listed.map(row)}
     {(visibleHistory.length>0||historyOmitted>0)&&<details className="explorer-saved-history"><summary><UiMessage id="dossierCard.history.1" values={{count: (visibleHistory.length+historyOmitted)}}/></summary>{visibleHistory.map(row)}{historyOmitted>0&&<a href={href}><UiMessage id="dossierCard.history.2"/></a>}</details>}
   </article>;
 }

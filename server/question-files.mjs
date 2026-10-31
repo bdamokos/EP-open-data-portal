@@ -1,12 +1,10 @@
+import {questionPdf} from './question-pdf.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
 import {languageCode} from './ep-links.mjs';
 import {allowedDownload} from './document-text.mjs';
 
-export function questionFileEdition(manifestation) {
-  const size=manifestation?.byteSize,issued=manifestation?.issued;
-  return {byteSize:(typeof size==='number'||typeof size==='string'&&/^\d+$/.test(size))&&Number.isSafeInteger(Number(size))&&Number(size)>=0?Number(size):null,
-    issued:typeof issued==='string'&&Number.isFinite(Date.parse(issued))?issued:null};
-}
+export const questionFileEdition=documentFileEdition;
 
 // Question and answer DOCX files listed by a saved index record.
 export function questionFiles(work,policy='all') {
@@ -20,7 +18,7 @@ export function questionFiles(work,policy='all') {
       if(!file||file.format!=='DOCX'||!file.language||!allowedDownload(file.url))return [];
       const primary=originals.includes(file.language)||file.language==='en';
       if(policy==='primary' && !primary)return [];
-      return [{sourceId:entry.sourceId,kind:entry.kind,parentId:entry.parentId,date:entry.work.document_date||null,originalLanguages:originals,language:file.language,translationType:file.translationType,url:file.url,primary,edition:questionFileEdition(manifestation)}];
+      return [{sourceId:entry.sourceId,kind:entry.kind,parentId:entry.parentId,date:entry.work.document_date||null,originalLanguages:originals,language:file.language,translationType:file.translationType,url:file.url,primary,edition:questionFileEdition(manifestation),pdf:questionPdf(entry.work,file.language)}];
     }));
   });
 }

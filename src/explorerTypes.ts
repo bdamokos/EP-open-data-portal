@@ -203,7 +203,7 @@ export interface PublicationDocument {
     requestedLanguage: string;
     availableTextLanguages: string[];
     translationType: 'original' | 'unspecified' | null;
-    sourceFormat: 'DOCX' | null;
+    sourceFormat: 'DOCX' | 'PDF' | null;
     adoptedTextXml?: {
       documentId: string; language: string; preference: 'held';
       status: 'unavailable' | 'declared' | 'ambiguous'; reason: string; gaps: string[];
@@ -215,7 +215,7 @@ export interface PublicationDocument {
     refreshInProgress: boolean;
     refreshError: string | null;
     reason: string | null;
-    extraction: 'official-docx-paragraphs' | null;
+    extraction: 'official-docx-paragraphs' | 'official-pdf-text' | null;
     nextRetryAt?: string | null;
     notesStatus?: 'extracted' | 'not-extracted';
     notes?: DocumentNote[];
@@ -230,7 +230,7 @@ export interface PublicationDocument {
     paragraphFormats?: ParagraphFormat[];
     tables?: DocumentTable[];
     extractionVersion?: number | null;
-    sourceVersion?: { byteSize: number | null; issued: string | null } | null;
+    sourceVersion?: { byteSize: number | null; issued: string | null; observedByteSize?: number; byteSizeMatches?: boolean | null } | null;
   };
 }
 export interface SpeechPage {

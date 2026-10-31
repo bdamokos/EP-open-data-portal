@@ -48,6 +48,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
       if(delay)return new Promise(resolve=>pending.push({url,resolve}));
       return Response.json(page(Number(url.searchParams.get('offset'))));
     }
+  if(route==='vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(route?.startsWith('speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
@@ -100,7 +101,7 @@ test('global search stays remembered across top-level navigation while its share
 
 test('roster portraits are requested while committee memberships are unavailable',async t=>{
   const h=await harness(t,'',false,false,false,true);
-  assert.match(h.container.querySelector('[data-member-id="257043"] img').getAttribute('src'),/^\/api\/portrait\/257043\?v=1$/);
+  assert.match(h.container.querySelector('[data-member-id="257043"] img').getAttribute('src'),/^\/api\/portrait\/257043\?v=2$/);
   assert.deepEqual(h.portraitRequests,[], 'portraits use native image loading');
   assert.match(h.container.querySelector('.explorer-index[role="status"]').textContent,/Loading committee memberships: 0 \/ 1\./);
 });
@@ -144,7 +145,7 @@ test('browser Back restores the portrait grid offset without remounting the wall
 test('explicit main-view gestures orient to the current heading without adding history beyond existing navigation',async t=>{
   const h=await harness(t);
   assert.equal(document.activeElement,document.body,'ordinary initial load does not force focus');
-  for(const label of ['Following','Plenary agenda','Questions','Outside voices','Members']) {
+  for(const label of ['Following','Plenary agenda','Questions','Outside voices','MEPs']) {
     const before=history.length;
     await h.click(h.button(label));
     assert.equal(document.activeElement,h.container.querySelector('h1'),label);
@@ -274,7 +275,7 @@ test('a pending view can be left immediately and its late import cannot reopen i
   const h=await harness(t,'',false,true);
   await h.click(h.button('Group voices'));
   assert(h.container.querySelector('[data-view-loading]'));
-  await h.click(h.button('Members'));
+  await h.click(h.button('MEPs'));
   assert.equal(h.container.querySelector('[data-view-loading]'),null);
   assert(h.container.querySelector('.explorer-filters'));
   assert.equal(new URL(location.href).searchParams.has('view'),false);
@@ -288,7 +289,7 @@ test('a cold deep link renders its destination shell before the view module reso
   assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,'Voix des groupes');
   assert.equal(h.container.querySelector('[role=status]').textContent,'Chargement de la vue…');
   assert.equal(h.container.querySelectorAll('main').length,1);
-  assert(h.button('Membres'));
+  assert(h.button('Députés'));
   await h.releaseView();
   assert.equal(h.container.querySelectorAll('main').length,1);
 });

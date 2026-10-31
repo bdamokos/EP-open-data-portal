@@ -42,10 +42,11 @@ test('chairing counts only classified chair contributions and stays absent witho
   let items=rows;
   const ui=await statistics(t,async()=>Response.json(result(items.length,null,{items})));
   await ui.render({member:42,filter:{selected:'',href:category=>'?category='+category,select(){}}});
-  assert.equal(ui.stat('Chairing contributions'),'1');
+  assert.equal(ui.stat('Chairing contribution'),'1');
   assert.equal(ui.container.querySelector('a[aria-label^="Chairing contributions:"]').getAttribute('href'),'?category=chair');
   items=rows.slice(1);await ui.render({member:99});
   assert.equal(ui.stat('Chairing contributions'),undefined,'holding an office is not evidence of chairing this contribution');
+  assert.equal(ui.stat('Chairing contribution'),undefined,'no singular chair count is shown without observed chairing');
 });
 
 test('automatically counts every page including written and unreadable contributions, with a spinner until finished',async t=>{
@@ -74,7 +75,7 @@ test('automatically counts every page including written and unreadable contribut
   await ui.render({member:257070,onItems:items=>enriched.push(items.length)});
   assert.deepEqual(pages,[0,1],'next page starts without a click or a redundant page-zero request');
   assert.equal(ui.stat('Total contributions'),'50');
-  assert.equal(ui.stat('Written statements'),'1');
+  assert.equal(ui.stat('Written statement'),'1');
   assert.equal(ui.stat('On behalf of a group'),'0');
   assert.equal(ui.stat('Blue cards raised'),'—');
   assert.match(ui.container.querySelector('[role="status"]').textContent,/Counting contributions/);
