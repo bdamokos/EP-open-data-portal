@@ -199,3 +199,30 @@ test('a profile body observation applies exact ended bounds to the existing dire
  assert.equal(out.after.members[0].organizationMemberships[0].current,false);
  assert.equal(out.reads,out.readCount,'directory applies known metadata without fetching bodies');
 });
+
+test('directory completeness follows newly uncertain body bounds and preserves missing observations',async t=>{
+ const out=await run(t,`
+  const party={id:'org/6831',identifier:'6831',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',temporal:{startDate:'2026-02-30'}};
+  const p={...person(43),hasMembership:[{organization:'org/6831',memberDuring:{startDate:'2024-09-01'}}]};
+  globalThis.fetch=async url=>{
+   const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:[p,{...person(44),hasMembership:[null]}]});
+   if(endpoint.endsWith('/corporate-bodies/show-current'))return Response.json({data:[]});
+   if(endpoint.endsWith('/meps/43'))return Response.json({data:[p]});
+   if(endpoint.endsWith('/meps/44'))return Response.json({data:[{...person(44),hasMembership:[null]}]});
+   if(endpoint.endsWith('/corporate-bodies/6831'))return Response.json({data:[party]});
+   throw Error('Unexpected fixture '+url);
+  };
+  const {odpDirectory,odp}=await import(${moduleUrl});
+  await odpDirectory();const before=await until(async()=>{const d=await odpDirectory();return d.index.complete&&d;});
+  await odp('/corporate-bodies/6831');
+  const after=await odpDirectory();console.log(JSON.stringify({before,after}));process.exit(0);
+ `);
+ const original=out.before.members.find(m=>m.id===43),updated=out.after.members.find(m=>m.id===43);
+ assert.equal(original.organizationMemberships[0].current,true);assert.equal(original.organizationMembershipsComplete,true);
+ assert.equal(updated.organizationMemberships[0].current,null);
+ assert.equal(updated.organizationMembershipsComplete,false,'new uncertainty changes aggregate completeness');
+ const {organizationCoverageComplete}=await import('../src/memberFilters.mjs');
+ assert.equal(organizationCoverageComplete(updated,'9999'),false,'another organisation filter cannot report definitive coverage');
+ assert.equal(out.after.members.find(m=>m.id===44).organizationMembershipsComplete,false,'malformed original observations remain incomplete');
+});

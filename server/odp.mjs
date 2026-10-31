@@ -936,18 +936,22 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
       refreshInProgress: Boolean(directoryPromise || directoryDetailsPromise) || directorySources.some(source => pending.has(source.url)),
       refreshError: directoryError || directorySources.map(source => refreshFailures.get(source.url)?.message).find(Boolean) || null,
     },
-    members: d.members.map((m) => ({
-      ...m,
-      hasEmail: profileIndex.get(m.id)?.hasEmail ?? m.hasEmail,
-      organizationMemberships: profileIndex.get(m.id)?.organizationMemberships?.map(row=>({...row,current:organizationMembershipStatus(row,today(),knownOrganizationBodies.get(row.id))})) ?? null,
-      organizationMembershipsComplete: profileIndex.get(m.id)?.organizationMembershipsComplete ?? false,
-      birthDate: profileIndex.get(m.id)?.birthDate,
-      gender: profileIndex.get(m.id)?.gender || m.gender,
-      memberships: profileIndex.get(m.id)?.memberships.map(membership => ({
-        ...membership,
-        current: validDuring({startDate:membership.start,endDate:membership.end}),
-      })) ?? null,
-    })),
+    members: d.members.map(m => {
+      const profile=profileIndex.get(m.id);
+      const organizationMemberships=profile?.organizationMemberships?.map(row=>({...row,current:organizationMembershipStatus(row,today(),knownOrganizationBodies.get(row.id))})) ?? null;
+      return {
+        ...m,
+        hasEmail: profile?.hasEmail ?? m.hasEmail,
+        organizationMemberships,
+        organizationMembershipsComplete: Boolean(profile?.organizationMembershipsComplete && organizationMemberships?.every(row=>row.current!==null)),
+        birthDate: profile?.birthDate,
+        gender: profile?.gender || m.gender,
+        memberships: profile?.memberships.map(membership => ({
+          ...membership,
+          current: validDuring({startDate:membership.start,endDate:membership.end}),
+        })) ?? null,
+      };
+    }),
   };
 }
 export function speechSummary(activity) {
