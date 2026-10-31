@@ -7,14 +7,15 @@ import {documentFiles,array,tail} from './activity-index-model.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {userAgent} from './user-agent.mjs';
 import {HttpError} from './http-utils.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
 
-export const DOCUMENT_PAGES_VERSION=1;
+export const DOCUMENT_PAGES_VERSION=2;
 export const PDF_MAX_BYTES=16*1024*1024;
 export function allowedPdf(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&!u.search&&!u.hash&&u.pathname.endsWith('.pdf')&&((u.hostname==='data.europarl.europa.eu'&&u.pathname.startsWith('/distribution/'))||(u.hostname==='redmapl3.europarl.europa.eu'&&u.pathname.startsWith('/RedmapFront/media/')));}catch{return false;}}
 export function pdfEdition(work,language){
   const candidates=array(work.is_realized_by).filter(e=>languageCode(e.language)===language).flatMap(e=>array(e.is_embodied_by).filter(m=>tail(m.format)==='PDF').flatMap(m=>{
     const file=documentFiles({is_realized_by:[{...e,is_embodied_by:[m]}]})[0];
-    return file&&allowedPdf(file.url)?[{...file,expressionId:e.id||null,manifestationId:m.id||null,issued:m.issued||null}]:[];
+    return file&&allowedPdf(file.url)?[{...file,...documentFileEdition(m),expressionId:e.id||null,manifestationId:m.id||null}]:[];
   }));
   const unique=[...new Map(candidates.map(file=>[JSON.stringify(file),file])).values()];return unique.length===1?unique[0]:null;
 }

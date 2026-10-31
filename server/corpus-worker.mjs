@@ -3,6 +3,7 @@ import {discoverQuestionFiles} from './question-discovery.mjs';
 import {downloadQuestionPdf} from './question-pdf.mjs';
 import {pdfFallbackEligible} from './document-file-failure.mjs';
 import {allowedPdf} from './document-pages.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
 import {currentSpeechDetail,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import path from 'node:path';
@@ -261,7 +262,9 @@ export class CorpusWorker {
       }
       const pending=body.pdfPending;
       if(pending) {
-        const sameFile=body.pdf&&['url','byteSize','issued'].every(key=>(body.pdf[key]??null)===(pending.file[key]??null));
+        const edition=documentFileEdition(body.edition);
+        const sameDocx=pending.docx?.url===body.url&&['byteSize','issued'].every(key=>edition[key]===(pending.docx?.[key]??null));
+        const sameFile=sameDocx&&body.pdf&&['url','byteSize','issued'].every(key=>(body.pdf[key]??null)===(pending.file?.[key]??null));
         if(sameFile) {
           let outcome;
           try {outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});}
@@ -281,7 +284,7 @@ export class CorpusWorker {
         if(pdfFallbackEligible(error)) {
           const outcome=await this.retainQuestionPdf(task,signal);
           if(outcome==='deferred') {
-            this.store.assertWriter();body.pdfPending={file:body.pdf,error:{message:String(error.message).slice(0,250),code:error.code,status:error.status}};
+            this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status}};
             this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);
           }
         }

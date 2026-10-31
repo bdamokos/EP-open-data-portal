@@ -24,7 +24,8 @@ import {documentAuthorIdentities} from './document-authors.mjs';
 import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
 import {questionPdf,downloadQuestionPdf} from './question-pdf.mjs';
 import {invalidDocx,pdfFallbackEligible} from './document-file-failure.mjs';
-export const DOCUMENT_TEXT_VERSION=4;
+import {documentFileEdition} from './document-file-edition.mjs';
+export const DOCUMENT_TEXT_VERSION=5;
 const failureEvidence=Symbol('document failure');
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
@@ -50,7 +51,7 @@ function diskBudget(directory){
 function fileDescriptor(work,url){
   for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
     let href=null;try{href=new URL(m.is_exemplified_by,'https://data.europarl.europa.eu/').href;}catch{}
-    if(href===url)return {byteSize:m.byteSize!=null&&m.byteSize!==''&&Number.isFinite(Number(m.byteSize))?Number(m.byteSize):null,issued:typeof m.issued==='string'&&Number.isFinite(Date.parse(m.issued))?m.issued:null};
+    if(href===url)return documentFileEdition(m);
   }
   return {byteSize:null,issued:null};
 }
@@ -390,7 +391,7 @@ export function documentNotes(record) {
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
 async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false,format='DOCX',selectedFile=null}={}) {
-  const extractionVersion=format==='PDF'?1:EXTRACTION_VERSION;
+  const extractionVersion=format==='PDF'?2:EXTRACTION_VERSION;
   requestSignal()?.throwIfAborted();
   const files=selectedFile?[selectedFile]:documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
   const languages=languagePreference(files.map(f=>f.language).filter(Boolean),language);
@@ -402,16 +403,20 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
     textLanguage:chosen?.language || null,requestedLanguage:language,availableTextLanguages:languages,translationType:chosen?originals.includes(chosen.language)?'original':'unspecified':null,sourceFormat:chosen?format:null,sourceUrl:chosen?.url || null,fetchedAt:null,stale:false,refreshInProgress:false,refreshError:null,nextRetryAt:null,reason:null,extraction:chosen?(format==='PDF'?'official-pdf-text':'official-docx-paragraphs'):null,
     ...(adoptedTextXml?{adoptedTextXml}:{})};
   if(!chosen)return {...base,reason:'No supported DOCX text file is supplied for this publication.'};
-  const key=chosen.url,name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
-  const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,key);
+  const sourceId=work.identifier||tail(work.id),sourceUrl=chosen.url;
+  const key=format==='PDF'?JSON.stringify(['pdf',sourceId,chosen.language,sourceUrl]):sourceUrl;
+  const name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
+  const budget=directory?diskBudget(directory):null,descriptor=fileDescriptor(work,sourceUrl);
   let saved=memory.get(key);
   if(saved)budget?.used(name);
-  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===extractionVersion && record.sourceUrl===key && Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;remember(key,record);budget.used(name);}}catch{}
+  if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===extractionVersion && record.sourceUrl===sourceUrl
+    &&(format!=='PDF'||record.sourceId===sourceId&&record.sourceLanguage===chosen.language&&record.sourceFormat==='PDF')
+    &&Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;remember(key,record);budget.used(name);}}catch{}
   requestSignal()?.throwIfAborted();
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(key,{signal});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});const record={schemaVersion:1,extractionVersion,sourceId:work.identifier || tail(work.id),sourceUrl:key,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(sourceUrl,{signal});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
       if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
@@ -447,6 +452,7 @@ export async function documentText(work,language,options={}) {
   const chosen=result.textLanguage||languagePreference(available,language)[0];
   const file=questionPdf(work,chosen);
   if(!file||Date.parse(file.issued)>(options.clock||Date.now)())return result;
-  return readDocumentText(work,chosen,{...options,format:'PDF',selectedFile:file,
+  const fallback=await readDocumentText(work,language,{...options,format:'PDF',selectedFile:file,
     download:(_url,{signal})=>(options.downloadPdf||downloadQuestionPdf)(file,{signal})});
+  return {...fallback,availableTextLanguages:languagePreference([...result.availableTextLanguages,...available.filter(code=>questionPdf(work,code))],language)};
 }

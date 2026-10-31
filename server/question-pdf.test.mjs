@@ -1,6 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {ActivityStore} from './activity-index-store.mjs';
+import {discoverQuestionFiles} from './question-discovery.mjs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {questionPdf,downloadQuestionPdf} from './question-pdf.mjs';
@@ -160,4 +163,58 @@ test('preparation refuses a live writer before changing PDF schema or task state
  store.set('corpusTextVersion',0);const before=store.task(task.key);
  assert.throws(()=>prepareIndexes({corpusDirectory:directory,clock:now,log:()=>{}}),/writer lease is active/);
  assert.equal(store.get('corpusTextVersion'),0);assert.deepEqual(store.task(task.key),before);
+});
+
+
+test('PDF memory, disk and pending caches keep exact document identity',async t=>{
+ const directory=fixture(t),first=work(),second=work(),shared=first.is_realized_by[0].is_embodied_by[1].is_exemplified_by;
+ second.is_realized_by[0].is_embodied_by[1].is_exemplified_by=shared;
+ const reference='E-'+first.identifier.split('-').at(-1)+'/2026',buffer=pdf();let downloads=0;
+ const options={directory,clock:now,download:async()=>{throw invalidDocx(Error('Invalid DOCX'));},downloadPdf:file=>downloadQuestionPdf(file,{download:async()=>{downloads++;return {body:buffer};},extract:async()=>({paragraphs:[reference,'The verified answer']})})};
+ const good=await documentText(first,'en',options);assert.equal(good.status,'available');
+ const wrong=await documentText(second,'en',options);assert.equal(wrong.status,'error');assert.deepEqual(wrong.paragraphs,[]);assert.equal(downloads,2);
+ const name=id=>createHash('sha256').update(JSON.stringify(['pdf',id,'en',questionPdf(first,'en').url])).digest('hex')+'.json';
+ const folder=path.join(directory,'document-text-v1'),record=JSON.parse(readFileSync(path.join(folder,name(first.identifier)),'utf8'));
+ writeFileSync(path.join(folder,name(second.identifier)),JSON.stringify(record));
+ const diskWrong=await documentText(second,'en',{...options,cacheOnly:true});assert.equal(diskWrong.status,'unavailable');assert.deepEqual(diskWrong.paragraphs,[]);
+ writeFileSync(path.join(folder,name(second.identifier)),JSON.stringify({...record,sourceId:second.identifier,sourceLanguage:'de'}));
+ assert.equal((await documentText(second,'en',{...options,cacheOnly:true})).status,'unavailable');assert.equal(downloads,2);
+});
+
+test('concurrent PDF readers cannot join another document at the same URL',async t=>{
+ const directory=fixture(t),first=work(),second=work();second.is_realized_by[0].is_embodied_by[1].is_exemplified_by=first.is_realized_by[0].is_embodied_by[1].is_exemplified_by;
+ let release,entered;const gate=new Promise(resolve=>release=resolve),started=new Promise(resolve=>entered=resolve),ids=[];
+ const buffer=pdf(),reference='E-'+first.identifier.split('-').at(-1)+'/2026';
+ const options={directory,clock:now,download:async()=>{throw invalidDocx(Error('Invalid DOCX'));},downloadPdf:async file=>{ids.push(file.sourceId);if(file.sourceId===first.identifier){entered();await gate;}return downloadQuestionPdf(file,{download:async()=>({body:buffer}),extract:async()=>({paragraphs:[reference]})});}};
+ const firstRequest=documentText(first,'en',options);await started;
+ const secondRequest=documentText(second,'en',options);release();
+ const [a,b]=await Promise.all([firstRequest,secondRequest]);assert.equal(a.status,'available');assert.equal(b.status,'error');assert.deepEqual(ids,[first.identifier,second.identifier]);
+});
+
+test('PDF fallback preserves language choices and the original requested language',async t=>{
+ const item=work(),directory=fixture(t),german=structuredClone(item.is_realized_by[0]);german.language='DEU';german.is_embodied_by=german.is_embodied_by.filter(file=>file.format==='DOCX').map(file=>({...file,id:'word-de',is_exemplified_by:file.is_exemplified_by.replace('.docx','_de.docx')}));item.is_realized_by.push(german);
+ const result=await documentText(item,'fr',{directory,clock:now,download:async()=>{throw invalidDocx(Error('Invalid DOCX'));},downloadPdf:async()=>({paragraphs:['English PDF']})});
+ assert.equal(result.status,'available');assert.equal(result.textLanguage,'en');assert.equal(result.requestedLanguage,'fr');assert.deepEqual(result.availableTextLanguages,['en','de']);
+});
+
+test('unknown PDF size stays unknown and does not require a printed reference',async()=>{
+ for(const size of [null,undefined,'',-1,'unknown']) {
+  const item=work();item.is_realized_by[0].is_embodied_by[1].byteSize=size;
+  const file=questionPdf(item,'en');assert.equal(file.byteSize,null);
+  const result=await downloadQuestionPdf(file,{download:async()=>({body:pdf()}),extract:async()=>({paragraphs:['Readable text without a printed reference']})});assert.equal(result.byteSizeMatches,null);
+ }
+ const item=work();item.is_realized_by[0].is_embodied_by[1].byteSize='0';assert.equal(questionPdf(item,'en').byteSize,0);
+});
+
+test('actual discovery invalidates a saved PDF phase when the failed DOCX edition changes',async t=>{
+ let instant=now();const clock=()=>instant,directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock});index.acquire();
+ const store=new CorpusStore(path.join(directory,'corpus'),{clock,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+ const item=work(),key='/parliamentary-questions/'+item.identifier;index.putSource(1,key,'document',item,new Date(clock()).toISOString());
+ const first=new CorpusWorker(store,{clock,budget:1,runUpstream:fn=>fn(first.controller.signal),download:async()=>{throw invalidDocx(Error('Old DOCX invalid'));}});first.dispatches=1;
+ await discoverQuestionFiles(first,1);const task=store.nextTask();await assert.rejects(first.task(task),/Old DOCX invalid/);store.failTask(task,invalidDocx(Error('Old DOCX invalid')));
+ const before=store.task(task.key);assert.equal(before.body.pdfPending.docx.byteSize,100);
+ const replacement=structuredClone(item);replacement.is_realized_by[0].is_embodied_by[0].byteSize=101;index.putSource(1,key,'document',replacement,new Date(clock()).toISOString());await discoverQuestionFiles(first,1);
+ const updated=store.task(task.key);assert.equal(updated.retry_at,before.retry_at);assert.equal(updated.attempts,before.attempts);assert.equal(updated.body.edition.byteSize,101);
+ instant=updated.retry_at;let words=0,pdfs=0;const next=new CorpusWorker(store,{clock,budget:1,runUpstream:fn=>fn(next.controller.signal),download:async()=>{words++;return {paragraphs:['Readable replacement DOCX']};},downloadPdf:async()=>{pdfs++;return {paragraphs:['Obsolete PDF phase']};}});next.dispatches=1;
+ await next.task(updated);assert.equal(words,1);assert.equal(pdfs,0);assert.equal(store.task(task.key).done,1);assert.equal(store.task(task.key).body.pdfPending,undefined);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).sourceFormat,'docx');
 });

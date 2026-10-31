@@ -1,13 +1,10 @@
 import {questionPdf} from './question-pdf.mjs';
+import {documentFileEdition} from './document-file-edition.mjs';
 import {array,tail,documentFiles} from './activity-index-model.mjs';
 import {languageCode} from './ep-links.mjs';
 import {allowedDownload} from './document-text.mjs';
 
-export function questionFileEdition(manifestation) {
-  const size=manifestation?.byteSize,issued=manifestation?.issued;
-  return {byteSize:(typeof size==='number'||typeof size==='string'&&/^\d+$/.test(size))&&Number.isSafeInteger(Number(size))&&Number(size)>=0?Number(size):null,
-    issued:typeof issued==='string'&&Number.isFinite(Date.parse(issued))?issued:null};
-}
+export const questionFileEdition=documentFileEdition;
 
 // Question and answer DOCX files listed by a saved index record.
 export function questionFiles(work,policy='all') {
