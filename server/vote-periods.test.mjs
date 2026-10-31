@@ -10,7 +10,7 @@ test('upstream admission pressure serves a bounded last good calendar with stale
  service.clock=service.reader.clock=()=>now;
  const request=service.reader.request;
  service.reader.request=(...args)=>busy?Promise.reject(Object.assign(new Error('Rate limited'),{code:'upstream_busy',status:503})):request(...args);
- const good=await service.query();assert.equal(good.version,2);
+ const good=await service.query();assert.equal(good.version,3);
  now+=60_001;busy=true;
  const saved=await service.query();assert.deepEqual(saved.weeks,good.weeks);assert.equal(saved.coverage.status,'partial');
  assert(saved.coverage.years.every(year=>year.state==='partial'&&year.error.code==='upstream_busy'&&year.sources.every(source=>source.stale&&source.refreshError==='Rate limited')));
@@ -76,3 +76,9 @@ test('earlier years cannot consume a later year’s byte budget',async()=>{
  assert.deepEqual(data.weeks.map(week=>week.week),['2026-10-05','2025-07-14','2024-07-15']);
  assert.deepEqual(calls.map(call=>call.year),[2024,2025,2026]);
 });
+
+ test('sitting cities come only from exact public place authority identifiers',async()=>{
+ const {service}=setup({rows:{2026:[meeting('2026-10-06',{hasLocality:'http://publications.europa.eu/resource/authority/place/FRA_SXB'}),meeting('2026-10-07',{hasLocality:'http://publications.europa.eu/resource/authority/place/BEL_BRU'}),meeting('2026-10-08')]}});
+ const result=await service.query();
+ assert.deepEqual(result.weeks[0].sittings.map(s=>s.location),['Strasbourg','Brussels',null]);
+ });

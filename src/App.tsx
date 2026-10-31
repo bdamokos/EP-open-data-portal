@@ -67,6 +67,7 @@ import { activitySourceId } from "../server/activity-links.mjs";
 import {transcriptParagraphs,TranscriptText} from "./Transcript";
 import { transcriptLanguage } from "../server/transcript-language.mjs";
 import { api, useData } from "./data";
+import {validateVotePeriods,type VotePeriodsResponse} from "./plenaryPeriods.mjs";
 import { useSpeechVideo } from "./SpeechPlayer";
 import {AmendmentTrailLink} from './AmendmentTrailLink';
 import {publicAmendmentsEnabled,publicExplorerView,publicMemberModule} from './publicFeatures';
@@ -417,6 +418,8 @@ function revealSpeech(target: HTMLElement) {
 function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;initialSpeech:string|null;onOpen:(id:string|null)=>void }) {
   const ui = useUiI18n();
   const c=interfaceCopy(lang);
+  const calendar=useData<VotePeriodsResponse>('vote-periods');
+  const sittingLocations=new Map(validateVotePeriods(calendar.data) ? calendar.data.weeks.flatMap(week=>week.sittings.map(sitting=>[sitting.sittingId,sitting.location] as const)) : []);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
   const [speechSearchActive,setSpeechSearchActive]=useState(false);
@@ -475,12 +478,12 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     {!filtered&&initialSpeech && pinned.loading && <p role="status" lang={ui.language}><UiMessage id="insightshared.loading"/></p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
-    {(filtered ? filtered.slice(filteredOffset,filteredOffset+10) : items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang, ui);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>
-      <button className="explorer-speech-toggle" lang={ui.language} onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {(speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT') ? ui.t("insightshared.written_statement") : ui.t("app.plenary_speech")}{speech.start ? <> · <UiMessage id="app.brusselsTime" values={{time:<span lang={lang}>{time(speech.start,lang)}</span>}}/></> : ''}</span><span className="explorer-speech-heading"><strong lang={speechTitle.language}>{speechTitle.text}</strong><b aria-hidden="true">{open ? '−' : '+'}</b></span></button>
+    {(filtered ? filtered.slice(filteredOffset,filteredOffset+10) : items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang, ui),city=(speech.id.startsWith('MTG-PL-'+speech.date+'-') ? sittingLocations.get('MTG-PL-'+speech.date) : null);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>
+      <button className="explorer-speech-toggle" lang={ui.language} onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {(speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT') ? ui.t("insightshared.written_statement") : ui.t("app.plenary_speech")}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span></> : ''}{city&&<> · <span lang="en">{city}</span></>}</span><span className="explorer-speech-heading"><strong lang={speechTitle.language}>{speechTitle.text}</strong><b aria-hidden="true">{open ? '−' : '+'}</b></span></button>
       {!open&&<div className="explorer-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
-    {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}<button onClick={state.retry}><UiMessage id="app.refresh_list"/></button></div>)}
+    {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}<button onClick={()=>{state.retry();calendar.retry();}}><UiMessage id="app.refresh_list"/></button></div>)}
     </>}
   </section>;
 }
@@ -939,13 +942,14 @@ export default function App() {
                     {directory.index.error && <button onClick={directoryState.retry}><UiMessage id="app.retry_membership_index"/></button>}
                   </div>}
                 <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
-                    {filtered.map(m => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
+                    {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
                             ...m,
                             imageUrl: `${API_ROOT}/portrait/${m.id}`,
                           }}
                           labelled
+                          eager={index < 8}
                           onClick={() => {
                             memberOpener.current=m.id;
                             pendingDestination.current={view:null,member:m.id};
