@@ -1,10 +1,15 @@
-import { StrictMode } from 'react';
+import {PlenaryLiveProvider} from './PlenaryLive';
+import {appUiI18n} from './appUiI18n';
+import {interfaceTerm} from './terms.mjs';
+import {UiI18nProvider} from './UiI18nReact';
+import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './theme.css';
 import './base.css';
 import {applyColourScheme,readColourScheme} from './colourScheme.mjs';
 import {RootBoundary} from './ErrorBoundary';
-import {PlenaryLiveProvider} from './PlenaryLive';
 applyColourScheme(readColourScheme());
-createRoot(document.getElementById('root')!).render(<StrictMode><RootBoundary><PlenaryLiveProvider><App /></PlenaryLiveProvider></RootBoundary></StrictMode>);
+const initialLanguage=new URLSearchParams(window.location.search).get('lang');
+const loading=interfaceTerm('loading-view',initialLanguage||'en');
+createRoot(document.getElementById('root')!).render(<StrictMode><RootBoundary><Suspense fallback={<p role="status" lang={loading.language}>{loading.text}</p>}><UiI18nProvider i18n={appUiI18n} language={initialLanguage}><PlenaryLiveProvider><App /></PlenaryLiveProvider></UiI18nProvider></Suspense></RootBoundary></StrictMode>);

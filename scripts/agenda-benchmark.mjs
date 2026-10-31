@@ -38,7 +38,7 @@ async function identity(runtimeRoot=root) {
   const git=args=>execFileSync('git',args,{cwd:runtimeRoot,encoding:'utf8'}).trim();
   const paths=git(['ls-files','--cached','--others','--exclude-standard','server','src','scripts','package.json','package-lock.json']).split('\n').filter(Boolean).sort();
   const workingTreeHash=hash(JSON.stringify(await Promise.all(paths.map(async file=>[file,await readFile(path.join(runtimeRoot,file)).then(hash,error=>error.code==='ENOENT'?'deleted':Promise.reject(error))]))));
-  return {head:git(['rev-parse','HEAD']),dirty:Boolean(git(['status','--porcelain'])),diffHash:hash(execFileSync('git',['diff','HEAD'],{cwd:runtimeRoot})),workingTreeHash,harnessHash};
+  return {head:git(['rev-parse','HEAD']),dirty:Boolean(git(['status','--porcelain'])),diffHash:hash(execFileSync('git',['diff','HEAD'],{cwd:runtimeRoot,maxBuffer:16*1024*1024})),workingTreeHash,harnessHash};
 }
 export function markdown(report) {
   const summary=Object.entries(report.summary).map(([scenario,value])=>`| ${scenario} | ${value.samples} | ${value.elapsedMs.p50.toFixed(1)} | ${value.elapsedMs.p95.toFixed(1)} | ${value.cpuMs.p50.toFixed(1)} | ${value.transportRequests.min}–${value.transportRequests.max} |`).join('\n');

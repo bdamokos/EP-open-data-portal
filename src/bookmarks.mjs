@@ -1,3 +1,5 @@
+import {UiMessageError} from './uiErrors.mjs';
+import {defaultUi} from './uiDefault.mjs';
 import {compactEntries,isNewEntry,itemHasNew,markEntryRead,markAllRead,migrateUnread} from './followUpdates.mjs';
 export const LEGACY_KEY='ep.bookmarks.v1';
 export const SAVED_KEY='ep.following.v2';
@@ -73,9 +75,9 @@ function compactItem(item,now=Date.now()) {
     unreadOmittedAt:omittedAt||undefined};
 }
 
-function migrate(item,now=Date.now()) {
+function migrate(item,now=Date.now(), ui = defaultUi) {
   const carried=[...(item.unreadActivities||[]).map(x=>({...x,kind:'activity'})),...(item.unreadAnswers||[]).map(x=>({...x,kind:'answer',recordKind:'answer'}))];
-  const entries=migrateUnread([...new Map(carried.map(entry=>[identity(entry),entry])).values()],now);
+  const entries=migrateUnread([...new Map(carried.map(entry=>[identity(entry),entry])).values()],now, ui);
   const common={entries,historyOmitted:0,unreadOmitted:0,legacyUpdated:Boolean(item.updated&&!entries.length),legacyAt:item.updated&&!entries.length?now:undefined};
   if(item.kind==='question') {
     const {unreadAnswers,unreadActivities,...question}=item;
@@ -85,7 +87,7 @@ function migrate(item,now=Date.now()) {
     ...(item.baseline?.activityVersion===3&&item.baseline.activityIdsComplete?{legacy:item.baseline}:{})},now);
 }
 export function savedLinks(item) {return item.entries||[];}
-export function createSavedStore(storage,notify=()=>void 0) {
+export function createSavedStore(storage,notify=()=>void 0, ui = defaultUi) {
   let items=[],epoch=null,legacyKeys=[],manifest=null,storageError=null,unsavedSince=null,restarted=false,checkState='pending',questionCheckState='pending';
   let tabOnly=!storage,snapshot;
   const refresh=()=>{snapshot={items,persistent:!tabOnly,storageError,unsavedSince,restarted,checkState,questionCheckState,epoch,manifest};notify();};
@@ -101,7 +103,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
         items=cleaned.map(item=>{
           const old=originals.get(savedKey(item));
           if(!Array.isArray(old.entries)||old.legacyUpdated&&!Number.isFinite(old.legacyAt)||old.signalledAt!==undefined)migration=true;
-          const entries=Array.isArray(old.entries)?old.entries.filter(entry=>entry&&validSource(entry.id)).map(entry=>({...unreadEntries([entry])[0],discoveredAt:Number.isFinite(entry.discoveredAt)?entry.discoveredAt:now,readAt:Number.isFinite(entry.readAt)?entry.readAt:null})):migrateUnread(unreadEntries(old.unread||[...(item.unreadActivities||[]).map(x=>({...x,kind:'activity'})),...(item.unreadAnswers||[]).map(x=>({...x,kind:'answer'}))]),now);
+          const entries=Array.isArray(old.entries)?old.entries.filter(entry=>entry&&validSource(entry.id)).map(entry=>({...unreadEntries([entry])[0],discoveredAt:Number.isFinite(entry.discoveredAt)?entry.discoveredAt:now,readAt:Number.isFinite(entry.readAt)?entry.readAt:null})):migrateUnread(unreadEntries(old.unread||[...(item.unreadActivities||[]).map(x=>({...x,kind:'activity'})),...(item.unreadAnswers||[]).map(x=>({...x,kind:'answer'}))]),now, ui);
           const base=item.kind==='question'?{...item,unreadAnswers:undefined,unreadActivities:undefined}:{...minimal(item),seen:old.seen?{activity:mark(old.seen.activity),answer:mark(old.seen.answer)}:null,legacy:cleanState(old.legacy)};
           return compactItem({...base,entries,historyOmitted:count(old.historyOmitted),unreadOmitted:count(old.unreadOmitted),unreadOmittedAt:old.unreadOmittedAt??(old.unreadOmitted?now:undefined),legacyUpdated:old.legacyUpdated===true||!Array.isArray(old.entries)&&item.kind==='question'&&item.updated&&!entries.length,legacyAt:old.legacyAt??now,changedAt:Number.isFinite(old.changedAt)?old.changedAt:undefined,signals:cleanSignals(old)},now);
         });
@@ -110,7 +112,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
         // old tab has already truncated v1 before this tab reloads.
         legacyKeys=keys(legacyMirror(items.filter(item=>legacyKeys.includes(savedKey(item)))));
         if(reconcile())publish(true);
-      } else {const legacy=readSaved(storage?.getItem(LEGACY_KEY));items=legacy.map(item=>migrate(item));legacyKeys=keys(legacy);migration=items.length>0;}
+      } else {const legacy=readSaved(storage?.getItem(LEGACY_KEY));items=legacy.map(item=>migrate(item, undefined, ui));legacyKeys=keys(legacy);migration=items.length>0;}
     } catch {tabOnly=true;}
     derive();if(migration)publish();else refresh();
   }
@@ -132,7 +134,7 @@ export function createSavedStore(storage,notify=()=>void 0) {
   function reconcile() {
     const legacy=readSaved(storage?.getItem(LEGACY_KEY)),next=keys(legacy),old=new Set(legacyKeys),present=new Set(next);
     items=items.filter(item=>!old.has(savedKey(item))||present.has(savedKey(item)));
-    for(const item of legacy)if(!old.has(savedKey(item))&&!items.some(x=>savedKey(x)===savedKey(item)))items.push({...migrate(item),...(item.kind==='mep'?{legacy:undefined,seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null}:{})});
+    for(const item of legacy)if(!old.has(savedKey(item))&&!items.some(x=>savedKey(x)===savedKey(item)))items.push({...migrate(item, undefined, ui),...(item.kind==='mep'?{legacy:undefined,seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null}:{})});
     const changed=JSON.stringify(legacyKeys)!==JSON.stringify(next);legacyKeys=next;return changed;
   }
   const update=(key,change)=>{items=items.map(item=>savedKey(item)===key?compactItem(change(item)):item);return publish();};
@@ -144,16 +146,16 @@ export function createSavedStore(storage,notify=()=>void 0) {
     retryStorage:()=>publish(true),
     setCheckState(state,kind='mep'){if(kind==='question')questionCheckState=state;else checkState=state;refresh();},
     toggle(item) {
-      if(!valid(item))throw Error('This item cannot be saved.');
+      if(!valid(item))throw new UiMessageError("batch5.bookmarks.mjs.147.119", {}, ui);
       const before=items,previousKeys=legacyKeys,key=savedKey(item);
       if(items.some(x=>savedKey(x)===key))items=items.filter(x=>savedKey(x)!==key);
       else {
         const limit=item.kind==='mep'?1000:100;
-        if(items.filter(x=>x.kind===item.kind).length>=limit)throw Error(item.kind==='mep'?'The MEP selection is too large.':'You can save up to 100 questions.');
+        if(items.filter(x=>x.kind===item.kind).length>=limit)throw Error((item.kind==='mep')?ui.t("batch5.bookmarks.mjs.152.120"):(ui.t("batch5.bookmarks.mjs.152.121")));
         const added={...item,id:String(item.id),savedAt:lastSavedAt=Math.max(Date.now(),lastSavedAt+1),updated:false};
         items=[...items,item.kind==='mep'?{...minimal(added),seen:manifest?.members[item.id]?marks(manifest.members[item.id]):null,entries:[],historyOmitted:0,unreadOmitted:0,legacyUpdated:false,signals:{}}:{...added,entries:[],historyOmitted:0}];
       }
-      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw Error("Couldn't save in this browser.");}
+      if(!publish(true)){items=before;legacyKeys=previousKeys;try{storage.setItem(SAVED_KEY,JSON.stringify({version:2,epoch,items,legacyKeys}));storage.setItem(LEGACY_KEY,JSON.stringify({version:1,items:legacyMirror(items)}));}catch{}derive();refresh();throw new UiMessageError("batch5.bookmarks.mjs.156.122", {}, ui);}
     },
     applyManifest(data) {
       const reset=epoch!==null&&epoch!==data.epoch;manifest=data;

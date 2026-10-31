@@ -43,7 +43,18 @@ test('production JavaScript retains full notices for every bundled dependency', 
     // Vite may prepend its dynamic-import dependency helper after bundling.
     const bannerOffset = chunk.code.indexOf(banner);
     assert.ok(bannerOffset >= 0, `notices stripped from ${chunk.fileName}`);
-    assert.ok(chunk.map, `missing source map for ${chunk.fileName}`);
+    // Rolldown generates source-free re-export facades for shared lazy modules.
+    // They have no original positions; every chunk containing source still needs a map.
+    if (!chunk.map) {
+      assert.equal(Object.keys(chunk.modules).length, 0, `missing source map for ${chunk.fileName}`);
+      assert.match(chunk.code.slice(bannerOffset + banner.length).trim(), /^export\{[^}]+\}from["'][^"']+["'];?$/);
+      continue;
+    }
+    // JSON data has no generated-code mappings. Code maps retain their offsets.
+    if (!chunk.map.mappings) {
+      assert(chunk.map.sources.every(source=>source.endsWith('.json')));
+      continue;
+    }
     const noticeLines = chunk.code.slice(0, bannerOffset + banner.length).split('\n').length;
     assert.ok(chunk.map.mappings.startsWith(';'.repeat(noticeLines)), 'source maps must account for the notice banner and preload helper');
   }
@@ -52,7 +63,13 @@ test('production JavaScript retains full notices for every bundled dependency', 
   const emitted = new Set(Object.values(manifest).map(entry => entry.file));
   for (const chunk of chunks) assert(emitted.has(chunk.fileName), `chunk missing from immutable-asset manifest: ${chunk.fileName}`);
   const secondary = ['GroupVoices', 'Legislation', 'QuestionTopics', 'OutsideVoices', 'Saved', 'Amendments', 'MemberVotes', 'DocumentContextReader', 'MemberMotionReader', 'DossierVoteText'].map(name => `src/${name}.tsx`);
-  assert.deepEqual([...manifest['index.html'].dynamicImports].sort(), secondary.sort());
+  const dynamic = manifest['index.html'].dynamicImports;
+  assert.deepEqual(dynamic.filter(key=>!key.startsWith('src/ui-locales/')).sort(), [...secondary,'node_modules/pdfjs-dist/build/pdf.mjs'].sort());
+  const languages='bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
+
+  // Shared runtime chunks may own nested dynamic imports; the vote text and PDF
+  // readers must retain lazy boundaries regardless of the emitted owner.
+  assert(Object.values(manifest).some(entry=>entry.dynamicImports?.includes('src/DossierVoteText.tsx')), 'vote text reader must retain its own lazy boundary');
   const initial = new Set();
   function visit(key) {
     if (initial.has(key)) return;
@@ -60,10 +77,12 @@ test('production JavaScript retains full notices for every bundled dependency', 
     for (const imported of manifest[key].imports || []) visit(imported);
   }
   visit('index.html');
-  for (const key of secondary) assert(!initial.has(key), `${key} was pulled into the initial load`);
+  const localeImports=[...new Set([...initial].flatMap(key=>manifest[key].dynamicImports??[]))].filter(key=>key.startsWith('src/ui-locales/'));
+  assert.deepEqual(localeImports.sort(),languages.map(language=>`src/ui-locales/${language}.json`).sort());
+  for (const key of [...secondary,...languages.map(language=>`src/ui-locales/${language}.json`)]) assert(!initial.has(key), `${key} was pulled into the initial load`);
   const initialFiles = new Set([...initial].map(key => manifest[key].file));
   const initialSources = chunks.filter(chunk => initialFiles.has(chunk.fileName)).flatMap(chunk => chunk.map.sources);
-  for (const name of ['Saved.tsx', 'Amendments.tsx', 'MemberVotes.tsx', 'DocumentContextReader.tsx', 'MemberMotionReader.tsx', 'DossierVoteText.tsx', 'MotionAmendments.tsx', 'europeMap.ts', 'TopicTrends.tsx']) {
+  for (const name of ['Saved.tsx', 'Amendments.tsx', 'MemberVotes.tsx', 'DocumentContextReader.tsx', 'MemberMotionReader.tsx', 'DossierVoteText.tsx', 'MotionAmendments.tsx', 'europeMap.ts', 'TopicTrends.tsx', 'pdf.mjs']) {
     assert(!initialSources.some(source => source.endsWith('/' + name)), `${name} remains eager through another export`);
   }
 });

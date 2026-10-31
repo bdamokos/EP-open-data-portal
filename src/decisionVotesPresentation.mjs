@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 import {memberVotesRoute} from './memberVotesPresentation.mjs';
 import {decisionVoteBindingConflict} from '../server/decision-vote-binding.mjs';
 
@@ -51,10 +52,10 @@ export function amendmentVoteBinding(item,indexed,data) {
   if(['outcome','method'].some(key=>indexed[key]&&vote[key]&&indexed[key]!==vote[key]))return false;
   return !positions.some(p=>indexed.totals?.[p]!=null&&(vote.totals[p]!=null&&indexed.totals[p]!==vote.totals[p]||vote.namedVoters?.available&&vote.namedVoters.counts?.[p]!=null&&indexed.totals[p]!==vote.namedVoters.counts[p]));
 }
-export function authorVotePosition(id,data) {
-  if(!person(String(id??'')))return 'MEP unresolved';
+export function authorVotePosition(id,data, ui = defaultUi) {
+  if(!person(String(id??'')))return ui.t("batch4.decisionvotespresentation.mjs.55.1");
   const row=data.voters.find(voter=>voter.personId===String(id));
-  if(row?.status==='conflicting')return 'Conflicting record';
-  if(row?.status==='recorded')return {for:'For',against:'Against',abstaining:'Abstained'}[row.position];
-  return data.integrity==='complete'?'No recorded vote':'Unavailable';
+  if(row?.status==='conflicting')return ui.t("batch4.decisionvotespresentation.mjs.57.1");
+  if(row?.status==='recorded')return {for:ui.t("membervotespresentation.for"),against:ui.t("membervotespresentation.against"),abstaining:ui.t("membervotespresentation.abstained")}[row.position];
+  return (data.integrity==='complete')?ui.t("batch4.decisionvotespresentation.mjs.59.1"):(ui.t("grouplabels.ts.unavailable"));
 }

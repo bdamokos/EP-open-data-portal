@@ -1,5 +1,5 @@
 import type {Amendment,AmendmentDecision,AmendmentFailure,AmendmentSplit,AmendmentStage} from './AmendmentTypes';
-export function amendmentOutcomeLabel(value?:string|null):string;
+export function amendmentOutcomeLabel(value?:string|null,ui?:import('./uiI18n.mjs').UiFormatter):string;
 export const amendmentStages:AmendmentStage[];
 export function validCommitteeCode(value:unknown):value is string;
 export function committeeAmendmentList(value:unknown):value is string;
@@ -8,13 +8,13 @@ export function committeeAmendmentIdentity(value:unknown):{listId:string;number:
 export function amendmentContextSelection(item:Amendment):Omit<import('./DocumentContextTypes').DocumentContextRequest,'onBack'>|null;
 export function supportedAmendmentTarget(value:unknown):boolean;
 export function amendmentFailureKey(failure:AmendmentFailure):string;
-export function amendmentFailureLabel(failure:AmendmentFailure):string;
+export function amendmentFailureLabel(failure:AmendmentFailure, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function amendmentProcedure(value?:string|null):string;
 export function amendmentRoute(options?:{scope?:'committee'|'plenary';list?:string|null;committee?:string|null;document?:string|null;procedure?:string|null;member?:string|number|null;outcome?:string|null;offset?:number;language?:string;limit?:number}):string;
 export function amendmentHref(path:string,options?:{scope?:'committee'|'plenary';list?:string|null;committee?:string|null;document?:string|null;procedure?:string|null;member?:string|number|null;language?:string}):string;
-export function amendmentGroups(items:Amendment[],by?:string):{id:string;label:string;basis:string;items:Amendment[]}[];
-export function amendmentDecisionScope(item:Amendment,decision:AmendmentDecision):string;
+export function amendmentGroups(items:Amendment[],by?:string, ui?: import('./uiI18n.mjs').UiFormatter):{id:string;label:string;basis:string;items:Amendment[]}[];
+export function amendmentDecisionScope(item:Amendment,decision:AmendmentDecision, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function amendmentDecisionKey(decision:AmendmentDecision):string;
 export function amendmentDecisionPart(parts:AmendmentSplit[],decision:AmendmentDecision):AmendmentSplit|null;
 export function publicAmendmentSource(value:unknown):string|null;
-export function amendmentPlanSummary(plan:unknown):string[];
+export function amendmentPlanSummary(plan:unknown, ui?: import('./uiI18n.mjs').UiFormatter):string[];

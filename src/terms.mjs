@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 import catalogue from './terms.json' with {type:'json'};
 
 // These are interface labels. Source-title and document translation metadata
@@ -17,13 +18,13 @@ export function compoundLanguage(...languages) {
   return languages[0]&&languages.every(language=>language===languages[0])?languages[0]:'';
 }
 
-const stageEnglish={'parliament-decision':'Parliament’s decision','final-act':'Final act',proposal:'Commission proposal',document:'Summary'};
-export function summaryStage(stage,language) {
-  return ['first-reading','second-reading'].includes(stage)?interfaceTerm(stage,language):{text:Object.hasOwn(stageEnglish,stage)?stageEnglish[stage]:'Summary',language:'en'};
+const stages={'parliament-decision':'terms.parliamentDecision','final-act':'terms.finalAct',proposal:'batch6.references.commission.proposal.25',document:'batch5.procedurecontext.tsx.33.71'};
+export function summaryStage(stage,language, ui = defaultUi) {
+  return ['first-reading','second-reading'].includes(stage)?interfaceTerm(stage,language):{text:ui.t(Object.hasOwn(stages,stage)?stages[stage]:'batch5.procedurecontext.tsx.33.71'),language:ui.language};
 }
 
-export function voteScope(scope,language) {
+export function voteScope(scope,language, ui = defaultUi) {
   if(['final-text','amendment'].includes(scope))return interfaceTerm(scope,language);
   if(scope==='unclassified')return interfaceTerm('vote',language);
-  return {text:scope==='procedural'?'Procedural vote':scope,language:scope==='procedural'?'en':''};
+  return {text:scope==='procedural'?ui.t("terms.proceduralVote"):scope,language:scope==='procedural'?ui.language:''};
 }

@@ -22,3 +22,5 @@
 
 .ov-month-bar[data-availability=partial]>span {background:var(--surface);border:2px dashed var(--accent);min-height:3px;}
 .ov-month-bar[data-availability=unavailable] {background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 5px,var(--line) 5px,var(--line) 6px);}
+
+.ov-person-count { min-width:0; overflow-wrap:anywhere; white-space:normal; }

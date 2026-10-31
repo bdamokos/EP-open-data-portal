@@ -1,3 +1,4 @@
+import {useUiI18n} from './UiI18nReact';
 import {Component,Fragment,useEffect,useId,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
 import {interfaceLanguages} from './interfaceCopy';
 import {interfaceTerm} from './terms.mjs';
@@ -7,12 +8,12 @@ import './recovery.css';
 
 function urlLanguage() {
   const language=new URLSearchParams(location.search).get('lang')||'en';
-  return interfaceLanguages.includes(language)?language:'en';
+  return interfaceLanguages.includes(language) ? language : 'en';
 }
 
 function Recovery({language=urlLanguage(),navigation,retry}:{language?:string;navigation?:ReactNode;retry?:()=>void}) {
   const heading=useRef<HTMLHeadingElement>(null),id=useId();
-  const title=interfaceTerm('view-error',language),help=interfaceTerm(retry?'view-error-help':'view-reload-help',language);
+  const title=interfaceTerm('view-error',language),help=interfaceTerm(retry ? 'view-error-help' : 'view-reload-help',language);
   useEffect(()=>{heading.current?.focus({preventScroll:true});},[]);
   return <main className="explorer explorer-recovery" lang={title.language}>
     {navigation}
@@ -20,7 +21,7 @@ function Recovery({language=urlLanguage(),navigation,retry}:{language?:string;na
       <h1 id={id} ref={heading} tabIndex={-1}>{title.text}</h1>
       <p lang={help.language}>{help.text}</p>
       <div className="explorer-recovery-actions">
-        <button onClick={retry||(()=>location.reload())}>{interfaceTerm(retry?'try-again':'reload-page',language).text}</button>
+        <button onClick={retry||(()=>location.reload())}>{interfaceTerm(retry ? 'try-again' : 'reload-page',language).text}</button>
         <a href={'?lang='+language}>{interfaceTerm('go-home',language).text}</a>
         {retry&&<button onClick={()=>location.reload()}>{interfaceTerm('reload-page',language).text}</button>}
       </div>
@@ -37,13 +38,13 @@ export class ErrorBoundary extends Component<Props,State> {
   state:State={failed:false,reloadRequired:false,resetKey:this.props.resetKey,attempt:0};
   static getDerivedStateFromError(error:unknown){return {failed:true,reloadRequired:error instanceof LazyViewError};}
   static getDerivedStateFromProps(props:Props,state:State) {
-    return props.resetKey!==state.resetKey?{failed:false,reloadRequired:false,resetKey:props.resetKey,attempt:0}:null;
+    return (props.resetKey!==state.resetKey) ? ({failed:false,reloadRequired:false,resetKey:props.resetKey,attempt:0}) : null;
   }
   render() {
-    if(this.state.failed)return <Recovery language={this.props.language} navigation={this.props.navigation} retry={this.state.reloadRequired?undefined:()=>{
+    if(this.state.failed)return <Recovery language={this.props.language} navigation={this.props.navigation} retry={this.state.reloadRequired ? undefined : (()=>{
       this.props.onRetry?.();
       this.setState(state=>({failed:false,attempt:state.attempt+1}));
-    }}/>;
+    })}/>;
     return <Fragment key={this.state.attempt}>{this.props.children}</Fragment>;
   }
 }
@@ -56,7 +57,7 @@ export function RootBoundary({children}:{children:ReactNode}) {
     window.addEventListener('popstate',restore);
     return ()=>window.removeEventListener('popstate',restore);
   },[]);
-  return mismatch?<ApiVersionRecovery/>:<ErrorBoundary resetKey={String(navigation)}>{children}</ErrorBoundary>;
+  return mismatch ? <ApiVersionRecovery/> : <ErrorBoundary resetKey={String(navigation)}>{children}</ErrorBoundary>;
 }
 
 function ApiVersionRecovery() {
@@ -82,9 +83,10 @@ export function ViewContent({render,onReady}:{render:()=>ReactNode;onReady:()=>v
 }
 
 export function ViewLoading({language,title,embedded=false}:{language:string;title?:string;embedded?:boolean}) {
+  const ui = useUiI18n();
   const term=interfaceTerm('loading-view',language);
   if(embedded)return <section className="view-loading" data-view-loading="true" aria-busy="true">
-    {title&&<div className="insight-intro" lang="en"><h1>{title}</h1></div>}
+    {title&&<div className="insight-intro" lang={ui.language}><h1>{title}</h1></div>}
     <p role="status" lang={term.language}>{term.text}</p>
     <div className="view-loading-placeholders" aria-hidden="true"><span/><span/><span/></div>
   </section>;

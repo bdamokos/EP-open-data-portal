@@ -63,7 +63,7 @@ test('amendment reader preserves empty edits, exact split bindings, source langu
   const parts=[...cards[0].querySelectorAll('.explorer-amendment-part')];
   assert.equal(parts[0].querySelector('blockquote').lang,'en');
   assert.equal(parts[0].querySelectorAll('.explorer-amendment-decision').length,1);
-  assert.match(parts[0].querySelector('.explorer-amendment-totals').textContent,/for0/);
+  assert.match(parts[0].querySelector('.explorer-amendment-totals').textContent,/For0/);
   assert.match(parts[1].textContent,/Outcome unavailable for this part/);
   assert.equal(parts[1].querySelectorAll('.explorer-amendment-decision').length,0);
   assert.match(parts[0].querySelector('.explorer-amendment-selection').textContent,/excluding The text “carbon leakage”/);

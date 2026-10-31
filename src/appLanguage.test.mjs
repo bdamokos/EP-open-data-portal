@@ -5,11 +5,36 @@ import {Window} from 'happy-dom';
 import {freshLoader} from './test-support/viteRunner.mjs';
 
 const member={id:257043,firstName:'Mika',lastName:'Aaltola',sortName:'AALTOLA Mika',gender:'m',countryCode:'FI',groupCode:'EPP',memberships:[{id:'AFET',role:'MEMBER',classification:'COMMITTEE',current:true,start:'2024-07-16',end:null}],accounts:[]};
-const directory={day:'2026-10-16',members:[member],committees:[{id:'AFET',code:'AFET',names:{en:'Foreign affairs',fr:'Affaires étrangères',hu:'Külügy'},classification:'COMMITTEE'},{id:'LIBE',code:'LIBE',names:{en:'Civil liberties'},classification:'COMMITTEE'}],index:{complete:true,loaded:1,total:1,failed:0,error:null}};
+const directory={day:'2026-10-16',members:[member],committees:[{id:'AFET',code:'AFET',names:{en:'Foreign affairs',fr:'Affaires étrangères',hu:'Külügy'},classification:'COMMITTEE'},{id:'LIBE',code:'LIBE',names:{en:'Civil liberties'},classification:'COMMITTEE'}],index:{complete:true,
+    loaded:1,total:1,failed:0,error:null}};
 const copy={
-  en:{title:'Members of the European Parliament',back:'Back',speeches:'Latest speeches',profile:'Profile',country:'Country'},
-  hu:{title:'Európai parlamenti képviselők',back:'Vissza',speeches:'Legutóbbi felszólalások',profile:'Profil',country:'Ország'},
-  fr:{title:'Députés au Parlement européen',back:'Retour',speeches:'Dernières interventions',profile:'Profil',country:'Pays'},
+  en:{title:'Members of the European Parliament',back:'Back',speeches:'Latest speeches',profile:'Profile',country:'Country',
+    shell:"{title} — European Parliament data explorer",current:"Current at {date}",contribution:"Plenary contribution",
+    machine:"Machine translation",original:"Original text",saved:"Showing saved transcript.",find:"Find in speech",
+    born:"Born {date} · {place}",following:"Following",
+    written:"Written question",answer:"Answer · {date}",textLanguage:"Text language",
+    loaded:"Question: Text loaded.",lookup:"Look it up",
+    unavailable:"Text unavailable",unreadable:"Transcript could not be read.",
+    transcriptUnavailable:"Transcript unavailable.",transcriptLoaded:"Transcript loaded.",
+    interface:"Interface language",requestedUnavailable:"Requested-language text unavailable"},
+  hu:{title:'Európai parlamenti képviselők',back:'Vissza',speeches:'Legutóbbi felszólalások',profile:'Profil',country:'Ország',
+    shell:"{title} — Az Európai Parlament adatböngészője",current:"Állapot: {date}",contribution:"Plenáris felszólalás",
+    machine:"Gépi fordítás",original:"Eredeti szöveg",saved:"A mentett átirat látható.",find:"Keresés a beszédben",
+    born:"Született: {date} · {place}",following:"Követve",
+    written:"Írásbeli választ igénylő kérdés",answer:"Válasz · {date}",textLanguage:"A szöveg nyelve",
+    loaded:"Kérdés: a szöveg betöltve.",lookup:"Kikeresés",
+    unavailable:"A szöveg nem érhető el",unreadable:"Az átirat nem olvasható.",
+    transcriptUnavailable:"Az átirat nem érhető el.",transcriptLoaded:"Az átirat betöltve.",
+    interface:"A felület nyelve",requestedUnavailable:"A kért nyelvű szöveg nem érhető el"},
+  fr:{title:'Députés au Parlement européen',back:'Retour',speeches:'Dernières interventions',profile:'Profil',country:'Pays',
+    shell:"{title} — Explorateur de données du Parlement européen",current:"À jour au {date}",contribution:"Contribution en plénière",
+    machine:"Traduction automatique",original:"Texte original",saved:"Transcription enregistrée affichée.",find:"Rechercher dans le discours",
+    born:"Naissance : {date} · {place}",following:"Suivi",
+    written:"Question écrite",answer:"Réponse · {date}",textLanguage:"Langue du texte",
+    loaded:"Question : texte chargé.",lookup:"Rechercher",
+    unavailable:"Texte indisponible",unreadable:"La transcription n’a pas pu être lue.",
+    transcriptUnavailable:"Transcription indisponible.",transcriptLoaded:"Transcription chargée.",
+    interface:"Langue de l’interface",requestedUnavailable:"Texte indisponible dans la langue demandée"},
 };
 const date=(value,language)=>new Intl.DateTimeFormat(language,{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(value+'T12:00:00Z'));
 const page=items=>({categories:{'written-questions':'Written questions','plenary-contributions':'Plenary contributions'},categoryGroups:[],categoryCoverage:{},items,selectedItems:[],indexedTotal:items.length,nextOffset:null,unclassifiedMotionCount:0,cache:{complete:true,stale:false,lastSuccessfulRefresh:'2026-10-16'}});
@@ -72,7 +97,8 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     if(route==='insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
     if(route==='insights/saved')return Response.json({members:[],questions:[]});
-    if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),unavailable:true,debates:[]});
+    if(route?.startsWith('speech-context/'))return Response.json({speechId:route.slice(15),
+    unavailable:true,debates:[]});
     if(route?.startsWith('speech/')) {
       const id=route.slice(7),unknown=id===speeches[1].sourceId;
       if(speechResponse)return Response.json({id,...speechResponse});
@@ -118,38 +144,38 @@ for(const pathname of ['//attacker.example/','/browser/mep-speeches-poc/index.ht
 }
 
 for(const language of ['en','hu','fr']) {
-  test(language+': interface copy, English shell, endonyms, speech-title fallbacks and transcript language stay distinct',async t=>{
+  test(language+': interface copy, localized shell, endonyms, speech-title fallbacks and transcript language stay distinct',async t=>{
     const h=await harness(t,language),c=copy[language];
     assert.equal(document.documentElement.lang,language);assert.equal(h.container.querySelector('main.explorer').lang,language);
-    assert.equal(document.title,c.title+' — European Parliament data explorer');assert.equal(document.querySelector('title').lang,language);
+    assert.equal(document.title,c.shell.replace('{title}',c.title));assert.equal(document.querySelector('title').lang,language);
     assert.equal(effectiveLanguage(exactText(h.container,'h1',c.title)),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-filters input')),language);
-    const footerSelect=h.container.querySelector('select[aria-label="Interface language"]');
-    assert.equal(effectiveLanguage(footerSelect),'en');
+    const footerSelect=h.container.querySelector('.explorer-footer select');
+    assert.equal(effectiveLanguage(footerSelect),language);assert.equal(footerSelect.getAttribute('aria-label'),c.interface);
     for(const code of ['en','hu','fr','ga','mt'])assert.equal(effectiveLanguage(footerSelect.querySelector(`[value="${code}"]`)),code);
     const countries=[...h.container.querySelectorAll('.explorer-filter-line label')].find(node=>node.firstChild.textContent===c.country);
     assert(countries);assert.equal(effectiveLanguage(countries),language);
-    assert.equal(effectiveLanguage(countries.querySelector('option[value=""]')),'en');
+    assert.equal(effectiveLanguage(countries.querySelector('option[value=""]')),language);
     assert.equal(effectiveLanguage(countries.querySelector('option[value="FI"]')),language);
     assert.equal(effectiveLanguage(exactText(h.container,'option','EPP')),'');
     // Exact committee identifiers retain the selected dictionary entry's
     // language, including the English fallback under a localized interface.
     const committeeFallback=exactText(h.container,'option','LIBE · Civil liberties');
     assert.equal(effectiveLanguage(committeeFallback),'en');assert.equal(committeeFallback.getAttribute('aria-label'),null);
-    const freshness=h.container.querySelector('.explorer-results small');assert.equal(effectiveLanguage(freshness),'en');
-    assert.equal(freshness.textContent,'Current at '+date(directory.day,language));assert.equal(effectiveLanguage(freshness.querySelector('time')),language);
+    const freshness=h.container.querySelector('.explorer-results small');assert.equal(effectiveLanguage(freshness),language);
+    assert.equal(freshness.textContent,c.current.replace('{date}',date(directory.day,language)));assert.equal(effectiveLanguage(freshness.querySelector('time')),language);
     assert.equal(effectiveLanguage(h.container.querySelector('.portrait--button')),'');
 
     await h.click(h.container.querySelector('.portrait--button'));
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-profile h1')),'');
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-back')),language);
     assert.equal(effectiveLanguage(exactText(h.container,'h2',c.speeches)),language);
-    const expected=[language==='hu'?'Magyar cím':language==='fr'?'Titre français':'English title','English fallback','Erster Titel','Do not scan to this title','Plenary contribution','Language unknown title'];
-    const expectedLanguages=[language,'en','de','it','en',''];
+    const expected=[language==='hu'?'Magyar cím':language==='fr'?'Titre français':'English title','English fallback','Erster Titel','Do not scan to this title',c.contribution,'Language unknown title'];
+    const expectedLanguages=[language,'en','de','it',language,''];
     const rows=[...h.container.querySelectorAll('.explorer-speech')];assert.equal(rows.length,speeches.length);
     rows.forEach((row,index)=>{
       const title=row.querySelector('strong');assert.equal(title.textContent,expected[index]);assert.equal(effectiveLanguage(title),expectedLanguages[index]);
-      const metadata=row.querySelector('.explorer-speech-toggle > span');assert.equal(effectiveLanguage(metadata),'en');
+      const metadata=row.querySelector('.explorer-speech-toggle > span');assert.equal(effectiveLanguage(metadata),language);
       assert.equal(metadata.querySelector('span').textContent,date('2026-10-07',language));assert.equal(effectiveLanguage(metadata.querySelector('span')),language);
       assert(!row.querySelector('.explorer-speech-toggle').textContent.includes(speeches[index].reference),'speech reference stays out of the card label');
     });
@@ -158,41 +184,40 @@ for(const language of ['en','hu','fr']) {
     assert.equal(body.textContent,'Texte français du discours.');assert.equal(effectiveLanguage(body.querySelector('p')),'fr');
     assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
     assert.equal(effectiveLanguage(detail.querySelector('h3')),language);
-    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),'en');assert.match(detail.querySelector('.explorer-text-meta').textContent,/Machine translation/);
-    assert.equal(effectiveLanguage(exactText(detail,'small','Showing saved transcript.')),'en');
+    assert.equal(effectiveLanguage(detail.querySelector('.explorer-text-meta')),language);assert(detail.querySelector('.explorer-text-meta').textContent.includes(c.machine));
+    assert.equal(effectiveLanguage(exactText(detail,'small',c.saved)),language);
     assert.equal(detail.querySelector('.explorer-source-link a'),null);
-    assert.equal(effectiveLanguage(detail.querySelector('button[aria-label="Find in speech"]')),'en');
+    assert.equal(effectiveLanguage(detail.querySelector('button.explorer-search-icon')),language);assert.equal(detail.querySelector('button.explorer-search-icon').getAttribute('aria-label'),c.find);
     await h.click(rows[1].querySelector('button'));
     const unknown=rows[1].querySelector('.explorer-transcript');assert.equal(effectiveLanguage(unknown.querySelector('p')),'');assert.equal(unknown.textContent,'Unspecified source transcript.');
     assert.equal(rows[1].querySelector('.explorer-text-meta').textContent,'');
 
     await h.click(exactText(h.container,'.explorer-tabs button',c.profile));
-    const born=[...h.container.querySelectorAll('.explorer-profile-body p')].find(node=>node.textContent.startsWith('Born '));
-    assert.equal(effectiveLanguage(born),'en');assert.equal(effectiveLanguage(born.querySelector('span')),language);assert.equal(effectiveLanguage(born.querySelectorAll('span')[1]),'');
+    const born=[...h.container.querySelectorAll('.explorer-profile-body p')].find(node=>node.textContent===c.born.replace('{date}',date('1969-05-02',language)).replace('{place}','Jämsänkoski'));
+    assert.equal(effectiveLanguage(born),language);assert.equal(effectiveLanguage(born.querySelector('span')),language);assert.equal(effectiveLanguage(born.querySelectorAll('span')[1]),'');
     assert.equal(effectiveLanguage(h.container.querySelector('a[href^="mailto:"]')),'');
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-membership p')),language);
-    await h.click(exactText(h.container,'.parliament-header button','Following'));
-    assert.equal(document.title,'Following — European Parliament data explorer');assert.equal(document.querySelector('title').lang,'en');
+    await h.click(exactText(h.container,'.parliament-header button',c.following));
+    assert.equal(document.title,c.shell.replace('{title}',c.following));assert.equal(document.querySelector('title').lang,language);
     assert.equal(document.documentElement.lang,language);assert.equal(h.container.querySelector('main.explorer').lang,language);
   });
 
-  test(language+': source documents keep headers, notes, unknown-language boundaries and English controls, and save exact title language',async t=>{
-    const h=await harness(t,language,{items:questions,query:{member:String(member.id),module:'activities'}});
+  test(language+': source documents keep headers, notes, unknown-language boundaries and localized controls, and save exact title language',async t=>{
+    const h=await harness(t,language,{items:questions,query:{member:String(member.id),module:'activities'}}),c=copy[language];
     const rows=[...h.container.querySelectorAll('.explorer-speech')];
     assert.deepEqual(rows.map(row=>effectiveLanguage(row.querySelector('strong'))),['fr','','hu']);
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-activities h2')),language);
     const metadata=rows[0].querySelector('.explorer-speech-toggle small');
-    assert.equal(metadata.childNodes.length,1,'activity category and date retain one flex item');assert.equal(metadata.textContent,'Written question · '+date('2026-10-01',language));
-    assert.equal(effectiveLanguage(metadata),'en');assert.equal(effectiveLanguage(metadata.querySelector('time')),language);
+    assert.equal(metadata.childNodes.length,1,'activity category and date retain one flex item');assert.equal(metadata.textContent,c.written+' · '+date('2026-10-01',language));
+    assert.equal(effectiveLanguage(metadata),language);assert.equal(effectiveLanguage(metadata.querySelector('time')),language);
     for(let index=0;index<rows.length;index++) {
       await h.click(rows[index].querySelector('button'));
       const reader=rows[index].querySelector('.explorer-document-text'),id=questions[index].sourceId,fixture=bodies[id],body=reader.querySelector('.explorer-transcript');
       assert.equal(effectiveLanguage(body.querySelector('p')),fixture.language||'');
       assert.equal(effectiveLanguage(reader.querySelector('.legal-notes li')),fixture.language||'');
-      assert.equal(effectiveLanguage(reader.querySelector('.legal-notes summary')),'en');
+      assert.equal(effectiveLanguage(reader.querySelector('.legal-notes summary')),language);
       assert.equal(reader.querySelector('.explorer-reader-download'),null);
-      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),'en');
-
+      assert.equal(effectiveLanguage(reader.querySelector('.explorer-reader-heading h3')),language);
       for(const option of reader.querySelectorAll('.explorer-reader-heading option[value]:not([value=""])'))assert.equal(effectiveLanguage(option),option.value);
       assert(reader.querySelector('sup a[href*="-note-1"]'),'superscript source note marker remains available');
       assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
@@ -205,25 +230,25 @@ for(const language of ['en','hu','fr']) {
         const label={en:'Save question',hu:'Kérdés mentése',fr:'Enregistrer la question'}[language];
         assert.equal(save.getAttribute('aria-label'),label+' · Titre de la question');assert.equal(save.getAttribute('aria-labelledby'),null);assert.equal(effectiveLanguage(save),language==='fr'?'fr':'','the French title remains separate from a differing UI language');
         assert.equal(save.querySelector('span[lang]').textContent,label);assert.equal(effectiveLanguage(save.querySelector('span[lang]')),language);
-        const answer=reader.querySelector('#document-'+answerId),answerHeading='Answer · '+date('2026-10-02',language);
+        const answer=reader.querySelector('#document-'+answerId),answerHeading=c.answer.replace('{date}',date('2026-10-02',language));
         assert.equal(answer.querySelector('.explorer-coauthors'),null,'answers do not repeat question authors');
         assert.equal(answer.querySelector('.explorer-reader-download'),null);
         assert.equal(answer.querySelector('h3').textContent,answerHeading);assert.equal(effectiveLanguage(answer.querySelector('h3 span')),language);
-        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),'Text language');assert.equal(effectiveLanguage(answerSelect),'en');
+        const answerSelect=answer.querySelector('select');assert.equal(answerSelect.getAttribute('aria-label'),c.textLanguage);assert.equal(effectiveLanguage(answerSelect),language);
         await h.click(save);
         const saved=JSON.parse(h.window.localStorage.getItem('ep.following.v2')).items[0];
         assert.equal(saved.id,questionId);assert.equal(saved.title,questions[0].title);assert.equal(saved.titleLanguage,'fr');assert.deepEqual(saved.baseline.answerIds,[]);
       }
     }
     await h.wait();
-    const status=rows[2].querySelector('[role="status"][aria-live]');assert.equal(status.textContent,'Question: Text loaded.');assert.equal(effectiveLanguage(status),'en');
+    const status=rows[2].querySelector('[role="status"][aria-live]');assert.equal(status.textContent,c.loaded);assert.equal(effectiveLanguage(status),language);
   });
 }
 
 test('linked-source fallback skips empty titles while preserving source language and exact links',async t=>{
   const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{de:'',fr:'Do not select a later entry'}}});
-  const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'en');
-  await h.click(exactText(fallback,'button','Look it up'));
+  const fallback=h.container.querySelector('aside.explorer-notice');assert(fallback);assert.equal(effectiveLanguage(fallback),'hu');
+  await h.click(exactText(fallback,'button',copy.hu.lookup));
   const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.explorer-publication-files a').href,download);
@@ -264,25 +289,27 @@ const transcriptCases=[
 ];
 for(const language of ['en','hu','fr'])test(language+': transcript availability stays distinct from language and provenance',async t=>{
   for(const scenario of transcriptCases)await t.test(scenario.name,async t=>{
-    const {name,prefix,provenance,readable,unreadable,...response}=scenario;
+    const {name,prefix:metadataPrefix,provenance:provenanceLabel,readable,unreadable,...response}=scenario,c=copy[language];
+    const prefix=metadataPrefix==='Text unavailable'?c.unavailable:metadataPrefix;
+    const provenance=provenanceLabel==='Machine translation'?c.machine:provenanceLabel==='Original text'?c.original:provenanceLabel;
     const h=await harness(t,language,{items:[speeches[0]],query:{member:String(member.id),module:'speeches',speech:speeches[0].sourceId},speechResponse:{...response,availableTextLanguages:[]}});
     const detail=h.container.querySelector('.explorer-speech-detail'),metadata=detail.querySelector('.explorer-text-meta');
-    assert.equal(effectiveLanguage(metadata),'en');assert(metadata.textContent.startsWith(prefix));
+    assert.equal(effectiveLanguage(metadata),language);assert(metadata.textContent.startsWith(prefix));
     if(provenance)assert(metadata.textContent.includes(provenance));
     else assert.equal(metadata.textContent,prefix,'no language or provenance is inferred from readable text');
-    const body=detail.querySelector('.explorer-transcript'),find=detail.querySelector('button[aria-label="Find in speech"]');
+    const body=detail.querySelector('.explorer-transcript'),find=detail.querySelector('button.explorer-search-icon');
     if(readable){
       assert.deepEqual([...body.querySelectorAll('p')].map(p=>p.textContent),['Exact transcript text.','Second source paragraph.']);
-      assert.equal(effectiveLanguage(body),response.textLanguage||'');assert(find);
-      assert(!metadata.textContent.includes('Text unavailable'));
+      assert.equal(effectiveLanguage(body),response.textLanguage||'');assert(find);assert.equal(find.getAttribute('aria-label'),c.find);
+      assert(!metadata.textContent.includes(c.unavailable));
       assert.equal(body.closest('[aria-live],[role="status"],[role="alert"]'),null);
-      if(!response.textLanguage)assert(!metadata.textContent.includes('Interface-language text unavailable'));
+      if(!response.textLanguage){assert(!metadata.textContent.includes('Interface-language text unavailable'));assert(!metadata.textContent.includes(c.requestedUnavailable));}
     }else{
       assert.equal(body,null);assert.equal(find,null);assert(!metadata.textContent.includes('Language unspecified'));
-      assert(detail.textContent.includes(unreadable?'Transcript could not be read.':'Transcript unavailable.'));
+      assert(detail.textContent.includes(unreadable?c.unreadable:c.transcriptUnavailable));
     }
     await h.wait();
-    assert.equal(detail.querySelector('[role="status"][aria-live]').textContent,readable?'Transcript loaded.':unreadable?'Transcript could not be read.':'Transcript unavailable.');
+    assert.equal(detail.querySelector('[role="status"][aria-live]').textContent,readable?c.transcriptLoaded:unreadable?c.unreadable:c.transcriptUnavailable);
     assert(!h.requests.some(route=>route.startsWith('speech-media/')),'opening transcript metadata does not acquire media');
   });
 });
