@@ -112,9 +112,16 @@ export class QuestionInsights {
     requestSignal()?.throwIfAborted();
     const status=this.store.status();if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved activity index is not available yet.');
     const groupOn=generationGroupOn(this.store,status.servingGeneration);
-    const key=JSON.stringify([status.servingGeneration,historyCacheKey(this.store,status.servingGeneration),this.store.get('demographicRevision')||0,status.availabilityRevision,status.complete,status.progress?.completed,status.rosterFetchedAt,query.start,query.end]);
-    const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return old.value;
-    if(this.pending.has(key))return waitForRequest(this.pending.get(key));
+    // A published generation's question inputs are frozen. Work on the next
+    // generation changes availability, not the titles/bodies being analysed.
+    // Initial loading still needs the mutable working generation's revisions.
+    const published=this.store.get('active')===status.servingGeneration;
+    const key=JSON.stringify([status.servingGeneration,historyCacheKey(this.store,status.servingGeneration),this.store.get('demographicRevision')||0,published?'published':[status.availabilityRevision,status.complete,status.progress?.completed],status.rosterFetchedAt,query.start,query.end]);
+    const evidence=this.store.readSnapshot(()=>({gaps:savedGaps(this.store,status.servingGeneration,'questions',{start:query.start,end:query.end}),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess')}));
+    const current=value=>({...value,status,availability:questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:evidence.gaps,limited:value.truncated,checkedAt:evidence.checkedAt,revision:evidence.revision,
+      records:value.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}))});
+    const old=this.cache.get(key);if(old && this.clock()-old.at<INSIGHTS_LIMITS.cacheMs)return current(old.value);
+    if(this.pending.has(key))return current(await waitForRequest(this.pending.get(key)));
     const groupCodes=groupOn.codes||new Set();
     // Language and filter views share this analysis, but each view has its own
     // owner. Expiring one view must cancel only its wait on the shared work.
@@ -128,7 +135,6 @@ export class QuestionInsights {
         count:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where).get(...params).n,
         rows:this.store.db.prepare('SELECT key,body,fetched_at FROM sources INDEXED BY question_window WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
-        gaps:savedGaps(this.store,status.servingGeneration,'questions',{start:query.start,end:query.end}),revision:this.store.get('availabilityRevision')||0,checkedAt:this.store.get('lastSuccess'),
         frontiers:questionCoverageRecords(this.store,status.servingGeneration,types)
       }));
       const {count,rows,members,undatedQuestions}=frozen;
@@ -136,10 +142,8 @@ export class QuestionInsights {
       const [metadata,bodies]=await Promise.all([this.loadMetadata({members,store:this.store}),this.loadQuestionBodies(sources)]);
       const analysis=await analyzeQuestionsAsync(sources.map(questionFromSource).filter(Boolean),{bodies,signal});
       const geography=countryQuestions(analysis,members,metadata);
-      const availability=questionSubtypes.map(subtype=>indexAvailability(this.store,{sourceKey:subtype,family:'questions',subtype,start:query.start,end:query.end,generation:status.servingGeneration,gaps:frozen.gaps,limited:count>rows.length,checkedAt:frozen.checkedAt,revision:frozen.revision,
-        records:frozen.frontiers.filter(q=>String(q.subtype).endsWith('/'+subtype))}));
-      const value={...analysis,...geography,members,metadata,status,undatedQuestions,availability,groupOn,groupCodes,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
-      const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography,availability}));
+      const value={...analysis,...geography,members,metadata,undatedQuestions,frontiers:frozen.frontiers,groupOn,groupCodes,indexedMatchingQuestions:count,truncated:count>rows.length,computedAt:new Date(this.clock()).toISOString()};
+      const bytes=Buffer.byteLength(JSON.stringify({...analysis,...geography,frontiers:frozen.frontiers}));
       signal.throwIfAborted();
       if(bytes<=INSIGHTS_LIMITS.cacheBytes) {
         if(this.cache.has(key)){this.cacheBytes-=this.cache.get(key).bytes;this.cache.delete(key);}
@@ -148,7 +152,7 @@ export class QuestionInsights {
       }
       return value;
     }).finally(()=>{if(this.pending.get(key)===job)this.pending.delete(key);});
-    this.pending.set(key,job);return waitForRequest(job);
+    this.pending.set(key,job);return current(await waitForRequest(job));
   }
   async query(query) {
     const a=await this.analysis(query);
