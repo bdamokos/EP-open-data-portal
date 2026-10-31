@@ -81,11 +81,12 @@ function usableVote(item,period) {
   return withinPeriod(item,period)&&outcomeShape(item)&&['with','against','abstained','unclassified'].includes(item.alignment)&&nullableString(item.title)&&nullableString(item.titleLanguage)&&stringMap(item.titles)&&stringMap(item.referenceTexts)&&nullableString(item.subjectId)&&isObject(item.context)&&['documentIds','amendmentIds','componentIds'].every(key=>stringArray(item.context[key]))&&Array.isArray(item.parts)&&item.parts.every(part=>componentShape(part)&&typeof part.requestId==='string'&&typeof part.resultId==='string'&&stringMap(part.requestScopeByLanguage)&&Array.isArray(part.contextComponents)&&part.contextComponents.every(componentShape))&&Array.isArray(item.rollCallRequesters)&&item.rollCallRequesters.every(requesterShape)&&isObject(item.resultRelationship)&&['consistent','single-direction','ambiguous','unlinked'].includes(item.resultRelationship.binding);
 }
 export function validateMemberVotesResponse(data,{memberId,state={}}) {
-  if(!isObject(data)||data.version!==8||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
+  if(!isObject(data)||data.version!==9||!isObject(data.member)||data.member.id!==String(memberId)||!/^\d+$/.test(data.member.id))return false;
   if(!alignments.has(data.alignment)||data.alignment!==(state.alignment??'all')||data.positions!==(state.positions??'all')||!isObject(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||data.coverage.termWide!==false)return false;
   if(!matchesPeriod(data.period,state,data.coverage.status==='unavailable')||typeof data.snapshotId!=='string'||!snapshot.test(data.snapshotId)||state.snapshotId&&data.snapshotId!==state.snapshotId)return false;
   const page=data.pagination;
   if(!isObject(page)||page.offset!==(page.mode==='period'?0:state.offset??0)||page.limit!==MEMBER_VOTES_PAGE_SIZE||!['offset','limit','returned','observedTotal','filteredTotal'].every(key=>integer(page[key])))return false;
+  if(page.omittedWhileChairingTotal!==undefined&&!integer(page.omittedWhileChairingTotal))return false;
   if(page.mode!==undefined&&page.mode!=='period'||page.mode==='period'&&(page.returned!==page.filteredTotal||page.nextOffset!==null))return false;
   if(data.coverage.status==='unavailable'?page.recordedTotal!==null:!integer(page.recordedTotal)||page.recordedTotal>page.observedTotal)return false;
   if(data.coverage.status==='unavailable'?data.alignmentCounts!==null:!isObject(data.alignmentCounts)||Object.keys(data.alignmentCounts).length!==4||!['with','against','abstained','unclassified'].every(key=>integer(data.alignmentCounts[key]))||Object.values(data.alignmentCounts).reduce((sum,value)=>sum+value,0)!==page.observedTotal)return false;
@@ -98,7 +99,7 @@ export function validateMemberVotesResponse(data,{memberId,state={}}) {
   if(!isObject(data.selected))return false;
   if(state.decisionId) {
     if(data.selected.status==='found')return usableVote(data.selected.item,data.period)&&data.selected.item.id===state.decisionId;
-    return ['not-found-in-scanned-data','unavailable'].includes(data.selected.status)&&data.selected.item===null;
+    return ['not-found-in-scanned-data','unavailable','chairing'].includes(data.selected.status)&&data.selected.item===null;
   }
   return data.selected.status==='not-requested'&&data.selected.item===null;
 }

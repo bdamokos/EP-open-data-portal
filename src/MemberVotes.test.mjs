@@ -46,7 +46,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:8,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:9,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -1268,4 +1268,9 @@ test('period view keeps a subject larger than the old page together and canonica
   await h.click(h.container.querySelector('[data-vote-group]').textContent.trim());
   assert.equal(h.container.querySelectorAll('.member-votes-row').length,65);
   assert(h.calls.every(url=>new URL(url,'http://localhost').searchParams.get('view')==='period'));
+});
+
+test('chairing-only periods show no vote entries or Parliament outcome controls and clear omitted deep links',async t=>{
+  const h=await mount(t,{state:{week:WEEK,snapshotId:SNAPSHOT,decisionId:decision(1)},handler:url=>Response.json(responseFor(url,{items:[],subjects:[],pagination:{omittedWhileChairingTotal:1},selected:stateFrom(url).decisionId?{status:'chairing',item:null}:{status:'not-requested',item:null}}))});
+  assert.equal(h.state.decisionId,null);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);assert.equal(h.container.querySelector('.member-votes-tools'),null);assert.equal(h.container.querySelector('.member-votes-subject'),null);assert.doesNotMatch(h.container.textContent,/Not individually recorded|Vote unavailable|No votes were recorded/);
 });

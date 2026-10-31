@@ -119,12 +119,19 @@ export function projectMemberDecision(raw,snapshot,memberId,language='en',derive
 
 export function projectMemberSitting(snapshot,memberId,language='en') {
   const derived=deriveVoteEvidence(snapshot);
-  const items=list(snapshot.decisions).map(raw=>projectMemberDecision(raw,snapshot,memberId,language,derived)).map(item=>({...item,alignment:memberVoteAlignment(item)}));
+  const omittedWhileChairing=[];
+  const items=list(snapshot.decisions).map(raw=>projectMemberDecision(raw,snapshot,memberId,language,derived)).filter(item=>{
+    if(snapshot.chairing?.status!=='observed'||!['no-record','not-individually-recorded'].includes(item.actualPosition.status)||item.ballotStatus!=='conducted'||!item.subjectId||!['consistent','single-direction'].includes(item.resultRelationship.binding)||item.evidenceGaps.some(gap=>['conflicting-result-source','missing-result','invalid-reference'].includes(gap.code)))return true;
+    const result=list(snapshot.results).find(raw=>identifier(eventUri(raw)||'')===item.subjectId);
+    const docs=references(result?.recorded_in_a_realization_of,'doc').map(identifier);
+    if(docs.length!==1||snapshot.chairing.byResultDocument[docs[0]]!==String(memberId))return true;
+    omittedWhileChairing.push(item.id);return false;
+  }).map(item=>({...item,alignment:memberVoteAlignment(item)}));
   const subjects=derived.subjects.map(subject=>{
     const wholeTextDecisions=items.filter(item=>item.subjectId===subject.id&&item.scope.kind==='whole-text').map(item=>Object.fromEntries(['id','uri','date','scope','method','outcome','ballotStatus','actualPosition','intention','totals','evidencePaths','evidenceGaps'].map(key=>[key,item[key]])));
     return {...subject,...preferred(subject.titles,language),wholeTextDecisions,gaps:wholeTextDecisions.length?subject.gaps:[...subject.gaps,{code:'whole-text-outcome-not-established'}],sources:{results:snapshot.sources?.results||[],decisions:snapshot.sources?.decisions||[]}};
   });
-  return {items,subjects};
+  return {items,subjects,omittedWhileChairing};
 }
 
 export function memberVoteAlignment(vote) {

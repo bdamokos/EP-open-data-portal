@@ -24,7 +24,7 @@ function setup(t,{dates=['2026-01-27'],status=404,metadataStatus=200,counts={},d
   if(status==='network')throw new TypeError('Synthetic connection failure');
   return new Response(null,{status});
  });
- return {calls,service:new MemberVotes({clock:()=>NOW,limits,request:(endpoint,params,options)=>odp(endpoint,params,{...options,force:true})})};
+ return {calls,service:new MemberVotes({readChairs:async()=>null,clock:()=>NOW,limits,request:(endpoint,params,options)=>odp(endpoint,params,{...options,force:true})})};
 }
 const query=value=>memberVotesQuery(new URLSearchParams(value),{now:NOW});
 

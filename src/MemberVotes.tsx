@@ -190,6 +190,9 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const attendanceRequest=useData<MemberAttendanceResponse>(attendanceRoute);
   const attendance=attendanceRoute&&!attendanceRequest.error&&validateMemberAttendanceResponse(attendanceRequest.data,{memberId,sittingIds:attendanceIds})?attendanceRequest.data:null;
   const selected=state.decisionId&&data?.selected.status==='found'&&data.selected.item?.id===state.decisionId?data.selected.item:null;
+  useEffect(()=>{
+    if(data?.selected.status==='chairing'&&state.decisionId)onStateChange({...state,decisionId:null,context:null},{replace:true});
+  },[data,state,onStateChange]);
   const stateRef=useRef(state);stateRef.current=state;
   useEffect(()=>{
     const refresh=snapshotRefresh.current;
@@ -256,7 +259,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const expired=request.status===409;
   const rejected=Boolean(!route||request.data&&!valid);
   const coverageNotice=data?memberVotesCoverageNotice(data,state):null;
-  const noRecordedPositions=data?.pagination.recordedTotal===0&&data.pagination.observedTotal>0;
+  const noRecordedPositions=data?.pagination.recordedTotal===0&&(data.pagination.observedTotal>0||(data.pagination.omittedWhileChairingTotal??0)>0);
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId?exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId):topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang="en" aria-label={`${memberName} · Votes`}>
     <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}>Voting records</h2><p>{periodLabel(data,state)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
