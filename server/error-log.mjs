@@ -2,7 +2,7 @@ import {mkdir,stat,rename,appendFile} from 'node:fs/promises';
 import path from 'node:path';
 import {config,projectRoot} from './config.mjs';
 export const ERROR_DIAGNOSTICS_VERSION=1;
-import {diagnosticRequest,diagnosticFrames} from '../src/errorDiagnostics.mjs';
+import {diagnosticRequest,diagnosticFrames} from './error-diagnostics.mjs';
 
 // Serialized rotation bounds both disk use and the queue during a failure burst.
 export function createErrorLog({directory=process.env.ERROR_LOG_DIR||path.join(projectRoot,'var','diagnostics'),maxBytes=5*1024*1024,files=4}={}) {
