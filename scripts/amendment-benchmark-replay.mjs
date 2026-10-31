@@ -135,6 +135,16 @@ export function sourceReplay(cache,runtime) {
     if(!input.ok)throw new Error('document-source-http-'+input.status);
     return {buffer:input.body,resolvedSourceUrl:input.resolvedSourceUrl||url,fetchedAt:input.fetchedAt,freshnessAssessed:false};
   }}):null;
+  const selectionRequirements=new WeakMap();
+  const proposalRequiresSelection=(options,report)=>{
+    if(!nativeCaller||!options.reportId){selectionRequirements.set(options,false);return false;}
+    const references=[...(options.documentReferences||[]).map(reference=>reference.raw),...runtime.array(report?.is_realized_by).flatMap(expression=>Object.values(expression.title_alternative||{}).flat())];
+    const procedures=references.flatMap(raw=>runtime.commissionProcedures(raw));
+    // Unknown procedure identity must keep each selected native context. A
+    // legacy runtime or an explicitly non-NLE source retains ordinary sharing.
+    const required=!procedures.length||procedures.some(procedure=>procedure.endsWith('(NLE)'));
+    selectionRequirements.set(options,required);return required;
+  };
   const readNativeSelection=async(options,selection,record)=>{
     const query={id:options.reportId,language:options.language,wordingLanguage:options.language,listId:selection.listId,amendmentId:options.reportId+'-AM-'+selection.number};
     const sources=[],selections=new Map(),source=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),contentHash:record.sourceHash,stale:Boolean(record.stale),refreshError:record.refreshError||null});
@@ -153,6 +163,7 @@ export function sourceReplay(cache,runtime) {
   const lawHints=new Map();
   return {
     request,
+    proposalRequiresSelection,
     observeFiles(id,contexts) {
       for(const [language,{plain}] of contexts) {
         const document=plain.value?.document;
@@ -210,7 +221,7 @@ export function sourceReplay(cache,runtime) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};
       let boundOptions=options;
       const typed=(options.documentReferences||[]).flatMap(r=>runtime.commissionProcedures(r.raw));
-      if(nativeCaller&&options.reportId&&(!typed.length||typed.some(p=>p.endsWith('(NLE)')))) {
+      if(nativeCaller&&options.reportId&&selectionRequirements.get(options)!==false&&(!typed.length||typed.some(p=>p.endsWith('(NLE)')))) {
         const report=await request('/plenary-documents/'+options.reportId);
         const texts=runtime.array(report.payload.data[0]?.is_realized_by).flatMap(e=>Object.values(e.title_alternative||{}).flat());
         const nle=[...texts,...(options.documentReferences||[]).map(r=>r.raw)].some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)')));
