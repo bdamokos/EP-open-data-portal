@@ -10,7 +10,7 @@ test('captures HTTP and network failures without changing responses or recursive
  assert.equal(await target.fetch('/api/profile/12?token=secret&lang=hu'),response);
  let report=JSON.parse(calls[1].options.body);assert.equal(report.status,502);assert.equal(report.request,'/api/profile/12?lang=hu');assert.equal(report.requestId,'123');
  fail=true;await assert.rejects(target.fetch('/api/profile/12'),TypeError);assert.equal(JSON.parse(calls.at(-1).options.body).kind,'network');
- const error=Object.assign(new Error('private'),{uiMessageId:'error.message'});reportUiError(error);const count=calls.length;reportUiError(error);assert.equal(calls.length,count);assert(!calls.at(-1).options.body.includes('private'));
+ const error=Object.assign(new Error('private'),{uiMessageId:'error.message',stack:'Error: private\n at https://example.org/assets/View-abc.js:10:42'});reportUiError(error);const count=calls.length;reportUiError(error);assert.equal(calls.length,count);assert(!calls.at(-1).options.body.includes('private'));assert.deepEqual(JSON.parse(calls.at(-1).options.body).frames,['/assets/View-abc.js:10:42']);
  await assert.rejects(target.fetch('https://external.example/api/x'));assert.equal(calls.length,count+1);
  const before=calls.length;for(let i=0;i<100;i++)reportUiError(new Error('private'));assert(calls.length-before<=30);
 });

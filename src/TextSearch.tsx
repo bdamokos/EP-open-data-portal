@@ -1,3 +1,4 @@
+import {reportUiError} from './errorDiagnostics.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useEffect,useId,useImperativeHandle,useRef,useState,type RefObject,type ReactNode} from 'react';
@@ -118,7 +119,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
         throw new Error(message);}
       if(!data||!Array.isArray(data.results))throw new Error(ui.t("textsearch.search_failed_try_again"));
       if(current)setState({key:request,data,loading:false,error:null});
-    }).catch(error=>{if(current)setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_please_retry") : error.message}));}).finally(()=>clearTimeout(timer));
+    }).catch(error=>{if(current){reportUiError(controller.signal.aborted?new Error():error,{request:API_ROOT+'/corpus/search',...(controller.signal.aborted?{code:'textsearch.this_search_took_too_long_please_retry'}:{})});setState(old=>({...old,loading:false,error:controller.signal.aborted ? ui.t("textsearch.this_search_took_too_long_please_retry") : error.message}));}}).finally(()=>clearTimeout(timer));
     return()=>{current=false;controller.abort();clearTimeout(timer);};
   },[request,activeRequest,attempt]);
   const data=(((((showText && (!disabledReason)) && (!scopeChanging)) && (!pendingDraft)) && (!inline||query)) && (state.key===request)) ? state.data : null,loading=activeRequest&&(state.key!==request||state.loading)||pendingDraft&&Boolean(draft.trim()),error=((((showText && (!disabledReason)) && (!pendingDraft)) && (!inline||query)) && (state.key===request)) ? state.error : null;

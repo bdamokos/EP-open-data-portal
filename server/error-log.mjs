@@ -2,7 +2,7 @@ import {mkdir,stat,rename,appendFile} from 'node:fs/promises';
 import path from 'node:path';
 import {config,projectRoot} from './config.mjs';
 export const ERROR_DIAGNOSTICS_VERSION=1;
-import {diagnosticRequest} from '../src/errorDiagnostics.mjs';
+import {diagnosticRequest,diagnosticFrames} from '../src/errorDiagnostics.mjs';
 
 // Serialized rotation bounds both disk use and the queue during a failure burst.
 export function createErrorLog({directory=process.env.ERROR_LOG_DIR||path.join(projectRoot,'var','diagnostics'),maxBytes=5*1024*1024,files=4}={}) {
@@ -36,6 +36,7 @@ export function clientErrorEvent(body) {
   const status=Number(body.status);
   return {source:'browser',kind:body.kind,...(request?{request}:{}),method:['GET','HEAD','POST'].includes(body.method)?body.method:undefined,
     status:body.kind==='http'&&Number.isInteger(status)&&status>=400&&status<=599?status:undefined,
+    frames:diagnosticFrames(Array.isArray(body.frames)?body.frames.filter(value=>typeof value==='string').slice(0,3).join('\n'):''),
     code:label(body.code),name:label(body.name),requestId:/^[a-f0-9-]{36}$/.test(body.requestId)?body.requestId:undefined,
     elapsedMs:Number.isFinite(body.elapsedMs)?Math.max(0,Math.min(3600000,Math.round(body.elapsedMs))):undefined,
     apiVersion:Number.isInteger(body.apiVersion)?body.apiVersion:undefined};

@@ -12,15 +12,18 @@ export function diagnosticRequest(input) {
     return url.pathname.slice(0,500)+(query.size?'?'+query:'');
   } catch {return null;}
 }
+export function diagnosticFrames(stack) {
+  return typeof stack==='string'?[...stack.matchAll(/\/(?:assets\/[A-Za-z0-9_.-]+\.js|src\/[A-Za-z0-9_./-]+\.(?:tsx?|m?js)):\d+:\d+/g)].slice(0,3).map(match=>match[0]):[];
+}
 let send=()=>{};
 const seen=new WeakSet();
-export function reportUiError(error) {
+export function reportUiError(error,context={}) {
   if(error && typeof error==='object') {
     if(seen.has(error)||error.name==='AbortError')return;
     seen.add(error);
   }
   // Free text can include search terms or local storage contents. Retain stable IDs.
-  send({kind:'ui',code:typeof error?.uiMessageId==='string'?error.uiMessageId:'ui_error',name:error?.name});
+  send({kind:'ui',code:context.code||(typeof error?.uiMessageId==='string'?error.uiMessageId:'ui_error'),request:diagnosticRequest(context.request),name:error?.name,frames:diagnosticFrames(error?.stack)});
 }
 export function installErrorDiagnostics(target,endpoint) {
   const original=target.fetch.bind(target);
