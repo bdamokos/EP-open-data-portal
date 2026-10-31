@@ -14,7 +14,7 @@ export function voteWeekNeighbours(weeks,week) {return {previous:weeks.find(item
 export function votePeriodTransition(state,week,sittingId=null) {return {...state,week,sittingId,snapshotId:null,offset:0,decisionId:null,context:null,expandedSubjectIds:[]};}
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 export function validateVotePeriods(data) {
-  if(!object(data)||data.version!==2||!object(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||!Array.isArray(data.weeks)||!Array.isArray(data.coverage.years))return false;
+  if(!object(data)||![2,3].includes(data.version)||!object(data.coverage)||!['complete','partial','unavailable'].includes(data.coverage.status)||!Array.isArray(data.weeks)||!Array.isArray(data.coverage.years))return false;
   if(!data.coverage.years.every(year=>object(year)&&Number.isInteger(year.year)&&['complete','partial','unavailable'].includes(year.state)&&Array.isArray(year.sources)))return false;
   let previous='9999';const seen=new Set();
   return data.weeks.every(entry=>{
