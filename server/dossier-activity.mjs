@@ -13,8 +13,9 @@ import {resolvedAmendmentAuthorId} from './amendments.mjs';
 import {memberVotes} from './member-votes.mjs';
 import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
+import {declaredSpeechEvidence} from './declared-speech-evidence.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=8;
+export const DOSSIER_ACTIVITY_VERSION=12;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -179,7 +180,7 @@ export class DossierActivity {
     const declaredDebates=work.consists_of.filter(event=>tail(event.had_activity_type)==='PLENARY_DEBATE');
     const debates=sorted(declaredDebates.filter(event=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+$/.test(canonical(event.id))).map(event=>({...event,date:date(event.activity_date)})));
     if(debates.length!==declaredDebates.length)coverage.gaps.push('A linked debate has an invalid identifier.');
-    const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map();
+    const selected=debates.slice(targetOffset,targetOffset+DOSSIER_ACTIVITY_LIMITS.debatesPerPage),children=new Map(),declarations=new Map(),declarationConflicts=new Set();
     coverage.checkedTargets=selected.map(event=>tail(event.id));
     coverage.uncheckedTargets=[...new Set(debates.map(event=>tail(event.id)))].filter(id=>!coverage.checkedTargets.includes(id));
     for(const event of selected)try {
@@ -188,27 +189,36 @@ export class DossierActivity {
       const ids=refs(nodes[0].consists_of).filter(value=>/^eli\/dl\/event\/MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(value));
       if(ids.length>DOSSIER_ACTIVITY_LIMITS.children)coverage.gaps.push('Some debate children are outside this page.');
       for(const child of ids.slice(0,DOSSIER_ACTIVITY_LIMITS.children))children.set(tail(child),[...(children.get(tail(child))||[]),{...event,jointDebate:/joint debate/i.test(nodes[0].activity_label?.en||'')}]);
+      const proof=declaredSpeechEvidence({children:ids.map(tail),parentId:id,parentDate:event.date||date(nodes[0].activity_date),nodes:[...array(nodes[0].consists_of),...record.payload.data]});
+      for(const [childId,observation] of proof.speeches)if(!member||observation.people.includes(member))declarations.set(childId,observation);
+      for(const childId of proof.conflicted)declarationConflicts.add(childId);
       const observation=source(record);coverage.sources.push(observation);
     }catch(error){if(isLocalRequestFailure(error))throw error;coverage.retryable=true;coverage.failedDebates.push(tail(event.id));coverage.gaps.push('A linked debate is unavailable.');}
+    for(const id of declarationConflicts)declarations.delete(id);
     const retained=this.store.readSnapshot(()=>{
       if(this.store.status().servingGeneration!==result.generation)return null;
       if(!children.size)return {rows:[],missing:[]};
       const ids=[...children.keys()],slots=ids.map(()=>'?').join(',');
-      const indexed=new Set(this.store.db.prepare('SELECT DISTINCT source_id FROM items WHERE generation=? AND source_id IN ('+slots+')').all(result.generation,...ids).map(row=>row.source_id));
+      const projections=this.store.db.prepare("SELECT source_id,mep,json_extract(body,'$.recordKind') recordKind,json_extract(body,'$.speechKind') kind FROM items WHERE generation=? AND source_id IN ("+slots+')').all(result.generation,...ids);
+      const indexed=new Set(projections.map(row=>row.source_id)),attributed=new Set(),retainedKinds=new Set();
+      for(const row of projections)if(row.recordKind==='speech'&&personId('person/'+row.mep)) {
+        attributed.add([row.source_id,String(row.mep),row.kind].join('@'));
+        retainedKinds.add([row.source_id,row.kind].join('@'));
+      }
       const sources=new Set(this.store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='speech' AND key IN ("+slots+')').all(result.generation,...ids.map(id=>'/speeches/'+id)).map(row=>row.key));
       const classifications=this.store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='event' AND key IN ("+slots+')').all(result.generation,...ids.map(id=>'/events/'+id)).flatMap(row=>{
         const event=JSON.parse(row.body);
-        return row.key==='/events/'+event.id&&event.classificationVersion===1&&event.declaredBy&&children.get(event.id)?.some(parent=>tail(parent.id)===event.declaredBy)&&/^[A-Z][A-Z0-9_]+$/.test(event.kind)&&!['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(event.kind)&&event.source?.url===apiUrl(row.key)+'?format=application%2Fld%2Bjson'&&Number.isFinite(Date.parse(event.source?.fetchedAt))?[event]:[];
+        return row.key==='/events/'+event.id&&event.classificationVersion===1&&event.declaredBy&&children.get(event.id)?.some(parent=>tail(parent.id)===event.declaredBy)&&/^[A-Z][A-Z0-9_]+$/.test(event.kind)&&event.source?.url===apiUrl(row.key)+'?format=application%2Fld%2Bjson'&&Number.isFinite(Date.parse(event.source?.fetchedAt))?[event]:[];
       });
-      const classified=new Set(classifications.map(event=>event.id));
-      const missing=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id)&&!classified.has(id));
+      const speechTypes=new Set(['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT']);
+      const classified=new Set(classifications.filter(event=>!speechTypes.has(event.kind)&&!declarations.has(event.id)&&!declarationConflicts.has(event.id)).map(event=>event.id));
+      const unresolved=ids.filter(id=>!indexed.has(id)&&!sources.has('/speeches/'+id)&&!classified.has(id));
       const rows=this.store.db.prepare('SELECT body,source_key FROM items WHERE generation=?'+(member?' AND mep=?':'')+' AND source_id IN ('+slots+') ORDER BY date,source_id,mep LIMIT ?').all(result.generation,...(member?[member]:[]),...ids,DOSSIER_ACTIVITY_LIMITS.speechRows+1).map(row=>({...row,saved:this.store.source(result.generation,row.source_key)}));
-      return {rows,missing,classifications};
+      return {rows,unclassified:unresolved,classifications,attributed,retainedKinds};
     });
     if(retained===null){coverage.status='unavailable';coverage.retryable=true;coverage.gaps.push('The activity index changed. Retry speeches.');return;}
-    const {rows,missing}=retained;coverage.missingSpeechIds=missing;
+    const {rows}=retained;
     for(const event of retained.classifications||[])coverage.sources.push({...event.source,language:null,stale:true});
-    if(missing.length){coverage.retryable=true;coverage.gaps.push('Some linked contributions are not saved.');}
     const items=[];
     for(const row of rows.slice(0,DOSSIER_ACTIVITY_LIMITS.speechRows)) {
       const speech=JSON.parse(row.body),parents=children.get(speech.sourceId)||[];
@@ -220,6 +230,19 @@ export class DossierActivity {
       const from={url:speech.provenance.apiUrl,fetchedAt:speech.provenance.sourceFetchedAt,language:null};
       items.push({kind:'speech',id:speech.sourceId,personId:speaker,date:date(speech.date),start:speech.start||null,stage:stage(parents[0].occured_at_stage),...pick(speech.titles,language,speech.speechKind==='PLENARY_DEBATE_WRITTEN_STATEMENT'?'Written statement':'Speech'),debateId:tail(parents[0].id),jointDebate:parents[0].jointDebate,source:from});
     }
+    // A metadata source is not the attributed contribution declared by the
+    // debate. Only its corresponding attributed record closes that declaration;
+    // row pagination remains a separate bounded omission.
+    const missing=new Set();
+    for(const [id,observation] of declarations) {
+      if(!children.has(id))continue;
+      const people=member?[member]:observation.people;
+      if(people.length?people.some(person=>!retained.attributed?.has([id,person,observation.kind].join('@'))):!retained.retainedKinds?.has([id,observation.kind].join('@')))missing.add(id);
+    }
+    if(!member)for(const event of retained.classifications||[])if(['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'].includes(event.kind)&&!declarationConflicts.has(event.id)&&!retained.retainedKinds?.has([event.id,event.kind].join('@')))missing.add(event.id);
+    coverage.missingSpeechIds=[...missing];
+    coverage.unresolvedChildIds=(retained.unclassified||[]).filter(id=>!missing.has(id));
+    if(missing.size){coverage.retryable=true;coverage.gaps.push('Some linked contributions are not saved.');}
     if(rows.length>DOSSIER_ACTIVITY_LIMITS.speechRows)coverage.gaps.push('Some saved speech records are outside this page.');
     const nextTarget=targetOffset+selected.length<debates.length?{offset:0,targetOffset:targetOffset+selected.length}:null;
     page(sorted([...new Map(items.map(item=>[item.id+'@'+item.personId,item])).values()]),nextTarget);

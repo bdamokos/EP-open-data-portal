@@ -212,7 +212,8 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
     const refresh=snapshotRefresh.current;
     if(refresh){if(!refresh.started||request.data===refresh.baseline)return;snapshotRefresh.current=null;}
     const current=stateRef.current,week=!current.sittingId&&candidateData.period.week?candidateData.period.week:current.week;
-    if(current.snapshotId!==candidateData.snapshotId||current.week!==week||candidateData.pagination.mode==='period'&&current.offset!==0)onStateChange({...current,week,offset:candidateData.pagination.mode==='period'?0:current.offset,snapshotId:candidateData.snapshotId},{replace:true});
+    const clearChair=candidateData.selected.status==='chairing'&&Boolean(current.decisionId||current.context);
+    if(clearChair||current.snapshotId!==candidateData.snapshotId||current.week!==week||candidateData.pagination.mode==='period'&&current.offset!==0)onStateChange({...current,...(clearChair?{decisionId:null,context:null}:{}),week,offset:candidateData.pagination.mode==='period'?0:current.offset,snapshotId:candidateData.snapshotId},{replace:true});
   },[candidateData,request.data,request.loading,onStateChange,chooseLatest,search.complete,searchScope,requestedWeek,memberId,language,unavailableEarlier,calendarRequest.data,calendarRequest.loading,calendarRequest.error]);
   useLayoutEffect(()=>{
     const pane=state.context?null:state.decisionId?detailRef.current:listRef.current;
@@ -256,7 +257,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
   const expired=request.status===409;
   const rejected=Boolean(!route||request.data&&!valid);
   const coverageNotice=data?memberVotesCoverageNotice(data,state):null;
-  const noRecordedPositions=data?.pagination.recordedTotal===0&&data.pagination.observedTotal>0;
+  const noRecordedPositions=data?.pagination.recordedTotal===0&&(data.pagination.observedTotal>0||(data.pagination.omittedWhileChairingTotal??0)>0);
   const contextAllowed=Boolean(state.context&&selected&&['document','adopted'].includes(state.context.view)&&(state.context.amendmentId?exactAmendmentTargets(selected).some(target=>target.documentId===state.context?.documentId&&target.amendmentId===state.context?.amendmentId):topLevelVoteDocuments(selected).includes(state.context.documentId)));
   return <section className="member-votes" lang="en" aria-label={`${memberName} · Votes`}>
     <div className="member-votes-period"><div><p className="member-votes-eyebrow">{memberName}</p><h2 ref={listHeadingRef} tabIndex={-1}>Voting records</h2><p>{periodLabel(data,state)}</p></div><VotePeriodNavigation state={state} resolvedWeek={data?.period.week} language={language} sittingCoverage={data?.coverage.sittings} onPeriod={periodChange}/></div>
@@ -267,7 +268,7 @@ export function MemberVotes({memberId,memberName,language,state,onStateChange,re
       {coverageNotice&&<p className="member-votes-notice">{coverageNotice}</p>}
       <div ref={listRef} className="member-votes-pane" hidden={Boolean(state.decisionId||state.context)} onScroll={event=>{listScroll.current=event.currentTarget.scrollTop;}}>
         {noRecordedPositions?<p className="member-votes-empty">No recorded positions {state.sittingId?'at this sitting':'this week'}.</p>:<>
-        <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.mode==='period'?String(data.pagination.filteredTotal):data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')}{data.pagination.recordedTotal!==null?` · ${data.pagination.recordedTotal} with a recorded position`:''}{data.coverage.status==='partial'?' · Partial coverage':''}</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button></div></div>
+        <div className="member-votes-tools">{data.coverage.status!=='unavailable'&&<p>{data.pagination.mode==='period'?String(data.pagination.filteredTotal):data.pagination.returned?`${data.pagination.offset+1}–${data.pagination.offset+data.pagination.returned} of ${data.pagination.filteredTotal}`:'0'} {countLabel(data.pagination.filteredTotal,state.positions==='recorded'?'recorded position':'decision')}{data.pagination.recordedTotal!==null?` · ${data.pagination.recordedTotal} with a recorded position`:''}</p>}<div className="member-votes-filter" role="group" aria-label="Votes shown"><button type="button" aria-pressed={state.positions==='all'} onClick={()=>{listScroll.current=0;change({positions:'all',offset:0});}}>All decisions</button><button type="button" aria-pressed={state.positions==='recorded'} onClick={()=>{listScroll.current=0;change({positions:'recorded',offset:0});}}>Recorded positions</button></div></div>
         <OutcomeAlignmentFilter value={state.alignment} counts={data.alignmentCounts} coverage={data.coverage.status} sitting={Boolean(state.sittingId)} onChange={alignment=>{alignmentFocus.current=alignment;listScroll.current=0;change({alignment,offset:0});}}/>
         {groups.map(group=>{
           const title=group.subject?chosenTitle(group.subject,language):null;

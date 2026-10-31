@@ -113,6 +113,9 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
 
 export function ProposalContextText({data,wording,amendmentId,language,showOriginalLink=true}:{data:DocumentContextResponse;showOriginalLink?:boolean;wording:Variant|null;amendmentId?:string;language:string}) {
   const reader=useRef<HTMLDivElement>(null),prefix='proposal-'+useId().replace(/[^A-Za-z0-9_-]/g,''),baseline=data.baseline!,items=data.proposal!.items;
+  const fileFailures=(baseline.gaps||[]).filter((gap):gap is {code:string;itemId:string}=>Boolean(gap&&typeof gap==='object'&&typeof (gap as {itemId?:unknown}).itemId==='string'&&!['stale-metadata','stale-content','bundle-too-large','native-annex-ordinal-unverified'].includes(String((gap as {code?:unknown}).code))));
+  const missingFiles=new Set(fileFailures.map(gap=>gap.itemId)).size;
+  const fileLimit=(baseline.gaps||[]).some(gap=>gap&&typeof gap==='object'&&(gap as {code?:unknown}).code==='bundle-too-large');
   const placement=data.placement,placed=placement?.status==='placed'&&!!wording&&placement.itemIndex!==undefined&&!!items[placement.itemIndex]&&baseline.language===wording.language;
   const effective=placed?placement:null;
   const number=amendmentId?.match(/-AM-(\d+[a-z]*)$/i)?.[1].replace(/^0+(?=\d)/,'');
@@ -157,7 +160,8 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
     <p className="document-context-language">Text language: {baseline.language.toUpperCase()}</p>
     <div className="document-context-tools"><FindInText target={reader} label={existing?'Find in existing act':council?'Find in Council position':'Find in proposal'}/></div>
     {placed?<div className="document-context-passage"><button type="button" onClick={showAmendment}>Go to amendment</button></div>:<p className="document-context-notice" role="status">{proposalPlacementReasons[placement?.reason||'']||'The amendment’s location could not be determined.'}</p>}
-    {baseline.status!=='available'&&<p className="document-context-notice">{council||existing?'Partial text.':'Some proposal content is unavailable.'}</p>}
+    {missingFiles>0&&<p className="document-context-notice">{missingFiles} document {missingFiles===1?'file':'files'} not loaded.</p>}
+    {fileLimit&&<p className="document-context-notice">Document file limit reached.</p>}
     {baseline.items.some(item=>item.source.stale||item.source.refreshError)&&<p className="document-context-notice">{existing?'Saved text':baseline.items.some(item=>item.source.refreshError)?'Couldn’t update the proposal. Showing saved text.':'Showing saved proposal text.'}</p>}
     <div className="document-context-text proposal-context-text" ref={reader} lang={baseline.language}>{!placed&&amendmentBlock(false)}{items.map((item,index)=>{
       const p=item.proposal,notes=p.notes as DocumentNote[],links=p.links as DocumentLink[];

@@ -1,5 +1,10 @@
 import {viewReady} from './test-support/viewReady.mjs';
 import {test} from 'node:test';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {ActivityStore} from '../server/activity-index-store.mjs';
+import {ActivityWorker} from '../server/activity-index-worker.mjs';
+import {initializeGroupVoices,recordGroupVoice,groupVoicesPage} from '../server/group-voices-store.mjs';
+import {groupVoicesQuery,GROUP_VOICE_LIMITS,groupVoiceProjection} from '../server/group-voices-model.mjs';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
 import {Window} from 'happy-dom';
@@ -119,5 +124,33 @@ for(const mode of ['gap','observed','partial'])test(`group summary and selected 
  const availability=sourceAvailability({sourceKey:'oral-speeches',start:'2026-09-01',end:'2026-09-30',latestObservedDate:'2026-10-16',gaps:mode==='gap'?[{start:'2026-09-01',end:'2026-09-30'}]:[],limited:mode==='partial',today:'2026-10-24'});
  const h=await harness(t,'?view=groups&gv-period=2026-09&gv-tab=subjects&gv-subject=foreign',{response:{availability,people:[],contributions:[],total:0,window:{from:'2026-09-01',to:'2026-09-30'}}});
  const values=[...h.container.querySelectorAll('.gv-summary strong,.gv-subject-title strong,.gv-contributions h2 > small')].map(el=>el.textContent.replace(/^·\s*/,''));
- assert.equal(values.length,5);assert(values.every(value=>value===(mode==='gap'?'Unavailable':mode==='partial'?'0 so farPartial':'0')),JSON.stringify(values));
+ assert.equal(Boolean(h.container.querySelector('.gv-subjects .gv-empty')),mode!=='partial');
+ assert.equal(values.length,5);assert(values.every(value=>value===(mode==='partial'?'Unavailable':'0')),JSON.stringify(values));
+});
+
+for(const limited of [false,true])test('People empty message requires an observed zero, limited='+limited,async t=>{
+ const availability=sourceAvailability({sourceKey:'oral-speeches',start:'2026-09-01',end:'2026-09-30',latestObservedDate:'2026-10-16',limited,today:'2026-10-30'});
+ const h=await harness(t,'?view=groups&gv-period=2026-09&gv-tab=people',{response:{availability,people:[],contributions:[],total:0,window:{from:'2026-09-01',to:'2026-09-30'}}});
+ assert.equal(Boolean(h.container.querySelector('.gv-people .gv-empty')),!limited);
+});
+
+for(const capped of [false,true])test('actual group producer distinguishes a checked empty selection from a capped one: '+capped,async t=>{
+ const clock=()=>Date.parse('2026-10-30T12:00Z'),directory=mkdtempSync('/tmp/group-empty-producer-'),store=new ActivityStore(directory,{clock});
+ t.after(()=>{store.db.exec('PRAGMA query_only=OFF');store.close();rmSync(directory,{recursive:true,force:true});});
+ store.acquire();const {generation}=store.beginCycle(),worker=new ActivityWorker(store,{clock});
+ initializeGroupVoices(worker,generation,[]);store.setMembers([{id:'42',name:'Fixture member'}]);
+ const speech=number=>({activity_id:'MTG-PL-2026-10-06-OTH-'+number,activity_date:'2026-10-06',had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:[{participation_role:'def/ep-roles/SPEAKER',had_participant_person:['person/42'],participation_in_name_of:'org/PPE'}]});
+ worker.saveSpeech(generation,speech('1'),new Date(clock()).toISOString());
+ if(capped)store.transaction(()=>{
+  const put=(number,foreign=false)=>recordGroupVoice(store,generation,groupVoiceProjection({...speech(number),...(foreign?{inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-18']}:{})},{fetchedAt:new Date(clock()).toISOString()}),null);
+  for(let i=1;i<=GROUP_VOICE_LIMITS.rows;i++)put(String(i+10000));
+  put('9999999',true);
+ });
+ store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);store.publish(generation);store.release();store.db.exec('PRAGMA query_only=ON');
+ const response=groupVoicesPage(store,groupVoicesQuery(new URLSearchParams('group=PPE&subject=foreign'),{now:clock()}));
+ if(capped)assert.equal(store.db.prepare("SELECT COUNT(*) n FROM group_voice_designations WHERE generation=? AND group_id='PPE' AND subject='foreign'").get(generation).n,1,'the matching retained contribution really exists beyond the cap');
+ assert.equal(response.coverage.truncated,capped);assert.equal(response.total,0);
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects&gv-subject=foreign',{response});
+ assert.equal(Boolean(h.container.querySelector('.gv-contributions .gv-empty')),!capped);
+ assert.match(h.container.querySelector('.gv-contributions h2').textContent,capped?/Unavailable/:/0/);
 });

@@ -206,7 +206,7 @@ test('the real vote collector propagates missing declared results and inconsiste
     if(fault==='identifier-conflict')agenda.push({...structuredClone(agenda[0]),id:'eli/dl/event/'+SITTING+'-OJ-ITM-V-999',activity_id:SITTING+'-OJ-ITM-V-999',identifier:SITTING+'-OJ-ITM-V-998'});
     const request=async(endpoint,params={})=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.now(),payload:{data:
       (endpoint==='/meetings/'+SITTING?[meeting]:endpoint.endsWith('/decisions')?decisions:endpoint.endsWith('/vote-results')?[result]:agenda).slice(params.offset||0,(params.offset||0)+(params.limit||10000))}});
-    const votes=new MemberVotes({request}),q=memberVotesQuery(new URLSearchParams({sitting:SITTING,decision:FINAL})),snapshot=await votes.snapshot(q);
+    const votes=new MemberVotes({readChairs:async()=>null,request}),q=memberVotesQuery(new URLSearchParams({sitting:SITTING,decision:FINAL})),snapshot=await votes.snapshot(q);
     assert.equal(snapshot.days[0].coverage.state,fault==='missing-result'?'partial':'complete');
     assert.equal(snapshot.days[0].coverage.completeness.votingRecordsComplete,fault!=='missing-result');
     assert.equal(snapshot.days[0].coverage.completeness.complete,!['missing-result','invalid-agenda'].includes(fault));

@@ -65,7 +65,10 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
     </header>
     {data&&<>
       {data.state==='mapped'&&<>
-        {partial(data.coverage)&&<p className="procedure-progress-status">{data.coverage.limited?'Timeline incomplete':'Partial coverage'}</p>}
+        {data.coverage.limited&&<p className="procedure-progress-status">Timeline limited to {events.length} events.</p>}
+        {data.coverage.invalidRows>0&&<p className="procedure-progress-status">{data.coverage.invalidRows} timeline records could not be read.</p>}
+        {data.coverage.incompleteEvents>0&&<p className="procedure-progress-status">{data.coverage.incompleteEvents} events have unavailable dates or details.</p>}
+        {data.coverage.timeline==='unavailable'&&<p className="procedure-progress-status">Earlier procedure timeline unavailable.</p>}
         {events.length>0&&<div className="procedure-progress-overview">
           {latest?<p className="procedure-progress-latest">{latest.institutions.length>0&&<EventInstitutions event={latest}/>}<strong><EventName event={latest}/></strong><EventDate event={latest} language={language}/></p>:<p className="procedure-progress-muted">No dated milestone.</p>}
           <button className="procedure-progress-toggle" type="button" aria-expanded={expanded} aria-controls={timelineId} onClick={()=>setExpanded(value=>!value)}>{expanded?'Hide timeline':'Show timeline'}</button>
@@ -78,7 +81,7 @@ export function ProcedureProgress({reference,language}:{reference:string;languag
             <p className="procedure-progress-muted" role="status">{visible.length} {visible.length===1?'event':'events'} in this selection{data.coverage.limited?' · incomplete':''}</p>
             <ol className="procedure-progress-timeline">{visible.map(event=><li key={event.id} className={event.status==='projected'?'procedure-progress-scheduled':undefined}>
               <div className="procedure-progress-event-date">{event.date?<EventDate event={event} language={language}/>:<span>Date unavailable</span>}</div><EventInstitutions event={event}/><div className="procedure-progress-event-detail"><Status event={event} today={today}/><h4><EventName event={event}/></h4>
-                {event.issues.length>0&&<p className="procedure-progress-muted">Partial details</p>}
+                {event.issues.some(issue=>['type','label','status'].includes(issue))&&<p className="procedure-progress-muted">{[...new Set(event.issues.map(issue=>({type:'Event type unavailable',label:'Event description unavailable',status:'Status unavailable'} as Record<string,string>)[issue]).filter(Boolean))].join(' · ')}</p>}
                 {event.works.length>0&&<details className="procedure-progress-documents" onToggle={toggle=>{if(toggle.currentTarget.open){setDocumentsNeeded(true);if(docData&&(documents.error||docFreshness.stale||docFreshness.failed)&&!documents.loading&&docRetryAt<=Date.now())documents.retry();}}}><summary>Documents</summary>
                   {documents.loading&&!docData&&<p role="status">Loading document links…</p>}
                   {documents.error&&!docData&&<p role="status">Document links unavailable. <button type="button" onClick={documents.retry} disabled={docRetryAt>Date.now()}>Try again</button></p>}
