@@ -66,7 +66,7 @@ function exactText(container,selector,text) {
   const node=[...container.querySelectorAll(selector)].find(node=>node.textContent===text);
   assert(node,'Missing '+selector+': '+text);return node;
 }
-async function harness(t,language,{items=speeches,query={},linkedDocument,speechResponse,pathname='/',city='Strasbourg'}={}) {
+async function harness(t,language,{items=speeches,query={},linkedDocument,speechResponse,pathname='/',city='Strasbourg',calendarResponse}={}) {
   const window=new Window({url:'http://localhost'+pathname+'?'+new URLSearchParams({lang:language,...query})}),unexpected=[],requests=[];
   class ReaderDOMParser extends window.DOMParser {
     parseFromString(...args) {
@@ -89,6 +89,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];
     if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});requests.push(route+url.search);
+    if(route==='vote-periods'&&calendarResponse)return calendarResponse();
     if(route==='vote-periods')return Response.json({version:3,weeks:[{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',location:city}]}],coverage:{status:'complete',years:[]}});
     if(route==='directory')return Response.json(directory);
     if(route?.startsWith('portrait/'))return new Response(null,{status:404});
@@ -329,4 +330,17 @@ test('speech card with an unknown city retains its time without guessing Brussel
  const card=h.container.querySelector('.explorer-speech-toggle');
  assert.match(card.textContent,/12:00:00/);
  assert.doesNotMatch(card.textContent,/Brussels|Strasbourg/);
+});
+
+test('Refresh list restores sitting cities after a failed calendar request',async t=>{
+ let available=false,calls=0;
+ const calendar={version:3,weeks:[{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',location:'Strasbourg'}]}],coverage:{status:'complete',years:[]}};
+ const h=await harness(t,'en',{items:[speeches[0]],query:{member:String(member.id),module:'speeches'},calendarResponse:()=>{calls++;return available?Response.json(calendar):Response.json({error:'Unavailable'},{status:503});}});
+ await h.wait();
+ assert.doesNotMatch(h.container.querySelector('.explorer-speech-toggle').textContent,/Strasbourg|Brussels/);
+ const before=calls;available=true;
+ await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Refresh list'));
+ await h.wait();
+ assert(calls>before);
+ assert.match(h.container.querySelector('.explorer-speech-toggle').textContent,/Strasbourg/);
 });
