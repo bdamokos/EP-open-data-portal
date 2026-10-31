@@ -20,7 +20,7 @@ test('profile disclosures are collapsed, retain raw identifiers, language and sa
   assert.equal(page.querySelectorAll('.explorer-profile-memberships > details').length,2);assert.equal(page.querySelectorAll('details[open]').length,0);
   assert.deepEqual([...page.querySelectorAll('.explorer-profile-memberships > details > summary')].map(node=>node.textContent),['Political affiliations','Delegations and other roles']);
   assert.equal(page.querySelector('details').firstElementChild.tagName,'SUMMARY');
-  assert.equal(page.querySelector('a'),null,'organisation records are not linked as machine-readable data');
+  assert.equal(new URL(page.querySelector('a').href,'http://localhost').searchParams.get('organization'),'5177','organisation links use exact IDs');
   assert.doesNotMatch(page.textContent,/not supplied|invalid in source/);assert.doesNotMatch(page.textContent,/Present/);
   assert.doesNotMatch(page.textContent,/invalid in source/);
   assert.doesNotMatch(page.textContent,/Role label unavailable|Name unavailable/);assert.match(page.textContent,/Unnamed organisation/);assert.doesNotMatch(page.textContent,/org\/5142/);

@@ -1,3 +1,4 @@
+import {membershipHref,organizationId} from './memberFilters.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import type {MemberProfile,ProfileMembershipHistory} from './explorerTypes';
@@ -29,7 +30,7 @@ const itemName=(item:HistoryItem,lang:string, ui: import('./uiI18n.mjs').UiForma
 };
 const hasName=(item:HistoryItem)=>item.body?.prefLabel&&typeof item.body.prefLabel==='object'&&!Array.isArray(item.body.prefLabel)&&Object.values(item.body.prefLabel).some(value=>typeof value==='string'&&value.trim());
 
-export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:MemberProfile;lang:string;roleName:(role:string)=>string;date:(value:string,lang:string)=>string;retry:()=>void}) {
+export function ProfileMemberships({profile,lang,roleName,date,retry,onOrganization}:{onOrganization?:(id:string,name:string)=>void;profile:MemberProfile;lang:string;roleName:(role:string)=>string;date:(value:string,lang:string)=>string;retry:()=>void}) {
   const ui = useUiI18n();
   const history=profile.membershipHistory;
   const current=profile.currentAffiliation?.status==='matched',today=profile.currentAffiliation?.day;
@@ -46,7 +47,7 @@ export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:M
     const name=itemName(item,lang, ui),role=roleCode(item),period=<Period start={start} end={end} ongoing={ongoing} lang={lang} date={date}/>;
     const ordinaryAffiliation=role==='MEMBER'&&['national-parties','political-groups'].includes(item.section);
     return <li key={item.index}>
-      <p><span lang={name.language}>{name.text}</span></p>
+      <p>{organizationId(item.bodyId)&&hasName(item) ? <a lang={name.language} href={membershipHref(item.bodyId!,lang,name.text)} onClick={event=>{if(onOrganization&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();onOrganization(organizationId(item.bodyId),name.text);}}}>{name.text}</a> : <span lang={name.language}>{name.text}</span>}</p>
       {!ordinaryAffiliation&&role&&(knownRoles.has(role)||officeRolesUi(ui)[role])&&<p><span lang={ui.language}>{knownRoles.has(role) ? roleName(role) : officeRolesUi(ui)[role]}</span></p>}
       {period&&<p className="explorer-affiliation-dates">{period}</p>}
     </li>;

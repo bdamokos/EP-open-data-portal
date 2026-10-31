@@ -175,3 +175,77 @@ test('completion of another committee detail cannot revert a newer exact-ID feed
   assert.deepEqual(out.complete.committees.find(body=>body.id==='6572').names,{en:'New A'});
   assert.deepEqual(out.complete.committees.find(body=>body.id==='6573').names,{en:'Committee B'});
 });
+
+test('a profile body observation applies exact ended bounds to the existing directory without extra reads',async t=>{
+ const out=await run(t,`
+  const party={id:'org/6831',identifier:'6831',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',prefLabel:{en:'Example party'},temporal:{startDate:'2024-07-16',endDate:'2025-01-01'}};
+  const p={...person(43),hasMembership:[{id:'membership/43',organization:{id:'org/6831'},role:'def/ep-roles/MEMBER',membershipClassification:party.classification,memberDuring:{startDate:'2024-09-01'}}]};
+  let reads=0;
+  globalThis.fetch=async url=>{
+   reads++;const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:[p]});
+   if(endpoint.endsWith('/corporate-bodies/show-current'))return Response.json({data:[]});
+   if(endpoint.endsWith('/meps/43'))return Response.json({data:[p]});
+   if(endpoint.endsWith('/corporate-bodies/6831'))return Response.json({data:[party]});
+   throw Error('Unexpected fixture '+url);
+  };
+  const {odpDirectory,odpProfileWithMemberships}=await import(${moduleUrl});
+  await odpDirectory();const before=await until(async()=>{const d=await odpDirectory();return d.index.complete&&d;});
+  await odpProfileWithMemberships(43);const readCount=reads;
+  const after=await odpDirectory();console.log(JSON.stringify({before,after,readCount,reads}));process.exit(0);
+ `);
+ assert.equal(out.before.members[0].organizationMemberships[0].id,'6831');
+ assert.equal(out.before.members[0].organizationMemberships[0].current,true);
+ assert.equal(out.after.members[0].organizationMemberships[0].current,false);
+ assert.equal(out.reads,out.readCount,'directory applies known metadata without fetching bodies');
+});
+
+test('directory completeness follows newly uncertain body bounds and preserves missing observations',async t=>{
+ const out=await run(t,`
+  const party={id:'org/6831',identifier:'6831',classification:'def/ep-entities/NATIONAL_POLITICAL_GROUP',temporal:{startDate:'2026-02-30'}};
+  const p={...person(43),hasMembership:[{organization:'org/6831',memberDuring:{startDate:'2024-09-01'}}]};
+  globalThis.fetch=async url=>{
+   const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:[p,{...person(44),hasMembership:[null]}]});
+   if(endpoint.endsWith('/corporate-bodies/show-current'))return Response.json({data:[]});
+   if(endpoint.endsWith('/meps/43'))return Response.json({data:[p]});
+   if(endpoint.endsWith('/meps/44'))return Response.json({data:[{...person(44),hasMembership:[null]}]});
+   if(endpoint.endsWith('/corporate-bodies/6831'))return Response.json({data:[party]});
+   throw Error('Unexpected fixture '+url);
+  };
+  const {odpDirectory,odp}=await import(${moduleUrl});
+  await odpDirectory();const before=await until(async()=>{const d=await odpDirectory();return d.index.complete&&d;});
+  await odp('/corporate-bodies/6831');
+  const after=await odpDirectory();console.log(JSON.stringify({before,after}));process.exit(0);
+ `);
+ const original=out.before.members.find(m=>m.id===43),updated=out.after.members.find(m=>m.id===43);
+ assert.equal(original.organizationMemberships[0].current,true);assert.equal(original.organizationMembershipsComplete,true);
+ assert.equal(updated.organizationMemberships[0].current,null);
+ assert.equal(updated.organizationMembershipsComplete,false,'new uncertainty changes aggregate completeness');
+ const {organizationCoverageComplete}=await import('../src/memberFilters.mjs');
+ assert.equal(organizationCoverageComplete(updated,'9999'),false,'another organisation filter cannot report definitive coverage');
+ assert.equal(out.after.members.find(m=>m.id===44).organizationMembershipsComplete,false,'malformed original observations remain incomplete');
+});
+
+test('cold profiles project membership status and completeness after body enrichment',async t=>{
+ const out=await run(t,`
+  const partyClass='def/ep-entities/NATIONAL_POLITICAL_GROUP';
+  const bodies=['6831','6832'].map((id,i)=>({id:'org/'+id,identifier:id,classification:partyClass,prefLabel:{en:'Example party '+id},temporal:{startDate:'2024-07-16',endDate:i?'2026-02-30':'2025-01-01'}}));
+  const persons=bodies.map((b,i)=>({...person(43+i),hasMembership:[{organization:b.id,role:'def/ep-roles/MEMBER',membershipClassification:partyClass,memberDuring:{startDate:'2024-09-01'}}]}));
+  globalThis.fetch=async url=>{
+   const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:persons});
+   const p=persons.find(p=>endpoint.endsWith('/meps/'+p.identifier));if(p)return Response.json({data:[p]});
+   const b=bodies.find(b=>endpoint.endsWith('/corporate-bodies/'+b.identifier));if(b)return Response.json({data:[b]});
+   throw Error('Unexpected fixture '+url);
+  };
+  const {odpProfileWithMemberships}=await import(${moduleUrl});
+  const ended=await odpProfileWithMemberships(43),uncertain=await odpProfileWithMemberships(44);
+  console.log(JSON.stringify({ended,uncertain}));process.exit(0);
+ `);
+ assert.equal(out.ended.membershipHistory.items[0].body.temporal.endDate,'2025-01-01');
+ assert.equal(out.ended.organizationMemberships[0].current,false,'returned status reflects its own enriched body record');
+ assert.equal(out.ended.organizationMembershipsComplete,true);
+ assert.equal(out.uncertain.organizationMemberships[0].current,null,'invalid enriched bounds remain uncertain');
+ assert.equal(out.uncertain.organizationMembershipsComplete,false);
+});

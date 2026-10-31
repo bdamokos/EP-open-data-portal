@@ -167,3 +167,33 @@ test('a retained committee record that fails validation is read again by the dai
   assert(detailReads>=1,'the invalid record was read again');
   assert.equal((await odp('/corporate-bodies/6572',{},{cachedOnly:true})).payload.data[0].classification,classification);
 });
+
+test('disk-only feed batches update organisation bounds after source-memory eviction',async t=>{
+  const {readFile}=await import('node:fs/promises');const {createHash}=await import('node:crypto');
+  const {UpstreamQueue}=await import('./upstream-queue.mjs');
+  t.mock.method(UpstreamQueue.prototype,'runHeld',async operation=>operation(()=>{}));
+  const dir=await mkdtemp(path.join(tmpdir(),'corporate-body-bounds-feed-'));
+  const previous=process.env.ODP_CACHE_DIR;process.env.ODP_CACHE_DIR=dir;
+  t.after(async()=>{if(previous===undefined)delete process.env.ODP_CACHE_DIR;else process.env.ODP_CACHE_DIR=previous;await rm(dir,{recursive:true,force:true});});
+  let ended=false;const bodyReads=[];
+  t.mock.method(globalThis,'fetch',async input=>{
+    const endpoint=new URL(input).pathname;
+    if(endpoint.startsWith('/api/v2/test-eviction/'))return Response.json({data:[]});
+    const ids=endpoint.match(/^\/api\/v2\/corporate-bodies\/([\d,]+)$/)?.[1].split(',');
+    assert(ids,'Unexpected fixture read '+endpoint);bodyReads.push(endpoint);
+    return Response.json({data:ids.map(id=>({id:'org/'+id,identifier:id,temporal:{startDate:'2024-07-16',...(ended?{endDate:'2025-01-01'}:{})}}))});
+  });
+  const {odp,prefetchCorporateBodies,organizationMemberships}=await import('./odp.mjs?bounds-feed-eviction');
+  const person={hasMembership:[{organization:'org/1',memberDuring:{startDate:'2024-09-01'}}]};
+  await prefetchCorporateBodies(['1','2'],{signal:undefined});
+  assert.equal(organizationMemberships(person,'2026-10-31')[0].current,true);
+  // Evict the two source records, retaining the small exact-body metadata map.
+  for(let i=0;i<1801;i++)await odp('/test-eviction/'+i);
+  ended=true;t.mock.timers.enable({apis:['Date'],now:Date.now()+1000});
+  await prefetchCorporateBodies(['1','2'],{signal:undefined,memory:false,updates:new Map([['1',Date.now()],['2',Date.now()]])});
+  const key='https://data.europarl.europa.eu/api/v2/corporate-bodies/1?format=application%2Fld%2Bjson';
+  const saved=JSON.parse(await readFile(path.join(dir,createHash('sha256').update(key).digest('hex')+'.json'),'utf8'));
+  assert.equal(saved.payload.data[0].temporal.endDate,'2025-01-01','new bounds were published to disk');
+  assert.equal(organizationMemberships(person,'2026-10-31')[0].current,false,'accepted background bounds apply before a single-body read');
+  assert.deepEqual(bodyReads,['/api/v2/corporate-bodies/1,2','/api/v2/corporate-bodies/1,2']);
+});

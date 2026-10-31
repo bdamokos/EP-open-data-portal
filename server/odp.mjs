@@ -1,3 +1,4 @@
+import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
 import {readFile,writeFile,unlink,stat} from "node:fs/promises";
@@ -31,6 +32,20 @@ const MAX_DISK_RECORD_BYTES = 6 * MAX_SOURCE_BYTES + 64 * 1024;
 const MAX_CACHE_ENTRIES = 1800;
 const MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const cache = new Map();
+// Retain only small, exact-ID body bounds observed through the normal source
+// cache. No extra source requests and no family/successor expansion.
+const knownOrganizationBodies=new Map();
+function rememberOrganizationBody(key,record) {
+  const match=key.match(/^https:\/\/data\.europarl\.europa\.eu\/api\/v2\/corporate-bodies\/([1-9]\d*|ep-[1-9]\d*)\?/);
+  if(!match||record.payload?.data?.length!==1)return;
+  const id=match[1],body=record.payload.data[0];
+  if(reference(body?.id).replace(/^https:\/\/data\.europarl\.europa\.eu\//,'')!=='org/'+id||String(body.identifier)!==id)return;
+  const prior=knownOrganizationBodies.get(id);
+  if(prior&&prior.fetchedAt>record.fetchedAt)return;
+  knownOrganizationBodies.delete(id);
+  knownOrganizationBodies.set(id,{temporal:body.temporal,fetchedAt:record.fetchedAt});
+  if(knownOrganizationBodies.size>MAX_CACHE_ENTRIES)knownOrganizationBodies.delete(knownOrganizationBodies.keys().next().value);
+}
 let cacheBytes = 0;
 const pending = new Map();
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
@@ -129,6 +144,7 @@ function filename(key,cacheGroup=null) {
 }
 // Records loaded from disk and upstream share this in-memory budget.
 function rememberSource(key, record, serialized = JSON.stringify(record),cacheGroup=null) {
+  rememberOrganizationBody(key,record);
   const bytes = Buffer.byteLength(serialized);
   const previous = cache.get(key);
   if (previous) {
@@ -484,6 +500,7 @@ function seedSource(key, record, {memory, signal}) {
     if (signal?.aborted || pending.has(key) || [disk, latest].some(held => held && held.fetchedAt >= record.fetchedAt)) return;
     const serialized = JSON.stringify(record);
     refreshFailures.delete(key);
+    rememberOrganizationBody(key, record);
     if (memory || latest) rememberSource(key, record, serialized);
     if (cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES) await publishLocked(key, serialized);
   }), signal ?? null);
@@ -571,6 +588,9 @@ export function memberships(person, day) {
       current: validDuring(m.memberDuring, day),
     }));
 }
+export function organizationMemberships(person,day=today()) {
+  return organizationMembershipSnapshot(person,day,knownOrganizationBodies).items;
+}
 export function memberSummary(p) {
   return {
     id: Number(p.identifier),
@@ -597,8 +617,8 @@ let directorySources = [];
 let directoryDetailsPromise;
 let directoryDetailWork;
 let committeeDetails = {complete:false,loaded:0,total:0,failed:0,error:null};
-export const DIRECTORY_VERSION = 2;
-export const PROFILE_VERSION = 6;
+export const DIRECTORY_VERSION = 4;
+export const PROFILE_VERSION = 8;
 let directoryError = null;
 let indexPromise;
 let indexState = {
@@ -805,6 +825,8 @@ async function loadProfile(id, force = false, {priority='interactive'}={}) {
     parliamentaryService: parliamentaryService(person,day,affiliationError?'unavailable':current?'matched':'not-current'),
     email: firstString(person.hasEmail).replace(/^mailto:/, ""),
     memberships: memberships(person),
+    organizationMemberships: organizationMemberships(person),
+    organizationMembershipsComplete: organizationMembershipSnapshot(person,day,knownOrganizationBodies).complete,
     accounts: (person.account || []).map((a) => a.id),
     fetchedAt: new Date(record.fetchedAt).toISOString(),
     sources: [sourceSummary(record), ...affiliationSources],
@@ -848,7 +870,10 @@ export async function odpProfileWithMemberships(id) {
     committeeMemberships.error=membershipHistory.observationAvailable?'Some membership records are incomplete. Available committee history is shown.':'Committee membership information is unavailable.';
   }
   const currentRosterMatched=profile.currentAffiliation.status==='matched';
+  const organizationSnapshot=organizationMembershipSnapshot(record.payload.data[0],today(),knownOrganizationBodies);
   return {...profile,
+    organizationMemberships:organizationSnapshot.items,
+    organizationMembershipsComplete:organizationSnapshot.complete,
     memberships:currentRosterMatched?profile.memberships:profile.memberships.map(row=>({...row,current:false})),
     membershipHistory,
     committeeMemberships:currentRosterMatched?committeeMemberships:{...committeeMemberships,items:committeeMemberships.items.map(card=>({...card,roles:[],periods:card.periods.map(period=>({...period,current:false}))}))},
@@ -914,16 +939,22 @@ export async function odpDirectory({retryCommitteeDetails=false}={}) {
       refreshInProgress: Boolean(directoryPromise || directoryDetailsPromise) || directorySources.some(source => pending.has(source.url)),
       refreshError: directoryError || directorySources.map(source => refreshFailures.get(source.url)?.message).find(Boolean) || null,
     },
-    members: d.members.map((m) => ({
-      ...m,
-      hasEmail: profileIndex.get(m.id)?.hasEmail ?? m.hasEmail,
-      birthDate: profileIndex.get(m.id)?.birthDate,
-      gender: profileIndex.get(m.id)?.gender || m.gender,
-      memberships: profileIndex.get(m.id)?.memberships.map(membership => ({
-        ...membership,
-        current: validDuring({startDate:membership.start,endDate:membership.end}),
-      })) ?? null,
-    })),
+    members: d.members.map(m => {
+      const profile=profileIndex.get(m.id);
+      const organizationMemberships=profile?.organizationMemberships?.map(row=>({...row,current:organizationMembershipStatus(row,today(),knownOrganizationBodies.get(row.id))})) ?? null;
+      return {
+        ...m,
+        hasEmail: profile?.hasEmail ?? m.hasEmail,
+        organizationMemberships,
+        organizationMembershipsComplete: Boolean(profile?.organizationMembershipsComplete && organizationMemberships?.every(row=>row.current!==null)),
+        birthDate: profile?.birthDate,
+        gender: profile?.gender || m.gender,
+        memberships: profile?.memberships.map(membership => ({
+          ...membership,
+          current: validDuring({startDate:membership.start,endDate:membership.end}),
+        })) ?? null,
+      };
+    }),
   };
 }
 export function speechSummary(activity) {
