@@ -950,8 +950,8 @@ test('an unresolved native annex ordinal is distinct from a missing source file'
   const original=structuredClone(value.baseline.gaps);
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
-  assert(notices.includes('1 document file not loaded.'));
-  assert(!notices.includes('2 document files not loaded.'));
+  assert(notices.includes('Document files not loaded: 1.'));
+  assert(!notices.includes('Document files not loaded: 2.'));
   assert.equal(value.baseline.status,'partial');assert.deepEqual(value.baseline.gaps,original,'native source and legal-placement gaps remain literal');
   assert(h.container.querySelector('[data-amendment-block] del'));
 });
