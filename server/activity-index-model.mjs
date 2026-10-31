@@ -3,6 +3,7 @@ import {languagePreference} from './language-order.mjs';
 import { languageCode, speechWebsite } from './ep-links.mjs';
 
 export const AMENDMENT_LINKS_VERSION = 3;
+export const MOTION_CLASSIFICATION_VERSION = 1;
 
 export const CATEGORIES = Object.freeze({
   'plenary-contributions': 'Contributions to plenary debates',
@@ -66,6 +67,7 @@ export function projectDocument(w) {
   }
   if (['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(tail(w.work_type))) {
     result.motionLinksVersion = 1;
+    result.motionClassificationVersion = MOTION_CLASSIFICATION_VERSION;
     result.inverse_based_on_a_realization_of = array(w.inverse_based_on_a_realization_of).map(ref => ref?.id || ref);
     result.is_derivative_of = array(w.is_derivative_of).map(ref => ref?.id || ref);
   }
@@ -113,7 +115,11 @@ export function documentRows(work, endpoint, fetchedAt, procedures = new Map()) 
     add(roles('RAPPORTEUR_SHADOW_OPINION'), 'opinions-shadow', 'RAPPORTEUR_SHADOW_OPINION', 'opinion.workHadParticipation → person');
   } else if (['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT'].includes(kind)) {
     const rules = array(work.based_on).map(tail);
-    const motionType = rules.some(r => /^RULES-10-.*-ITM-A149$/.test(r)) ? 'individual' : rules.some(r => /^RULES-10-.*-ITM-A114$/.test(r)) ? 'institutional' : 'unspecified';
+    // Term-10 rules: delegated acts, institutional statements and human-rights debates.
+    // A single author can act for a group; author counts do not classify motions.
+    const individual=rules.some(r => /^RULES-10-.*-ITM-A149$/.test(r));
+    const institutional=rules.some(r => /^RULES-10-.*-ITM-A(?:114|136|150)$/.test(r));
+    const motionType = individual===institutional ? 'unspecified' : individual ? 'individual' : 'institutional';
     const category=motionType==='individual'?'individual-motions':motionType==='institutional'?'motions':'unclassified-motions';
     add(authors, category, 'AUTHOR', 'motion.workHadParticipation/creator → person', { motionType });
   } else if (['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY'].includes(kind)) {
