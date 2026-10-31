@@ -119,3 +119,25 @@ test('translated chart and intervention labels keep their UI language and raw gr
  const badge=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(InterventionBadges,{value:{type:'written',onBehalfOf:[]},language:'fr'})));
  assert(badge.includes('lang="fr"'));assert(!badge.includes('lang="en"'));assert(badge.includes(ui.t('insightshared.written_statement')));
 });
+
+test('PPE legend and hovered caption use UI language while raw group labels remain source values',async t=>{
+ const window=new Window({url:'http://localhost/?lang=fr'});
+ const globals={window,document:window.document,HTMLElement:window.HTMLElement,HTMLIFrameElement:window.HTMLIFrameElement,Event:window.Event,IS_REACT_ACT_ENVIRONMENT:true};
+ const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+ for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+ let load,root;
+ const {act}=await import('react');
+ t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+ const {createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{default:fr}=await load('/src/ui-locales/fr.json');
+ const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{GroupDonut}=await load('/src/InsightCharts.tsx'),{groupLabel,groupLabelLanguage}=await load('/src/groupLabels.ts');
+ const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr'),container=window.document.createElement('div');window.document.body.append(container);
+ const {createRoot}=await import('react-dom/client');root=createRoot(container);
+ await act(async()=>root.render(h(UiI18nProvider,{i18n,language:'fr'},h(GroupDonut,{rows:[{label:'PPE',count:5},{label:'SOURCE_GROUP',count:5}],contributions:{total:10,unavailable:0},onSelect(){}}))));
+ const labels=[...container.querySelectorAll('li button span[lang]')];
+ assert.equal(labels[0].textContent,groupLabel('PPE',ui));assert.equal(labels[0].lang,'fr');
+ assert.equal(labels[1].textContent,'SOURCE_GROUP');assert.equal(labels[1].lang,'');
+ await act(async()=>container.querySelector('circle[aria-label]').dispatchEvent(new window.FocusEvent('focusin',{bubbles:true})));
+ const caption=container.querySelector('.insight-donut-caption');assert.equal(caption.textContent,groupLabel('PPE',ui));assert.equal(caption.getAttribute('lang'),'fr');
+ assert.equal(groupLabel('constructor',ui),'constructor');assert.equal(groupLabelLanguage('constructor',ui),'');
+});
