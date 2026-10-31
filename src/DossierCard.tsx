@@ -39,7 +39,7 @@ export function DossierCard({item,language,now}:{item:FollowedDossier;language:s
     {partial&&<p className="dossier-follow-gap"><UiMessage id="dossierCard.partial"/></p>}
     <div className="explorer-saved-actions"><a href={href}><UiMessage id="dossierCard.detail.3"/></a><button aria-expanded={dossierOpen} onClick={()=>setDossierOpen(value=>!value)}>{dossierOpen ? <UiMessage id="dossierCard.actions.2"/> : <UiMessage id="dossierCard.actions.3"/>}</button>{hasNew&&<button onClick={()=>dossierStore.markRead(item.id)}><UiMessage id="dossierCard.actions.4"/></button>}</div>
     {dossierOpen&&<ProcedureContext reference={item.id} language={language} showTitle showIdentity={false}/>}
-    {(freshEntries.length>LIST_LIMIT||omitted) ? <p><a href={href}><UiMessage id="dossierCard.updateCount" values={{count:freshEntries.length+omitted}}/></a></p> : listed.map(row)}
+    {(freshEntries.length>LIST_LIMIT||omitted) ? <p><a href={href}><UiMessage id="dossierCard.updateCount" values={{count:freshEntries.length+omitted}} counts={{count: freshEntries.length+omitted}}/></a></p> : listed.map(row)}
     {(visibleHistory.length>0||historyOmitted>0)&&<details className="explorer-saved-history"><summary><UiMessage id="dossierCard.history.1" values={{count: (visibleHistory.length+historyOmitted)}}/></summary>{visibleHistory.map(row)}{historyOmitted>0&&<a href={href}><UiMessage id="dossierCard.history.2"/></a>}</details>}
   </article>;
 }

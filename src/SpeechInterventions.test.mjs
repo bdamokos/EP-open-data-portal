@@ -185,7 +185,7 @@ test('missing debate records remain visible without the sequence sources disclos
   const {createRoot}=await import('react-dom/client');const container=document.createElement('div');root=createRoot(container);
   await act(async()=>root.render(createElement(SpeechContextPanel,{id:row.id,language:'en'})));
   await act(async()=>container.querySelector('button').click());
-  assert.match(container.textContent,/1 of 2 debate records available\. Links stop at missing contributions\./);
+  assert.match(container.textContent,/Debate records available: 1 of 2\. Links stop at missing contributions\./);
   assert.equal(container.querySelector('details,a[href="https://example.org/sequence-source"]'),null);
   assert(!container.textContent.includes('Sequence sources'));
 });
@@ -217,7 +217,7 @@ test('resolved adjacent-chapter records do not show as missing, while unfetched 
     await act(async()=>container.querySelector('button').click());
     assert.equal(container.querySelectorAll('.intervention-sequence>li').length,index===0?2:1);
     if(index===0)assert(!container.textContent.includes('records available'));
-    else assert.match(container.textContent,/1 of 2 debate records available\. Links stop at missing contributions\./);
+    else assert.match(container.textContent,/Debate records available: 1 of 2\. Links stop at missing contributions\./);
   }
   assert.equal(calls,2);
 });

@@ -25,7 +25,7 @@ test('member Amendments retains indexed result and shows author positions with r
  await h.open();assert.equal(h.calls.length,2);const text=h.container.textContent;
  assert.match(text,/Author One(?: S&D)? voted for/);assert.match(text,/Author Two(?: EPP)? voted against/);assert.match(text,/Unresolved Author MEP unresolved/);assert.match(text,/Unlisted Author has no recorded vote/);assert.match(text,/How groups voted/);assert.equal(h.container.querySelectorAll('.amendment-named-votes__group').length,4);
  assert.equal(h.container.querySelector('.explorer-amendment-totals dd').textContent,'2');
- const group=[...h.container.querySelectorAll('.amendment-named-votes__group')].find(group=>group.querySelector('summary').textContent.startsWith('S&D'));assert(group);assert.match(group.querySelector('summary').textContent,/1 for0 against0 abstained/);await act(async()=>{group.open=true;});assert(group.querySelector('a[href*="member=197591"]'));
+ const group=[...h.container.querySelectorAll('.amendment-named-votes__group')].find(group=>group.querySelector('summary').textContent.startsWith('S&D'));assert(group);assert.match(group.querySelector('summary').textContent,/For: 1Against: 0Abstentions: 0/);await act(async()=>{group.open=true;});assert(group.querySelector('a[href*="member=197591"]'));
 });
 test('non-named, unheld and unverified components do not start reads',async t=>{
  const h=await mount(t,()=>{throw Error('Unexpected read');});
