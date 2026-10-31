@@ -81,3 +81,32 @@ test('independent demographic counts and Lithuanian whole containment message re
  const lithuanian=createAppUiI18n({lt}).forLocale('lt');
  for(const id of ['speechcloud.in_count_speech.b044c6','speechcloud.in_count_speeches.a25a1a'])for(const count of [0,1,2,9,10,11,19,20,21,22,100])assert.equal(lithuanian.t(id,{count}),`Kalbų, kuriose yra šis terminas, skaičius: ${count}`);
 });
+
+test('procedure stages, coverage dates and attendance use the active UI formatter',async t=>{
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs');
+ const {default:fr}=await import('./ui-locales/fr.json',{with:{type:'json'}});
+ const ui=createAppUiI18n({fr}).forLocale('fr');
+ const {summaryStage}=await import('./terms.mjs');
+ for(const [stage,id] of [['parliament-decision','terms.parliamentDecision'],['final-act','terms.finalAct'],['proposal','batch6.references.commission.proposal.25'],['document','batch5.procedurecontext.tsx.33.71'],['unknown','batch5.procedurecontext.tsx.33.71']])assert.deepEqual(summaryStage(stage,'fr',ui),{text:ui.t(id),language:'fr'});
+ const {memberVotesCoverageNotice}=await import('./memberVotesPresentation.mjs');
+ const data={coverage:{status:'partial',failedSittingIds:['MTG-PL-2026-01-12'],catalogue:{state:'partial'}}};
+ const date=new Intl.DateTimeFormat('fr',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date('2026-01-12T12:00:00Z'));
+ assert.equal(memberVotesCoverageNotice(data,{},ui),ui.t('membervotespresentation.incomplete_voting_records')+' · '+date+' · '+ui.t('membervotespresentation.sitting_dates_incomplete'));
+ assert.equal(data.coverage.failedSittingIds[0],'MTG-PL-2026-01-12');
+ const {memberAttendanceLine}=await import('./memberAttendancePresentation.mjs');
+ const attendance=memberAttendanceLine([{date:'2026-01-12',status:'observed',memberStatus:'listed-present'}],ui);
+ assert(attendance.includes(new Intl.DateTimeFormat('fr',{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date('2026-01-12T12:00:00Z'))));
+});
+
+test('translated chart and intervention labels keep their UI language and raw group identity',async t=>{
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});t.after(()=>load.close());
+ const {createAppUiI18n}=await load('/src/uiCatalogues.mjs'),{default:fr}=await load('/src/ui-locales/fr.json');
+ const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{GroupDonut}=await load('/src/InsightCharts.tsx');
+ const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr');
+ const markup=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(GroupDonut,{rows:[{label:'NI',count:10}],contributions:{total:10,unavailable:0}})));
+ assert(markup.includes(ui.t('batch4.insightcharts.tsx.contributions')));assert(!markup.includes('lang="en"'));
+ assert(!markup.includes('of contributions'));
+ const {InterventionBadges}=await load('/src/SpeechInterventions.tsx');
+ const badge=renderToStaticMarkup(h(UiI18nProvider,{i18n,language:'fr'},h(InterventionBadges,{value:{type:'written',onBehalfOf:[]},language:'fr'})));
+ assert(badge.includes('lang="fr"'));assert(!badge.includes('lang="en"'));assert(badge.includes(ui.t('insightshared.written_statement')));
+});

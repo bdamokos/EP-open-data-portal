@@ -14,9 +14,9 @@ export function memberVotesCoverageNotice(data,{decisionId=null,context=null}={}
   const ids=unique([...(coverage.failedSittingIds||[]),...(coverage.incompleteSittingIds||[]),...(coverage.sittings||[]).filter(day=>day.state!=='complete').map(day=>day.sittingId)]);
   const dates=ids.filter(validSitting).map(id=>id.slice(7)).sort();
   const label=(coverage.status==='unavailable')?ui.t("membervotespresentation.voting_records_unavailable"):(ui.t("membervotespresentation.incomplete_voting_records"));
-  const days=dates.map(value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')));
+  const days=dates.map(value=>new Intl.DateTimeFormat(ui.locale==='en'?'en-GB':ui.locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')));
   const calendarGap=coverage.catalogue&&coverage.catalogue.state!=='complete';
-  return days.length?label+' · '+days.join(', ')+(calendarGap?' · Sitting dates incomplete':''):coverage.status==='unavailable'?label:calendarGap?ui.t("membervotespresentation.sitting_dates_incomplete"):label;
+  return days.length?label+' · '+days.join(', ')+(calendarGap?' · '+ui.t('membervotespresentation.sitting_dates_incomplete'):''):coverage.status==='unavailable'?label:calendarGap?ui.t("membervotespresentation.sitting_dates_incomplete"):label;
 }
 const alignments=new Set(['all','with','against','abstained']);
 const positions=new Set(['recorded','all']);

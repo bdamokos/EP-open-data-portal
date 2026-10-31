@@ -46,7 +46,7 @@ export function Participation({language,sittings,onTopic,latestAvailable=true}:{
     {data&&<>
       <SittingCalendarNotice complete={data.coverage.catalogueComplete}/>
       <p className="insight-chart-caption"><span lang={language}>{humanDate(data.window.start,language)}{(data.window.end!==data.window.start) ? (' — '+humanDate(data.window.end,language)) : ''}</span> · {country ? <><UiMessage id="batch4.questiontopics.tsx.meps.elected.in.country" values={{country: <span lang={language}>{countryName(country,language)}</span>}}/></> : ui.t("Participation.all_current_meps")}</p>
-      {!future&&<AvailabilityNote sources={data.availability?.[metric]} label={(metric==='speakers') ? ui.t("groupvoices.speech.f3690b") : ui.t("Participation.availability_vote")} language={language} end={data.window.end} partial={bins.some(bin=>bin.availability?.[metric]==='partial')}/>}
+      {!future&&<AvailabilityNote sources={data.availability?.[metric]} kind={metric==='speakers'?'speech':'vote'} language={language} end={data.window.end} partial={bins.some(bin=>bin.availability?.[metric]==='partial')}/>}
       {future&&<p className="insight-empty-state"><UiMessage id="Participation.this_period_has_not_taken_place"/></p>}
       {!future&&!hasActivity&&!agendaUnavailable&&<p className="insight-empty-state"><UiMessage id="Participation.metricChoosePeriod" values={{metric: labels[metric]}}/></p>}
       {!future&&activityUnavailable&&<p className="insight-empty-state" lang={ui.language}>{activityUnavailable}</p>}

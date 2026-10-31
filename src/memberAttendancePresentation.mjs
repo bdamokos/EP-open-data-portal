@@ -37,16 +37,16 @@ export function memberAttendanceDetail(day, ui = defaultUi) {
     conflicting:ui.t("batch5.memberattendancepresentation.mjs.36.107"),
   }[day.memberStatus]||ui.t("batch5.memberattendancepresentation.mjs.29.101");
 }
-const shortDate=value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
-function attendanceDates(dates) {
+const shortDate=(value,locale)=>new Intl.DateTimeFormat(locale==='en'?'en-GB':locale,{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
+function attendanceDates(dates,locale) {
   const runs=[];
   for(const date of [...new Set(dates)].sort()){
     const previous=runs.at(-1);
     if(previous&&Date.parse(date)-Date.parse(previous.at(-1))===86400000)previous.push(date);
     else runs.push([date]);
   }
-  const formatter=new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
-  return runs.map(run=>run.length===1?shortDate(run[0]):formatter.formatRange(new Date(run[0]+'T12:00:00Z'),new Date(run.at(-1)+'T12:00:00Z')).replace(/\s*–\s*/g,'–')).join(', ');
+  const formatter=new Intl.DateTimeFormat(locale==='en'?'en-GB':locale,{day:'numeric',month:'short',timeZone:'UTC'});
+  return runs.map(run=>run.length===1?shortDate(run[0],locale):formatter.formatRange(new Date(run[0]+'T12:00:00Z'),new Date(run.at(-1)+'T12:00:00Z')).replace(/\s*–\s*/g,'–')).join(', ');
 }
 export function memberAttendanceLine(sittings, ui = defaultUi) {
   const labels={'listed-present':ui.t("batch5.memberattendancepresentation.mjs.51.108"),'listed-excused':ui.t("batch5.memberattendancepresentation.mjs.51.109"),'not-listed':ui.t("batch5.memberattendancepresentation.mjs.51.110"),conflicting:ui.t("batch5.memberattendancepresentation.mjs.51.111"),'not-published':ui.t("batch5.memberattendancepresentation.mjs.51.112"),unavailable:ui.t("batch5.memberattendancepresentation.mjs.51.113"),partial:ui.t("batch5.memberattendancepresentation.mjs.51.113")};
@@ -56,5 +56,5 @@ export function memberAttendanceLine(sittings, ui = defaultUi) {
     if(!groups.has(label))groups.set(label,[]);
     groups.get(label).push(day.date);
   }
-  return ui.t("batch5.memberattendancepresentation.mjs.58.114", {groups: String([...groups].map(([label,dates])=>label+' '+attendanceDates(dates)).join(' · '))});
+  return ui.t("batch5.memberattendancepresentation.mjs.58.114", {groups: String([...groups].map(([label,dates])=>label+' '+attendanceDates(dates,ui.locale)).join(' · '))});
 }

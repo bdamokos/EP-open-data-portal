@@ -1,4 +1,4 @@
-import {uiForLocale} from './appUiI18n';
+import {loadUiLocale,uiForLocale} from './appUiI18n';
 
 /** Explicit bindings for the app-owned startup shell. No source/API content is inspected. */
 export function localizeInitialShell(document: Document, query: URLSearchParams) {
@@ -28,4 +28,9 @@ export function localizeInitialShell(document: Document, query: URLSearchParams)
   document.title = ui.t('shell.documentTitle', {title});
   document.querySelector('meta[name="description"]')?.setAttribute('content', ui.t('shell.meta.description'));
 }
-if (typeof document !== 'undefined') localizeInitialShell(document, new URLSearchParams(window.location.search));
+if (typeof document !== 'undefined') {
+  const query=new URLSearchParams(window.location.search);
+  void loadUiLocale(query.get('lang')).then(()=>localizeInitialShell(document,query)).catch(()=>{
+    // The mounted root boundary offers a document reload for failed imports.
+  });
+}

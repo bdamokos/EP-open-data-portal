@@ -47,7 +47,7 @@ export function ProfileMemberships({profile,lang,roleName,date,retry}:{profile:M
     const ordinaryAffiliation=role==='MEMBER'&&['national-parties','political-groups'].includes(item.section);
     return <li key={item.index}>
       <p><span lang={name.language}>{name.text}</span></p>
-      {!ordinaryAffiliation&&role&&(knownRoles.has(role)||officeRolesUi(ui)[role])&&<p><span lang={knownRoles.has(role) ? lang : 'en'}>{knownRoles.has(role) ? roleName(role) : officeRolesUi(ui)[role]}</span></p>}
+      {!ordinaryAffiliation&&role&&(knownRoles.has(role)||officeRolesUi(ui)[role])&&<p><span lang={ui.language}>{knownRoles.has(role) ? roleName(role) : officeRolesUi(ui)[role]}</span></p>}
       {period&&<p className="explorer-affiliation-dates">{period}</p>}
     </li>;
   };

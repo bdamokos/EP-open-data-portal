@@ -80,7 +80,7 @@ export function useSpeechVideo(speech:Speech|null,lang:string,defaultOriginal=fa
     </>}
   </section>;
   if(!speech)return {toggle:null,panel:null};
-  if(!playable)return {toggle:<span className="explorer-video-gap" lang="en"><strong>{written ? ui.t("speechplayer.written_statement_no_video.6220cd") : ui.t("speechplayer.video_unavailable.d0baed")}</strong></span>,panel:null};
+  if(!playable)return {toggle:<span className="explorer-video-gap" lang={ui.language}><strong>{written ? ui.t("speechplayer.written_statement_no_video.6220cd") : ui.t("speechplayer.video_unavailable.d0baed")}</strong></span>,panel:null};
   return {toggle:<button ref={toggle} className="explorer-video-toggle" lang={ui.language} title={current ? ui.t("speechplayer.close_this_speech_s_video.635e95") : ui.t("speechplayer.open_this_speech_s_video.9e0813")} aria-expanded={Boolean(current)} aria-controls={panelId} onClick={()=>current ? close() : start(defaultOriginal)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"/></svg><span><UiMessage id="batch5.speechplayer.tsx.83.89"/></span></button>,panel};
 }
 

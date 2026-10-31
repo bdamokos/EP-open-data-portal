@@ -18,9 +18,9 @@ export function compoundLanguage(...languages) {
   return languages[0]&&languages.every(language=>language===languages[0])?languages[0]:'';
 }
 
-const stageEnglish={'parliament-decision':'Parliament’s decision','final-act':'Final act',proposal:'Commission proposal',document:'Summary'};
+const stages={'parliament-decision':'terms.parliamentDecision','final-act':'terms.finalAct',proposal:'batch6.references.commission.proposal.25',document:'batch5.procedurecontext.tsx.33.71'};
 export function summaryStage(stage,language, ui = defaultUi) {
-  return ['first-reading','second-reading'].includes(stage)?interfaceTerm(stage,language):{text:Object.hasOwn(stageEnglish,stage)?stageEnglish[stage]:ui.t("batch5.procedurecontext.tsx.33.71"),language:'en'};
+  return ['first-reading','second-reading'].includes(stage)?interfaceTerm(stage,language):{text:ui.t(Object.hasOwn(stages,stage)?stages[stage]:'batch5.procedurecontext.tsx.33.71'),language:ui.language};
 }
 
 export function voteScope(scope,language, ui = defaultUi) {

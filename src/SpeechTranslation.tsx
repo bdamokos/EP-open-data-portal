@@ -22,8 +22,8 @@ export function useSpeechTranslation(id:string,requested:string,interfaceLanguag
   // A language request may return another edition. Never label that fallback
   // as the original or display it in place of the requested source text.
   const exactOriginal=!original||body?.translationType==='original'&&body.textLanguage===current?.source;
-  const name=(code:string)=>{try{return new Intl.DisplayNames(['en'],{type:'language'}).of(code)||code;}catch{return code;}};
-  const control=(current||machine) ? <span className="speech-translation" lang="en">
+  const name=(code:string)=>{try{return new Intl.DisplayNames([ui.locale],{type:'language'}).of(code)||code;}catch{return code;}};
+  const control=(current||machine) ? <span className="speech-translation" lang={ui.language}>
     <span>{original ? ui.t("textsearch.original_text") : ui.t("batch6.speechtranslation.machine.translation.25")}</span>{' · '}
     {original ? <button type="button" onClick={()=>setChoice(null)}><UiMessage id="batch6.speechtranslation.show.translation.26"/>{current!.translation ? (` (${name(current!.translation)})`) : null}</button> : (source ? <button type="button" onClick={()=>setChoice({key,source,translation:body?.textLanguage??null})}><UiMessage id="batch6.speechtranslation.show.original.language.27" values={{language: name(source)}}/></button> : <span><UiMessage id="batch6.speechtranslation.original.language.unavailable.28"/></span>)}
   </span> : null;

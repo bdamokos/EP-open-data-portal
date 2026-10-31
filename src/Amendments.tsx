@@ -142,7 +142,7 @@ function AmendmentAuthors({item,language,onMember,memberId}:{item:Amendment;lang
   const ui = useUiI18n();
   const authors=item.authors||[],onBehalfOf=onBehalfLabel(item.onBehalfOf);
   if(item.conflicted)return null;
-  if(!authors.length)return item.committeeProposer ? <div className="explorer-amendment-authors"><UiMessage id="amendments.tabled_by_proposer.0bb4e6" values={{proposer:<strong lang={item.proposerSource?.language??''}>{item.committeeProposer}</strong>}}/>{onBehalfOf&&<p>{!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf)&&'On behalf of '}<span lang="">{onBehalfOf}</span></p>}</div> : (onBehalfOf ? <p className="explorer-amendment-authors"><UiMessage id="amendments.tabled_on_behalf_of_onbehalfof.4943fa" values={{group: <span lang="">{onBehalfOf}</span>}}/></p> : <p className="explorer-amendment-secondary"><UiMessage id="batch5.amendments.tsx.144.15"/></p>);
+  if(!authors.length)return item.committeeProposer ? <div className="explorer-amendment-authors"><UiMessage id="amendments.tabled_by_proposer.0bb4e6" values={{proposer:<strong lang={item.proposerSource?.language??''}>{item.committeeProposer}</strong>}}/>{onBehalfOf&&<p>{(!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf) ? <UiMessage id="batch4.speechinterventions.tsx.on.behalf.of.group" values={{group:<span lang="">{onBehalfOf}</span>}}/> : <span lang="">{onBehalfOf}</span>)}</p>}</div> : (onBehalfOf ? <p className="explorer-amendment-authors"><UiMessage id="amendments.tabled_on_behalf_of_onbehalfof.4943fa" values={{group: <span lang="">{onBehalfOf}</span>}}/></p> : <p className="explorer-amendment-secondary"><UiMessage id="batch5.amendments.tsx.144.15"/></p>);
   const selected=memberId ? authors.find(author=>String(author.personId)===memberId) : null;
   if(selected){
     const others=authors.filter(author=>String(author.personId)!==memberId),resolved=others.every(author=>author.personId&&/^[1-9]\d*$/.test(String(author.personId)));
@@ -155,7 +155,7 @@ function AmendmentAuthors({item,language,onMember,memberId}:{item:Amendment;lang
       if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button!==0)return;
       event.preventDefault();onMember(Number(author.personId));
     }) : undefined}><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span></a> : <><span lang="">{author.name}</span>{item.scope!=='committee'&&<small> ({note})</small>}</>}<RecordMemberAffiliation id={author.personId} language={language}/></span>;
-  })}</>}}/>{item.committeeProposer&&<p><UiMessage id="amendments.committee_proposer_committeeproposer.3c4d9e" values={{proposer: <span lang={item.proposerSource?.language??''}>{item.committeeProposer}</span>}}/></p>}{onBehalfOf&&<p>{!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf)&&'On behalf of '}<span lang="">{onBehalfOf}</span></p>}</div>;
+  })}</>}}/>{item.committeeProposer&&<p><UiMessage id="amendments.committee_proposer_committeeproposer.3c4d9e" values={{proposer: <span lang={item.proposerSource?.language??''}>{item.committeeProposer}</span>}}/></p>}{onBehalfOf&&<p>{(!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(onBehalfOf) ? <UiMessage id="batch4.speechinterventions.tsx.on.behalf.of.group" values={{group:<span lang="">{onBehalfOf}</span>}}/> : <span lang="">{onBehalfOf}</span>)}</p>}</div>;
 }
 function SourceVariants({item,language,reader=false}:{item:Amendment;language:string;reader?:boolean}) {
   const ui = useUiI18n();

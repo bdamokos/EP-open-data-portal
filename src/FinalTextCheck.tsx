@@ -28,7 +28,7 @@ function Stage({stage,source,readerKey}:{stage:FinalTextStage;source:FinalTextRe
   const {destination,wording}=stage,name=destinationName(destination.kind, ui);
   const [comparisonOpen,setComparisonOpen]=useDossierReaderState('final-wording:'+JSON.stringify([readerKey,source?.contentHash||source?.sha256,destination.kind,destination.id,destination.language,destination.source.contentHash||destination.source.sha256]),false);
   const readable=destination.sourceUrls.find(url=>sourcePageUrl(url,{language:destination.language}));
-  const date=((destination.date && /^\d{4}-\d{2}-\d{2}$/.test(destination.date)) && Number.isFinite(Date.parse(destination.date))) ? new Intl.DateTimeFormat('en-GB',{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(destination.date)) : null;
+  const date=((destination.date && /^\d{4}-\d{2}-\d{2}$/.test(destination.date)) && Number.isFinite(Date.parse(destination.date))) ? new Intl.DateTimeFormat(ui.locale==='en'?'en-GB':ui.locale,{year:'numeric',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(destination.date)) : null;
   return <section className="final-text-check__stage">
     <h5>{name}</h5>
     {(date||wording.mapping?.to)&&<p className="final-text-check__address">{date&&<time dateTime={destination.date!}>{date}</time>}{(date && wording.mapping?.to) ? ' · ' : null}{wording.mapping?.to}</p>}

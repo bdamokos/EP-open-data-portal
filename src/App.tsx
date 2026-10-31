@@ -188,9 +188,9 @@ function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string
   useEffect(() => setSelected(languages.includes(lang) ? lang : (languages[0] || "und")), [lang, fileKey]);
   if (!files.length) return <p lang={ui.language}><UiMessage id="app.no_files_available"/></p>;
   return <div className="explorer-publication-files" lang={ui.language}>
-    <label><UiMessage id="app.document_language"/> <select aria-label={ui.t("app.document_language")} value={selected} onChange={e => setSelected(e.target.value)}>{languages.map(l => <option lang={(l === "und") ? "en" : ""} value={l} key={l}>{(l === "und") ? ui.t("app.language_unavailable") : l.toUpperCase()}</option>)}</select></label>
+    <label><UiMessage id="app.document_language"/> <select aria-label={ui.t("app.document_language")} value={selected} onChange={e => setSelected(e.target.value)}>{languages.map(l => <option lang={(l === "und") ? ui.language : ""} value={l} key={l}>{(l === "und") ? ui.t("app.language_unavailable") : l.toUpperCase()}</option>)}</select></label>
     {!languages.includes(lang) && <small><UiMessage id="speechcloud.not_available_in_this_language.37fcae"/></small>}
-    <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : "en"}>{f.language?.toUpperCase() || ui.t("app.language_unavailable")}</span> ↗</a>)}</p>
+    <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : ui.language}>{f.language?.toUpperCase() || ui.t("app.language_unavailable")}</span> ↗</a>)}</p>
   </div>;
 }
 function AuthorMention({text,authors,lang,anchors,links,marks,notePrefix,offset=0,final=true}:{text:string;authors?:CoAuthor[];lang:string;anchors?:NoteAnchor[];links?:DocumentLink[];marks?:FormatMark[];notePrefix?:string;offset?:number;final?:boolean}) {
@@ -208,6 +208,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
   const [requestedLanguage,setRequestedLanguage]=useState(lang);useEffect(()=>setRequestedLanguage(lang),[lang,sourceId]);
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=(state.data?.selectedDocumentId===sourceId) ? state.data.selectedText : null;
+  const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(sourceId);
   const files=sourceId.endsWith('-ASW') ? (state.data?.answers.find(answer=>answer.id===sourceId)?.files||[]) : (state.data?.files||[]);
   const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const logo=publicationCoverLogo(text,sourceId,text?.textLanguage);
@@ -219,7 +220,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
     {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&<ReaderRetry message={ui.t("app.text_temporarily_unavailable")} language={lang} retry={state.retry} retryAt={retryAt}/>}
     {text&&<DocumentPages documentId={sourceId} language={text.textLanguage||requestedLanguage}/>}{(text?.status==='available') ? <ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><DocumentObjectText logo={logo} text={paragraph} paragraph={source} from={from} to={to} final={final} marks={marks} objects={text.documentObjects||[]} assets={text.imageAssets} sourceUrl={text.sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} notePrefix={notePrefix} renderText={(a,b,last)=><AuthorMention text={paragraph.slice(a,b)} offset={a} final={last} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),a,b)} marks={marks} notePrefix={notePrefix}/>}/>}/><DocumentNotes assets={text.imageAssets} notes={notes} prefix={notePrefix}/></div></ReferenceScope> : (text&&!failed&&<p><UiMessage id="batch5.dossiervotetext.tsx.24.50"/></p>)}
-    {text&&<><CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>{showDownloads&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details>}</>}
+    {text&&<>{!sourceId.endsWith('-ASW')&&<CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>}{showDownloads&&!questionDocument&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details>}</>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={answer.date ? ui.t("batch4.questiontopics.tsx.answer.date", {date: String(date(answer.date,lang))}) : ui.t("textsearch.answer")} headingDate={answer.date} showDownloads={showDownloads}/>)}
     {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
   </section>;
@@ -235,7 +236,7 @@ function JoinedDetails({ item, lang, member, memberName, motionQuery, onMotionCh
   if (item.recordKind === "speech") return <><ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/><Detail speech={{id:item.sourceId,date:item.date,start:item.start || null,end:item.end || null,titles:item.titles || {},kind:item.speechKind || "PLENARY_DEBATE_SPEECH",reference:item.reference,originalLanguages:item.originalLanguages || [],participants:[],websiteUrl:item.websiteUrl || null,websiteLanguage:item.websiteLanguage || null}} lang={lang} /></>;
   return <div className="explorer-speech-detail" lang={lang} data-reader-pending={document.loading ? "true" : undefined}>
     <ActivityDossierLinks procedureIds={item.procedureIds} person={member} language={lang}/>
-    {!hasText&&<p lang={ui.language}><strong lang={roles[item.provenance.role] ? "en" : ""}>{(item.relatedJointMotions?.length && (item.provenance.role==="AUTHOR")) ? ui.t("app.author_of_the_original_motion") : (roles[item.provenance.role] || item.provenance.role)}</strong>{item.provenance.stage ? <> · <span lang={stage.language}>{stage.text}</span></> : ""}</p>}
+    {!hasText&&<p lang={ui.language}><strong lang={roles[item.provenance.role] ? ui.language : ""}>{(item.relatedJointMotions?.length && (item.provenance.role==="AUTHOR")) ? ui.t("app.author_of_the_original_motion") : (roles[item.provenance.role] || item.provenance.role)}</strong>{item.provenance.stage ? <> · <span lang={stage.language}>{stage.text}</span></> : ""}</p>}
     {!hasText&&<span lang={ui.language}><AmendmentTrailLink document={item.sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink></span>}
     <MotionOutcome outcome={item.resolutionOutcome} related={item.relatedJointMotions} reference={item.reference} sourceId={item.sourceId} language={lang} memberId={member} memberName={memberName}/>
     {motion&&<Suspense fallback={<p data-motion-pending="true" role="status" lang={ui.language}><UiMessage id="app.loading_motion_reader"/></p>}>
@@ -272,7 +273,7 @@ function LinkedActivityFallback({ sourceId, member, lang, complete, showDownload
   const matchedTitle=selectLanguageText(matched?.titles,lang,matched?.id||'', '');
   return <aside className="explorer-notice" lang={ui.language}>
     <Status scope={`linked:${sourceId}:${member}:${lang}:${check}`} pending={document.loading||contribution.loading} message={(document.error||contribution.error) ? null : ((!check) ? ((!sourceId) ? ui.t("app.link_not_recognised") : (complete ? ui.t("app.not_in_this_mep_s_activity") : ui.t("app.not_loaded_yet"))) : ((document.data && (!matched)) ? ui.t("app.linked_item_unavailable") : ((matched||contribution.data) ? ui.t("app.linked_item_loaded") : null)))}/>
-    <strong><UiMessage id="app.linkedActivity" values={{identifier: <span lang={sourceId ? "" : "en"}>{sourceId || ui.t("app.identifier_not_recognised")}</span>}}/></strong>
+    <strong><UiMessage id="app.linkedActivity" values={{identifier: <span lang={sourceId ? "" : ui.language}>{sourceId || ui.t("app.identifier_not_recognised")}</span>}}/></strong>
     <p>{(!sourceId) ? ui.t("app.link_not_recognised") : (complete ? ui.t("app.not_in_this_mep_s_activity") : ui.t("app.not_loaded_yet"))}</p>
     {sourceId && !check && <button onClick={() => setCheck(true)}><UiMessage id="app.look_it_up"/></button>}
     {(document.loading || contribution.loading) && <p role="status"><UiMessage id="insightshared.loading"/></p>}
@@ -816,7 +817,7 @@ export default function App() {
                           </a>
                         </p>}
                       {!(profile.data.committeeMemberships?.complete && !profile.data.committeeMemberships.items.length) && <>
-                        <h2 lang={(profile.data.currentAffiliation?.status==='matched') ? lang : 'en'}>{(profile.data.currentAffiliation?.status==='matched') ? c.committee : ui.t("app.committee_records")}</h2>
+                        <h2 lang={ui.language}>{(profile.data.currentAffiliation?.status==='matched') ? c.committee : ui.t("app.committee_records")}</h2>
                         <CommitteeMemberships profile={profile.data} committees={directory?.committees||[]} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
                       </>}
                       <ProfileMemberships profile={profile.data} lang={lang} roleName={roleName} date={date} retry={profile.retry}/>
@@ -927,7 +928,7 @@ export default function App() {
                     {label("reset_filters", ui.t("interfaceLabels.reset_filters"))}
                   </button>
                 </div>
-                {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : "en"}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
+                {directory.sync?.error && <div className="explorer-index" role="status" lang={ui.language}><UiMessage id="app.feedUnavailable" values={{lastSuccess: <span lang={directory.sync.lastSuccess ? "" : ui.language}>{directory.sync.lastSuccess || ui.t("app.not_yet_completed")}</span>}}/></div>}
                 {directory.committeeDetails && (!directory.committeeDetails.complete || directory.committeeDetails.error) && <div className="explorer-index" role="status" lang={ui.language}>
                     {directory.committeeDetails.error || ui.t("app.loading_committee_names")}
                     {directory.committeeDetails.error && <button onClick={() => {void api("directory?retry=committee-details", undefined, undefined, ui).catch(() => {}).finally(directoryState.retry);}}><UiMessage id="app.retry_committee_details"/></button>}
@@ -975,7 +976,7 @@ export default function App() {
              <UiMessage id="app.language"/> <select
               aria-label={ui.t("app.interface_language")}
               value={lang}
-              onChange={(e) => {votes.remember();motions.remember();const language=e.target.value;startTransition(()=>setLang(language));}}
+              onChange={(e) => {votes.remember();motions.remember();const language=e.target.value,url=new URL(location.href);if(language==='en')url.searchParams.delete('lang');else url.searchParams.set('lang',language);history.replaceState(history.state,'',url);startTransition(()=>setLang(language));}}
             >
               {interfaceLanguages.map((code) => <option lang={code} key={code} value={code}>
                   {languageName(code)}

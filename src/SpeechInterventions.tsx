@@ -42,13 +42,13 @@ export function matchesSpeechCategory(speech:Speech,category:SpeechCategory) {
 }
 export function InterventionIcon({type}:{type:Intervention['type']}) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="intervention-icon">
-    {(type==='procedure') ? <path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/> : ((type==='catch-the-eye') ? <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></> : (type.startsWith('blue-card') ? <><rect x="3" y="3" width="13" height="18" rx="2" fill="currentColor" fillOpacity=".12"/>{(type==='blue-card-question') ? <><path d="M7 8a2.5 2.5 0 0 1 5 0c0 2-2.5 1.5-2.5 4"/><path d="M9.5 16h.01"/></> : ((type==='blue-card-answer') ? <path d="m21 8-5 4 5 4m-5-4h6"/> : <path d="m18 7 4 4-4 4m4-4h-5"/>)}</> : ((type==='written') ? <><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></> : <><path d="M4 4h16v12H10l-5 4v-4H4Z"/><path d="M8 8h8m-8 4h5"/></>)))}
+    {type==='chair'?<><g transform="rotate(-40 10 8)"><rect x="4" y="4" width="12" height="6" rx="1"/><path d="M9 10v9a1 1 0 0 0 2 0v-9"/></g><path d="M13 22h9"/></>:type==='procedure'?<path d="M8 5h12M8 12h12M8 19h12M4 5h.01M4 12h.01M4 19h.01"/>:type==='catch-the-eye'?<><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></>:type.startsWith('blue-card')?<><rect x="3" y="3" width="13" height="18" rx="2" fill="currentColor" fillOpacity=".12"/>{type==='blue-card-question'?<><path d="M7 8a2.5 2.5 0 0 1 5 0c0 2-2.5 1.5-2.5 4"/><path d="M9.5 16h.01"/></>:type==='blue-card-answer'?<path d="m21 8-5 4 5 4m-5-4h6"/>:<path d="m18 7 4 4-4 4m4-4h-5"/>}</>:type==='written'?<><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></>:<><path d="M4 4h16v12H10l-5 4v-4H4Z"/><path d="M8 8h8m-8 4h5"/></>}
   </svg>;
 }
 export function InterventionBadges({value,language='en'}:{value?:Intervention;language?:string}) {
   const ui = useUiI18n();
   if(!value)return null;
-  const label=(value.type==='chair') ? speakerTerm('chair',language) : ({text:labelsUi(ui)[value.type],language:'en'});
+  const label=(value.type==='chair') ? speakerTerm('chair',language) : ({text:labelsUi(ui)[value.type],language:ui.language});
   const badgeProps={className:'intervention-badge '+(value.type.startsWith('blue-card') ? 'is-blue' : ''),title:value.process||undefined,lang:''},badgeContent=<><InterventionIcon type={value.type}/><span lang={label.language}>{label.text}</span></>;
   return <span className="intervention-badges" lang={ui.language}><span {...badgeProps}>{badgeContent}</span>{value.onBehalfOf.map(group=><span className="intervention-group" key={group.uri}><UiMessage id="batch4.speechinterventions.tsx.on.behalf.of.group" values={{group: ((group.politicalGroup && Object.hasOwn(GROUP_VOICE_GROUPS,group.id)) ? <a lang="" href={`?view=groups&gv-group=${group.id}&lang=${language}`} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(history.state,'',event.currentTarget.href);window.dispatchEvent(new PopStateEvent('popstate'));}}>{group.label}</a> : <span lang="">{group.label}</span>)}}/></span>)}</span>;
 }
@@ -88,7 +88,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
       return <div key={key}><InterventionIcon type={type}/><strong>{(filter && (count!==null)) ? <a href={filter.href(key)} aria-label={ui.t("batch4.speechinterventions.tsx.label.count.filter.contributions", {label: String(label), count: String(count)})} aria-current={(filter.selected===key) ? 'true' : undefined} onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();filter.select(key);}}>{count}</a> : (count??'—')}</strong><span>{label}{count!==null&&key!=='total'&&result.coverage.unclassified>0&&<PartialValue partial/>}</span></div>;
     })}</div>
       {!loading&&<>
-        <AvailabilityNote sources={result.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(),latestObservedDate:result.coverage.latestDataDate,observedRecords:result.coverage.available,route:'public-api',checkedAt:result.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)})} label={ui.t("batch4.speechinterventions.tsx.speech.record")} partial={Boolean(missingContributions||result.coverage.unclassified>0)} end={brusselsDay()}/>
+        <AvailabilityNote sources={result.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(),latestObservedDate:result.coverage.latestDataDate,observedRecords:result.coverage.available,route:'public-api',checkedAt:result.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)})} kind="speech.record" language={ui.locale} partial={Boolean(missingContributions||result.coverage.unclassified>0)} end={brusselsDay()}/>
         {result.coverage.unclassified>0&&<p className="intervention-caption">{<UiMessage id="batch4.speechinterventions.tsx.count.contributions.could.not.be.classified" values={{count: result.coverage.unclassified}} counts={{count: result.coverage.unclassified}}/>}</p>}
       </>}
     </>}
@@ -153,7 +153,7 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
         </>}
       </div>
     </li>)}</ol>}
-    {!debate.error&&!debate.coverage.complete&&<p className="intervention-caption"><UiMessage id="batch4.speechinterventions.tsx.available.of.expected.debate.records.available.links.stop.at.missing.contributions" values={{available: debate.coverage.available, expected: (debate.coverage.expected??'unknown')}}/></p>}
+    {!debate.error&&!debate.coverage.complete&&<p className="intervention-caption"><UiMessage id={debate.coverage.expected===null ? "batch4.speechinterventions.tsx.available.of.unknown.debate.records.available.links.stop.at.missing.contributions" : "batch4.speechinterventions.tsx.available.of.expected.debate.records.available.links.stop.at.missing.contributions"} values={{available: debate.coverage.available,...(debate.coverage.expected===null?{}:{expected:debate.coverage.expected})}}/></p>}
   </section>;
 }
 export function SpeechContextPanel({id,language,transcriptLanguage=language,preload=true}:{id:string;language:string;transcriptLanguage?:string;preload?:boolean}) {
