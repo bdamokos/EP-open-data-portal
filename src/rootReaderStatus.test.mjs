@@ -52,6 +52,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     if(route==='directory')return Response.json({day:'2026-10-16',members:[member],committees:[],index:{complete:true,loaded:1,total:1,failed:0,error:null}});
     if(route===`portrait/${member.id}`)return new Response(null,{status:404});
     if(route?.startsWith('latest-activities/'))return Response.json(page(items));
+  if(route==='vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(route?.startsWith('speech-statistics/'))return Response.json((typeof summary==='function'?await summary(url):summary)||{memberId:String(member.id),items:[],counts:{groupOrations:0,blueQuestions:0,blueAnswers:0,blueReactions:0},groups:[],coverage:{complete:true,available:0,total:0},nextPage:null,sources:[]});
     if(route==='insights/speech-cloud')return Response.json({scope:{kind:'member',phase:'past'},language:url.searchParams.get('lang'),words:[{word:'fixture',label:'Fixture',speechCount:1,occurrences:1,speechIds:[speechId]}],speeches:[{id:speechId,date:'2026-03-25',title:'Plenary speech fixture',titleLanguage:'en',machineTranslation:false,people:[]}],coverage:{transcripts:1,matchedSpeechRecords:1,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:'2026-03-25',end:'2026-03-25'},nextPage:null});
     if(route==='insights/following-status')return Response.json({epoch:'test',generation:1,marksReady:false,indexComplete:false});
@@ -91,7 +92,7 @@ test('inline full-text results replace the list, combine with exact chair record
   const h=await harness(t,{module:'speeches',items:[speechItem],summary,search:'energy'});
   await act(async()=>{});
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
-  assert.match(h.container.querySelector('.explorer-search-count')?.textContent||h.container.textContent,/0 matching documents/);
+  assert.match(h.container.querySelector('.explorer-search-count')?.textContent||h.container.textContent,/Matching documents: 0/);
   assert.equal(h.searches.at(-1).member,member.id);assert.deepEqual(h.searches.at(-1).kinds,['speech']);
   await h.click(h.container.querySelector('a[aria-label^="Chairing contributions:"]'));
   assert.deepEqual(h.searches.at(-1).sourceIds,[speechId]);
@@ -144,7 +145,7 @@ for(const outcome of ['unavailable','empty'])test('category transcript search di
     assert.equal(h.container.querySelector('.explorer-search-count'),null);
   }else{
     assert.equal(h.searches.length,1);assert.deepEqual(h.searches[0].sourceIds,[]);
-    assert.match(h.container.querySelector('.explorer-search-count').textContent,/0 matching documents/);
+    assert.match(h.container.querySelector('.explorer-search-count').textContent,/Matching documents: 0/);
   }
   const clear=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Clear category');clear.focus();
   await h.click(clear);
@@ -247,7 +248,7 @@ test('member reader uses exact structured ECR instead of the conflicting Bulgari
   const reader=h.container.querySelector('.explorer-speech-detail');
   assert.equal(reader.querySelector('strong').textContent,'Geadis Geadi');
   assert(!reader.querySelector('.insight-secondary'),'raw translated role must not contradict the exact group badge');
-  assert.equal(reader.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  assert.equal(reader.querySelector('.intervention-group').textContent,'От името на ECR');
   assert(!reader.textContent.includes('Verts/ALE'));
   assert(reader.textContent.includes('Exact source body.'));
 });

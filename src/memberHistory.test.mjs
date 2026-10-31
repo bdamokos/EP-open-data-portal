@@ -34,6 +34,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
     if(url.pathname==='/api/directory')return Response.json(directory);
     if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});
     if(url.pathname.startsWith('/api/latest-activities/'))return Response.json({categories:{},categoryGroups:[],categoryCoverage:{},items:[],selectedItems:[],indexedTotal:0,nextOffset:null,cache:{complete:true}});
+  if(url.pathname==='/api/vote-periods')return Response.json({version:3,weeks:[],coverage:{status:'unavailable',years:[]}});
     if(url.pathname.startsWith('/api/speech-statistics/'))return Response.json({items:[],counts:{},groups:[],coverage:{available:0,total:0,complete:true,headers:0},sources:[],nextPage:null});
     if(url.pathname==='/api/insights/speech-cloud')return Response.json({scope:{},words:[],speeches:[],coverage:{transcripts:0,complete:true},window:{},nextPage:null});
     unexpected.push(url.href);throw Error('Unexpected fixture request: '+url.href);
@@ -50,7 +51,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
     try{history.go(delta);await popped;}finally{clearTimeout(timer);window.removeEventListener('popstate',listener);}
   });
   const filters=()=>[...container.querySelectorAll('.explorer-filters select')];
-  const language=()=>container.querySelector('[aria-label="Interface language"]');
+  const language=()=>container.querySelector('.explorer-footer select');
   function agree(role,lang='en') {
     const query=new URLSearchParams(location.search);
     assert.deepEqual(filters().map(node=>node.value),['6567',role,'HU','PfE'],'rendered filter controls');
@@ -67,7 +68,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member') {
 test('Back and Forward restore Membership, every URL filter and actual directory results',async t=>{
   const h=await harness(t);h.agree('member');
   const initial=location.href;
-  await h.click('Following');await h.click('Members');
+  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'Members',hu:'Tagok',fr:'Membres'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');h.agree('substitute');
   const later=location.href,length=history.length,incoming=[];
   h.window.addEventListener('popstate',()=>incoming.push(location.href));
@@ -78,7 +79,7 @@ test('Back and Forward restore Membership, every URL filter and actual directory
 
 test('language follows history alongside Membership without overwriting restored parameters',async t=>{
   const h=await harness(t,'lang=hu&'+selection+'&role=member');h.agree('member','hu');
-  await h.click('Following');await h.click('Members');
+  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'Members',hu:'Tagok',fr:'Membres'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');await h.select(h.language(),'fr');h.agree('substitute','fr');
   await h.go(-2);h.agree('member','hu');
   await h.go(1);assert.equal(new URLSearchParams(location.search).get('view'),'saved');assert.equal(h.language().value,'hu');
@@ -87,7 +88,7 @@ test('language follows history alongside Membership without overwriting restored
 
 for(const query of [selection,selection+'&role=invalid&lang=invalid'])test('history applies initial-load defaults for '+query,async t=>{
   const h=await harness(t,query);h.agree('both');
-  await h.click('Following');await h.click('Members');
+  await h.click({en:'Following',hu:'Követve',fr:'Suivi'}[h.language().value]);await h.click({en:'Members',hu:'Tagok',fr:'Membres'}[h.language().value]);
   await h.select(h.filters()[1],'substitute');await h.select(h.language(),'hu');
   // Retain the raw old URL so popstate must validate absent/unsupported values.
   await act(async()=>{history.replaceState(null,'','/?'+query);h.window.dispatchEvent(new h.window.PopStateEvent('popstate'));});

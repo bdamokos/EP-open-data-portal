@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 import {matchesCommittee} from './memberFilters.mjs';
 import {filterCountry} from './countries.mjs';
 import {countryName} from './interfaceLabels.mjs';
@@ -39,7 +40,7 @@ function decode(raw,now) {
     return {...initialState(),...data,version:4,cancelled,unresolvedFollows,nearDismissed:data.version===4?data.nearDismissed:{}};
   }catch{return null;}
 }
-export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
+export function createCoverageStore(storage,notify=()=>{},clock=Date.now, ui = defaultUi) {
   let state=initialState(),directory=null,events=[];
   try {state={...state,...decode(storage?.getItem(COVERAGE_KEY),clock()),storageError:!storage};}catch{state.storageError=true;}
   const publish=()=>{
@@ -134,12 +135,12 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
       else if(directoryChanged){state={...state};notify();}
     },
     observeMembership(snapshot){events=snapshot.events.filter(e=>(e.lists||Object.keys(snapshot.lists)).some(list=>snapshot.lists[list].status!=='unavailable'));state={...state};notify();},
-    suggestions(){
+    suggestions(formatter=ui){
       if(!directory)return [];
       const near=nearCompleteFilters();
       return directory.members.flatMap(member=>{
-        const reasons=state.coverages.filter(c=>c.pending.includes(String(member.id))).map(c=>coverageReason(c,member,directory,events));
-        for(const c of near)if(c.pending.includes(String(member.id))&&!state.nearDismissed[c.dimension]?.[c.value]?.includes(String(member.id)))reasons.push(coverageReason({...c,nearComplete:true},member,directory));
+        const reasons=state.coverages.filter(c=>c.pending.includes(String(member.id))).map(c=>coverageReason(c,member,directory,events, formatter.locale, formatter));
+        for(const c of near)if(c.pending.includes(String(member.id))&&!state.nearDismissed[c.dimension]?.[c.value]?.includes(String(member.id)))reasons.push(coverageReason({...c,nearComplete:true},member,directory, undefined, formatter.locale, formatter));
         return reasons.length?[{member,reasons}]:[];
       });
     },
@@ -151,18 +152,18 @@ export function createCoverageStore(storage,notify=()=>{},clock=Date.now) {
   };
 }
 // A later group-event source can supply {type:'group-joined', value, date, mep}.
-export function coverageReason(coverage,member,directory,events=[],language='en') {
+export function coverageReason(coverage,member,directory,events=[],language='en', ui = defaultUi) {
   const {dimension,value,enrolledAt}=coverage,code=directory.committees.find(c=>c.id===value)?.code||value;
-  const all=coverage.nearComplete?'all other':'all';
-  const context=dimension==='country'?`You follow ${all} MEPs from ${countryName('en',value)}.`:dimension==='group'?`You follow ${all} MEPs in the ${value} group.`:`You follow ${all} MEPs on the ${code} committee.`;
-  if(coverage.nearComplete)return {context,reason:dimension==='country'?`Represents ${countryName('en',value)}`:dimension==='group'?`In the ${value} group`:`On ${code}`};
+  const contextKeys=coverage.nearComplete?{country:'followcoverage.you_follow_all_other_meps_from_country.5ece78',group:'followcoverage.you_follow_all_other_meps_in_the_group_group.bd78da',committee:'followcoverage.you_follow_all_other_meps_on_the_committee_committee.3532bc'}:{country:'followcoverage.you_follow_all_meps_from_country.3c99a7',group:'followcoverage.you_follow_all_meps_in_the_group_group.24a0a7',committee:'followcoverage.you_follow_all_meps_on_the_committee_committee.16c279'};
+  const context=ui.t(contextKeys[dimension],{country:countryName(language,value,ui),group:value,committee:code});
+  if(coverage.nearComplete)return {context,reason:dimension==='country'?ui.t("followcoverage.represents_countryname.295dfe", {country: String(countryName(language,value, ui))}):dimension==='group'?ui.t("followcoverage.in_the_group_group.5061f0", {group: String(value)}):ui.t("followcoverage.on_code.47ef27", {code: String(code)})};
   const dated=events.filter(e=>e.mep===String(member.id)&&Date.parse(e.date)>enrolledAt&&(e.type==='mandate-started'||dimension==='group'&&e.type==='group-joined'&&e.value===value)).sort((a,b)=>(a.type==='mandate-started'?0:1)-(b.type==='mandate-started'?0:1)||b.date.localeCompare(a.date))[0];
   const date=value=>new Intl.DateTimeFormat(language,{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
   let reason;
-  if(dated)reason=dated.type==='mandate-started'?`${dated.subtype==='returned'?'Returned to':'Joined'} Parliament on ${date(dated.date)}`:`Joined the ${value} group on ${date(dated.date)}`;
+  if(dated)reason=dated.type==='mandate-started'?ui.t(dated.subtype==='returned'?'followcoverage.returned_to_parliament_on_date.1fe8ce':'followcoverage.joined_parliament_on_date.012cb4',{date:date(dated.date)}):ui.t('followcoverage.joined_the_group_group_on_date.8f50e3',{group:value,date:date(dated.date)});
   else if(dimension==='committee'){
     const membership=member.memberships?.filter(v=>v.current&&v.id===value&&v.start&&Date.parse(v.start)>enrolledAt).sort((a,b)=>b.start.localeCompare(a.start))[0];
-    reason=membership?`Became ${membership.role==='MEMBER_SUBSTITUTE'?'a substitute':membership.role.includes('VICE')?'a vice-chair':membership.role.includes('CHAIR')?'chair':'a member'} on ${code} on ${date(membership.start)}`:`Now on ${code}`;
-  }else reason=dimension==='group'?`Now in the ${value} group`:`Now represents ${countryName('en',value)}`;
+    reason=membership?ui.t(membership.role==='MEMBER_SUBSTITUTE'?'followcoverage.became_a_substitute_on_code_on_date.f1696f':membership.role.includes('VICE')?'followcoverage.became_a_vice_chair_on_code_on_date.310c9c':membership.role.includes('CHAIR')?'followcoverage.became_chair_on_code_on_date.81f46a':'followcoverage.became_a_member_on_code_on_date.4d48ab',{code,date:date(membership.start)}):ui.t('followcoverage.now_on_code.36d1ee',{code});
+  }else reason=dimension==='group'?ui.t("followcoverage.now_in_the_group_group.2e223a", {group: String(value)}):ui.t("followcoverage.now_represents_countryname.1f4fbf", {country: String(countryName(language,value, ui))});
   return {context,reason};
 }

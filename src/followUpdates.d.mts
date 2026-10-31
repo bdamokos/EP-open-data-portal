@@ -9,7 +9,7 @@ export function itemHasNew(item:FollowItem,now:number):boolean;
 export function nextExpiry(items:FollowItem[],now:number):number|null;
 /** Add historyOmitted to the store's existing count; track dropped fresh entries as unreadOmitted. */
 export function compactEntries(entries:FollowEntry[],now:number,options?:{historyLimit?:number;newLimit?:number}):{entries:FollowEntry[];historyOmitted:number};
-export function summarizeByType(entries:FollowEntry[],omitted?:number):string;
+export function summarizeByType(entries:FollowEntry[],omitted?:number, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function markEntryRead(entries:FollowEntry[],kind:FollowEntry['kind'],id:string,now:number):FollowEntry[];
 export function markAllRead(entries:FollowEntry[],now:number):FollowEntry[];
-export function migrateUnread(unreadList:(Omit<FollowEntry,'kind'|'discoveredAt'|'readAt'>&{kind?:FollowEntry['kind']})[],now:number):FollowEntry[];
+export function migrateUnread(unreadList:(Omit<FollowEntry,'kind'|'discoveredAt'|'readAt'>&{kind?:FollowEntry['kind']})[],now:number, ui?: import('./uiI18n.mjs').UiFormatter):FollowEntry[];

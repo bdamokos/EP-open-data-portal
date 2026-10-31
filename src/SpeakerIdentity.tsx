@@ -8,7 +8,7 @@ export function SpeakerName({person,language,chair=false}:{person?:SpeechSpeaker
 }
 export function SpeakerRoles({person,language,chair=false,intervention}:RoleProps) {
   const {roles}=speakerPresentation(person,language,{chair,intervention});
-  return <>{roles.map((role,index)=><span key={index} lang={role.language}>{index?' · ':''}{role.text}</span>)}</>;
+  return <>{roles.map((role,index)=><span key={index} lang={role.language}>{index ? ' · ' : ''}{role.text}</span>)}</>;
 }
 export function SpeakerRoleLine({person,language,chair=false,intervention,className}:RoleProps&{className:string}) {
   if(!speakerPresentation(person,language,{chair,intervention}).roles.length)return null;

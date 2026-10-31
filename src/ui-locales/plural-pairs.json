@@ -1,0 +1,372 @@
+[
+  {
+    "one": "Saved.unreadOne",
+    "other": "Saved.unreadMany",
+    "count": "count"
+  },
+  {
+    "one": "Saved.unavailableOne",
+    "other": "Saved.unavailableMany",
+    "count": "count"
+  },
+  {
+    "one": "app.knownMepMatchOne",
+    "other": "app.knownMepMatchMany",
+    "count": "count"
+  },
+  {
+    "one": "app.mepMatchOne",
+    "other": "app.mepMatchMany",
+    "count": "count"
+  },
+  {
+    "one": "outsidevoices.count_matching_speaker.e76a5b",
+    "other": "outsidevoices.count_matching_speakers.488abf",
+    "count": "count"
+  },
+  {
+    "one": "savedcontrols.count.followed.item.has.new.updates",
+    "other": "savedcontrols.count.followed.items.have.new.updates",
+    "count": "count"
+  },
+  {
+    "one": "legislation.grouplabel_position_count_mep.c3a210",
+    "other": "legislation.grouplabel_position_count_meps.f476b0",
+    "count": "count"
+  },
+  {
+    "one": "readerretry.seconds_second.64657e",
+    "other": "readerretry.seconds_seconds.3724db",
+    "count": "seconds"
+  },
+  {
+    "one": "readerretry.minutes_minute.15a750",
+    "other": "readerretry.minutes_minutes.24f934",
+    "count": "minutes"
+  },
+  {
+    "one": "batch4.insightcharts.tsx.count.contribution",
+    "other": "batch4.insightcharts.tsx.count.contributions",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.count.decision.partial.coverage",
+    "other": "batch2.membervotes.tsx.count.decisions.partial.coverage",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.count.decision.recordedcount.with.a.recorded.position",
+    "other": "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.count.decision.recordedcount.with.a.recorded.position.partial.coverage",
+    "other": "batch2.membervotes.tsx.count.decisions.recordedcount.with.a.recorded.position.partial.coverage",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.count.recorded.position.partial.coverage",
+    "other": "batch2.membervotes.tsx.count.recorded.positions.partial.coverage",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.count.recorded.position.recordedcount.with.a.recorded.position",
+    "other": "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.count.recorded.position.recordedcount.with.a.recorded.position.partial.coverage",
+    "other": "batch2.membervotes.tsx.count.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage",
+    "count": "count"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.decision",
+    "other": "batch2.membervotes.tsx.start.end.of.total.decisions",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.decision.partial.coverage",
+    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.partial.coverage",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.decision.recordedcount.with.a.recorded.position",
+    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.decision.recordedcount.with.a.recorded.position.partial.coverage",
+    "other": "batch2.membervotes.tsx.start.end.of.total.decisions.recordedcount.with.a.recorded.position.partial.coverage",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position",
+    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.partial.coverage",
+    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.partial.coverage",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.recordedcount.with.a.recorded.position",
+    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position",
+    "count": "total"
+  },
+  {
+    "one": "batch2.membervotes.tsx.start.end.of.total.recorded.position.recordedcount.with.a.recorded.position.partial.coverage",
+    "other": "batch2.membervotes.tsx.start.end.of.total.recorded.positions.recordedcount.with.a.recorded.position.partial.coverage",
+    "count": "total"
+  },
+  {
+    "one": "membervotes.tsx.count.decision",
+    "other": "membervotes.tsx.count.decisions",
+    "count": "count"
+  },
+  {
+    "one": "membervotes.tsx.count.recorded.position",
+    "other": "membervotes.tsx.count.recorded.positions",
+    "count": "count"
+  },
+  {
+    "one": "batch4.insightcharts.tsx.assigned.of.count.contribution.assigned",
+    "other": "batch4.insightcharts.tsx.assigned.of.count.contributions.assigned",
+    "count": "count"
+  },
+  {
+    "one": "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contribution.observed",
+    "other": "batch4.insightcharts.tsx.title.group.breakdown.unavailable.count.contributions.observed",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_plenary_contribution",
+    "other": "followUpdates.count_plenary_contributions",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_report_as_rapporteur",
+    "other": "followUpdates.count_reports_as_rapporteur",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_report_as_shadow_rapporteur",
+    "other": "followUpdates.count_reports_as_shadow_rapporteur",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_opinion_as_rapporteur",
+    "other": "followUpdates.count_opinions_as_rapporteur",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_opinion_as_shadow_rapporteur",
+    "other": "followUpdates.count_opinions_as_shadow_rapporteur",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_motion",
+    "other": "followUpdates.count_motions",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_written_question",
+    "other": "followUpdates.count_written_questions",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_oral_question",
+    "other": "followUpdates.count_oral_questions",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_written_explanation_of_vote",
+    "other": "followUpdates.count_written_explanations_of_vote",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_individual_motion",
+    "other": "followUpdates.count_individual_motions",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_proposal_for_a_union_act",
+    "other": "followUpdates.count_proposals_for_a_union_act",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_speech",
+    "other": "followUpdates.count_speeches",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_answer",
+    "other": "followUpdates.count_answers",
+    "count": "count"
+  },
+  {
+    "one": "followUpdates.count_other_activity",
+    "other": "followUpdates.count_other_activities",
+    "count": "count"
+  },
+  {
+    "one": "dossieractivity.count_debate_contribution_from_date_not_loaded",
+    "other": "dossieractivity.count_debate_contributions_from_date_not_loaded",
+    "count": "count"
+  },
+  {
+    "one": "batch4.questiontopics.tsx.view.count.question",
+    "other": "batch4.questiontopics.tsx.view.count.questions",
+    "count": "count"
+  },
+  {
+    "one": "amendments.name_proposed_this_with_count_other_mep.91b29d",
+    "other": "amendments.name_proposed_this_with_count_other_meps.6c177a",
+    "count": "count"
+  },
+  {
+    "one": "amendments.name_proposed_this_with_count_other_proposer.d7b611",
+    "other": "amendments.name_proposed_this_with_count_other_proposers.aded25",
+    "count": "count"
+  },
+  {
+    "one": "dossieractivity.count_stage_amendment",
+    "other": "dossieractivity.count_stage_amendments",
+    "count": "count"
+  },
+  {
+    "one": "dossieractivity.at_least_count_stage_amendment",
+    "other": "dossieractivity.at_least_count_stage_amendments",
+    "count": "count"
+  },
+  {
+    "one": "dossieractivity.count_stage_amendment_choose_a_procedure.3d728f",
+    "other": "dossieractivity.count_stage_amendments_choose_a_procedure",
+    "count": "count"
+  },
+  {
+    "one": "outsidevoices.selected_date_count_sitting_day.cacb4c",
+    "other": "outsidevoices.selected_date_count_sitting_days.1a5aa0",
+    "count": "count"
+  },
+  {
+    "one": "outsidevoices.count_sitting_day.f4a98a",
+    "other": "outsidevoices.count_sitting_days.fa07e3",
+    "count": "count"
+  },
+  {
+    "one": "batch4.questiontopics.tsx.count.question",
+    "other": "batch4.questiontopics.tsx.count.questions",
+    "count": "count"
+  },
+  {
+    "one": "batch4.questiontopics.tsx.count.mep.author",
+    "other": "batch4.questiontopics.tsx.count.mep.authors",
+    "count": "count"
+  },
+  {
+    "one": "insightshared.age_unavailable_for_count_mep",
+    "other": "insightshared.age_unavailable_for_count_meps",
+    "count": "count"
+  },
+  {
+    "one": "legislation.speeches_speech.1afc1a",
+    "other": "legislation.speeches_speeches.c01055",
+    "count": "speeches"
+  },
+  {
+    "one": "legislation.statements_written_statement.78dd10",
+    "other": "legislation.statements_written_statements.7e4375",
+    "count": "statements"
+  },
+  {
+    "one": "legislation.count_person.0b519a",
+    "other": "legislation.count_people.83f265",
+    "count": "count"
+  },
+  {
+    "one": "speechcloud.transcripts_speech.2f5856",
+    "other": "speechcloud.transcripts_speeches.851fc7",
+    "count": "transcripts"
+  },
+  {
+    "one": "speechcloud.in_count_speech.b044c6",
+    "other": "speechcloud.in_count_speeches.a25a1a",
+    "count": "count"
+  },
+  {
+    "one": "batch4.speechinterventions.tsx.count.contribution.could.not.be.classified",
+    "other": "batch4.speechinterventions.tsx.count.contributions.could.not.be.classified",
+    "count": "count"
+  },
+  {
+    "one": "topictrends.count_topic_with_metric_in_this_selection_showing_shown.c3b231",
+    "other": "topictrends.count_topics_with_metric_in_this_selection_showing_shown.c4ab5c",
+    "count": "count"
+  },
+  {
+    "one": "textsearch.count_matching_question_coverage",
+    "other": "textsearch.count_matching_questions_coverage",
+    "count": "count"
+  },
+  {
+    "one": "textsearch.count_matching_document_coverage",
+    "other": "textsearch.count_matching_documents_coverage",
+    "count": "count"
+  },
+  {
+    "one": "voteperiodnavigation.daterange_count_sitting_day.9bc1da",
+    "other": "voteperiodnavigation.daterange_count_sitting_days.e5506d",
+    "count": "count"
+  },
+  {
+    "one": "ui.speakerCount.one",
+    "other": "groupvoices.count_speakers.47ae64",
+    "count": "count"
+  },
+  {
+    "one": "amendments.sources_count_gap.c1fee3",
+    "other": "amendments.sources_count_gaps.2b2613",
+    "count": "count"
+  },
+  {
+    "one": "amendments.total_amendment.2240d4",
+    "other": "amendments.total_amendments.162421",
+    "count": "total"
+  },
+  {
+    "one": "amendments.total_amendment_checking_for_amendments.2d08c8",
+    "other": "amendments.total_amendments_checking_for_amendments.f0602d",
+    "count": "total"
+  },
+  {
+    "one": "amendments.total_amendment_partial_coverage.c832c4",
+    "other": "amendments.total_amendments_partial_coverage.9ca533",
+    "count": "total"
+  },
+  {
+    "one": "Participation.availableAgendaOne",
+    "other": "Participation.availableAgendaMany",
+    "count": "count"
+  },
+  {
+    "one": "Participation.agendaOne",
+    "other": "Participation.agendaMany",
+    "count": "count"
+  },
+  {
+    "one": "batch4.questiontopics.tsx.count.question.matches.these.filters",
+    "other": "batch4.questiontopics.tsx.count.questions.match.these.filters",
+    "count": "count"
+  },
+  {
+    "one": "batch6.procedureprogress.count.event.in.this.selection.incomplete.78",
+    "other": "batch6.procedureprogress.count.events.in.this.selection.incomplete.78",
+    "count": "count"
+  },
+  {
+    "one": "batch6.procedureprogress.count.event.in.this.selection.78",
+    "other": "batch6.procedureprogress.count.events.in.this.selection.78",
+    "count": "count"
+  }
+]

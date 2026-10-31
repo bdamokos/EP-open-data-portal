@@ -1,3 +1,5 @@
+import {UiMessageError} from './uiErrors.mjs';
+import {defaultUi} from './uiDefault.mjs';
 import {versionedApiUrl} from '../server/api-version.mjs';
 import {reportApiVersionMismatch} from './apiVersionMismatch.mjs';
 
@@ -35,12 +37,12 @@ function pause(ms, signal) {
 
 // GET only: one deadline covers response bodies, backoff and every attempt.
 // Short busy responses get at most two retries and six seconds of backoff.
-export async function readJson(url, { signal, priority = 'auto', getPriority = () => priority, timeoutMs = 8_000, fetchImpl = fetch } = {}) {
+export async function readJson(url, { signal, priority = 'auto', getPriority = () => priority, timeoutMs = 8_000, fetchImpl = fetch } = {}, ui = defaultUi) {
   const controller = new AbortController();
   const abort = () => controller.abort(signal.reason);
   signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) abort();
-  const timeoutError = new Error('The request took too long. Try again.');
+  const timeoutError = new UiMessageError('batch6.client.the.request.took.too.long.try.again.43');
   const timer = setTimeout(() => controller.abort(timeoutError), timeoutMs);
   const active = controller.signal;
   let waited = 0;
@@ -52,7 +54,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
       active.throwIfAborted();
       reportApiVersionMismatch(response.status, data);
       if (response.ok) {
-        if (!data) throw new Error('Something went wrong. Try again.');
+        if (!data) throw new UiMessageError('batch6.client.something.went.wrong.try.again.55');
         return data;
       }
       const now = Date.now();
@@ -61,7 +63,7 @@ export async function readJson(url, { signal, priority = 'auto', getPriority = (
       const bodyAt = retryTime(data?.error?.retryAfter, now);
       const times = [retryAt, headerAt, bodyAt].filter(at => at !== null);
       const at = times.length ? Math.max(...times) : null;
-      const error = Object.assign(new Error(data?.error?.message || `The data service is unavailable (${response.status}).`), {
+      const error = Object.assign((typeof data?.error?.message==='string'&&data.error.message?new Error(data.error.message):new UiMessageError('batch6.client.the.data.service.is.unavailable.status.64',{status:String(response.status)})), {
         status: response.status, code: data?.error?.code, retryAt: at ?? undefined,
       });
       const transient = response.status === 503 && ['busy', 'upstream_busy', 'odp_rate_limited', 'request_timeout'].includes(error.code);
@@ -107,7 +109,7 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, maxAg
       controller.abort(reason);
       reject(reason);
     }; });
-    timer = setTimeout(() => entry.stop(new Error('The request took too long. Try again.')), timeoutFor(route));
+    timer = setTimeout(() => entry.stop(new UiMessageError('batch6.client.the.request.took.too.long.try.again.43')), timeoutFor(route));
     const request = Promise.race([Promise.resolve().then(() => {
       controller.signal.throwIfAborted();
       return load(route, controller.signal, { priority: entry.priority, getPriority: () => entry.priority });

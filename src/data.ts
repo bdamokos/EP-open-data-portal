@@ -1,10 +1,13 @@
+import {useUiI18n} from './UiI18nReact';
+import {uiErrorText} from './uiErrors.mjs';
+import {defaultUi} from './uiDefault.mjs';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_ROOT } from "./api";
 import { createDataClient, dataTimeoutFor, readJson } from "./client.mjs";
 import type {SpeechDetail,StoredSpeechTranscript} from './explorerTypes';
 
-export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto', getPriority }: { priority?: 'auto' | 'low'; getPriority?: () => 'auto' | 'low' } = {}): Promise<T> {
-  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) });
+export function api<T>(route: string, signal?: AbortSignal, { priority = 'auto', getPriority }: { priority?: 'auto' | 'low'; getPriority?: () => 'auto' | 'low' } = {}, ui: import('./uiI18n.mjs').UiFormatter = defaultUi): Promise<T> {
+  return readJson<T>(`${API_ROOT}/${route}`, { signal, priority, getPriority, timeoutMs: dataTimeoutFor(route) }, ui);
 }
 const client = createDataClient(api, { timeoutFor: dataTimeoutFor });
 export function expireActivityReads() { client.expireMatching(route=>/^(document\/|latest-activities\/)/.test(route)); }
@@ -32,10 +35,11 @@ export function useSpeechData(id:string,language:string) {
 }
 export function prefetchData(routes: string[]) { return client.prefetch(routes); }
 export function useData<T>(route: string | null) {
+  const ui=useUiI18n();
   const [state, setState] = useState<{
     route: string | null;
     data: T | null;
-    error: string | null;
+    error: unknown | null;
     status?: number;
     retryAt?: number;
     loading: boolean;
@@ -55,12 +59,12 @@ export function useData<T>(route: string | null) {
       client.get<T>(route, { force, signal: controller.signal })
         .then((data) => { if (active) setState({ route, data, error: null, loading: false }); })
         .catch((e) => {
-          if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e.message, status:typeof e.status==='number'?e.status:undefined,retryAt: e.retryAt, loading: false }));
+          if (active) setState(previous => ({ route, data: e.status === 401 || e.status === 403 ? null : previous.data, error: e, status:typeof e.status==='number'?e.status:undefined,retryAt: e.retryAt, loading: false }));
         });
     return () => { active = false; controller.abort(); };
   }, [route, retry]);
   const current = state.route === route ? state : {route,data:route ? client.peek<T>(route) : null,error:null,loading:Boolean(route)};
   // Expose a retry before effects run, so dependent hooks do not briefly start
   // a fallback while this prerequisite is about to refresh.
-  return { ...current, ...(previousRequest.current.retry !== retry ? {error:null,status:undefined,retryAt:undefined,loading:Boolean(route)} : {}), retry: refresh };
+  return { ...current, error:current.error===null?null:uiErrorText(current.error,ui), ...(previousRequest.current.retry !== retry ? {error:null,status:undefined,retryAt:undefined,loading:Boolean(route)} : {}), retry: refresh };
 }

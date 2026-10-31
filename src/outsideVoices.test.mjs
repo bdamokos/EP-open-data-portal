@@ -434,3 +434,13 @@ test('an incomplete speaker directory qualifies its empty selection in visible a
  assert.match(h.container.querySelector('.ov-empty').textContent,/No matching speakers loaded/);
  assert.doesNotMatch(h.container.textContent,/No speakers match\./);
 });
+
+test('directory agenda counts retain lower bounds and unknowns for unlinked contributions',async t=>{
+ const positive=speaker('99','Positive',[speech('2026-10-07',1,[item('2026-10-07',1)]),speech('2026-10-07',2,[])]);
+ const unknown=speaker('98','Unknown',[speech('2026-10-07',3,[])]);
+ const exact=speaker('97','Exact',[speech('2026-10-07',4,[item('2026-10-07',2)])]);
+ const {container}=await harness(t,[positive,unknown,exact]);
+ const counts=new Map([...container.querySelectorAll('.ov-person-row')].map(row=>[row.querySelector('.ov-person-name button').textContent,row.querySelector('.ov-person-count').textContent]));
+ assert.match(counts.get('Positive'),/^Agenda items: 1\+/);assert.match(counts.get('Unknown'),/^Agenda items: —/);assert.match(counts.get('Exact'),/^Agenda items: 1 ·/);
+ assert.equal(unknown.person.appearances,0);assert.equal(positive.person.appearances,1);
+});

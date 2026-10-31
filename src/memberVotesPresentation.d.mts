@@ -1,6 +1,6 @@
 import type {MemberVote,MemberVoteSubject,MemberVotesResponse} from './MemberVotesTypes';
 export const MEMBER_VOTES_PAGE_SIZE:50;
-export function memberVotesCoverageNotice(data:MemberVotesResponse,state?:{decisionId?:string|null;context?:unknown}):string|null;
+export function memberVotesCoverageNotice(data:MemberVotesResponse,state?:{decisionId?:string|null;context?:unknown}, ui?: import('./uiI18n.mjs').UiFormatter):string|null;
 export type MemberVotesRequestState={week?:string;sittingId?:string|null;positions?:'recorded'|'all';alignment?:'all'|'with'|'against'|'abstained';offset?:number;decisionId?:string|null;snapshotId?:string|null};
 export type MemberVoteGroup={id:string;subject:MemberVoteSubject|null;items:MemberVote[]};
 export type MemberVoteCounts={for:number;against:number;abstaining:number;total:number};
@@ -8,12 +8,14 @@ export function memberVotesRoute(memberId:number|string,state?:MemberVotesReques
 export function validateMemberVotesResponse(data:unknown,request:{memberId:number|string;state?:MemberVotesRequestState}):data is MemberVotesResponse;
 export function groupMemberVotes(data:MemberVotesResponse):MemberVoteGroup[];
 export function displayVoteTitle(title:string|null|undefined):string;
-export function memberVoteLabel(vote:MemberVote,language?:string):string;
-export function memberVoteParentLabel(vote:MemberVote,language?:string):string|null;
-export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>):string;
-export function memberVotePositionSummary(items:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>[]):string;
-export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>):string;
+export function memberVoteLabel(vote:MemberVote,language?:string, ui?: import('./uiI18n.mjs').UiFormatter):string;
+export function memberVoteParentLabel(vote:MemberVote,language?:string,ui?: import('./uiI18n.mjs').UiFormatter):string|null;
+export function memberVotePosition(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
+export function memberVotePositionSummary(items:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>[], ui?: import('./uiI18n.mjs').UiFormatter):string;
+export function memberVoteOutcome(vote:Pick<MemberVote,'outcome'>, ui?: import('./uiI18n.mjs').UiFormatter):string;
 export function memberVoteTotals(vote:Pick<MemberVote,'totals'|'ballotStatus'>):MemberVoteCounts|null;
 export function votingRecordUrl(vote:MemberVote):string|null;
 export function topLevelVoteDocuments(vote:MemberVote):string[];
 export function exactAmendmentTargets(vote:MemberVote):{documentId:string;amendmentId:string}[];
+
+export function memberVotePositionState(vote:Pick<MemberVote,'actualPosition'|'ballotStatus'|'method'>):string;

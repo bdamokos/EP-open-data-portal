@@ -97,7 +97,7 @@ test('a finished local backfill keeps the search scoped to available texts',asyn
     if(url.pathname.endsWith('/corpus/search'))return Response.json({...results(body,[]),total:0,coverage:{complete:true,backfillComplete:true,authoritativeComplete:false}});
   }});
   await view.render();
-  assert.match(view.find('.explorer-search-count').textContent,/^0 matching documents$/);
+  assert.match(view.find('.explorer-search-count').textContent,/^Matching documents: 0$/);
   assert.match(view.container.textContent,/No matches in available text\./,'a complete local backfill is not an authoritative empty result');
 });
 
@@ -167,7 +167,7 @@ test('a global corpus status failure does not label a successful scoped result p
     if(url.pathname.endsWith('/corpus/status'))return Response.json({error:{code:'corpus_status_timeout',message:'Corpus status is temporarily unavailable.'}},{status:503});
   }});
   await view.render();
-  assert.match(view.find('.explorer-search-count').textContent,/^1 matching document$/);
+  assert.match(view.find('.explorer-search-count').textContent,/^Matching documents: 1$/);
   assert.equal(view.calls.some(call=>call.url.pathname.endsWith('/corpus/status')),false,'search does not turn unavailable global counts into zero coverage');
   assert.equal(view.container.querySelector('[role="alert"]'),null);
 });

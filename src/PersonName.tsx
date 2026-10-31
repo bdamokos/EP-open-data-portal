@@ -1,3 +1,4 @@
+import {UiMessage, useUiI18n} from './UiI18nReact';
 import {createContext,useContext,useMemo,type ReactNode} from 'react';
 import {personNameIndex,personDisplayName} from './personNames.mjs';
 
@@ -14,10 +15,11 @@ export function usePersonName() {
   return (id:unknown,label?:string|null)=>personDisplayName(names,id,label);
 }
 export function PersonName({id,label,fallback=''}:{id:unknown;label?:string|null;fallback?:string}) {
+  const ui = useUiI18n();
   const name=usePersonName()(id,label)||fallback;
-  return <span lang="" title={label&&label!==name?`Source label: ${label}`:undefined}>{name}</span>;
+  return <span lang="" title={(label && (label!==name)) ? ui.t("personname.source_label_label", {label: String(label)}) : undefined}>{name}</span>;
 }
 
 export function useDirectoryMember(id:unknown) {
-  return useContext(Members).get(/^[1-9]\d*$/.test(String(id))?String(id):'');
+  return useContext(Members).get(/^[1-9]\d*$/.test(String(id)) ? String(id) : '');
 }
