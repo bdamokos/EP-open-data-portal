@@ -278,6 +278,39 @@ test('selection revisions track relevant text changes without restarting for unr
   assert.deepEqual(store.speechPage({member:'42',language:'en',expectedRevision:before.revision}),{changed:true});
   assert.equal(store.speechData({sourceIds:[id],language:'en'}).records[0].text.body,'Energy energy water.');
 });
+test('availability updates refresh labels without restarting speech counts or word cloud pagination',async t=>{
+  const {store,index,add}=fixture(t,{realReaders:false});
+  for(let n=1;n<=121;n++)add(activity(n));
+  const readCorpusPage=async params=>store.speechPage(params);
+  const cloud=new SpeechCloudInsights(index,{clock:now,readCorpusPage});
+  const stats=new SpeechInterventions({clock:now,identities:null,readCorpusPage});
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()});
+  const revision=store.speechPage({member:'42',language:'en'}).revision;
+  let previousCloud,previousStats;
+  for(let page=0;page<3;page++) {
+    // Both stores receive background progress; no selected speech changes.
+    store.enqueue('background-'+page,'speeches',{start:'2026-09-01',end:'2026-09-30'},50);
+    store.failTask(store.task('background-'+page),new Error('Source unavailable'));
+    index.set('availabilityRevision',page+100);
+    assert.equal(store.speechPage({member:'42',language:'en',expectedRevision:revision}).changed,undefined);
+    const counted=await stats.member('42',page),words=await cloud.query({...query,page});
+    const expected=Math.min(121,(page+1)*50);
+    assert.equal(counted.restarted,false);assert.equal(words.restarted,undefined);
+    assert.equal(counted.coverage.available,expected);assert.equal(words.coverage.transcripts,expected);
+    assert.equal(counted.nextPage,page===2?null:page+1);assert.equal(words.nextPage,page===2?null:page+1);
+    assert.deepEqual(words.availability,store.speechPage({member:'42',language:'en',to:query.end}).coverage.availability.text);
+    assert.deepEqual(counted.availability,store.speechPage({member:'42',metadataOnly:true,kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT']}).coverage.availability.metadataSources);
+    if(previousCloud)assert.deepEqual(words.speeches.slice(0,previousCloud.speeches.length),previousCloud.speeches);
+    if(previousStats)assert.deepEqual(counted.items.slice(0,previousStats.items.length),previousStats.items);
+    previousCloud=structuredClone(words);previousStats=structuredClone(counted);
+  }
+  assert.equal(previousCloud.coverage.complete,false,'retained coverage stays partial');
+  assert.equal(previousStats.coverage.complete,false);
+  store.finishTask(store.task('background-0'));index.set('availabilityRevision',200);
+  const refreshed=await cloud.query(query);
+  assert.deepEqual(refreshed.availability,store.speechPage({member:'42',language:'en',to:query.end}).coverage.availability.text,'fresh visits refresh availability');
+  assert.notDeepEqual(refreshed.availability,previousCloud.availability);
+});
 test('metadata, selection fields and revision roll back together when projection fails',t=>{
   const {store,add}=fixture(t),id=add(activity(1)),before=store.speechMetadata(id),page=store.speechPage({member:'42',metadataOnly:true}),project=store.projectSpeechCatalog.bind(store),revision=store.get('speechReadRevision');
   t.mock.method(store,'projectSpeechCatalog',(...args)=>{project(...args);throw new Error('projection failed after write');});
