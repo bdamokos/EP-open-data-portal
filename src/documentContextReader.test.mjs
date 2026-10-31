@@ -919,7 +919,7 @@ for(const [name,status,stale,refreshError] of [
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
   assert.equal(notices.includes('Some proposal content is unavailable.'),false,'a stale observation does not mean missing text');
-  assert.doesNotMatch(notices.join(' '),/Partial text|document files not loaded/);
+  assert.doesNotMatch(notices.join(' '),/Partial text|Document files not loaded/);
   assert.equal(notices.includes('Couldn’t update the proposal. Showing saved text.'),!!refreshError);
   assert.equal(notices.includes('Showing saved proposal text.'),stale&&!refreshError);
   assert(!h.container.textContent.includes('authoritative'));assert(!h.container.textContent.includes('consolidated'));
@@ -939,7 +939,7 @@ test('proposal content gaps name missing files without counting saved-text fresh
   ];
   const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
   const notices=[...h.container.querySelectorAll('.document-context-notice')].map(node=>node.textContent);
-  assert(notices.includes('2 document files not loaded.'));
+  assert(notices.includes('Document files not loaded: 2.'));
   assert(notices.includes('Document file limit reached.'));
   assert(h.container.querySelector('[data-amendment-block] del'),'readable text remains usable');
 });

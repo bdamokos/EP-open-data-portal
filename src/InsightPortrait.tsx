@@ -10,6 +10,6 @@ export function InsightPortrait({id,name,onUnavailable}:{id:string;name:string|n
   useEffect(()=>{
     unavailableRef.current(portrait.status==='error');
   },[portrait.status]);
-  const words=(name||'').trim().split(/\s+/),initials=[words[0],words.length>1?words.at(-1):''].map(word=>word?.[0]||'').join('');
-  return <span className="insight-portrait"><span className="insight-portrait-fallback" aria-hidden="true">{initials||'·'}</span><img ref={portrait.imageRef} loading={portrait.loading} src={portrait.src} alt="" style={{opacity:portrait.status==='loaded'?1:0}} onLoad={portrait.onLoad} onError={portrait.onError}/></span>;
+  const words=(name||'').trim().split(/\s+/),initials=[words[0],(words.length>1) ? words.at(-1) : ''].map(word=>word?.[0]||'').join('');
+  return <span className="insight-portrait"><span className="insight-portrait-fallback" aria-hidden="true">{initials||'·'}</span><img ref={portrait.imageRef} loading={portrait.loading} src={portrait.src} alt="" style={{opacity:(portrait.status==='loaded') ? 1 : 0}} onLoad={portrait.onLoad} onError={portrait.onError}/></span>;
 }

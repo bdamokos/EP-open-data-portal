@@ -4,7 +4,7 @@ export type FollowedDossier={kind:'dossier';id:string;title:string;titleLanguage
 export const DOSSIERS_KEY:string;
 export function dossierReference(value:unknown):boolean;
 export function dossierHref(reference:string,language?:string):string;
-export function createDossiersStore(storage:Storage|null,notify?:()=>void,clock?:()=>number):{
+export function createDossiersStore(storage:Storage|null,notify?:()=>void,clock?:()=>number, ui?: import('./uiI18n.mjs').UiFormatter):{
  snapshot:()=>{items:FollowedDossier[];persistent:boolean;storageError:boolean;restarted:boolean};reload:()=>void;retryStorage:()=>boolean;
  toggle:(item:{id:string;title?:string;titleLanguage?:string|null})=>void;
  unavailable:(id:string,expected:FollowedDossier,source:string)=>boolean;

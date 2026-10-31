@@ -31,7 +31,7 @@ async function mount(t,handler) {
 }
 test('activity reuses exact vote data and links without carrying filters, snapshots or context',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse()));await h.render();
-  assert.match(h.container.textContent,/Selected memberFor/);assert.match(h.container.textContent,/Declared intention: Against/);assert.match(h.container.textContent,/445/);assert.doesNotMatch(h.container.textContent,/Indexed result/);
+  assert.match(h.container.textContent,/Selected member\s+For/);assert.match(h.container.textContent,/Declared intention: Against/);assert.match(h.container.textContent,/445/);assert.doesNotMatch(h.container.textContent,/Indexed result/);
   const request=new URL(h.calls[0],'http://localhost');assert.equal(request.searchParams.get('sitting'),sitting);assert.equal(request.searchParams.get('decision'),decision);assert.equal(request.searchParams.get('positions'),'all');
   const link=new URL(h.container.querySelector('a').href),journey=readMemberVotesJourney(link.searchParams,197494);
   assert.equal(journey.invalid,false);assert.equal(journey.state.decisionId,decision);assert.equal(journey.state.sittingId,sitting);assert.equal(journey.state.positions,'all');assert.equal(journey.state.snapshotId,null);assert.equal(journey.state.offset,0);assert.equal(journey.state.context,null);assert.equal(link.searchParams.get('activity'),'motions:B-10-2026-0448');
@@ -42,9 +42,9 @@ test('show of hands preserves the known result and explains why individual posit
 });
 test('wrong identities and failed reads retain indexed facts, expose retry and never invent a position',async t=>{
   let wrong=true;const h=await mount(t,async()=>Response.json(exactResponse({member:wrong?'99':'197494'})));await h.render();
-  assert.match(h.container.textContent,/Indexed result · Adopted · Show of hands/);assert.doesNotMatch(h.container.textContent,/Selected memberFor/);
-  wrong=false;await act(async()=>h.container.querySelector('button').click());assert.match(h.container.textContent,/Selected memberFor/);
-  await h.render({memberId:99});assert.doesNotMatch(h.container.textContent,/Selected memberFor/);
+  assert.match(h.container.textContent,/Indexed result · Adopted · Show of hands/);assert.doesNotMatch(h.container.textContent,/Selected member\s+For/);
+  wrong=false;await act(async()=>h.container.querySelector('button').click());assert.match(h.container.textContent,/Selected member\s+For/);
+  await h.render({memberId:99});assert.doesNotMatch(h.container.textContent,/Selected member\s+For/);
 });
 test('invalid decision identities perform no source read and preserve known activity facts',async t=>{
   const h=await mount(t,async()=>{throw Error('must not fetch');});await h.render({decisionId:'MTG-PL-2026-02-30-DEC-1'});assert.equal(h.calls.length,0);assert.match(h.container.textContent,/Indexed result/);

@@ -7,10 +7,10 @@ export type MotionJourneyBinding={memberId:number;sourceId:string;ownerId?:strin
 export type MotionJourney={documentId:string|null;amendments:MotionAmendmentsState;selectedTA:string|null;status:'available'|'unavailable'|'inactive';reason:string|null;requested:boolean};
 export const MOTION_JOURNEY_KEYS:readonly string[];
 export function motionTextChoices(activity:JoinedActivity):MotionTextChoice[];
-export function createMotionJourney(binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState):MotionJourney;
-export function normalizeMotionJourney(value:unknown,binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState):MotionJourney;
-export function readMotionJourney(query:URLSearchParams,binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState):MotionJourney;
-export function changeMotionText(documentId:string,binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState):MotionJourney;
+export function createMotionJourney(binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState, ui?: import('./uiI18n.mjs').UiFormatter):MotionJourney;
+export function normalizeMotionJourney(value:unknown,binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState, ui?: import('./uiI18n.mjs').UiFormatter):MotionJourney;
+export function readMotionJourney(query:URLSearchParams,binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState, ui?: import('./uiI18n.mjs').UiFormatter):MotionJourney;
+export function changeMotionText(documentId:string,binding:MotionJourneyBinding,factoryDefaults?:MotionAmendmentsState, ui?: import('./uiI18n.mjs').UiFormatter):MotionJourney;
 export function motionJourneyKey(state:MotionJourney):string;
-export function motionJourneyParams(binding:MotionJourneyBinding,state:MotionJourney):URLSearchParams;
-export function motionJourneyUrl(href:string,binding:MotionJourneyBinding,state:MotionJourney):URL;
+export function motionJourneyParams(binding:MotionJourneyBinding,state:MotionJourney, ui?: import('./uiI18n.mjs').UiFormatter):URLSearchParams;
+export function motionJourneyUrl(href:string,binding:MotionJourneyBinding,state:MotionJourney, ui?: import('./uiI18n.mjs').UiFormatter):URL;

@@ -26,3 +26,20 @@ test('frontend harnesses use freshLoader instead of importing createServer',asyn
   }
   assert.deepEqual(direct,[],'Import freshLoader from test-support/viteRunner.mjs; only pending-PR follow-ups may use createServer directly.');
 });
+
+
+test('stateless plugin transforms can share a server while module state stays fresh',async t=>{
+  const {freshLoader}=await import('./test-support/viteRunner.mjs');
+  let servers=0;
+  const options={configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},plugins:[{
+    name:'shared-fixture',configResolved(){servers++;},
+    resolveId(id){if(id==='virtual:fresh-state')return '\0fresh-state';},
+    load(id){if(id==='\0fresh-state')return 'export const state={value:0};';},
+  }]};
+  const sharedServerKey=Symbol('fresh-state');
+  const first=await freshLoader(options,{sharedServerKey});
+  const a=await first('virtual:fresh-state');a.state.value=42;await first.close();
+  const second=await freshLoader(options,{sharedServerKey});t.after(()=>second.close());
+  const b=await second('virtual:fresh-state');
+  assert.equal(b.state.value,0);assert.notEqual(a.state,b.state);assert.equal(servers,1);
+});

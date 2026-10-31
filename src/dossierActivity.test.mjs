@@ -172,7 +172,7 @@ test('full dossier keeps exact participant roles; document role dates do not bec
   const docRole={...role,dateBasis:'document',documentId:'A-10-2026-0010'};
   const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>url.searchParams.get('section')==='roles'?Response.json(page('roles',null,[docRole],{participants:[{id:'257727',name:'Named member',roles:[docRole,{...role,id:'other-exact-role',role:'RAPPORTEUR_OPINION'}]}]})):null);
   await h.render(createElement(h.module.DossierActivity,{reference}));
-  assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Opinion rapporteur/);assert.match(h.container.textContent,/document date/);
+  assert.match(h.container.textContent,/Co-rapporteur/);assert.match(h.container.textContent,/Opinion rapporteur/);assert.match(h.container.textContent,/Document date/);
   assert.equal(h.calls.filter(url=>url.pathname.endsWith('dossier-activity')).length,1);
   const name=h.container.querySelector('.dossier-participants li>a');assert.equal(new URL(name.href).searchParams.get('module'),'profile');
   assert.equal(new URL([...h.container.querySelectorAll('a')].find(node=>node.textContent==='Work on this dossier').href).searchParams.get('dossier-person'),'257727');
@@ -624,4 +624,13 @@ test('a sole document opens after Read text without a second Read report action'
   assert(h.container.textContent.includes('Report text opens immediately.'));
   assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Read report'));
   assert.equal(h.container.querySelector('.document-context-back'),null);
+});
+
+test('complete empty dossier participants render the selected interface language',async t=>{
+ const h=await harness(t,'?view=legislation&pl-mode=dossier&dossier-ref='+encodeURIComponent(reference),url=>url.pathname.endsWith('/insights/dossier-activity')?Response.json(page(url.searchParams.get('section'),null,[],{participants:[],coverage:{status:'complete',gaps:[],sources:[]},participantCoverage:{status:'complete',gaps:[],sources:[]}})):null);
+ const {UiI18nProvider}=await h.load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await h.load('/src/uiCatalogues.mjs'),{default:fr}=await h.load('/src/ui-locales/fr.json');
+ const i18n=createAppUiI18n({fr}),ui=i18n.forLocale('fr');
+ await h.render(createElement(UiI18nProvider,{i18n,language:'fr'},createElement(h.module.DossierActivity,{reference,language:'fr'})));
+ assert([...h.container.querySelectorAll('p')].some(node=>node.textContent===ui.t('dossieractivity.no_linked_records')));
+ assert(!h.container.textContent.includes('No linked records.'));
 });
