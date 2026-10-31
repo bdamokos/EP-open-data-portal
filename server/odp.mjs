@@ -870,7 +870,10 @@ export async function odpProfileWithMemberships(id) {
     committeeMemberships.error=membershipHistory.observationAvailable?'Some membership records are incomplete. Available committee history is shown.':'Committee membership information is unavailable.';
   }
   const currentRosterMatched=profile.currentAffiliation.status==='matched';
+  const organizationSnapshot=organizationMembershipSnapshot(record.payload.data[0],today(),knownOrganizationBodies);
   return {...profile,
+    organizationMemberships:organizationSnapshot.items,
+    organizationMembershipsComplete:organizationSnapshot.complete,
     memberships:currentRosterMatched?profile.memberships:profile.memberships.map(row=>({...row,current:false})),
     membershipHistory,
     committeeMemberships:currentRosterMatched?committeeMemberships:{...committeeMemberships,items:committeeMemberships.items.map(card=>({...card,roles:[],periods:card.periods.map(period=>({...period,current:false}))}))},

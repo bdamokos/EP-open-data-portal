@@ -226,3 +226,26 @@ test('directory completeness follows newly uncertain body bounds and preserves m
  assert.equal(organizationCoverageComplete(updated,'9999'),false,'another organisation filter cannot report definitive coverage');
  assert.equal(out.after.members.find(m=>m.id===44).organizationMembershipsComplete,false,'malformed original observations remain incomplete');
 });
+
+test('cold profiles project membership status and completeness after body enrichment',async t=>{
+ const out=await run(t,`
+  const partyClass='def/ep-entities/NATIONAL_POLITICAL_GROUP';
+  const bodies=['6831','6832'].map((id,i)=>({id:'org/'+id,identifier:id,classification:partyClass,prefLabel:{en:'Example party '+id},temporal:{startDate:'2024-07-16',endDate:i?'2026-02-30':'2025-01-01'}}));
+  const persons=bodies.map((b,i)=>({...person(43+i),hasMembership:[{organization:b.id,role:'def/ep-roles/MEMBER',membershipClassification:partyClass,memberDuring:{startDate:'2024-09-01'}}]}));
+  globalThis.fetch=async url=>{
+   const endpoint=new URL(url).pathname;
+   if(endpoint.endsWith('/meps/show-current'))return Response.json({data:persons});
+   const p=persons.find(p=>endpoint.endsWith('/meps/'+p.identifier));if(p)return Response.json({data:[p]});
+   const b=bodies.find(b=>endpoint.endsWith('/corporate-bodies/'+b.identifier));if(b)return Response.json({data:[b]});
+   throw Error('Unexpected fixture '+url);
+  };
+  const {odpProfileWithMemberships}=await import(${moduleUrl});
+  const ended=await odpProfileWithMemberships(43),uncertain=await odpProfileWithMemberships(44);
+  console.log(JSON.stringify({ended,uncertain}));process.exit(0);
+ `);
+ assert.equal(out.ended.membershipHistory.items[0].body.temporal.endDate,'2025-01-01');
+ assert.equal(out.ended.organizationMemberships[0].current,false,'returned status reflects its own enriched body record');
+ assert.equal(out.ended.organizationMembershipsComplete,true);
+ assert.equal(out.uncertain.organizationMemberships[0].current,null,'invalid enriched bounds remain uncertain');
+ assert.equal(out.uncertain.organizationMembershipsComplete,false);
+});
