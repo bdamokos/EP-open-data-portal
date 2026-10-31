@@ -62,7 +62,7 @@ test('Questions counts current and former authors together and labels former MEP
   assert.equal(former.target,'_blank');
   await act(async()=>current.click());
   assert.deepEqual(h.memberCalls,[[1001,undefined]]);
-  assert.equal(cards[0].querySelector('img').getAttribute('src'),'/api/portrait/1001?v=1','author portraits render their real URL directly');
+  assert.equal(cards[0].querySelector('img').getAttribute('src'),'/api/portrait/1001?v=2','author portraits render their real URL directly');
 });
 
 test('Questions labels former MEPs in English when the selected display language is Hungarian',async t=>{

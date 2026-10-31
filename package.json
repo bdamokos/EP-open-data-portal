@@ -26,7 +26,8 @@
     "@nodable/entities": "^3.1.0",
     "fast-xml-parser": "^5.11.2",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@types/react": "^19.1.16",

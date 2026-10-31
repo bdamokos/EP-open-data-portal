@@ -12,7 +12,8 @@ export function usePortraitImage(url: string, fallback: string, lazy = true) {
   useLayoutEffect(() => {
     // Native images can complete from the browser cache before effects run.
     const loaded = imageRef.current?.complete && (imageRef.current?.naturalWidth || 0) > 0;
-    setState({url, phase: loaded ? 'loaded' : 'loading'});
+    const nextPhase = loaded ? 'loaded' : 'loading';
+    setState(previous => previous.url === url && previous.phase === nextPhase ? previous : {url, phase: nextPhase});
   }, [url, source]);
 
   return {

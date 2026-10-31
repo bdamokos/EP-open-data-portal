@@ -942,13 +942,14 @@ export default function App() {
                     {directory.index.error && <button onClick={directoryState.retry}><UiMessage id="app.retry_membership_index"/></button>}
                   </div>}
                 <div className="explorer-portraits" data-portrait-scroll-root onScroll={event=>{if(wallVisible)wallScroll.current.portraits=event.currentTarget.scrollTop;}}>
-                    {filtered.map(m => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
+                    {filtered.map((m, index) => <div className="explorer-portrait-item" lang="" key={m.id} data-member-id={m.id}>
                         <Portrait
                           member={{
                             ...m,
                             imageUrl: `${API_ROOT}/portrait/${m.id}`,
                           }}
                           labelled
+                          eager={index < 8}
                           onClick={() => {
                             memberOpener.current=m.id;
                             pendingDestination.current={view:null,member:m.id};
