@@ -49,6 +49,12 @@ test('missing translation counts offer known language choices and switch the ana
   assert.equal(ui.container.querySelector('.explorer-cloud-alternatives'),null);
   assert.equal(ui.container.querySelector('select').value,'de');
 });
+test('bounded alternative counts stay visibly lower bounds',async t=>{
+  const ui=await cloud(t,async()=>{const data=result(speeches.slice(0,1));Object.assign(data.coverage,{missingLanguage:5,missingLanguageAlternatives:[{language:'de',count:4}],languageAlternativesLimited:true});return Response.json(data);});
+  await ui.render({member:1});
+  assert.equal(ui.container.querySelector('.explorer-cloud-alternatives button')?.textContent,'German (≥4)');
+  assert.match(ui.container.textContent,/5 without text in this language/);
+});
 
 test('a restarted cloud discards cached selection pages and finishes all remaining pages',async t=>{
   const pages=[],seen=[];let changed=false;

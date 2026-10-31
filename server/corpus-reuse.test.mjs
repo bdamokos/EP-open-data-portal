@@ -286,6 +286,26 @@ test('public cloud parses separate selected-language XML parts without losing an
   assert.equal(result.coverage.transcripts,1);assert.equal(result.coverage.unreadableText,0);
   assert(result.words.some(word=>word.word==='climate'));assert(result.words.some(word=>word.word==='renewable'));
 });
+test('public cloud offers only bounded readable language alternatives',async t=>{
+  const {index}=fixture(t,{realReaders:false});
+  const fragments=['<oralStatements><speech xml:lang="de"><p/></speech></oralStatements>','   ','<speech><p>Broken',
+    '<oralStatements><speech xml:lang="de"><p>'+('x'.repeat(1024*1024))+'</p></speech></oralStatements>',
+    '<oralStatements><speech xml:lang="de"><p>Lesbarer Beitrag.</p></speech></oralStatements>'];
+  const nodes=fragments.map((xml,i)=>activity(7071+i,{fragments:{de:xml}}));
+  const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:nodes,meta:{total:nodes.length}},url,fetchedAt:now()})});
+  const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
+  assert.equal(result.coverage.missingLanguage,5);assert.equal(result.coverage.transcripts,0);
+  assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:1}]);
+});
+test('alternative verification stops at its XML budget and reports bounded counts',async t=>{
+  const {index}=fixture(t,{realReaders:false}),xml='<speech xml:lang="de"><p>'+('x'.repeat(900*1024))+'</p></speech>';
+  const nodes=Array.from({length:5},(_,i)=>activity(7081+i,{fragments:{de:xml}}));
+  const cloud=new SpeechCloudInsights(index,{clock:now,request:async()=>({payload:{data:nodes,meta:{total:5}},url,fetchedAt:now()})});
+  const result=await cloud.query(speechCloudQuery(new URLSearchParams('member=42&days=term&lang=en'),{now:now()}));
+  assert.equal(result.coverage.missingLanguage,5);assert.equal(result.coverage.languageAlternativesLimited,true);
+  assert.deepEqual(result.coverage.missingLanguageAlternatives,[{language:'de',count:4}]);
+  assert(result.coverage.sourceRecords.issues.includes('language-choice-byte-limit'));
+});
 test('a successful detail response with no matching activity still allows an exact retained original',async t=>{
   const {add}=fixture(t),original='<oralStatements><speech xml:lang="de"><p>Originaler Beitrag.</p></speech></oralStatements>';
   const id=add(activity(7032,{fragments:{de:original}}));
