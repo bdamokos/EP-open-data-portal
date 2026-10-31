@@ -1,3 +1,5 @@
+import {UiMessageError} from './uiErrors.mjs';
+import {defaultUi} from './uiDefault.mjs';
 import {compactEntries,followEntries,isNewEntry,itemHasNew,markAllRead,markEntryRead} from './followUpdates.mjs';
 export const DOSSIERS_KEY='ep.following.dossiers.v1';
 export const dossierReference=value=>typeof value==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(value);
@@ -14,7 +16,7 @@ function compact(item,now) {
 }
 const freshSource=source=>source&&at(source.fetchedAt)!==null&&!source.stale&&!source.refreshError;
 
-export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
+export function createDossiersStore(storage,notify=()=>{},clock=Date.now, ui = defaultUi) {
   let items=[],persistent=Boolean(storage),storageError=false,restarted=false,snapshot;
   const refresh=()=>{snapshot={items,persistent,storageError,restarted};notify();};
   const publish=()=>{items=items.map(item=>compact(item,clock()));if(persistent)try{storage.setItem(DOSSIERS_KEY,JSON.stringify({version:1,items}));storageError=false;}catch{storageError=true;}refresh();return !storageError;};
@@ -42,11 +44,11 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
   return {
     snapshot:()=>snapshot,reload(){if(!storageError)load();},retryStorage:publish,
     toggle({id,title=id,titleLanguage=null}) {
-      if(!dossierReference(id))throw Error('Choose an official procedure reference.');
+      if(!dossierReference(id))throw new UiMessageError("batch4.followdossiers.mjs.45.1", {}, ui);
       const previous=items;
       if(items.some(item=>item.id===id))items=items.filter(item=>item.id!==id);
-      else {if(items.length>=50)throw Error('You can follow up to 50 dossiers.');items=[...items,{kind:'dossier',id,title,titleLanguage,savedAt:serial=Math.max(clock(),serial+1),entries:[],observations:{},gaps:{}}];}
-      if(!publish()){items=previous;publish();throw Error("Couldn't save this follow in your browser.");}
+      else {if(items.length>=50)throw new UiMessageError("batch4.followdossiers.mjs.48.1", {}, ui);items=[...items,{kind:'dossier',id,title,titleLanguage,savedAt:serial=Math.max(clock(),serial+1),entries:[],observations:{},gaps:{}}];}
+      if(!publish()){items=previous;publish();throw new UiMessageError("batch4.followdossiers.mjs.49.1", {}, ui);}
     },
     unavailable(id,expected,source){return update(id,expected,item=>({...item,gaps:{...item.gaps,[source]:true}}));},
     observeIndex(data,expected) {
@@ -64,7 +66,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
       const known={...old?.known},entries=[];
       for(const event of data.events) {
         const fingerprint=JSON.stringify([event.status,event.date,event.statuses?.map(status=>status.code).sort()||[]]),previous=known[event.id];
-        if(old&&previous!==fingerprint)entries.push({id:'progress:'+event.id+':'+fingerprint,eventKind:'progress',title:event.label||'Procedure progress',titleLanguage:event.labelLanguage||'en',date:event.date||'',previousDate:previous?JSON.parse(previous)[1]:undefined,change:previous?event.status==='cancelled'?'cancelled':JSON.parse(previous)[1]!==event.date?'date':'status':event.status==='projected'?'scheduled':event.status==='cancelled'?'cancelled':'event',source:data.source});
+        if(old&&previous!==fingerprint)entries.push({id:'progress:'+event.id+':'+fingerprint,eventKind:'progress',title:event.label||ui.t("batch6.procedureprogress.procedure.progress.57"),titleLanguage:event.label?(event.labelLanguage||'en'):ui.messageLocale("batch6.procedureprogress.procedure.progress.57"),date:event.date||'',previousDate:previous?JSON.parse(previous)[1]:undefined,change:previous?event.status==='cancelled'?'cancelled':JSON.parse(previous)[1]!==event.date?'date':'status':event.status==='projected'?'scheduled':event.status==='cancelled'?'cancelled':'event',source:data.source});
         known[event.id]=fingerprint;
       }
       return {baseline:{at:fetched,known},entries};
@@ -75,7 +77,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now) {
         const fetched=at(dossier.source.fetchedAt);if(old&&fetched<=old.at)return {ignore:true};
         const known={...old?.known},entries=[];
         for(const summary of dossier.summaries||[]) {
-          const key='summary:'+summary.id;if(old&&!known[key])entries.push({id:key,eventKind:'summary',title:'Dossier summary',titleLanguage:'en',date:summary.date||'',summaryId:summary.id,source:{url:summary.url,fetchedAt:dossier.source.fetchedAt}});known[key]=true;
+          const key='summary:'+summary.id;if(old&&!known[key])entries.push({id:key,eventKind:'summary',title:ui.t("dossierCard.event.5"),titleLanguage:'en',date:summary.date||'',summaryId:summary.id,source:{url:summary.url,fetchedAt:dossier.source.fetchedAt}});known[key]=true;
         }
         // Indexed documents already have durable publication marks. OEIL adds
         // summaries only, so the same document is never announced twice.

@@ -1,3 +1,4 @@
+import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useSpeechTranslation} from './SpeechTranslation';
 import {useId,useState} from 'react';
 import {useData} from './data';
@@ -19,21 +20,22 @@ type Explanations={version:2;memberId:string;decisionId:string;sittingId:string;
 function ExplanationReader({item,language}:{item:Explanation;language:string}) {
   const [selected,setSelected]=useState(language),translation=useSpeechTranslation(item.id,selected,language),state=translation.state,body=state.transcript;
   const paragraphs=transcriptParagraphs(body?.xml||null).paragraphs;
-  const video=useSpeechVideo(state.data?.id===item.id?state.data:item.speech,language,translation.originalAudio);
+  const video=useSpeechVideo((state.data?.id===item.id) ? state.data : item.speech,language,translation.originalAudio);
   return <div className="vote-explanation-reader">
     <div className="vote-explanation-tools"><TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} onChange={value=>{translation.reset();setSelected(value);}} visibleLabel={false}
       note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.control}{video.toggle}</div>
-    {video.panel}{translation.originalGap&&<p>Original text unavailable.</p>}
-    {state.loading&&!body&&<p role="status">Loading explanation…</p>}
-    {state.error&&<p role="alert">Transcript unavailable. <button type="button" disabled={state.loading} onClick={state.retry}>Retry transcript</button></p>}
-    {paragraphs.length>0?<div lang={body?.textLanguage||''}>{paragraphs.map((paragraph,index)=><p key={index}><TranscriptText paragraph={paragraph}/></p>)}</div>:body&&!state.loading&&<p>Transcript unavailable.</p>}
+    {video.panel}{translation.originalGap&&<p><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
+    {state.loading&&!body&&<p role="status"><UiMessage id="membervoteexplanations.loading.explanation"/></p>}
+    {state.error&&<p role="alert"><UiMessage id="membervoteexplanations.transcript.unavailable.retry" values={{retry: <button type="button" disabled={state.loading} onClick={state.retry}><UiMessage id="membervoteexplanations.retry.transcript"/></button>}}/></p>}
+    {(paragraphs.length>0) ? <div lang={body?.textLanguage||''}>{paragraphs.map((paragraph,index)=><p key={index}><TranscriptText paragraph={paragraph}/></p>)}</div> : (body&&!state.loading&&<p><UiMessage id="batch4.speechinterventions.tsx.transcript.unavailable"/></p>)}
   </div>;
 }
 
 export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:{vote:MemberVote;data:MemberVotesResponse;memberId:string;language:string;onDecision:(id:string)=>void}) {
+  const ui = useUiI18n();
   const [reading,setReading]=useState<string|null>(null),contentId=useId();
   const params=new URLSearchParams({lang:language,decision:vote.id,snapshot:data.snapshotId,
-    ...(data.period.kind==='sitting'?{sitting:vote.sittingId}:{week:data.period.week!})});
+    ...((data.period.kind==='sitting') ? ({sitting:vote.sittingId}) : ({week:data.period.week!}))});
   const request=useData<Explanations>('member-vote-explanations/'+memberId+'?'+params);
   const response=request.data;
   const valid=response?.version===2&&response.memberId===memberId&&response.decisionId===vote.id&&response.sittingId===vote.sittingId&&response.snapshotId===data.snapshotId&&
@@ -50,12 +52,12 @@ export function MemberVoteExplanations({vote,data,memberId,language,onDecision}:
     {items.map((item,index)=>{
       const open=reading===item.id,id=contentId+'-'+index;
       return <div className="vote-explanation" key={item.id}>
-        <button className="vote-explanation-action vote-explanation-toggle" type="button" aria-expanded={open} aria-controls={open?id:undefined} onClick={()=>setReading(open?null:item.id)}>
-          <span aria-hidden="true">{open?'▾':'▸'}</span> {open?'Close oral explanation':final?'Read oral explanation of vote':'Read oral explanation on the whole text'}
+        <button className="vote-explanation-action vote-explanation-toggle" type="button" aria-expanded={open} aria-controls={open ? id : undefined} onClick={()=>setReading(open ? null : item.id)}>
+          <span aria-hidden="true">{open ? '▾' : '▸'}</span> {open ? ui.t("membervoteexplanations.close.oral.explanation") : (final ? ui.t("membervoteexplanations.read.oral.explanation.of.vote") : ui.t("membervoteexplanations.read.oral.explanation.on.the.whole.text"))}
         </button>
         {open&&<div id={id} className="vote-explanation-body">
           <ExplanationReader key={item.id+':'+language} item={item} language={language}/>
-          {!final&&anchor&&<button className="vote-explanation-action" type="button" onClick={()=>onDecision(anchor)}>Final vote</button>}
+          {!final&&anchor&&<button className="vote-explanation-action" type="button" onClick={()=>onDecision(anchor)}><UiMessage id="membervotespresentation.final_vote"/></button>}
         </div>}
       </div>;
     })}

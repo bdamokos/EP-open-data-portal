@@ -52,7 +52,7 @@ export function TranscriptText({paragraph,highlight}:{paragraph:TranscriptParagr
   let offset=0;
   const matches=speechHighlightParts(paragraph.text,highlight).flatMap(part=>{
     const start=offset;offset+=part.text.length;
-    return part.match?[{start,end:offset}]:[];
+    return part.match ? ([{start,end:offset}]) : ([]);
   });
   let cursor=0;
   return <>{paragraph.runs.map((run,index)=>{
@@ -65,6 +65,6 @@ export function TranscriptText({paragraph,highlight}:{paragraph:TranscriptParagr
       content.push(<mark key={from}>{paragraph.text.slice(from,to)}</mark>);at=to;
     }
     if(at<end)content.push(paragraph.text.slice(at,end));
-    return run.italic?<i key={index}>{content}</i>:<Fragment key={index}>{content}</Fragment>;
+    return run.italic ? <i key={index}>{content}</i> : <Fragment key={index}>{content}</Fragment>;
   })}</>;
 }

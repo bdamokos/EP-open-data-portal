@@ -1,7 +1,11 @@
+import {defaultUi} from './uiDefault.mjs';
+import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useState,useSyncExternalStore} from 'react';
 import {nextColourScheme,readActiveColourScheme,saveColourScheme,systemColourScheme,type ColourScheme} from './colourScheme.mjs';
 
 const names:Record<ColourScheme,string>={system:'System',light:'Light',dark:'Dark'};
+export const namesUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof names => ({system:ui.t("themetoggle.tsx.system"),light:ui.t("themetoggle.tsx.light"),dark:ui.t("themetoggle.tsx.dark")});
+
 
 function SchemeIcon({scheme}:{scheme:ColourScheme}) {
   if(scheme==='light')return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>;
@@ -18,9 +22,10 @@ function subscribeToSystemScheme(update:()=>void) {
 // Cycles System → the opposite of the system setting → the system's own appearance → System.
 // The label names the current choice and the next one, following live system changes.
 export function ThemeToggle() {
+  const ui = useUiI18n();
   const [scheme,setScheme]=useState<ColourScheme>(readActiveColourScheme);
   const system=useSyncExternalStore(subscribeToSystemScheme,()=>systemColourScheme(),()=>'light' as const);
   const next=nextColourScheme(scheme,system);
-  const label=`Colour scheme: ${names[scheme]}. Switch to ${names[next].toLowerCase()}`;
-  return <button type="button" className="explorer-scheme-toggle" lang="en" aria-label={label} title={label} onClick={()=>{const chosen=nextColourScheme(scheme);saveColourScheme(chosen);setScheme(chosen);}}><SchemeIcon scheme={scheme}/></button>;
+  const label=ui.t("themetoggle.tsx.colour.scheme.current.switch.to.next", {current: String(namesUi(ui)[scheme]), next: String(namesUi(ui)[next].toLowerCase())});
+  return <button type="button" className="explorer-scheme-toggle" lang={ui.language} aria-label={label} title={label} onClick={()=>{const chosen=nextColourScheme(scheme);saveColourScheme(chosen);setScheme(chosen);}}><SchemeIcon scheme={scheme}/></button>;
 }

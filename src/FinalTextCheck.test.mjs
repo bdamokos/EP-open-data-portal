@@ -65,7 +65,7 @@ test('mismatched responses are discarded and retry preserves a successful readab
 
 test('published vote is separate from wording and unavailable destinations offer no invented outcome',async t=>{
   const h=await harness(t,()=>response(selection,{vote:{status:'available',stage:'committee',scope:'individual-amendment',outcome:'REJECTED',decisions:[{id:'published-decision'}]},stages:[{destination,wording:{...wording,status:'unavailable',mapping:null,passages:null}}]}));
-  await h.render(selection);await h.toggle();assert(h.container.textContent.includes('Committee vote: rejected'));assert(h.container.textContent.includes('Unavailable'));
+  await h.render(selection);await h.toggle();assert(h.container.textContent.includes('Committee vote: Rejected'));assert(h.container.textContent.includes('Unavailable'));
   assert(!h.container.textContent.includes('Same wording'));assert(!h.container.textContent.includes('Not yet'));assert(!h.container.textContent.includes('Compare wording'));
 });
 

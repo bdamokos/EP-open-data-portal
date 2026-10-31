@@ -35,7 +35,7 @@ for(const view of ['only-dates','topics','countries','time','selected-country','
   await act(async()=>root.render(createElement(QuestionTopics,{language:'en',onBack(){}})));
   await act(async()=>{});await act(async()=>t.mock.timers.tick(350));
   assert.equal(container.querySelector('[role=alert]'),null);
-  assert.equal(container.textContent.includes('At least 501 question reads failed'),['topics','countries','time'].includes(view));
-  if(view==='only-dates')assert.match(container.textContent,/1 question read failed.*Oct 16, 2026/);
+  assert.equal(container.textContent.includes('Failed question reads: at least 501'),['topics','countries','time'].includes(view));
+  if(view==='only-dates')assert.match(container.textContent,/Failed question reads: 1.*Oct 16, 2026/);
   if(withFeed){assert(container.querySelector('.availability-gaps'));assert([...container.querySelectorAll('svg [aria-label]')].some(node=>node.getAttribute('aria-label').includes('Partial')));}
 });

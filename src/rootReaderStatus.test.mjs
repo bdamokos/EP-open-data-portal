@@ -91,7 +91,7 @@ test('inline full-text results replace the list, combine with exact chair record
   const h=await harness(t,{module:'speeches',items:[speechItem],summary,search:'energy'});
   await act(async()=>{});
   assert.equal(h.container.querySelectorAll('article.explorer-speech').length,0);
-  assert.match(h.container.querySelector('.explorer-search-count')?.textContent||h.container.textContent,/0 matching documents/);
+  assert.match(h.container.querySelector('.explorer-search-count')?.textContent||h.container.textContent,/Matching documents: 0/);
   assert.equal(h.searches.at(-1).member,member.id);assert.deepEqual(h.searches.at(-1).kinds,['speech']);
   await h.click(h.container.querySelector('a[aria-label^="Chairing contributions:"]'));
   assert.deepEqual(h.searches.at(-1).sourceIds,[speechId]);
@@ -144,7 +144,7 @@ for(const outcome of ['unavailable','empty'])test('category transcript search di
     assert.equal(h.container.querySelector('.explorer-search-count'),null);
   }else{
     assert.equal(h.searches.length,1);assert.deepEqual(h.searches[0].sourceIds,[]);
-    assert.match(h.container.querySelector('.explorer-search-count').textContent,/0 matching documents/);
+    assert.match(h.container.querySelector('.explorer-search-count').textContent,/Matching documents: 0/);
   }
   const clear=[...h.container.querySelectorAll('button')].find(node=>node.textContent==='Clear category');clear.focus();
   await h.click(clear);
@@ -247,7 +247,7 @@ test('member reader uses exact structured ECR instead of the conflicting Bulgari
   const reader=h.container.querySelector('.explorer-speech-detail');
   assert.equal(reader.querySelector('strong').textContent,'Geadis Geadi');
   assert(!reader.querySelector('.insight-secondary'),'raw translated role must not contradict the exact group badge');
-  assert.equal(reader.querySelector('.intervention-group').textContent,'On behalf of ECR');
+  assert.equal(reader.querySelector('.intervention-group').textContent,'От името на ECR');
   assert(!reader.textContent.includes('Verts/ALE'));
   assert(reader.textContent.includes('Exact source body.'));
 });

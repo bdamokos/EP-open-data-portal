@@ -38,6 +38,8 @@ const timers=[],originalTimeout=globalThis.setTimeout;
   assert.equal(popout.getAttribute('href'),iframe.src,'Pop out opens the same allowlisted EbS+ feed');
   await act(async()=>[...container.querySelectorAll('button')].find(x=>x.textContent==='Browse Agenda').click());
   assert.equal(container.querySelector('iframe'),iframe,'Browsing keeps the same player');
+  assert(container.querySelector('.plenary-live-player-caption').textContent.includes(String(new Date().getFullYear())));
+  assert(!container.querySelector('.plenary-live-player-caption').textContent.includes(new Intl.NumberFormat('en').format(new Date().getFullYear())));
   await act(async()=>container.querySelector('[aria-label="Minimise player"]').click());
   assert.equal(container.querySelector('iframe'),iframe);assert(iframe.parentElement.hidden);
   await act(async()=>container.querySelector('[aria-label="Expand player"]').click());

@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 import {contributorOffice} from './speakerRoles.mjs';
 
 export const contributionFilters=['all','committee','plenary'];
@@ -102,15 +103,15 @@ export function legislationContributors(detail, headers, contribution='all') {
 
 // Only the latest contribution in this item can supply its office. Other items,
 // late callbacks and a person's generic profile never supply an office here.
-export function legislationOffice(detail,headers,personId,language='en') {
+export function legislationOffice(detail,headers,personId,language='en', ui = defaultUi) {
   const speeches=detail.speeches.filter(speech=>speech.people.some(person=>person.id===personId)&&headers[speech.sourceId]?.[personId]?.role!=='Chairing the sitting')
     .toSorted((a,b)=>b.date.localeCompare(a.date)||(Date.parse(b.start)||0)-(Date.parse(a.start)||0)||a.sourceId.localeCompare(b.sourceId));
   if(!speeches.length)return null;
   const latest=speeches[0],person=headers[latest.sourceId]?.[personId];
-  if(!person)return contributorOffice(null,language);
-  const label=contributorOffice(person,language);
+  if(!person)return contributorOffice(null,language, ui);
+  const label=contributorOffice(person,language, ui);
   // Unknown ordering among same-day observations cannot pick between roles.
   const ambiguous=speeches.filter(speech=>speech.date===latest.date&&(!speech.start||!latest.start||Date.parse(speech.start)===Date.parse(latest.start)));
-  if(ambiguous.some(speech=>contributorOffice(headers[speech.sourceId]?.[personId],language).text!==label.text))return contributorOffice(null,language);
+  if(ambiguous.some(speech=>contributorOffice(headers[speech.sourceId]?.[personId],language, ui).text!==label.text))return contributorOffice(null,language, ui);
   return label;
 }

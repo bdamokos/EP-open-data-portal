@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 const motionId=/^(?:B|RC)-10-\d{4}-\d{4,6}$/;
 const adoptedId=/^TA-10-\d{4}-\d{4,6}$/;
 const own=(value,key)=>Boolean(value&&typeof value==='object'&&Object.hasOwn(value,key));
@@ -37,41 +38,41 @@ const listFor=(id,documentId)=>{
 const validWordingPin=(state,documentId)=>state.wordingLanguage===undefined||Boolean(amendmentFor(state.amendmentId,documentId)&&listFor(state.variantListId,documentId)&&
   state.contextView==='document'&&state.contextTarget==='amendment'&&(state.wordingLanguage===null||typeof state.wordingLanguage==='string'&&/^[a-z]{2}$/.test(state.wordingLanguage)));
 
-export function createMotionJourney(binding,factoryDefaults=defaults()) {
+export function createMotionJourney(binding,factoryDefaults=defaults(), ui = defaultUi) {
   const documentId=hasChoice(binding.choices,binding.sourceId)?binding.sourceId:null;
-  return {documentId,amendments:{...factoryDefaults},selectedTA:null,status:documentId?'available':'unavailable',reason:documentId?null:'This motion text is unavailable here.',requested:false};
+  return {documentId,amendments:{...factoryDefaults},selectedTA:null,status:documentId?'available':'unavailable',reason:documentId?null:ui.t("motionJourney.reason42"),requested:false};
 }
 
 /** Invalid requested identities stay selected and unavailable, never a replacement row. */
-export function normalizeMotionJourney(value,binding,factoryDefaults=defaults()) {
-  const base=createMotionJourney(binding,factoryDefaults),input=get(value,'amendments');
+export function normalizeMotionJourney(value,binding,factoryDefaults=defaults(), ui = defaultUi) {
+  const base=createMotionJourney(binding,factoryDefaults, ui),input=get(value,'amendments');
   const amendments={...factoryDefaults};
   for(const key of Object.keys(fields))if(own(input,key)&&input[key]!==undefined)amendments[key]=input[key];
   const documentId=own(value,'documentId')?value.documentId:base.documentId;
   const selectedTA=own(value,'selectedTA')?value.selectedTA:null;
   let reason=null;
-  if(!hasChoice(binding.choices,documentId))reason='The requested motion text is unavailable for this activity.';
+  if(!hasChoice(binding.choices,documentId))reason=ui.t("motionJourney.reason53");
   else if(typeof amendments.open!=='boolean'||!['member','all'].includes(amendments.scope)||!Number.isSafeInteger(amendments.offset)||amendments.offset<0||amendments.offset>1_000_000||
     !['amendments','context'].includes(amendments.view)||!['document','adopted'].includes(amendments.contextView)||!['text','amendment'].includes(amendments.contextTarget)||
-    amendments.view==='context'&&!amendments.open||['amendmentId','variantListId'].some(key=>amendments[key]!==null&&(typeof amendments[key]!=='string'||amendments[key].length>512)))reason='This reader link is unavailable.';
-  else if(selectedTA!==null&&(!bounded(selectedTA)||!adoptedId.test(selectedTA)))reason='The requested adopted text is unavailable.';
+    amendments.view==='context'&&!amendments.open||['amendmentId','variantListId'].some(key=>amendments[key]!==null&&(typeof amendments[key]!=='string'||amendments[key].length>512)))reason=ui.t("motionJourney.reason56");
+  else if(selectedTA!==null&&(!bounded(selectedTA)||!adoptedId.test(selectedTA)))reason=ui.t("motionJourney.reason57");
   // A bad amendment selection must not hide this exact motion's whole-text actions.
   let selectionReason=null;
-  if(amendments.amendmentId!==null&&!amendmentFor(amendments.amendmentId,documentId))selectionReason='The requested amendment is unavailable for this text.';
-  else if(amendments.variantListId!==null&&(!amendments.amendmentId||!listFor(amendments.variantListId,documentId)))selectionReason='The requested wording version is unavailable for this text.';
-  else if(amendments.view==='context'&&amendments.contextTarget==='amendment'&&!amendments.amendmentId)selectionReason='The requested amendment context is unavailable.';
-  if(!validWordingPin(amendments,documentId))selectionReason='The requested wording language is unavailable for this amendment.';
+  if(amendments.amendmentId!==null&&!amendmentFor(amendments.amendmentId,documentId))selectionReason=ui.t("motionJourney.reason60");
+  else if(amendments.variantListId!==null&&(!amendments.amendmentId||!listFor(amendments.variantListId,documentId)))selectionReason=ui.t("motionJourney.reason61");
+  else if(amendments.view==='context'&&amendments.contextTarget==='amendment'&&!amendments.amendmentId)selectionReason=ui.t("motionJourney.reason62");
+  if(!validWordingPin(amendments,documentId))selectionReason=ui.t("motionJourney.reason63");
   return {documentId,amendments,selectedTA,status:reason?'unavailable':'available',reason:reason||selectionReason,requested:get(value,'requested')===true};
 }
 
-export function readMotionJourney(query,binding,factoryDefaults=defaults()) {
-  const base=createMotionJourney(binding,factoryDefaults);
+export function readMotionJourney(query,binding,factoryDefaults=defaults(), ui = defaultUi) {
+  const base=createMotionJourney(binding,factoryDefaults, ui);
   const entries=[...query].filter(([key])=>key.startsWith('ma-'));
   if(!entries.length)return base;
   if(query.get('member')!==String(binding.memberId)||query.get('view'))return {...base,status:'inactive',reason:null};
   const unavailable=reason=>({...base,documentId:query.get('ma-text'),requested:true,status:'unavailable',reason});
-  if(entries.length>MOTION_JOURNEY_KEYS.length||entries.some(([key,value])=>!MOTION_JOURNEY_KEYS.includes(key)||value.length>512||query.getAll(key).length!==1))return unavailable('This reader link is unavailable.');
-  if(!memberId(query.get('ma-member'))||!bounded(query.get('ma-source'))||!motionId.test(query.get('ma-source'))||query.has('ma-owner')&&!bounded(query.get('ma-owner')))return unavailable('This reader link is unavailable.');
+  if(entries.length>MOTION_JOURNEY_KEYS.length||entries.some(([key,value])=>!MOTION_JOURNEY_KEYS.includes(key)||value.length>512||query.getAll(key).length!==1))return unavailable(ui.t("motionJourney.reason56"));
+  if(!memberId(query.get('ma-member'))||!bounded(query.get('ma-source'))||!motionId.test(query.get('ma-source'))||query.has('ma-owner')&&!bounded(query.get('ma-owner')))return unavailable(ui.t("motionJourney.reason56"));
   // A different mounted activity/member must never consume this reader's selection.
   if(query.get('ma-member')!==String(binding.memberId)||query.get('ma-source')!==binding.sourceId||
     query.has('ma-owner')&&query.get('ma-owner')!==binding.ownerId)return {...base,status:'inactive',reason:null};
@@ -80,12 +81,12 @@ export function readMotionJourney(query,binding,factoryDefaults=defaults()) {
     const raw=query.get(key);
     amendments[field]=field==='open'?(raw==='1'?true:raw==='0'?false:raw):field==='offset'?(/^\d{1,7}$/.test(raw)?Number(raw):NaN):field==='wordingLanguage'&&raw==='unknown'?null:raw;
   }
-  return normalizeMotionJourney({documentId:query.has('ma-text')?query.get('ma-text'):base.documentId,amendments,selectedTA:query.get('ma-ta'),requested:true},binding,factoryDefaults);
+  return normalizeMotionJourney({documentId:query.has('ma-text')?query.get('ma-text'):base.documentId,amendments,selectedTA:query.get('ma-ta'),requested:true},binding,factoryDefaults, ui);
 }
 
 /** A text choice is a fresh reader, while the surrounding member remains untouched. */
-export function changeMotionText(documentId,binding,factoryDefaults=defaults()) {
-  return normalizeMotionJourney({documentId,amendments:{...factoryDefaults},selectedTA:null,requested:true},binding,factoryDefaults);
+export function changeMotionText(documentId,binding,factoryDefaults=defaults(), ui = defaultUi) {
+  return normalizeMotionJourney({documentId,amendments:{...factoryDefaults},selectedTA:null,requested:true},binding,factoryDefaults, ui);
 }
 
 /** Fixed semantic order; the parent composes member/activity/language around this key. */
@@ -95,8 +96,8 @@ export function motionJourneyKey(state) {
     hasPin,hasPin?s.wordingLanguage:null,state.selectedTA]);
 }
 
-export function motionJourneyParams(binding,state) {
-  const query=new URLSearchParams(),next=normalizeMotionJourney(state,binding);
+export function motionJourneyParams(binding,state, ui = defaultUi) {
+  const query=new URLSearchParams(),next=normalizeMotionJourney(state,binding, undefined, ui);
   if(get(state,'status')!=='available'||next.status!=='available'||!memberId(String(binding.memberId))||!motionId.test(binding.sourceId)||!validWordingPin(next.amendments,next.documentId))return query;
   query.set('ma-member',String(binding.memberId));query.set('ma-source',binding.sourceId);
   if(bounded(binding.ownerId))query.set('ma-owner',binding.ownerId);
@@ -111,10 +112,10 @@ export function motionJourneyParams(binding,state) {
 }
 
 /** One complete URL transaction; preserves App, mv-, search, and hash state. */
-export function motionJourneyUrl(href,binding,state) {
+export function motionJourneyUrl(href,binding,state, ui = defaultUi) {
   const url=new URL(href);
   if(url.searchParams.get('member')!==String(binding.memberId)||url.searchParams.get('view'))return url;
-  const params=motionJourneyParams(binding,state);
+  const params=motionJourneyParams(binding,state, ui);
   if(!params.size)return url;
   for(const key of [...url.searchParams.keys()])if(key.startsWith('ma-'))url.searchParams.delete(key);
   for(const [key,value] of params)url.searchParams.set(key,value);

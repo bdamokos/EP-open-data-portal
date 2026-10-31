@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 // Official committee-list order: standing committees, subcommittees, special committees.
 // https://www.europarl.europa.eu/committees/en/documents/search
 export const committeeOrder='AFET SEDE DEVE INTA BUDG CONT ECON EMPL ENVI SANT ITRE IMCO TRAN REGI AGRI PECH CULT JURI LIBE AFCO FEMM PETI DROI FISC EUDS HOUS'.split(' ');
@@ -8,3 +9,4 @@ export function orderedMemberships(memberships=[],committees=[]) {
   return memberships.filter(m=>m.current&&bodies.has(m.id)).sort((a,b)=>(ranks[a.role]??4)-(ranks[b.role]??4)||order(a.id)-order(b.id)||a.id.localeCompare(b.id));
 }
 export const ongoingLabels={en:'Present',bg:'до момента',cs:'dosud',da:'nu',de:'heute',el:'σήμερα',es:'actualidad',et:'praeguseni',fi:'nykyhetki',fr:'à ce jour',ga:'go dtí seo',hr:'danas',hu:'jelenleg',it:'oggi',lt:'iki dabar',lv:'pašlaik',mt:'sal-lum',nl:'heden',pl:'obecnie',pt:'presente',ro:'prezent',sk:'doteraz',sl:'danes',sv:'nu'};
+export const ongoingLabelsUi = (ui = defaultUi) => ({en:ui.t("memberships.mjs.present"),bg:'до момента',cs:'dosud',da:'nu',de:'heute',el:'σήμερα',es:'actualidad',et:'praeguseni',fi:'nykyhetki',fr:'à ce jour',ga:'go dtí seo',hr:'danas',hu:'jelenleg',it:'oggi',lt:'iki dabar',lv:'pašlaik',mt:'sal-lum',nl:'heden',pl:'obecnie',pt:'presente',ro:'prezent',sk:'doteraz',sl:'danes',sv:'nu'});

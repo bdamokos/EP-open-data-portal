@@ -163,7 +163,7 @@ test('topic status waits for every page, distinguishes shown topics and never tr
   await act(async()=>first.resolve(trends([trend(1)],{nextPage:1})));await h.tick();
   assert.equal(h.status().textContent,'','an intermediate page is not settled');
   await act(async()=>last.resolve(trends(Array.from({length:15},(_,i)=>trend(i+1)))));await h.tick();
-  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/10 dossiers not loaded/);assert.match(h.status().textContent,/first 600 matching dossiers/);
+  assert.match(h.status().textContent,/15 topics.*Showing 12/);assert.match(h.status().textContent,/Dossiers not loaded: 10/);assert.match(h.status().textContent,/first 600 matching dossiers/);
   await h.click('More topics');await h.tick();assert.match(h.status().textContent,/15 topics.*Showing 15/);assert.equal(h.calls.length,2);
   await h.navigate('?trend-days=180');await h.tick();
   assert.equal(h.status().textContent,'Topic catalogue temporarily unavailable.');assert.doesNotMatch(h.status().textContent,/No topics|0 topics/);

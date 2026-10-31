@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDossiersStore,DOSSIERS_KEY,dossierHref,itemHasNew,followEntries} from './followDossiers.mjs';
 import {createSavedStore} from './bookmarks.mjs';
+import {createAppUiI18n} from './uiCatalogues.mjs';
 const id='2025/0407A(COD)',epoch='12345678-1234-1234-1234-123456789abc';
 const entry=(id,mark=1)=>({id,title:id,eventKind:'document',mark,date:'2026-10-20'});
 function setup() {
@@ -114,4 +115,16 @@ test('unread overflow expires with the shared window and Mark all read keeps the
   h.store.markRead(id);assert.equal(h.item().entries.length,5);assert.equal(h.item().unreadOmitted,0);assert(!itemHasNew(h.item(),h.now()));
   const next=setup();next.index(1,[]);next.index(2,Array.from({length:205},(_,i)=>entry('entry-'+i,2)));next.tick(24*3600_000);
   assert(!itemHasNew(next.item(),next.now()));assert.equal(followEntries(next.item(),next.now()).fresh.length,0);
+});
+
+test('localized fallback titles retain their language and leave published event wording unchanged',()=>{
+  const key='batch6.procedureprogress.procedure.progress.57';
+  const ui=createAppUiI18n({fr:{[key]:'Avancement de la procédure'}}).forLocale('fr');
+  const values=new Map(),storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)},now=Date.parse('2026-10-31T10:00:00Z');
+  const store=createDossiersStore(storage,()=>{},()=>now,ui);store.toggle({id});
+  const item=()=>store.snapshot().items[0];
+  store.observeProgress(id,progress('2026-10-31T08:00:00Z',[]),item());
+  store.observeProgress(id,progress('2026-10-31T09:00:00Z',[event('published','2026-10-30','recorded','Decision by Parliament'),event('unlabelled','2026-10-30','recorded','')]),item());
+  assert.deepEqual(item().entries.map(row=>[row.title,row.titleLanguage]),[['Decision by Parliament','en'],['Avancement de la procédure','fr']]);
+  assert.deepEqual(createDossiersStore(storage,()=>{},()=>now,ui).snapshot().items[0].entries,JSON.parse(JSON.stringify(item().entries)));
 });

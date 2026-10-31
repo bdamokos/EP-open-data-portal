@@ -1,3 +1,4 @@
+import {defaultUi} from './uiDefault.mjs';
 const keys = ['country','political_group','reset_filters','chair','viceChair','member','substitute'];
 const labels = {
  en:['Country','Political group','Reset filters','Chair','Vice-Chair','Member','Substitute'],
@@ -29,13 +30,13 @@ export function interfaceLabel(language,key,fallback) {
  const index=keys.indexOf(key);
  return index<0?fallback:(labels[language]||labels.en)[index]||fallback;
 }
-export function countryName(language,code) {
- if(!/^[A-Z]{2}$/.test(code||''))return code||'Unknown country';
+export function countryName(language,code, ui = defaultUi) {
+ if(!/^[A-Z]{2}$/.test(code||''))return code||ui.t("interfaceLabels.unknownCountry");
  return new Intl.DisplayNames([language],{type:'region'}).of(code==='EL'?'GR':code)||code;
 }
 /** Compare country identifiers by the names displayed in the interface. */
-export function compareCountries(language,a,b) {
- return countryName(language,a).localeCompare(countryName(language,b),language);
+export function compareCountries(language,a,b, ui = defaultUi) {
+ return countryName(language,a, ui).localeCompare(countryName(language,b, ui),language);
 }
 export function languageName(code) {
  return ({ga:'Gaeilge',mt:'Malti'})[code]||new Intl.DisplayNames([code],{type:'language'}).of(code)||code.toUpperCase();

@@ -802,7 +802,7 @@ for(const coverage of ['complete','partial','unavailable'])test('alignment empty
   if(coverage==='complete')assert.match(text,/No recorded votes against Parliament’s outcome in this week/);
   if(coverage==='partial'){assert.match(text,/No matching recorded votes among the available records for this week/);assert.match(text,/Counts in this week/);}
   if(coverage==='unavailable'){
-    assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(unavailable\)/);
+    assert.match(text,/Voting records unavailable/);assert.match(text,/Against the outcome \(Unavailable\)/);
     assert.equal(h.container.querySelector('.member-votes-empty'),null);assert.doesNotMatch(text,/0 decisions|No recorded votes|No matching recorded/);
   }
 });
