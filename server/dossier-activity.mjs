@@ -15,7 +15,7 @@ import {projectMemberSitting} from './member-votes-model.mjs';
 import {requestSignal,isLocalRequestFailure} from './request-budget.mjs';
 import {declaredSpeechEvidence} from './declared-speech-evidence.mjs';
 
-export const DOSSIER_ACTIVITY_VERSION=12;
+export const DOSSIER_ACTIVITY_VERSION=13;
 export const DOSSIER_ACTIVITY_LIMITS=Object.freeze({roles:500,documents:24,debatesPerPage:2,children:1000,speechRows:2000,votes:4000});
 const sectionNames=['roles','speeches','amendments','votes'];
 const validId=value=>/^\d{4}-\d{4}[A-Z]?$/.test(value||'');
@@ -75,8 +75,8 @@ export class DossierActivity {
     const record=await this.reader.record('/procedures/'+id);
     const nodes=record.payload.data.filter(node=>canonical(node.id)==='eli/dl/proc/'+id);
     if(nodes.length!==1)throw new HttpError(502,'dossier_identity','The exact procedure source is unavailable.');
-    const work=nodes[0],label=work.label,code=classifyProcedure(work).code;
-    if(typeof label!=='string'||!/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(label)||label.split('(')[0]!==id.replace('-','/')||reference&&label!==reference||code&&label!==id.replace('-','/')+'('+code+')')throw new HttpError(502,'dossier_reference','The procedure reference does not match its source.');
+    const work=nodes[0],label=work.label,classification=classifyProcedure(work),code=classification.code;
+    if(classification.status==='conflicting'||typeof label!=='string'||!/^\d{4}\/\d{4}[A-Z]?\([A-Z]{2,8}\)$/.test(label)||label.split('(')[0]!==id.replace('-','/')||reference&&label!==reference||code&&label!==id.replace('-','/')+'('+code+')')throw new HttpError(502,'dossier_reference','The procedure reference does not match its source.');
     return {work,procedure:{id,reference:label,...pick(work.process_title,language,label),source:source(record)}};
   }
   async references({ids,language}) {

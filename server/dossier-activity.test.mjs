@@ -9,6 +9,7 @@ import {ActivityWorker} from './activity-index-worker.mjs';
 import {DossierActivity,dossierActivityQuery,dossierReferencesQuery,DOSSIER_ACTIVITY_LIMITS} from './dossier-activity.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {createInsights} from './insights.mjs';
+import {classifyProcedure} from './insights-legislation-model.mjs';
 
 const PID='2025-0176',REF='2025/0176(COD)',DOC='A-10-2025-0273',MEMBER='257727',OTHER='124984';
 const SITTING='MTG-PL-2026-09-16',RESULT=SITTING+'-VOT-ITM-993091',DEBATE='MTG-PL-2026-09-15-PVCRE-ITM-14',SPEECH='MTG-PL-2026-09-15-OTH-2017094978376';
@@ -52,6 +53,40 @@ test('strict query identity and resolver never infer procedure type',async t=>{
   await assert.rejects(x.service.query({...x.q(),reference:'2025/0176(NLE)'}),e=>e.code==='dossier_reference');
   x.records.get('/procedures/'+PID).payload.data[0].label=null;
   assert.equal((await x.service.references({ids:[PID],language:'en'})).items.length,0);
+});
+test('dossier identity rejects every declaration order and suffix conflict before accepting a matching label',async t=>{
+  const x=setup(t);
+  for(const fields of [
+    {process_type:['COD','CNS']},{process_type:['CNS','COD']},
+    {process_type:'COD',procedure_type:'CNS'},{process_type:'CNS',procedure_type:'COD'},
+    {process_type:'COD',had_procedure_type:'APP'},{process_type:'APP',had_procedure_type:'COD'},
+    {process_type:'CNS'},
+  ]) {
+    const work={...procedure(),...fields};x.records.set('/procedures/'+PID,record('/procedures/'+PID,work));
+    assert.equal(classifyProcedure(work).status,'conflicting');
+    await assert.rejects(x.service.procedure(PID,'en',REF),e=>e.code==='dossier_reference');
+    await assert.rejects(x.service.query(x.q('roles')),e=>e.code==='dossier_reference');
+    const resolver=await x.service.references({ids:[PID],language:'en'});
+    assert.deepEqual(resolver.items,[]);assert.equal(resolver.coverage.status,'partial');
+  }
+});
+test('dossier identity preserves absent-type fallback, unknown codes and every published procedure type',async t=>{
+  const x=setup(t),absent=procedure();delete absent.process_type;
+  assert.equal(classifyProcedure(absent).status,'missing');assert.equal(classifyProcedure(absent).code,null);
+  x.records.set('/procedures/'+PID,record('/procedures/'+PID,absent));
+  assert.equal((await x.service.procedure(PID,'en',REF)).procedure.reference,REF);
+  assert.equal((await x.service.references({ids:[PID],language:'en'})).items[0].reference,REF);
+  // Complete ProcessType inventory from the official 20260131_1 vocabulary;
+  // the resolver must not refuse budgetary, consent, initiative or old types.
+  for(const code of ['ACI','APP','AVC','BUD','BUI','CNS','COD','COS','DCE','DEA','DEC','GBD','IMM','INI','INL','INS','NLE','REG','RPS','RSO','RSP','SYN','XYZ']) {
+    const reference=PID.replace('-','/')+'('+code+')',work={...procedure(),process_type:'def/ep-procedure-types/'+code,label:reference};
+    assert.equal(classifyProcedure(work).status,code==='XYZ'?'unknown':'known');
+    x.records.set('/procedures/'+PID,record('/procedures/'+PID,work));
+    assert.equal((await x.service.procedure(PID,'en',reference)).procedure.reference,reference);
+    assert.equal((await x.service.query({...x.q('roles'),reference})).procedure.reference,reference);
+    assert.equal((await x.service.references({ids:[PID],language:'en'})).items[0].reference,reference);
+    await assert.rejects(x.service.procedure(PID,'en',reference.replace(/\([^)]+\)/,'(ZZZ)')),e=>e.code==='dossier_reference');
+  }
 });
 test('roles retain person identity, recorded dates and document-only observations without mutations',async t=>{
   const x=setup(t);x.work.had_participation.push({...role('shared'),had_participant_person:['person/'+MEMBER,'person/'+OTHER],activity_date:undefined});
@@ -141,7 +176,7 @@ test('non-named ballots and intentions never become recorded member positions',a
   for(const method of ['VOTE_HAND','VOTE_ELECTRONIC','VOTE_ELECTRONIC_SECRET','VOTE_SECRET','VOTE_SECRET_BALLOT']){
     raw.decision_method='def/ep-decision-methods/'+method;
     const r=await x.service.query(x.q('votes')),vote=r.items.find(item=>item.id.endsWith('196161')).vote;
-    assert.equal(r.version,12);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
+    assert.equal(r.version,13);assert.equal(vote.actualPosition.position,null);assert.equal(vote.actualPosition.status,'not-individually-recorded');assert.deepEqual(vote.intention.positions,['for']);assert.equal(vote.outcome,'ADOPTED');
   }
 });
 test('a person without a recorded role is never replaced by a named participant',async t=>{
