@@ -7,8 +7,9 @@ const questionTypes=new Set(['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUE
 export function questionPdf(work,language) {
   // PDF text is an alternative for questions/answers, never an amendment or a
   // normative proposal baseline. Ambiguous declarations are not a selection.
-  const type=work?.work_type?.id||work?.work_type;
-  if(typeof type!=='string'||!questionTypes.has(tail(type))||!new RegExp('^(?:https?://data\\.europarl\\.europa\\.eu/def/ep-document-types/)?'+tail(type)+'$').test(type)||array(work?.work_type).length!==1)return null;
+  const types=array(work?.work_type).map(type=>type?.id||type),codes=types.map(tail);
+  if(!types.length||new Set(codes).size!==1||types.some((type,index)=>typeof type!=='string'||!questionTypes.has(codes[index])
+    ||!new RegExp('^(?:(?:https?://data\\.europarl\\.europa\\.eu/)?def/ep-document-types/)?'+codes[index]+'$').test(type)))return null;
   const file=pdfEdition(work,language);
   return file?{...file,sourceId:work.identifier||tail(work.id)}:null;
 }

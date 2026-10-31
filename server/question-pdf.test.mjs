@@ -16,7 +16,7 @@ const now=()=>Date.parse('2026-10-31T09:00:00Z');
 let serial=0;
 const work=()=>{
  const id='E-10-2026-'+String(++serial).padStart(6,'0');
- return {id:'eli/dl/doc/'+id,identifier:id,work_type:'http://data.europarl.europa.eu/def/ep-document-types/QUESTION_WRITTEN',document_date:'2026-05-01',originalLanguage:['ENG'],is_realized_by:[{id:'expression-en',language:'ENG',is_embodied_by:[{id:'word-en',format:'DOCX',issued:'2026-05-01T12:00:00Z',byteSize:100,is_exemplified_by:'distribution/fixture/'+id+'.docx'},{id:'pdf-en',format:'PDF',issued:'2026-05-02T12:00:00Z',byteSize:200,is_exemplified_by:'distribution/fixture/'+id+'.pdf'}]}]};
+ return {id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/QUESTION_WRITTEN',document_date:'2026-05-01',originalLanguage:['ENG'],is_realized_by:[{id:'expression-en',language:'ENG',is_embodied_by:[{id:'word-en',format:'DOCX',issued:'2026-05-01T12:00:00Z',byteSize:100,is_exemplified_by:'distribution/fixture/'+id+'.docx'},{id:'pdf-en',format:'PDF',issued:'2026-05-02T12:00:00Z',byteSize:200,is_exemplified_by:'distribution/fixture/'+id+'.pdf'}]}]};
 };
 const fixture=t=>{const directory=mkdtempSync(path.join(tmpdir(),'question-pdf-'));t.after(()=>rmSync(directory,{recursive:true,force:true}));return directory;};
 const pdf=(stream='BT /F1 12 Tf 50 750 Td (An official answer.) Tj ET')=>{
@@ -42,6 +42,8 @@ test('only a unique API-declared same-language question PDF is eligible',()=>{
  assert.equal(questionFiles(item)[0].pdf.url,candidate.url);
  assert.equal(questionPdf(item,'de'),null);
  assert.equal(questionPdf({...item,work_type:'REPORT'},'en'),null);
+ for(const type of ['QUESTION_WRITTEN','def/ep-document-types/QUESTION_WRITTEN','http://data.europarl.europa.eu/def/ep-document-types/QUESTION_WRITTEN','https://data.europarl.europa.eu/def/ep-document-types/QUESTION_WRITTEN',{id:'def/ep-document-types/QUESTION_WRITTEN'},['def/ep-document-types/QUESTION_WRITTEN']])assert.ok(questionPdf({...item,work_type:type},'en'));
+ assert.equal(questionPdf({...item,work_type:['QUESTION_WRITTEN','REPORT']},'en'),null);
  assert.equal(questionPdf({...item,work_type:'https://foreign.test/QUESTION_WRITTEN'},'en'),null);
  item.is_realized_by[0].is_embodied_by.push({...item.is_realized_by[0].is_embodied_by[1],id:'second',is_exemplified_by:'distribution/fixture/second.pdf'});
  assert.equal(questionPdf(item,'en'),null);
