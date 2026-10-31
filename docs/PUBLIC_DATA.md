@@ -16,6 +16,8 @@ This page lists the external sources the application uses, what each provides, a
 
 Bundled supporting data: committee labels from the corporate-bodies API, country labels from the Publications Office authority scheme, Natural Earth map geometry (simplified locally), and MIT-licensed stopword lists. See [Third-party notices](../THIRD_PARTY_NOTICES.md).
 
+Procedure labels use the 22 `ProcessType` concepts in Parliament's [procedure taxonomy](https://data.europarl.europa.eu/def/ep-procedure-types.ttl), version `20260131_1`, bundled in `server/procedure-types.mjs`; rendering makes no vocabulary request. Subtypes and grouping concepts are separate. Deprecated types keep their codes and deprecation status. Budget adoption, preparation, discharge and management share the budgetary family; legislative initiatives remain distinct from legislative procedures. Consent and historical assent retain a separate family because their code alone does not establish legislative nature. No family establishes enactment. Classification preserves supplied type declarations and canonical reference suffixes, distinguishing missing, known, unknown and conflicting types; conflicting declarations supply no selected code. A reference suffix checks supplied declarations without replacing a missing type observation.
+
 ## Access rules
 
 - Every source is anonymous. No adapter uses credentials, private exports or copied production caches. A failed public request becomes a reported gap. It must never lead to credentials or to bypassing a protection such as DOCEO's browser verification challenge.

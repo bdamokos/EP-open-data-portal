@@ -20,13 +20,25 @@ async function harness(t) {
     assert.fail('Unexpected route '+url);
   });
   loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const controls=await loader('/src/DossierControls.tsx'),{Saved}=await loader('/src/Saved.tsx'),{SavedNav}=await loader('/src/SavedControls.tsx'),{ProcedureContext}=await loader('/src/ProcedureContext.tsx'),{createRoot}=await import('react-dom/client');
+  const controls=await loader('/src/DossierControls.tsx'),{Saved}=await loader('/src/Saved.tsx'),{SavedNav}=await loader('/src/SavedControls.tsx'),{ProcedureContext}=await loader('/src/ProcedureContext.tsx'),{DossierCard}=await loader('/src/DossierCard.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const flush=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,20)));
   const renderSaved=()=>act(async()=>root.render(createElement(StrictMode,null,createElement(SavedNav,{onClick(){}}),createElement(Saved,{language:'en',onBack(){},onMember(){},renderActivity(){return null;}}))));
   const click=async label=>{await act(async()=>{const button=[...container.querySelectorAll('button')].find(button=>button.textContent.trim()===label);assert(button,'Missing '+label+' in '+container.textContent);button.click();});await flush();};
-  return {controls,container,requests,flush,renderSaved,click,generation:value=>generation=value,renderContext:()=>act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true})))};
+  return {controls,container,requests,flush,renderSaved,click,generation:value=>generation=value,renderCards:()=>act(async()=>root.render(createElement('section',null,...controls.dossierStore.snapshot().items.map(item=>createElement(DossierCard,{key:item.id,item,language:'en',now:Date.now()}))))),renderContext:()=>act(async()=>root.render(createElement(ProcedureContext,{reference,language:'en',showTitle:true})))};
 }
+test('Following uses neutral event subtitles for COD, RSP and budgetary dossiers while retaining published titles',async t=>{
+  const h=await harness(t),store=h.controls.dossierStore;
+  for(const id of ['2026/0001(COD)','2026/0002(RSP)','2026/0003(BUD)']) {
+    store.toggle({id});const item=()=>store.snapshot().items.find(item=>item.id===id),data=(time,events)=>({reference:id,state:'mapped',coverage:{},source:{fetchedAt:time},events});
+    store.observeProgress(id,data('2026-10-31T08:00:00Z',[]),item());
+    store.observeProgress(id,data('2026-10-31T09:00:00Z',[{id:'published:'+id,status:'recorded',date:'2026-10-30',label:'Decision by Parliament',labelLanguage:'en'},{id:'unlabelled:'+id,status:'recorded',date:'2026-10-30'}]),item());
+  }
+  const before=structuredClone(store.snapshot().items);await h.renderCards();
+  const cards=[...h.container.querySelectorAll('.dossier-follow-card')];assert.equal(cards.length,3);
+  for(const card of cards){const rows=[...card.querySelectorAll('.dossier-update-disclosure')];assert.equal(rows.length,2);assert.match(rows[0].textContent,/Decision by Parliament/);assert(rows.every(row=>row.querySelector('small').textContent.startsWith('Procedure progress')));assert.match(rows[1].textContent,/Procedure progress/);assert.doesNotMatch(card.textContent,/Legislative progress/);}
+  assert.deepEqual(store.snapshot().items,before,'rendering copy does not change update IDs, dates, unread state or source observations');
+});
 test('following a dossier from its reader establishes a quiet baseline and exposes inline updates, acknowledgment and history',async t=>{
   const h=await harness(t);await h.renderContext();await h.flush();
   const follow=h.container.querySelector('.explorer-save-button');
