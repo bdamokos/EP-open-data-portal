@@ -1,0 +1,1956 @@
+{
+  "description": "Public API excerpts: all 17 declared decisions for result 993335 and the separate lapsed partial-reference control 199472. EN/FR/HU labels retained. Complete voter and intention arrays retained only for 199470; other arrays omitted. Not a complete sitting.",
+  "provenance": {
+    "decisions": {
+      "canonicalSourceUrl": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-22/decisions",
+      "retainedBodySha256": "909161ab5a7b75dd326a2c270ed1e551383e718e00aba4b226affecab1911c3d",
+      "exactRequestUrl": null,
+      "retrievedAt": null,
+      "httpStatus": null
+    },
+    "results": {
+      "canonicalSourceUrl": "https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-22/vote-results",
+      "retainedBodySha256": "d075babeb309c527a9cec35439b6660d9e7763a7282e6f4bc7f07b267015aeb2",
+      "exactRequestUrl": null,
+      "retrievedAt": null,
+      "httpStatus": null
+    },
+    "limit": "Retained API JSON lacks exact request query/time/status receipts. Identities and scope corroborated by native public minutes and RCV; no receipt is inferred.",
+    "native": [
+      {
+        "url": "https://data.europarl.europa.eu/distribution/doc/PV-10-2026-10-22_en.xml",
+        "retrievedAt": "2026-10-31T07:17:14.398418+00:00",
+        "sha256": "afeaeeb11977f358e35c1c44ad92aff61efb112c7f91d80243d1240351cd404f",
+        "locator": "/PV/PV.Vote.Text[1]/*[35:46]",
+        "identity": "7.4; A10-0276/2026; 2026/0211(COD); Results of votes item 4"
+      },
+      {
+        "url": "https://data.europarl.europa.eu/distribution/doc/PV-10-2026-10-22-RCV_en.xml",
+        "retrievedAt": "2026-10-31T07:17:15.290147+00:00",
+        "sha256": "3e4cf40d22953c63afe0b33d3f0e2ee9b6bd3933b266863ef515187d0af09954",
+        "locator": "/PV.RollCallVoteResults/RollCallVote.Result[@Identifier='199470']",
+        "attributes": {
+          "Identifier": "199470",
+          "DlvId": "993335",
+          "Date": "2026-10-22 12:20:22"
+        }
+      }
+    ]
+  },
+  "snapshot": {
+    "sittingId": "MTG-PL-2026-10-22",
+    "date": "2026-10-22",
+    "decisions": [
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199470",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199470",
+        "activity_label": {
+          "fr": "A10-0276/2026 - Adam Jarubas - Proposition de la Commission",
+          "hu": "A10-0276/2026 – Adam Jarubas – A Bizottság javaslata",
+          "en": "A10-0276/2026 – Adam Jarubas – Commission proposal"
+        },
+        "activity_order": "18.0",
+        "activity_start_date": "2026-10-22T13:20:22+02:00",
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 28,
+        "number_of_votes_against": 82,
+        "number_of_votes_favor": 474,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-042"
+        ],
+        "notation_votingId": "199470",
+        "headingLabel": {
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "en": "Commission proposal",
+          "hu": "A Bizottság javaslata",
+          "fr": "Proposition de la Commission"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ],
+        "had_voter_abstention": [
+          "person/38511",
+          "person/257138",
+          "person/257135",
+          "person/257050",
+          "person/198176",
+          "person/197795",
+          "person/1294",
+          "person/257133",
+          "person/125001",
+          "person/256842",
+          "person/220897",
+          "person/124813",
+          "person/256962",
+          "person/277178",
+          "person/256834",
+          "person/204414",
+          "person/197580",
+          "person/257067",
+          "person/124834",
+          "person/257140",
+          "person/256909",
+          "person/125052",
+          "person/257069",
+          "person/257024",
+          "person/197831",
+          "person/257126",
+          "person/101039",
+          "person/197829"
+        ],
+        "had_voter_against": [
+          "person/257083",
+          "person/256813",
+          "person/190517",
+          "person/198076",
+          "person/124736",
+          "person/197684",
+          "person/103381",
+          "person/257437",
+          "person/256911",
+          "person/256916",
+          "person/256915",
+          "person/197461",
+          "person/193292",
+          "person/197449",
+          "person/197439",
+          "person/256955",
+          "person/197529",
+          "person/257012",
+          "person/198471",
+          "person/197802",
+          "person/183916",
+          "person/197464",
+          "person/197468",
+          "person/22858",
+          "person/257296",
+          "person/256917",
+          "person/197462",
+          "person/257015",
+          "person/256978",
+          "person/111412",
+          "person/257044",
+          "person/2268",
+          "person/256880",
+          "person/197870",
+          "person/270719",
+          "person/197503",
+          "person/125023",
+          "person/187917",
+          "person/58766",
+          "person/256960",
+          "person/197701",
+          "person/197549",
+          "person/257299",
+          "person/257139",
+          "person/256990",
+          "person/197466",
+          "person/127766",
+          "person/125093",
+          "person/201945",
+          "person/278815",
+          "person/197655",
+          "person/197574",
+          "person/236053",
+          "person/256805",
+          "person/197734",
+          "person/257063",
+          "person/2152",
+          "person/96752",
+          "person/106936",
+          "person/97236",
+          "person/256964",
+          "person/257009",
+          "person/197772",
+          "person/256912",
+          "person/96675",
+          "person/257127",
+          "person/197395",
+          "person/190464",
+          "person/208722",
+          "person/257092",
+          "person/197470",
+          "person/256910",
+          "person/257023",
+          "person/86793",
+          "person/257038",
+          "person/197460",
+          "person/256890",
+          "person/197398",
+          "person/256965",
+          "person/124985",
+          "person/124984",
+          "person/256913"
+        ],
+        "had_voter_favor": [
+          "person/197691",
+          "person/256872",
+          "person/197628",
+          "person/256862",
+          "person/257075",
+          "person/257068",
+          "person/197794",
+          "person/257150",
+          "person/256811",
+          "person/197413",
+          "person/125325",
+          "person/197406",
+          "person/197528",
+          "person/28617",
+          "person/257030",
+          "person/257169",
+          "person/257108",
+          "person/256976",
+          "person/5565",
+          "person/257257",
+          "person/256895",
+          "person/256888",
+          "person/197652",
+          "person/96697",
+          "person/96808",
+          "person/256995",
+          "person/257090",
+          "person/95074",
+          "person/256830",
+          "person/197514",
+          "person/124895",
+          "person/24922",
+          "person/256944",
+          "person/197444",
+          "person/96932",
+          "person/257072",
+          "person/256903",
+          "person/257262",
+          "person/204400",
+          "person/197718",
+          "person/197679",
+          "person/257040",
+          "person/257031",
+          "person/257077",
+          "person/197493",
+          "person/96830",
+          "person/197412",
+          "person/197647",
+          "person/124722",
+          "person/129073",
+          "person/257056",
+          "person/124760",
+          "person/256945",
+          "person/256936",
+          "person/256929",
+          "person/256941",
+          "person/197445",
+          "person/96933",
+          "person/256860",
+          "person/96668",
+          "person/251324",
+          "person/257007",
+          "person/256869",
+          "person/256865",
+          "person/256904",
+          "person/197516",
+          "person/256900",
+          "person/257238",
+          "person/97968",
+          "person/23816",
+          "person/256993",
+          "person/257033",
+          "person/257026",
+          "person/128483",
+          "person/124893",
+          "person/204418",
+          "person/190713",
+          "person/197649",
+          "person/267485",
+          "person/256983",
+          "person/257058",
+          "person/124785",
+          "person/229839",
+          "person/256844",
+          "person/257148",
+          "person/256901",
+          "person/256938",
+          "person/257125",
+          "person/257297",
+          "person/256870",
+          "person/256851",
+          "person/197682",
+          "person/257065",
+          "person/251874",
+          "person/197404",
+          "person/124884",
+          "person/124877",
+          "person/256906",
+          "person/197400",
+          "person/125012",
+          "person/91636",
+          "person/99945",
+          "person/198084",
+          "person/197781",
+          "person/256977",
+          "person/257255",
+          "person/256896",
+          "person/220908",
+          "person/257049",
+          "person/257091",
+          "person/257059",
+          "person/96780",
+          "person/256857",
+          "person/197786",
+          "person/256853",
+          "person/257116",
+          "person/124701",
+          "person/197721",
+          "person/257014",
+          "person/256804",
+          "person/197405",
+          "person/197719",
+          "person/28150",
+          "person/197818",
+          "person/190574",
+          "person/256809",
+          "person/197491",
+          "person/197494",
+          "person/256986",
+          "person/197552",
+          "person/96998",
+          "person/94649",
+          "person/256981",
+          "person/37324",
+          "person/256937",
+          "person/197624",
+          "person/256898",
+          "person/257064",
+          "person/257005",
+          "person/197402",
+          "person/38542",
+          "person/257118",
+          "person/197517",
+          "person/260035",
+          "person/125670",
+          "person/257098",
+          "person/28307",
+          "person/249603",
+          "person/28223",
+          "person/256806",
+          "person/28226",
+          "person/256969",
+          "person/257104",
+          "person/256891",
+          "person/110673",
+          "person/256884",
+          "person/72779",
+          "person/257047",
+          "person/5736",
+          "person/28122",
+          "person/25758",
+          "person/256889",
+          "person/197440",
+          "person/204419",
+          "person/237465",
+          "person/124806",
+          "person/210480",
+          "person/198183",
+          "person/257149",
+          "person/256939",
+          "person/197690",
+          "person/4267",
+          "person/256852",
+          "person/257073",
+          "person/257020",
+          "person/257089",
+          "person/257066",
+          "person/198073",
+          "person/256807",
+          "person/40224",
+          "person/28615",
+          "person/257052",
+          "person/256925",
+          "person/256974",
+          "person/220801",
+          "person/256893",
+          "person/256886",
+          "person/198490",
+          "person/257057",
+          "person/257003",
+          "person/257070",
+          "person/96653",
+          "person/256858",
+          "person/256946",
+          "person/197473",
+          "person/280663",
+          "person/256942",
+          "person/204449",
+          "person/197392",
+          "person/197627",
+          "person/256861",
+          "person/107212",
+          "person/257160",
+          "person/86057",
+          "person/197589",
+          "person/197677",
+          "person/125204",
+          "person/96761",
+          "person/256877",
+          "person/197492",
+          "person/197557",
+          "person/197553",
+          "person/124973",
+          "person/256887",
+          "person/257054",
+          "person/204333",
+          "person/257144",
+          "person/257121",
+          "person/257111",
+          "person/257137",
+          "person/256934",
+          "person/28347",
+          "person/197447",
+          "person/197443",
+          "person/233862",
+          "person/96709",
+          "person/256840",
+          "person/257061",
+          "person/257087",
+          "person/257013",
+          "person/214839",
+          "person/96787",
+          "person/197426",
+          "person/256845",
+          "person/188096",
+          "person/256902",
+          "person/197475",
+          "person/124846",
+          "person/28298",
+          "person/257163",
+          "person/191693",
+          "person/256918",
+          "person/185771",
+          "person/260724",
+          "person/257055",
+          "person/257045",
+          "person/256973",
+          "person/257048",
+          "person/189065",
+          "person/197782",
+          "person/96812",
+          "person/257112",
+          "person/256928",
+          "person/188945",
+          "person/245018",
+          "person/124700",
+          "person/202073",
+          "person/124807",
+          "person/257010",
+          "person/260695",
+          "person/256846",
+          "person/23788",
+          "person/261038",
+          "person/34232",
+          "person/197672",
+          "person/125104",
+          "person/256875",
+          "person/126699",
+          "person/257097",
+          "person/112748",
+          "person/24942",
+          "person/197722",
+          "person/197738",
+          "person/270261",
+          "person/112744",
+          "person/256814",
+          "person/197435",
+          "person/277057",
+          "person/197490",
+          "person/200345",
+          "person/256979",
+          "person/197545",
+          "person/257107",
+          "person/256998",
+          "person/197618",
+          "person/1927",
+          "person/88552",
+          "person/278406",
+          "person/257011",
+          "person/257001",
+          "person/257071",
+          "person/113523",
+          "person/256847",
+          "person/96711",
+          "person/197591",
+          "person/257114",
+          "person/840",
+          "person/197621",
+          "person/124866",
+          "person/257151",
+          "person/257094",
+          "person/197429",
+          "person/197403",
+          "person/257043",
+          "person/257027",
+          "person/197780",
+          "person/197770",
+          "person/197773",
+          "person/256878",
+          "person/256966",
+          "person/99878",
+          "person/124691",
+          "person/256885",
+          "person/124802",
+          "person/101585",
+          "person/257145",
+          "person/256935",
+          "person/249982",
+          "person/257085",
+          "person/257088",
+          "person/257080",
+          "person/256803",
+          "person/257095",
+          "person/197430",
+          "person/197577",
+          "person/125046",
+          "person/220840",
+          "person/257078",
+          "person/256967",
+          "person/257102",
+          "person/124850",
+          "person/256919",
+          "person/256882",
+          "person/197606",
+          "person/257053",
+          "person/257046",
+          "person/256970",
+          "person/256996",
+          "person/256831",
+          "person/256926",
+          "person/197623",
+          "person/122978",
+          "person/257457",
+          "person/257147",
+          "person/257128",
+          "person/197840",
+          "person/197581",
+          "person/256876",
+          "person/257079",
+          "person/197534",
+          "person/197417",
+          "person/197432",
+          "person/204413",
+          "person/256883",
+          "person/5729",
+          "person/257034",
+          "person/204332",
+          "person/130100",
+          "person/256999",
+          "person/125027",
+          "person/123562",
+          "person/256899",
+          "person/277777",
+          "person/1909",
+          "person/197845",
+          "person/197579",
+          "person/197841",
+          "person/257298",
+          "person/197572",
+          "person/257076",
+          "person/124867",
+          "person/23699",
+          "person/28400",
+          "person/197800",
+          "person/256907",
+          "person/261796",
+          "person/219652",
+          "person/257051",
+          "person/257041",
+          "person/257028",
+          "person/197537",
+          "person/197497",
+          "person/256920",
+          "person/239260",
+          "person/220871",
+          "person/124836",
+          "person/197769",
+          "person/236050",
+          "person/197842",
+          "person/197469",
+          "person/5392",
+          "person/230085",
+          "person/256949",
+          "person/247735",
+          "person/256871",
+          "person/4289",
+          "person/96681",
+          "person/256864",
+          "person/257086",
+          "person/257170",
+          "person/257438",
+          "person/119435",
+          "person/256908",
+          "person/272024",
+          "person/261797",
+          "person/276060",
+          "person/213330",
+          "person/257032",
+          "person/4746",
+          "person/119652",
+          "person/257103",
+          "person/256987",
+          "person/197648",
+          "person/98341",
+          "person/257000",
+          "person/256994",
+          "person/256997",
+          "person/257037",
+          "person/197702",
+          "person/23781",
+          "person/257110",
+          "person/197504",
+          "person/257016",
+          "person/124799",
+          "person/124766",
+          "person/197425",
+          "person/256959",
+          "person/197525",
+          "person/256905",
+          "person/257261",
+          "person/257119",
+          "person/197421",
+          "person/197670",
+          "person/256874",
+          "person/28229",
+          "person/257727",
+          "person/197558",
+          "person/197408",
+          "person/97399",
+          "person/256881",
+          "person/220896",
+          "person/1917",
+          "person/262021",
+          "person/197501",
+          "person/206158",
+          "person/96940",
+          "person/96791",
+          "person/125042",
+          "person/125068",
+          "person/197391",
+          "person/197687",
+          "person/192254",
+          "person/256808",
+          "person/257084",
+          "person/198373",
+          "person/256992",
+          "person/257025",
+          "person/130881",
+          "person/37312",
+          "person/256829",
+          "person/28399",
+          "person/197498",
+          "person/257060",
+          "person/257256",
+          "person/124808",
+          "person/197763",
+          "person/256957",
+          "person/257124",
+          "person/257143",
+          "person/256947",
+          "person/197463",
+          "person/197523",
+          "person/256950",
+          "person/257117"
+        ],
+        "had_voter_intended_against": [
+          "person/256995"
+        ],
+        "had_voter_intended_favor": [
+          "person/257126",
+          "person/257140",
+          "person/257133",
+          "person/257135",
+          "person/22858",
+          "person/124813",
+          "person/257296",
+          "person/257138"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199461",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199461",
+        "activity_label": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – alinéa 2",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – sub§ 2",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 2. albek."
+        },
+        "activity_order": "9.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-9"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199461",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>9</number></reference></am>",
+        "decisionAboutId_Lang": {
+          "hu": "9",
+          "en": "9",
+          "fr": "9"
+        },
+        "decisionAboutId": "9",
+        "headingLabel": {
+          "en": "Draft legislative act ",
+          "hu": "Jogalkotási aktus tervezete",
+          "fr": "Projet d'acte législatif "
+        },
+        "referenceText": {
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 2. albek.",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – sub§ 2",
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – alinéa 2"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199560",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199560",
+        "activity_label": {
+          "en": "A10-0276/2026 – Adam Jarubas – Proposal for rejection – Am 6= 7=",
+          "hu": "A10-0276/2026 – Adam Jarubas – Elutasításra irányuló javaslat – 6= 7= mód.",
+          "fr": "A10-0276/2026 - Adam Jarubas - Proposition de rejet - Am 6= 7="
+        },
+        "activity_order": "2.0",
+        "activity_start_date": "2026-10-22T13:18:16+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-7",
+          "eli/dl/doc/A-10-2026-0276-AM-6"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 1,
+        "number_of_votes_against": 482,
+        "number_of_votes_favor": 94,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-035"
+        ],
+        "notation_votingId": "199560",
+        "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>6</number><symbol href=\"https://xx.xx.xx/=\"/><symbol href=\"https://xx.xx.xx/BR\"/></reference><reference><number>7</number><symbol href=\"https://xx.xx.xx/=\"/></reference></equal_reference></am>",
+        "decisionAboutId_Lang": {
+          "fr": "6=\n7=",
+          "en": "6=\n7=",
+          "hu": "6= 7="
+        },
+        "decisionAboutId": "6=\n7=",
+        "headingLabel": {
+          "fr": "Proposition de rejet de la proposition de la Commission",
+          "hu": "A Bizottság javaslatának elutasítására irányuló javaslat",
+          "en": "Proposal to reject the Commission proposal"
+        },
+        "referenceText": {
+          "hu": "Elutasításra irányuló javaslat",
+          "fr": "Proposition de rejet",
+          "en": "Proposal for rejection"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199456",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199456",
+        "activity_label": {
+          "hu": "Az illetékes bizottság módosításai – tömbösített szavazás",
+          "fr": "Amendements de la commission compétente - vote en bloc",
+          "en": "Amendments by the committee responsible – put to the vote collectively"
+        },
+        "activity_order": "4.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-2",
+          "eli/dl/doc/A-10-2026-0276-AM-5",
+          "eli/dl/doc/A-10-2026-0276-AM-1"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199456",
+        "decisionAboutId_Lang": {
+          "en": "1-2\n5",
+          "fr": "1-2\n5",
+          "hu": "1-2 5"
+        },
+        "decisionAboutId": "1-2\n5",
+        "decisionAboutId_XMLLiteral": "<am><reference_range><reference><number>1</number></reference><reference><number>2</number><symbol href=\"https://xx.xx.xx/BR\"/></reference></reference_range><reference><number>5</number></reference></am>",
+        "headingLabel": {
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete",
+          "en": "Draft legislative act "
+        },
+        "referenceText": {
+          "fr": "Amendements de la commission compétente - vote en bloc",
+          "en": "Amendments by the committee responsible – put to the vote collectively",
+          "hu": "Az illetékes bizottság módosításai – tömbösített szavazás"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199462",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199462",
+        "activity_label": {
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – after sub§ 2",
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – après l'alinéa 2",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 2. albek. után"
+        },
+        "activity_order": "10.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-10"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199462",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>10</number></reference></am>",
+        "decisionAboutId": "10",
+        "decisionAboutId_Lang": {
+          "fr": "10",
+          "en": "10",
+          "hu": "10"
+        },
+        "headingLabel": {
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete",
+          "en": "Draft legislative act "
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – après l'alinéa 2",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – after sub§ 2",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 2. albek. után"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199465",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199465",
+        "activity_label": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 ter",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2b",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2b. bek."
+        },
+        "activity_order": "13.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-12"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199465",
+        "decisionAboutId_XMLLiteral": "<am><equal_reference><reference><number>12</number><symbol href=\"https://xx.xx.xx/S\"/></reference></equal_reference></am>",
+        "decisionAboutId_Lang": {
+          "fr": "12S",
+          "en": "12D",
+          "hu": "12T"
+        },
+        "decisionAboutId": "12S",
+        "headingLabel": {
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete",
+          "en": "Draft legislative act "
+        },
+        "referenceText": {
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2b",
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 ter",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2b. bek."
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199458",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199458",
+        "activity_label": {
+          "fr": "Article 1 – alinéa 1 – point –1; Directive 2003/87/CE – Article 10 bis – paragraphe 1 – alinéa 6",
+          "en": "Article 1 – § 1 – point -1; Directive 2003/87/EC – Article 10a – § 1 – sub§ 6",
+          "hu": "1 cikk – 1 albekezdés – -1 pont 2003/87/EK irányelv – 10a. cikk – 1. bek. – 6. albek."
+        },
+        "activity_order": "6.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-3"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199458",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>3</number></reference></am>",
+        "decisionAboutId": "3",
+        "decisionAboutId_Lang": {
+          "fr": "3",
+          "en": "3",
+          "hu": "3"
+        },
+        "headingLabel": {
+          "hu": "Jogalkotási aktus tervezete",
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif "
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point –1; Directive 2003/87/CE – Article 10 bis – paragraphe 1 – alinéa 6",
+          "hu": "1 cikk – 1 albekezdés – -1 pont 2003/87/EK irányelv – 10a. cikk – 1. bek. – 6. albek.",
+          "en": "Article 1 – § 1 – point -1; Directive 2003/87/EC – Article 10a – § 1 – sub§ 6"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199471",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199471",
+        "activity_order": "19.0",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199471",
+        "headingLabel": {
+          "fr": "Projet d'acte législatif ",
+          "en": "Draft legislative act ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "fr": "Demande de renvoi en commission",
+          "en": "Request for referral back to committee",
+          "hu": "Bizottsághoz történő visszautalásra irányuló kérelem"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199463",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199463",
+        "activity_label": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – après l'alinéa 2",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – after sub§ 2",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 2. albek. után"
+        },
+        "activity_order": "11.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-11"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199463",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>11</number></reference></am>",
+        "decisionAboutId": "11",
+        "decisionAboutId_Lang": {
+          "fr": "11",
+          "en": "11",
+          "hu": "11"
+        },
+        "headingLabel": {
+          "hu": "Jogalkotási aktus tervezete",
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif "
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – après l'alinéa 2",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – after sub§ 2",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 2. albek. után"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199561",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199561",
+        "activity_label": {
+          "en": "A10-0276/2026 – Adam Jarubas – Article 1 – § 1 – point -1; Directive 2003/87/EC – Article 10a – § 1 – sub§ 6 – Am 13",
+          "hu": "A10-0276/2026 – Adam Jarubas – 1. cikk – 1. albek. – -1. pont 2003/87/EK irányelv – 10a. cikk – 1. bek. – 6. albek. – 13. mód.",
+          "fr": "A10-0276/2026 - Adam Jarubas - Article 1 – alinéa 1 – point –1; Directive 2003/87/CE – Article 10 bis – paragraphe 1 – alinéa 6 - Am 13"
+        },
+        "activity_order": "5.0",
+        "activity_start_date": "2026-10-22T13:18:38+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-13"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 33,
+        "number_of_votes_against": 417,
+        "number_of_votes_favor": 131,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-036"
+        ],
+        "was_motivated_by": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-3"
+        ],
+        "notation_votingId": "199561",
+        "decisionAboutId_Lang": {
+          "fr": "13",
+          "en": "13",
+          "hu": "13"
+        },
+        "decisionAboutId": "13",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>13</number></reference></am>",
+        "headingLabel": {
+          "fr": "Projet d'acte législatif ",
+          "en": "Draft legislative act ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "hu": "1 cikk – 1 albekezdés – -1 pont 2003/87/EK irányelv – 10a. cikk – 1. bek. – 6. albek.",
+          "fr": "Article 1 – alinéa 1 – point –1; Directive 2003/87/CE – Article 10 bis – paragraphe 1 – alinéa 6",
+          "en": "Article 1 – § 1 – point -1; Directive 2003/87/EC – Article 10a – § 1 – sub§ 6"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199472",
+        "type": "Decision",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199472",
+        "activity_label": {
+          "fr": "Ensemble du texte",
+          "hu": "a szöveg egésze",
+          "en": "Text as a whole"
+        },
+        "activity_order": "6.0",
+        "decided_on_a_part_of_a_realization_of": "eli/dl/doc/A-10-2026-0104-AM-118",
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/LAPSED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199472",
+        "decisionAboutId_Lang": {
+          "hu": "118MR1",
+          "fr": "118PC1",
+          "en": "118CP1"
+        },
+        "decisionAboutId_XMLLiteral": "<am><reference><number>118</number><symbol href=\"https://xx.xx.xx/PC\"/><text>1</text></reference></am>",
+        "decisionAboutId": "118PC1",
+        "headingLabel": {
+          "fr": "Projet d'acte législatif",
+          "en": "Draft legislative act",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "en": "Text as a whole",
+          "hu": "a szöveg egésze",
+          "fr": "Ensemble du texte"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199564",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199564",
+        "activity_label": {
+          "fr": "A10-0276/2026 - Adam Jarubas - Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 ter - Am 15",
+          "hu": "A10-0276/2026 – Adam Jarubas – 1. cikk – 1. albek. – 1. pont 2003/87/EK irányelv – 10a. cikk – 2b. bek. után – 15. mód.",
+          "en": "A10-0276/2026 – Adam Jarubas – Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2b – Am 15"
+        },
+        "activity_order": "15.0",
+        "activity_start_date": "2026-10-22T13:19:48+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-15"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 4,
+        "number_of_votes_against": 404,
+        "number_of_votes_favor": 171,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-039"
+        ],
+        "was_motivated_by": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-3"
+        ],
+        "notation_votingId": "199564",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>15</number></reference></am>",
+        "decisionAboutId": "15",
+        "decisionAboutId_Lang": {
+          "fr": "15",
+          "en": "15",
+          "hu": "15"
+        },
+        "headingLabel": {
+          "hu": "Jogalkotási aktus tervezete",
+          "fr": "Projet d'acte législatif ",
+          "en": "Draft legislative act "
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 ter",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2b",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2b. bek. után"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199459",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199459",
+        "activity_label": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – alinéa 1",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – sub§ 1",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 1. albek."
+        },
+        "activity_order": "7.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-8"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199459",
+        "decisionAboutId": "8",
+        "decisionAboutId_Lang": {
+          "fr": "8",
+          "en": "8",
+          "hu": "8"
+        },
+        "decisionAboutId_XMLLiteral": "<am><reference><number>8</number></reference></am>",
+        "headingLabel": {
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – alinéa 1",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – sub§ 1",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 1. albek."
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199566",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199566",
+        "activity_label": {
+          "en": "A10-0276/2026 – Adam Jarubas – After recital 2 – Am 17",
+          "fr": "A10-0276/2026 - Adam Jarubas - Après le considérant 2 - Am 17",
+          "hu": "A10-0276/2026 – Adam Jarubas – 2. preb. után – 17. mód."
+        },
+        "activity_order": "17.0",
+        "activity_start_date": "2026-10-22T13:20:11+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-17"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 9,
+        "number_of_votes_against": 396,
+        "number_of_votes_favor": 172,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-041"
+        ],
+        "was_motivated_by": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-4"
+        ],
+        "notation_votingId": "199566",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>17</number></reference></am>",
+        "decisionAboutId_Lang": {
+          "en": "17",
+          "hu": "17",
+          "fr": "17"
+        },
+        "decisionAboutId": "17",
+        "headingLabel": {
+          "fr": "Projet d'acte législatif ",
+          "en": "Draft legislative act ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "en": "After recital 2",
+          "fr": "Après le considérant 2",
+          "hu": "2. preb. után"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199460",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199460",
+        "activity_label": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – alinéa 1",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 1. albek.",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – sub§ 1"
+        },
+        "activity_order": "8.0",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-4"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_HAND",
+        "decision_outcome": "def/ep-statuses/ADOPTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "notation_votingId": "199460",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>4</number></reference></am>",
+        "decisionAboutId_Lang": {
+          "fr": "4",
+          "en": "4",
+          "hu": "4"
+        },
+        "decisionAboutId": "4",
+        "headingLabel": {
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – § 2a – sub§ 1",
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – paragraphe 2 bis – alinéa 1",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. – 1. albek."
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199563",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199563",
+        "activity_label": {
+          "fr": "A10-0276/2026 - Adam Jarubas - Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 ter - Am 14",
+          "en": "A10-0276/2026 – Adam Jarubas – Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2b – Am 14",
+          "hu": "A10-0276/2026 – Adam Jarubas – 1. cikk – 1. albek. – 1. pont 2003/87/EK irányelv – 10a. cikk – 2b. bek. után – 14. mód."
+        },
+        "activity_order": "14.0",
+        "activity_start_date": "2026-10-22T13:19:38+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-14"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 9,
+        "number_of_votes_against": 397,
+        "number_of_votes_favor": 167,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-038"
+        ],
+        "was_motivated_by": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-3"
+        ],
+        "notation_votingId": "199563",
+        "decisionAboutId": "14",
+        "decisionAboutId_Lang": {
+          "hu": "14",
+          "en": "14",
+          "fr": "14"
+        },
+        "decisionAboutId_XMLLiteral": "<am><reference><number>14</number></reference></am>",
+        "headingLabel": {
+          "hu": "Jogalkotási aktus tervezete",
+          "fr": "Projet d'acte législatif ",
+          "en": "Draft legislative act "
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 ter",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2b",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2b. bek. után"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199565",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199565",
+        "activity_label": {
+          "en": "A10-0276/2026 – Adam Jarubas – Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2b – Am 16",
+          "hu": "A10-0276/2026 – Adam Jarubas – 1. cikk – 1. albek. – 1. pont 2003/87/EK irányelv – 10a. cikk – 2b. bek. után – 16. mód.",
+          "fr": "A10-0276/2026 - Adam Jarubas - Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 ter - Am 16"
+        },
+        "activity_order": "16.0",
+        "activity_start_date": "2026-10-22T13:19:59+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-16"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 33,
+        "number_of_votes_against": 317,
+        "number_of_votes_favor": 229,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-040"
+        ],
+        "was_motivated_by": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-3"
+        ],
+        "notation_votingId": "199565",
+        "decisionAboutId_Lang": {
+          "fr": "16",
+          "hu": "16",
+          "en": "16"
+        },
+        "decisionAboutId": "16",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>16</number></reference></am>",
+        "headingLabel": {
+          "hu": "Jogalkotási aktus tervezete",
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif "
+        },
+        "referenceText": {
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2b. bek. után",
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 ter",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2b"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-DEC-199562",
+        "type": "Vote",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-DEC-199562",
+        "activity_label": {
+          "hu": "A10-0276/2026 – Adam Jarubas – 1. cikk – 1. albek. – 1. pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. után – 18. mód.",
+          "fr": "A10-0276/2026 - Adam Jarubas - Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 bis - Am 18",
+          "en": "A10-0276/2026 – Adam Jarubas – Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2a – Am 18"
+        },
+        "activity_order": "12.0",
+        "activity_start_date": "2026-10-22T13:19:22+02:00",
+        "decided_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276-AM-18"
+        ],
+        "decision_method": "def/ep-decision-methods/VOTE_ELECTRONIC_ROLLCALL",
+        "decision_outcome": "def/ep-statuses/REJECTED",
+        "had_activity_type": "def/ep-activities/PLENARY_OUTCOME",
+        "number_of_votes_abstention": 60,
+        "number_of_votes_against": 401,
+        "number_of_votes_favor": 120,
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-RCV-ITM-037"
+        ],
+        "was_motivated_by": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-4"
+        ],
+        "notation_votingId": "199562",
+        "decisionAboutId_XMLLiteral": "<am><reference><number>18</number></reference></am>",
+        "decisionAboutId_Lang": {
+          "hu": "18",
+          "en": "18",
+          "fr": "18"
+        },
+        "decisionAboutId": "18",
+        "headingLabel": {
+          "en": "Draft legislative act ",
+          "fr": "Projet d'acte législatif ",
+          "hu": "Jogalkotási aktus tervezete"
+        },
+        "referenceText": {
+          "fr": "Article 1 – alinéa 1 – point 1; Directive 2003/87/CE – Article 10 bis – après le paragraphe 2 bis",
+          "en": "Article 1 – § 1 – point 1; Directive 2003/87/EC – Article 10a – after § 2a",
+          "hu": "1 cikk – 1 albekezdés – 1 pont 2003/87/EK irányelv – 10a. cikk – 2a. bek. után"
+        },
+        "inverse_consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+        ]
+      }
+    ],
+    "results": [
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335",
+        "type": "Activity",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993335",
+        "activity_label": {
+          "en": "Revised heat and fuel benchmark values for 2026-2030 ***I",
+          "fr": "Valeurs révisées des référentiels de chaleur et de combustibles pour la période 2026-2030 ***I",
+          "hu": "A 2026 és 2030 közötti időszakra vonatkozó hő- és tüzelőanyag-referenciaértékek ***I"
+        },
+        "based_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0276"
+        ],
+        "consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199463",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199560",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199460",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199565",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199465",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199561",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199461",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199471",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199566",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199458",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199456",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199563",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199562",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199462",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199470",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199459",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199564"
+        ],
+        "executed": [
+          "eli/dl/event/MTG-PL-2026-10-22-OJ-ITM-V-54"
+        ],
+        "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-VOT-ITM-004"
+        ],
+        "was_motivated_by": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-1",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993335-RCV-1",
+            "activity_label": {
+              "nl": "amendement 6",
+              "sk": "PN 6",
+              "hu": "6. mód.",
+              "sl": "predlog spremembe 6",
+              "de": "Änderungsantrag 6",
+              "hr": "amandman 6",
+              "en": "Amendment 6",
+              "pl": "poprawka 6",
+              "lt": "6 pakeitimas",
+              "ga": "leasú 6",
+              "es": "enmienda 6",
+              "pt": "alteração 6",
+              "el": "τροπολογία 6",
+              "sv": "ändringsförslag 6",
+              "fi": "tarkistus 6",
+              "mt": "emenda 6",
+              "et": "muudatusettepanek 6",
+              "fr": "amendement 6",
+              "it": "emendamento 6",
+              "da": "ændringsforslag 6",
+              "lv": "grozījums Nr. 6",
+              "ro": "amendamentul 6",
+              "cs": "pn. 6",
+              "bg": "изменение 6"
+            },
+            "activity_order": "1.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "sv": "The Left",
+              "it": "The Left",
+              "cs": "The Left",
+              "el": "The Left",
+              "sl": "The Left",
+              "nl": "The Left",
+              "de": "The Left",
+              "da": "The Left",
+              "fi": "The Left",
+              "hr": "The Left",
+              "lt": "The Left",
+              "pt": "The Left",
+              "fr": "The Left",
+              "es": "The Left",
+              "en": "The Left",
+              "lv": "The Left",
+              "pl": "The Left",
+              "ro": "The Left",
+              "sk": "The Left",
+              "ga": "The Left",
+              "hu": "The Left",
+              "bg": "The Left",
+              "et": "The Left",
+              "mt": "The Left"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-2",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993335-RCV-2",
+            "activity_label": {
+              "hr": "amandman 7",
+              "de": "Änderungsantrag 7",
+              "it": "emendamento 7",
+              "en": "Amendment 7",
+              "hu": "7. mód.",
+              "cs": "pn. 7",
+              "pl": "poprawka 7",
+              "bg": "изменение 7",
+              "fr": "amendement 7",
+              "sl": "predlog spremembe 7",
+              "ga": "leasú 7",
+              "sk": "PN 7",
+              "da": "ændringsforslag 7",
+              "mt": "emenda 7",
+              "lv": "grozījums Nr. 7",
+              "lt": "7 pakeitimas",
+              "nl": "amendement 7",
+              "es": "enmienda 7",
+              "el": "τροπολογία 7",
+              "pt": "alteração 7",
+              "sv": "ändringsförslag 7",
+              "ro": "amendamentul 7",
+              "fi": "tarkistus 7",
+              "et": "muudatusettepanek 7"
+            },
+            "activity_order": "2.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "pt": "Verts/ALE",
+              "da": "Verts/ALE",
+              "pl": "Verts/ALE",
+              "cs": "Verts/ALE",
+              "nl": "Verts/ALE",
+              "bg": "Verts/ALE",
+              "mt": "Verts/ALE",
+              "lt": "Verts/ALE",
+              "lv": "Verts/ALE",
+              "it": "Verts/ALE",
+              "hu": "Verts/ALE",
+              "de": "Verts/ALE",
+              "ro": "Verts/ALE",
+              "el": "Verts/ALE",
+              "sk": "Verts/ALE",
+              "en": "Verts/ALE",
+              "sl": "Verts/ALE",
+              "et": "Verts/ALE",
+              "es": "Verts/ALE",
+              "fi": "Verts/ALE",
+              "sv": "Verts/ALE",
+              "ga": "Verts/ALE",
+              "hr": "Verts/ALE",
+              "fr": "Verts/ALE"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-3",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993335-RCV-3",
+            "activity_label": {
+              "hr": "amandmani 13, 14, 15, 16",
+              "fr": "amendements 13, 14, 15, 16",
+              "fi": "tarkistukset 13, 14, 15, 16",
+              "sv": "ändringsförslagen 13, 14, 15, 16",
+              "et": "muudatusettepanekud 13, 14, 15, 16",
+              "pt": "alterações 13, 14, 15, 16",
+              "pl": "poprawki 13, 14, 15, 16",
+              "mt": "emendi 13, 14, 15, 16",
+              "el": "τροπολογίες 13, 14, 15, 16",
+              "nl": "amendementen 13, 14, 15 en 16",
+              "it": "emendamenti 13, 14, 15, 16",
+              "de": "Änderungsanträge 13, 14, 15, 16",
+              "ga": "leasuithe 13, 14, 15, 16",
+              "hu": "13., 14., 15., 16. mód.",
+              "bg": "изменения 13, 14, 15, 16",
+              "cs": "pn. 13, 14, 15, 16",
+              "sl": "predlogi sprememb 13, 14, 15, 16",
+              "lt": "13, 14, 15 ir 16 pakeitimai",
+              "ro": "amendamentele 13, 14, 15, 16",
+              "es": "enmiendas 13, 14, 15, 16",
+              "lv": "grozījumi Nr. 13, 14, 15, 16",
+              "da": "ændringsforslag 13, 14, 15, 16",
+              "sk": "PN 13, 14, 15, 16",
+              "en": "Amendments 13, 14, 15, 16"
+            },
+            "activity_order": "3.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "fi": "S&D",
+              "es": "S&D",
+              "et": "S&D",
+              "sl": "S&D",
+              "en": "S&D",
+              "sk": "S&D",
+              "el": "S&D",
+              "ro": "S&D",
+              "da": "S&D",
+              "hu": "S&D",
+              "it": "S&D",
+              "lv": "S&D",
+              "lt": "S&D",
+              "mt": "S&D",
+              "bg": "S&D",
+              "nl": "S&D",
+              "cs": "S&D",
+              "pl": "S&D",
+              "pt": "S&D",
+              "de": "S&D",
+              "sv": "S&D",
+              "fr": "S&D",
+              "ga": "S&D",
+              "hr": "S&D"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335-RCV-4",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993335-RCV-4",
+            "activity_label": {
+              "ro": "amendamentele 17, 18",
+              "el": "τροπολογίες 17, 18",
+              "mt": "emendi 17, 18",
+              "bg": "изменения 17, 18",
+              "fi": "tarkistukset 17, 18",
+              "hr": "amandmani 17, 18",
+              "pl": "poprawki 17, 18",
+              "es": "enmiendas 17, 18",
+              "fr": "amendements 17, 18",
+              "et": "muudatusettepanekud 17, 18",
+              "hu": "17., 18. mód.",
+              "de": "Änderungsanträge 17, 18",
+              "pt": "alterações 17, 18",
+              "sv": "ändringsförslagen 17, 18",
+              "nl": "amendementen 17 en 18",
+              "da": "ændringsforslag 17, 18",
+              "cs": "pn. 17, 18",
+              "sk": "PN 17, 18",
+              "en": "Amendments 17, 18",
+              "lt": "17 ir 18 pakeitimai",
+              "lv": "grozījumi Nr. 17, 18",
+              "ga": "leasuithe 17, 18",
+              "sl": "predloga sprememb 17, 18",
+              "it": "emendamenti 17, 18"
+            },
+            "activity_order": "4.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "ro": "PfE",
+              "sk": "PfE",
+              "fi": "PfE",
+              "bg": "PfE",
+              "en": "PfE",
+              "fr": "PfE",
+              "hr": "PfE",
+              "nl": "PfE",
+              "mt": "PfE",
+              "da": "PfE",
+              "cs": "PfE",
+              "de": "PfE",
+              "ga": "PfE",
+              "it": "PfE",
+              "sv": "PfE",
+              "es": "PfE",
+              "lt": "PfE",
+              "el": "PfE",
+              "sl": "PfE",
+              "pl": "PfE",
+              "hu": "PfE",
+              "et": "PfE",
+              "pt": "PfE",
+              "lv": "PfE"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22",
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993352",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993260",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993351",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993353",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993261",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993252"
+            ]
+          },
+          {
+            "id": "eli/dl/proc/2026-0211",
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275",
+        "type": "Activity",
+        "activity_date": "2026-10-22",
+        "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993275",
+        "activity_label": {
+          "hu": "A vegyi anyagokra vonatkozó egyes követelmények és eljárások egyszerűsítése ***I",
+          "fr": "Simplification de certaines exigences et certaines procédures applicables aux produits chimiques ***I",
+          "en": "Simplification of certain requirements and procedures for chemical products ***I"
+        },
+        "based_on_a_realization_of": [
+          "eli/dl/doc/A-10-2026-0104"
+        ],
+        "consists_of": [
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199398",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198445",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199394",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199388",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199392",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199397",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198456",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199380",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199385",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199390",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198430",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199387",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199391",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199382",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199472",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199396",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199384",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198438",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198450",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199389",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199393",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198455",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198452",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198436",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-198440",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199381",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199395",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199386",
+          "eli/dl/event/MTG-PL-2026-10-22-DEC-199383"
+        ],
+        "executed": [
+          "eli/dl/event/MTG-PL-2026-10-22-OJ-ITM-V-35"
+        ],
+        "had_activity_type": "def/ep-activities/PLENARY_VOTE_RESULTS",
+        "recorded_in_a_realization_of": [
+          "eli/dl/doc/PV-10-2026-10-22-VOT-ITM-003"
+        ],
+        "was_motivated_by": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275-RCV-2",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993275-RCV-2",
+            "activity_label": {
+              "sv": "ändringsförslagen 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "en": "Amendments 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "fr": "amendements 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "hr": "amandmani 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "fi": "tarkistukset 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "it": "emendamenti 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "es": "enmiendas 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "da": "ændringsforslag 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "nl": "amendementen 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131 en 132",
+              "pt": "alterações 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "bg": "изменения 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "hu": "120., 121., 122., 123., 124., 125., 126., 127., 128., 129., 130., 131., 132. mód.",
+              "sl": "predlogi sprememb 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "pl": "poprawki 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "mt": "emendi 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "ro": "amendamentele 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "sk": "PN 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "cs": "pn. 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "el": "τροπολογίες 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "de": "Änderungsanträge 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "ga": "leasuithe 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "et": "muudatusettepanekud 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132",
+              "lt": "120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132 pakeitimai",
+              "lv": "grozījumi Nr. 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132"
+            },
+            "activity_order": "2.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "lt": "ESN",
+              "hr": "ESN",
+              "fr": "ESN",
+              "et": "ESN",
+              "hu": "ESN",
+              "pl": "ESN",
+              "mt": "ESN",
+              "sl": "ESN",
+              "el": "ESN",
+              "ro": "ESN",
+              "lv": "ESN",
+              "pt": "ESN",
+              "sk": "ESN",
+              "fi": "ESN",
+              "bg": "ESN",
+              "en": "ESN",
+              "es": "ESN",
+              "sv": "ESN",
+              "it": "ESN",
+              "ga": "ESN",
+              "de": "ESN",
+              "cs": "ESN",
+              "da": "ESN",
+              "nl": "ESN"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275-RCV-1",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993275-RCV-1",
+            "activity_label": {
+              "it": "emendamento 119",
+              "es": "enmienda 119",
+              "nl": "amendement 119",
+              "lt": "119 pakeitimas",
+              "ga": "leasú 119",
+              "ro": "amendamentul 119",
+              "fr": "amendement 119",
+              "mt": "emenda 119",
+              "pl": "poprawka 119",
+              "hr": "amandman 119",
+              "et": "muudatusettepanek 119",
+              "lv": "grozījums Nr. 119",
+              "fi": "tarkistus 119",
+              "en": "Amendment 119",
+              "sl": "predlog spremembe 119",
+              "de": "Änderungsantrag 119",
+              "pt": "alteração 119",
+              "cs": "pn. 119",
+              "da": "ændringsforslag 119",
+              "sk": "PN 119",
+              "sv": "ändringsförslag 119",
+              "hu": "119. mód.",
+              "el": "τροπολογία 119",
+              "bg": "изменение 119"
+            },
+            "activity_order": "1.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_ROLLCALL",
+            "responsible_organization_label": {
+              "pt": "The Left",
+              "lt": "The Left",
+              "hr": "The Left",
+              "fi": "The Left",
+              "da": "The Left",
+              "de": "The Left",
+              "nl": "The Left",
+              "sl": "The Left",
+              "el": "The Left",
+              "cs": "The Left",
+              "it": "The Left",
+              "sv": "The Left",
+              "et": "The Left",
+              "mt": "The Left",
+              "ro": "The Left",
+              "bg": "The Left",
+              "hu": "The Left",
+              "ga": "The Left",
+              "sk": "The Left",
+              "pl": "The Left",
+              "lv": "The Left",
+              "en": "The Left",
+              "es": "The Left",
+              "fr": "The Left"
+            }
+          },
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275-SEPARATE-1",
+            "type": "Activity",
+            "activity_id": "MTG-PL-2026-10-22-VOT-ITM-993275-SEPARATE-1",
+            "activity_label": {
+              "de": "Artikel 1 Absatz 1 Nummer 4; Artikel 1 Absatz 1 Nummer 5; Artikel 1 Absatz 1 Nummer 6; Artikel 2 Absatz 1 Nummer 2 Buchstabe a Ziffer i; Artikel 2 Absatz 1 Nummer 2 Buchstabe a Ziffer ii",
+              "el": "άρθρο 1, παράγραφος 1, σημείο 4· άρθρο 1, παράγραφος 1, σημείο 5· άρθρο 1, παράγραφος 1, σημείο 6· άρθρο 2, παράγραφος 1, σημείο 2, στοιχείο α, σημείο i· άρθρο 2, παράγραφος 1, σημείο 2, στοιχείο α, σημείο ii",
+              "sk": "článok 1 odsek 1 bod 4; článok 1 odsek 1 bod 5; článok 1 odsek 1 bod 6; článok 2 odsek 1 bod 2 a i článok 2 odsek 1 bod 2 a ii",
+              "nl": "Artikel 1 – alinea 1 – punt 4; Artikel 1 – alinea 1 – punt 5; Artikel 1 – alinea 1 – punt 6; Artikel 2 – alinea 1 – punt 2 – a – i; Artikel 2 – alinea 1 – punt 2 – a – ii",
+              "it": "articolo 1, punto 4; articolo 1, punto 5; articolo 1, punto 6; articolo 2, punto 2, lettera a, punto i; articolo 2, punto 2, lettera a, punto ii",
+              "hr": "Članak 1. stavak 1. točka 4.; Članak 1. stavak 1. točka 5.; Članak 1. stavak 1. točka 6.; Članak 2. stavak 1. točka 2. a ii.; Članak 2. stavak 1. točka 2. a ii.;",
+              "en": "Article 1, § 1, point 4; Article 1, § 1, point 5; Article 1, § 1, point 6; Article 2, § 1, point 2(a)(i); Article 2, § 1, point 2(a)(ii);",
+              "bg": "член 1, алинея 1, точка 4 член 1, алинея 1, точка 5 член 1, алинея 1, точка 6 член 2, алинея 1, точка 2, буква а, подточка i; член 2, алинея 1, точка 2, буква а, подточка ii;",
+              "hu": "1. cikk, 1. albek., 4. pont 1. cikk, 1. albek., 5. pont 1. cikk, 1. albek., 6. pont 2. cikk, 1. albek., 2. pont, a) pont, i. alpont 2. cikk, 1. albek., 2. pont, a) pont, ii. alpont",
+              "es": "artículo 1, párrafo 1, punto 4; artículo 1, párrafo 1, punto 5; artículo 1, párrafo 1, punto 6; artículo 2, párrafo 1, punto 2, letra a, inciso i; artículo 2, párrafo 1, punto 2, letra a, inciso ii",
+              "et": "artikkel 1, lõik 1, punkt 4; artikkel 1, lõik 1, punkt 5; artikkel 1, lõik 1, punkt 6; artikkel 2, lõik 1, punkt 2, alapunkt a, alapunkt i; artikkel 2, lõik 1, punkt 2, alapunkt a, alapunkt ii;",
+              "pl": "art. 1 akapit 1 pkt 4; art. 1 akapit 1 pkt 5; art. 1 akapit 1 pkt 6; art. 2 akapit 1 pkt 2 lit. a) ppkt i; art. 2 akapit 1 pkt 2 lit. a) ppkt ii",
+              "fi": "1 artikla, 1 kohta, 4 alakohta; 1 artikla, 1 kohta, 5 alakohta; 1 artikla, 1 kohta, 6 alakohta; 2 artikla, 1 kohta, 2 alakohta, a alakohta, i alakohta; 2 artikla, 1 kohta, 2 alakohta, a alakohta, ii alakohta",
+              "sv": "artikel 1, stycke 1, led 4; artikel 1, stycke 1, led 5; artikel 1, stycke 1, led 6; artikel 2, stycke 1, led 2(a)(i); artikel 2, stycke 1, led 2(a)(ii);",
+              "mt": "Artikolu 1, subparagrafu 1, punt 4; Artikolu 1, subparagrafu 1, punt 5; Artikolu 1, subparagrafu 1, punt 6; Artikolu 2, subparagrafu 1, punt 2(a)(i); Artikolu 2, subparagrafu 1, punt 2(a)(ii)",
+              "cs": "čl. 1 pododst. 1 bod 4; čl. 1 pododst. 1 bod 5; čl. 1 pododst. 1 bod 6; čl. 2 pododst. 1 bod 2 písm. a) bod i); čl. 2 pododst. 1 bod 2 písm. a) bod ii)",
+              "lt": "1 straipsnis, 1 pastraipa, 4 punktas; 1 straipsnis, 1 pastraipa, 5 punktas; 1 straipsnis, 1 pastraipa, 6 punktas; 2 straipsnis, 1 pastraipa, 2 punkto a ir i papunktis; 2 straipsnis, 1 pastraipa, 2 punkto a ir ii papunktis;",
+              "ro": "articolul 1, paragraful 1, punctul 4; articolul 1, paragraful 1, punctul 5; articolul 1, paragraful 1, punctul 6; articolul 2, paragraful 1, punctul 2, litera a, subpunctul i; articolul 2, paragraful 1, punctul 2, litera a, subpunctul ii;",
+              "ga": "Airteagal 1, mír 1, pointe 4; Airteagal 1, mír 1, pointe 5; Airteagal 1, mír 1, pointe 6; Airteagal 2, mír 1, pointe 2(a)(i); Airteagal 2, mír 1, pointe 2(a)(ii);",
+              "da": "artikel 1, afsnit 1, nr. 4; artikel 1, afsnit 1, nr. 5; artikel 1, afsnit 1, nr. 6; artikel 2, afsnit 1, nr. 2, litra a), i; artikel 2, afsnit 1, nr. 2, litra a),ii",
+              "pt": "artigo 1, parágrafo 1, ponto 4; artigo 1, parágrafo 1, ponto 5; artigo 1, parágrafo 1, ponto 6; artigo 2, parágrafo 1, ponto 2, alínea a, subalínea i; artigo 2, parágrafo 1, ponto 2, alínea a, subalínea ii",
+              "lv": "1. pants, 1. daļa, 4. punkts; 1. pants, 1. daļa, 5. punkts; 1. pants, 1. daļa, 6. punkts; 2. pants, 1. daļa, 2. punkts, a) apakšpunkts, i) punkts; 2. pants, 1. daļa, 2. punkts, a) apakšpunkts, ii) punkts",
+              "sl": "člen 1, alinea 1, točka 4; člen 1, alinea 1, točka 5; člen 1, alinea 1, točka 6; člen 2, alinea 1, točka 2(a)(i); člen 2, alinea 1, točka 2(a)(ii)",
+              "fr": "article 1, alinéa 1, point 4; article 1, alinéa 1, point 5; article 1, alinéa 1, point 6; article 2, alinéa 1, point 2(a)(i); article 2, alinéa 1, point 2(a)(ii)"
+            },
+            "activity_order": "1.0",
+            "had_activity_type": "def/ep-activities/REQUEST_VOTE_SEPARATE",
+            "responsible_organization_label": {
+              "en": "ESN",
+              "mt": "ESN",
+              "sl": "ESN",
+              "el": "ESN",
+              "ro": "ESN",
+              "lv": "ESN",
+              "pt": "ESN",
+              "sk": "ESN",
+              "fi": "ESN",
+              "bg": "ESN",
+              "fr": "ESN",
+              "hr": "ESN",
+              "lt": "ESN",
+              "nl": "ESN",
+              "da": "ESN",
+              "cs": "ESN",
+              "de": "ESN",
+              "ga": "ESN",
+              "it": "ESN",
+              "sv": "ESN",
+              "es": "ESN",
+              "et": "ESN",
+              "hu": "ESN",
+              "pl": "ESN"
+            }
+          }
+        ],
+        "inverse_consists_of": [
+          {
+            "id": "eli/dl/event/MTG-PL-2026-10-22",
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993352",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993260",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993351",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993353",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993335",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993261",
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993252"
+            ]
+          },
+          {
+            "id": "eli/dl/proc/2025-0531",
+            "consists_of": [
+              "eli/dl/event/MTG-PL-2026-10-22-VOT-ITM-993275"
+            ]
+          }
+        ]
+      }
+    ],
+    "agenda": [],
+    "sources": {}
+  }
+}

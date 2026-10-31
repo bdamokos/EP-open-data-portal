@@ -10,7 +10,7 @@ import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 
-export const MEMBER_VOTES_VERSION=9;
+export const MEMBER_VOTES_VERSION=10;
 // Period reads include every observed decision; keep a separate finite transport budget.
 export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=32*1024*1024;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});

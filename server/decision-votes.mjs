@@ -7,7 +7,7 @@ import {requestSignal} from './request-budget.mjs';
 import {list,exactReference,references,identifier,deriveVoteEvidence} from './vote-evidence.mjs';
 import {decisionVoteBindingConflict} from './decision-vote-binding.mjs';
 
-export const DECISION_VOTES_VERSION=5;
+export const DECISION_VOTES_VERSION=6;
 
 export function decisionVotesQuery(id,search,options) {
   if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-DEC-\d+$/.test(id))throw new HttpError(400,'invalid_decision','Use an exact decision identifier.');
@@ -40,6 +40,6 @@ export async function decisionVotes(query,{reader=memberVotes,store=null}={}) {
   }):[];
   return {...base,status:'found',integrity,voters,groupHistory:history?{epoch:store.get('marksEpoch'),generation,catalogue:history.catalogue}:null,
     decision:{id:vote.id,date:vote.date,method:vote.method,outcome:vote.outcome,ballotStatus:vote.ballotStatus,totals:vote.totals,amendmentIds:vote.context.amendmentIds,componentIds:vote.context.componentIds,
-      decidedIds:references(raw.decided_on_a_realization_of,'doc').map(identifier),referencesValid:list(raw.decided_on_a_realization_of).length>0&&list(raw.decided_on_a_realization_of).every(value=>exactReference(value,'doc')),
+      decidedIds:references(raw.decided_on_a_realization_of,'doc').map(identifier),referencesValid:list(raw.decided_on_a_part_of_a_realization_of).length===0&&list(raw.decided_on_a_realization_of).length>0&&list(raw.decided_on_a_realization_of).every(value=>exactReference(value,'doc')),
       resultRelationship:vote.resultRelationship,evidenceGaps:vote.evidenceGaps,bindingConflicts:vote.bindingConflicts,namedVoters:{...vote.namedVoters,totalsMatch:tallyMismatch?false:vote.namedVoters.totalsMatch},sourceConflicts:vote.sourceConflicts,evidencePaths:vote.evidencePaths,sources:vote.sources}};
 }

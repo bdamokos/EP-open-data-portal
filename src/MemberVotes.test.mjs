@@ -23,7 +23,7 @@ function vote(number,patch={}) {
     totals:{for:400,against:200,abstaining:0},namedVoters:{available:true,counts:{for:400,against:200,abstaining:0},totalsMatch:true,conflictingPersonIds:[],malformedReferences:0},
     subjectId:SUBJECT,resultRelationship:{inverseResultIds:[SUBJECT],forwardResultIds:[SUBJECT],binding:'consistent'},parts:[],rollCallRequesters:[],
     evidenceGaps:[],evidencePaths:[],historicalGroup:null,
-    context:{resultIds:[SUBJECT],agendaItemIds:[],documentIds:[],procedureIds:[],amendmentIds:[],componentIds:[],missingResultIds:[],missingAgendaItemIds:[],relationships:[]},
+    context:{resultIds:[SUBJECT],agendaItemIds:[],documentIds:[],procedureIds:[],amendmentIds:[],componentIds:[],partialReferenceIds:[],missingResultIds:[],missingAgendaItemIds:[],relationships:[]},
     sources:{decisions:[],results:[],agenda:[]},...patch,
   };
 }
@@ -46,7 +46,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:9,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:10,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -76,7 +76,7 @@ async function mount(t,{state={},calendar={version:2,weeks:[{week:WEEK,sittings:
     // fixtures and request assertions scoped to the member-votes contract.
     if(String(url).includes('/api/member-vote-explanations/')){
       const params=new URL(String(url),'http://localhost').searchParams,decisionId=params.get('decision');
-      return Response.json({version:2,memberId:String(MEMBER),decisionId,sittingId:decisionId.slice(0,17),snapshotId:params.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
+      return Response.json({version:3,memberId:String(MEMBER),decisionId,sittingId:decisionId.slice(0,17),snapshotId:params.get('snapshot'),subjectId:SUBJECT,matchScope:'subject',presentationAnchorDecisionId:null,items:[],written:{status:'unsupported',count:null},coverage:{status:'searched',searchComplete:true,gaps:[]}});
     }
     if(String(url).includes('/api/member-attendance/'))return attendanceHandler(url,options);
     calls.push(String(url));return handler(url,options,calls.length);
@@ -893,7 +893,7 @@ test('manual period selection cancels a pending automatic search',async t=>{
 });
 
 test('an invalid calendar leaves the latest empty week usable instead of an endless search',async t=>{
-  const h=await mount(t,{calendar:{version:99},handler:url=>Response.json(searchResponse(url))});
+  const h=await mount(t,{calendar:{version:109},handler:url=>Response.json(searchResponse(url))});
   assert.equal(h.state.week,WEEK);assert.match(visiblePane(h.container).textContent,/No recorded positions this week/);
   assert.doesNotMatch(h.container.textContent,/Finding latest recorded votes/);
 });
