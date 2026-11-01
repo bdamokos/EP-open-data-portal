@@ -12,7 +12,7 @@ import {CorpusWorker} from './corpus-worker.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {memberVoteWeeks} from './member-vote-weeks.mjs';
 import {followingResponse,followingIdsSql} from './insights-following.mjs';
-import {activityOnly,motionDocuments} from './activity-read-projections.mjs';
+import {activityOnly,motionDocuments,activityReadVersion} from './activity-read-projections.mjs';
 import {discoverQuestionFiles,changedQuestionsSql,missingQuestionFilesSql} from './question-discovery.mjs';
 import {prepareIndexes} from './migrate-indexes.mjs';
 import {questionFiles,questionFileEdition} from './question-files.mjs';
@@ -253,7 +253,7 @@ test('edition projection preparation preserves legacy text, generation pointers 
   index.release();corpus.release();
   const options={activityDirectory:path.join(directory,'index'),corpusDirectory:path.join(directory,'corpus'),clock:now,log:()=>{}};
   assert.equal(prepareIndexes(options).find(result=>result.kind==='activity').noop,false);
-  assert.equal(index.get('activityReadVersion'),4);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
+  assert.equal(index.get('activityReadVersion'),activityReadVersion);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
   assert.deepEqual(index.source(1,key),beforeSource);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
   assert.deepEqual(JSON.parse(index.db.prepare('SELECT body FROM question_files').get().body).edition,edition);
   assert(corpus.acquire());await discoverQuestionFiles(worker,1);
