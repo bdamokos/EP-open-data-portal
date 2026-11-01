@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "sqliteVersion": "3.54.0 2026-04-09 12:25:13 8fa8248e303219400c646a885e36dfc52eae33d83f4412e3f369b2be5373aapl (64-bit)",
+  "scenarios": [
+    {
+      "name": "remaining/weeks",
+      "pageFetches": 23,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH motion_sitting_summary USING INDEX motion_sitting_weeks (generation=? AND decisions_present=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/savedCount",
+      "pageFetches": 55,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX saved_activity_sources (generation=? AND mep=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/motions",
+      "pageFetches": 124,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH sources USING INDEX motion_documents (generation=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/savedPreviews",
+      "pageFetches": 67,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "CO-ROUTINE preview",
+        "SEARCH items USING INDEX saved_activity_sources (generation=? AND mep=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN preview",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH items USING INDEX saved_activity_sources (generation=? AND mep=? AND source_id=? AND date=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/initialQuestions",
+      "pageFetches": 1372,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH file USING INDEX sqlite_autoindex_question_files_1 (generation=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH text USING COVERING INDEX text_source_url (source_url=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/questions",
+      "pageFetches": 159,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH source USING INDEX sqlite_autoindex_question_file_sources_1 (generation=? AND source_key>?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH seen USING INDEX sqlite_autoindex_question_discovery_1 (source_key=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/oneFileLookup",
+      "pageFetches": 41,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH file USING INDEX sqlite_autoindex_question_files_1 (generation=? AND source_key=?)",
+        "CORRELATED SCALAR SUBQUERY 2",
+        "SEARCH text USING INDEX text_source_url (source_url=?)",
+        "SEARCH document EXISTS USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 4",
+        "SEARCH text USING INDEX text_source_url (source_url=?)",
+        "SEARCH document EXISTS USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 5",
+        "SEARCH prior USING INDEX sqlite_autoindex_tasks_1 (key=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import {execFileSync} from 'node:child_process';
 import {mkdtempSync,rmSync,statSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {measureRead} from './read-benchmark-metrics.mjs';
 import {ActivityStore} from '../activity-index-store.mjs';
 import {CorpusStore} from '../corpus-store.mjs';
 import {prepareIndexes} from '../migrate-indexes.mjs';
@@ -14,6 +16,8 @@ import {changedQuestionsSql,missingQuestionFilesSql} from '../question-discovery
 const savedActivityPreviewSql=`SELECT preview.source_id,preview.date,
  (SELECT body FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=? AND source_id=preview.source_id AND date IS preview.date AND ${activityOnly} LIMIT 1) AS body
  FROM (SELECT source_id,MAX(date) AS date FROM items INDEXED BY saved_activity_sources WHERE generation=? AND mep=? AND ${activityOnly} GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10) preview`;
+export function runRemainingReadBenchmark({ci=false}={}) {
+const scenarios=[];
 const directory=mkdtempSync(path.join(tmpdir(),'remaining-benchmark-'));
 const activityDirectory=path.join(directory,'activity'),corpusDirectory=path.join(directory,'corpus');
 const clock=()=>Date.parse('2026-10-20T09:00:00Z'),fetched=new Date(clock()).toISOString();
@@ -27,7 +31,7 @@ try {
     DROP INDEX motion_documents; DROP INDEX saved_activity_sources; DROP INDEX saved_answer_sources;`);
   index.set('activityReadVersion',null);corpus.set('questionDiscoveryVersion',null);corpus.db.exec('DROP TABLE question_discovery');
   const source=index.db.prepare('INSERT INTO sources VALUES (1,?,?,?,?,1)'),item=index.db.prepare('INSERT INTO items VALUES (1,?,?,?,?,?,?)');
-  const questions=10529,otherDocuments=20000,motions=150,sittings=105,items=50000;
+  const questions=ci?1500:10529,otherDocuments=ci?2000:20000,motions=ci?50:150,sittings=ci?21:105,items=ci?5000:50000;
   const distribution=(id,lang)=>({language:lang,is_embodied_by:[{format:'DOCX',is_exemplified_by:`https://data.europarl.europa.eu/distribution/test/${id}_${lang}.docx`}]});
   for(let start=0;start<questions;start+=500)index.transaction(()=>{
     for(let n=start;n<Math.min(questions,start+500);n++) {
@@ -68,15 +72,16 @@ try {
   index.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');corpus.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   const indexFile=index.filename,corpusFile=corpus.filename;index.close();index=null;corpus.close();corpus=null;
   const fetches=(file,sql,attach='')=>{
-    const output=execFileSync('sqlite3',[file],{input:`PRAGMA cache_size=-2048; PRAGMA mmap_size=0; ${attach}\n.output /dev/null\n${sql};\n.output stdout\n.stats\n`,encoding:'utf8',maxBuffer:1024*1024});
-    return Number(/Page cache misses:\s+(\d+)/.exec(output)?.[1]);
+    const result=measureRead(file,sql,attach);
+    scenarios.push(result);
+    return result.pageFetches;
   };
   const oldQuestions="SELECT sum(length(body)) FROM sources WHERE generation=1 AND kind='document' AND key>='/parliamentary-questions/' AND key<'/parliamentary-questions0' AND key LIKE '/parliamentary-questions/%'";
   const oldWeeks=`SELECT sum(length(json_extract(source.body,'$.decisionsUrl'))) FROM sources source WHERE source.generation=1 AND source.kind='motion-outcomes'
     AND EXISTS(SELECT 1 FROM json_each(source.body,'$.decisions') decision WHERE json_extract(decision.value,'$.id') LIKE 'eli/dl/event/' || substr(source.key,17) || '-DEC-%')`;
   const count='SELECT COUNT(DISTINCT source_id) FROM items WHERE generation=1 AND mep=\'42\' AND '+activityOnly;
   const oldMotions="SELECT sum(length(body)) FROM sources WHERE generation=1 AND kind='document'";
-  const before={questions:fetches(indexFile,oldQuestions),weeks:fetches(indexFile,oldWeeks),savedCount:fetches(indexFile,count),motions:fetches(indexFile,oldMotions),savedPreviews:fetches(indexFile,"SELECT sum(length(body)) FROM (SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=1 AND mep='42' AND "+activityOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10)')};
+  const before=ci?null:{questions:fetches(indexFile,oldQuestions),weeks:fetches(indexFile,oldWeeks),savedCount:fetches(indexFile,count),motions:fetches(indexFile,oldMotions),savedPreviews:fetches(indexFile,"SELECT sum(length(body)) FROM (SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=1 AND mep='42' AND "+activityOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10)')};
   const results=prepareIndexes({activityDirectory,corpusDirectory,clock});
   const attach=`ATTACH ${quote(indexFile)} AS idx; PRAGMA idx.cache_size=-2048; PRAGMA idx.mmap_size=0;`;
   const bind=(sql,values)=>{let i=0;return sql.replaceAll('?',()=>typeof values[i]==='number'?String(values[i++]):quote(values[i++]));};
@@ -91,5 +96,10 @@ try {
   corpus.release();corpus.db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');corpus.close();corpus=null;
   after.questions=fetches(corpusFile,bind(changedQuestionsSql,[1,'','all']),attach);
   after.oneFileLookup=fetches(corpusFile,bind(missingQuestionFilesSql,[1,'/parliamentary-questions/E-10-2026-000001','all']),attach);
-  console.log(JSON.stringify({scale:{questions,otherDocuments,motions,sittings,items,retainedTexts},sqliteVersion:execFileSync('sqlite3',['-version'],{encoding:'utf8'}).trim(),before,after,preparation:results,totalBytes:statSync(indexFile).size+statSync(corpusFile).size},null,2));
+  const names=['weeks','savedCount','motions','savedPreviews','initialQuestions','questions','oneFileLookup'];
+  const current=scenarios.slice(-names.length).map((result,i)=>({name:`remaining/${names[i]}`,...result}));
+  return {scenarios:current,scale:{questions,otherDocuments,motions,sittings,items,retainedTexts},sqliteVersion:execFileSync('sqlite3',['-version'],{encoding:'utf8'}).trim(),before,after,preparation:results,totalBytes:statSync(indexFile).size+statSync(corpusFile).size};
 } finally {index?.close();corpus?.close();rmSync(directory,{recursive:true,force:true});}
+
+}
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) console.log(JSON.stringify(runRemainingReadBenchmark(),null,2));

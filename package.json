@@ -12,6 +12,7 @@
     "api:bump": "node scripts/api-version.mjs",
     "api:check": "node scripts/api-version.mjs --check",
     "data:audit": "node server/data-gap-audit-cli.mjs",
+    "bench:reads": "node scripts/read-benchmark.mjs",
     "bench:amendments": "node scripts/amendment-benchmark.mjs",
     "bench:council-languages": "node scripts/amendment-council-language-benchmark.mjs",
     "bench:agenda": "node scripts/agenda-benchmark.mjs",
