@@ -1,3 +1,4 @@
+import {retentionClient,setRetentionForwarder} from './base-source-rpc.mjs';
 import {forwardOfficialHints} from './official-context-hints.mjs';
 import {forwardDocumentBodyHints} from './document-body-hints-rpc.mjs';
 import {randomUUID} from 'node:crypto';
@@ -17,14 +18,16 @@ export function startSourceWriters({
   services=upstreamPortServices(),onPublication=()=>{},log=console.error,
   restartMs=1000,maxRestartMs=60_000,drainMs=8_000,
 }={}) {
-  let worker,disposePort,restartTimer,stopping=false,attempt=0,exited=Promise.resolve();
+  let worker,disposeRetention,disposePort,restartTimer,stopping=false,attempt=0,exited=Promise.resolve();
   const launch=()=>{
     if(stopping)return;
     const {port1,port2}=new MessageChannel();
+    const capture=new MessageChannel(),client=retentionClient(capture.port1);
+    setRetentionForwarder(client.send);disposeRetention=()=>{setRetentionForwarder(null);client.close();};
     disposePort=serveUpstreamPort(port1,services);
     const started=Date.now(),leaseOwners={activity:randomUUID(),corpus:randomUUID()},leaseFiles=new Map();
-    try {worker=createWorker(workerUrl,{workerData:{...workerData,leaseOwners,upstreamPort:port2},transferList:[port2],resourceLimits:{maxOldGenerationSizeMb:512}});}
-    catch(error){disposePort();port2.close();log('[source-writers]',error.message);schedule();return;}
+    try {worker=createWorker(workerUrl,{workerData:{...workerData,sourceWriter:true,retentionPort:capture.port2,leaseOwners,upstreamPort:port2},transferList:[port2,capture.port2],resourceLimits:{maxOldGenerationSizeMb:512}});}
+    catch(error){disposeRetention();capture.port2.close();disposePort();port2.close();log('[source-writers]',error.message);schedule();return;}
     const stopHints=forwardSittingSnapshotHints(worker),stopOfficialHints=forwardOfficialHints(worker),stopBodyHints=forwardDocumentBodyHints(worker);
     exited=new Promise(resolve=>{
       worker.on('message',message=>{
@@ -33,7 +36,7 @@ export function startSourceWriters({
       });
       worker.once('error',error=>log('[source-writers]',error.message));
       worker.once('exit',code=>{
-        stopHints();stopOfficialHints();stopBodyHints();disposePort();worker=undefined;
+        stopHints();stopOfficialHints();stopBodyHints();disposeRetention();disposePort();worker=undefined;
         // Exit proves this isolate can no longer write. Never clear another
         // process's lease, including a takeover that raced with termination.
         for(const [source,filename] of leaseFiles){
@@ -54,7 +57,7 @@ export function startSourceWriters({
   if(enabled)launch();
   let stopPromise;
   return ()=>stopPromise??=(async()=>{
-    stopping=true;clearTimeout(restartTimer);
+    stopping=true;clearTimeout(restartTimer);disposeRetention?.();
     if(!worker)return;
     worker.postMessage({type:'shutdown'});
     const timer=setTimeout(()=>{
