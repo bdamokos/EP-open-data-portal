@@ -29,6 +29,7 @@ export function serveUpstreamPort(port,{queueFor,observations}) {
       }
       cancel(id);
     }
+    else if(type==='response-status')queueFor(message.source).recordResponse(message.status);
     else if(type==='backoff')queueFor(message.source).backoff(message.seconds);
     else if(type==='headers-start')headers.set(id,observations.start(message.route));
     else if(type==='headers-end') {
@@ -85,6 +86,7 @@ export class UpstreamRpcClient {
         try {signal?.throwIfAborted();return await client.context.run(id,()=>operation(release,signal));}
         catch(error){release();throw error;}
       },
+      recordResponse:status=>client.send({type:'response-status',source,status}),
       backoff:seconds=>client.send({type:'backoff',source,seconds}),
       // The writer isolate has no foreground subscribers to promote.
       reprioritize:()=>{},joinBackground:promise=>promise,

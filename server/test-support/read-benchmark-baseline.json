@@ -333,6 +333,73 @@
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyDiscovery",
+      "pageFetches": 39,
+      "rowsReturned": 8,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX document_body_discovery (generation=? AND (date,source_id,mep,category)<(?,?,?,?))"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyUndated",
+      "pageFetches": 29,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX document_body_discovery (generation=? AND date=? AND (source_id,mep,category)<(?,?,?))"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyIdle",
+      "pageFetches": 27,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH document_body_jobs USING INDEX document_body_due (next_check<?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "member.speechKindFrontier",
+      "pageFetches": 9,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH speech_catalog USING COVERING INDEX speech_catalog_window (kind=? AND date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "member.memberSpeechCount",
+      "pageFetches": 14,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH speech_member_catalog USING COVERING INDEX speech_member_page (member=? AND date>? AND date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "member.memberSpeechPage",
+      "pageFetches": 11,
+      "rowsReturned": 50,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH speech_member_catalog USING COVERING INDEX speech_member_page (member=? AND date>? AND date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
     }
   ]
 }

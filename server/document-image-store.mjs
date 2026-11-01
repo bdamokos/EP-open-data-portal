@@ -15,7 +15,7 @@ export class DocumentImageStore {
   constructor(){this.memory=new Map();this.bytes=0;this.budgets=new Map();}
   budget(folder){if(!this.budgets.has(folder))this.budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:64*1024*1024,maxEntries:1000,pattern:/^[a-f0-9]{64}-[a-f0-9]{64}\.bin$/}));return this.budgets.get(folder);}
   remember(key,body){this.bytes-=this.memory.get(key)?.length||0;this.memory.delete(key);this.memory.set(key,body);this.bytes+=body.length;while(this.bytes>32*1024*1024||this.memory.size>200){const oldest=this.memory.keys().next().value;this.bytes-=this.memory.get(oldest).length;this.memory.delete(oldest);}}
-  async publish(record,{directory=process.env.ODP_CACHE_DIR}={}){
+  async publish(record,{directory=null}={}){
     const descriptors={};if(!hex(record?.sourceHash))return descriptors;
     const folder=directory&&path.join(directory,'document-images-v1');
     for(const [id,asset] of Object.entries(documentImages(record))){
@@ -36,7 +36,7 @@ export class DocumentImageStore {
     }catch{requestSignal()?.throwIfAborted();}
     if(!body||body.length>IMAGE_LIMITS.bytes||createHash('sha256').update(body).digest('hex')!==imageHash)throw new HttpError(404,'image_unavailable','Document image unavailable.');
     const info=imageInfo(body);if(!info)throw new HttpError(404,'image_unavailable','Document image unavailable.');
-    this.remember(key,body);if(folder)this.budget(folder).used(key);return {body,...info};
+    this.remember(key,body);return {body,...info};
   }
 }
 const store=new DocumentImageStore();

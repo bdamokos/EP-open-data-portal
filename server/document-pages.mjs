@@ -19,20 +19,25 @@ export function pdfEdition(work,language){
   }));
   const unique=[...new Map(candidates.map(file=>[JSON.stringify(file),file])).values()];return unique.length===1?unique[0]:null;
 }
-export async function downloadPdf(url,{signal=requestSignal(),maxBytes=PDF_MAX_BYTES}={}){
+export async function downloadPdf(url,{signal=requestSignal(),maxBytes=PDF_MAX_BYTES,priority='interactive'}={}){
   maxBytes=Math.min(PDF_MAX_BYTES,maxBytes);
   for(let hop=0;hop<4;hop++){
     signal?.throwIfAborted();
     if(!allowedPdf(url))throw new HttpError(400,'unsupported_pdf','Unsupported document address.');
+    const source=new URL(url).hostname==='data.europarl.europa.eu'?'odp':'document-files';
+    const result=await boundedUpstream(async()=>{
     const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'application/pdf','User-Agent':userAgent('document pages')},signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
-    const limited=upstreamResponseError(response,{source:'documents'});if(limited){response.resume();throw limited;}
-    if([301,302,303,307,308].includes(response.statusCode)){const next=response.headers.location;response.destroy();if(!next)throw Error('Missing document redirect.');url=new URL(next,url).href;continue;}
+    const limited=upstreamResponseError(response,{source});if(limited){response.resume();throw limited;}
+    if([301,302,303,307,308].includes(response.statusCode)){const next=response.headers.location;response.destroy();if(!next)throw Error('Missing document redirect.');return {redirect:new URL(next,url).href};}
     if(response.statusCode!==200){response.resume();throw new HttpError(502,'pdf_unavailable','Document pages unavailable.');}
     if(Number(response.headers['content-length'])>maxBytes){response.destroy();throw new HttpError(413,'pdf_size_limit','Document exceeds the page-view size limit.');}
     const chunks=[];let length=0;
     for await(const chunk of response){length+=chunk.length;if(length>maxBytes){response.destroy();throw new HttpError(413,'pdf_size_limit','Document exceeds the page-view size limit.');}chunks.push(chunk);}
     const body=Buffer.concat(chunks);if(body.length<5||body.toString('ascii',0,5)!=='%PDF-')throw new HttpError(502,'invalid_pdf','Document pages unavailable.');
     return {body,resolvedSourceUrl:url,sha256:createHash('sha256').update(body).digest('hex'),fetchedAt:new Date().toISOString()};
+    },{source,priority,signal});
+    if(result.redirect){url=result.redirect;continue;}
+    return result;
   }throw Error('Too many document redirects.');
 }
 // A short-lived bounded cache, independent of source/index collectors.

@@ -168,15 +168,15 @@ export function reconcileQuestionFiles(indexFile,corpusFile,{exampleLimit=20,now
     const task=corpus.prepare('SELECT done,retry_at FROM tasks WHERE key=?');
     const failure=has(corpus,'source_failures')?corpus.prepare('SELECT state FROM source_failures WHERE key=?'):null;
     const counts={retained:0,queued:0,retryingLater:0,unowned:0,completedWithoutText:0,excludedByPolicy:0,permanentSourceIssue:0,satisfiedByAlternative:0},examples=[],missing=[],universe=createHash('sha256');
-    const files=index.prepare('SELECT url,MAX(is_primary) AS is_primary FROM question_files WHERE generation=? GROUP BY url ORDER BY url').iterate(generation);
+    const files=index.prepare("SELECT url,COALESCE(json_extract(body,'$.format'),'docx') AS format,MAX(is_primary) AS is_primary FROM question_files WHERE generation=? GROUP BY url ORDER BY url").iterate(generation);
     for(const file of files) {
       if(policy==='primary'&&!file.is_primary){counts.excludedByPolicy++;continue;}
       universe.update(file.url+'\n');
       if(text.get(file.url)){counts.retained++;continue;}
-      const issue=failure?.get('docx:'+file.url);
+      const issue=failure?.get(file.format+':'+file.url);
       if(issue?.state==='satisfied-by-alternative'){counts.satisfiedByAlternative++;continue;}
       if(issue?.state==='permanent-source-issue'){counts.permanentSourceIssue++;missing.push({url:file.url,state:'permanent-source-issue'});continue;}
-      const queued=task.get('docx:'+file.url),state=!queued?'unowned':queued.done===1?'completedWithoutText':'queued';
+      const queued=task.get(file.format+':'+file.url),state=!queued?'unowned':queued.done===1?'completedWithoutText':'queued';
       counts[state]++;
       missing.push({url:file.url,state});
       if((state==='unowned'||state==='completedWithoutText')&&examples.length<exampleLimit)examples.push({url:file.url,state});

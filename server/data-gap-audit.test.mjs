@@ -70,16 +70,17 @@ test('exact-URL audit distinguishes missing ownership, queued work, empty comple
   const dir=await mkdtemp(path.join(os.tmpdir(),'gap-audit-')),indexFile=path.join(dir,'index.sqlite'),corpusFile=path.join(dir,'corpus.sqlite');
   const index=new DatabaseSync(indexFile),corpus=new DatabaseSync(corpusFile);
   try {
-    index.exec(`CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT);INSERT INTO meta VALUES('active','1');CREATE TABLE question_files(generation,url,is_primary);
-      INSERT INTO question_files VALUES(1,'retained',1),(1,'queued',1),(1,'orphan',1),(1,'empty',1),(1,'excluded',0),(1,'retained',0);`);
+    index.exec(`CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT);INSERT INTO meta VALUES('active','1');CREATE TABLE question_files(generation,url,is_primary,body DEFAULT '{}');
+      INSERT INTO question_files(generation,url,is_primary) VALUES(1,'retained',1),(1,'queued',1),(1,'orphan',1),(1,'empty',1),(1,'excluded',0),(1,'retained',0);
+      INSERT INTO question_files VALUES(1,'pdf-only',1,'{"format":"pdf"}');`);
     corpus.exec(`CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT);INSERT INTO meta VALUES('documentLanguages','"primary"');
       CREATE TABLE texts(source_url);INSERT INTO texts VALUES('retained');CREATE TABLE tasks(key,done,retry_at);
-      INSERT INTO tasks VALUES('docx:queued',0,2000),('docx:empty',1,0);`);
+      INSERT INTO tasks VALUES('docx:queued',0,2000),('docx:empty',1,0),('pdf:pdf-only',0,0);`);
     index.close();corpus.close();
     const before=await Promise.all([readFile(indexFile),readFile(corpusFile)]);
     const report=reconcileQuestionFiles(indexFile,corpusFile,{now:1000});
-    assert.equal(report.state,'observed');
-    assert.deepEqual(report.counts,{retained:1,queued:1,retryingLater:1,unowned:1,completedWithoutText:1,excludedByPolicy:1,permanentSourceIssue:0,satisfiedByAlternative:0});
+    assert.equal(report.state,'observed');assert.equal(report.eligibleFiles,5);
+    assert.deepEqual(report.counts,{retained:1,queued:2,retryingLater:1,unowned:1,completedWithoutText:1,excludedByPolicy:1,permanentSourceIssue:0,satisfiedByAlternative:0});
     assert.deepEqual(report.examples.map(row=>row.state).sort(),['completedWithoutText','unowned']);
     assert.deepEqual(await Promise.all([readFile(indexFile),readFile(corpusFile)]),before);
     const missing=path.join(dir,'absent.sqlite');

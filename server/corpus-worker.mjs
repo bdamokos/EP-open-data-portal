@@ -261,6 +261,14 @@ export class CorpusWorker {
       if(metadataOnly)this.store.putSpeechMetadata(activity,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       else this.retainSpeechMetadata(activity,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       this.store.finishTask(task);
+    } else if(task.kind==='pdf') {
+      const issued=Date.parse(body.edition?.issued);
+      if(issued>this.clock()) {
+        this.store.assertWriter();this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,task.key);return;
+      }
+      const outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});
+      if(outcome!=='retained')throw new Error('Declared question PDF is unavailable.');
+      this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');
       const issued=Date.parse(body.edition?.issued);
