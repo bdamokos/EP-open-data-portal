@@ -1,3 +1,4 @@
+import {agendaTitle} from './topicPresentation.mjs';
 // Client templates over retained official facts. No I/O or inferred outcomes.
 import {europeStoryIso3} from './storyEurope.mjs';
 export const cleanStoryTitle=title=>String(title||'').replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s+(?:on\s+)?/i,'');
@@ -18,6 +19,7 @@ const byDate=(a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id);
 function capped(lines){let left=4;return [...lines].sort((a,b)=>a.priority-b.priority||a.order-b.order).filter(line=>{if(line.cost>left)return false;left-=line.cost;return true;}).sort((a,b)=>a.order-b.order);}
 export function buildTopicStories(facts,selection={}){
  if(!facts||!Array.isArray(facts.debates)||!Array.isArray(facts.docs)||!Array.isArray(facts.questions))return [];
+ facts={...facts,debates:facts.debates.map(d=>({...d,title:agendaTitle(d.title),rawTitle:agendaTitle(d.rawTitle||d.title)}))};
  const {periods=[],partial=[],period,place,topic,zoom='world',mode='q',excludeOwn=false,labels={},language='en',proseLanguage='en'}=selection;
  const num=n=>storyNumber(n,language),initial=n=>{const s=num(n);return s.charAt(0).toLocaleUpperCase(language)+s.slice(1);};
  const day=d=>new Intl.DateTimeFormat(language==='en'?'en-GB':language,{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(d+'T12:00:00Z'));

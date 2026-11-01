@@ -1,3 +1,4 @@
+export const agendaTitle=title=>String(title||'').replace(/^\d+(?:\.\d+)*\.\s+/,'');
 export const point = (item, period) => item?.series?.find(s=>s.period===period) || {};
 export const mapCode = iso3 => iso3==='1A0'?'KOS':iso3;
 export const quarterBounds = period => {

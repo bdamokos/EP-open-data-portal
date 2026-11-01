@@ -2,7 +2,7 @@ import {dossierLinkClick} from './dossierJourney';
 import {createContext,useContext,type ReactNode} from 'react';
 import {useInsightData} from './InsightData';
 import {UiMessage} from './UiI18nReact';
-import {topicsHref,titleParts} from './topicPresentation.mjs';
+import {topicsHref,titleParts,agendaTitle} from './topicPresentation.mjs';
 import type {RecordTopic} from './TopicsTypes';
 import './Topics.css';
 const Batch=createContext<Map<string,RecordTopic>|null>(null);
@@ -12,7 +12,7 @@ export function TopicBatch({ids,language='en',children}:{ids:string[];language?:
  const {data}=useInsightData<{ready:boolean;records:RecordTopic[]}>(unique.length?'insights/record-topics?'+new URLSearchParams({ids:unique.join(','),lang:language}):null);
  return <Batch.Provider value={new Map(data?.ready?data.records.map(r=>[r.id,r]):[])}>{children}</Batch.Provider>;
 }
-export function OfficialTitle({title,language}:{title:string;language?:string|null}){const [prefix,rest]=titleParts(title,language);return <>{prefix&&<span className="topic-title-prefix">{prefix}</span>}{rest}</>;}
+export function OfficialTitle({title,language,agenda=false}:{title:string;language?:string|null;agenda?:boolean}){const [prefix,rest]=titleParts(agenda?agendaTitle(title):title,language);return <>{prefix&&<span className="topic-title-prefix">{prefix}</span>}{rest}</>;}
 export function RecordTopics({id,full=false,language='en'}:{id:string;full?:boolean;language?:string}){
  const batch=useContext(Batch),shown=useContext(TopicsShown);
  const {data}=useInsightData<{ready:boolean;records:RecordTopic[]}>(!batch&&!shown&&full?'insights/record-topics?'+new URLSearchParams({ids:id,lang:language}):null);
@@ -22,6 +22,6 @@ export function RecordTopics({id,full=false,language='en'}:{id:string;full?:bool
 }
 export function TopicLine({record,full=false,language='en'}:{record:RecordTopic;full?:boolean;language?:string}){
  const topic=record.topics[0],place=record.places[0];
- return <>{(topic||place)&&<div className="record-topics">{topic&&<><a onClick={dossierLinkClick} href={topicsHref(topic.key)} lang={topic.language||language}>{topic.label}</a>{record.topics.length>1&&<span className="topic-muted"> +{record.topics.length-1}</span>}</>}{place&&<> <a onClick={dossierLinkClick} href={topicsHref(place.key)} lang={place.language||language}>⌖ {place.label}</a></>}</div>}{full&&record.keywords.some(k=>k.featured)&&<p className="topic-muted"><UiMessage id="topics.keywordLine" values={{keywords:record.keywords.filter(k=>k.featured).slice(0,3).map((k,i)=><span key={k.key}>{i>0?' · ':''}<a onClick={dossierLinkClick} href={topicsHref(k.key)} lang={k.language||language}>{k.label}</a></span>)}}/></p>}{full&&record.status==='pending'&&<p><UiMessage id="topics.pending"/></p>}</>;
+ return <>{(topic||place)&&<div className="record-topics">{topic&&<><a onClick={dossierLinkClick} href={topicsHref(topic.key)} lang={topic.language||language}>{topic.label}</a>{record.topics.length>1&&<span className="topic-muted"> +{record.topics.length-1}</span>}</>}{place&&<> <a onClick={dossierLinkClick} href={topicsHref(place.key)} lang={place.language||language}><svg className="topic-pin" viewBox="0 0 16 20" aria-hidden="true"><path d="M8 19S1 11 1 7a7 7 0 1 1 14 0c0 4-7 12-7 12Z"/><circle cx="8" cy="7" r="2.4"/></svg> {place.label}</a></>}</div>}{full&&record.keywords.some(k=>k.featured)&&<p className="topic-muted"><UiMessage id="topics.keywordLine" values={{keywords:record.keywords.filter(k=>k.featured).slice(0,3).map((k,i)=><span key={k.key}>{i>0?' · ':''}<a onClick={dossierLinkClick} href={topicsHref(k.key)} lang={k.language||language}>{k.label}</a></span>)}}/></p>}{full&&record.status==='pending'&&<p><UiMessage id="topics.pending"/></p>}</>;
 }
 export function QuestionOriginTag({id,place}:{id:string;place:string}){const records=useContext(Batch),record=records?.get(id);return record?.places.some(p=>p.id===place&&p.askers==='home')?<small className="topic-muted"><UiMessage id="topics.ownMepTag"/></small>:null;}

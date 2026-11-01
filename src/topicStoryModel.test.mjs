@@ -51,3 +51,7 @@ test('English numbers one–nine and exact title cleaning follow the reviewed ru
 test('unknown author origin never becomes an assertion that only other-country MEPs asked',()=>{const f=facts();f.questions.push({...qs('FRA','2025-Q3',1)[0],id:'unknown',authors:['missing']});const row=lines(f,{place:'FRA'}).find(r=>r.id==='topics.story.place.quarter.questions');assert.equal(row.values.origin,null);const summary=lines(f,{place:'FRA',period:undefined})[0];assert.equal(summary.id,'topics.story.place.summary.questions');});
 
 test('term totals count distinct group keys instead of repeating a dossier across quarters',()=>{const f=facts();f.topics['eurovoc:123']={label:'Human rights',groups:{'2025-Q1':1,'2025-Q2':1},members:[['A-10-2025-0001','document','2025-01-01','2025-0001'],['A-10-2025-0002','document','2025-04-01','2025-0001']]};const summary=lines(f,{topic:'eurovoc:123',period:undefined})[0];assert.equal(summary.values.groups.text.values.count,'one');assert.equal(summary.values.groups.text.counts.count,1);});
+
+test('story debate headings and their record links remove only leading agenda numbering',()=>{
+ const f=facts();f.debates=[{...debate('numbered','FRA',20),title:'19.2. Exact heading (debate)',rawTitle:'19.2. Exact heading (debate)'}];const rows=lines(f);const serialized=JSON.stringify(rows);assert(!serialized.includes('19.2.'));assert(serialized.includes('Exact heading (debate)'));assert.equal(f.debates[0].rawTitle,'19.2. Exact heading (debate)');
+});

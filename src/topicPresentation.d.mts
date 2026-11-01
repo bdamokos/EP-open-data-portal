@@ -9,3 +9,5 @@ export function riser(data:TopicOverview,index:number,mode:string,own:boolean):{
 export function titleParts(title:string,language?:string|null):[string,string];
 export function topicsHref(key:string,filters?:Record<string,string>):string;
 export function legacyTopics(query:URLSearchParams):string|null;
+
+export function agendaTitle(title:string):string;

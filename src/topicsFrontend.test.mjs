@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {titleParts,mapCode,point,quarterBounds,placeValue,riser,legacyTopics,topicsHref} from './topicPresentation.mjs';
+import {titleParts,mapCode,point,quarterBounds,placeValue,riser,legacyTopics,topicsHref,agendaTitle} from './topicPresentation.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 test('official titles retain every character and style English only',()=>{
  for(const title of ['REPORT on the proposal for a regulation of the European Parliament and of the Council on transport','MOTION FOR A RESOLUTION on Iran','REPORT on trade as regards apples as regards pears','Plain title']){
@@ -41,3 +41,7 @@ test('finder selects the active result with arrows and Enter and closes with Esc
 test('legacy EuroVoc URI bookmarks keep exact concept identity',()=>{assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-topic=http%3A%2F%2Feurovoc.europa.eu%2F404')),'?view=topics&topic=eurovoc%3A404');});
 
 test('malformed quarter URLs cannot silently select an unfiltered record list',async()=>{const {readExplorerParam}=await import('./explorerQuery.mjs');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q8'),'t-q',''),'');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q3'),'t-q',''),'2026-Q3');});
+
+test('agenda item prefixes are stripped without changing any remaining title text',()=>{
+ for(const [before,after] of [['19.2. Systemic oppression…','Systemic oppression…'],['16. Simplification of waste legislation (joint debate)','Simplification of waste legislation (joint debate)'],['2.3.4. Exact — title 2026/12','Exact — title 2026/12'],['2026 priorities','2026 priorities'],['19.2.Systemic oppression','19.2.Systemic oppression'],['REPORT on 16. Trade','REPORT on 16. Trade']])assert.equal(agendaTitle(before),after);
+});

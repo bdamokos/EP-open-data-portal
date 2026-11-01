@@ -1,6 +1,6 @@
 import {dossierLinkClick} from './dossierJourney';
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import {topicsHref,point,riser,placeValue} from './topicPresentation.mjs';
+import {topicsHref,point,riser,placeValue,agendaTitle} from './topicPresentation.mjs';
 import type {TopicOverview} from './TopicsTypes';
 import {recordHref} from './TopicsLinks';
 // Keep the API-driven story independent of the map and chart layout.
@@ -13,5 +13,5 @@ export function TopicStory({data,index,mode,own}:{data:TopicOverview;index:numbe
  function link(item:typeof leader){return <a onClick={dossierLinkClick} href={topicsHref(item.key,{'t-q':period,'t-kind':mode==='d'?'document':'question','t-own':own?'1':'0','t-mode':mode})}>{item.label}</a>;}
  const candidate=rising&&point(rising.item,period).top;
  const top=candidate&&candidate.key.startsWith('MTG-PL-')?candidate:null;
- return <p className="topic-story"><strong>{period.replace('-',' ')}: </strong>{rising?<UiMessage id="topics.rose" values={{place:link(rising.item),count:rising.count,ratio:rising.ratio.toFixed(1),unit:<UiMessage id={mode==='d'?'topics.documents':'topics.questions'}/>}}/>:<UiMessage id={leaders.length>1?'topics.mostTied':'topics.most'} values={{place:places,count:placeValue(point(leader,period),mode,own),unit:<UiMessage id={mode==='d'?'topics.documents':'topics.questions'}/>}}/>}{top&&<> <UiMessage id="topics.biggest" values={{title:<a onClick={dossierLinkClick} href={recordHref(top.key)}>{top.title}</a>}}/></>}{rising&&leader.key!==rising.item.key&&<> <UiMessage id={leaders.length>1?'topics.overallTied':'topics.overall'} values={{place:places,count:placeValue(point(leader,period),mode,own)}}/></>}</p>;
+ return <p className="topic-story"><strong>{period.replace('-',' ')}: </strong>{rising?<UiMessage id="topics.rose" values={{place:link(rising.item),count:rising.count,ratio:rising.ratio.toFixed(1),unit:<UiMessage id={mode==='d'?'topics.documents':'topics.questions'}/>}}/>:<UiMessage id={leaders.length>1?'topics.mostTied':'topics.most'} values={{place:places,count:placeValue(point(leader,period),mode,own),unit:<UiMessage id={mode==='d'?'topics.documents':'topics.questions'}/>}}/>}{top&&<> <UiMessage id="topics.biggest" values={{title:<a onClick={dossierLinkClick} href={recordHref(top.key)}>{agendaTitle(top.title)}</a>}}/></>}{rising&&leader.key!==rising.item.key&&<> <UiMessage id={leaders.length>1?'topics.overallTied':'topics.overall'} values={{place:places,count:placeValue(point(leader,period),mode,own)}}/></>}</p>;
 }
