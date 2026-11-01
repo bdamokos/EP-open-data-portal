@@ -1,3 +1,4 @@
+import {confirmSourceRejection,SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {committeeDiscoveryTask,rebuildCommitteeList} from './committee-amendments-worker.mjs';
 import {sittingConfirmationDay,sittingOutcomesComplete,sittingSnapshotConfirmed} from './refresh-policy.mjs';
 import https from 'node:https';
@@ -162,7 +163,7 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sitt
     verified.add(candidate.id);
     const freshness=listWordingFreshness(prior?.work,{parserVersion:AMENDMENT_EXTRACTION_VERSION,now:worker.clock()});
     const failure=prior?.work.wordingRefreshFailure;
-    const failedDescriptorMatches=failure&&(failure.descriptor==null&&freshness.descriptor==null||sameDocxDescriptor(failure.descriptor,freshness.descriptor));
+    const failedDescriptorMatches=failure&&(failure.parserVersion==null||failure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&(failure.descriptor==null&&freshness.descriptor==null||sameDocxDescriptor(failure.descriptor,freshness.descriptor));
     const retryDeferred=failedDescriptorMatches&&Date.parse(failure.retryAfter)>worker.clock();
     const sources=settled?amendmentSourceStore(worker.store):null;
     const alternate=alternateAuthorDescriptor(prior?.work,prior?.work.extraction);
@@ -346,7 +347,7 @@ async function runParserUpgradeSlice(worker,task) {
       const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.scopeKey||list.targetDocumentId;
       if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId)&&!targetDocumentId?.startsWith('committee:'))return;
       const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
-      if(freshness.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()) {
+      if(freshness.status==='failed'&&(list.wordingRefreshFailure?.parserVersion==null||list.wordingRefreshFailure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&Date.parse(freshness.retryAfter)>worker.clock()) {
         store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
         return;
       }
@@ -421,7 +422,7 @@ async function runPreparationSlice(worker,task) {
       } else if(stage==='gaps') {
         const list=work.taskKind==='amendment-extract'?store.source(generation,sourceKey(work.taskBody.listId))?.work:null;
         const freshness=list&&listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
-        if(work.taskKind==='amendment-extract'&&(!currentDocxDescriptor(list)||freshness?.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()))return;
+        if(work.taskKind==='amendment-extract'&&(!currentDocxDescriptor(list)||freshness?.status==='failed'&&(list.wordingRefreshFailure?.parserVersion==null||list.wordingRefreshFailure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&Date.parse(freshness.retryAfter)>worker.clock()))return;
         enqueueAmendment(store,generation,work.taskKey,work.taskKind,work.taskBody,work.priority || 105,true);
       } else {
         const evidence=amendmentSitting(work);
@@ -938,19 +939,32 @@ export function failAmendmentTask(worker,task,error) {
   if(task.kind.startsWith('amendment-committee-')||!task.kind.startsWith('amendment-')||task.kind==='amendment-prepare'||task.kind==='amendment-parser-upgrade'||task.kind==='amendment-rebuild'||task.body.rebuild)return false;
   if(worker.stopped || worker.controller?.signal.aborted)return false;
   if(task.kind==='amendment-roster'){worker.store.set('amendmentMandateFallback',true);enqueueAmendment(worker.store,task.generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108);}
+  let evidence={rejection:null,confirmed:false};
+  if(task.kind==='amendment-extract') {
+    const row=worker.store.db.prepare('SELECT body FROM amendment_jobs WHERE generation=? AND key=?').get(task.generation,task.key);
+    if(row)task.body=JSON.parse(row.body);
+    const saved=worker.store.source(task.generation,sourceKey(task.body.listId));
+    const previous=Object.hasOwn(task.body,'amendmentRejectedSource')?task.body.amendmentRejectedSource:saved?.work.wordingRefreshFailure?.rejectedSource;
+    const descriptor=JSON.stringify(normalizedDocxDescriptor(currentDocxDescriptor(saved?.work)));
+    evidence=confirmSourceRejection(previous,error,{descriptor,parserVersion:AMENDMENT_EXTRACTION_VERSION,now:worker.clock()});
+    task.body={...task.body,amendmentRejectedSource:evidence.rejection};
+    worker.store.db.prepare('UPDATE amendment_jobs SET body=? WHERE generation=? AND key=?').run(JSON.stringify(task.body),task.generation,task.key);
+  }
   if(task.attempts<2)return false;
   const at=new Date(worker.clock()).toISOString();
+  let confirmed=false;
   let failedList=null;
   if(task.kind==='amendment-extract') {
     const saved=worker.store.source(task.generation,sourceKey(task.body.listId));
     if(saved) {
       const file=currentDocxDescriptor(saved.work);
-      const wordingRefreshFailure={descriptor:normalizedDocxDescriptor(file),failedAt:at,retryAfter:new Date(worker.clock()+DAY).toISOString(),error:String(error.message).slice(0,350)};
+      confirmed=evidence.confirmed;
+      const wordingRefreshFailure={rejectedSource:evidence.rejection,descriptor:normalizedDocxDescriptor(file),failedAt:at,retryAfter:new Date(worker.clock()+Math.max(confirmed?SOURCE_RECHECK_MS:DAY,Number(error.retryAfter||0)*1000)).toISOString(),state:confirmed?'permanent-source-issue':'transient',parserVersion:AMENDMENT_EXTRACTION_VERSION,contentHash:error.sourceHash??null,error:String(error.message).slice(0,350)};
       worker.store.putSource(task.generation,sourceKey(task.body.listId),'amendment-list',{...saved.work,wordingRefreshFailure},saved.fetchedAt);
       failedList=task.body.targetDocumentId;
     }
   }
-  worker.store.putSource(task.generation,'amendment:gap:'+task.key,'amendment-gap',{taskKey:task.key,taskKind:task.kind,taskBody:task.body,priority:task.priority,error:String(error.message).slice(0,350),failedAt:at},at);
+  worker.store.putSource(task.generation,'amendment:gap:'+task.key,'amendment-gap',{taskKey:task.key,taskKind:task.kind,taskBody:task.body,priority:task.priority,state:confirmed?'permanent-source-issue':'transient',parserVersion:AMENDMENT_EXTRACTION_VERSION,contentHash:error.sourceHash??null,error:String(error.message).slice(0,350),failedAt:at},at);
   worker.store.finishTask(task);
   if(failedList) {
     const list=worker.store.source(task.generation,sourceKey(task.body.listId))?.work;
