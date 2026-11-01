@@ -1,4 +1,4 @@
-import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, confirmSourceRejection, SOURCE_RECHECK_MS} from './source-retry.mjs';
+import {SOURCE_RULE_VERSION,sourceObservationHash,deterministicSourceIssue,sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, confirmSourceRejection, SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
@@ -99,6 +99,7 @@ export function refreshPolicyTables(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS mutable_documents(generation INTEGER,key TEXT,next_check INTEGER,PRIMARY KEY(generation,key));
     CREATE INDEX IF NOT EXISTS mutable_document_due ON mutable_documents(generation,next_check,key);
     CREATE TABLE IF NOT EXISTS refresh_gaps(generation INTEGER,key TEXT,kind TEXT,body TEXT,priority INTEGER,error TEXT,attempts INTEGER,failed_at TEXT,retry_at INTEGER,sitting_id TEXT,PRIMARY KEY(generation,key));
+    CREATE INDEX IF NOT EXISTS refresh_rule_version ON refresh_gaps(generation,kind,json_extract(body,'$.ruleRejection.version'),key);
     CREATE INDEX IF NOT EXISTS refresh_gap_due ON refresh_gaps(generation,retry_at,key);
     CREATE INDEX IF NOT EXISTS refresh_gap_sitting ON refresh_gaps(generation,sitting_id,retry_at);
     CREATE INDEX IF NOT EXISTS refresh_gap_endpoint ON refresh_gaps(generation,kind,json_extract(body,'$.endpoint'));
@@ -183,6 +184,13 @@ export function recordTaskGap(worker,task,error) {
   if(task.groupVoiceJob || task.kind.startsWith('amendment-') || task.kind.startsWith('outside-') || worker.controller.signal.aborted || /lease/i.test(error.message))return false;
   // An empty roster cannot provide a usable first publication.
   if(task.kind==='roster' && !worker.store.db.prepare('SELECT 1 FROM members LIMIT 1').get())return false;
+  if(deterministicSourceIssue(error)) {
+    worker.store.transaction(()=>{
+      worker.store.finishTask(task);
+      coverageGap(worker.store,task.generation,task.key,{...task.body,sourceTaskKind:task.kind,ruleRejection:{version:SOURCE_RULE_VERSION,fingerprint:worker.lastSourceObservation?.fingerprint||null,endpoint:worker.lastSourceObservation?.endpoint||task.body.endpoint||task.key,reason:String(error.message).slice(0,350)}},String(error.message).slice(0,350),worker.clock());
+    });
+    return true;
+  }
   if(!sourceMissing(error) && !permanentSourceIssue(error) && task.attempts<4)return false;
   const now=worker.clock();
   // Pre-policy pending feeds carry only their endpoint. Pin their interval
@@ -250,3 +258,25 @@ export function nextRefreshTask(store,generation,preferred,amendmentJob) {
   store.set('refreshDispatch',{...state,ordinary:Math.min(8,state.ordinary+1)});
   return ordinary||preferred;
 }
+
+// Startup repair advances at most one committed page per writer turn.
+export function reopenRuleVersions(store,generation,limit=25) {
+  return store.transaction(()=>{
+    const rows=store.db.prepare("SELECT key,body FROM refresh_gaps WHERE generation=? AND kind='coverage' AND json_extract(body,'$.ruleRejection.version')<>? ORDER BY json_extract(body,'$.ruleRejection.version'),key LIMIT ?").all(generation,SOURCE_RULE_VERSION,limit);
+    for(const row of rows) {
+      const {sourceTaskKind,ruleRejection,...body}=JSON.parse(row.body);
+      store.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(generation,row.key);
+      store.enqueue(generation,row.key,sourceTaskKind,body,103,true);
+    }
+    return rows.length;
+  });
+}
+export async function observeRuleGap(worker,generation,key) {
+  const gap=worker.store.db.prepare("SELECT body FROM refresh_gaps WHERE generation=? AND key=? AND kind='coverage'").get(generation,key);
+  const rejection=gap&&JSON.parse(gap.body).ruleRejection;
+  if(!rejection)return false;
+  const record=await worker.request(rejection.endpoint);
+  return worker.store.enqueue(generation,key,JSON.parse(gap.body).sourceTaskKind,JSON.parse(gap.body),103,true,{sourceFingerprint:sourceObservationHash(record)});
+}
+
+export const ruleVersionRecoveryDue=(store,generation)=>Boolean(store.db.prepare("SELECT 1 FROM refresh_gaps WHERE generation=? AND kind='coverage' AND json_extract(body,'$.ruleRejection.version')<>? LIMIT 1").get(generation,SOURCE_RULE_VERSION));
