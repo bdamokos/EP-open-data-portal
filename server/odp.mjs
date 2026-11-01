@@ -78,7 +78,7 @@ const plenaryDirectory=cacheDir&&path.join(cacheDir,'plenary-sources-v1');
 // Raw detail and speech pages share one budget across successive warm-up weeks.
 const plenaryBudget=plenaryDirectory&&new CacheDiskBudget(plenaryDirectory,{maxBytes:128*1024*1024,maxEntries:1800,pattern:/^[a-f0-9]{64}\.json$/});
 const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
-let agendaRevision='initial',agendaRevisionLoaded,agendaPublications=Promise.resolve();
+let agendaRevision='initial',agendaRevisionLoaded,agendaRevisionSaved=true,agendaPublications=Promise.resolve();
 async function loadAgendaRevision() {
   agendaRevisionLoaded??=(async()=>{
     if(!agendaDirectory)return;
@@ -96,11 +96,17 @@ function publishAgenda(record,publish) {
     if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(record.payload)) {
       // Persist invalidation before replacing bytes. Derived readers wait for
       // this whole publication, so a restart cannot reuse the previous view.
-      const revision=randomUUID();
-      if(agendaDirectory)await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify({revision}),{signal:null}).catch(()=>{});
-      agendaRevision=revision;
+      agendaRevision=randomUUID();
+      agendaRevisionSaved=!agendaDirectory;
     }
-    await publish();
+    if(!agendaRevisionSaved) {
+      try {agendaRevisionSaved=await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify({revision:agendaRevision}),{signal:null});}
+      catch(error){console.warn('[agenda-cache-revision]',error.code||error.name);}
+    }
+    // A failed revision write keeps fresh data available in memory, but must
+    // leave retained source bytes paired with their old persisted revision.
+    // Retry persistence even when the next observation has identical content.
+    await publish(agendaRevisionSaved);
   });
   agendaPublications=job.catch(()=>{});return job;
 }
@@ -211,12 +217,20 @@ function publishSourceFile(key, record, serialized, signal,cacheGroup=null) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
     if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
-    const published=await publishLocked(key, serialized,cacheGroup);
-    if(published&&(isAgendaKey(key)||cacheGroup==='plenary')) {
+    if(isAgendaKey(key)||cacheGroup==='plenary') {
       const legacy=Buffer.from(key).toString('base64url')+'.json';
       const old=[path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),...(legacy.length<=255?[path.join(cacheDir,legacy)]:[])];
-      for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
+      try {
+        // Migrate the retained observation before removing aliases. If cleanup
+        // or the fresh write fails, it remains available across a restart.
+        const exists=await stat(filename(key,cacheGroup)).then(info=>info.isFile(),error=>{if(error.code==='ENOENT')return false;throw error;});
+        if(disk&&!exists&&!await publishLocked(key,JSON.stringify(disk),cacheGroup))return;
+        for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
+      }catch(error){console.warn('[source-cache-migration]',error.code||error.name);return;}
     }
+    // Publish new bytes only after retiring aliases, so eviction can never
+    // uncover an older flat-file observation of a successfully saved update.
+    await publishLocked(key, serialized,cacheGroup);
   }), signal ?? null);
 }
 async function readSourceRecord(file, signal) {
@@ -407,14 +421,14 @@ export async function odp(
         const record = { url: key, fetchedAt: Date.now(), payload };
         const serialized = JSON.stringify(record);
         refreshFailures.delete(key);
-        const publish=async()=>{
+        const publish=async(persist=true)=>{
           // Resolve a forced read's storage location at publication, after its
           // pending job is visible to stale readers and coalescing callers.
           if(force&&retain&&cacheDir&&!entry.cacheGroup&&!isAgendaKey(key)) {
             try {if((await stat(filename(key,'plenary'))).isFile())entry.cacheGroup='plenary';}catch{}
           }
           if (retain) rememberSource(key, record, serialized,entry.cacheGroup);
-          if (retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal,entry.cacheGroup);
+          if (persist && retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal,entry.cacheGroup);
         };
         if(retain&&isAgendaKey(key))await publishAgenda(record,publish);else await publish();
         budget.signal?.throwIfAborted();
