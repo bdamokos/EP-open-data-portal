@@ -8,7 +8,8 @@ import {compareReads} from './read-benchmark.mjs';
 import {measureRead} from '../server/test-support/read-benchmark-metrics.mjs';
 
 const row=(overrides={})=>({name:'example',pageFetches:100,plan:['SEARCH items USING INDEX lookup (mep=?)'],fullScanTables:[],wallClockMs:1,...overrides});
-const compare=(old,current)=>compareReads({scenarios:[old]},{scenarios:[current]});
+const profile={sqliteVersion:'pinned',nodeVersion:'v26.12.1',nodeSqliteVersion:'pinned'};
+const compare=(old,current)=>compareReads({...profile,scenarios:[old]},{...profile,scenarios:[current]});
 test('read gate tolerates slack, improvements, timing noise and non-scan plan changes',()=>{
   for(const overrides of [{pageFetches:130},{pageFetches:1},{wallClockMs:999999},{plan:['SEARCH items USING INDEX another (mep=?)']}])
     assert.deepEqual(compare(row(),row(overrides)).failures,[]);
@@ -21,9 +22,9 @@ test('read gate catches page growth and newly scanned tables independently',()=>
   assert.deepEqual(compare(row({fullScanTables:['items']}),row({fullScanTables:['items']})).failures,[]);
 });
 test('missing, duplicate and invalid scenarios cannot silently disable the gate',()=>{
-  assert.equal(compareReads({scenarios:[row()]},{scenarios:[]}).failures.length,1);
-  assert.equal(compareReads({scenarios:[]},{scenarios:[row()]}).failures.length,1);
-  assert.throws(()=>compareReads({scenarios:[]},{scenarios:[row(),row()]}),/Duplicate/);
+  assert.equal(compareReads({...profile,scenarios:[row()]},{...profile,scenarios:[]}).failures.length,1);
+  assert.equal(compareReads({...profile,scenarios:[]},{...profile,scenarios:[row()]}).failures.length,1);
+  assert.throws(()=>compareReads({...profile,scenarios:[]},{...profile,scenarios:[row(),row()]}),/Duplicate/);
   assert.throws(()=>compare(row(),row({pageFetches:NaN})),/Invalid/);
 });
 test('CLI metrics detect an actual lost index without scanstatus support',t=>{
@@ -47,4 +48,17 @@ test('CLI metrics detect an actual lost index without scanstatus support',t=>{
     assert.ok(scanned.fullScanSteps>0);
     assert.equal(compare({...indexed,name:'lost-index'},{...scanned,name:'lost-index'}).failures.length,2);
   }finally{rmSync(directory,{recursive:true,force:true});}
+});
+
+test('toolchain mismatches fail with refresh instructions and timings stay informational',()=>{
+  const result={...profile,scenarios:[row()]};
+  for(const key of Object.keys(profile)) {
+    for(const value of ['different',undefined]) {
+      const comparison=compareReads({...result,[key]:value},result);
+      assert.equal(comparison.failures.length,1);
+      assert.match(comparison.markdown,/Toolchain mismatch/);
+      assert.match(comparison.markdown,/--update-baseline/);
+    }
+  }
+  assert.match(compare(row(),row({wallClockMs:999999})).markdown,/999999/);
 });
