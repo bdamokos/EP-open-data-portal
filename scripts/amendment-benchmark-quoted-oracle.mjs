@@ -44,11 +44,13 @@ export function quotedWordBody(bytes) {
   const inherited=(id,seen=new Set())=>{if(seen.has(id))return true;seen.add(id);const style=definitions.get(id);if(!style)return false;const parent=attributes(style,'w:basedOn')[0]?.['@_w:val'];return hidden(style)||Boolean(parent&&inherited(parent,seen));};
   const defaults=descendants(styles,'w:docDefaults').some(hidden);
   const hiddenUse=nodes=>defaults||['w:pStyle','w:rStyle'].some(name=>attributes(nodes,name).some(attr=>inherited(attr['@_w:val'])));
+  const numbered=(id,seen=new Set())=>{if(seen.has(id))return true;seen.add(id);const style=definitions.get(id);if(!style)return false;const parent=attributes(style,'w:basedOn')[0]?.['@_w:val'];return descendants(style,'w:numPr').length>0||Boolean(parent&&numbered(parent,seen));};
+  const numberedUse=nodes=>descendants(nodes,'w:numPr').length>0||attributes(nodes,'w:pStyle').some(attr=>numbered(attr['@_w:val']));
   const bodies=descendants(tree,'w:body');if(bodies.length!==1)throw new Error('Word body unavailable');
   let ordinal=0;
   return bodies[0].map(node=>{
     const p=node['w:p'];
-    return p?{kind:'paragraph',nodes:p,text:text(p),path:`/w:document[1]/w:body[1]/w:p[${++ordinal}]`,unsafe:unsafe(p),hidden:hiddenUse(p)}:{hidden:hiddenUse([node]),kind:'other',nodes:node};
+    return p?{kind:'paragraph',nodes:p,text:text(p),path:`/w:document[1]/w:body[1]/w:p[${++ordinal}]`,unsafe:unsafe(p),numbered:numberedUse(p),hidden:hiddenUse(p)}:{hidden:hiddenUse([node]),kind:'other',nodes:node};
   });
 }
 const field=(rows,name)=>{
