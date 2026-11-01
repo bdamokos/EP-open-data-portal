@@ -5,7 +5,7 @@ import {MeetingsReader} from './meetings-reader.mjs';
 import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {sittingConfirmationDay,DAY} from './refresh-policy.mjs';
-import {missingSourceDelay} from './source-retry.mjs';
+import {missingSourceDelay,sourceMissing,transientSourceDelay,confirmSourceRejection,SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {requestTimeout,runWithRequestSignal} from './request-budget.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
@@ -53,23 +53,32 @@ export class SittingSnapshotCollector {
     }
     for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100,hint);
   }
-  async step(worker){
+  async step(worker,{requestBudget=Infinity}={}){
     this.store.assertWriter();this.admit();
     const now=this.store.clock(),job=this.writer.due(now);
     if(!job)return false;
     const diskBytes=['','-wal','-shm'].reduce((sum,suffix)=>{try{return sum+statSync(this.store.filename+suffix).size;}catch{return sum;}},0);
     if(diskBytes>=worker.diskLimit){this.writer.fail(job,new Error('Activity index reached its configured disk limit.'),now+60*60_000);return false;}
-    let deferred=false,retryAfter=0;
+    let deferred=false,retryAfter=0,failure=null;
+    const requestLimit=Math.min(worker.budget,worker.requests+requestBudget);
+    const rejectionKey='sittingSnapshotRejection:'+JSON.stringify([job.kind,job.version,job.id]);
+    const retryNext=error=>{
+      const {rejection,confirmed}=confirmSourceRejection(this.store.get(rejectionKey),error,{descriptor:error.snapshotSource||JSON.stringify([job.kind,job.id]),parserVersion:job.version,now});
+      if(rejection)this.store.set(rejectionKey,rejection);
+      else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
+      return now+Math.max(Math.max(retryAfter,error.retryAfter||0)*1000,confirmed?SOURCE_RECHECK_MS:sourceMissing(error)||error.upstreamStatus===404?missingSourceDelay(job.attempts):transientSourceDelay(job.attempts));
+    };
     const request=async(endpoint,params={},options={})=>{
       const key=JSON.stringify([endpoint,params]);
       const saved=this.writer.staged(job,key,this.store.clock());
       if(saved?.failure)throw Object.assign(new Error(saved.failure.message),saved.failure);
       if(saved)return saved;
-      if(worker.requests>=worker.budget||worker.monotonic()>=worker.runDeadline){deferred=true;throw requestTimeout();}
+      if(worker.requests>=requestLimit||worker.monotonic()>=worker.runDeadline){deferred=true;throw requestTimeout();}
       let record;
       try{record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false,snapshotObservation:true});}
       catch(error){
         retryAfter=Math.max(retryAfter,error.retryAfter||0);
+        failure=Object.assign(error,{snapshotSource:key});
         if(error.code==='odp_no_content'||error.code==='odp_unavailable'&&error.source?.httpStatus===404){
           this.store.assertWriter();this.writer.stage(job,key,{failure:{message:error.message,code:error.code,status:error.status,upstreamStatus:error.upstreamStatus,source:error.source,responseBytes:error.responseBytes}},this.store.clock());
         }
@@ -101,16 +110,18 @@ export class SittingSnapshotCollector {
           value=await new MemberAttendance({request,snapshots:null}).loadInputs(job.id);
           complete=completeAttendanceSnapshot(value);next=sittingSnapshotNextCheck(job.id,now,{complete,attempts:job.attempts,confirmed:sittingSourcesConfirmed(job.id,[value.source,...(value.register.source?[value.register.source]:[])])});
         }else throw new Error('Unsupported sitting snapshot kind.');
-        next=Math.max(next,now+retryAfter*1000);
         if(deferred)return false;
         worker.controller.signal.throwIfAborted();this.store.assertWriter();
+        next=Math.max(next,now+retryAfter*1000);
+        if(failure&&!complete)next=retryNext(failure);
+        else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
         this.writer.retain(job,value,{complete,now,next});return true;
       });
     }catch(error){
       if(worker.controller.signal.aborted)throw error;
       if(deferred)return false; // Staged pages resume under the next run's budget.
       this.store.assertWriter();
-      const next=job.kind==='calendar'?now+Math.max(missingSourceDelay(job.attempts),Math.max(retryAfter,error.retryAfter||0)*1000):sittingSnapshotNextCheck(job.id,now,{complete:false,attempts:job.attempts,retryAfter:Math.max(retryAfter,error.retryAfter||0)});
+      const next=retryNext(failure||error);
       this.writer.fail(job,error,next);return true;
     }
   }

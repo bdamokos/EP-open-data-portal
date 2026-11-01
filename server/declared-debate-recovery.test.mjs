@@ -99,7 +99,11 @@ test('discovery and parent child fan-out resume bounded cursors after reopening'
   assert.equal(x.store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='debate-links'").get().n,100);
   const reopened=new ActivityStore(path.join(x.directory,'index'),{clock:now});t.after(()=>reopened.close());
   x.store.release();assert(reopened.acquire());
-  const worker=new ActivityWorker(reopened,{clock:now,recoveryMode:'backfill'});scheduleDeclaredDebateRecovery(worker,x.generation);
+  const worker=new ActivityWorker(reopened,{clock:now,recoveryMode:'normal'});
+  scheduleDeclaredDebateRecovery(worker,x.generation);
+  assert.equal(reopened.get('declaredDebateRecovery').afterKey,'/procedures/2024-0099','unfinished slice retains its cursor');
+  for(const row of reopened.db.prepare("SELECT * FROM tasks WHERE kind='debate-links'").all())reopened.finishTask({...row,body:JSON.parse(row.body)});
+  scheduleDeclaredDebateRecovery(worker,x.generation);
   assert(reopened.db.prepare('SELECT 1 FROM tasks WHERE key=?').get('debate-links:/procedures/2024-0100'));
   assert.equal(reopened.get('declaredDebateRecovery').complete,true);
   reopened.release();assert(x.store.acquire());
@@ -119,8 +123,8 @@ test('post-request lease loss fences metadata and child jobs',async t=>{
   await assert.rejects(x.worker.task(x.task(key)),/lease/);
   assert.equal(x.store.source(x.generation,key),undefined);assert.equal(x.task(key).done,0);
 });
-test('the real dispatch loop finishes the scan before publishing when its first batch already completed',async t=>{
-  const x=fixture(t);
+test('the normal dispatch loop finishes the scan before publishing when its first batch already completed',async t=>{
+  const x=fixture(t);x.worker.recoveryMode='normal';
   for(let i=0;i<101;i++) {
     const id='2024-'+String(i).padStart(4,'0');x.procedure(id,[]);
     if(i<100){const key='debate-links:/procedures/'+id;x.store.enqueue(x.generation,key,'debate-links',{endpoint:'/procedures/'+id,offset:0},102);x.store.finishTask(x.task(key));}

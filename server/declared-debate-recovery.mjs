@@ -19,13 +19,15 @@ const state=(store,generation)=>{
   return saved?.version===1&&saved.generation===generation&&typeof saved.afterKey==='string'&&saved.afterKey.length<=180&&typeof saved.complete==='boolean'?saved:{version:1,generation,afterKey:'',complete:false};
 };
 export function declaredDebateRecoveryDue(store,generation) {
-  return !state(store,generation).complete&&Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='procedure' LIMIT 1").get(generation));
+  return !state(store,generation).complete&&!store.db.prepare("SELECT 1 FROM tasks INDEXED BY task_pending_kind WHERE generation=? AND kind='debate-links' AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation)&&Boolean(store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='procedure' LIMIT 1").get(generation));
 }
 // The scan reads keys only. Each procedure's saved relationship page is handled
 // separately, so one large procedure cannot fan out an unbounded queue here.
 export function scheduleDeclaredDebateRecovery(worker,generation) {
   const {store}=worker;if(store.get('working')?.generation!==generation)return;
   const saved=state(store,generation);if(saved.complete)return;
+  // Keep a single bounded scan slice queued; resume after its local work ends.
+  if(store.db.prepare("SELECT 1 FROM tasks INDEXED BY task_pending_kind WHERE generation=? AND kind='debate-links' AND (done IN (-1,0) OR done IS NULL) LIMIT 1").get(generation))return;
   store.transaction(()=>{
     store.assertWriter();
     const rows=store.db.prepare("SELECT key FROM sources WHERE generation=? AND kind='procedure' AND key>? ORDER BY key LIMIT ?").all(generation,saved.afterKey,batch);

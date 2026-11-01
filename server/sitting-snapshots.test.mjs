@@ -215,3 +215,38 @@ test('near-cap retention atomically replaces old snapshot and this jobs staging'
   assert.deepEqual(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING),value);
   assert.deepEqual(writer.staged(job,'rollback',h.clock()),{staged:true});
 });
+
+test('snapshot dispatch request shares resume staging while leaving budget for core work',async t=>{
+  const h=setup(t);h.worker.budget=1000;
+  for(let i=0;i<40&&h.collector.due();i++){
+    const before=h.worker.requests;
+    await h.collector.step(h.worker,{requestBudget:1});
+    assert(h.worker.requests-before<=1);
+    assert(h.worker.requests<h.worker.budget);
+  }
+  assert.equal(h.collector.due(),false);
+  assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+});
+
+test('snapshot retries use shared transient and byte-confirmed permanent classification',async t=>{
+  let error=Object.assign(new Error('Transport unavailable'),{status:503});
+  const h=setup(t,{fail:()=>{throw error;}});
+  h.collector.admit();
+  h.store.db.prepare("DELETE FROM sitting_snapshots WHERE kind<>'calendar' OR id<>'2026'").run();
+  h.store.db.prepare('UPDATE sitting_snapshots SET attempts=8').run();
+  await h.collector.step(h.worker);
+  let row=h.store.db.prepare('SELECT next_check FROM sitting_snapshots').get();
+  assert.equal(row.next_check,h.clock()+DAY);
+  error=Object.assign(new Error('Rejected source'),{code:'source_parser_rejection',sourceHash:'a'.repeat(64)});
+  for(let i=0;i<3;i++){
+    h.advance(DAY);
+    await h.collector.step(h.worker);
+  }
+  row=h.store.db.prepare('SELECT next_check FROM sitting_snapshots').get();
+  assert.equal(row.next_check,h.clock()+30*DAY);
+  // A transport failure interrupts byte confirmation even for the same source.
+  h.advance(30*DAY);error=new Error('Transport unavailable');
+  await h.collector.step(h.worker);
+  row=h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE id='2026'").get();
+  assert.equal(row.next_check,h.clock()+DAY);
+});
