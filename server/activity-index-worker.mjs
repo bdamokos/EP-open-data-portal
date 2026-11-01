@@ -1,4 +1,5 @@
 import {DocumentBodyCollector} from './document-body-collector.mjs';
+import {questionFileBackfillDue,backfillQuestionFiles} from './activity-read-projections.mjs';
 import {bootstrapAmendmentDependencies,amendmentDependenciesReady} from './amendments-store.mjs';
 import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
@@ -728,6 +729,10 @@ export class ActivityWorker {
     try {await this.press.run({signal:this.controller.signal,admit});}
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
+  questionFileGenerations() {
+    return [...new Set([this.store.get('active'),this.store.get('working')?.generation].filter(Boolean))]
+      .filter(generation=>questionFileBackfillDue(this.store,generation));
+  }
   projectionGenerations() {
     return [...new Set([this.store.get('active'),this.store.get('working')?.generation].filter(Boolean))]
       .filter(g=>this.store.fastReadsReady&&!['sources','outside','targets','amendments'].every(p=>this.store.fastReadsReady(g,p)));
@@ -742,7 +747,7 @@ export class ActivityWorker {
   async runIteration() {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
-    const projectionDue=this.projectionGenerations().length>0,documentBodiesDue=this.documentBodies.due();
+    const projectionDue=this.projectionGenerations().length>0||this.questionFileGenerations().length>0,documentBodiesDue=this.documentBodies.due();
     if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!documentBodiesDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
@@ -751,6 +756,10 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
+      for(const generation of this.questionFileGenerations()) {
+        backfillQuestionFiles(this.store,generation);
+        await projectionYield(undefined,{signal:this.controller.signal});
+      }
       await this.fillProjectionBatch();
       // Persist the optional lane's share across one-request iterations.
       const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
