@@ -11,7 +11,7 @@ import http from 'node:http';
 import {loopback} from './test-support/loopback.mjs';
 import {retentionClient} from './base-source-rpc.mjs';
 const observation={url:'https://example.test/fixture',fetchedAt:'2026-11-01T12:00:00Z'};
-for(const viaHttp of [false,true])test(`Cellar captures (HTTP=${viaHttp}) publish in the existing source worker, and stop declines safely`,viaHttp?loopback:{},async t=>{
+for(const viaHttp of [false,true])test(`Cellar captures (HTTP=${viaHttp}) publish in the existing source worker, and stop declines safely`,loopback,async t=>{
  const directory=await mkdtemp(path.join(tmpdir(),'retention-worker-'));t.after(()=>rm(directory,{recursive:true,force:true}));
  let worker;
  const stop=startSourceWriters({enabled:true,workerUrl:new URL('./test-support/base-retention-writer.mjs',import.meta.url),

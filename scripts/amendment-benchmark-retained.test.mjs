@@ -164,7 +164,18 @@ test('base bytes and selection decisions are read without changing the retained 
  const baseUrl='https://data.europarl.europa.eu/distribution/base_en.docx',body=Buffer.from('native base');
  const source={url:baseUrl,status:200,request:{accept:'*/*',language:'en'},headers:{'content-type':'application/octet-stream'},fetchedAt:'2026-11-01T12:00:00Z',descriptor:{url:baseUrl,format:'DOCX',language:'en',byteSize:body.length,issued:'2026-10-30T00:00:00Z'}};
  await store.save(source,body);
+ const {startSourceWriters}=await import('../server/source-writers.mjs');
+ const {Worker}=await import('node:worker_threads');
+ let worker;
+ const stop=startSourceWriters({enabled:true,workerUrl:new URL('../server/test-support/base-retention-writer.mjs',import.meta.url),
+   createWorker:(url,options)=>worker=new Worker(url,{...options,env:{...process.env,ACTIVITY_INDEX_ENABLED:'false',CORPUS_ENABLED:'false'}})});
+ t.after(stop);
+ await new Promise((resolve,reject)=>{
+   const ready=message=>{if(message.type==='ready'){worker.off('message',ready);resolve();}};
+   worker.on('message',ready);worker.once('error',reject);
+ });
  await retainBaseSelection('proposal',{reportId:'A-10-2026-0001',language:'en'},{status:'unresolved',gaps:['ambiguous-com-candidates'],evidence:[{kind:'com-candidates',rows:[{workId:'exact-id'}]}],items:[{buffer:body,title:'omit',score:0.9}]},{directory});
+ await stop();
  const before=await tree(f.root),reader=await RetainedInputs.open(f.root);
  assert.deepEqual((await reader.get(baseUrl,{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'})).body,body);
  assert.equal((await reader.get(baseUrl,{accept:'*/*',language:'fr'})).acquisitionUnavailable,true);
