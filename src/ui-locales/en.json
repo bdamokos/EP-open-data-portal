@@ -2599,5 +2599,6 @@
   "topics.story.pageEmpty": "No matching records on this page",
   "topics.story.comparisonsUnavailable": "Question comparisons unavailable",
   "topics.story.exact.placeDebates": "Parliament debated {debates}.",
-  "topics.story.jointOnce": "Joint motions count once"
+  "topics.story.jointOnce": "Joint motions count once",
+  "topics.story.dateUnavailable": "Date unavailable"
 }
