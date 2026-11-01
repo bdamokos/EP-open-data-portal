@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from '../activity-index-store.mjs';
 import {QuestionInsights,insightQuery} from '../insights-store.mjs';
-import {savedProcedureEvents} from '../topic-trends.mjs';
+import {savedProcedureEvents,TopicTrends} from '../topic-trends.mjs';
 const directory=mkdtempSync(path.join(tmpdir(),'slow-read-benchmark-'));
 let store;
 try {
@@ -65,5 +65,9 @@ try {
   const questionStart=performance.now();const questionResult=await new QuestionInsights(store,{clock:()=>Date.parse('2026-10-22T12:00:00Z'),loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()}).query(insightQuery(new URLSearchParams('from=2026-10-01&to=2026-10-22'),{now:Date.parse('2026-10-22T12:00:00Z')}));
   const questionMs=performance.now()-questionStart;
   const at=performance.now(),trend=savedProcedureEvents(store,{start:'2026-10-01',end:'2026-10-22'});
-  console.log(JSON.stringify({scale:{questions,procedures,amendments,outside,questionPadding:12000,procedurePadding:16000,amendmentText:8192},results,questionInsights:{ms:questionMs,analyzed:questionResult.counts.analyzedQuestions},topicTrends:{ms:performance.now()-at,procedures:trend.procedures.length,truncated:trend.truncated}},null,2));
+  const savedProcedureMs=performance.now()-at;
+  const topicStart=performance.now();
+  const topicResult=await new TopicTrends(store,{known:async ids=>new Map(ids.map(id=>[id,{state:'mapped',reference:id,concepts:[{id:'http://eurovoc.europa.eu/1',label:'Synthetic topic',language:'en'}]}])),load:async()=>{throw new Error('Benchmark must read retained mappings only.');}}).query({start:'2026-10-01',end:'2026-10-22',days:22,language:'en',page:0});
+  const topicMs=performance.now()-topicStart;
+  console.log(JSON.stringify({scale:{questions,procedures,amendments,outside,questionPadding:12000,procedurePadding:16000,amendmentText:8192},results,questionInsights:{ms:questionMs,analyzed:questionResult.counts.analyzedQuestions},topicTrends:{ms:topicMs,savedProcedureMs,procedures:topicResult.coverage.procedures,truncated:trend.truncated,mappings:'retained synthetic catalogue'}},null,2));
 } finally {store?.close();rmSync(directory,{recursive:true,force:true});}

@@ -1,6 +1,7 @@
 import {brusselsDay} from './analysis-period.mjs';
 import {sourceTime,validDay} from './source-availability.mjs';
 
+export const availabilityHistoryVersion=2;
 export const AVAILABILITY_HISTORY_LIMITS=Object.freeze({days:90,observations:20000,checks:256});
 const cutoff=now=>new Date(now-AVAILABILITY_HISTORY_LIMITS.days*86400_000).toISOString();
 const atomic=store=>{store.assertWriter();if(!store.db.isTransaction)throw new Error('Availability evidence must commit with its source.');};
@@ -27,6 +28,7 @@ export function initializeAvailabilityHistory(store) {
         INSERT INTO meta(key,value) VALUES ('availabilityRevision','1') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1;
         INSERT INTO meta(key,value) VALUES ('availabilityCoverageRevision','1') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1; END;`);
   }
+  if(store.get('availabilityHistoryVersion')!==availabilityHistoryVersion)store.set('availabilityHistoryVersion',availabilityHistoryVersion);
   if(!store.get('availabilityHistoryStartedAt')){store.set('availabilityHistoryStartedAt',new Date(store.clock()).toISOString());touchAvailability(store);}
 }
 export function touchAvailability(store) {
