@@ -42,14 +42,16 @@ test('backfill recovers due gaps between daily cycles without resetting future r
   assert.equal(scheduleGapRecovery(worker,generation),25);
   assert.equal(store.taskCounts(generation).total-store.taskCounts(generation).completed,25);
   const first=store.nextTask(generation);assert.equal(first.body.offset,150);assert.equal(first.attempts,5);
-  assert.equal(scheduleGapRecovery(worker,generation),3);
   assert.equal(scheduleGapRecovery(worker,generation),0);
-  assert.equal(gapRecoveryDue(store,generation,clock()),false);
-  assert.equal(store.get('working'),null);
-  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,28,'admission leaves coverage gaps visible');
   store.finishTask(first);
-  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,27,'only successful completion clears its gap');
-  assert.equal(store.get('slowGapAdmissions'),null,'temporary backfill does not consume the normal daily cap');
+  assert.equal(scheduleGapRecovery(worker,generation),1);
+  assert.equal(scheduleGapRecovery(worker,generation),0);
+  assert.equal(gapRecoveryDue(store,generation,clock()),false,'full in-flight queue waits for its owners');
+  assert.equal(store.get('working'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,27,'admission leaves coverage gaps visible');
+  store.finishTask(store.nextTask(generation));
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps').get().n,26,'only successful completion clears its gap');
+  assert.equal(store.get('slowGapAdmissions'),null,'daily counters are retired');
 });
 
 test('idle backfill publishes recovered questions and Following marks in a new frozen generation',async t=>{
@@ -79,7 +81,7 @@ test('multiple admission batches share one working generation and publish only a
     const key='/parliamentary-questions/E-10-2026-'+String(i).padStart(6,'0');
     store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'document',JSON.stringify({endpoint:key}),84,'EP API returned 500',5,new Date(clock()-8*DAY).toISOString(),clock()-1,null);
   }
-  worker.recoveryMode='backfill';
+  worker.recoveryMode='backfill';worker.budget=25;
   worker.fetchRecord=async endpoint=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({identifier:endpoint.split('/').at(-1),id:'eli/dl/doc/'+endpoint.split('/').at(-1),creator:['person/42']})]}});
   const runTask=worker.task.bind(worker);
   worker.task=async task=>task.key.startsWith('/parliamentary-questions/')?runTask(task):store.finishTask(task);
@@ -101,24 +103,18 @@ for(const mode of ['normal','backfill'])test(mode+' mutable admission preserves 
     store.putSource(generation,'/parliamentary-questions/'+id,'document',projectDocument(document({id:'eli/dl/doc/'+id,identifier:id,creator:['person/42']})),new Date(clock()-8*DAY).toISOString());
   }
   store.publish(generation);if(mode==='normal')advance(DAY);
-  worker.recoveryMode=mode;
+  worker.recoveryMode=mode;worker.budget=100;
   worker.fetchRecord=async endpoint=>({fetchedAt:new Date(clock()).toISOString(),payload:{data:[document({id:'eli/dl/doc/'+endpoint.split('/').at(-1),identifier:endpoint.split('/').at(-1),creator:['person/42']})]}});
   const task=worker.task.bind(worker);worker.task=async job=>job.key.startsWith('/parliamentary-questions/')?task(job):store.finishTask(job);
   assert.equal(mutableRecoveryDue(store,generation,clock()),true);
   if(mode==='backfill')assert.equal(worker.coreDue(),false,'mutable backlog wakes between daily cycles');
   store.release();await worker.runIteration();
-  if(mode==='normal') {
-    const active=store.get('active');assert.notEqual(active,generation);assert.equal(store.get('working'),null);
-    assert.equal([...mutableDocumentCandidates(store.db,active,clock())].length,105);
-    assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,100);
-    await worker.runIteration();assert.equal(store.get('active'),active,'normal mode retains its once-per-cycle cadence');return;
-  }
   const working=store.get('working').generation,start=store.get('working').startedAt;
   assert.equal(store.get('active'),generation);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,0);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,100);
-  assert.equal(auditMutableAdmission(store.db,working,clock()).eligibleDue,105);
+  assert.equal(auditMutableAdmission(store.db,working,clock()).eligibleDue,6);
   await worker.runIteration();assert.equal(store.get('working').generation,working);assert.equal(store.get('working').startedAt,start);
-  assert.equal(store.get('active'),generation);assert.equal(auditMutableAdmission(store.db,working,clock()).eligibleDue,5);
+  assert.equal(store.get('active'),generation);assert.equal(auditMutableAdmission(store.db,working,clock()).eligibleDue,0);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,200);
   await worker.runIteration();assert.equal(store.get('active'),working);assert.equal(store.get('working'),null);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(generation).n,0,'prior serving rows remain frozen');
@@ -235,7 +231,7 @@ test('indexed weekly rechecks are capped, fair and keep their cadence across sna
   assert.equal(store.taskCounts(next.generation).total,2);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM mutable_documents WHERE generation=? AND next_check<=?').get(next.generation,clock()).n,0);
   advance(7*DAY);scheduleMutable(worker,next.generation);
-  assert.equal(store.taskCounts(next.generation).total,MUTABLE_LIMIT+2);
+  assert.equal(store.taskCounts(next.generation).total,MUTABLE_LIMIT);
 });
 
 test('initial generation publishes with exact durable gaps instead of hundreds of retries',async t=>{
@@ -251,7 +247,7 @@ test('initial generation publishes with exact durable gaps instead of hundreds o
   assert.equal(store.get('active'),generation);assert.equal(store.get('working'),null);
   assert.equal(store.get('lastSuccess'),new Date(clock()).toISOString());
   assert.equal(store.status().complete,false);assert.equal(store.status().coverageGaps.count,14);
-  assert.equal(store.page('42').total,null);assert.equal(store.page('42').categoryCoverage['written-questions'].status,'incomplete-joins');
+  assert.equal(store.page('42').total,store.page('42').indexedTotal);assert.equal(store.page('42').categoryCoverage['written-questions'].status,'available');
   const saved=store.db.prepare("SELECT body FROM refresh_gaps WHERE key='stuck:0'").get();assert.equal(JSON.parse(saved.body).offset,250);
   assert(store.acquire());const next=store.beginCycle();await worker.initialize(next);
   assert.equal(store.get('working').fullRefresh,false);
@@ -498,7 +494,7 @@ test('a generation advanced without its refresh snapshot fails closed before pru
   assert.equal(JSON.parse(store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=?').get(next.generation).body).offset,750);
 });
 
-test('historical sitting gaps share a global daily admission cap across new cycles and worker runs',async t=>{
+test('historical sitting gaps refill their in-flight cap across cycles and worker runs',async t=>{
   const {store,generation,worker,clock,advance}=setup(t,'2026-10-02T10:00Z');
   for(let i=1;i<=30;i++) {
     const sittingId=`MTG-PL-2026-01-${String(i).padStart(2,'0')}`;
@@ -511,16 +507,16 @@ test('historical sitting gaps share a global daily admission cap across new cycl
   worker.budget=0;store.release();await worker.run();
   const working=store.get('working');
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='motion-outcomes' AND (done IS NULL OR done<>1)").get(working.generation).n,25);
-  assert.equal(store.get('slowGapAdmissions').count,25);
+  assert.equal(store.get('slowGapAdmissions'),null);
   assert(store.acquire());scheduleMutable(worker,working.generation);
-  assert.equal(store.get('slowGapAdmissions').count,25);
-  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND retry_at<=?').get(working.generation,clock()).n,5);
+  assert.equal(store.get('slowGapAdmissions'),null);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gaps WHERE generation=? AND retry_at<=?').get(working.generation,clock()).n,30);
   for(const task of store.db.prepare('SELECT * FROM tasks WHERE generation=?').all(working.generation))store.finishTask(task);
   store.publish(working.generation);const next=store.beginCycle();scheduleMutable(worker,next.generation);
-  assert.equal(store.get('slowGapAdmissions').count,25);
-  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='motion-outcomes'").get(next.generation).n,0);
+  assert.equal(store.get('slowGapAdmissions'),null);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE generation=? AND kind='motion-outcomes'").get(next.generation).n,5);
   advance(DAY);scheduleMutable(worker,next.generation);
-  assert.equal(store.get('slowGapAdmissions').count,5);
+  assert.equal(store.get('slowGapAdmissions'),null);
 });
 
 test('ordinary document and speech discovery cannot reopen gaps or replace their saved cursors',async t=>{
@@ -544,7 +540,7 @@ test('ordinary document and speech discovery cannot reopen gaps or replace their
   advance(6*DAY);scheduleMutable(worker,cycle.generation);
   const admitted=store.db.prepare('SELECT body FROM tasks WHERE generation=? AND key=?').get(cycle.generation,recovery);
   assert.deepEqual(JSON.parse(admitted.body),savedRecovery);
-  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery).retry_at,clock()+7*DAY);
+  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery).retry_at,clock());
 });
 
 test('incomplete current sitting snapshots receive a new correction-period attempt six hours later',t=>{
@@ -627,7 +623,7 @@ test('an expired admitted retry cannot duplicate a checkpointed cursor across ge
   worker.checkpointContinuations(generation);store.publish(generation);
   advance(7*DAY);const cycle=store.beginCycle();
   scheduleMutable(worker,cycle.generation);
-  assert.equal(store.get('slowGapAdmissions').count,0,'an already admitted retry does not consume the new daily cap');
+  assert.equal(store.get('slowGapAdmissions'),null,'admission no longer uses a daily counter');
   assert.equal(store.enqueue(cycle.generation,key,'motion-outcomes',{},100,true,{retryGap:true}),false,'even direct duplicate admission is refused after the due date');
   assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,key),undefined);
   worker.checkpointContinuations(cycle.generation);
@@ -702,7 +698,7 @@ test('missing records back off across publications, remain labelled gaps, and re
     assert.equal(status.complete,false);assert.equal(status.coverageGaps.count,1);
     assert.equal(status.coverageGaps.examples[0].retryAt,new Date(clock()+delay).toISOString());
     assert.equal(status.coverageGaps.examples[0].failedAt,new Date(clock()).toISOString());
-    assert.equal(store.page('42').total,null);
+    assert.equal(store.page('42').total,0); // Unknown authors stay in global diagnostics.
     const next=store.beginCycle();
     advance(delay-1);scheduleMutable(worker,next.generation);
     assert.equal(store.nextTask(next.generation),undefined);
