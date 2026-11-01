@@ -42,7 +42,7 @@ export async function finishStoryProjection(store,generation){
     add(scope,key,askers,'document',row.id,row.date,{known:Number(f.outcomeStatus==='known')});
     if(f.outcome?.outcome==='ADOPTED'){
      const tallies=Number(Number.isSafeInteger(f.outcome.for)&&Number.isSafeInteger(f.outcome.against)),date=f.outcome.date||null;if(date&&(date<'2024-07-16'||date>end))continue;
-     add(scope,key,askers,date?'adopted':'adopted-undated',row.id,date,{tallies,votes:f.outcome.for,margin:tallies?Math.abs(f.outcome.for-f.outcome.against):null});
+     add(scope,key,askers,'adopted',row.id,date||'',{tallies,votes:f.outcome.for,margin:tallies?Math.abs(f.outcome.for-f.outcome.against):null});
     }
    }
   }
@@ -60,8 +60,8 @@ export async function finishStoryProjection(store,generation){
   }
  }} )());
  // A joint text replaces only originals that also qualify for this same scope.
- bulk(`UPDATE story_scope_records AS original SET canonical=0 WHERE generation=? AND kind IN ('document','adopted','adopted-undated') AND EXISTS(SELECT 1 FROM story_links l JOIN story_scope_records joint ON joint.generation=l.generation AND joint.scope=original.scope AND joint.key=original.key AND joint.askers=original.askers AND joint.kind='document' AND joint.id=l.from_id WHERE l.generation=original.generation AND l.relation='document-original' AND l.to_id=original.id)`,generation);store.renew();await new Promise(setImmediate);
- const aggregate=()=>`json_object('questions',SUM(kind='question'),'questionMentions',SUM(home+elsewhere+unknown),'questionHome',SUM(home),'questionElsewhere',SUM(elsewhere),'questionUnknown',SUM(unknown),'documents',SUM(kind='document'),'documentsWithKnownOutcome',SUM(kind='document' AND known=1),'documentsWithUnknownOutcome',SUM(kind='document' AND known=0),'adoptedTexts',SUM(kind='adopted'),'adoptedTextsWithTallies',SUM(kind='adopted' AND tallies=1),'adoptedTextsUndated',SUM(kind='adopted-undated'),'debates',SUM(kind='debate'),'debatesWithUnknownAgenda',SUM(kind='debate' AND known=0),'debates3Plus',SUM(kind='debate' AND meps>=3),'urgencyDebates',SUM(kind='debate' AND urgency=1),'urgencyDebates3Plus',SUM(kind='debate' AND urgency=1 AND meps>=3),'debateSpeakerAppearances',SUM(CASE WHEN kind='debate' THEN meps ELSE 0 END),'debateSpeakerAppearances3Plus',SUM(CASE WHEN kind='debate' AND meps>=3 THEN meps ELSE 0 END),'groups',0)`;
+ bulk(`UPDATE story_scope_records AS original SET canonical=0 WHERE generation=? AND kind IN ('document','adopted') AND EXISTS(SELECT 1 FROM story_links l JOIN story_scope_records joint ON joint.generation=l.generation AND joint.scope=original.scope AND joint.key=original.key AND joint.askers=original.askers AND joint.kind='document' AND joint.id=l.from_id WHERE l.generation=original.generation AND l.relation='document-original' AND l.to_id=original.id)`,generation);store.renew();await new Promise(setImmediate);
+ const aggregate=()=>`json_object('questions',SUM(kind='question'),'questionMentions',SUM(home+elsewhere+unknown),'questionHome',SUM(home),'questionElsewhere',SUM(elsewhere),'questionUnknown',SUM(unknown),'documents',SUM(kind='document'),'documentsWithKnownOutcome',SUM(kind='document' AND known=1),'documentsWithUnknownOutcome',SUM(kind='document' AND known=0),'adoptedTexts',SUM(kind='adopted'),'adoptedTextsWithTallies',SUM(kind='adopted' AND tallies=1),'adoptedTextsUndated',SUM(kind='adopted' AND date=''),'debates',SUM(kind='debate'),'debatesWithUnknownAgenda',SUM(kind='debate' AND known=0),'debates3Plus',SUM(kind='debate' AND meps>=3),'urgencyDebates',SUM(kind='debate' AND urgency=1),'urgencyDebates3Plus',SUM(kind='debate' AND urgency=1 AND meps>=3),'debateSpeakerAppearances',SUM(CASE WHEN kind='debate' THEN meps ELSE 0 END),'debateSpeakerAppearances3Plus',SUM(CASE WHEN kind='debate' AND meps>=3 THEN meps ELSE 0 END),'groups',0)`;
  bulk(`INSERT INTO story_scope_counts SELECT generation,scope,key,askers,period,${aggregate()} FROM story_scope_records INDEXED BY story_count_input WHERE generation=? AND canonical=1 AND period<>'' GROUP BY scope,key,askers,period`,generation);
  bulk(`INSERT INTO story_scope_counts SELECT generation,scope,key,askers,'',${aggregate()} FROM story_scope_records INDEXED BY story_count_input WHERE generation=? AND canonical=1 GROUP BY scope,key,askers`,generation);store.renew();await new Promise(setImmediate);
  const zero=JSON.stringify(emptyStoryCounts()),putGroups=db.prepare("INSERT INTO story_scope_counts VALUES (?,?,?,?,?,json_set(?,'$.groups',?)) ON CONFLICT(generation,scope,key,askers,period) DO UPDATE SET body=json_set(story_scope_counts.body,'$.groups',?)");
@@ -78,13 +78,13 @@ export async function finishStoryProjection(store,generation){
  }
  for(const r of db.prepare('SELECT zoom,askers,period,COUNT(*) n FROM story_map_groups WHERE generation=? GROUP BY zoom,askers,period').iterate(generation))putGroups.run(generation,'map',r.zoom,r.askers,r.period,zero,r.n,r.n);
  const rank=db.prepare('INSERT OR REPLACE INTO story_rank VALUES (?,?,?,?,?,?,?,?,?,?,?)');
- const relatedMeps=db.prepare("SELECT MAX(d.meps) n FROM story_links l JOIN story_scope_records d ON d.generation=l.generation AND d.scope=? AND d.key=? AND d.askers=? AND d.kind='debate' AND d.id=l.from_id WHERE l.generation=? AND l.relation='debate-document' AND l.to_id=?");
+ const relatedMeps=db.prepare("SELECT MAX(d.meps) n FROM story_links l JOIN story_scope_records d ON d.generation=l.generation AND d.scope=? AND d.key=? AND d.askers=? AND d.kind='debate' AND d.id=l.from_id WHERE l.generation=? AND l.relation='debate-document' AND l.to_id=? AND d.meps>=?");
  await topicBatches(store,(function*(){for(const r of db.prepare("SELECT * FROM story_scope_records WHERE generation=? AND canonical=1 AND kind IN ('debate','adopted')").iterate(generation)){
   yield;const periods=r.period?[r.period,'']:[''];
   const put=(metric,score,secondary=0,body=null)=>{for(const p of periods)rank.run(generation,r.scope,r.key,r.askers,p,metric,r.id,score,secondary,r.date,body?JSON.stringify(body):null);};
   if(r.kind==='debate'){
-   put('busiestDebates',r.meps);if(!r.urgency)put('busiestNonUrgencyDebates',r.meps);if(r.primary_place&&!r.urgency)put('busiestPrimaryNonUrgencyDebates',r.meps);
-  }else{const meps=relatedMeps.get(r.scope,r.key,r.askers,generation,r.id).n||0;put('headlineAdoptedTexts',meps,r.for_votes??-1);if(r.tallies)put('closestAdoptedTexts',-r.margin,0,{margin:r.margin});}
+   put('busiestDebates',r.meps);if(!r.urgency)put('busiestNonUrgencyDebates',r.meps);if(r.primary_place&&!r.urgency)put('busiestPrimaryNonUrgencyDebates',r.meps);if(r.scope==='place'&&r.meps>=3)put('leadingPlaceDebates3Plus',r.primary_place,r.meps);
+  }else{const meps=relatedMeps.get(r.scope,r.key,r.askers,generation,r.id,1).n||0;put('headlineAdoptedTexts',meps,r.for_votes??-1);put('headlineAdoptedTexts3Plus',relatedMeps.get(r.scope,r.key,r.askers,generation,r.id,3).n||0,r.for_votes??-1);if(r.tallies)put('closestAdoptedTexts',-r.margin,0,{margin:r.margin});}
  }} )());
  const placePut=db.prepare('INSERT OR REPLACE INTO story_place_rank VALUES (?,?,?,?,?,?,?,?,?)');
  await topicBatches(store,(function*(){for(const r of db.prepare("SELECT key,askers,period,body FROM story_scope_counts WHERE generation=? AND scope='place' ORDER BY key,askers,period").iterate(generation)){

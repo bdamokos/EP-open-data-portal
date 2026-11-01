@@ -218,3 +218,21 @@ test('retaining an identical story observation performs no disk rewrite but keep
  stageStoryInput(store,work,source,{rank:2});const changes=()=>store.db.prepare('SELECT total_changes() n').get().n,before=changes();stageStoryInput(store,work,source,{rank:2});assert.equal(changes(),before);
  const newer={...source,fetchedAt:'2026-11-01T12:00:01Z'};stageStoryInput(store,work,newer,{rank:2});assert.equal(changes(),before+1);assert.equal(JSON.parse(store.db.prepare("SELECT source FROM story_inputs WHERE kind='document'").get().source).fetchedAt,newer.fetchedAt);
 });
+
+test('known undated adoptions count for the term, never a quarter, and remain in complete pages',async t=>{
+ const {store}=await fixture(t);await buildTopics(store);
+ for(let n=1;n<=25;n++){const id='B-10-2025-'+String(n).padStart(4,'0'),d={id,reference:'B10-'+String(n).padStart(4,'0')+'/2025',type:'RESOLUTION_MOTION',date:'2025-03-12',titles:{en:'Motion '+n},rule:[],groups:[],places:['GRC'],keywords:[],procedures:[],derivedFrom:[],outcomeStatus:'known',outcome:{decisionId:'d'+n,date:n<=12?'2025-04-02':null,outcome:'ADOPTED',for:100,against:10,abstentions:0,labels:{},references:{}}};store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(1,'document',id,d.date,JSON.stringify(d));}
+ await finishStoryProjection(store,1);
+ const whole=storyFacts(store,new URLSearchParams('scope=place&key=GRC&list=adoptedTexts'));assert.equal(whole.counts.adoptedTexts,25);assert.equal(whole.counts.adoptedTextsUndated,13);assert.equal(whole.sets.adoptedUndated.length,13);assert.equal(whole.page.total,25);assert.equal(whole.page.items.length,20);assert(whole.page.nextCursor);
+ const next=storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',list:'adoptedTexts',cursor:whole.page.nextCursor}));assert.equal(next.page.items.length,5);assert(next.page.items.every(r=>r.date===null));assert.equal(new Set([...whole.page.items,...next.page.items].map(r=>r.id)).size,25);assert.equal(next.page.nextCursor,null);
+ const quarterResult=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.equal(quarterResult.counts.adoptedTexts,12);assert.equal(quarterResult.counts.adoptedTextsUndated,0);assert.equal(quarterResult.sets.adoptedTexts['2025-Q2'].length,12);
+});
+
+test('place evidence fetches the exact two primary-first leaders and the qualified text headline',async t=>{
+ const {store}=await fixture(t);await buildTopics(store);const ids=[];
+ for(const [n,meps,primary] of [[1,30,true],[2,20,true],[3,20,true],[4,100,false],[5,2,true]]){const id='MTG-PL-2025-03-12-PVCRE-ITM-'+n;ids[n]=id;const d={id,date:'2025-03-12',titles:{en:'Debate '+n},meps,speeches:meps,format:null,agendaClassified:true,primaryPlace:primary?'GRC':null,places:[{id:'GRC',basis:'title',bases:['title']}],procedures:[],docs:[]};store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(1,'debate',id,d.date,JSON.stringify(d));}
+ for(const [n,votes] of [[1,10],[2,100]]){const id='B-10-2025-000'+n,d={id,reference:'B10-000'+n+'/2025',type:'RESOLUTION_MOTION',date:'2025-03-12',titles:{en:'Motion '+n},rule:[],groups:[],places:['GRC'],keywords:[],procedures:[],derivedFrom:[],outcomeStatus:'known',outcome:{decisionId:'d'+n,date:'2025-04-02',outcome:'ADOPTED',for:votes,against:0,abstentions:0,labels:{},references:{}}};store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(1,'document',id,d.date,JSON.stringify(d));}
+ store.db.prepare('INSERT INTO story_links VALUES (?,?,?,?)').run(1,'debate-document',ids[5],'B-10-2025-0001');await finishStoryProjection(store,1);
+ const q1=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1'));assert.deepEqual(q1.winners.leadingPlaceDebates3Plus.map(r=>r.id),[ids[1],ids[2],ids[3]]);assert(q1.winners.leadingPlaceDebates3Plus.every(r=>r.primaryPlace));assert.equal(q1.winners.busiestDebates[0].id,ids[4]);
+ const q2=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.equal(q2.winners.headlineAdoptedTexts[0].id,'B-10-2025-0001');assert.equal(q2.winners.headlineAdoptedTexts3Plus[0].id,'B-10-2025-0002');
+});

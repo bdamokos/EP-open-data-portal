@@ -3,7 +3,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=6;
+export const STORY_FACTS_VERSION=7;
 export const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 export const tail=v=>String(v?.id||v||'').split('/').at(-1);
 export const unique=v=>[...new Set(v)];

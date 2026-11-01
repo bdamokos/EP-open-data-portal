@@ -20,27 +20,37 @@ import {topicPeriods,quarter} from './topics-store.mjs';
  * questions counts distinct questions; questionMentions counts question×place;
  * questionHome/Elsewhere/Unknown split mentions (only place scope sums to questions).
  * documents counts canonical motions/reports by publication quarter: a qualifying
- * joint replaces its qualifying originals in the same scope. Known/UnknownOutcome
- * split these documents. adoptedTexts counts known ADOPTED whole-text decisions by
- * decision quarter; WithTallies requires both for/against. Undated is term-only.
+ * joint replaces its qualifying originals in the same scope.
+ * documentsWithKnownOutcome/documentsWithUnknownOutcome partition documents.
+ * adoptedTexts counts known ADOPTED whole-text decisions;
+ * quarters require their decision date. Whole-term counts also include known
+ * undated adoptions, tracked by adoptedTextsUndated. adoptedTextsWithTallies requires both
+ * for/against. Unknown-date adoptions never enter a quarter.
  * debates counts resolved oral-MEP items with no observed procedural type;
  * debatesWithUnknownAgenda tracks those still lacking agenda classification;
- * debates3Plus is its >=3 distinct MEP subset. urgencyDebates/3Plus are subsets.
+ * debates3Plus is its >=3 distinct MEP subset. urgencyDebates counts urgency items;
+ * urgencyDebates3Plus is the urgency subset with >=3 distinct MEP speakers.
  * debateSpeakerAppearances sums distinct debate×MEP pairs (not unique term MEPs);
- * its 3Plus subset supports templates that omit short debates. groups uses exactly
+ * debateSpeakerAppearances3Plus sums pairs only in >=3-MEP debates. groups uses exactly
  * the topic detail grouping over all indexed kinds, independently of this subset.
  * Map counts also report placesWithQuestions/Debates/AdoptedTexts, distinct places.
  * winners and periodWinners contain all ties on their primary+secondary scores:
- * busiest* => max MEPs (nonUrgency/Primary are explicit subsets); closestAdoptedTexts
+ * busiestDebates => max MEPs; busiestNonUrgencyDebates excludes urgencies;
+ * busiestPrimaryNonUrgencyDebates also requires this place to be primary.
+ * closestAdoptedTexts
  * => minimum absolute for-against among adopted texts with tallies; headlineAdopted
- * => max linked qualified-debate MEPs, then votes for. Map most*Places return every
+ * => max linked debate MEPs, then votes for (headlineAdoptedTexts3Plus uses only
+ * linked debates with >=3 MEPs). leadingPlaceDebates3Plus returns the best two
+ * >=3-MEP debates, primary-place first then MEPs, including every boundary tie.
+ * Map most*Places return every
  * place equal to the maximum; topAdoptedPlaces includes all ties at rank four.
  * rising*Places use full quarters from the third, excluding the first partial:
  * current/max(1,mean(previous full quarters)), >=1.5, questions>=8/documents>=3;
  * rank by ratio then current count, all ties. First/second, partial and whole-term
  * risers are absent; whole-term requests expose quarter risers in periodWinners.
  * sets.urgencyDebates is complete by quarter. Place sets.adoptedTexts is complete;
- * other scopes return complete adopted sets only for quarters with <=2, under
+ * whole-term place sets also include adoptedUndated. Other scopes return
+ * complete adopted sets only for quarters with <=2, under
  * adoptedTextsWhenAtMostTwo. An omitted larger adopted set uses its exact count,
  * winners and browse page. Counts/winners cover all records regardless of sets.
  * debates/docs/questions are hydrated EVIDENCE for winners, sets and the page,
@@ -53,7 +63,7 @@ import {topicPeriods,quarter} from './topics-store.mjs';
  * No list is silently truncated; unknown outcomes remain null, never 'none'.
  */
 const allowed=['scope','key','period','mode','askers','zoom','lang','list','cursor'];
-const listKinds={debates:'debate',documents:'document',adoptedTexts:'adopted',adoptedUndated:'adopted-undated',questions:'question'};
+const listKinds={debates:'debate',documents:'document',adoptedTexts:'adopted',adoptedUndated:'adopted',questions:'question'};
 export function storyQuery(params){
  for(const key of params.keys())if(!allowed.includes(key)||params.getAll(key).length!==1)throw new HttpError(400,'invalid_query','Unsupported story parameter.');
  const scope=params.get('scope')||'map',mode=params.get('mode')||'q',askers=params.get('askers')||'all',zoom=params.get('zoom')||'world',period=params.get('period')||null,language=params.get('lang')||'en',list=params.get('list')||null,cursor=params.get('cursor')||null;let key=params.get('key')||null;
@@ -78,8 +88,12 @@ export function storyFacts(store,params,{pressFilename}={}){
  const placeTies=db.prepare('SELECT id,score,secondary,body FROM story_place_rank WHERE generation=? AND zoom=? AND askers=? AND period=? AND metric=? AND score=? AND secondary=? ORDER BY id');
  const debateIds=new Set(),docIds=new Set();
  const winnerFor=period=>{
-  const out={};for(const metric of ['busiestDebates','busiestNonUrgencyDebates','busiestPrimaryNonUrgencyDebates','closestAdoptedTexts','headlineAdoptedTexts']){
+  const out={};for(const metric of ['busiestDebates','busiestNonUrgencyDebates','busiestPrimaryNonUrgencyDebates','closestAdoptedTexts','headlineAdoptedTexts','headlineAdoptedTexts3Plus']){
    const args=[...dimension,period,metric],best=top.get(...args);out[metric]=best?ties.all(...args,best.score,best.secondary).map(r=>{(metric.includes('Debates')?debateIds:docIds).add(r.id);return {id:r.id,...(metric.includes('Debates')?{meps:r.score}:metric==='closestAdoptedTexts'?{margin:-r.score}:{debateMeps:r.score,votesFor:r.secondary<0?null:r.secondary})};}):[];
+  }
+  if(q.scope==='place'){
+   const args=[...dimension,period,'leadingPlaceDebates3Plus'],boundary=db.prepare('SELECT score,secondary FROM story_rank WHERE generation=? AND scope=? AND key=? AND askers=? AND period=? AND metric=? ORDER BY score DESC,secondary DESC,date DESC,id LIMIT 1 OFFSET 1').get(...args);
+   const leaders=db.prepare('SELECT id,score,secondary FROM story_rank WHERE generation=? AND scope=? AND key=? AND askers=? AND period=? AND metric=?'+(boundary?' AND (score,secondary)>=(?,?)':'')+' ORDER BY score DESC,secondary DESC,date DESC,id').all(...args,...(boundary?[boundary.score,boundary.secondary]:[]));out.leadingPlaceDebates3Plus=leaders.map(r=>{debateIds.add(r.id);return {id:r.id,meps:r.secondary,primaryPlace:Boolean(r.score)};});
   }
   if(q.scope==='map'){
    for(const metric of ['mostQuestionedPlaces','mostDebatedPlaces','mostDebatedPlaces3Plus','mostAdoptedPlaces','risingQuestionPlaces','risingDocumentPlaces']){
@@ -96,16 +110,17 @@ export function storyFacts(store,params,{pressFilename}={}){
  for(const period of selectedPeriods){sets.urgencyDebates[period]=urgency.all(...dimension,period).map(r=>r.id);for(const id of sets.urgencyDebates[period])debateIds.add(id);
   if(q.scope==='place'||(cells.get(period)?.adoptedTexts||0)<=2){const ids=adopted.all(...dimension,period).map(r=>r.id);(sets.adoptedTexts||sets.adoptedTextsWhenAtMostTwo)[period]=ids;for(const id of ids)docIds.add(id);}
  }
+ if(q.scope==='place'&&!q.period){sets.adoptedUndated=db.prepare("SELECT id FROM story_scope_records WHERE generation=? AND scope=? AND key=? AND askers=? AND kind='adopted' AND canonical=1 AND date='' ORDER BY id DESC").all(...dimension).map(r=>r.id);for(const id of sets.adoptedUndated)docIds.add(id);}
  const signature=[generation,state.builtAt||null,q.scope,key,q.askers,q.period,q.list];let after=null;
- if(q.cursor){try{after=JSON.parse(Buffer.from(q.cursor,'base64url').toString('utf8'));if(JSON.stringify(after.slice(0,7))!==JSON.stringify(signature)||after.length!==9||typeof after[7]!=='string'||typeof after[8]!=='string'||!/^[-A-Za-z0-9_]{1,150}$/.test(after[8])||!(q.list==='adoptedUndated'&&after[7]===''||/^\d{4}-\d{2}-\d{2}$/.test(after[7])))throw Error();}catch{throw new HttpError(409,'story_cursor','Reload this list.');}}
+ if(q.cursor){try{after=JSON.parse(Buffer.from(q.cursor,'base64url').toString('utf8'));if(JSON.stringify(after.slice(0,7))!==JSON.stringify(signature)||after.length!==9||typeof after[7]!=='string'||typeof after[8]!=='string'||!/^[-A-Za-z0-9_]{1,150}$/.test(after[8])||!(['adoptedTexts','adoptedUndated'].includes(q.list)&&after[7]===''||/^\d{4}-\d{2}-\d{2}$/.test(after[7])))throw Error();}catch{throw new HttpError(409,'story_cursor','Reload this list.');}}
  let page=null;const questionIds=[];
  if(q.list){
   const kind=listKinds[q.list],conditions=['generation=?','scope=?','key=?','askers=?','kind=?','canonical=1'],args=[...dimension,kind];
-  if(q.period){conditions.push('period=?');args.push(q.period);}if(kind==='adopted-undated')conditions.push('date IS NULL');if(after){conditions.push(kind==='adopted-undated'?'id<?':'(date,id)<(?,?)');args.push(...(kind==='adopted-undated'?[after[8]]:[after[7],after[8]]));}
+  if(q.period){conditions.push('period=?');args.push(q.period);}if(q.list==='adoptedUndated')conditions.push("date=''");if(after){conditions.push('(date,id)<(?,?)');args.push(after[7],after[8]);}
   const found=db.prepare('SELECT id,kind,date FROM story_scope_records WHERE '+conditions.join(' AND ')+' ORDER BY date DESC,id DESC LIMIT 21').all(...args),more=found.length>20,items=found.slice(0,20),last=items.at(-1);
   for(const r of items)if(r.kind==='debate')debateIds.add(r.id);else if(r.kind==='question')questionIds.push(r.id);else docIds.add(r.id);
   const totalField={adoptedUndated:'adoptedTextsUndated'}[q.list]||q.list;
-  page={list:q.list,pageSize:20,total:counts[totalField],items:items.map(r=>({...r,kind:r.kind==='debate'?'debate':r.kind==='question'?'question':'document'})),nextCursor:more?Buffer.from(JSON.stringify([...signature,last.date||'',last.id])).toString('base64url'):null};
+  page={list:q.list,pageSize:20,total:counts[totalField],items:items.map(r=>({...r,date:r.date||null,kind:r.kind==='debate'?'debate':r.kind==='question'?'question':'document'})),nextCursor:more?Buffer.from(JSON.stringify([...signature,last.date||'',last.id])).toString('base64url'):null};
  }
  const fact=db.prepare('SELECT body FROM story_facts WHERE generation=? AND kind=? AND id=?'),debates=[],documents=new Map();
  const docOutput=d=>{const title=choose(d.titles,d.reference||d.id),o=d.outcome;return {id:d.id,reference:d.reference,ref:d.reference,type:d.type,date:d.date,q:quarter(d.date),title:title.value,titleLanguage:title.language,rule:d.rule,rules:d.rule.map(n=>'Rule '+n),groups:d.groups,groupsAvailable:d.groupsAvailable,places:d.places,keywords:d.keywords,keywordKeys:d.keywords.map(id=>'eurovoc:'+id),procedures:d.procedures,derivedFrom:d.derivedFrom,supersededBy:d.supersededBy||[],outcome:o?{decisionId:o.decisionId,id:o.decisionId,outcome:o.outcome,date:o.date,for:o.for,against:o.against,abstentions:o.abstentions,abst:o.abstentions,label:choose(o.labels).value,referenceText:choose(o.references).value,decisionMethod:o.decisionMethod,method:o.method,source:o.source}:null,outcomeStatus:d.outcomeStatus,source:d.source};};
