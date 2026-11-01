@@ -24,7 +24,7 @@ export function quotedWordBody(bytes) {
   for(let i=0;i<bytes.readUInt16LE(end+10);i++) {
     if(cursor+46>bytes.length||bytes.readUInt32LE(cursor)!==0x02014b50)throw new Error('Invalid ZIP directory');
     const size=bytes.readUInt32LE(cursor+20),full=bytes.readUInt32LE(cursor+24),nameLength=bytes.readUInt16LE(cursor+28),name=bytes.subarray(cursor+46,cursor+46+nameLength).toString();
-    if(['word/document.xml','word/styles.xml'].includes(name)) {
+    if(['word/document.xml','word/styles.xml','word/numbering.xml'].includes(name)) {
       if(parts.has(name)||full>12*1024*1024||bytes.readUInt16LE(cursor+8)&1)throw new Error('Unsupported main XML');
       const local=bytes.readUInt32LE(cursor+42),method=bytes.readUInt16LE(cursor+10);
       if(bytes.readUInt32LE(local)!==0x04034b50)throw new Error('Invalid local ZIP entry');
@@ -43,19 +43,47 @@ export function quotedWordBody(bytes) {
   const collect=nodes=>{for(const node of nodes){if(node['w:style'])definitions.set(node[':@']?.['@_w:styleId'],node['w:style']);else for(const value of Object.values(node))if(Array.isArray(value))collect(value);}};collect(styles);
   const inherited=(id,seen=new Set())=>{if(seen.has(id))return true;seen.add(id);const style=definitions.get(id);if(!style)return false;const parent=attributes(style,'w:basedOn')[0]?.['@_w:val'];return hidden(style)||Boolean(parent&&inherited(parent,seen));};
   const defaults=descendants(styles,'w:docDefaults').some(hidden);
-  const hiddenUse=nodes=>defaults||['w:pStyle','w:rStyle'].some(name=>attributes(nodes,name).some(attr=>inherited(attr['@_w:val'])));
+  const hiddenUse=nodes=>defaults||hidden(nodes)||['w:pStyle','w:rStyle'].some(name=>attributes(nodes,name).some(attr=>inherited(attr['@_w:val'])));
+  const numbered=(id,seen=new Set())=>{if(seen.has(id))return true;seen.add(id);const style=definitions.get(id);if(!style)return false;const parent=attributes(style,'w:basedOn')[0]?.['@_w:val'];return descendants(style,'w:numPr').length>0||Boolean(parent&&numbered(parent,seen));};
+  const numberedUse=nodes=>descendants(nodes,'w:numPr').length>0||attributes(nodes,'w:pStyle').some(attr=>numbered(attr['@_w:val']));
   const bodies=descendants(tree,'w:body');if(bodies.length!==1)throw new Error('Word body unavailable');
-  let ordinal=0;
+  // Deliberately small independent numbering grammar: explicit level-zero
+  // decimal/upper-letter lists, without overrides, restarts or style numbering.
+  const numbering=parts.has('word/numbering.xml')?parse(parts.get('word/numbering.xml')):[],lists=new Map(),counters=new Map();
+  for(const node of descendants(numbering,'w:num')) {
+    const id=attributes(numbering,'w:num')[descendants(numbering,'w:num').indexOf(node)]?.['@_w:numId'];
+    const abstract=attributes(node,'w:abstractNumId')[0]?.['@_w:val'];
+    const definitions=descendants(numbering,'w:abstractNum'),attrs=attributes(numbering,'w:abstractNum');
+    const definition=definitions.find((_,i)=>attrs[i]?.['@_w:abstractNumId']===abstract);
+    const level=definition&&children(definition,'w:lvl').find((_,i)=>attributes(definition,'w:lvl')[i]?.['@_w:ilvl']==='0');
+    const fmt=level&&attributes(level,'w:numFmt')[0]?.['@_w:val'],start=Number(level&&attributes(level,'w:start')[0]?.['@_w:val']);
+    if(id&&level&&!descendants(node,'w:lvlOverride').length&&['decimal','upperLetter'].includes(fmt)&&start===1
+      &&attributes(level,'w:lvlText')[0]?.['@_w:val']==='%1.'&&[undefined,'tab'].includes(attributes(level,'w:suff')[0]?.['@_w:val']))lists.set(id,fmt);
+  }
+  let ordinal=0,numberingBlocked=false;
   return bodies[0].map(node=>{
-    const p=node['w:p'];
-    return p?{kind:'paragraph',nodes:p,text:text(p),path:`/w:document[1]/w:body[1]/w:p[${++ordinal}]`,unsafe:unsafe(p),hidden:hiddenUse(p)}:{hidden:hiddenUse([node]),kind:'other',nodes:node};
+
+    const p=node['w:p'];let numberingLabel=null;
+    if(!p){if(numberedUse([node]))numberingBlocked=true;}
+    else if(numberedUse(p)) {
+      const props=children(p,'w:pPr'),nums=props.flatMap(prop=>children(prop,'w:numPr'));
+      const id=nums.length===1&&attributes(nums[0],'w:numId')[0]?.['@_w:val'];
+      const level=nums.length===1&&attributes(nums[0],'w:ilvl')[0]?.['@_w:val'];
+      if(!id||level!=='0'||hiddenUse(p)||descendants(p,'w:del').length||descendants(p,'w:moveFrom').length)numberingBlocked=true;
+      if(!numberingBlocked&&lists.has(id)) {
+        const value=(counters.get(id)||0)+1;counters.set(id,value);
+        if(lists.get(id)==='decimal')numberingLabel=value+'.';
+        else if(value<=26)numberingLabel=String.fromCharCode(64+value)+'.';
+      }
+    }
+    return p?{kind:'paragraph',nodes:p,text:text(p),numberingLabel,path:`/w:document[1]/w:body[1]/w:p[${++ordinal}]`,unsafe:unsafe(p),numbered:numberedUse(p),hidden:hiddenUse(p)}:{hidden:hiddenUse([node]),kind:'other',nodes:node};
   });
 }
 const field=(rows,name)=>{
   const matches=rows.flatMap(row=>[...row.text.matchAll(new RegExp('<'+name+'>([\\s\\S]*?)</'+name+'>','gu'))].map(m=>m[1]));
   return matches.length===1?matches[0]:null;
 };
-function comparison(body,number) {
+export function quotedWordComparison(body,number) {
   const starts=body.flatMap((row,index)=>row.kind==='paragraph'&&row.text.includes('<Amend>')&&new RegExp('<NumAm>'+number+'</NumAm>','u').test(row.text)?[index]:[]);
   if(starts.length!==1)return null;
   const start=starts[0],relativeEnd=body.slice(start+1).findIndex(row=>row.kind==='paragraph'&&row.text.includes('</Amend>'));
@@ -79,7 +107,7 @@ export function rawQuotedProposalAssertion({proposal,wording,placement,nativeQuo
   if(!Array.isArray(proposal?.paragraphs)||wording?.language!=='en'||wording.baseline!=='commission-proposal'||placement?.status!=='placed'||placement.operation!=='insert'||!nativeQuoted)return unknown('oracle-quoted-input-unavailable');
   if(!Number.isSafeInteger(nativeQuoted.number)||nativeQuoted.number<1)return unknown('oracle-quoted-input-unavailable');
   let source,amendment;
-  try{amendment=comparison(quotedWordBody(nativeQuoted.amendmentBuffer),nativeQuoted.number);}catch{return unknown('oracle-quoted-native-unavailable');}
+  try{amendment=quotedWordComparison(quotedWordBody(nativeQuoted.amendmentBuffer),nativeQuoted.number);}catch{return unknown('oracle-quoted-native-unavailable');}
   if(!amendment||amendment.language!=='{EN}en'||amendment.outer+'\n'+amendment.act+' — '+amendment.inner!==wording.targetLabel||amendment.original!==wording.originalText||amendment.proposed!==wording.proposedText)return unknown('oracle-quoted-comparison-unavailable');
   // Literal English fields only. The one optional space is a published nested
   // suffix spelling, never a global whitespace/suffix normalization.

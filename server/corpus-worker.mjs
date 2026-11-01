@@ -7,7 +7,7 @@ import {documentFileEdition} from './document-file-edition.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
 import {currentSpeechDetail,declaredSpeechDetail} from './declared-debate-recovery.mjs';
 import path from 'node:path';
-import { setImmediate as yieldToEventLoop } from 'node:timers/promises';
+import { setTimeout as sleep, setImmediate as yieldToEventLoop } from 'node:timers/promises';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { ODP_BASE, boundedUpstream } from './odp.mjs';
 import { apiFetch, speechWindows } from './activity-index-worker.mjs';
@@ -36,7 +36,7 @@ const FRAGMENT_LIMIT=2*1024*1024;
 
 function questionPdfFailure(docx,pdf) {
   const message=String(docx.message).slice(0,160)+' PDF alternative: '+String(pdf.message).slice(0,160);
-  return Object.assign(new Error(message,{cause:pdf}),{code:docx.code,status:docx.status,
+  return Object.assign(new Error(message,{cause:pdf}),{code:pdf.code,status:pdf.status,sourceHash:docx.sourceHash,
     retryAfter:Math.max(Number(docx.retryAfter)||0,Number(pdf.retryAfter)||0)});
 }
 
@@ -101,13 +101,14 @@ export class CorpusWorker {
   }
   async pace() {
     const wait=this.lastRequest+this.interval-this.clock();
-    if(wait>0)await new Promise(resolve=>setTimeout(resolve,wait));
+    this.controller.signal.throwIfAborted();
+    if(wait>0)await sleep(wait,undefined,{signal:this.controller.signal});
     this.lastRequest=this.clock();
   }
   // `primary` keeps originals and English; `all` also keeps every translation.
   keep(texts){return this.languages==='all'?texts:texts.filter(text=>text.translationType==='original'||text.language==='en');}
   async checkpoint() {
-    await yieldToEventLoop();
+    await yieldToEventLoop(undefined,{signal:this.controller.signal});
     if(this.stopped)throw new Error('Corpus worker stopped.');
     this.controller.signal.throwIfAborted();
     this.store.assertWriter();
@@ -276,6 +277,7 @@ export class CorpusWorker {
           try {outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});}
           catch(error) {this.controller.signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(pending.error,error);}
           finally {if(!this.controller.signal.aborted){this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}}
+          if(outcome==='retained'){this.store.settleSourceFailure(task,pending.error,'satisfied-by-alternative');return;}
           if(outcome!=='unavailable')throw Object.assign(new Error(pending.error.message),pending.error);
         } else {this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}
       }
@@ -284,22 +286,20 @@ export class CorpusWorker {
       const signal=this.controller.signal;
       let result;
       try {
-        result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize}),{source:'documents',priority:'background',signal});
-        if(!result.paragraphs?.some(text=>text.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});
+        result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize,rejectedHash:this.store.db.prepare('SELECT content_hash FROM source_failures WHERE key=?').get(task.key)?.content_hash}),{source:'documents',priority:'background',signal});
+        if(!result.paragraphs?.some(text=>text.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});
       } catch(error) {
         signal.throwIfAborted();
         if(pdfFallbackEligible(error)) {
           let outcome;
           try {outcome=await this.retainQuestionPdf(task,signal);}
           catch(pdfError) {signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(error,pdfError);}
+          if(outcome==='retained'){this.store.settleSourceFailure(task,error,'satisfied-by-alternative');return;}
           if(outcome==='deferred') {
-            this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status}};
+            this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status,sourceHash:error.sourceHash}};
             this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);
           }
         }
-        // A retained PDF is independently useful, but never settles the failed
-        // DOCX owner. Failed alternatives keep that failure context and honor
-        // their own Retry-After through the owner's normal retry policy.
         throw error;
       }
       signal.throwIfAborted();
@@ -325,7 +325,7 @@ export class CorpusWorker {
     await this.pace();signal.throwIfAborted();if(!withinDispatch)this.fallbackRequests++;
     const result=await this.runUpstream(admittedSignal=>this.downloadPdf(file,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
     signal.throwIfAborted();this.store.assertWriter();
-    const text=result.paragraphs.join('\n');if(!text.trim())throw new Error('Official PDF contains no readable text.');
+    const text=result.paragraphs.join('\n');if(!text.trim())throw Object.assign(new Error('Official PDF contains no readable text.'),{code:'empty_document'});
     this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
       [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'pdf',sourceUrl:file.url,
         sourceEdition:{...edition,observedByteSize:result.observedByteSize,byteSizeMatches:result.byteSizeMatches,sha256:result.sourceHash,resolvedSourceUrl:result.resolvedSourceUrl},
@@ -379,7 +379,8 @@ export class CorpusWorker {
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }
 
-let service;
+let service,readerMode=false;
+export function useCorpusReader(){if(service)throw new Error('Corpus service already opened.');readerMode=true;}
 export function corpus() {
   if(!booleanFromEnvironment('CORPUS_ENABLED'))throw new HttpError(503,'corpus_disabled','The full-text corpus is not enabled.');
   if(service)return service;
@@ -395,7 +396,7 @@ export function corpus() {
     interval:integerFromEnvironment('CORPUS_REQUEST_INTERVAL_MS',0,0,60_000),
     languages,diskLimit,
   };
-  const store=new CorpusStore(directory,{indexFile}),worker=new CorpusWorker(store,options);
+  const store=new CorpusStore(directory,{indexFile,readOnly:readerMode}),worker=readerMode?null:new CorpusWorker(store,options);
   service={store,worker,diskLimit,reader:new CorpusReader(directory,{indexFile})};return service;
 }
 export async function corpusStatus() {
@@ -470,7 +471,9 @@ export function corpusSearchOptions(input) {
 export function startCorpus() {
   if(!booleanFromEnvironment('CORPUS_ENABLED'))return ()=>{};
   const {worker}=corpus();
-  const run=()=>worker.run().catch(error=>console.error('[corpus]',error.message));
+  if(!worker)throw new Error('Source writers must start in their worker thread.');
+  let pending=Promise.resolve();
+  const run=()=>{if(worker.running)return;pending=worker.run().catch(error=>console.error('[corpus]',error.message)).finally(()=>worker.store.onCommit?.());};
   const timer=setInterval(run,60_000);timer.unref();void run();
-  return ()=>{clearInterval(timer);worker.stop();};
+  return ()=>{clearInterval(timer);worker.stop();return pending;};
 }

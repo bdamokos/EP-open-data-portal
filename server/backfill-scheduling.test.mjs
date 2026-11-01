@@ -69,6 +69,11 @@ for(const mode of ['backfill','normal'])test(mode+' worker preserves its budget 
   const cycle=store.beginCycle();
   for(let i=0;i<100;i++)store.enqueue(cycle.generation,'/busy/'+String(i).padStart(3,'0'),'document',{endpoint:'/busy/'+i},120);
   store.db.prepare('INSERT INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(cycle.generation,recovery,'document',JSON.stringify({endpoint:recovery}),84,'EP API returned 500',5,stamp,now-1,null);
+  // Keep both projection fills backlogged throughout the first request budget.
+  store.transaction(()=>{
+    const insert=store.db.prepare("INSERT INTO sources VALUES (?,?,'retained-test','{}',?,1)");
+    for(const retained of [generation,cycle.generation])for(let i=0;i<500;i++)insert.run(retained,'retained-'+String(i).padStart(3,'0'),stamp);
+  });
   const calls=[],dispatches=[];
   const worker=new ActivityWorker(store,{clock:()=>now,recoveryMode:mode,budget:40,fetchRecord:async(endpoint,params)=>{
     calls.push(endpoint);
@@ -86,6 +91,11 @@ for(const mode of ['backfill','normal'])test(mode+' worker preserves its budget 
   };
   store.release();await worker.runIteration();
   assert.equal(worker.requests,40);
+  for(const retained of [generation,cycle.generation]) {
+    const progress=store.db.prepare("SELECT cursor,ready FROM fast_read_progress WHERE generation=? AND projection='sources'").get(retained);
+    assert(progress.cursor,'each retained generation gets projection service');
+    assert.equal(progress.ready,0,'core and group-voice tasks progress before projection fill drains');
+  }
   assert(dispatches.some(key=>key.startsWith('group-voices:')),'group voices dispatch while the core backlog remains due');
   assert.equal(store.get('active'),generation);assert.equal(store.get('working').generation,cycle.generation);
   assert.equal(store.source(generation,adopted),undefined,'serving data stays frozen');

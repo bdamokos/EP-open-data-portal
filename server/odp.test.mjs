@@ -187,3 +187,12 @@ test('readable text selection preserves a translation when the original only con
   assert.equal(chooseTranscript(docs,'de').xml,original,'header-only selection remains compatible');
   const body=chooseTranscript(docs,'de',{readableOnly:true});assert.equal(body.xml,translated);assert.equal(body.translationType,'machine');
 });
+
+
+test('a member catalogue 204 is unavailable rather than an observed zero',async()=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const result=await odpSpeeches(256956,'en',0,{request:async()=>{throw Object.assign(Error('No content'),{code:'odp_no_content'});}});
+  assert.equal(result.total,null);assert.equal(result.status,'unavailable');assert.deepEqual(result.items,[]);
+  const empty=await odpSpeeches(256956,'en',0,{request:async()=>({fetchedAt:Date.now(),payload:{data:[],meta:{total:0}}})});
+  assert.equal(empty.total,0);
+});

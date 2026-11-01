@@ -1,3 +1,6 @@
+import {setImmediate as projectionYield} from 'node:timers/promises';
+import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
+import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
@@ -83,11 +86,12 @@ export function feedDocuments(xml,endpoint) {
   if(entries.length && !result.length)throw new Error('Update feed entries contain no recognised API identifiers.');
   return result;
 }
-export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
+export async function apiFetch(endpoint,params={}, {xml=false,signal,snapshotObservation=false}={}) {
   const url=new URL(ODP_BASE+endpoint);
   for (const [key,value] of Object.entries({...params,...(!xml?{format:'application/ld+json'}:{})})) url.searchParams.set(key,String(value));
   return boundedUpstream(async()=> {
     const response=await observedOdpFetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
+    if(snapshotObservation)await snapshotHttpObservation(response,url,{signal});
     if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
     if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
@@ -100,9 +104,22 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
     return {payload,fetchedAt:new Date().toISOString()};
   },{priority:'background',signal});
 }
+// Amendment rebuilds can outrank due refresh tasks indefinitely, e.g. a
+// members rebuild that restarts after newly fetched profiles. When both are
+// due, alternate so the core generation still progresses and publishes.
+// The persisted turn survives restarts and small per-run budgets.
+export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendmentJob) {
+  if(!amendmentJob||!ordinaryTask)return amendmentJob||ordinaryTask;
+  if(amendmentJob.priority<=ordinaryTask.priority)return ordinaryTask;
+  store.assertWriter();
+  const saved=store.get('amendmentDispatch'),amendmentTurn=saved?.generation===generation?saved.amendmentTurn!==false:true;
+  store.set('amendmentDispatch',{generation,amendmentTurn:!amendmentTurn});
+  return amendmentTurn?amendmentJob:ordinaryTask;
+}
+
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal'}={}) {
-    this.store=store;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null}={}) {
+    this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
@@ -703,10 +720,22 @@ export class ActivityWorker {
     try {await this.press.run({signal:this.controller.signal,admit});}
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
+  projectionGenerations() {
+    return [...new Set([this.store.get('active'),this.store.get('working')?.generation].filter(Boolean))]
+      .filter(g=>this.store.fastReadsReady&&!['sources','outside','targets','amendments'].every(p=>this.store.fastReadsReady(g,p)));
+  }
+  async fillProjectionBatch() {
+    for(const generation of this.projectionGenerations()) {
+      if(this.stopped||this.controller.signal.aborted||this.monotonic()>=this.runDeadline)break;
+      this.store.backfillFastReads(generation);
+      await projectionYield(undefined,{signal:this.controller.signal});
+    }
+  }
   async runIteration() {
     if(this.stopped)return;
-    const pressDue=Boolean(this.press?.due()),due=this.due();
-    if(!due&&!pressDue || !this.store.acquire())return;
+    const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
+    const projectionDue=this.projectionGenerations().length>0;
+    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -714,8 +743,18 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
-      if(pressDue)await this.followPress(due);
+      await this.fillProjectionBatch();
+      if(pressDue)await this.followPress(due||snapshotsDue);
+      // Reserve one dispatch before core work and one per eight core tasks, capped at one new request when core work is due.
+      // When core work is idle, drain snapshots under the same run bounds.
+      if(snapshotsDue){
+        do {
+          if(this.stopped||this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
+          if(!await this.sittingSnapshots.step(this,{requestBudget:due?1:Infinity}))break;
+        }while(!due&&this.sittingSnapshots.due());
+      }
       if(!due || this.stopped)return;
+      let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
       if(!existing && active) {
@@ -819,12 +858,19 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
+          if(++sittingSnapshotTurn%8===0)await this.fillProjectionBatch();
+          if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
+            await this.sittingSnapshots.step(this,{requestBudget:1});
+            if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
+          }
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
-          const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+          const preferredTask=alternateAmendmentDispatch(this.store,generation,ordinaryTask,amendmentJob);
+          // A deliberately skipped amendment turn must not win the recovery-lane recomparison.
+          const amendmentCandidate=preferredTask===amendmentJob||!ordinaryTask?amendmentJob:amendmentJob&&amendmentJob.priority>ordinaryTask.priority?null:amendmentJob;
           const voiceTask=nextGroupVoiceTask(this.store,generation,preferredTask);
           // Advance core shares only when a core task will actually dispatch.
-          const sharedTask=voiceTask?.groupVoiceJob?preferredTask:this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask,amendmentJob):preferredTask;
-          const coreTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask,amendmentJob);
+          const sharedTask=voiceTask?.groupVoiceJob?preferredTask:this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask,amendmentCandidate):preferredTask;
+          const coreTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask,amendmentCandidate);
           // Future jobs need no request; keep scanning across the async disk
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
@@ -851,7 +897,8 @@ export class ActivityWorker {
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }
-let service;
+let service,readerMode=false;
+export function useActivityIndexReader(){if(service)throw new Error('Activity service already opened.');readerMode=true;}
 export function activityIndex() {
   if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))throw new HttpError(503,'activity_index_disabled','The joined activity index is not enabled.');
   if(service)return service;
@@ -863,8 +910,9 @@ export function activityIndex() {
     maxDuration:integerFromEnvironment('ACTIVITY_INDEX_JOB_MAX_MINUTES',90,1,120)*60_000,
     diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072)*1024*1024,
   };
-  const store=new ActivityStore(directory),press=new PressStore(directory);
-  const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
+  const store=new ActivityStore(directory,{readOnly:readerMode}),press=new PressStore(directory,{readOnly:readerMode});
+  if(readerMode){service={store,press};return service;}
+  const worker=new ActivityWorker(store,{...options,sittingSnapshots:new SittingSnapshotCollector(store),press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
   worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
   service={store,worker,press};return service;
 }
@@ -877,8 +925,10 @@ export function latestActivities(id,params) {
 export function startActivityIndex() {
   if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))return ()=>{};
   const {worker}=activityIndex();
+  if(!worker)throw new Error('Source writers must start in their worker thread.');
   worker.repairOnStartup=true;
-  const run=()=>worker.run().catch(e=>console.error('[activity-index]',e.message));
+  let pending=Promise.resolve();
+  const run=()=>{if(worker.running)return;pending=worker.run().catch(e=>console.error('[activity-index]',e.message)).finally(()=>worker.store.onCommit?.());};
   const timer=setInterval(run,30_000);timer.unref();void run();
-  return ()=>{clearInterval(timer);worker.stop();};
+  return ()=>{clearInterval(timer);worker.stop();return pending;};
 }

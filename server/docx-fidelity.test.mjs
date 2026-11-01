@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {docxContent,documentText,documentStructure} from './document-text.mjs';
 import {runWithRequestSignal,cancelledRequest} from './request-budget.mjs';
+import {resolveAmendmentPlacement} from './document-context-model.mjs';
 import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -217,4 +218,50 @@ test('large main XML stays bounded independently of the compressed DOCX size',()
   assert.equal(result.documentObjects[0].status,'unresolved');
   assert.throws(()=>docxContent(zip(doc(p('Too large')+'<!--'+' '.repeat(12*1024*1024)+'-->'))),/Unsupported DOCX document entry/);
   assert.throws(()=>docxContent(zip(doc(p('Small')),{'word/styles.xml':'<w:styles xmlns:w="urn:word"><!--'+' '.repeat(12*1024*1024)+'--></w:styles>'})),/Unsupported DOCX document entry/);
+});
+
+
+test('empty native Word paragraphs preserve resolution insertion boundaries without bridging lost content',()=>{
+  // RC-10-2026-0394 separates numbered provisions with empty w:p rows;
+  // A-10-2026-0105 separates its last recital and first paragraph the same way.
+  const options={language:'en',baseline:'motion-resolution',originalText:'',proposedText:'New;',targetLabel:'Paragraph 1 a (new)'};
+  const content=gap=>({...docxContent(zip(doc(p('The European Parliament,')+p('A. whereas a;')+p('1. Condemns repression;')+gap+p('2. Demands release;')))),textLanguage:'en'});
+  for(const gap of ['<w:p/>','<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr></w:p>','<w:p/><w:p/>']) {
+    const text=content(gap),before=structuredClone(text);
+    assert.equal(text.paragraphSources[3].previousParagraph,text.paragraphSources[2].path);
+    assert.equal(resolveAmendmentPlacement(text,options).insertAfter,2);
+    assert.deepEqual(text,before);
+  }
+  for(const gap of [p('hidden').replace('<w:r>','<w:r><w:rPr><w:vanish/></w:rPr>'),'<w:altChunk r:id="missing"/>','<w:tbl><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>']) {
+    const text=content(gap);
+    assert.equal(text.paragraphSources[3].previousParagraph,undefined);
+    assert.equal(resolveAmendmentPlacement(text,options).status,'unresolved');
+  }
+});
+
+
+test('cached-report blank boundaries close the final recital and the paragraph before a heading',()=>{
+  const para=value=>p(value);
+  // Native A-10-2026-0105, recital T / paragraph 40. Excerpts retain their
+  // published labels and the physically empty intervening paragraph.
+  const text={...docxContent(zip(doc(para('The European Parliament,')+para('T. whereas on 16 July 2025, the Commission presented a set of proposals;')+'<w:p><w:pPr><w:pStyle w:val="NormalHanging12a"/></w:pPr></w:p>'+para('1. Underlines that the next MFF must equip the Union;')+para('40. Recognises that all of the EU’s eastern border regions face heightened economic, social and security challenges;')+'<w:p/>'+ '<w:p><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>Heading 2</w:t></w:r></w:p>'+para('41. Welcomes the significant reinforcement of heading 2;')))),textLanguage:'en'};
+  for(const [targetLabel,index] of [['Recital T a (new)',1],['Paragraph 40 a (new)',3]]) {
+    const placement=resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'New;',targetLabel});
+    assert.equal(placement.status,'placed');assert.equal(placement.insertAfter,index);assert.equal(placement.insertBefore,index+1);
+  }
+});
+
+
+test('a blank after coalesced source provisions does not establish an insertion after the first label',()=>{
+  // A-10-2026-0042 prints paragraphs 51 and 52 in one native Word row.
+  const text={...docxContent(zip(doc(p('The European Parliament,')+p('51. Recalls that Article 46 can be activated;52.\tUrges the Member States to take due account of the recommendations;')+'<w:p/>'+p('53. Strongly condemns the backsliding;')))),textLanguage:'en'};
+  assert.equal(resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'New;',targetLabel:'Paragraph 51 a (new)'}).reason,'source_passage_incomplete');
+});
+
+test('direct and inherited hidden blank properties retain resolution source gaps',()=>{
+ for(const blank of ['<w:p><w:pPr><w:rPr><w:vanish/></w:rPr></w:pPr></w:p>', '<w:p><w:pPr><w:rPr><w:webHidden/></w:rPr></w:pPr></w:p>', '<w:p><w:pPr><w:pStyle w:val="Hidden"/></w:pPr></w:p>']) {
+ const text={...docxContent(zip(doc(p('The European Parliament,')+p('1. First;')+blank+p('2. Next;')),{'word/styles.xml':'<w:styles xmlns:w="urn:word"><w:style w:type="paragraph" w:styleId="Hidden"><w:rPr><w:vanish/></w:rPr></w:style></w:styles>'})),textLanguage:'en'};
+ assert.equal(text.paragraphSources[2].previousParagraph,undefined);
+ assert.equal(resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'New;',targetLabel:'Paragraph 1 a (new)'}).status,'unresolved');
+ }
 });

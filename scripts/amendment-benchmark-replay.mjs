@@ -215,7 +215,7 @@ export function sourceReplay(cache,runtime) {
         if(!input.ok)throw new Error('document-source-http-'+input.status);
         return {...runtime.docxContent(input.body),resolvedSourceUrl:input.resolvedSourceUrl||url};
       }});
-      cache.assertHealthy();return {...text,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
+      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
     },
     async proposal(options,selection) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};

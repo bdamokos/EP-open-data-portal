@@ -1,0 +1,36 @@
+{
+  "sourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0272/A-10-2026-0272_fi.docx",
+  "amendmentSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0272-AM-001-010/A-10-2026-0272-AM-001-010_fi.docx",
+  "sourceXml": [
+    "<w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"00693199\" w:rsidRPr=\"004A04AB\" w:rsidP=\"00E11CEF\" ns1:paraId=\"32FC7EAF\" ns1:textId=\"77777777\"><w:pPr><w:pStyle w:val=\"Action\" /><w:widowControl /><w:tabs><w:tab w:val=\"clear\" w:pos=\"357\" /></w:tabs><w:spacing w:before=\"120\" /><w:ind w:left=\"567\" w:hanging=\"567\" /><w:rPr><w:b /></w:rPr></w:pPr><w:r w:rsidRPr=\"004A04AB\"><w:rPr><w:b /><w:i /></w:rPr><w:t>Pääluokka III – Komissio</w:t></w:r></w:p>",
+    "<w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"00693199\" w:rsidRPr=\"004A04AB\" w:rsidP=\"00E11CEF\" ns1:paraId=\"1B94E03C\" ns1:textId=\"67F4AF46\"><w:pPr><w:pStyle w:val=\"Visa\" /><w:widowControl /><w:tabs><w:tab w:val=\"clear\" w:pos=\"357\" /><w:tab w:val=\"left\" w:pos=\"567\" /></w:tabs><w:ind w:left=\"567\" w:hanging=\"567\" /><w:rPr><w:szCs w:val=\"24\" /></w:rPr></w:pPr><w:r w:rsidRPr=\"004A04AB\"><w:t>1.</w:t></w:r><w:r w:rsidRPr=\"004A04AB\"><w:tab /><w:t xml:space=\"preserve\">palauttaa mieliin, että vuoden 2027 talousarvion valmistelua koskevista yleisistä suuntaviivoista 28. huhtikuuta 2026 antamassaan päätöslauselmassa parlamentti asetti vuoden 2027 talousarviolle selkeät poliittiset painopisteet; toteaa jälleen olevansa vahvasti sitoutunut näihin painopisteisiin ja esittää seuraavan kannan varmistaakseen asianmukaisen rahoitustason niitä koskevien tavoitteiden saavuttamiseksi nykyisten budjettirajoitusten puitteissa; katsoo, että unionilla on oltava käytettävissään kaikki </w:t></w:r><w:r w:rsidRPr=\"004A04AB\"><w:t>mahdolliset talousarviovarat, jotta se voi saavuttaa ensisijaiset tavoitteensa ja pyrkiä luomaan Euroopalle vauraan tulevaisuuden;</w:t></w:r></w:p>",
+    "<w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"00693199\" w:rsidRPr=\"004A04AB\" w:rsidP=\"00E11CEF\" ns1:paraId=\"396B1D69\" ns1:textId=\"6B9A11FD\"><w:pPr><w:pStyle w:val=\"Visa\" /><w:widowControl /><w:tabs><w:tab w:val=\"clear\" w:pos=\"357\" /><w:tab w:val=\"left\" w:pos=\"567\" /></w:tabs><w:ind w:left=\"567\" w:hanging=\"567\" /></w:pPr><w:r w:rsidRPr=\"004A04AB\"><w:t>2.</w:t></w:r><w:r w:rsidRPr=\"004A04AB\"><w:tab /><w:t>palauttaa mieliin, että neuvosto ehdottaa</w:t></w:r></w:p>"
+  ],
+  "amendments": [
+    {
+      "id": "A-10-2026-0272-AM-2",
+      "targetLabel": "-1 kohta (uusi)",
+      "originalText": "",
+      "proposedText": "-1.kehottaa vahvistamaan merkittävästi EU:n talousarviota, jotta voidaan puuttua kansojen ja jäsenvaltioiden sosioekonomiseen ahdinkoon, jota on pahentanut muun muassa elinkustannusten jatkuva nousu;"
+    },
+    {
+      "id": "A-10-2026-0272-AM-3",
+      "targetLabel": "-1 a kohta (uusi)",
+      "originalText": "",
+      "proposedText": "-1 a.kehottaa myös tehostamaan talousarvion tulonjakotehtävää, jotta voidaan tukea todellista lähentymistä taloudellisessa ja sosiaalisessa edistyksessä jäsenvaltioiden välillä;"
+    },
+    {
+      "id": "A-10-2026-0272-AM-4",
+      "targetLabel": "-1 b kohta (uusi)",
+      "originalText": "",
+      "proposedText": "-1 b.pitää siksi valitettavana, että peräkkäisten monivuotisten rahoituskehysten aikana on leikattu sosiaaliseen, taloudelliseen ja alueelliseen yhteenkuuluvuuteen varattuja määrärahoja; kehottaa lisäämään näitä määrärahoja vuoden 2027 talousarviossa;"
+    },
+    {
+      "id": "A-10-2026-0272-AM-5",
+      "targetLabel": "-1 c kohta (uusi)",
+      "originalText": "",
+      "proposedText": "-1 c.kehottaa kannustamaan EU:n vuotuisessa talousarviossa siihen, että kunkin maan kehityspotentiaali hyödynnetään täysin julkisten investointien avulla, tukemalla ja nykyaikaistamalla tuottavia ja strategisia aloja, edistämällä jäsenvaltioiden suvereniteettia erityisesti elintarvike- ja energia-aloilla, investoimalla julkisiin palveluihin ja tehostamalla niitä, luomalla oikeudet huomioon ottavia työpaikkoja ja edistämällä täystyöllisyyttä, tukemalla pieniä ja keskisuuria yrityksiä ja paikallista kauppaa, pyrkimällä poistamaan köyhyyden, torjumalla sosiaalista syrjäytymistä ja eriarvoisuutta, suojelemalla ja ennallistamalla ekosysteemejä, hillitsemällä ilmastonmuutosta ja sopeutumalla siihen sekä pyrkimällä luomaan ulkosuhteita, jotka perustuvat solidaarisuuteen, yhteistyöhön, keskinäiseen kunnioitukseen ja rauhaan;"
+    }
+  ],
+  "resolutionHeadingXml": "<w:p xmlns:ns1=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" w:rsidR=\"00F55F30\" w:rsidRPr=\"004A04AB\" w:rsidP=\"00E11CEF\" ns1:paraId=\"02FDB9E7\" ns1:textId=\"77777777\"><w:pPr><w:pStyle w:val=\"PageHeading\" /><w:widowControl /></w:pPr><w:r w:rsidRPr=\"004A04AB\"><w:br w:type=\"page\" /></w:r><w:bookmarkStart w:id=\"1\" w:name=\"_Toc243039582\" /><w:r w:rsidRPr=\"004A04AB\"><w:t>EUROOPAN PARLAMENTIN PÄÄTÖSLAUSELMAESITYS</w:t></w:r><w:bookmarkEnd w:id=\"1\" /></w:p>"
+}

@@ -89,6 +89,8 @@ test('idle workers and deferred retries do not acquire leases, discover or compu
   const store=fixture(t,ActivityStore);
   store.set('active',1);store.set('lastSuccess',new Date(instant()).toISOString());
   store.db.prepare('INSERT INTO group_voice_state VALUES (?,?)').run(1,GROUP_VOICE_VERSION);
+  // A retained generation is idle only after its local projection fill finishes.
+  while(store.backfillFastReads(1)){}
   store.release();
   t.mock.method(store,'status',()=>assert.fail('idle status aggregate'));
   t.mock.method(store,'acquire',()=>assert.fail('idle writer lease'));

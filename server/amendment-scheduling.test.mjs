@@ -17,8 +17,8 @@ const date='2026-10-02',stamp='2026-10-17T08:00:00.000Z',sitting='MTG-PL-2026-10
 const member={id:'1',givenName:'Example',familyName:'Member'};
 const source={url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/decisions?offset=0',fetchedAt:stamp};
 const id=index=>'A-10-2026-'+String(7000+index);
-function setup(t,{budget=1000}={}) {
-  const directory=mkdtempSync(path.join(os.tmpdir(),'amendment-scheduling-')),clock=()=>Date.parse(stamp);
+function setup(t,{budget=1000,clock=()=>Date.parse(stamp)}={}) {
+  const directory=mkdtempSync(path.join(os.tmpdir(),'amendment-scheduling-'));
   const store=new ActivityStore(directory,{clock});assert(store.acquire());const {generation}=store.beginCycle();
   store.setMembers([{id:'1',name:'Example Member'}]);
   // Metadata is settled in this amendment scheduling fixture.
@@ -118,6 +118,126 @@ test('preparation keysets more than ten targets and preserves its cursor across 
   assert.equal(row(store,next.generation,first.key).done,1);assert.equal(JSON.parse(row(store,next.generation,first.key).body).stage,'done');
   assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM amendment_targets WHERE generation=?').get(next.generation).n,15);
   assert.equal(store.get('working').amendmentsPreparedDay,stamp.slice(0,10));assert.equal(worker.requests,0);assert.equal(store.get('working').requests,0);
+});
+
+
+for(const reserveFull of [false,true])test('a full legacy queue drains extraction before preparation; reserveFull='+reserveFull,async t=>{
+  let now=Date.parse('2026-10-26T07:26:48Z'),elapsed=0;
+  const {store,worker,generation}=setup(t,{budget:1,clock:()=>now});
+  worker.monotonic=()=>elapsed;worker.maxDuration=20;
+  for(const targetId of ['A-10-2026-0254','B-10-2026-0424',...Array.from({length:50},(_,i)=>id(i))])seedTarget(store,generation,targetId);
+  store.updateCycle({initialized:true,membershipScheduled:true,groupHistoryScheduled:true,mutableScheduled:true,reportJoinsReady:true,procedureTitlesQueued:true,procedureTypesQueued:true,motionOutcomesDay:'2026-10-26',catchupDay:'2026-10-26'});
+  const key='amendment:prepare:2026-10-24:legacy';
+  enqueueAmendment(store,generation,key,'amendment-prepare',{markers:{amendmentsPreparedDay:'2026-10-24',amendmentDocumentParserVersion:'11'},stage:'documents',afterKey:'',throughKey:'/plenary-documents/Z',upgrades:74},113);
+  for(let i=0;i<199;i++)enqueueAmendment(store,generation,'legacy:'+i,i<173?'amendment-extract':'amendment-aliases',{},i<173?112:108);
+  if(reserveFull)store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:Array.from({length:200},(_,i)=>({generation,key:'reserved:'+i,kind:'amendment-reparse',body:'{}',priority:1,done:0,attempts:0,retry_at:0,error:null}))},stamp);
+  const selected=[],original=worker.task.bind(worker);
+  worker.task=async value=>{
+    selected.push(value.kind);elapsed+=5;
+    if(value.kind==='amendment-extract'){store.finishTask(value);worker.requests++;return;}
+    return original(value);
+  };
+  await worker.runIteration();
+  assert(selected.includes('amendment-extract'),'Queued extraction must get a turn within the bounded iteration.');
+  const prep=row(store,generation,key)||store.source(generation,'amendment:continuations')?.work.tasks?.find(task=>task.key===key);
+  assert.equal(worker.requests,1);assert.equal(prep.done,0);
+  assert.equal(JSON.parse(prep.body).afterKey,'','Backpressure preserves the unprocessed preparation cursor.');
+  assert(prep.retry_at>now);
+  assert.equal(store.source(generation,'amendment:continuations')?.work.capacityGap,undefined);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM sources WHERE generation=? AND kind='document' AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL").get(generation).n,52);
+  if(!reserveFull)assert.equal(store.source(generation,'amendment:continuations'),undefined,'A new daily preparation must not fill the continuation reserve.');
+});
+
+test('day changes coalesce into one saved preparation and preserve its backoff and cursor',async t=>{
+  let now=Date.parse('2026-10-24T10:00:00Z');
+  const {store,worker,generation}=setup(t,{clock:()=>now});
+  for(const targetId of ['A-10-2026-0254','B-10-2026-0424',...Array.from({length:13},(_,i)=>id(i))])seedTarget(store,generation,targetId);
+  await prepareAmendments(worker,store.get('working'));
+  const saved=store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND kind='amendment-prepare'").get(generation),cursor=JSON.parse(saved.body).afterKey;
+  now=Date.parse('2026-10-26T10:00:00Z');assert(store.acquire());
+  store.db.prepare('UPDATE amendment_jobs SET attempts=2,retry_at=?,error=? WHERE generation=? AND key=?').run(now+60_000,'Preserved preparation failure',generation,saved.key);
+  const before=row(store,generation,saved.key);
+  assert.equal(await prepareAmendments(worker,store.get('working')),false);
+  const merged=row(store,generation,saved.key),body=JSON.parse(merged.body);
+  assert.equal(body.afterKey,cursor);assert.equal(body.markers.amendmentsPreparedDay,'2026-10-24');assert.equal(body.requestedMarkers.amendmentsPreparedDay,'2026-10-26');
+  assert.equal(merged.attempts,before.attempts);assert.equal(merged.retry_at,before.retry_at);assert.equal(merged.error,before.error);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind='amendment-prepare' AND done=0").get(generation).n,1);
+  assert.equal(store.source(generation,'amendment:continuations'),undefined);
+  now+=60_000;assert(store.acquire());
+  for(let i=0;row(store,generation,saved.key).done===0&&i<10;i++)await worker.task(task(store,generation,saved.key));
+  assert.equal(row(store,generation,saved.key).done,1);assert.equal(store.get('working').amendmentsPreparedDay,'2026-10-26');
+  const accepted={...store.get('working')};
+  enqueueAmendment(store,generation,'obsolete:prepare','amendment-prepare',{markers:JSON.parse(saved.body).markers,stage:'done',afterKey:'',throughKey:''},113);
+  await worker.task(task(store,generation,'obsolete:prepare'));
+  assert.deepEqual(store.get('working'),accepted,'A late obsolete completion cannot regress current preparation markers.');
+  assert.equal(await prepareAmendments(worker,store.get('working')),true);
+  assert.equal(row(store,generation,saved.key).done,1);
+});
+
+for(const location of ['tasks','amendment_jobs','reserve'])test('marker changes retain the furthest legacy preparation in '+location,async t=>{
+  const {store,worker,generation}=setup(t);
+  for(const targetId of ['A-10-2026-0254','B-10-2026-0424',...Array.from({length:13},(_,i)=>id(i))])seedTarget(store,generation,targetId);
+  await prepareAmendments(worker,store.get('working'));
+  const saved=store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND kind='amendment-prepare'").get(generation);
+  const body=JSON.parse(saved.body),key='legacy:furthest',retry=worker.clock()+60_000;
+  const further={...body,afterKey:body.afterKey+'z',markers:{...body.markers,amendmentDocumentParserVersion:'legacy'}};
+  const legacy={...saved,key,body:JSON.stringify(further),retry_at:retry,attempts:2,error:'Saved error'};
+  if(location==='reserve')store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks:[legacy]},stamp);
+  else if(location==='tasks')store.enqueue(generation,key,'amendment-prepare',further,113);
+  else enqueueAmendment(store,generation,key,'amendment-prepare',further,113);
+  if(location!=='reserve')store.db.prepare(`UPDATE ${location} SET retry_at=?,attempts=2,error=? WHERE generation=? AND key=?`).run(retry,'Saved error',generation,key);
+  for(let i=0;i<3;i++)assert.equal(await prepareAmendments(worker,store.get('working')),false);
+  const kept=location==='reserve'?store.source(generation,'amendment:continuations').work.tasks[0]:store.db.prepare(`SELECT * FROM ${location} WHERE generation=? AND key=?`).get(generation,key);
+  assert.equal(JSON.parse(kept.body).afterKey,further.afterKey);
+  assert.equal(JSON.parse(kept.body).requestedMarkers.amendmentDocumentParserVersion,body.markers.amendmentDocumentParserVersion);
+  assert.equal(kept.retry_at,retry);assert.equal(kept.attempts,2);assert.equal(kept.error,'Saved error');
+  assert.equal(row(store,generation,saved.key).done,1);
+  const count=['tasks','amendment_jobs'].reduce((n,table)=>n+store.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE generation=? AND kind='amendment-prepare' AND (done IS NULL OR done<>1)`).get(generation).n,0)+(store.source(generation,'amendment:continuations')?.work.tasks||[]).filter(t=>t.kind==='amendment-prepare'&&t.done!==1).length;
+  assert.equal(count,1);
+});
+
+test('preparation admission at full queue and reserve preserves every report marker',async t=>{
+  const {store,worker,generation}=setup(t);
+  for(const targetId of ['A-10-2026-0254','B-10-2026-0424',id(0)])seedTarget(store,generation,targetId);
+  for(let i=0;i<200;i++)enqueueAmendment(store,generation,'queued:'+i,'amendment-reparse',{},112);
+  const tasks=Array.from({length:200},(_,i)=>({generation,key:'reserve:'+i,kind:'amendment-reparse',body:'{}',priority:112,done:0,attempts:0,retry_at:0,error:null}));
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks},stamp);
+  const before=store.db.prepare('SELECT key,body FROM sources WHERE generation=? ORDER BY key').all(generation);
+  assert.equal(await prepareAmendments(worker,store.get('working')),false);
+  assert.equal(await prepareAmendments(worker,store.get('working')),false);
+  assert.deepEqual(store.db.prepare('SELECT key,body FROM sources WHERE generation=? ORDER BY key').all(generation),before);
+  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM amendment_jobs WHERE generation=? AND kind='amendment-prepare'").get(generation).n,0);
+});
+
+for(const linkUpgrade of [false,true])test('a partial target fanout retains its cursor and retries children; linkUpgrade='+linkUpgrade,async t=>{
+  let now=Date.parse(stamp);
+  const {store,worker,generation}=setup(t,{clock:()=>now});
+  for(const targetId of ['A-10-2026-0254','B-10-2026-0424',...Array.from({length:12},(_,i)=>id(i))])seedTarget(store,generation,targetId);
+  await prepareAmendments(worker,store.get('working'));
+  const prep=store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND kind='amendment-prepare'").get(generation),cursor=JSON.parse(prep.body).afterKey;
+  const source=store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='document' AND key>? ORDER BY key LIMIT 1").get(generation,cursor),work=JSON.parse(source.body);
+  const listIds=[work.identifier+'-AM-001-001',work.identifier+'-AM-002-002'];
+  store.putSource(generation,source.key,'document',{...work,amendmentLinksVersion:linkUpgrade?'legacy':work.amendmentLinksVersion,inverse_foresees_change_of:listIds.map(id=>'eli/dl/doc/'+id)},stamp);
+  for(let i=1;i<199;i++)enqueueAmendment(store,generation,'queued:'+i,'amendment-reparse',{},112);
+  const tasks=Array.from({length:200},(_,i)=>({generation,key:'reserve:'+i,kind:'amendment-reparse',body:'{}',priority:112,done:0,attempts:0,retry_at:0,error:null}));
+  store.putSource(generation,'amendment:continuations','amendment-continuations',{tasks},stamp);
+  await worker.task(task(store,generation,prep.key));
+  const child=id=>'amendment:discover:'+work.identifier+':'+id;
+  assert(row(store,generation,child(listIds[0])));assert.equal(row(store,generation,child(listIds[1])),undefined);
+  assert.equal(row(store,generation,prep.key).done,0);assert.equal(JSON.parse(row(store,generation,prep.key).body).afterKey,cursor);assert(row(store,generation,prep.key).retry_at>now);
+  assert.equal(store.source(generation,source.key).work.amendmentLinksVersion,linkUpgrade?'legacy':work.amendmentLinksVersion);
+  assert.deepEqual(store.source(generation,'amendment:continuations').work,{tasks});
+  if(linkUpgrade) {
+    assert.equal(JSON.parse(row(store,generation,prep.key).body).upgrades,1);
+    const current=store.source(generation,source.key);
+    store.putSource(generation,source.key,'document',{...current.work,amendmentLinksVersion:work.amendmentLinksVersion},stamp);
+  }
+  store.db.prepare("UPDATE amendment_jobs SET done=1 WHERE generation=? AND key IN ('queued:1','queued:2')").run(generation);
+  now+=60_000;assert(store.acquire());await worker.task(task(store,generation,prep.key));
+  assert(row(store,generation,child(listIds[1])),'The unadmitted child is retried from the same source.');
+  assert.equal(JSON.parse(row(store,generation,prep.key).body).upgrades,linkUpgrade?1:0,'A target admitted before backpressure counts exactly once, even if its metadata refresh finishes before retry.');
+  assert.equal(store.source(generation,source.key).work.amendmentLinksVersion,work.amendmentLinksVersion);
+  assert.equal(store.source(generation,'amendment:continuations').work.capacityGap,undefined);
 });
 
 for(const kind of ['roster','members','profile'])test(kind+' fan-out resumes beyond ten targets from saved evidence without refetching',async t=>{

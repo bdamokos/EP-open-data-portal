@@ -1,3 +1,4 @@
+import {fastReadsReady} from './fast-read-projections.mjs';
 import {languagePreference} from './language-order.mjs';
 import { createHash } from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
@@ -236,7 +237,8 @@ export function recordSplitResults(store,result) {
 export function saveAmendmentRows(store,generation,target,rows,coverage,{observedDecisionIds=[],freshSplitParts=[],invalidatedTextListIds=[],textParserVersion=null,currentListIds=null,listRelationshipsKnown=null}={}) {
   store.transaction(()=>{
     store.assertWriter();
-    const prior=store.db.prepare('SELECT id,date,outcome,body FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
+    const prior=store.db.prepare('SELECT id,date,outcome FROM amendments WHERE generation=? AND target=?').all(generation,target.id);
+    const priorBody=store.db.prepare('SELECT body FROM amendments WHERE generation=? AND target=? AND id=?');
     const merged=new Map(rows.map(row=>[row.id,row]));
     const observed=new Set(observedDecisionIds);
     const invalidatedLists=new Set(invalidatedTextListIds),currentLists=currentListIds===null?null:new Set(currentListIds);
@@ -247,6 +249,7 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     // Copying a generation preserves accepted components. A missing list,
     // author mapping or decision is a gap, never evidence that it disappeared.
     for(const previous of prior) {
+      previous.body=priorBody.get(generation,target.id,previous.id).body;
       const old=parse(previous.body),incoming=merged.get(previous.id);
       if(!incoming){
         retained=true;
@@ -430,8 +433,9 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(outcome){clauses.push(`(CASE WHEN ${splitUnverifiedSql('amendments.body')} THEN 'unavailable' ELSE outcome END)=?`);args.push(outcome);}
   if(procedure){clauses.push("EXISTS(SELECT 1 FROM json_each(amendments.body,'$.procedureIds') AS p WHERE p.value=?)");args.push(procedure);}
   if(member){clauses.push(`(${memberMatchesSql('amendments.body')} OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE ${memberMatchesSql('variant.value')}))`);args.push(String(member),'person/'+member,String(member),'person/'+member);}
-  const where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM amendments WHERE '+where).get(...args).n;
-  const items=store.db.prepare('SELECT body FROM amendments WHERE '+where+" ORDER BY date DESC,target,CAST(json_extract(body,'$.number') AS INTEGER),id LIMIT ? OFFSET ?").all(...args,limit,offset).map(record=>{
+  const projected=fastReadsReady(store,generation,'amendments');
+  const table=projected?'(SELECT page.*,source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id) amendments':'amendments',where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...args).n;
+  const items=store.db.prepare('SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?").all(...args,limit,offset).map(record=>{
     const row=checkedAmendmentRead(parse(record.body));
     if(member) {
       const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);
@@ -439,7 +443,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
     }
     return {...row,title:row.titles?.[languagePreference(Object.keys(row.titles||{}).filter(code=>row.titles[code]?.trim()),language)[0]] || row.targetDocumentId,requestedLanguage:language};
   });
-  const records=store.db.prepare('SELECT body FROM amendment_targets WHERE generation=?'+(scope==='committee'&&list?' AND id=?':scope!=='committee'&&document?' AND id=?':'')+' LIMIT 10001').all(generation,...(scope==='committee'&&list?[committeeScopeKey(list)]:scope!=='committee'&&document?[document]:[])).map(record=>parse(record.body))
+  const records=store.db.prepare('SELECT body FROM '+(fastReadsReady(store,generation,'targets')?'amendment_target_reads':'amendment_targets')+' WHERE generation=?'+(scope==='committee'&&list?' AND id=?':scope!=='committee'&&document?' AND id=?':'')+' LIMIT 10001').all(generation,...(scope==='committee'&&list?[committeeScopeKey(list)]:scope!=='committee'&&document?[document]:[])).map(record=>parse(record.body))
     .filter(record=>(scope==='all'||(record.scope||'plenary')===scope)&&(!document||scope!=='committee'||record.targetDocumentId===document)&&(!procedure||record.procedureIds?.includes(procedure))&&(!committee||record.committees?.some(value=>value.code===committee)));
   const gaps=[...new Set(records.flatMap(record=>record.gaps || []))];
   const listProjectionUnverified=records.some(record=>record.scope==='committee'?record.committeeProjectionVersion!==1:record.listProjectionVersion!==AMENDMENT_LINKS_VERSION);
