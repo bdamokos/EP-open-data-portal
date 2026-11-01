@@ -128,16 +128,6 @@ export function rawProposalAssertion({proposal,wording,placement}) {
     } else return unknown('oracle-raw-proposal-grammar-unavailable');
   }
   if(placement.operation!=='insert') {
-    if(/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim())){
-      const ref=wording.targetPath?.underlying;
-      const lead=article.rows.find(row=>row.index===scope.start)?.text;
-      const named=article.rows.filter(row=>row.index<scope.start&&/ is amended as follows:$/u.test(row.text)).at(-1)?.text.trim();
-      const sp=placement.splice;
-      if(placement.operation!=='delete'||ref?.length!==1||!/^Article \d+$/u.test(ref[0].raw)||
-        !lead?.endsWith(ref[0].raw+' is amended as follows:')||named!==ref[0].document+' is amended as follows:'||
-        !sp||sp.start.paragraph!==scope.start||sp.start.offset!==0||sp.end.paragraph!==scope.end-1||sp.end.offset!==article.rows.find(row=>row.index===scope.end-1)?.text.length)
-        return failed('oracle-elided-deletion-scope-mismatch');
-    }
     const span=placement.span;
     if(!span||span.start<scope.start||span.end>=scope.end)return failed('oracle-raw-address-span-mismatch');
     if(article.rows.filter(row=>row.index>=span.start&&row.index<=span.end).some(row=>!body(row)))return unknown('oracle-raw-source-incomplete');
