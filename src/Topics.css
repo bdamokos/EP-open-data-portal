@@ -57,7 +57,6 @@
 .topic-bar-space b {position:absolute;top:0;font-size:12px}
 .topic-bars button[aria-pressed=true] {background-color:var(--accent-soft)}
 .topic-bars small {font-size:11px}
-.topic-sitting {display:block;height:3px;background:var(--line-strong);margin:4px auto}
 .topic-peak {border:0;background:none;color:var(--accent);font:18px var(--font-serif);text-align:left;padding:12px 0}
 .topic-facets {display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}
 .topic-facets a,.topic-facets button {padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:13px;text-decoration:none;color:var(--accent);background:var(--surface)}
@@ -74,3 +73,7 @@
 
 @media(min-width:621px){.places-ranking{order:1}.places-map{order:0}}
 .topic-heat td.topic-partial{position:relative}.topic-heat td.topic-partial::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--line) 45%,transparent) 5px 6px)}
+
+.topic-story-records{border-left:2px solid var(--accent);padding:12px 20px;background:var(--surface)}
+.topic-story-records article{display:flex;flex-direction:column;gap:4px;margin:12px 0}
+.topic-story-records small{color:var(--ink-muted)}
