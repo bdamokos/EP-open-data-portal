@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Worker} from 'node:worker_threads';
-import {once} from 'node:events';
+import {once,EventEmitter} from 'node:events';
 import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {spawn} from 'node:child_process';
@@ -17,11 +17,46 @@ import {followingStatus} from './insights-following.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 import {OdpObservations} from './odp-observability.mjs';
 import {loopback} from './test-support/loopback.mjs';
+import {SittingSnapshotHints} from './sitting-snapshot-store.mjs';
+import {forwardSittingSnapshotHints,acceptSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
+import {MEMBER_VOTES_VERSION} from './member-votes.mjs';
+import {SNAPSHOT_SITTING,SNAPSHOT_MEMBER} from './test-support/sitting-snapshots.mjs';
 
 const workerUrl=new URL('./test-support/source-writer-fixture.mjs',import.meta.url);
 const services=()=>({queueFor:()=>new UpstreamQueue(),observations:new OdpObservations({log:()=>{}})});
 test('disabled source writers allocate no worker',async()=>{
   const stop=startSourceWriters({enabled:false,createWorker:()=>{throw new Error('Unexpected worker.');}});await stop();
+});
+test('sitting hint transport coalesces bounded tuples with one batch in flight and restores unacknowledged IDs',async()=>{
+  const hints=new SittingSnapshotHints(),received=new SittingSnapshotHints(),worker=new EventEmitter(),sent=[];
+  worker.postMessage=message=>sent.push(message);
+  let stop=forwardSittingSnapshotHints(worker,{hints});
+  try{
+    for(let i=0;i<600;i++)hints.enqueue('calendar',1,String(2000+i));
+    hints.enqueue('calendar',1,'2000',{changedDeclarations:true});
+    await new Promise(setImmediate);
+    assert.equal(sent.length,1);assert.equal(sent[0].ids.length,512);
+    assert.deepEqual(sent[0].ids[0],['calendar',1,'2000',true]);
+    assert(acceptSittingSnapshotHints(sent[0],{hints:received}));assert.equal(received.size,512);
+    hints.enqueue('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING);
+    await new Promise(setImmediate);assert.equal(sent.length,1,'wait for acknowledgement before another batch');
+    worker.emit('message',{type:'sitting-hints-received'});
+    await new Promise(setImmediate);assert.equal(sent.length,2);
+    stop();assert.equal(hints.size,1,'restart retains unacknowledged IDs');
+    stop=forwardSittingSnapshotHints(worker,{hints});await new Promise(setImmediate);
+    assert.deepEqual(sent[2],sent[1]);
+    worker.emit('message',{type:'sitting-hints-received'});
+    await new Promise(setImmediate);assert.equal(hints.size,0);
+    hints.enqueue('attendance',1,SNAPSHOT_SITTING);stop();
+    await new Promise(setImmediate);assert.equal(sent.length,3,'shutdown cancels a scheduled send');
+  }finally{stop();}
+});
+test('sitting hint receiver rejects oversized batches and ignores non-ID payloads',()=>{
+  const hints=new SittingSnapshotHints();
+  assert.equal(acceptSittingSnapshotHints({type:'sitting-hints',ids:Array(513).fill(['calendar',1,'2026',false])},{hints}),false);
+  assert(acceptSittingSnapshotHints({type:'sitting-hints',ids:[['votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING,false],
+    ['calendar',1,{body:'unexpected'},false],['attendance',1,'x'.repeat(10000),false],['votes',1,SNAPSHOT_SITTING,{body:'unexpected'}]]},{hints}));
+  assert.equal(hints.size,1);
 });
 function messages(worker,type) {
   return new Promise((resolve,reject)=>{
@@ -142,4 +177,37 @@ test('production server serves HTTP during a two-second real activity writer ite
   await waitFor(()=>existsSync(`${marker}.end`));
   const start=Number(await readFile(`${marker}.start`,'utf8')),end=Number(await readFile(`${marker}.end`,'utf8'));
   assert(start<=sent&&received<end);assert(end-start>=2000);
+});
+
+test('a cold HTTP sitting read reaches the production worker collector high-priority queue', {...loopback,timeout:30000},async t=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'source-http-hint-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
+  const marker=path.join(directory,'hint');
+  const probe=http.createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');
+  const port=probe.address().port;await new Promise(resolve=>probe.close(resolve));
+  const child=spawn(process.execPath,['--import',new URL('./test-support/source-writer-sitting-hint.mjs',import.meta.url).href,'server/index.mjs'],{
+    cwd:new URL('..',import.meta.url),
+    env:{...process.env,HOST:'127.0.0.1',PORT:String(port),ACTIVITY_INDEX_ENABLED:'true',ACTIVITY_INDEX_DIR:path.join(directory,'activity'),
+      CORPUS_ENABLED:'false',ODP_CACHE_DIR:path.join(directory,'cache'),ERROR_LOG_DIR:path.join(directory,'logs'),TEST_SOURCE_WRITER_HINT_FILE:marker},
+    stdio:['ignore','pipe','pipe'],
+  });
+  let output='';for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>output+=chunk);
+  const exited=once(child,'exit');t.after(async()=>{child.kill('SIGKILL');await exited;});
+  const waitFor=async predicate=>{
+    const deadline=Date.now()+20000;
+    while(!predicate()){assert.equal(child.exitCode,null,output);assert(Date.now()<deadline,output);await delay(5);}
+  };
+  await waitFor(()=>output.includes('listening on')&&existsSync(`${marker}.ready`));
+  assert.equal(existsSync(marker),false,'collector has no foreground hint before HTTP');
+  await new Promise((resolve,reject)=>{
+    http.get({host:'127.0.0.1',port,path:`/api/member-votes/${SNAPSHOT_MEMBER}?sitting=${SNAPSHOT_SITTING}`},response=>{
+      let body='';response.on('data',chunk=>body+=chunk);response.once('end',()=>{
+        try{assert.equal(response.statusCode,200,body);assert(JSON.parse(body).items.length>0);resolve();}catch(error){reject(error);}
+      });
+    }).once('error',reject);
+  });
+  await waitFor(()=>existsSync(marker));
+  const collected=JSON.parse(await readFile(marker,'utf8'));
+  assert.equal(collected.isMainThread,false);assert.equal(collected.hintsLeft,0);
+  assert.deepEqual(collected.jobs,[{kind:'votes',version:MEMBER_VOTES_VERSION,id:SNAPSHOT_SITTING,priority:100}]);
 });

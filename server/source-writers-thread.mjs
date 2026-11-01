@@ -5,6 +5,7 @@ import {activityIndex,startActivityIndex} from './activity-index-worker.mjs';
 import {corpus,startCorpus} from './corpus-worker.mjs';
 import {observePublications} from './source-publications.mjs';
 import {booleanFromEnvironment} from './config.mjs';
+import {acceptSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
 
 const rpc=new UpstreamRpcClient(workerData.upstreamPort);
 setUpstreamBridge(rpc);
@@ -12,6 +13,9 @@ let stopActivity=()=>{},stopCorpus=()=>{},closing=false;
 const stores=[];
 const unobserve=[];
 parentPort.on('message',message=>{
+  if(!closing&&acceptSittingSnapshotHints(message)){
+    parentPort.postMessage({type:'sitting-hints-received'});return;
+  }
   if(message?.type!=='shutdown'||closing)return;
   closing=true;
   void (async()=>{

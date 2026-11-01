@@ -1,6 +1,6 @@
 import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {chmod, mkdtemp, readFile, readdir, rm, stat, truncate, writeFile} from 'node:fs/promises';
+import {chmod, mkdtemp, readFile, readdir, rename, rm, stat, symlink, truncate, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import os from 'node:os';
@@ -40,6 +40,40 @@ test('a restarted portrait endpoint uses the saved binary without profile or ima
   const metadata = JSON.parse(file.subarray(4, 4 + file.readUInt32BE(0)).toString());
   assert.equal(metadata.memberId, 257043); assert.equal(metadata.contentType, 'image/jpeg');
   assert.equal(metadata.sha256.length, 64);
+});
+
+test('a retained portrait is readable while the unrelated disk inventory is still blocked', async t => {
+  const directory = await fixture(t);
+  await new PortraitCache({directory, fetchImpl: async () => jpeg('retained')}).get(1, source);
+  const inventory = deferred(), entered = deferred();
+  class SlowInventory extends PortraitCache {
+    async initialize() {entered.resolve(); await inventory.promise; return super.initialize();}
+  }
+  const restarted = new SlowInventory({directory, fetchImpl: () => assert.fail('retained bytes need no download')});
+  const initialization = restarted.initialize();
+  const read = restarted.get(1, () => assert.fail('retained bytes need no profile lookup'));
+  let timer;
+  try {
+    await entered.promise;
+    const result = await Promise.race([read, new Promise(resolve => {timer = setTimeout(() => resolve(null), 1000);})]);
+    assert(result, 'one saved image must not wait for the directory-wide inventory');
+    assert.equal(result.body.toString(), 'retained');
+  } finally {
+    clearTimeout(timer); inventory.resolve(); await read; await initialization;
+  }
+});
+
+test('direct retained-image reads still reject symbolic links and corrupt image bytes', {skip: process.platform === 'win32'}, async t => {
+  const directory = await fixture(t);
+  await new PortraitCache({directory, fetchImpl: async () => jpeg('retained')}).get(1, source);
+  const name = path.join(directory, '1.portrait'), outside = path.join(directory, 'not-a-portrait-cache-file');
+  await rename(name, outside); await symlink(outside, name);
+  const reader = new PortraitCache({directory});
+  assert.equal(await reader.read(1), null, 'the target must be a regular file in the portrait cache');
+  await reader.initialize();
+  await rm(name); await rename(outside, name);
+  const bytes = await readFile(name); bytes[bytes.length - 1] ^= 1; await writeFile(name, bytes);
+  assert.equal(await reader.read(1), null, 'an on-disk checksum is still verified before serving');
 });
 
 test('memory eviction reuses disk and concurrent callers share the profile lookup and download', async t => {
@@ -334,4 +368,20 @@ test('invalid member and upstream identities never make an upstream request', as
   for (const id of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '../1']) await assert.rejects(cache.get(id, source), {code: 'invalid_id'});
   for (const [i, url] of ['https://other.test/mepphoto/1.jpg', 'https://www.europarl.europa.eu/mepphoto/1.jpg?url=other', 'https://user@www.europarl.europa.eu/mepphoto/1.jpg', 'https://www.europarl.europa.eu/other/1.jpg'].entries())
     await assert.rejects(cache.get(i + 1, () => url), {code: 'portrait_unavailable'});
+});
+
+
+test('a stale disk hit bypasses inventory and does not wait for upstream revalidation',async t=>{
+  const directory=await fixture(t),gate=deferred();
+  let now=100000;
+  const writer=new PortraitCache({directory,clock:()=>now,fetchImpl:async()=>jpeg('retained')});
+  await writer.get(42,source);
+  now+=8*86400000;
+  const cache=new PortraitCache({directory,clock:()=>now,fetchImpl:()=>gate.promise});
+  cache.initialize=()=>{throw Error('inventory must stay off the read path');};
+  const image=await cache.get(42,source);
+  assert.equal(image.body.toString(),'retained');
+  assert.equal(cache.backgroundActive,1);
+  gate.resolve(jpeg('refreshed'));
+  await Promise.allSettled([...cache.refreshes.values()]);
 });

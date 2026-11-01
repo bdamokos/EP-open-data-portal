@@ -2,6 +2,7 @@ import {Worker,MessageChannel} from 'node:worker_threads';
 import {booleanFromEnvironment} from './config.mjs';
 import {upstreamPortServices} from './odp.mjs';
 import {serveUpstreamPort} from './upstream-rpc.mjs';
+import {forwardSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
 
 // One worker owns both existing loops. A replacement starts only after exit;
 // durable SQLite leases still fence any unfinished generation task.
@@ -20,11 +21,12 @@ export function startSourceWriters({
     const started=Date.now();
     try {worker=createWorker(workerUrl,{workerData:{...workerData,upstreamPort:port2},transferList:[port2],resourceLimits:{maxOldGenerationSizeMb:512}});}
     catch(error){disposePort();port2.close();log('[source-writers]',error.message);schedule();return;}
+    const stopHints=forwardSittingSnapshotHints(worker);
     exited=new Promise(resolve=>{
       worker.on('message',message=>{if(message?.type==='publication')onPublication(message);});
       worker.once('error',error=>log('[source-writers]',error.message));
       worker.once('exit',code=>{
-        disposePort();worker=undefined;resolve();
+        stopHints();disposePort();worker=undefined;resolve();
         if(!stopping){log('[source-writers]',`Worker exited (${code}); restarting.`);if(Date.now()-started>=60_000)attempt=0;schedule();}
       });
     });

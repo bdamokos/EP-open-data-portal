@@ -1,3 +1,4 @@
+import {quotedWordBody} from './amendment-benchmark-quoted-oracle.mjs';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
 import {oracleFold,oracleOpening} from './amendment-oracle-grammar.mjs';
 // Independent raw-row boundaries for benchmark assertions. Do not import the
@@ -21,6 +22,56 @@ function wholeBold(value,format) {
 }
 const contiguous=(a,b)=>a?.complete===true&&b?.complete===true&&a.container==='body'&&b.container==='body'
   &&a.containerPath===b.containerPath&&a.segment===b.segment&&b.ordinal===a.ordinal+1;
+
+// Only native XML certifies omitted blanks. Never consume previousParagraph,
+// segment deltas, runtime units or placement evidence to establish continuity.
+const nativeBodies=new WeakMap();
+const nativeValue=row=>(row.numberingLabel?row.numberingLabel+'\t':'')+row.text.trim();
+function nativeBody(text) {
+  if(nativeBodies.has(text))return nativeBodies.get(text);
+  try{const body=quotedWordBody(text.nativeBuffer);nativeBodies.set(text,body);return body;}catch{return null;}
+}
+// Native scope and text establish the first provision before projection indices
+// are compared. A relabelled paragraph-two projection cannot supply this truth.
+export function nativeFinnishFirst(text,unit) {
+  const body=nativeBody(text);if(!body||!unit?.complete)return false;
+  const headings=body.filter(row=>row.kind==='paragraph'&&row.text.trim()==='EUROOPAN PARLAMENTIN PÄÄTÖSLAUSELMAESITYS'&&!row.hidden);
+  if(headings.length!==1)return false;
+  const heading=body.indexOf(headings[0]);
+  const opening=body.findIndex((row,i)=>i>heading&&row.kind==='paragraph'&&/^Euroopan parlamentti(?:, joka)?[,]?$/u.test(row.text.trim())&&!row.hidden);
+  if(opening<0)return false;
+  const first=body.findIndex((row,i)=>i>opening&&row.kind==='paragraph'&&/^[1-9]\d*[.)]\s/u.test(nativeValue(row)));
+  if(first<0||!/^1[.)]\s/u.test(nativeValue(body[first])))return false;
+  if(text.paragraphSources[unit.start]?.path!==body[first].path)return false;
+  const before=unit.start-1,prior=body.findIndex(row=>row.path===text.paragraphSources[before]?.path);
+  if(prior<opening||prior>=first||nativeValue(body[prior])!==text.paragraphs[before]||body[prior].hidden)return false;
+  if(body.slice(prior+1,first).some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered||row.nodes.some(node=>Object.keys(node).some(key=>key!==':@'&&key!=='w:pPr'))))return false;
+  for(let i=unit.start;i<=unit.end;i++) {
+    const source=body.find(row=>row.path===text.paragraphSources[i]?.path);
+    if(!source||source.hidden||nativeValue(source)!==text.paragraphs[i])return false;
+  }
+  return true;
+}
+const nativePairsCache=new WeakMap();
+export function nativeBlankPairs(text) {
+  if(nativePairsCache.has(text))return nativePairsCache.get(text);
+  const pairs=new Set();let body;
+  body=nativeBody(text);if(!body)return pairs;
+  nativePairsCache.set(text,pairs);
+  const byPath=new Map(body.map((row,i)=>[row.path,i]));
+  for(let i=1;i<(text.paragraphSources?.length||0);i++) {
+    const left=text.paragraphSources[i-1],right=text.paragraphSources[i];
+    const a=byPath.get(left.path),b=byPath.get(right.path);
+    if(!Number.isInteger(a)||!Number.isInteger(b)||b<=a+1)continue;
+    const first=body[a],last=body[b];
+    if([...first.text.matchAll(/(?:^|[;.!?])\s*[1-9]\d*[.)]\t/gu)].length>1)continue;
+    if(first.hidden||last.hidden||nativeValue(first)!==text.paragraphs[i-1]||nativeValue(last)!==text.paragraphs[i])continue;
+    const omitted=body.slice(a+1,b);
+    if(omitted.every(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&!row.numbered&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'))
+      &&!row.nodes.some(node=>node['w:pPr']?.some(prop=>prop['w:numPr']||prop['w:sectPr']))))pairs.add(left.path+'|'+right.path);
+  }
+  return pairs;
+}
 
 // A second raw-row assertion for explicitly indented point addresses. Work
 // backwards from each printed point to its owning paragraph/shallower point;
@@ -82,6 +133,8 @@ export function rawResolutionUnits(text,language) {
   if(requireOpening&&(!openers.length||!reportHeading&&openers.length!==1))return {units:[],reason:'oracle-resolution-start-unverified'};
   const selectedOpening=scoped?openers.find(i=>i>headings[0]):openers[0];
   if(requireOpening&&!Number.isInteger(selectedOpening))return {units:[],reason:'oracle-resolution-start-unverified'};
+  const blankPairs=nativeBlankPairs(text);
+  const adjacent=(a,b)=>contiguous(a,b)||a?.complete===true&&b?.complete===true&&a.container==='body'&&b.container==='body'&&a.containerPath===b.containerPath&&blankPairs.has(a.path+'|'+b.path);
   const start=Number.isInteger(selectedOpening)?selectedOpening+1:0,events=[],openerRows=new Set(openers);
   const endings={da:'bilag|begrundelse',et:'lisa|seletuskiri',fi:'liite|perustelut',ga:'iarscríbhinn|ráiteas míniúcháin',hu:'melléklet|indokolás',it:'allegato|motivazione',lt:'priedas|aiškinamoji dalis',lv:'pielikums|paskaidrojums',mt:'anness|nota spjegattiva',nl:'bijlage|toelichting',pl:'załącznik|uzasadnienie',pt:'anexo|exposição de motivos',sk:'príloha|dôvodová správa',sl:'priloga|obrazložitev',sv:'bilaga|motivering',fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
   const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
@@ -90,7 +143,7 @@ export function rawResolutionUnits(text,language) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
     if(openerRows.has(i)){events.push({start:i,boundary:true});group++;parent=null;citation=0;provisions=false;if(!scoped)active=true;continue;}
     if(!active)continue;
-    if(source?.complete!==true||source.container!=='body'||i>start&&!contiguous(sources[i-1],source)) {
+    if(source?.complete!==true||source.container!=='body'||i>start&&!adjacent(sources[i-1],source)) {
       events.push({start:i,boundary:true,uncertain:true});group++;parent=null;
       if(source?.complete!==true||source.container!=='body')continue;
     }
@@ -121,7 +174,7 @@ export function rawResolutionUnits(text,language) {
     const next=events.slice(at+1).find(event=>unit.kind==='point'||event.kind!=='point');
     const end=(next?.start??paragraphs.length)-1;
     let complete=Boolean(next)&&!next.uncertain&&end>=unit.start;
-    for(let i=unit.start;i<=end;i++)if(sources[i]?.complete!==true||sources[i].container!=='body'||i>unit.start&&!contiguous(sources[i-1],sources[i]))complete=false;
+    for(let i=unit.start;i<=end;i++)if(sources[i]?.complete!==true||sources[i].container!=='body'||i>unit.start&&!adjacent(sources[i-1],sources[i]))complete=false;
     units.push({...unit,end,complete});
   }
   return {units};

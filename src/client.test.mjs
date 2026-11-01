@@ -207,3 +207,11 @@ test('an incomplete follow-up refresh evicts an older clean result and the next 
     assert.equal(client.peek(route),clean);await client.get(route);assert.equal(reads,3);
   }
 });
+
+
+test('unavailable speech observations are re-read rather than cached as empty collections',async()=>{
+  for(const route of ['speeches/256956','speech-statistics/256956']){
+    let reads=0;const client=createDataClient(async()=>{reads++;return {status:'unavailable',items:[],total:null};});
+    await client.get(route);await client.get(route);assert.equal(reads,2);assert.equal(client.peek(route),null);
+  }
+});

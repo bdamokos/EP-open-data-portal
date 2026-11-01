@@ -86,7 +86,7 @@ test('metadata failures remove only enrichment, while meeting failures never bec
   const tooLarge=new MemberAttendance({limits:{sourceBytes:10},request:async(endpoint)=>record(meeting(),endpoint)});assert.equal((await tooLarge.query('42',query())).sittings[0].status,'unavailable');
 });
 
-test('up to five sitting reads are sequential and each reader owns only its wait',async()=>{
+test('up to five sitting reads use batches of two and each reader owns only its wait',async()=>{
   let active=0,maximum=0,started=0,release;
   const gate=new Promise(resolve=>{release=resolve;});
   const ids=Array.from({length:5},(_,i)=>'MTG-PL-2026-10-'+(19+i));
@@ -97,6 +97,14 @@ test('up to five sitting reads are sequential and each reader owns only its wait
   }});
   const controller=new AbortController(),first=runWithRequestSignal(controller.signal,()=>service.query('42',query(ids)));
   const second=service.query('43',query([ids[0]]));controller.abort(cancelledRequest());await assert.rejects(first,error=>error.code==='request_cancelled');release();
-  assert.equal((await second).sittings[0].memberStatus,'listed-present');assert.equal(started,1,'cancelling the first reader must not start its later sittings');
-  await service.query('42',query(ids));assert.equal(maximum,1);assert.equal(started,6);
+  assert.equal((await second).sittings[0].memberStatus,'listed-present');assert.equal(started,2,'cancelling the first reader must not start another batch');
+  await service.query('42',query(ids));assert.equal(maximum,2);assert.equal(started,7);
+});
+
+
+test('malformed unrelated register expressions do not change requested-language selection',async()=>{
+  const node=metadata();node.is_realized_by.unshift(null);
+  const service=new MemberAttendance({request:async endpoint=>record(endpoint.startsWith('/meetings/')?meeting():node,endpoint)});
+  const result=await service.query('42',query([SITTING],'fr'));
+  assert.equal(result.sittings[0].register.pdf.language,'fr');
 });

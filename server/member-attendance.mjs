@@ -1,3 +1,4 @@
+import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {createHash} from 'node:crypto';
 import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
@@ -80,7 +81,7 @@ function sourceEvidence(record,sourceBytes) {
 }
 
 export class MemberAttendance {
-  constructor({request=odp,limits={}}={}){this.request=request;this.limits={...MEMBER_ATTENDANCE_LIMITS,...limits};this.extractions=new Map();this.cacheBytes=0;this.pending=new Map();}
+  constructor({request=odp,limits={},snapshots=request===odp?sittingSnapshots:null}={}){this.diskSnapshots=snapshots;this.request=request;this.limits={...MEMBER_ATTENDANCE_LIMITS,...limits};this.extractions=new Map();this.cacheBytes=0;this.pending=new Map();}
   extraction(payload,sittingId,hash) {
     const key=sittingId+':'+hash,old=this.extractions.get(key);if(old)return old.value;
     const value=extractAttendance(payload,sittingId),bytes=Buffer.byteLength(JSON.stringify(value));
@@ -90,9 +91,9 @@ export class MemberAttendance {
     while(this.extractions.size>this.limits.cacheEntries||this.cacheBytes>this.limits.cacheBytes){const oldest=this.extractions.keys().next().value;this.cacheBytes-=this.extractions.get(oldest).bytes;this.extractions.delete(oldest);}
     return value;
   }
-  async load(sittingId,language) {
+  async loadInputs(sittingId) {
     let extracted=empty(),source=null;
-    const register={documentId:documentId(sittingId),pdf:null,issued:null,status:'unavailable',source:null};
+    const registers={},register={documentId:documentId(sittingId),pdf:null,issued:null,status:'unavailable',source:null};
     try {
       const record=await this.request('/meetings/'+sittingId,{}, {priority:'interactive',staleWhileRevalidate:true,ttl:this.limits.sourceMs});
       requestSignal()?.throwIfAborted();source=sourceEvidence(record,this.limits.sourceBytes);
@@ -101,10 +102,20 @@ export class MemberAttendance {
     if(extracted.status==='not-published')register.status='not-published';
     if(extracted.identityValid&&extracted.registerLinked)try {
       const record=await this.request('/plenary-session-documents/'+register.documentId,{}, {priority:'interactive',staleWhileRevalidate:true,ttl:this.limits.sourceMs});
-      requestSignal()?.throwIfAborted();const evidence=sourceEvidence(record,this.limits.sourceBytes),metadata=attendanceRegister(record.payload,sittingId,language);
-      if(metadata)Object.assign(register,metadata,{source:evidence});
+      requestSignal()?.throwIfAborted();const evidence=sourceEvidence(record,this.limits.sourceBytes),metadata=attendanceRegister(record.payload,sittingId,'en');
+      if(metadata){
+        Object.assign(register,metadata,{source:evidence});
+        const codes=new Set(list(record.payload.data).flatMap(node=>list(node?.is_realized_by).map(expression=>relative(expression?.id).split('/').at(-1))).filter(code=>/^[a-z]{2}$/.test(code)));
+        for(const code of codes)registers[code]={...attendanceRegister(record.payload,sittingId,code),source:evidence};
+      }
     }catch(error){if(requestSignal()?.aborted)throw error;/* Optional metadata cannot revoke the meeting observation. */}
-    return {extracted,source,register};
+    return {extracted,source,register,registers};
+  }
+  async load(sittingId,language) {
+    let inputs=this.diskSnapshots?.read('attendance',MEMBER_ATTENDANCE_VERSION,sittingId);
+    if(!inputs){this.diskSnapshots?.enqueue('attendance',MEMBER_ATTENDANCE_VERSION,sittingId);inputs=await this.loadInputs(sittingId);}
+    const {extracted,source,register,registers}=inputs;
+    return {extracted,source,register:registers[language]||register};
   }
   async sitting(sittingId,language) {
     const key=sittingId+':'+language;
@@ -114,12 +125,15 @@ export class MemberAttendance {
   async query(memberId,query) {
     const id=String(memberId);if(!positiveId(id))throw new HttpError(400,'invalid_id','Use a positive person identifier.');
     const sittings=[];
-    for(const sittingId of query.sittings){
-      requestSignal()?.throwIfAborted();
-      const {extracted,source,register}=await this.sitting(sittingId,query.language);requestSignal()?.throwIfAborted();
-      const {status,excusedSupplied,counts,conflictingIds}=extracted;
-      const memberStatus=status!=='observed'?null:conflictingIds.includes(id)?'conflicting':extracted.presentIds.includes(id)?'listed-present':extracted.excusedIds.includes(id)?'listed-excused':'not-listed';
-      sittings.push({sittingId,date:sittingId.slice(7),status,memberStatus,excusedSupplied,counts,conflictingIds,source,register});
+    for(let offset=0;offset<query.sittings.length;offset+=2){
+      const batch=await Promise.all(query.sittings.slice(offset,offset+2).map(sittingId=>this.sitting(sittingId,query.language)));
+      for(const [index,{extracted,source,register}] of batch.entries()){
+        const sittingId=query.sittings[offset+index];
+        requestSignal()?.throwIfAborted();
+        const {status,excusedSupplied,counts,conflictingIds}=extracted;
+        const memberStatus=status!=='observed'?null:conflictingIds.includes(id)?'conflicting':extracted.presentIds.includes(id)?'listed-present':extracted.excusedIds.includes(id)?'listed-excused':'not-listed';
+        sittings.push({sittingId,date:sittingId.slice(7),status,memberStatus,excusedSupplied,counts,conflictingIds,source,register});
+      }
     }
     return {version:MEMBER_ATTENDANCE_VERSION,member:{id,mandateStatus:'not-assessed'},sittings,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   }

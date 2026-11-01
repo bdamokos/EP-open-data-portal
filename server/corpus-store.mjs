@@ -3,7 +3,8 @@ import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabil
 import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
-import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, confirmSourceRejection, SOURCE_RECHECK_MS, sourceDescriptor} from './source-retry.mjs';
 import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
@@ -25,6 +26,8 @@ import {questionAddressees} from './question-addressees.mjs';
 // activity index but outside its refresh generations, so a refresh never copies
 // stored text. `documents.source_id` is the exact API identifier and joins to
 // the attached index's `items.source_id`.
+export const CORPUS_STATUS_VERSION=2;
+export const CORPUS_COVERAGE_VERSION=2;
 const KINDS=['speech','question','answer'];
 const parse=value=>value==null?null:JSON.parse(value);
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -121,6 +124,7 @@ export class CorpusStore {
       CREATE INDEX IF NOT EXISTS task_status_error ON tasks(done,retry_at DESC,key,error,attempts) WHERE done=0 AND error IS NOT NULL;
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if(!readOnly&&!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;');
+    if(!readOnly)this.db.exec(`CREATE TABLE IF NOT EXISTS source_failures (key TEXT PRIMARY KEY, state TEXT NOT NULL, reason TEXT NOT NULL, descriptor TEXT NOT NULL, content_hash TEXT, parser_version INTEGER NOT NULL, next_check INTEGER); CREATE INDEX IF NOT EXISTS source_failure_due ON source_failures(next_check) WHERE next_check IS NOT NULL; CREATE INDEX IF NOT EXISTS source_failure_parser ON source_failures(parser_version); CREATE INDEX IF NOT EXISTS source_failure_state ON source_failures(state,key);`);
     if(this.get('schema')!==1)throw new Error('Unsupported corpus schema.');
     if(!readOnly&&this.get('speechMetadataVersion')!==1) {
       this.set('speechMetadataBackfill',Boolean(this.db.prepare("SELECT 1 FROM documents WHERE kind='speech' LIMIT 1").get()));
@@ -219,20 +223,53 @@ export class CorpusStore {
   }
   reopen(key,body,priority) {
     this.assertWriter();
+    const failure=this.db.prepare('SELECT * FROM source_failures WHERE key=?').get(key);
+    if(failure&&failure.descriptor===sourceDescriptor(body)&&failure.parser_version===DOCX_EXTRACTION_VERSION)return;
+    this.db.prepare('DELETE FROM source_failures WHERE key=?').run(key);
     this.db.prepare('UPDATE tasks SET done=0,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=? AND done=1').run(JSON.stringify(body),priority,key);
   }
   resetTask(key,body,priority) {
     this.assertWriter();
+    this.db.prepare('DELETE FROM source_failures WHERE key=?').run(key);
     this.db.prepare('UPDATE tasks SET done=0,done_at=NULL,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=?').run(JSON.stringify(body),priority,key);
   }
   task(key){const row=this.db.prepare('SELECT * FROM tasks WHERE key=?').get(key);return row && {...row,body:parse(row.body)};}
-  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
-  nextTask(){if(!this.hasDueTask())return;const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
+  recheckSourceFailures() {
+    this.assertWriter();
+    for(const row of this.db.prepare('SELECT key FROM source_failures WHERE parser_version<? LIMIT 10').all(DOCX_EXTRACTION_VERSION)) {
+      this.db.prepare('UPDATE tasks SET done=0,retry_at=0 WHERE key=?').run(row.key);
+      this.db.prepare('DELETE FROM source_failures WHERE key=?').run(row.key);
+    }
+    for(const row of this.db.prepare('SELECT key FROM source_failures INDEXED BY source_failure_due WHERE next_check IS NOT NULL AND next_check<=? ORDER BY next_check LIMIT 10').all(this.clock())) {
+      this.db.prepare('UPDATE tasks SET done=0,retry_at=0 WHERE key=?').run(row.key);
+      this.db.prepare('UPDATE source_failures SET next_check=NULL WHERE key=?').run(row.key);
+    }
+  }
+  settleSourceFailure(task,error,state='permanent-source-issue') {
+    const settle=()=>{
+      this.assertWriter();
+      if(state==='permanent-source-issue') {
+        const body=this.task(task.key).body;
+        const previous=body.rejectedSource;
+        if(!confirmSourceRejection(previous,error,{descriptor:sourceDescriptor(body),parserVersion:DOCX_EXTRACTION_VERSION,now:this.clock(),observe:false}).confirmed)return;
+      }
+      this.db.prepare('INSERT OR REPLACE INTO source_failures VALUES (?,?,?,?,?,?,?)').run(task.key,state,String(error.message).slice(0,350),sourceDescriptor(task.body),error.sourceHash??null,DOCX_EXTRACTION_VERSION,state==='satisfied-by-alternative'?null:this.clock()+SOURCE_RECHECK_MS);
+      this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=?,attempts=attempts+1 WHERE key=?').run(this.clock(),String(error.message).slice(0,350),task.key);
+    };
+    return this.db.isTransaction?settle():this.transaction(settle);
+  }
+  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM source_failures WHERE parser_version<? LIMIT 1').get(DOCX_EXTRACTION_VERSION))||Boolean(this.db.prepare('SELECT 1 FROM source_failures INDEXED BY source_failure_due WHERE next_check IS NOT NULL AND next_check<=? LIMIT 1').get(this.clock()))||Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
+  nextTask(){if(!this.hasDueTask())return;this.recheckSourceFailures();const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
   taskProgress(task,body){this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE key=?').run(JSON.stringify(body),task.key);}
-  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
+  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('DELETE FROM source_failures WHERE key=?').run(task.key);this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
-    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
+    const body=this.task(task.key).body,previous=body.rejectedSource;
+    const {rejection,confirmed}=confirmSourceRejection(previous,error,{descriptor:sourceDescriptor(body),parserVersion:DOCX_EXTRACTION_VERSION,now:this.clock()});
+    if(rejection)body.rejectedSource=rejection;else delete body.rejectedSource;
+    this.db.prepare('UPDATE tasks SET body=? WHERE key=?').run(JSON.stringify(body),task.key);
+    if(confirmed&&!body.pdfPending)return this.settleSourceFailure(task,error);
+    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):transientSourceDelay(task.attempts));
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.key);
   }
   hasText(sourceUrl){return Boolean(this.db.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1').get(sourceUrl));}
@@ -609,10 +646,16 @@ export class CorpusStore {
       fetchedAt:row.fetched_at,sha256:row.sha256,...(row.snippet===undefined?{}:{snippet:row.snippet})};
   }
 
+  settledSources() {
+    const summary=state=>({count:this.db.prepare('SELECT COUNT(*) n FROM source_failures WHERE state=?').get(state).n,
+      examples:this.db.prepare('SELECT key,reason,content_hash AS contentHash,parser_version AS parserVersion FROM source_failures WHERE state=? ORDER BY key LIMIT 5').all(state).map(row=>({...row}))});
+    return {sourceIssues:summary('permanent-source-issue'),satisfiedByAlternative:summary('satisfied-by-alternative')};
+  }
+
   // Cheap coverage for every search response; full counts stay in status().
   coverage() {
     const backfilledAt=this.get('backfilledAt');
-    return {complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,phase:this.get('phase')||'waiting',
+    return {version:CORPUS_COVERAGE_VERSION,...this.settledSources(),complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,phase:this.get('phase')||'waiting',
       note:backfilledAt?'Initial backfill finished. Results cover stored texts, not an authoritative complete parliamentary corpus.':'Backfilling: counts and search results cover only texts stored so far.',
       countryBasis:'Current saved roster country of representation; missing countries are not inferred.'};
   }
@@ -626,11 +669,17 @@ export class CorpusStore {
     const withText=Object.fromEntries(this.db.prepare('SELECT d.kind,COUNT(*) AS n FROM documents d WHERE EXISTS (SELECT 1 FROM texts t WHERE t.document_id=d.id) GROUP BY d.kind').all().map(row=>[row.kind,row.n]));
     const texts=this.db.prepare('SELECT d.kind,t.language,COUNT(*) AS n,SUM(t.chars) AS chars FROM texts t JOIN documents d ON d.id=t.document_id GROUP BY d.kind,t.language ORDER BY d.kind,t.language').all();
     const tasks=this.db.prepare('SELECT kind,COUNT(*) AS total,SUM(done=1) AS done,SUM(done=0 AND error IS NOT NULL) AS retrying FROM tasks GROUP BY kind').all();
+    const settled=this.db.prepare(`SELECT t.kind,f.state,COUNT(*) n,SUM(t.done=1) done FROM source_failures f JOIN tasks t ON t.key=f.key GROUP BY t.kind,f.state`).all();
+    for(const row of tasks) {
+      row.sourceIssues=settled.find(item=>item.kind===row.kind&&item.state==='permanent-source-issue')?.n||0;
+      row.satisfiedByAlternative=settled.find(item=>item.kind===row.kind&&item.state==='satisfied-by-alternative')?.n||0;
+      row.done-=settled.filter(item=>item.kind===row.kind).reduce((sum,item)=>sum+item.done,0);
+    }
     const lastError=this.db.prepare('SELECT key,error,attempts,retry_at FROM tasks WHERE done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get();
     const lease=this.db.prepare('SELECT expires FROM lease WHERE id=1').get();
     const backfilledAt=this.get('backfilledAt');
     const metadataRetained=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get()?this.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n:0;
-    return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
+    return {version:CORPUS_STATUS_VERSION,...this.settledSources(),schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
       availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
@@ -638,7 +687,7 @@ export class CorpusStore {
         classificationVersion:this.get('speechInterventionClassificationVersion')??null,
         classificationRefreshPending:metadataRetained>0&&this.get('speechInterventionClassificationVersion')!==INTERVENTION_CLASSIFICATION_VERSION||tasks.some(task=>task.kind==='speech-intervention-refresh'&&task.total>task.done)},
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
-      tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
+      tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying,sourceIssues:row.sourceIssues,satisfiedByAlternative:row.satisfiedByAlternative}])),
       lastError:lastError?{key:lastError.key,error:lastError.error,attempts:lastError.attempts,nextRetryAt:new Date(lastError.retry_at).toISOString()}:null,
       discoveredAt:this.get('discoveredAt'),lastRunAt:this.get('lastRunAt'),languages:{speeches:this.get('speechLanguages')||null,documents:this.get('documentLanguages')||null},
       diskBytes,diskLimitBytes:diskLimit,indexAttached:this.indexAttached,exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),

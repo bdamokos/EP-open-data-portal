@@ -6,7 +6,7 @@ import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
 import {act,createElement,useState} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 
 const documentId='B-10-2026-0441',memberId='101';
 const source={url:'https://data.europarl.europa.eu/distribution/example/reader_en.docx',language:'en',fetchedAt:'2026-10-18T12:00:00Z'};
@@ -43,19 +43,19 @@ async function readerHarness(t,{state={},props={},focusContextChild=false,realCo
   const globals={window,document:window.document,Event:window.Event,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,currentState,setState,lastContext,currentProps={documentId,memberId,memberName:'Checked member',language:'en',...props};
+  let load,root,currentState,setState,lastContext,currentProps={documentId,memberId,memberName:'Checked member',language:'en',...props};
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
     for(const request of requests)if(!request.done)request.resolve(Response.json({}));
-    if(vite)await vite.close();
+    if(load)await load.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
   t.mock.method(globalThis,'fetch',input=>new Promise(resolve=>requests.push({url:new URL(input,window.location.href),resolve,done:false})));
-  vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {MotionAmendments}=await vite.ssrLoadModule('/src/MotionAmendments.tsx'),{createRoot}=await import('react-dom/client');
-  const DocumentContextReader=realContext?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
-  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
+  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {MotionAmendments}=await load('/src/MotionAmendments.tsx'),{createRoot}=await import('react-dom/client');
+  const DocumentContextReader=realContext?(await load('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
+  const {PersonNamesProvider}=await load('/src/PersonName.tsx');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   function Host() {
     [currentState,setState]=useState({...initialState,...state});
@@ -1001,7 +1001,7 @@ function summaryBallot(id,position,outcome) {
   const vote={id,sittingId:sitting,date,title:'Exact amendment decision',titleLanguage:'en',titles:{en:'Exact amendment decision'},referenceTexts:{en:'Amendment 13'},
     method:'VOTE_ELECTRONIC_ROLLCALL',outcome,ballotStatus:'conducted',scope:{kind:'amendment'},actualPosition:{status:'recorded',position},intention:{status:'not-reported',positions:[]},
     totals:{for:400,against:200,abstaining:0},alignment:'with',subjectId:null,context:{documentIds:[documentId],amendmentIds:[documentId+'-AM-13'],componentIds:[],partialReferenceIds:[]},parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
-  return {version:10,member:{id:memberId},period:{kind:'sitting',week:null,sittingId:sitting,from:date,to:date},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[vote],subjects:[],
+  return {version:11,member:{id:memberId},period:{kind:'sitting',week:null,sittingId:sitting,from:date,to:date},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[vote],subjects:[],
     pagination:{offset:0,limit:50,returned:1,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:null},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
 }
 

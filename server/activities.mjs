@@ -136,7 +136,7 @@ export async function activityDocument(id, person, language, {request=odp,readTe
   if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')) {
     const {activityIndex}=await import('./activity-index-worker.mjs');
     store=activityIndex().store;
-    const saved=store.source(store.status().servingGeneration,endpoint);
+    const saved=store.sourceMetadata(store.status().servingGeneration,endpoint);
     if(saved)record={payload:{data:[saved.work]},fetchedAt:Date.parse(saved.fetchedAt)};
   }
   record ||= await request(endpoint,{}, {staleWhileRevalidate:true});
