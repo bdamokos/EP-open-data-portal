@@ -11,6 +11,8 @@ import {collectVoteChairs} from './vote-chairs.mjs';
 import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 
 const SIX_HOURS=6*60*60_000;
+const readerVersions={votes:MEMBER_VOTES_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
+const discoveryKey=now=>[brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
 const fresh=source=>source&&!source.stale&&!source.refreshInProgress&&!source.refreshError;
 export function sittingSnapshotNextCheck(id,now,{complete=true,attempts=0,retryAfter=0,confirmed=true}={}) {
   const correcting=brusselsDay(now)<sittingConfirmationDay(id);
@@ -33,16 +35,23 @@ export class SittingSnapshotCollector {
   }
   due(){
     const now=this.store.clock();
-    return this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscoveryYear')!==Number(brusselsDay(now).slice(0,4))||this.writer.hasDue(now);
+    return this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscovery')!==discoveryKey(now)||this.writer.hasDue(now);
   }
   admit(){
     this.store.assertWriter();
-    const year=Number(brusselsDay(this.store.clock()).slice(0,4));
-    if(this.store.get('sittingSnapshotDiscoveryYear')!==year){
+    const key=discoveryKey(this.store.clock());
+    if(this.store.get('sittingSnapshotDiscovery')!==key){
+      // A new reader must never write its projection under an older version's
+      // job key. Rediscover with current readers, preserving failed backoffs.
+      for(const [kind,version] of Object.entries(readerVersions)){
+        this.store.db.prepare('DELETE FROM sitting_snapshots WHERE kind=? AND version<>?').run(kind,version);
+        this.store.db.prepare('DELETE FROM sitting_snapshot_staging WHERE kind=? AND version<>?').run(kind,version);
+      }
       for(const selected of calendarYears(brusselsDay(this.store.clock())))this.writer.enqueue('calendar',SITTING_CALENDAR_VERSION,String(selected));
-      this.store.set('sittingSnapshotDiscoveryYear',year);
+      this.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='calendar' AND version=? AND complete=1 AND error IS NULL").run(SITTING_CALENDAR_VERSION);
+      this.store.set('sittingSnapshotDiscovery',key);
     }
-    for(const hint of this.hints.drain())this.writer.enqueue(hint.kind,hint.version,hint.id,100);
+    for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100);
   }
   async step(worker){
     this.store.assertWriter();this.admit();

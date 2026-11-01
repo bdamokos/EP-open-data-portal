@@ -154,3 +154,17 @@ test('verified historical 404 collections retain empty coverage and resume under
   assert(saved.day.sources.decisions.every(source=>source.httpStatus===404&&source.contentHash));
   assert.equal(h.fixture.calls.filter(call=>call.endpoint.endsWith('/decisions')).length,2);
 });
+
+
+test('reader-version upgrades never publish new projections under obsolete job keys',async t=>{
+  const h=setup(t);await drain(h);
+  h.collector.writer.enqueue('votes',MEMBER_VOTES_VERSION-1,SNAPSHOT_SITTING,100);
+  h.collector.writer.stage({kind:'votes',version:MEMBER_VOTES_VERSION-1,id:SNAPSHOT_SITTING},'old',{old:true},h.clock());
+  h.hints.enqueue('votes',MEMBER_VOTES_VERSION-1,SNAPSHOT_SITTING);
+  h.store.set('sittingSnapshotDiscovery','older-reader-versions');
+  assert.equal(h.collector.due(),true);h.collector.admit();
+  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshots WHERE kind='votes' AND version<>?").get(MEMBER_VOTES_VERSION).n,0);
+  assert.equal(h.store.db.prepare('SELECT COUNT(*) n FROM sitting_snapshot_staging').get().n,0);
+  assert.equal(h.collector.writer.due(h.clock()).kind,'calendar');
+  await drain(h);assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+});
