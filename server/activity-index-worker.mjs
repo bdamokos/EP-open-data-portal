@@ -1,3 +1,4 @@
+import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
@@ -706,10 +707,22 @@ export class ActivityWorker {
     try {await this.press.run({signal:this.controller.signal,admit});}
     catch(error) {if(!this.stopped)console.error('[press-releases]',error.message);}
   }
+  projectionGenerations() {
+    return [...new Set([this.store.get('active'),this.store.get('working')?.generation].filter(Boolean))]
+      .filter(g=>this.store.fastReadsReady&&!['sources','outside','targets','amendments'].every(p=>this.store.fastReadsReady(g,p)));
+  }
+  async fillProjectionBatch() {
+    for(const generation of this.projectionGenerations()) {
+      if(this.stopped||this.controller.signal.aborted||this.monotonic()>=this.runDeadline)break;
+      this.store.backfillFastReads(generation);
+      await projectionYield();
+    }
+  }
   async runIteration() {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
-    if(!due&&!pressDue&&!snapshotsDue || !this.store.acquire())return;
+    const projectionDue=this.projectionGenerations().length>0;
+    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -717,6 +730,7 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
+      await this.fillProjectionBatch();
       if(pressDue)await this.followPress(due||snapshotsDue);
       // Reserve one dispatch before core work and one per eight core tasks, capped at one new request when core work is due.
       // When core work is idle, drain snapshots under the same run bounds.
@@ -831,7 +845,8 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
-          if(++sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
+          if(++sittingSnapshotTurn%8===0)await this.fillProjectionBatch();
+          if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
             await this.sittingSnapshots.step(this,{requestBudget:1});
             if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
           }

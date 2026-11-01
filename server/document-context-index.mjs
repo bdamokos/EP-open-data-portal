@@ -36,7 +36,7 @@ export function retainedDocumentContext(store,query,{adoptedCandidates,metadataB
       return {endpoint:key,work,source,record:{payload,fetchedAt:source.fetchedAt,url:source.url,stale:true,refreshInProgress:false,refreshError}};
     };
     for(const generation of generations) {
-      const saved=store.source(generation,endpoint),work=saved?.work;
+      const saved=store.sourceMetadata(generation,endpoint),work=saved?.work;
       if(!work)continue;
       if(work.identifier!==query.id||canonicalEPReference(work.id)!=='eli/dl/doc/'+query.id||typeOf(work)!==expected(query.id))return null;
       if(query.id.startsWith('TA-'))try{validateAdoptedText(endpoint,work);}catch{return null;}
