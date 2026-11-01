@@ -379,7 +379,8 @@ export class CorpusWorker {
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }
 
-let service;
+let service,readerMode=false;
+export function useCorpusReader(){if(service)throw new Error('Corpus service already opened.');readerMode=true;}
 export function corpus() {
   if(!booleanFromEnvironment('CORPUS_ENABLED'))throw new HttpError(503,'corpus_disabled','The full-text corpus is not enabled.');
   if(service)return service;
@@ -395,7 +396,7 @@ export function corpus() {
     interval:integerFromEnvironment('CORPUS_REQUEST_INTERVAL_MS',0,0,60_000),
     languages,diskLimit,
   };
-  const store=new CorpusStore(directory,{indexFile}),worker=new CorpusWorker(store,options);
+  const store=new CorpusStore(directory,{indexFile,readOnly:readerMode}),worker=readerMode?null:new CorpusWorker(store,options);
   service={store,worker,diskLimit,reader:new CorpusReader(directory,{indexFile})};return service;
 }
 export async function corpusStatus() {
@@ -470,7 +471,9 @@ export function corpusSearchOptions(input) {
 export function startCorpus() {
   if(!booleanFromEnvironment('CORPUS_ENABLED'))return ()=>{};
   const {worker}=corpus();
-  const run=()=>worker.run().catch(error=>console.error('[corpus]',error.message));
+  if(!worker)throw new Error('Source writers must start in their worker thread.');
+  let pending=Promise.resolve();
+  const run=()=>{if(worker.running)return;pending=worker.run().catch(error=>console.error('[corpus]',error.message)).finally(()=>worker.store.onCommit?.());};
   const timer=setInterval(run,60_000);timer.unref();void run();
-  return ()=>{clearInterval(timer);worker.stop();};
+  return ()=>{clearInterval(timer);worker.stop();return pending;};
 }

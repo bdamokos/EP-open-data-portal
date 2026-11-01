@@ -40,13 +40,15 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
   #generationLeaseOwner;
-  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false } = {}) {
+  constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false, readOnly=false } = {}) {
+    if(readOnly)preparedOnly=true;
+    this.readOnly=readOnly;
     if(!preparedOnly)mkdirSync(directory, { recursive: true });
     this.prepareLog=prepareLog;this.clock = clock; this.owner = randomUUID();
     this.filename = path.join(directory, 'activities-v1.sqlite');
     if(preparedOnly&&!existsSync(this.filename))throw new Error('Prepared activity database is unavailable.');
     this.initializeIndexes=!preparedOnly&&(initializeIndexes||!existsSync(this.filename));
-    this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
+    this.db = observeSqlite(new DatabaseSync(this.filename,{readOnly}),'activity');
     if(!this.initializeIndexes) {
       try {
         if(this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion)throw new Error('Unprepared activity indexes.');
@@ -75,7 +77,8 @@ export class ActivityStore {
       CREATE TABLE IF NOT EXISTS tasks (generation INTEGER, key TEXT, kind TEXT, body TEXT, priority INTEGER, done INTEGER DEFAULT 0, attempts INTEGER DEFAULT 0, retry_at INTEGER DEFAULT 0, error TEXT, PRIMARY KEY(generation,key));
       CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, body TEXT);
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
-    if(!this.initializeIndexes) {
+    if(readOnly)this.db.exec('PRAGMA query_only=ON; PRAGMA busy_timeout=250;');
+    else if(!this.initializeIndexes) {
       if(preparedOnly&&this.db.prepare('PRAGMA journal_mode').get().journal_mode!=='wal'){this.db.close();throw new Error('Prepared activity database requires WAL mode.');}
       this.db.exec(`${preparedOnly?'':'PRAGMA journal_mode=WAL;'} PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;`);
     }
@@ -92,7 +95,7 @@ export class ActivityStore {
   set(key,value) { this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value)); }
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
-    try { const out=fn(); this.db.exec('COMMIT'); return out; }
+    try { const out=fn(); this.db.exec('COMMIT'); this.onCommit?.();return out; }
     catch(e) { this.db.exec('ROLLBACK'); throw e; }
   }
   acquire(ttl=90_000) {
@@ -501,5 +504,5 @@ export class ActivityStore {
     return { mepId:Number(mep), member:memberData, term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
       order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', availability,cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
   }
-  close() { this.release();this.db.close(); }
+  close() { if(!this.readOnly)this.release();this.db.close(); }
 }

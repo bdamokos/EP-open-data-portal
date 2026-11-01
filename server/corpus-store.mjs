@@ -141,7 +141,7 @@ export class CorpusStore {
   set(key,value){this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value));}
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
-    try{const out=fn();this.db.exec('COMMIT');return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
+    try{const out=fn();this.db.exec('COMMIT');this.onCommit?.();return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   snapshot(fn) {
     // Hold one WAL read snapshot across count, page and provenance queries.

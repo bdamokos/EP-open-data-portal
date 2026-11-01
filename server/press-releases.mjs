@@ -35,9 +35,9 @@ export function brusselsInstant(local) {
 // activity-index generations. Readers never create the file or its schema: only
 // the activity-index lease holder initializes and writes it (leaseFencedWrite).
 export class PressStore {
-  constructor(directory){Object.assign(this,{directory,filename:path.join(directory,'press-v1.sqlite'),db:null,ready:false});}
+  constructor(directory,{readOnly=false}={}){Object.assign(this,{readOnly,directory,filename:path.join(directory,'press-v1.sqlite'),db:null,ready:false});}
   // Connection settings apply on every open; the journal mode is stored in the file.
-  open(){this.db=observeSqlite(new DatabaseSync(this.filename),'press');this.db.exec('PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL;');return this.db;}
+  open(){this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly:this.readOnly}),'press');this.db.exec(this.readOnly?'PRAGMA busy_timeout=250; PRAGMA query_only=ON;':'PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL;');return this.db;}
   tables() {
     if(this.ready)return true;
     if(!this.db&&!existsSync(this.filename))return false;

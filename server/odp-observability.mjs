@@ -10,7 +10,7 @@ const failureCodes=new Map([
   ...['ABORT_ERR','UND_ERR_ABORTED'].map(code=>[code,'aborted']),
   ['request_timeout','request-timeout'],['request_cancelled','request-cancelled'],
 ]);
-function fetchFailure(error,signal) {
+export function fetchFailure(error,signal) {
   // The combined fetch signal carries the actual local deadline/cancellation
   // reason even when fetch wraps it. An abort alone does not establish why.
   const causes=[...(signal?.aborted?[signal.reason]:[]),error,error?.cause,error?.cause?.cause];
@@ -32,6 +32,16 @@ export function odpRouteFamily(input) {
   if(parts[1]==='feed'||parts[1]==='show-current')return '/'+parts[0]+'/'+parts[1];
   const children=new Set(['activities','decisions','vote-results','foreseen-activities','speeches','memberships']);
   return '/'+parts[0]+'/{id}'+(parts.length>2?(children.has(parts[2])?'/'+parts[2]:'/{collection}'):'');
+}
+
+export function retryAfterHint(response,now=Date.now()) {
+  if(![429,503].includes(response.status))return {};
+  const hints={};
+  for(const name of ['ratelimit-limit','ratelimit-remaining','ratelimit-reset','x-ratelimit-limit','x-ratelimit-remaining','x-ratelimit-reset']) {
+    const value=response.headers.get(name);
+    if(value!==null&&/^\d{1,15}$/.test(value))hints[name]=Number(value);
+  }
+  return {retryAfter:retryAfterSeconds(response.headers.get('retry-after'),now),hints};
 }
 
 export class OdpObservations {
@@ -69,35 +79,38 @@ export class OdpObservations {
       meanFailureLatencyMs:result.networkErrors?Math.round(result.failureLatencyMs/result.networkErrors):null,
       ...this.headerSnapshot(),lastThrottle:this.lastThrottle,admission:this.queue()};
   }
-  async fetch(url,options) {
-    const route=odpRouteFamily(url),started=this.clock(),b=this.bucket();
+  start(route) {
+    const started=this.clock(),b=this.bucket();
     b.starts++;b.routes[route]=(b.routes[route]||0)+1;
     const pending={route,started},tracked=this.pendingHeaders.size<16;
     if(tracked)this.pendingHeaders.add(pending);else this.untrackedHeaders++;
-    let response;
-    try {response=await globalThis.fetch(url,options);}
-    catch(error){
-      const failed=this.bucket(),elapsedMs=Math.max(0,this.clock()-started),classification=fetchFailure(error,options?.signal);
-      failed.networkErrors++;failed.failureLatencyMs+=elapsedMs;failed.maxFailureLatencyMs=Math.max(failed.maxFailureLatencyMs,elapsedMs);
-      increment(failed.failureKinds,classification.kind);
-      const stats=failed.routeFailures[route]??={count:0,latencyMs:0,maxLatencyMs:0,kinds:{}};
+    return {...pending,tracked,pending};
+  }
+  finish(wait,{status,latencyMs=Math.max(0,this.clock()-wait.started),networkError,signalAborted=false,retryAfter,hints={}}={}) {
+    const {route,tracked,pending}=wait,elapsedMs=Math.max(0,Math.round(latencyMs));
+    if(tracked)this.pendingHeaders.delete(pending);else this.untrackedHeaders--;
+    const completed=this.bucket();
+    if(networkError) {
+      const classification=networkError;
+      completed.networkErrors++;completed.failureLatencyMs+=elapsedMs;completed.maxFailureLatencyMs=Math.max(completed.maxFailureLatencyMs,elapsedMs);
+      increment(completed.failureKinds,classification.kind);
+      const stats=completed.routeFailures[route]??={count:0,latencyMs:0,maxLatencyMs:0,kinds:{}};
       stats.count++;stats.latencyMs+=elapsedMs;stats.maxLatencyMs=Math.max(stats.maxLatencyMs,elapsedMs);increment(stats.kinds,classification.kind);
-      this.lastFailure={at:new Date(this.clock()).toISOString(),route,elapsedMs,...classification,signalAborted:Boolean(options?.signal?.aborted)};
-      throw error;
-    }finally{if(tracked)this.pendingHeaders.delete(pending);else this.untrackedHeaders--;}
-    const completed=this.bucket();completed.responses++;completed.latencyMs+=Math.max(0,this.clock()-started);
-    completed.statuses[response.status]=(completed.statuses[response.status]||0)+1;
-    this.onResponse(response.status);
-    if(response.status===429||response.status===503) {
-      const retryAfter=retryAfterSeconds(response.headers.get('retry-after'),this.clock());
-      const hints={};
-      for(const name of ['ratelimit-limit','ratelimit-remaining','ratelimit-reset','x-ratelimit-limit','x-ratelimit-remaining','x-ratelimit-reset']) {
-        const value=response.headers.get(name);
-        if(value!==null&&/^\d{1,15}$/.test(value))hints[name]=Number(value);
-      }
-      this.lastThrottle={at:new Date(this.clock()).toISOString(),route,status:response.status,retryAfterSeconds:retryAfter,hints};
+      this.lastFailure={at:new Date(this.clock()).toISOString(),route,elapsedMs,...classification,signalAborted};
+      return;
+    }
+    completed.responses++;completed.latencyMs+=elapsedMs;
+    increment(completed.statuses,status);this.onResponse(status);
+    if(status===429||status===503) {
+      this.lastThrottle={at:new Date(this.clock()).toISOString(),route,status,retryAfterSeconds:retryAfter,hints};
       this.log('[odp-throttle]',JSON.stringify({...this.lastThrottle,admission:this.queue()}));
     }
+  }
+  async fetch(url,options) {
+    const wait=this.start(odpRouteFamily(url));let response;
+    try {response=await globalThis.fetch(url,options);}
+    catch(error){this.finish(wait,{networkError:fetchFailure(error,options?.signal),signalAborted:Boolean(options?.signal?.aborted)});throw error;}
+    this.finish(wait,{status:response.status,...retryAfterHint(response,this.clock())});
     return response;
   }
 }

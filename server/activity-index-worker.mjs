@@ -849,7 +849,8 @@ export class ActivityWorker {
   }
   stop(){this.stopped=true;this.controller.abort();if(!this.running)this.store.release();}
 }
-let service;
+let service,readerMode=false;
+export function useActivityIndexReader(){if(service)throw new Error('Activity service already opened.');readerMode=true;}
 export function activityIndex() {
   if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))throw new HttpError(503,'activity_index_disabled','The joined activity index is not enabled.');
   if(service)return service;
@@ -861,7 +862,8 @@ export function activityIndex() {
     maxDuration:integerFromEnvironment('ACTIVITY_INDEX_JOB_MAX_MINUTES',90,1,120)*60_000,
     diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072)*1024*1024,
   };
-  const store=new ActivityStore(directory),press=new PressStore(directory);
+  const store=new ActivityStore(directory,{readOnly:readerMode}),press=new PressStore(directory,{readOnly:readerMode});
+  if(readerMode){service={store,press};return service;}
   const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
   worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
   service={store,worker,press};return service;
@@ -875,8 +877,10 @@ export function latestActivities(id,params) {
 export function startActivityIndex() {
   if(!booleanFromEnvironment('ACTIVITY_INDEX_ENABLED'))return ()=>{};
   const {worker}=activityIndex();
+  if(!worker)throw new Error('Source writers must start in their worker thread.');
   worker.repairOnStartup=true;
-  const run=()=>worker.run().catch(e=>console.error('[activity-index]',e.message));
+  let pending=Promise.resolve();
+  const run=()=>{if(worker.running)return;pending=worker.run().catch(e=>console.error('[activity-index]',e.message)).finally(()=>worker.store.onCommit?.());};
   const timer=setInterval(run,30_000);timer.unref();void run();
-  return ()=>{clearInterval(timer);worker.stop();};
+  return ()=>{clearInterval(timer);worker.stop();return pending;};
 }
