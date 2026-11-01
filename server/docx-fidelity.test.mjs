@@ -179,32 +179,34 @@ test('structure and source provenance survive persistence and settled retention 
 });
 
 test('local reader cancellation leaves the shared extraction and later retained structure usable',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'docx-reader-disk-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   noWait(t);const url=`https://data.europarl.europa.eu/distribution/cancel-structure-${Date.now()}/report.docx`;
   const work={identifier:'A-10-2026-0237',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]},controller=new AbortController();
   let finish,calls=0;const download=()=>{calls++;return new Promise(resolve=>{finish=()=>resolve(docxContent(zip(doc(p('Survives')))));});};
-  const first=runWithRequestSignal(controller.signal,()=>documentText(work,'en',{directory:null,download}));
+  const first=runWithRequestSignal(controller.signal,()=>documentText(work,'en',{directory,download}));
   const rejected=assert.rejects(first,error=>error.code==='request_cancelled');
-  const second=documentText(work,'en',{directory:null,download});
+  const second=documentText(work,'en',{directory,download});
   for(let i=0;i<100&&!finish;i++)await new Promise(resolve=>setImmediate(resolve));
   assert(finish);controller.abort(cancelledRequest());await rejected;finish();
   const result=await second;assert.equal(calls,1);assert.equal(result.structureStatus,'extracted');assert.deepEqual(result.paragraphs,['Survives']);
-  assert.equal((await documentText(work,'en',{directory:null,download:()=>{throw new Error('Must stay retained');}})).structureStatus,'extracted');
+  assert.equal((await documentText(work,'en',{directory,download:()=>{throw new Error('Must stay retained');}})).structureStatus,'extracted');
 });
 
 for(const code of ['upstream_busy','request_timeout'])test(`cold DOCX reads propagate ${code} while stale retained text survives a background local failure`,async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'docx-reader-disk-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   noWait(t);const url=`https://data.europarl.europa.eu/distribution/local-failure-${code}-${Date.now()}/report.docx`;
   const work={identifier:'A-10-2026-0237',document_date:'2026-10-01',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
   const failure=Object.assign(new HttpError(503,code,'Retry this reader later.'),{retryAfter:1});let calls=0;
-  await assert.rejects(documentText(work,'en',{directory:null,download:async()=>{calls++;throw failure;}}),error=>error===failure&&error.status===503);
+  await assert.rejects(documentText(work,'en',{directory,download:async()=>{calls++;throw failure;}}),error=>error===failure&&error.status===503);
   const content=docxContent(zip(doc(p('Retained')))),clock=()=>Date.parse('2026-10-02');
-  const recovered=await documentText(work,'en',{directory:null,clock,download:async()=>{calls++;return content;}});
+  const recovered=await documentText(work,'en',{directory,clock,download:async()=>{calls++;return content;}});
   assert.equal(calls,2,'a local failure must not poison source retry state');assert.deepEqual(recovered.paragraphs,['Retained']);
   let refreshFailed=false;
-  const stale=await documentText(work,'en',{directory:null,clock:()=>clock()+8*86400000,download:async()=>{calls++;refreshFailed=true;throw failure;}});
+  const stale=await documentText(work,'en',{directory,clock:()=>clock()+8*86400000,download:async()=>{calls++;refreshFailed=true;throw failure;}});
   assert.equal(stale.status,'available');assert.equal(stale.stale,true);assert.deepEqual(stale.paragraphs,['Retained']);
   for(let i=0;i<100&&!refreshFailed;i++)await new Promise(resolve=>setImmediate(resolve));
   assert(refreshFailed);await new Promise(resolve=>setImmediate(resolve));
-  const retained=await documentText(work,'en',{directory:null,clock,download:()=>{throw new Error('No cold refresh after local failure');}});
+  const retained=await documentText(work,'en',{directory,clock,download:()=>{throw new Error('No cold refresh after local failure');}});
   assert.equal(retained.status,'available');assert.deepEqual(retained.paragraphSources,recovered.paragraphSources);assert.equal(retained.refreshError,null);
 });
 

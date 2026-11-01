@@ -1,3 +1,4 @@
+import {DocumentBodyCollector} from './document-body-collector.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
@@ -119,7 +120,7 @@ export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendme
 
 export class ActivityWorker {
   constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null}={}) {
-    this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+    this.store=store;this.documentBodies=new DocumentBodyCollector(store);this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
@@ -734,8 +735,8 @@ export class ActivityWorker {
   async runIteration() {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
-    const projectionDue=this.projectionGenerations().length>0;
-    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue || !this.store.acquire())return;
+    const projectionDue=this.projectionGenerations().length>0,documentBodiesDue=this.documentBodies.due();
+    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!documentBodiesDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -744,6 +745,10 @@ export class ActivityWorker {
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
       await this.fillProjectionBatch();
+      if(documentBodiesDue){
+        do {await this.documentBodies.step(this);}
+        while(!due&&!snapshotsDue&&!pressDue&&this.documentBodies.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline&&!this.stopped);
+      }
       if(pressDue)await this.followPress(due||snapshotsDue);
       // Reserve one dispatch before core work and one per eight core tasks, capped at one new request when core work is due.
       // When core work is idle, drain snapshots under the same run bounds.
@@ -865,7 +870,7 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
-          if(++sittingSnapshotTurn%8===0)await this.fillProjectionBatch();
+          if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();if(this.documentBodies.due())await this.documentBodies.step(this);}
           if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
             await this.sittingSnapshots.step(this,{requestBudget:1});
             if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
