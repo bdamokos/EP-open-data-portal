@@ -377,3 +377,244 @@ test('bounded agenda eviction cannot restore a superseded flat-cache observation
     assert.equal((await cold.odp(endpoint)).payload.data[0].identifier,'accepted correction');assert.equal(calls,2);
   `);
 });
+
+test('failed revision persistence leaves source and historical views consistent across restart and recovers on identical content',async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs/promises')).default;
+    const {syncBuiltinESMExports}=await import('node:module');
+    const {InsightViewCache}=await import(${JSON.stringify(new URL('./insights-view-cache.mjs',import.meta.url).href)});
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities';
+    allowed=true;networkPayload={data:[{identifier:'original'}]};
+    const first=await odp(endpoint),{agendaCacheRevision,agendaCacheRevisionIsDurable}=await import(${JSON.stringify(moduleUrl)});
+    const originalRevision=await agendaCacheRevision();
+    const recordFile=path.join(directory,'plenary-agendas-v1',createHash('sha256').update(first.url).digest('hex')+'.json');
+    const revisionFile=path.join(directory,'plenary-agendas-v1','revision.json');
+    const views=new InsightViewCache({directory:path.join(directory,'views'),clock:()=>time});
+    const options={freshMs:()=>Infinity};
+    await views.get(['agenda',originalRevision],async()=>({title:'original'}),options);
+    const rename=fs.rename,warnings=[],warn=console.warn;console.warn=(...args)=>warnings.push(args);
+    fs.rename=async(from,to)=>{if(to===revisionFile)throw Object.assign(new Error('Revision denied'),{code:'EACCES'});return rename(from,to);};syncBuiltinESMExports();
+    time++;networkPayload={data:[{identifier:'corrected'}]};
+    const fresh=await odp(endpoint,{}, {force:true});assert.equal(fresh.payload.data[0].identifier,'corrected');
+    const memoryRevision=await agendaCacheRevision();assert.notEqual(memoryRevision,originalRevision);
+    assert.equal(JSON.parse(await fs.readFile(recordFile,'utf8')).payload.data[0].identifier,'original','new source bytes require durable invalidation');
+    assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).revision,originalRevision);
+    assert(warnings.some(args=>args[0]==='[agenda-cache-revision]'));
+    await views.get(['agenda',memoryRevision],async()=>({title:'corrected'}),{...options,persist:()=>agendaCacheRevisionIsDurable(memoryRevision)});
+    await assert.rejects(fs.stat(path.join(directory,'views',views.key(['agenda',memoryRevision])+'.json')),error=>error.code==='ENOENT');
+    const cold=await import(${JSON.stringify(moduleUrl+'?revision-write-failed')});
+    const retained=await cold.odp(endpoint,{}, {cachedOnly:true});
+    const restartedViews=new InsightViewCache({directory:path.join(directory,'views'),clock:()=>time});
+    const restored=await restartedViews.get(['agenda',await cold.agendaCacheRevision()],async()=>assert.fail('reuse the retained view'),options);
+    assert.equal(restored.title,retained.payload.data[0].identifier,'restart never pairs an old view with a newly published source');
+    fs.rename=rename;syncBuiltinESMExports();console.warn=warn;
+    time++;await odp(endpoint,{}, {force:true});
+    const committed=await agendaCacheRevision();
+    assert.notEqual(committed,memoryRevision,'recovery never makes memory-only view keys durable');
+    assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).revision,committed);
+    const recovered=await import(${JSON.stringify(moduleUrl+'?revision-write-recovered')});
+    assert.equal(await recovered.agendaCacheRevision(),committed);
+    assert.equal((await recovered.odp(endpoint,{}, {cachedOnly:true})).payload.data[0].identifier,'corrected');
+    assert.equal(calls,3);
+  `);
+});
+
+for(const group of ['agenda','plenary'])test(group+' cleanup failure serves fresh data without saving an update behind old aliases',async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs/promises')).default;
+    const {syncBuiltinESMExports}=await import('node:module');
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const group=${JSON.stringify(group)},endpoint=group==='agenda'?'/meetings/MTG-PL-2026-10-07/foreseen-activities':'/procedures/2026-0001';
+    const settings=group==='agenda'?{}:{cacheGroup:'plenary'};
+    const old=await save(endpoint,{data:[{identifier:'original'}]});
+    await save(endpoint,old.payload,{legacy:true});
+    const hash=createHash('sha256').update(old.url).digest('hex');
+    const aliases=[path.join(directory,hash+'.json'),path.join(directory,Buffer.from(old.url).toString('base64url')+'.json')];
+    const canonical=path.join(directory,group==='agenda'?'plenary-agendas-v1':'plenary-sources-v1',hash+'.json');
+    const unlink=fs.unlink,rename=fs.rename,warn=console.warn,warnings=[];console.warn=(...args)=>warnings.push(args);
+    fs.unlink=async file=>{if(file===aliases[0])throw Object.assign(new Error('Cleanup denied'),{code:'EACCES'});return unlink(file);};syncBuiltinESMExports();
+    time++;allowed=true;networkPayload={data:[{identifier:'corrected'}]};
+    const fresh=await odp(endpoint,{}, {...settings,force:true});
+    assert.equal(fresh.payload.data[0].identifier,'corrected','local cleanup must not turn a validated source into an upstream error');
+    assert.equal((await odp(endpoint,{}, {...settings,cachedOnly:true})).refreshError,undefined);
+    assert.equal(JSON.parse(await fs.readFile(canonical,'utf8')).payload.data[0].identifier,'original');
+    assert.equal(JSON.parse(await fs.readFile(aliases[0],'utf8')).payload.data[0].identifier,'original');
+    assert(warnings.some(args=>args[0]==='[source-cache-migration]'));
+    fs.unlink=unlink;
+    fs.rename=async(from,to)=>{if(to===canonical)throw Object.assign(new Error('Fresh write denied'),{code:'EACCES'});return rename(from,to);};syncBuiltinESMExports();
+    time++;assert.equal((await odp(endpoint,{}, {...settings,force:true})).payload.data[0].identifier,'corrected');
+    assert.equal(JSON.parse(await fs.readFile(canonical,'utf8')).payload.data[0].identifier,'original','failed fresh publication preserves the migrated observation');
+    fs.rename=rename;syncBuiltinESMExports();console.warn=warn;
+    time++;await odp(endpoint,{}, {...settings,force:true});
+    assert.equal(JSON.parse(await fs.readFile(canonical,'utf8')).payload.data[0].identifier,'corrected');
+    for(const alias of aliases)await assert.rejects(fs.stat(alias),error=>error.code==='ENOENT');
+    await fs.rm(canonical);
+    const recovered=await import(${JSON.stringify(moduleUrl+'?cleanup-recovered-')}+group),count=calls;
+    networkPayload={data:[{identifier:'after eviction'}]};
+    assert.equal((await recovered.odp(endpoint,{},settings)).payload.data[0].identifier,'after eviction');
+    assert.equal(calls,count+1,'eviction cannot resurrect the retired observation');
+  `);
+});
+
+for(const failure of ['revision','cleanup'])for(const recovery of ['identical','changed','restart'])test(failure+' failure keeps another agenda from committing an unsaved source before '+recovery+' recovery',async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs/promises')).default;
+    const {syncBuiltinESMExports}=await import('node:module');
+    const {InsightViewCache}=await import(${JSON.stringify(new URL('./insights-view-cache.mjs',import.meta.url).href)});
+    const failure=${JSON.stringify(failure)},recovery=${JSON.stringify(recovery)};
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const a='/meetings/MTG-PL-2026-10-07/foreseen-activities',b='/meetings/MTG-PL-2026-09-17/foreseen-activities';
+    const oldA=await save(a,{data:[{identifier:'old A'}]}),oldB=await save(b,{data:[{identifier:'old B'}]});
+    const revisionFile=path.join(directory,'plenary-agendas-v1','revision.json');
+    const alias=path.join(directory,createHash('sha256').update(oldA.url).digest('hex')+'.json');
+    const rename=fs.rename,unlink=fs.unlink,warn=console.warn;console.warn=()=>{};
+    if(failure==='revision')fs.rename=async(from,to)=>{if(to===revisionFile)throw Object.assign(new Error('Denied revision'),{code:'EACCES'});return rename(from,to);};
+    else fs.unlink=async file=>{if(file===alias)throw Object.assign(new Error('Denied cleanup'),{code:'EACCES'});return unlink(file);};
+    syncBuiltinESMExports();allowed=true;time++;networkPayload={data:[{identifier:'new A'}]};
+    await odp(a,{}, {force:true});
+    fs.rename=rename;syncBuiltinESMExports();
+    time++;networkPayload={data:[{identifier:'new B'}]};await odp(b,{}, {force:true});
+    const {agendaCacheRevision,agendaCacheRevisionIsDurable}=await import(${JSON.stringify(moduleUrl)});
+    const memoryRevision=await agendaCacheRevision();
+    assert.equal(await agendaCacheRevisionIsDurable(memoryRevision),false);
+    assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).pending,true,'B must leave the pending publication journal open');
+    const views=new InsightViewCache({directory:path.join(directory,'views'),clock:()=>time});
+    const key=['agenda',memoryRevision],options={freshMs:()=>Infinity,persist:()=>agendaCacheRevisionIsDurable(memoryRevision)};
+    assert.equal((await views.get(key,async()=>({title:'new A'}),options)).title,'new A');
+    await assert.rejects(fs.stat(path.join(directory,'views',views.key(key)+'.json')),error=>error.code==='ENOENT','an unsaved view stays memory-only');
+    fs.unlink=unlink;syncBuiltinESMExports();console.warn=warn;
+    if(recovery!=='restart') {
+      time++;networkPayload={data:[{identifier:recovery==='identical'?'new A':'newest A'}]};await odp(a,{}, {force:true});
+      const committed=await agendaCacheRevision();assert.equal(await agendaCacheRevisionIsDurable(committed),true);
+      assert.notEqual(committed,memoryRevision);
+      assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).pending,undefined);
+    }
+    const cold=await import(${JSON.stringify(moduleUrl+'?multi-agenda-')}+failure+'-'+recovery);
+    const coldRevision=await cold.agendaCacheRevision();assert.notEqual(coldRevision,memoryRevision);
+    const source=await cold.odp(a,{}, {cachedOnly:true}),sourceB=await cold.odp(b,{}, {cachedOnly:true});
+    const restartedViews=new InsightViewCache({directory:path.join(directory,'views'),clock:()=>time});
+    const restored=await restartedViews.get(['agenda',coldRevision],async()=>({title:source.payload.data[0].identifier}),{freshMs:()=>Infinity});
+    assert.equal(restored.title,recovery==='restart'?'old A':recovery==='identical'?'new A':'newest A');
+    assert.equal(sourceB.payload.data[0].identifier,'new B');
+  `);
+});
+
+test('an oversized migrated agenda keeps its legacy copy when the disk budget removes the canonical record',async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs/promises')).default;
+    const {syncBuiltinESMExports}=await import('node:module');
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities';
+    const old=await save(endpoint,{data:[{identifier:'oversized retained agenda',text:'x'.repeat(33*1024*1024)}]});
+    const hash=createHash('sha256').update(old.url).digest('hex'),alias=path.join(directory,hash+'.json');
+    const canonical=path.join(directory,'plenary-agendas-v1',hash+'.json'),rename=fs.rename;
+    fs.rename=async(from,to)=>{if(to===canonical&&(await fs.stat(from)).size<1024)throw Object.assign(new Error('Fresh write denied'),{code:'EACCES'});return rename(from,to);};syncBuiltinESMExports();
+    time++;allowed=true;networkPayload={data:[{identifier:'fresh small agenda'}]};
+    assert.equal((await odp(endpoint,{}, {force:true})).payload.data[0].identifier,'fresh small agenda');
+    assert((await fs.stat(alias)).size>32*1024*1024);
+    await assert.rejects(fs.stat(canonical),error=>error.code==='ENOENT');
+    fs.rename=rename;syncBuiltinESMExports();
+    const cold=await import(${JSON.stringify(moduleUrl+'?oversized-migration')});
+    assert.equal((await cold.odp(endpoint,{}, {cachedOnly:true})).payload.data[0].identifier,'oversized retained agenda');
+    assert.equal(calls,1);
+  `);
+});
+
+for(const failure of ['revision','cleanup'])test('real legislation views stay memory-only when '+failure+' fails during a cold load',async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs/promises')).default;
+    const {syncBuiltinESMExports}=await import('node:module');
+    const {createInsights}=await import(${JSON.stringify(new URL('./insights.mjs',import.meta.url).href)});
+    const {agendaCacheRevision,agendaCacheRevisionIsDurable}=await import(${JSON.stringify(moduleUrl)});
+    const inputs=JSON.parse(await fs.readFile(new URL('./fixtures/insights-live-20261014.json',${JSON.stringify(moduleUrl)}),'utf8'));
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const failure=${JSON.stringify(failure)},endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities',params={limit:50,offset:0};
+    const agenda=structuredClone(inputs.foreseen.payload),topic=agenda.data.find(node=>node.activity_id?.includes('-OJ-ITM-'));
+    topic.activity_label.en='New exact agenda title';
+    const meeting=inputs.meetings.payload.data.find(node=>node.activity_id==='MTG-PL-2026-10-07');
+    globalThis.fetch=async value=>{calls++;const url=new URL(value);return Response.json(url.pathname.endsWith('/meetings')?{data:url.searchParams.get('year')==='2026'?[meeting]:[]}:agenda);};
+    const sourceUrl=new URL(ODP_BASE+endpoint);for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))sourceUrl.searchParams.set(key,String(value));
+    const alias=path.join(directory,createHash('sha256').update(sourceUrl.href).digest('hex')+'.json');
+    if(failure==='cleanup')await fs.writeFile(alias,JSON.stringify({url:sourceUrl.href,fetchedAt:time,payload:inputs.foreseen.payload}));
+    const revisionFile=path.join(directory,'plenary-agendas-v1','revision.json'),rename=fs.rename,unlink=fs.unlink,warn=console.warn;console.warn=()=>{};
+    if(failure==='revision')fs.rename=async(from,to)=>{if(to===revisionFile)throw Object.assign(new Error('Denied'),{code:'EACCES'});return rename(from,to);};
+    else fs.unlink=async file=>{if(file===alias)throw Object.assign(new Error('Denied'),{code:'EACCES'});return unlink(file);};
+    syncBuiltinESMExports();time++;
+    const viewsDirectory=path.join(directory,'real-views');
+    const store={get:()=>null,status:()=>({currentMeps:1,servingGeneration:1}),db:{prepare:()=>({get:()=>undefined})}};
+    const request=(name,values,settings)=>odp(name,values,{...settings,force:name===endpoint,staleWhileRevalidate:false});
+    const service=createInsights(store,{clock:()=>time,request,viewCache:{directory:viewsDirectory}}),query=new URLSearchParams('week=2026-10-05');
+    const before=await agendaCacheRevision(),result=await service.query('legislation',query);
+    assert.equal(result.topics.find(row=>row.id===topic.activity_id).title,'New exact agenda title');
+    const during=await agendaCacheRevision();assert.notEqual(during,before);
+    assert.equal(await agendaCacheRevisionIsDurable(during),false);
+    assert.deepEqual(await fs.readdir(viewsDirectory).catch(error=>{if(error.code==='ENOENT')return [];throw error;}),[],'neither the old key nor a memory-only revision may reach disk');
+    fs.rename=rename;fs.unlink=unlink;syncBuiltinESMExports();console.warn=warn;
+    time++;await odp(endpoint,params,{force:true});
+    const committed=await agendaCacheRevision();assert.equal(await agendaCacheRevisionIsDurable(committed),true);
+    assert.notEqual(committed,during);
+    const recovered=await service.query('legislation',query);
+    assert.equal(recovered.topics.find(row=>row.id===topic.activity_id).title,'New exact agenda title');
+    assert.equal((await fs.readdir(viewsDirectory)).filter(name=>name.endsWith('.json')).length,1,'durable source recovery enables persistent views again');
+  `);
+});
+
+test('a failed revision commit after durable source bytes invalidates pre-change views on restart',async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs/promises')).default;
+    const {syncBuiltinESMExports}=await import('node:module');
+    const {InsightViewCache}=await import(${JSON.stringify(new URL('./insights-view-cache.mjs',import.meta.url).href)});
+    const {agendaCacheRevision,agendaCacheRevisionIsDurable}=await import(${JSON.stringify(moduleUrl)});
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const endpoint='/meetings/MTG-PL-2026-10-07/foreseen-activities';
+    allowed=true;networkPayload={data:[{identifier:'original'}]};await odp(endpoint);
+    const original=await agendaCacheRevision(),views=new InsightViewCache({directory:path.join(directory,'views'),clock:()=>time});
+    await views.get(original,async()=>({title:'original'}),{freshMs:()=>Infinity});
+    const revisionFile=path.join(directory,'plenary-agendas-v1','revision.json'),rename=fs.rename,warn=console.warn;console.warn=()=>{};
+    fs.rename=async(from,to)=>{if(to===revisionFile&&!JSON.parse(await fs.readFile(from,'utf8')).pending)throw Object.assign(new Error('Commit denied'),{code:'EACCES'});return rename(from,to);};syncBuiltinESMExports();
+    time++;networkPayload={data:[{identifier:'corrected'}]};await odp(endpoint,{}, {force:true});
+    const memoryRevision=await agendaCacheRevision();assert.equal(await agendaCacheRevisionIsDurable(memoryRevision),false);
+    assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).pending,true);
+    const cold=await import(${JSON.stringify(moduleUrl+'?commit-failed')});
+    const coldRevision=await cold.agendaCacheRevision();assert.notEqual(coldRevision,original);assert.notEqual(coldRevision,memoryRevision);
+    const retained=await cold.odp(endpoint,{}, {cachedOnly:true});
+    const restartedViews=new InsightViewCache({directory:path.join(directory,'views'),clock:()=>time});
+    const restored=await restartedViews.get(coldRevision,async()=>({title:retained.payload.data[0].identifier}),{freshMs:()=>Infinity,persist:()=>cold.agendaCacheRevisionIsDurable(coldRevision)});
+    assert.equal(restored.title,'corrected','an interrupted transaction never reuses a pre-change view');
+    fs.rename=rename;syncBuiltinESMExports();console.warn=warn;
+    time++;await cold.odp(endpoint,{}, {force:true});
+    const recovered=await cold.agendaCacheRevision();assert.equal(await cold.agendaCacheRevisionIsDurable(recovered),true);
+    assert.notEqual(recovered,coldRevision);
+    assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).revision,recovered);
+    assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).pending,undefined);
+  `);
+});
+
+for(const group of ['agenda','plenary'])for(const replacement of ['denied','unreadable'])test(group+' keeps readable aliases when canonical reads fail and replacement is '+replacement,async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs')).default,fsp=(await import('node:fs/promises')).default;
+    const {Readable}=await import('node:stream'),{syncBuiltinESMExports}=await import('node:module');
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const group=${JSON.stringify(group)},replacement=${JSON.stringify(replacement)};
+    const endpoint=group==='agenda'?'/meetings/MTG-PL-2026-10-07/foreseen-activities':'/procedures/2026-0001';
+    const settings=group==='agenda'?{}:{cacheGroup:'plenary'};
+    const retained=await save(endpoint,{data:[{identifier:'retained alias'}]});
+    const hash=createHash('sha256').update(retained.url).digest('hex'),alias=path.join(directory,hash+'.json');
+    const canonical=path.join(directory,group==='agenda'?'plenary-agendas-v1':'plenary-sources-v1',hash+'.json');
+    await fsp.mkdir(path.dirname(canonical),{recursive:true});await fsp.writeFile(canonical,JSON.stringify(retained));
+    const createReadStream=fs.createReadStream,write=fsp.writeFile;
+    fs.createReadStream=(file,...args)=>String(file)===canonical?new Readable({read(){this.destroy(Object.assign(new Error('Canonical read denied'),{code:'EACCES'}));}}):createReadStream(file,...args);
+    fsp.writeFile=async(file,...args)=>{if(replacement==='denied'&&String(file).startsWith(canonical+'.'))throw Object.assign(new Error('Replacement denied'),{code:'EACCES'});return write(file,...args);};
+    syncBuiltinESMExports();allowed=true;time++;networkPayload={data:[{identifier:'fresh data'}]};
+    assert.equal((await odp(endpoint,{}, {...settings,force:true})).payload.data[0].identifier,'fresh data');
+    assert.deepEqual(JSON.parse(await fsp.readFile(alias,'utf8')),retained,'an unreadable canonical file cannot justify removing the readable alias');
+    const restarted=await import(${JSON.stringify(moduleUrl+'?unreadable-canonical-')}+group+'-'+replacement);
+    assert.equal((await restarted.odp(endpoint,{}, {...settings,cachedOnly:true})).payload.data[0].identifier,'retained alias','restart retains the readable observation');
+    fs.createReadStream=createReadStream;fsp.writeFile=write;syncBuiltinESMExports();
+    time++;await restarted.odp(endpoint,{}, {...settings,force:true});
+    assert.equal(JSON.parse(await fsp.readFile(canonical,'utf8')).payload.data[0].identifier,'fresh data');
+    await assert.rejects(fsp.stat(alias),error=>error.code==='ENOENT');
+    assert.equal(calls,2,'recovery follows the normal source path');
+  `);
+});

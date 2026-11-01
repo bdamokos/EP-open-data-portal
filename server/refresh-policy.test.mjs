@@ -251,7 +251,7 @@ test('initial generation publishes with exact durable gaps instead of hundreds o
   assert.equal(store.get('active'),generation);assert.equal(store.get('working'),null);
   assert.equal(store.get('lastSuccess'),new Date(clock()).toISOString());
   assert.equal(store.status().complete,false);assert.equal(store.status().coverageGaps.count,14);
-  assert.equal(store.page('42').total,null);assert.equal(store.page('42').categoryCoverage['written-questions'].status,'incomplete-joins');
+  assert.equal(store.page('42').total,store.page('42').indexedTotal);assert.equal(store.page('42').categoryCoverage['written-questions'].status,'available');
   const saved=store.db.prepare("SELECT body FROM refresh_gaps WHERE key='stuck:0'").get();assert.equal(JSON.parse(saved.body).offset,250);
   assert(store.acquire());const next=store.beginCycle();await worker.initialize(next);
   assert.equal(store.get('working').fullRefresh,false);
@@ -702,7 +702,7 @@ test('missing records back off across publications, remain labelled gaps, and re
     assert.equal(status.complete,false);assert.equal(status.coverageGaps.count,1);
     assert.equal(status.coverageGaps.examples[0].retryAt,new Date(clock()+delay).toISOString());
     assert.equal(status.coverageGaps.examples[0].failedAt,new Date(clock()).toISOString());
-    assert.equal(store.page('42').total,null);
+    assert.equal(store.page('42').total,0); // Unknown authors stay in global diagnostics.
     const next=store.beginCycle();
     advance(delay-1);scheduleMutable(worker,next.generation);
     assert.equal(store.nextTask(next.generation),undefined);

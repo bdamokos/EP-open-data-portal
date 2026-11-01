@@ -58,7 +58,8 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
   const [state,setState]=useState<{member:number;data:InterventionStatistics|null;loading:boolean;error:string|null}>({member,data:null,loading:true,error:null});
   const [attempt,setAttempt]=useState(0);
   const {data:result,loading,error}=(state.member===member) ? state : ({data:null,loading:true,error:null});
-  const status=loading ? 'loading' : ((error||!result) ? 'unavailable' : 'ready');
+  const sourceUnavailable=Boolean(result?.coverage.issues?.includes('source-unavailable'));
+  const status=loading ? 'loading' : ((error||!result||sourceUnavailable) ? 'unavailable' : 'ready');
   useEffect(()=>onStatus?.(status),[onStatus,status]);
   const missingContributions=result&&((result.coverage.total!==null&&result.coverage.available<result.coverage.total)||(result.coverage.issues||[]).some(issue=>!['retained-corpus','total-unavailable'].includes(issue)));
   useEffect(()=>{
@@ -93,7 +94,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
         {result.coverage.unclassified>0&&<p className="intervention-caption">{<UiMessage id="batch4.speechinterventions.tsx.count.contributions.could.not.be.classified" values={{count: result.coverage.unclassified}} counts={{count: result.coverage.unclassified}}/>}</p>}
       </>}
     </>}
-    {error&&<p role="alert">{error} <button onClick={()=>setAttempt(a=>a+1)}><UiMessage id="batch4.speechinterventions.tsx.retry.counts"/></button></p>}
+    {(error||sourceUnavailable)&&!loading&&<p role="alert">{error||ui.t('app.contributions_unavailable')} <button onClick={()=>setAttempt(a=>a+1)}><UiMessage id="batch4.speechinterventions.tsx.retry.counts"/></button></p>}
   </section>;
 }
 

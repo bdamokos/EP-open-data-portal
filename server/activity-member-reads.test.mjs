@@ -73,12 +73,12 @@ test('member counts follow row eligibility, serving generation and incomplete co
   assert.equal(store.page('42',{category:'plenary-contributions'}).indexedTotal,1);
   store.db.prepare("INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,'missing','speeches','{}')").run(next.generation);
   const page=store.page('42',{category:'plenary-contributions'});
-  assert.equal(page.total,null);assert.equal(page.indexedTotal,1);
-  assert.equal(page.categoryCoverage['plenary-contributions'].status,'incomplete-joins');
-  assert.equal(page.categoryCoverage['plenary-contributions'].total,null);
+  assert.equal(page.total,1);assert.equal(page.indexedTotal,1);
+  assert.equal(page.categoryCoverage['plenary-contributions'].status,'available');
+  assert.equal(page.categoryCoverage['plenary-contributions'].total,1);
   assert.equal(page.categoryCoverage['union-act-proposals'].status,'source-not-verified');
   assert.equal(page.categoryCoverage['union-act-proposals'].total,null);
-  assert.equal(page.availability[0].limited,true);
+  assert.equal(page.availability[0].limited,false);
   assert.equal(page.availability[0].gaps[0].sourceId,'missing');
   assert.equal(expected(store,generation,null).total,5);
 });
@@ -107,4 +107,63 @@ test('actual member counts are index-only and filtered pages avoid sorting or JS
       assert(!program.some(row=>row.opcode==='Column'&&row.p1===tableCursor),'counts must not read table columns');
     } else assert.match(plan,/category=\?/);
   }
+});
+
+
+test('refresh gaps qualify only their projected member and roles',t=>{
+  const {store,generation}=fixture(t);
+  const gap=store.db.prepare('INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,?,?)');
+  gap.run(generation,'/source/report','document','{}');
+  assert.equal(store.page('42',{category:'reports-rapporteur'}).total,null);
+  assert.equal(store.page('42').categoryCoverage['reports-shadow'].status,'incomplete-joins');
+  assert.equal(store.page('99',{category:'reports-rapporteur'}).total,0);
+  assert.equal(store.page('42',{category:'written-questions'}).total,1);
+  gap.run(generation,'recovery:/source/speech-a','speeches','{}');
+  assert.equal(store.page('42',{category:'plenary-contributions'}).total,null);
+  assert.equal(store.page('99',{category:'plenary-contributions'}).total,1);
+  store.db.prepare("DELETE FROM refresh_gaps WHERE generation=? AND key='/source/report'").run(generation);
+  assert.equal(store.page('42').total,5); // Default feed excludes plenary contributions.
+  store.db.prepare('DELETE FROM refresh_gaps WHERE generation=?').run(generation);
+  assert.equal(store.page('42',{category:'reports-rapporteur'}).total,1);
+});
+
+test('unattributed matching windows stay global even during the member term',t=>{
+  const {store,generation}=fixture(t);
+  store.db.prepare('INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,?,?)')
+    .run(generation,'catalog:/parliamentary-questions','catalog',JSON.stringify({endpoint:'/parliamentary-questions',start:'2026-10-01',end:'2026-10-31'}));
+  const page=store.page('42',{category:'written-questions'});
+  assert.equal(page.total,1);assert.equal(page.categoryCoverage['written-questions'].status,'available');
+  assert.equal(store.status().coverageGaps.count,1);assert.equal(store.status().complete,false);
+  assert(page.availability.some(source=>source.gaps.length));
+});
+
+test('cold and repeated profile reads never aggregate global status',t=>{
+  const {store}=fixture(t),prepare=store.db.prepare.bind(store.db),queries=[];
+  t.mock.method(store,'status',()=>{throw Error('profile must not call status');});
+  t.mock.method(store.db,'prepare',sql=>{queries.push(sql);return prepare(sql);});
+  store.page('42',{category:'written-questions'});store.page('99');
+  assert(!queries.some(sql=>/COUNT\s*\(|GROUP BY/i.test(sql)&&!/FROM items/i.test(sql)),queries.join('\n'));
+  const scoped=queries.find(sql=>sql.includes('SELECT DISTINCT item.category'));
+  const plan=prepare('EXPLAIN QUERY PLAN '+scoped).all(store.get('active'),'42').map(row=>row.detail).join('\n');
+  assert.doesNotMatch(plan,/SCAN (?:item|gap)/);assert.match(plan,/generation=\? AND source_key=\?/);
+});
+
+test('initial activity backfill and unreconciled snapshots retain their coverage states',t=>{
+  const {store,generation}=fixture(t);
+  store.set('active',null);store.set('refreshPolicyGeneration',null);
+  assert.equal(store.page('42',{category:'written-questions'}).categoryCoverage['written-questions'].status,'backfilling');
+  store.set('active',generation);store.set('refreshPolicyGeneration',generation+1);
+  assert.equal(store.page('42',{category:'written-questions'}).categoryCoverage['written-questions'].status,'incomplete-joins');
+});
+
+
+test('gap queue aliases use the worker endpoint and exact speech recovery identity',t=>{
+  const {store,generation}=fixture(t),gap=store.db.prepare('INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,?,?)');
+  gap.run(generation,'retry:question','document',JSON.stringify({endpoint:'/source/question'}));
+  assert.equal(store.page('42',{category:'written-questions'}).total,null);
+  assert.equal(store.page('99',{category:'written-questions'}).total,0);
+  store.db.prepare("UPDATE items SET source_key='/speeches/speech-a' WHERE source_id='speech-a'").run();
+  gap.run(generation,'retry:speech','speeches',JSON.stringify({recoveryId:'speech-a'}));
+  assert.equal(store.page('42',{category:'plenary-contributions'}).total,null);
+  assert.equal(store.page('99',{category:'plenary-contributions'}).total,1);
 });

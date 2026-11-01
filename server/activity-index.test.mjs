@@ -327,7 +327,7 @@ test('real report shadows appear after their procedure arrives even while an unr
     const worker=new ActivityWorker(s,{clock:instant,fetchRecord:async ep=>{assert.equal(ep,'/procedures/2025-0233');return {payload:{data:[fixture.procedure.work]},fetchedAt:fixture.verifiedAt};}});
     await worker.task(s.nextTask(cycle.generation));
     const page=s.page('257043',{category:'reports-shadow'});assert.equal(page.indexedTotal,1);assert.equal(page.items[0].sourceId,'A-10-2026-0049');assert.equal(page.items[0].date,'2026-03-10');assert.equal(page.items[0].provenance.stage,'RDG1');
-    assert.equal(page.cache.complete,false);assert.equal(page.total,null);assert.equal(page.cache.pendingSpeechRecoveries.count,1);
+    assert.equal(page.cache.complete,false);assert.equal(page.total,null);assert.equal(s.status().pendingSpeechRecoveries.count,1);
   }finally{s.close();rmSync(dir,{recursive:true,force:true});}
 });
 
