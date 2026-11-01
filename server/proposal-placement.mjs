@@ -367,7 +367,7 @@ function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   const reference=targetPath?.underlying;
   if(reference?.length){
     if(reference.length!==1)return null;
-    const inner=parseTargetLabel(reference[0].raw,language),root=inner.segments[0];
+    const inner=parseTargetLabel(reference[0].raw.split(/[–-]/u,1)[0].trim(),language),root=inner.segments[0];
     const actual=anchor.underlyingPath?.find(segment=>segment.kind==='article');
     if(!inner.complete||root?.kind!=='article'||root.isNew||!actual||root.value!==actual.value)return null;
   }

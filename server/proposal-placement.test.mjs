@@ -386,6 +386,8 @@ test('quoted sibling insertion follows the complete paragraph and preserves the 
  assert.equal(result.status,'placed',result.reason);assert.equal(result.insertBefore,6);
  const conflicting={...amendment,targetPath:{proposal:[{raw:amendment.targetLabel}],underlying:[{raw:'Article 4aa (new)',document:'Regulation (EU) 2024/123'}]}};
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],conflicting).status,'unresolved');
+ const addressed={...amendment,targetPath:{proposal:[{raw:amendment.targetLabel}],underlying:[{raw:'Article 9 – paragraph 4a – second subparagraph (new)',document:'Regulation (EU) 2024/123'}]}};
+ assert.equal(resolveProposalPlacement([item(source(texts,styles))],addressed).status,'placed');
  texts[3]='(b) the second subparagraph is replaced by the following:';
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
 });
