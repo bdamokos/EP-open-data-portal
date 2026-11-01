@@ -368,5 +368,40 @@
     "one": "batch6.procedureprogress.count.event.in.this.selection.78",
     "other": "batch6.procedureprogress.count.events.in.this.selection.78",
     "count": "count"
+  },
+  {
+    "one": "topics.story.busiestOne",
+    "other": "topics.story.busiest",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.urgencyOne",
+    "other": "topics.story.urgency",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.leaderOne",
+    "other": "topics.story.leader",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.leaderSoFarOne",
+    "other": "topics.story.leaderSoFar",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.placeQuestionsOne",
+    "other": "topics.story.placeQuestions",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.textsOne",
+    "other": "topics.story.texts",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.topicSummaryOne",
+    "other": "topics.story.topicSummary",
+    "count": "count"
   }
 ]

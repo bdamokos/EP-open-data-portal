@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
 import {closedGlobalSearch,checkClosedGlobalSearchHistory} from './test-support/closedGlobalSearchHistory.mjs';
 import test from 'node:test';
@@ -59,7 +60,7 @@ async function harness(t,selection=query({}),{context=contextResponse,motions=mo
  const rawPush=history.pushState.bind(history);t.mock.method(history,'pushState',(...args)=>{pushes.push(args[2]);return rawPush(...args);});
  let root,loadModule;
  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];assert.deepEqual(unexpected,[],'all HTTP reads remain inside the explicit local fixtures');});
- t.mock.method(globalThis,'fetch',async input=>{
+ t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
   const url=new URL(input,location.href);requests.push(url);
   if(url.pathname==='/api/directory')return Response.json(directory);
   if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});

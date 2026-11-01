@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -21,7 +22,7 @@ async function harness(t,respond,{query='?view=questions',props={}}={}) {
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[],reveals=[];
   t.mock.method(window.HTMLElement.prototype,'scrollIntoView',function(options){reveals.push({target:this,options,focused:document.activeElement});});
-  t.mock.method(globalThis,'fetch',async input=>{
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href);calls.push(url);
     assert(url.pathname.endsWith('/insights/questions'),'focus tests must not request corpus, media or remote source data');
     const result=await respond(url);return result instanceof Response?result:Response.json(result);

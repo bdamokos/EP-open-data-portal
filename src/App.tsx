@@ -685,6 +685,7 @@ export default function App() {
   }
   useEffect(()=>{
     const restore=()=>{
+      const legacy=legacyTopics(new URLSearchParams(location.search));if(legacy)history.replaceState(history.state,'',legacy);
       pendingDestination.current=null;
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');

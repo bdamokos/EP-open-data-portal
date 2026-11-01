@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act,useEffect,useState} from 'react';
@@ -20,7 +21,7 @@ async function harness(t){
   window.HTMLElement.prototype.scrollIntoView=function(options){scrolls.push({target:this,options});};
   let root,load,language='en';
   t.after(async()=>{if(root)await act(async()=>{root.unmount();for(const request of pending.splice(0))request.resolve(Response.json(publication(request.id,request.language)));});if(load)await load.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  t.mock.method(globalThis,'fetch',async input=>{
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href),params=url.searchParams;
     if(url.pathname.endsWith('/insights/legislation'))return Response.json(legislation(params));
     if(url.pathname.endsWith('/insights/procedure-context'))return Response.json(context);
@@ -44,11 +45,11 @@ async function harness(t){
   return {window,container,scrolls,pending,journey,find,button,click,respond,frames,async language(value){language=value;await render();},async pop(href){await act(async()=>{history.replaceState(history.state,'',href);window.dispatchEvent(new Event('popstate'));});}};
 }
 
-test('subjects are exposed with exact codes; Read focuses its adjacent exact reader through loading, failure, close and document changes',async t=>{
+test('subjects link by exact codes; Read focuses its adjacent exact reader through loading, failure, close and document changes',async t=>{
   const h=await harness(t),classification=h.find('.insight-subject-classification');
   assert.equal(classification.closest('details'),null,'classification requires no disclosure');
   assert.equal(classification.getAttribute('aria-label'),'Subject classification');
-  assert.deepEqual([...classification.querySelectorAll('li')].map(li=>[li.querySelector('span').textContent,li.querySelector('small').textContent]),[['Industrial policy','3.40.01'],['Environment','3.70']]);
+  assert.deepEqual([...classification.querySelectorAll('li')].map(li=>[li.querySelector('a').textContent,new URL(li.querySelector('a').href).searchParams.get('topic')]),[['Industrial policy','oeil:3.40.01'],['Environment','oeil:3.70']]);
   const trigger=h.button('Read '+report);await h.click(trigger);
   const region=document.getElementById(trigger.getAttribute('aria-controls'));
   assert.equal(trigger.getAttribute('aria-expanded'),'true');assert.equal(trigger.textContent,'Hide '+report);

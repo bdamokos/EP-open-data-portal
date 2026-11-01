@@ -21,7 +21,7 @@ export function TopicStories({selection,fallback,facts:provided}:{selection:Stor
  };
  const sentences=lines.map((line,i)=>{
   const values=Object.fromEntries(Object.entries(line.values).map(([name,value])=>[name,Array.isArray(value)?new Intl.ListFormat(ui.locale,{style:'long',type:'conjunction'}).formatToParts(value.map((_,j)=>String(j))).map((part,j)=>part.type==='element'?<span key={j}>{renderRef(value[Number(part.value)],i+'-'+name+'-'+part.value)}</span>:part.value):typeof value==='string'?value:renderRef(value,i+'-'+name)]));
-  return <span key={line.id+'-'+i}><UiMessage id={line.id} values={values}/>{' '}</span>;
+  return <span key={line.id+'-'+i}><UiMessage id={line.id} values={values} counts={line.counts}/>{' '}</span>;
  });
  const active=refs.get(selected);
  return <div className="topic-stories"><p className="topic-story">{sentences}</p>{active&&<section id={panel} className="topic-story-records" aria-label={ui.t('topics.story.records')}><h3>{active.text}</h3>{active.records.map(r=><article key={r.kind+':'+r.id}><small>{r.date}</small><a href={r.kind==='document'?'https://www.europarl.europa.eu/doceo/document/'+encodeURIComponent(r.id)+'_EN.html':recordHref(r.id,r.kind)}>{r.title}</a></article>)}</section>}</div>;

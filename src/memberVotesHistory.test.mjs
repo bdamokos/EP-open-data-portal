@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import {wordingText} from './test-support/wordingText.mjs';
 import {closedGlobalSearch,checkClosedGlobalSearchHistory} from './test-support/closedGlobalSearchHistory.mjs';
 import test from 'node:test';
@@ -65,7 +66,7 @@ async function harness(t,query='member=1&module=votes&lang=en',{activities=[],co
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all requests stay inside local fixtures');
   });
-  t.mock.method(globalThis,'fetch',async input=>{
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href);
     if(url.pathname==='/api/corpus/search')return Response.json({results:[],total:0,nextOffset:null,coverage:{status:'partial'}});
     assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');

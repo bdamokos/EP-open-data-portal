@@ -2469,5 +2469,8 @@
   "topics.story.leaderSoFarOne": "So far, MEPs have asked most about {place}, with {questions} question.",
   "topics.story.textsOne": "Parliament adopted {texts} text naming places in view.",
   "topics.story.topicSummaryOne": "{groups} debate or dossier touched on {topic}.",
-  "topics.ownMepTag": "by its own MEPs"
+  "topics.ownMepTag": "by its own MEPs",
+  "topics.story.riseRare": "{place}, rarely asked about before, drew {questions} questions.",
+  "topics.story.riseJumped": "Questions about {place} jumped to {questions}, from an average of {average} a quarter.",
+  "topics.story.leaders": "{places} were the most asked-about places, with {questions} questions each."
 }
