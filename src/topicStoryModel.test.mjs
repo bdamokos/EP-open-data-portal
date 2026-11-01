@@ -55,3 +55,12 @@ test('term totals count distinct group keys instead of repeating a dossier acros
 test('story debate headings and their record links remove only leading agenda numbering',()=>{
  const f=facts();f.debates=[{...debate('numbered','FRA',20),title:'19.2. Exact heading (debate)',rawTitle:'19.2. Exact heading (debate)'}];const rows=lines(f);const serialized=JSON.stringify(rows);assert(!serialized.includes('19.2.'));assert(serialized.includes('Exact heading (debate)'));assert.equal(f.debates[0].rawTitle,'19.2. Exact heading (debate)');
 });
+
+test('story debate selection requires at least three MEP speakers',()=>{
+ const f=facts();f.debates=[debate('one','FRA',1),debate('two','FRA',2)];assert(!JSON.stringify(lines(f)).includes('Exact title'));assert(!lines(f).some(r=>r.id.includes('mostDebated')));assert(!lines(f,{place:'FRA',period:undefined}).some(r=>r.id.includes('plenary')));
+ f.debates.push(debate('three','FRA',3));assert(lines(f).some(r=>r.id.includes('bigDebate')));
+});
+test('bounded debate arrays cannot supply place debate totals or most-debated claims',()=>{
+ const f=facts();f.debatesTruncated=true;assert(!lines(f).some(r=>r.id.includes('mostDebated')));assert(!lines(f,{place:'FRA',period:undefined}).some(r=>r.id.includes('plenary')||r.id.endsWith('.peak')));assert(lines(f).some(r=>r.id.includes('bigDebate')));
+ f.debatesTruncated={'2025-Q1':false,'2025-Q3':true};assert(!lines(f).some(r=>r.id.includes('mostDebated')));f.debatesTruncated={'2025-Q3':false};assert(lines(f).some(r=>r.id.includes('mostDebated')));
+});

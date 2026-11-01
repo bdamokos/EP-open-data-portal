@@ -12,8 +12,9 @@ import {InsightQuestionReader,InsightSpeechReader} from './InsightReaders';
 export function TopicStories({selection,fallback,facts:provided}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts}){
  const ui=useUiI18n(),panel=useId(),[selected,setSelected]=useExplorerParam<string>('t-story',''),[reading,setReading]=useExplorerParam<string>('t-story-read',''),[,setQuarter]=useExplorerParam<string>('t-q','');
  // This adapter accepts the reviewed full-reference facts until the endpoint lands.
- const response=useInsightData<StoryFacts|{ready:boolean;facts?:StoryFacts}>(provided?null:'topics/story-facts');
- const payload=provided||response.data,available=payload&&(!('ready' in payload)||payload.ready),facts=available&&'questions' in payload?payload:available&&'facts' in payload?payload.facts:null;
+ const response=useInsightData<StoryFacts|({ready:boolean;facts?:StoryFacts}&Pick<StoryFacts,'debatesTruncated'|'debatesTotal'>)>(provided?null:'topics/story-facts');
+ const payload=provided||response.data,available=payload&&(!('ready' in payload)||payload.ready),factsData=available&&'questions' in payload?payload:available&&'facts' in payload?payload.facts:null;
+ const facts=factsData&&payload?{...factsData,debatesTruncated:factsData.debatesTruncated??payload.debatesTruncated,debatesTotal:factsData.debatesTotal??payload.debatesTotal}:null;
  const [shown,setShown]=useState(20);
  const lines=buildTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}),heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLAnchorElement|null>(null);
  useEffect(()=>{setShown(20);if(selected&&heading.current){heading.current.focus({preventScroll:true});heading.current.scrollIntoView({block:'start'});}else if(!selected&&opener.current?.isConnected){opener.current.focus({preventScroll:true});opener.current=null;}},[selected,Boolean(lines.length)]);
