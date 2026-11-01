@@ -102,9 +102,8 @@ export class PortraitCache {
     if (!this.directory) return null;
     let file;
     try {
-      // Inventory and pruning still precede every write. Reading one retained
-      // image must not wait for metadata reads of every other saved portrait.
-      void this.initialize().catch(() => this.diskError());
+      // Read the exact retained file without starting directory inventory or pruning.
+      // Writes still initialize and account for the entire disk budget.
       const name = path.join(this.directory, `${id}.portrait`);
       // Preserve the inventory's regular-file boundary when opening directly.
       if (!constants.O_NOFOLLOW && !(await lstat(name)).isFile()) return null;
