@@ -146,8 +146,8 @@ test('question counts and ordered windows use the existing partial index and pre
   const prepare=store.db.prepare.bind(store.db),queries=[];
   t.mock.method(store.db,'prepare',sql=>{
     const statement=prepare(sql);
-    if(sql.includes('INDEXED BY question_window')) {
-      if(sql.startsWith("SELECT json_extract(body,'$.work_type')")) {
+    if(sql.includes('INDEXED BY read_question_window')||sql.includes('FROM question_frontiers')) {
+      if(sql.includes('FROM question_frontiers')) {
         const iterate=statement.iterate.bind(statement);
         statement.iterate=function*(...args){const record={sql,args,method:'iterate',result:[]};queries.push(record);for(const row of iterate(...args)){record.result.push(row);yield row;}};
       }
@@ -163,18 +163,18 @@ test('question counts and ordered windows use the existing partial index and pre
     .query(insightQuery(new URLSearchParams('days=90&lang=hu'),{now:now()}));
   assert.equal(result.coverage.undatedQuestions,11);assert.equal(result.counts.indexedMatchingQuestions,3);
   assert.equal(result.counts.totalQuestions,null);assert.equal(result.coverage.indexComplete,false);
-  assert.equal(queries.length,4,'both counts, the ordered window and coverage history use the question index');
+  assert.equal(queries.length,6,'both counts, the ordered window and coverage history use the question index');
   for(const {sql,args,method,result} of queries) {
-    const original=sql.replace(' INDEXED BY question_window',' NOT INDEXED');
+    const original=sql.replace(' INDEXED BY read_question_window',' NOT INDEXED');
     const expected=method==='iterate'?prepare(original).all(...args).slice(0,result.length):prepare(original)[method](...args);
     assert.deepEqual(expected,result,'the indexed read preserves the source-scan order, including the streamed prefix');
     const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
-    assert.match(plan,/SEARCH sources USING INDEX question_window/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
+    assert.match(plan,/SEARCH (?:question_reads USING INDEX read_question_window|question_frontiers USING COVERING INDEX question_frontier_date)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
   }
   const {sql,args}=queries[0];
   const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
-  assert.match(plan,/SEARCH sources USING INDEX question_window \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
-  const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='sources'").get().rootpage;
+  assert.match(plan,/SEARCH question_reads USING INDEX read_question_window \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
+  const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='question_reads'").get().rootpage;
   const tableCursors=new Set(program.filter(row=>row.opcode==='OpenRead'&&row.p2===root).map(row=>row.p1));
   assert(!program.some(row=>row.opcode==='Column'&&tableCursors.has(row.p1)),'undated count must not read source-table columns');
   assert(!program.some(row=>row.opcode==='Function'&&/json_extract/.test(row.p4)),'undated count must not parse source JSON');
@@ -266,7 +266,7 @@ test('coverage closes its newest-first read early and retains future observation
   const prepare=store.db.prepare.bind(store.db);let visited=0,closed=false;
   t.mock.method(store.db,'prepare',sql=>{
     const statement=prepare(sql);
-    if(sql.startsWith("SELECT json_extract(body,'$.work_type')")) {
+    if(sql.includes('FROM question_frontiers')) {
       const iterate=statement.iterate.bind(statement);
       statement.iterate=function*(...args){try{for(const row of iterate(...args)){visited++;yield row;}}finally{closed=true;}};
     }

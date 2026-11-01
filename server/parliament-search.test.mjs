@@ -148,7 +148,7 @@ test('query validation bounds types, dates, offsets and repeated parameters',()=
 
 for(const boundary of ['2026-10-14','2026-10-15'])test('question scan cap is scoped to the unprocessed ordered boundary '+boundary,async t=>{
  const {service,store}=setup(t),prepare=store.db.prepare.bind(store.db);
- t.mock.method(store.db,'prepare',sql=>sql.includes('FROM sources INDEXED BY question_window')?{iterate:function*(){
+ t.mock.method(store.db,'prepare',sql=>sql.includes('FROM question_reads')&&sql.includes('expression_titles')?{iterate:function*(){
    for(let i=0;i<50000;i++)yield {id:'invalid',key:'/invalid',date:'2026-10-15'};
    yield {id:'invalid',key:'/invalid',date:boundary};
  }}:prepare(sql));

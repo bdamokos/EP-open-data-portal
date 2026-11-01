@@ -27,7 +27,9 @@ export function procedureTitle(work,language) {
 }
 export function savedProcedureEvents(store,{start,end,language='en'}) {
   const generation=store.status().servingGeneration;
-  const rows=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='procedure' ORDER BY key").all(generation);
+  const candidates=store.db.prepare(`SELECT source_key,MAX(date) date FROM procedure_event_reads WHERE generation=? AND date BETWEEN ? AND ? GROUP BY source_key ORDER BY date DESC,source_key LIMIT 601`).all(generation,start,end);
+  const read=store.db.prepare('SELECT key,body,fetched_at FROM source_reads WHERE generation=? AND key=?');
+  const rows=candidates.slice(0,600).map(row=>read.get(generation,row.source_key));
   const procedures=[],frontiers=Object.fromEntries(['debates','votes','committee'].map(kind=>[kind,[]]));
   for(const row of rows) {
     const id=row.key.match(/^\/procedures\/(\d{4}-\d{4}[A-Z]?)$/)?.[1];if(!id)continue;
@@ -37,13 +39,16 @@ export function savedProcedureEvents(store,{start,end,language='en'}) {
     const events=array(work.consists_of).flatMap(event=>{
       const kind=eventKind(tail(event.had_activity_type)),eventId=tail(event.id),date=event.activity_date;
       if(!kind||!/^eli\/dl\/event\/[A-Z0-9-]{1,150}$/.test(String(event.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''))||!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return [];
-      frontiers[kind].push({date,fetchedAt});
+
       return date<start||date>end?[]:[{id:eventId,date,kind,procedureId:id}];
     });
     if(events.length)procedures.push({id,events,fetchedAt,...procedureTitle(work,language),status:procedureStatus(work,fetchedAt?.slice(0,10))});
   }
+  for(const event of store.db.prepare('SELECT date,type,MAX(fetched_at) fetchedAt FROM procedure_event_reads WHERE generation=? GROUP BY type,date').all(generation)) {
+    const kind=eventKind(tail(event.type));if(kind&&/^\d{4}-\d{2}-\d{2}$/.test(event.date||''))frontiers[kind].push({date:event.date,fetchedAt:event.fetchedAt});
+  }
   procedures.sort((a,b)=>b.events.map(e=>e.date).sort().at(-1).localeCompare(a.events.map(e=>e.date).sort().at(-1))||a.id.localeCompare(b.id));
-  return {procedures:procedures.slice(0,600),truncated:procedures.length>600,frontiers};
+  return {procedures:procedures.slice(0,600),truncated:candidates.length>600,frontiers};
 }
 const monday=date=>{const value=new Date(date+'T12:00:00Z');value.setUTCDate(value.getUTCDate()-(value.getUTCDay()+6)%7);return value.toISOString().slice(0,10);};
 export function topicTimeline(procedures,mappings,{start,end,concept},availability=null,{truncated=false}={}) {

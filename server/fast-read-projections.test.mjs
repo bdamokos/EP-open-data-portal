@@ -1,0 +1,20 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {ActivityStore} from './activity-index-store.mjs';
+test('source projections preserve provenance, nested metadata and question titles across replacements and pruning',t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'fast-read-test-')),store=new ActivityStore(directory);
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();
+  const key='/parliamentary-questions/E-10-2026-000001',at='2026-10-22T12:00:00Z';
+  const put=store.db.prepare('INSERT OR REPLACE INTO sources VALUES (1,?,\'document\',?,?,1)');
+  const work={identifier:'E-10-2026-000001',work_type:'def/QUESTION_WRITTEN',document_date:'2026-10-10',title_dcterms:{fr:'Énergie européenne'},inverse_answers_to:[{identifier:'answer',document_date:'2026-10-11',creator:['org/COM']}],inverse_foresees_change_of:[{id:'list',extraction:{amendments:['large']}}],extraction:{text:'x'.repeat(1_000_000)}};
+  put.run(key,JSON.stringify(work),at);
+  const metadata=store.sourceMetadata(1,key);assert.equal(metadata.fetchedAt,at);assert.equal(metadata.work.inverse_foresees_change_of[0].id,'list');assert.equal(metadata.work.inverse_foresees_change_of[0].extraction,undefined);
+  assert.equal(store.source(1,key).work.extraction.text.length,1_000_000);
+  const projected=JSON.parse(store.db.prepare('SELECT body FROM question_reads').get().body);assert.deepEqual(projected.inverse_answers_to,work.inverse_answers_to);
+  const search=()=>store.db.prepare('SELECT rowid FROM question_title_search WHERE question_title_search MATCH ?').all('"energie"');assert.equal(search().length,1);
+  put.run(key,JSON.stringify({...work,title_dcterms:{en:'Water safety'}}),at);assert.equal(search().length,0);
+  store.db.prepare('DELETE FROM sources WHERE generation=1 AND key=?').run(key);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM question_reads').get().n,0);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM source_reads').get().n,0);
+});

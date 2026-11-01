@@ -14,7 +14,7 @@ const boundedIntervals = rows => rows.length>500?[{reason:'source-gap'}]:rows.ma
 // Capacity is derived from retained source text, including records indexed by older code.
 const classified = row => ({...speechAgendaMembership(row),header:row.header?{...row.header,capacity:outsideCapacity(row.header.role)}:null});
 const agendaUpgradeKey = 'outside:agenda-membership';
-const legacyAgendaRows = "FROM outside_contributions WHERE generation=? AND json_array_length(body,'$.parentIds')>1 AND (COALESCE(json_type(body,'$.parentDocumentIds'),'')<>'array' OR COALESCE(json_type(body,'$.parentDocumentsComplete'),'') NOT IN ('true','false'))";
+const legacyAgendaRows = "FROM outside_contributions INDEXED BY outside_agenda_upgrade WHERE generation=? AND json_array_length(body,'$.parentIds')>1 AND (COALESCE(json_type(body,'$.parentDocumentIds'),'')<>'array' OR COALESCE(json_type(body,'$.parentDocumentsComplete'),'') NOT IN ('true','false'))";
 export const outsideAgendaUpgradeDue = (store,generation) => Boolean(generation && store.source(generation,'outside:state') && store.source(generation,agendaUpgradeKey)?.work.generation !== generation && store.db.prepare('SELECT 1 '+legacyAgendaRows+' LIMIT 1').get(generation));
 const needsAgendaUpgrade = row => row.parentIds.length > 1 && (!Array.isArray(row.parentDocumentIds) || typeof row.parentDocumentsComplete !== 'boolean');
 function enqueueAgendaUpgrade(store,generation,speech) {
@@ -72,7 +72,8 @@ function generationOf(store) {
   return active && store.source(active,'outside:state') ? active : store.get('working')?.generation || active || 0;
 }
 function rowsFor(store, generation, {term='all',person=null}={}) {
-  const rows = store.db.prepare("SELECT body FROM outside_contributions WHERE generation=?" + (person?' AND person=?':'') + (term!=='all'?" AND json_extract(body,'$.term')=?":'') + ' ORDER BY date DESC,speech LIMIT 50001').all(generation,...(person?[person]:[]),...(term!=='all'?[Number(term)]:[]));
+  const table=person?'outside_contributions':'outside_directory_reads',termColumn=person?"json_extract(body,'$.term')":'term';
+  const rows = store.db.prepare("SELECT body FROM "+table+" WHERE generation=?" + (person?' AND person=?':'') + (term!=='all'?' AND '+termColumn+'=?':'') + ' ORDER BY date DESC,speech LIMIT 50001').all(generation,...(person?[person]:[]),...(term!=='all'?[Number(term)]:[]));
   return {rows:rows.slice(0,50000).map(row => classified(parse(row.body))),truncated:rows.length>50000};
 }
 function agendasFor(store, generation, ids) {
@@ -103,7 +104,7 @@ export function outsideCoverage(store, generation, truncated=false, query={}) {
   const gapIntervals=boundedIntervals(failed.map(row=>({body:JSON.parse(row.body).taskBody||{},sourceId:row.key})));
   const pendingRows=store.db.prepare("SELECT key,body FROM tasks WHERE generation=? AND (done<>1 OR done IS NULL) AND (kind LIKE 'outside-%' OR kind='speeches') LIMIT 501").all(generation);
   const pendingIntervals=boundedIntervals(pendingRows.map(row=>({body:JSON.parse(row.body),sourceId:row.key})));
-  const unresolvedDates=store.db.prepare("SELECT DISTINCT date FROM outside_contributions WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501").all(generation);
+  const unresolvedDates=store.db.prepare("SELECT DISTINCT date FROM outside_contributions INDEXED BY outside_unresolved_dates WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501").all(generation);
   const unresolvedIntervals=boundedIntervals(unresolvedDates.map(row=>({body:{date:row.date}})));
   const window={start:query.term==='9'||query.term==='all'?'2019-07-02':'2024-07-16',end:query.term==='9'?'2024-07-15':brusselsDay(store.clock())};
   const latestObservedDate=store.db.prepare('SELECT MAX(date) date FROM outside_contributions WHERE generation=? AND date<=?'+(query.term&&query.term!=='all'?" AND json_extract(body,'$.term')=?":'')).get(generation,window.end,...(query.term&&query.term!=='all'?[Number(query.term)]:[])).date||null;

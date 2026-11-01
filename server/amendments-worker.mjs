@@ -287,7 +287,7 @@ export function amendmentParserUpgradeDue(store,generation) {
 }
 export function prepareAmendmentParserUpgrade(worker,generation) {
   if(!amendmentParserUpgradeDue(worker.store,generation))return;
-  const outdated=worker.store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>? LIMIT 1").get(generation,AMENDMENT_EXTRACTION_VERSION);
+  const outdated=worker.store.db.prepare("SELECT 1 FROM sources INDEXED BY parser_upgrade_due WHERE generation=? AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>? LIMIT 1").get(generation,AMENDMENT_EXTRACTION_VERSION);
   if(!outdated) {
     worker.store.putSource(generation,parserUpgradeKey,'amendment-parser-upgrade',{parserVersion:AMENDMENT_EXTRACTION_VERSION,sourceRevision:worker.store.get(amendmentParserSourceRevisionKey) || 0},new Date(worker.clock()).toISOString());
     return;

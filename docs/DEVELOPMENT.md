@@ -69,6 +69,8 @@ Container startup automatically prepares SQLite indexes and proof projections fo
 
 The activity disk cap defaults to 8192 MiB and accepts 64–131072 MiB. Explicit environments override the default. Allow space for retained generations and WAL, not only new indexes. The preparation command checks the configured cap after its commit and truncating checkpoint; temporary sort files and duplicate WAL pages during the build do not trigger the normal worker cap. Normal worker checks count the database, WAL and SHM files. Corpus limits remain independently configured. Amendment pages return HTTP 503 until their current proof projection is initialized.
 
+Run `node server/test-support/slow-read-benchmark.mjs` for source, amendment, question-title and procedure-event query plans and cold SQLite page-read counts. Source metadata, question analysis inputs, title trigrams and procedure event dates are projected on disk by source-write triggers and prepared before HTTP startup. Retained source bodies and retrieval dates remain unchanged. Observation retention uses indexed slices of 64 records and a trigger-maintained count.
+
 Run `node server/test-support/remaining-read-benchmark.mjs` for an offline synthetic benchmark of question discovery, motion-week navigation, saved counts and motion preparation. It creates and removes its own temporary databases, uses the `sqlite3` CLI to measure page-cache misses on fresh connections with 2 MiB caches and disabled mmap, and reports preparation time and added bytes. OS caches are not evicted; results measure SQLite page fetches rather than physical disk reads.
 
 ## Container
