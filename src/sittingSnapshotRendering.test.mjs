@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {ActivityStore} from '../server/activity-index-store.mjs';
 import {ActivityWorker} from '../server/activity-index-worker.mjs';
 import {SittingSnapshotCollector} from '../server/sitting-snapshot-collector.mjs';
@@ -25,8 +25,8 @@ test('fixture votes and attendance render identical list and detail markup from 
   for(const [key,value] of Object.entries({window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true})){
     originals.set(key,Object.getOwnPropertyDescriptor(globalThis,key));Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   }
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  t.after(async()=>{await vite.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];reader.close();store.close();rmSync(directory,{recursive:true,force:true});});
+  const viteOptions=({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  t.after(async()=>{await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];reader.close();store.close();rmSync(directory,{recursive:true,force:true});});
   const {createRoot}=await import('react-dom/client');
   let responses=direct,voteReads=0;
   t.mock.method(globalThis,'fetch',async url=>{
@@ -41,8 +41,8 @@ test('fixture votes and attendance render identical list and detail markup from 
   });
   async function render(data,decisionId){
     // Isolate the data-client cache so both paths must actually supply data.
-    vite.moduleGraph.invalidateAll();
-    const {MemberVotes,defaultMemberVotesState}=await vite.ssrLoadModule('/src/MemberVotes.tsx');
+    const load=await freshLoader(viteOptions);
+    const {MemberVotes,defaultMemberVotesState}=await load('/src/MemberVotes.tsx');
     responses=data;const before=voteReads,container=document.createElement('div');document.body.append(container);const root=createRoot(container);
     try {
       await act(async()=>root.render(createElement(MemberVotes,{memberId:Number(SNAPSHOT_MEMBER),memberName:'Test member',language:'en',
@@ -54,7 +54,7 @@ test('fixture votes and attendance render identical list and detail markup from 
       // React allocates new opaque control IDs for each mounted root.
       const ids=new Map();
       return container.innerHTML.replace(/_r_[a-z0-9]+_/g,id=>{if(!ids.has(id))ids.set(id,'control-'+ids.size);return ids.get(id);});
-    }finally{await act(async()=>root.unmount());container.remove();}
+    }finally{await act(async()=>root.unmount());container.remove();await load.close();}
   }
   for(const decisionId of [null,direct.votes.items[0].id])assert.equal(await render(retained,decisionId),await render(direct,decisionId));
 });
