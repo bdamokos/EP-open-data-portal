@@ -18,7 +18,7 @@ export function runMemberReadBenchmark() {
     const queries={
       speechKindFrontier:"SELECT MAX(date) date FROM speech_catalog WHERE kind='PLENARY_DEBATE_SPEECH' AND date<='2026-11-01'",
       memberSpeechCount:'SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision '+selection,
-      memberSpeechPage:'SELECT source_id '+selection+' ORDER BY date DESC,start DESC,numbering DESC,source_id DESC LIMIT 50 OFFSET 0',
+      memberSpeechPage:'SELECT source_id '+selection.replace('INDEXED BY speech_member_page','INDEXED BY speech_member_list')+' ORDER BY order_ms DESC,source_order ASC LIMIT 50 OFFSET 0',
     };
     return {scenarios:Object.entries(queries).map(([name,sql])=>({name:'member.'+name,...measureRead(store.filename,sql)}))};
   } finally {store?.close();rmSync(directory,{recursive:true,force:true});}

@@ -86,9 +86,10 @@ export class CorpusStore {
     this.filename=path.join(directory,'corpus-v1.sqlite');
     this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
+    this.db.function('speech_order_ms',{deterministic:true},(start,date)=>{const value=Date.parse(start||date);return Number.isFinite(value)?value:null;});
     this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
-      try {if(this.get('speechMemberIndex')!==1||this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
+      try {if(this.get('speechMemberIndex')!==2||this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -189,24 +190,27 @@ export class CorpusStore {
           LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at`);
         this.set('resourceIndexes',1);initialized=true;
       }
-      if(this.get('speechMemberIndex')!==1) {
+      if(this.get('speechMemberIndex')!==2) {
         if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
-        this.db.exec(`CREATE TABLE speech_member_catalog (
-          member TEXT NOT NULL,source_id TEXT NOT NULL,date TEXT,kind TEXT,start TEXT,numbering INTEGER,revision INTEGER NOT NULL,
+        this.db.exec(`DROP TRIGGER IF EXISTS speech_member_insert; DROP TRIGGER IF EXISTS speech_member_update; DROP TRIGGER IF EXISTS speech_member_delete;
+          DROP TABLE IF EXISTS speech_member_catalog;
+          CREATE TABLE speech_member_catalog (
+          member TEXT NOT NULL,source_id TEXT NOT NULL,date TEXT,kind TEXT,start TEXT,numbering INTEGER,revision INTEGER NOT NULL,order_ms INTEGER,source_order INTEGER NOT NULL,
           PRIMARY KEY(member,source_id));
           CREATE INDEX speech_member_page ON speech_member_catalog(member,date,start,numbering,source_id,kind,revision);
+          CREATE INDEX speech_member_list ON speech_member_catalog(member,order_ms DESC,source_order ASC,date,kind,revision,source_id);
           CREATE INDEX speech_member_source ON speech_member_catalog(source_id);
           CREATE TRIGGER speech_member_insert AFTER INSERT ON speech_catalog BEGIN
             DELETE FROM speech_member_catalog WHERE source_id=NEW.source_id;
-            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision FROM json_each(NEW.participants); END;
+            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision,speech_order_ms(NEW.start,NEW.date),NEW.rowid FROM json_each(NEW.participants); END;
           CREATE TRIGGER speech_member_update AFTER UPDATE ON speech_catalog BEGIN
             DELETE FROM speech_member_catalog WHERE source_id=OLD.source_id;
-            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision FROM json_each(NEW.participants); END;
+            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision,speech_order_ms(NEW.start,NEW.date),NEW.rowid FROM json_each(NEW.participants); END;
           CREATE TRIGGER speech_member_delete AFTER DELETE ON speech_catalog BEGIN
             DELETE FROM speech_member_catalog WHERE source_id=OLD.source_id; END;
-          INSERT OR IGNORE INTO speech_member_catalog SELECT p.value,c.source_id,c.date,c.kind,c.start,c.numbering,c.revision
+          INSERT OR IGNORE INTO speech_member_catalog SELECT p.value,c.source_id,c.date,c.kind,c.start,c.numbering,c.revision,speech_order_ms(c.start,c.date),c.rowid
             FROM speech_catalog c,json_each(c.participants) p;`);
-        this.set('speechMemberIndex',1);initialized=true;
+        this.set('speechMemberIndex',2);initialized=true;
       }
       if(this.get('questionDiscoveryVersion')!==1) {
         this.db.exec('CREATE TABLE IF NOT EXISTS question_discovery (source_key TEXT PRIMARY KEY,signature TEXT NOT NULL,policy TEXT NOT NULL)');
@@ -475,7 +479,9 @@ export class CorpusStore {
   projectSpeechCatalog(activity,availableLanguages=[]) {
     const project=()=>{
       this.assertWriter();
-      this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
+      // Keep the observed catalogue insertion order on refresh. orderedSpeeches
+      // is a stable timestamp sort over hits (or data when hits are absent).
+      this.db.prepare('INSERT INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET date=excluded.date,kind=excluded.kind,start=excluded.start,numbering=excluded.numbering,participants=excluded.participants,available_languages=excluded.available_languages,revision=excluded.revision,fetched_at=excluded.fetched_at').run(activity.activity_id,activity.activity_date||null,
         String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
         (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
         this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
@@ -587,7 +593,7 @@ export class CorpusStore {
     ) SELECT COUNT(*) n FROM selected c WHERE NOT EXISTS (
       SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=c.source_id AND t.source_format='xml-fragment' AND t.language=?)`).get(...args,params.language,params.language).n;
     const direction=descending?'DESC':'ASC';
-    const ids=this.db.prepare(`SELECT source_id FROM ${selectionTable} WHERE ${where.join(' AND ')} ORDER BY date ${direction},start ${direction},numbering ${direction},source_id ${direction} LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
+    const ids=this.db.prepare(`SELECT source_id FROM ${member!==null&&descending?'speech_member_catalog INDEXED BY speech_member_list':selectionTable} WHERE ${where.join(' AND ')} ORDER BY ${member!==null&&descending?'order_ms DESC,source_order ASC':`date ${direction},start ${direction},numbering ${direction},source_id ${direction}`}  LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
     const today=brusselsDay(this.clock());
     const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
