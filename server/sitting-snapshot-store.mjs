@@ -34,9 +34,9 @@ export function prepareSittingSnapshots(store) {
 // bounded hints; normal calendar discovery also recovers them after a restart.
 export class SittingSnapshotHints {
   constructor(){this.ids=new Map();}
-  enqueue(kind,version,id){
+  enqueue(kind,version,id,{changedDeclarations=false}={}){
     const key=JSON.stringify([kind,version,id]);
-    if(!this.ids.has(key)&&this.ids.size<512)this.ids.set(key,{kind,version,id});
+    if(this.ids.has(key)||this.ids.size<512)this.ids.set(key,{kind,version,id,changedDeclarations:changedDeclarations||Boolean(this.ids.get(key)?.changedDeclarations)});
   }
   drain(){const hints=[...this.ids.values()];this.ids.clear();return hints;}
   get size(){return this.ids.size;}
@@ -67,28 +67,34 @@ export class SittingSnapshotReader {
     }catch{/* Unavailable/corrupt local evidence falls back to the public reader. */}
     return null;
   }
-  enqueue(kind,version,id){this.hints.enqueue(kind,version,id);}
+  enqueue(kind,version,id,options){this.hints.enqueue(kind,version,id,options);}
   close(){if(this.owned)this.db.close();this.db=null;}
 }
 export const sittingSnapshots=new SittingSnapshotReader();
 
 export class SittingSnapshotWriter {
   constructor(store,{diskLimit=snapshotDiskLimit()}={}){this.store=store;this.db=store.db;this.diskLimit=diskLimit;}
-  enqueue(kind,version,id,priority=0){
+  enqueue(kind,version,id,priority=0,{changedDeclarations=false}={}){
     this.store.assertWriter();
-    // A hint never defeats a correction interval or a failure's backoff.
-    this.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,priority) VALUES (?,?,?,?) ON CONFLICT(kind,version,id) DO UPDATE SET priority=MAX(priority,excluded.priority)').run(kind,version,id,priority);
+    // Changed declarations reopen successful observations, preserving failure backoff.
+    this.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,priority) VALUES (?,?,?,?) ON CONFLICT(kind,version,id) DO UPDATE SET priority=MAX(priority,excluded.priority),next_check=CASE WHEN ? AND complete=1 AND error IS NULL THEN 0 ELSE next_check END').run(kind,version,id,priority,Number(changedDeclarations));
   }
   due(now){return this.db.prepare('SELECT kind,version,id,attempts FROM sitting_snapshots WHERE next_check<=? ORDER BY priority DESC,next_check,id DESC LIMIT 1').get(now);}
   hasDue(now){return Boolean(this.db.prepare('SELECT 1 FROM sitting_snapshots WHERE next_check<=? LIMIT 1').get(now));}
   usage(){return this.db.prepare('SELECT COALESCE(SUM(length(body)),0) AS n FROM sitting_snapshots').get().n+this.db.prepare('SELECT COALESCE(SUM(length(body)),0) AS n FROM sitting_snapshot_staging').get().n;}
   retain(job,value,{complete,now,next}){
     this.store.assertWriter();
-    const body=encode(value),old=this.db.prepare('SELECT length(body) AS n FROM sitting_snapshots WHERE kind=? AND version=? AND id=?').get(job.kind,job.version,job.id)?.n||0;
-    if(this.usage()-old+body.length>this.diskLimit)throw new Error('Sitting snapshots reached their configured disk limit.');
-    this.db.prepare('UPDATE sitting_snapshots SET body=?,complete=?,checked_at=?,next_check=?,attempts=?,priority=0,error=NULL WHERE kind=? AND version=? AND id=?').run(body,Number(complete),now,next,complete?0:job.attempts+1,job.kind,job.version,job.id);
-    this.clearStage(job);
+    const body=encode(value);
+    this.store.transaction(()=>{
+      this.store.assertWriter();
+      const old=this.db.prepare('SELECT length(body) AS n FROM sitting_snapshots WHERE kind=? AND version=? AND id=?').get(job.kind,job.version,job.id)?.n||0;
+      const staged=this.db.prepare('SELECT COALESCE(SUM(length(body)),0) AS n FROM sitting_snapshot_staging WHERE kind=? AND version=? AND id=?').get(job.kind,job.version,job.id).n;
+      if(this.usage()-old-staged+body.length>this.diskLimit)throw new Error('Sitting snapshots reached their configured disk limit.');
+      this.db.prepare('UPDATE sitting_snapshots SET body=?,complete=?,checked_at=?,next_check=?,attempts=?,priority=0,error=NULL WHERE kind=? AND version=? AND id=?').run(body,Number(complete),now,next,complete?0:job.attempts+1,job.kind,job.version,job.id);
+      this.clearStage(job);
+    });
   }
+
   fail(job,error,next){
     this.store.assertWriter();
     this.db.prepare('UPDATE sitting_snapshots SET attempts=attempts+1,next_check=?,priority=0,error=? WHERE kind=? AND version=? AND id=?').run(next,error.message,job.kind,job.version,job.id);

@@ -11,7 +11,7 @@ import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evi
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 
-export const MEMBER_VOTES_VERSION=10;
+export const MEMBER_VOTES_VERSION=11;
 // Period reads include every observed decision; keep a separate finite transport budget.
 export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=32*1024*1024;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
@@ -22,6 +22,8 @@ const tail=value=>String(value?.id||value||'').split('/').at(-1);
 const relative=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const refs=value=>(Array.isArray(value)?value:value==null?[]:[value]).map(relative);
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// Compare the declared result set, preserving absent versus explicit empty lists.
+const sittingDeclarations=node=>digest(node?.consists_of==null?null:[...new Set(refs(node.consists_of))].sort());
 const errorInfo=error=>({code:error?.code||'vote_source_unavailable',message:error?.message||'Parliament source could not be read.'});
 
 export function memberVotesQuery(search,{now=Date.now()}={}) {
@@ -83,11 +85,12 @@ export class MemberVotes extends VoteSourceReader {
   async sitting(node,budget){
     const sittingId=node.activity_id,date=node.activity_date;
     const saved=budget.savedSitting?.node.activity_id===sittingId?budget.savedSitting:this.diskSnapshots?.read('votes',MEMBER_VOTES_VERSION,sittingId);
-    if(saved){
+    const changedDeclarations=saved&&sittingDeclarations(node)!==sittingDeclarations(saved.node);
+    if(saved&&!changedDeclarations){
       if(budget.bytes+saved.bytes>this.limits.periodBytes)throw new HttpError(502,'vote_period_budget','The selected period exceeds the bounded source budget.');
       budget.bytes+=saved.bytes;return saved.day;
     }
-    this.diskSnapshots?.enqueue('votes',MEMBER_VOTES_VERSION,sittingId);
+    this.diskSnapshots?.enqueue('votes',MEMBER_VOTES_VERSION,sittingId,{changedDeclarations:Boolean(changedDeclarations)});
     const failure=new AbortController(),signal=AbortSignal.any([requestSignal(),failure.signal].filter(Boolean));
     // A local failure ends this collection, so sibling reads must lose their
     // ownership too, before sharedRequest disposes the collection deadline.

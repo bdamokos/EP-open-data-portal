@@ -1,6 +1,6 @@
 import test from 'node:test';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
-import {gunzipSync} from 'node:zlib';
+import {gzipSync,gunzipSync} from 'node:zlib';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,statSync} from 'node:fs';
 import os from 'node:os';
@@ -81,7 +81,7 @@ test('transient failures keep durable backoff and reader hints cannot bypass it'
   await drain(h);
   const row=h.store.db.prepare("SELECT * FROM sitting_snapshots WHERE kind='votes' AND id=?").get(SNAPSHOT_SITTING);
   assert.equal(row.attempts,1);assert(row.next_check>=h.clock()+12*60*60_000);assert.match(row.error,/metadata unavailable/);
-  h.reader.enqueue('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING);h.collector.admit();assert.equal(h.collector.due(),false);
+  h.reader.enqueue('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING,{changedDeclarations:true});h.collector.admit();assert.equal(h.collector.due(),false);
 });
 
 test('one-request budgets resume disk-staged pages without repeating successful upstream reads',async t=>{
@@ -167,4 +167,51 @@ test('reader-version upgrades never publish new projections under obsolete job k
   assert.equal(h.store.db.prepare('SELECT COUNT(*) n FROM sitting_snapshot_staging').get().n,0);
   assert.equal(h.collector.writer.due(h.clock()).kind,'calendar');
   await drain(h);assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+});
+
+test('changed calendar declarations reject a monthly saved day and reopen its writer job',async t=>{
+  const h=setup(t);
+  h.advance(Date.parse('2026-10-25T12:00:00Z')-h.clock());
+  await drain(h);
+  assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+  const missing='eli/dl/event/'+SNAPSHOT_SITTING+'-VOT-ITM-999';
+  h.fixture.meeting.consists_of.push(missing);
+  h.advance(6*60*60_000);
+  // Refresh only the calendar, leaving the monthly sitting observation intact.
+  assert.equal(h.collector.writer.due(h.clock()).kind,'calendar');
+  await h.collector.step(h.worker);
+  assert(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING));
+  const result=await snapshotResponses({request:h.fixture.request,snapshots:h.reader,clock:h.clock,week:true});
+  assert.equal(result.votes.coverage.status,'partial');
+  assert.equal(result.votes.coverage.collectionComplete,false);
+  const direct=await snapshotResponses({request:h.fixture.request,clock:h.clock,week:true});
+  assert.deepEqual(result.votes,direct.votes);
+  assert(JSON.stringify(result.votes).includes(missing));
+  h.collector.admit();
+  const job=h.collector.writer.due(h.clock());
+  assert.equal(job.kind,'votes');assert.equal(job.id,SNAPSHOT_SITTING);
+  assert.equal(h.store.db.prepare("SELECT priority FROM sitting_snapshots WHERE kind='votes' AND id=?").get(SNAPSHOT_SITTING).priority,100);
+});
+
+test('near-cap retention atomically replaces old snapshot and this jobs staging',async t=>{
+  const h=setup(t);await drain(h);
+  const writer=h.collector.writer,job={kind:'votes',version:MEMBER_VOTES_VERSION,id:SNAPSHOT_SITTING,attempts:0};
+  const options={complete:true,now:h.clock(),next:h.clock()+DAY};
+  const value={probe:Array.from({length:10000},(_,i)=>'value-'+i)};
+  writer.stage(job,'probe',value,h.clock());
+  const before=writer.usage();
+  const old=h.store.db.prepare("SELECT length(body) n FROM sitting_snapshots WHERE kind='votes' AND id=?").get(SNAPSHOT_SITTING).n;
+  const staged=h.store.db.prepare('SELECT SUM(length(body)) n FROM sitting_snapshot_staging').get().n;
+  const final=before-old-staged+gzipSync(JSON.stringify(value)).length;
+  writer.diskLimit=Math.max(before,final);
+  assert(before-old+gzipSync(JSON.stringify(value)).length>writer.diskLimit);
+  writer.retain(job,value,options);
+  assert.equal(writer.usage(),final);
+  assert.equal(h.store.db.prepare('SELECT COUNT(*) n FROM sitting_snapshot_staging').get().n,0);
+  assert.deepEqual(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING),value);
+  writer.diskLimit=Infinity;writer.stage(job,'rollback',{staged:true},h.clock());
+  h.store.db.exec("CREATE TRIGGER reject_stage_clear BEFORE DELETE ON sitting_snapshot_staging BEGIN SELECT RAISE(ABORT, 'probe rollback'); END");
+  assert.throws(()=>writer.retain(job,{replacement:true},options),/probe rollback/);
+  assert.deepEqual(h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING),value);
+  assert.deepEqual(writer.staged(job,'rollback',h.clock()),{staged:true});
 });

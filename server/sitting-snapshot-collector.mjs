@@ -51,7 +51,7 @@ export class SittingSnapshotCollector {
       this.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='calendar' AND version=? AND complete=1 AND error IS NULL").run(SITTING_CALENDAR_VERSION);
       this.store.set('sittingSnapshotDiscovery',key);
     }
-    for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100);
+    for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100,hint);
   }
   async step(worker){
     this.store.assertWriter();this.admit();
