@@ -59,6 +59,17 @@ test('a failed metadata request retries with focus on the retained opener',async
   assert.equal(h.container.querySelector('iframe').tabIndex,0);
 });
 
+test('a refresh error keeps the retained clip and Try video again refreshes it with focus on the opener',async t=>{
+  let now=Date.now();t.mock.method(Date,'now',()=>now);
+  const h=await harness(t);await h.render(h.player());
+  const toggle=await h.click('Video');await h.finish('en');await h.click('Close video');
+  now+=31_000;await h.click('Video');await h.finish('en',true);
+  const frame=h.container.querySelector('iframe');assert(frame,'the retained matched clip remains available after refresh failure');
+  const retry=await h.click('Try video again');assert.equal(retry.isConnected,false);assert.equal(document.activeElement,toggle);
+  assert.equal(h.requests.length,3,'Try video again explicitly refreshes failed metadata');
+  await h.finish('en');assert.equal(h.container.querySelector('iframe'),frame,'a matching refresh keeps the playing frame');assert.equal(document.activeElement,toggle);
+});
+
 test('unavailable interface-language audio offers the original audio and keeps focus in the panel',async t=>{
   const h=await harness(t);await h.render(h.player());await h.click('Video');
   await h.finish('en',false,{available:false,status:'audio-unavailable',speechId:id});
