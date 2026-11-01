@@ -9,13 +9,12 @@ import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION, projectDocument } from './activity-index-model.mjs';
 import { distributionEvidenceFor } from './amendments.mjs';
 import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
-import { amendmentsPage, enqueueAmendment } from './amendments-store.mjs';
+import { bootstrapAmendmentDependencies, amendmentDependenciesReady, amendmentsPage, enqueueAmendment } from './amendments-store.mjs';
 import { rebuildAmendmentTarget } from './amendments-worker.mjs';
 
 const stamp='2026-10-17T09:00:00.000Z', amendmentDate='2026-10-02';
 const checkpointKey='amendment:continuations', profileKey='amendment:member:1';
 const targetA='A-10-2026-7001',targetB='A-10-2026-7002',targetC='A-10-2026-7003';
-const dependencyLimitGap='Some amendment author-profile dependencies exceed the 100-target processing limit; author coverage remains incomplete.';
 
 function fixture(t) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'amendment-profile-dependencies-'));
@@ -35,6 +34,7 @@ function fixture(t) {
     downloadAmendmentDocx:async()=>{throw new Error('Profile dependency tests must not download document distributions.');},
     downloadVotingXml:async()=>{throw new Error('Profile dependency tests must not download voting distributions.');},
   });
+  while(!bootstrapAmendmentDependencies(store,generation)) {}
   return {store,worker,generation,requests:()=>requests,
     advanceTo:value=>{now=value;assert(store.acquire());},
     seed(id,{index=true}={}) {
@@ -83,7 +83,11 @@ function assertTargets(row,expected) {
 async function completeProfile(context,generation=context.generation) {
   for(let slice=0;slice<20;slice++) {
     const row=directProfile(context.store,generation);assert(row);
-    if(row.done===1)return row;
+    if(row.done===1) {
+      const pending=context.store.db.prepare("SELECT * FROM amendment_jobs WHERE generation=? AND key='amendment:member-changes' AND done=0").get(generation);
+      if(pending){await context.worker.task(task(pending));continue;}
+      return row;
+    }
     assert(row.retry_at<=context.store.clock(),'The profile is still waiting for its preserved retry time.');
     await context.worker.task(task(row));
   }
@@ -218,31 +222,109 @@ test('a later dependency uses a valid completed profile immediately or reopens c
   }
 });
 
-test('the 101st dependency records a bounded explicit capacity gap and preserves admitted dependencies and checkpoint state',t=>{
+test('more than 100 profile dependencies stay on disk and resolve without a capacity gap',async t=>{
+  const context=fixture(t),{store,generation}=context;
+  const ids=Array.from({length:105},(_,i)=>'A-10-2026-'+String(7100+i));
+  for(const id of ids)context.seed(id);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM amendment_member_dependencies WHERE generation=?').get(generation).n,105);
+  await completeProfile(context);assertResolved(context,ids);
+  assert.equal(store.source(generation,checkpointKey)?.work.capacityGap,undefined);
+  assert.equal(context.requests(),1);
+});
+
+test('profiles arriving mid-members pass coalesce into one dependent-only follow-up with full-rebuild parity',async t=>{
   const context=fixture(t),{store,worker,generation}=context;
-  fillDirectQueue(context);
-  const accepted=Array.from({length:100},(_,number)=>'A-10-2026-'+String(7100+number));
-  for(const id of accepted)context.seed(id);
-  const checkpoint=store.source(generation,checkpointKey).work;
-  const protectedState={...checkpoint,discovery:[{key:'retained:document',kind:'document',endpoint:'/plenary-documents/B-10-2026-0424',priority:109}],
-    completed:[{key:'retained:2026-10-17',kind:'motion-outcomes',sittingId:'MTG-PL-2026-10-07'}],
-    capacityGap:{count:7,message:'An existing independent checkpoint capacity gap.'}};
-  store.putSource(generation,checkpointKey,'amendment-continuations',protectedState,stamp);
-  const overflow='A-10-2026-7200';context.seed(overflow);
-  const after=store.source(generation,checkpointKey).work;
-  assertTargets(checkpointProfile(store,generation),accepted);
-  assert.deepEqual(after.tasks,protectedState.tasks);assert.deepEqual(after.discovery,protectedState.discovery);assert.deepEqual(after.completed,protectedState.completed);
-  assert(after.capacityGap.count>=protectedState.capacityGap.count);
-  assert(after.capacityGap.message.includes(protectedState.capacityGap.message));
-  assert(after.capacityGap.message.includes(dependencyLimitGap));
-  assert.equal(after.capacityGap.message.split(dependencyLimitGap).length-1,1);
-  assert.equal(store.source(generation,'/plenary-documents/'+overflow).work.amendmentLinksVersion,undefined);
-  assert.equal(store.source(generation,'/plenary-documents/'+accepted[0]).work.amendmentLinksVersion,AMENDMENT_LINKS_VERSION);
-  store.db.exec("CREATE TABLE overflow_writes (n INTEGER); INSERT INTO overflow_writes VALUES (0); CREATE TEMP TRIGGER count_overflow_writes AFTER UPDATE OF body ON sources WHEN NEW.key='/plenary-documents/"+overflow+"' BEGIN UPDATE overflow_writes SET n=n+1; END");
-  for(let pass=0;pass<3;pass++)rebuildAmendmentTarget(worker,generation,overflow);
-  assert.equal(store.db.prepare('SELECT n FROM overflow_writes').get().n,0,'Already absent dependency markers must not repeat source projection writes.');
-  assert.deepEqual(store.source(generation,checkpointKey).work,after,'Repeated overflow observations must not grow the bounded gap.');
-  const page=amendmentsPage(store,{document:overflow});
-  assert.equal(page.coverage.complete,false);assert(page.coverage.gaps.some(gap=>gap.includes(dependencyLimitGap)));
-  assert.equal(amendmentsPage(store,{document:overflow,member:'1'}).total,0);assert.equal(context.requests(),0);
+  const ids=Array.from({length:24},(_,i)=>'A-10-2026-'+String(8000+i));
+  for(const [i,id] of ids.entries()) {
+    context.seed(id,{index:false});
+    if(i>=2) {
+      const key='amendment:list:'+id+'-AM-001-001',list=store.source(generation,key);
+      list.work.extraction.amendments[0].authors=['Other Person'];
+      store.putSource(generation,key,'amendment-list',list.work,stamp);
+    }
+    rebuildAmendmentTarget(worker,generation,id);
+  }
+  // Only the first two targets depend on this profile. Other targets remain
+  // unchanged during the follow-up, including those already visited.
+  store.db.prepare('DELETE FROM amendment_member_dependencies WHERE generation=? AND target NOT IN (?,?)').run(generation,ids[0],ids[1]);
+  const profile=directProfile(store,generation);
+  store.db.prepare('UPDATE amendment_jobs SET body=? WHERE generation=? AND key=?').run(JSON.stringify({id:'1',targets:[]}),generation,profile.key);
+  const key='amendment:members:10';
+  enqueueAmendment(store,generation,key,'amendment-members',{rebuild:{kind:'members',revision:'legacy',requestedRevision:'new-profile',afterTarget:'',throughTarget:ids.at(-1)}},108);
+  await worker.task(task(store.db.prepare('SELECT * FROM amendment_jobs WHERE key=?').get(key)));
+  const cursor=JSON.parse(store.db.prepare('SELECT body FROM amendment_jobs WHERE key=?').get(key).body).rebuild.afterTarget;
+  await worker.task(task(directProfile(store,generation)));
+  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM amendment_jobs WHERE key=?').get(key).body).rebuild.afterTarget,cursor);
+  enqueueAmendment(store,generation,profileKey,'amendment-member',{id:'1',targets:[]},107,true);
+  await worker.task(task(directProfile(store,generation)));
+  while(store.db.prepare('SELECT done FROM amendment_jobs WHERE key=?').get(key).done===0)await worker.task(task(store.db.prepare('SELECT * FROM amendment_jobs WHERE key=?').get(key)));
+  store.db.exec('CREATE TABLE rebuilt_targets(id TEXT); CREATE TEMP TRIGGER count_rebuild AFTER INSERT ON amendment_targets BEGIN INSERT INTO rebuilt_targets VALUES (NEW.id); END');
+  await completeProfile(context);
+  assert.deepEqual(store.db.prepare('SELECT id FROM rebuilt_targets ORDER BY id').all().map(r=>r.id),ids.slice(0,2).flatMap(id=>[id,id]));
+  assert.equal(context.requests(),2);
+  const incremental=store.db.prepare('SELECT id,body FROM amendments WHERE generation=? ORDER BY id').all(generation);
+  for(const id of ids)rebuildAmendmentTarget(worker,generation,id,{discover:false});
+  assert.deepEqual(store.db.prepare('SELECT id,body FROM amendments WHERE generation=? ORDER BY id').all(generation),incremental);
+});
+
+test('a full queue defers profile handoff without repeating the profile fetch',async t=>{
+  const context=fixture(t),{store,worker,generation}=context;context.seed(targetA);
+  for(let i=0;i<199;i++)enqueueAmendment(store,generation,'blocker:'+i,'amendment-reparse',{},1);
+  await worker.task(task(directProfile(store,generation)));
+  const waiting=directProfile(store,generation);
+  assert.equal(waiting.done,0);assert.equal(JSON.parse(waiting.body).profileStored,true);
+  assert(waiting.retry_at>store.clock());assert.equal(context.requests(),1);
+  assert.equal(store.db.prepare("SELECT 1 FROM amendment_jobs WHERE key='amendment:member-changes'").get(),undefined);
+  store.db.prepare("DELETE FROM amendment_jobs WHERE key='blocker:0'").run();
+  context.advanceTo(waiting.retry_at);await completeProfile(context);
+  assert.equal(context.requests(),1);assertResolved(context,[targetA]);
+});
+
+test('105-target upgrade uses full rebuilding until committed dependency bootstrap is ready',async t=>{
+  const context=fixture(t),{store,worker,generation}=context;
+  const ids=Array.from({length:105},(_,i)=>'A-10-2026-'+String(9000+i));
+  for(const id of ids)context.seed(id);
+  for(const table of ['amendment_dependency_bootstrap','amendment_member_dependencies','amendment_author_targets'])store.db.prepare('DELETE FROM '+table+' WHERE generation=?').run(generation);
+  assert.equal(amendmentDependenciesReady(store,generation),false);
+  // The old profile body is capped at 100, as on an upgraded installation.
+  store.db.prepare('UPDATE amendment_jobs SET body=? WHERE key=?').run(JSON.stringify({id:'1',targets:ids.slice(0,100)}),profileKey);
+  await completeProfile(context);assertResolved(context,ids);
+  let batches=0;
+  while(!bootstrapAmendmentDependencies(store,generation,7)){assert(++batches<100);}
+  assert(batches>1);assert(amendmentDependenciesReady(store,generation));
+  enqueueAmendment(store,generation,profileKey,'amendment-member',{id:'1',targets:[]},107,true);
+  await completeProfile(context);assertResolved(context,ids);
+  const incremental=store.db.prepare('SELECT id,body FROM amendments WHERE generation=? ORDER BY id').all(generation);
+  for(const id of ids)rebuildAmendmentTarget(worker,generation,id,{discover:false});
+  assert.deepEqual(store.db.prepare('SELECT id,body FROM amendments WHERE generation=? ORDER BY id').all(generation),incremental);
+});
+
+test('24 targets and 12 arrivals terminate each captured pass',async t=>{
+  const context=fixture(t),{store,worker,generation}=context;
+  const ids=Array.from({length:24},(_,i)=>'A-10-2026-'+String(8500+i));
+  for(const id of ids)context.seed(id);
+  await worker.task(task(directProfile(store,generation)));
+  let arrivals=0,boundaries=0,previous='',previousPass=null;
+  const cursors=new Map();
+  for(let turn=0;turn<50;turn++) {
+    const row=store.db.prepare("SELECT * FROM amendment_jobs WHERE key='amendment:member-changes' AND done=0").get();
+    if(!row)break;
+    const {afterTarget:before,passId}=JSON.parse(row.body).rebuild;
+    assert(before>=(cursors.get(passId)||''),'a captured pass never resets its cursor');
+    cursors.set(passId,before);
+    if(previousPass&&previousPass!==passId)assert.equal(before,'','only a new pass resets the cursor');
+    previousPass=passId;
+    if(previous&&before==='')boundaries++;
+    await worker.task(task(row));previous=JSON.parse(store.db.prepare('SELECT body FROM amendment_jobs WHERE key=?').get(row.key).body).rebuild.afterTarget;
+    if(arrivals<12) {
+      const id=String(100+arrivals++);
+      store.db.prepare('INSERT INTO amendment_member_dependencies SELECT generation,?,target FROM amendment_member_dependencies WHERE person_id=?').run(id,'1');
+      store.putSource(generation,'amendment:member:'+id,'amendment-member',{id,givenName:'Example',familyName:'Member'},stamp);
+      enqueueAmendment(store,generation,'arrival:'+id,'amendment-member',{id,profileStored:true,targets:[]},107,true);
+      await worker.task(task(store.db.prepare('SELECT * FROM amendment_jobs WHERE key=?').get('arrival:'+id)));
+    }
+  }
+  assert.equal(arrivals,12);assert(boundaries<=12);
+  assert.equal(store.db.prepare("SELECT 1 FROM amendment_jobs WHERE key='amendment:member-changes' AND done=0").get(),undefined);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM amendment_member_pending').get().n,0);
 });
