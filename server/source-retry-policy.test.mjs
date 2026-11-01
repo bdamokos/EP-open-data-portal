@@ -32,7 +32,7 @@ test('corpus terminal issues preserve evidence, allow other work and recheck spa
 });
 test('parser upgrades reopen terminal tasks and successful replacement clears evidence',t=>{
  const store=fixture(t,CorpusStore);store.enqueue('bad','docx',{url:'x'},50);
- store.settleSourceFailure(store.task('bad'),Object.assign(Error('empty'),{code:'empty_document'}));
+ store.settleSourceFailure(store.task('bad'),Object.assign(Error('empty'),{code:'empty_document'}),'satisfied-by-alternative');
  store.db.prepare('UPDATE source_failures SET parser_version=?').run(DOCX_EXTRACTION_VERSION-1);
  assert.equal(store.hasDueTask(),true);const task=store.nextTask();assert.equal(task.key,'bad');store.finishTask(task);
  assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM source_failures').get().n,0);
@@ -46,7 +46,7 @@ test('press transport failures never exhaust and respect Retry-After',t=>{
 test('press repeated missing sources settle sparsely and RSS announcements reopen them',t=>{
  const store=fixture(t,PressStore),id='a',now=Date.now(),item={id,url:'https://example.test/a'};store.discover(item,{feed:'feed',now});
  store.fail(id,{status:404,message:'missing'},{now});assert.equal(store.release(id).failure_state,'transient');
- store.fail(id,{status:410,message:'gone'},{now:now+8*DAY});assert.equal(store.release(id).failure_state,'permanent-source-issue');assert.equal(store.release(id).next_check,now+8*DAY+SOURCE_RECHECK_MS);
+ store.fail(id,{status:410,message:'gone'},{now:now+8*DAY});assert.equal(store.release(id).failure_state,'transient');assert.equal(store.release(id).next_check,now+8*DAY+SOURCE_RECHECK_MS);
  assert.equal(store.discover({...item,title:'New announcement'},{feed:'feed',now:now+9*DAY}),true);assert.equal(store.release(id).next_check,now+9*DAY);assert.equal(store.release(id).attempts,0);
  store.fail(id,{status:500,message:'server'},{now:now+9*DAY});assert.equal(store.release(id).failure_state,'transient');assert.equal(store.release(id).missing_since,null);
 });
@@ -79,7 +79,7 @@ test('ten unchanged RSS polls preserve missing history and long Retry-After dead
    if(store.release(item.id).next_check<=now)store.fail(item.id,{status:404,message:'missing'},{now});
    now+=DAY;
  }
- assert.equal(store.release(item.id).failure_state,'permanent-source-issue');assert(store.release(item.id).attempts>1);
+ assert.equal(store.release(item.id).failure_state,'transient');assert(store.release(item.id).attempts>1);
  store.fail(item.id,{status:503,message:'busy',retryAfter:20*DAY/1000},{now});const before=store.release(item.id);
  for(let i=0;i<10;i++){now+=DAY;store.discover(item,{feed:'feed',now});assert.deepEqual(store.release(item.id),before);}
  store.db.prepare('UPDATE feed_observations SET present=0 WHERE feed=?').run('feed');assert.equal(store.discover(item,{feed:'feed',now}),true);assert.equal(store.release(item.id).attempts,0);
@@ -91,7 +91,7 @@ test('daily follower polls distinguish continued announcements, feed absence and
  const xml=()=>'<rss><channel><title>Feed</title>'+(present?`<item><link>https://www.europarl.europa.eu/news/en/press-room/${id}/</link><guid>${guid}</guid><title>Same title</title><pubDate>Mon, 19 Oct 2026 17:33:01 GMT</pubDate></item>`:'')+'</channel></rss>';
  const follower=new PressFollower(store,{clock:()=>now,fetchText:async url=>{if(url.endsWith('.xml'))return xml();throw Object.assign(Error('missing'),{status:404});}});
  for(let i=0;i<10;i++){await follower.run();now+=DAY;}
- assert.equal(store.release(id).failure_state,'permanent-source-issue');assert(store.release(id).attempts>1);
+ assert.equal(store.release(id).failure_state,'transient');assert(store.release(id).attempts>1);
  const saved=store.release(id);await follower.poll(null,()=>true);assert.deepEqual(store.release(id),saved);
  present=false;await follower.poll(null,()=>true);present=true;await follower.poll(null,()=>true);assert.equal(store.release(id).attempts,0);
  store.fail(id,{message:'busy',status:503,retryAfter:30*DAY/1000},{now});guid='second';await follower.poll(null,()=>true);assert.equal(store.release(id).attempts,0);assert.equal(store.release(id).next_check,now);
@@ -104,4 +104,12 @@ test('three immediate rejections cannot settle and parser/descriptor changes res
  reject();reject();reject();assert.equal(store.task('bad').done,0);
  let body=store.task('bad').body;body.rejectedSource.parserVersion--;store.db.prepare('UPDATE tasks SET body=? WHERE key=?').run(JSON.stringify(body),'bad');now+=DAY;reject();assert.equal(store.task('bad').body.rejectedSource.count,1);
  body=store.task('bad').body;body.edition={byteSize:42};store.db.prepare('UPDATE tasks SET body=? WHERE key=?').run(JSON.stringify(body),'bad');now+=DAY;reject();assert.equal(store.task('bad').body.rejectedSource.count,1);assert.equal(store.task('bad').done,0);
+});
+
+test('press content rejections use the shared byte confirmation and transient errors reset it',t=>{
+ const store=fixture(t,PressStore),id='rejected',now=Date.now();store.discover({id,url:'https://example.test/rejected'},{feed:'feed',now});
+ const reject=at=>store.fail(id,{message:'bad',code:'invalid_docx',sourceHash:'a'.repeat(64)},{now:at});
+ reject(now);reject(now+DAY/2);store.fail(id,{status:503,message:'busy'},{now:now+DAY});reject(now+DAY);
+ assert.equal(store.release(id).failure_state,'transient');assert.equal(JSON.parse(store.release(id).rejected_source).count,1);
+ reject(now+DAY*1.5);reject(now+DAY*2);assert.equal(store.release(id).failure_state,'permanent-source-issue');
 });

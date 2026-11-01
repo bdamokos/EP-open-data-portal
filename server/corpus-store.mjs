@@ -4,7 +4,7 @@ import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
-import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, SOURCE_RECHECK_MS, sourceDescriptor} from './source-retry.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, confirmSourceRejection, SOURCE_RECHECK_MS, sourceDescriptor} from './source-retry.mjs';
 import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
@@ -248,6 +248,11 @@ export class CorpusStore {
   settleSourceFailure(task,error,state='permanent-source-issue') {
     const settle=()=>{
       this.assertWriter();
+      if(state==='permanent-source-issue') {
+        const body=this.task(task.key).body;
+        const previous=body.rejectedSource;
+        if(!confirmSourceRejection(previous,error,{descriptor:sourceDescriptor(body),parserVersion:DOCX_EXTRACTION_VERSION,now:this.clock(),observe:false}).confirmed)return;
+      }
       this.db.prepare('INSERT OR REPLACE INTO source_failures VALUES (?,?,?,?,?,?,?)').run(task.key,state,String(error.message).slice(0,350),sourceDescriptor(task.body),error.sourceHash??null,DOCX_EXTRACTION_VERSION,state==='satisfied-by-alternative'?null:this.clock()+SOURCE_RECHECK_MS);
       this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=?,attempts=attempts+1 WHERE key=?').run(this.clock(),String(error.message).slice(0,350),task.key);
     };
@@ -260,14 +265,10 @@ export class CorpusStore {
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
     const body=this.task(task.key).body,previous=body.rejectedSource;
-    const sameRejection=previous&&previous.hash===error.sourceHash&&previous.parserVersion===DOCX_EXTRACTION_VERSION&&previous.descriptor===sourceDescriptor(body);
-    const rejection=permanentSourceIssue(error)&&/^[a-f0-9]{64}$/.test(error.sourceHash||'')
-      ?{hash:error.sourceHash,parserVersion:DOCX_EXTRACTION_VERSION,descriptor:sourceDescriptor(body),
-        count:sameRejection?previous.count+1:1,
-        firstSeen:sameRejection?previous.firstSeen:this.clock()}:null;
+    const {rejection,confirmed}=confirmSourceRejection(previous,error,{descriptor:sourceDescriptor(body),parserVersion:DOCX_EXTRACTION_VERSION,now:this.clock()});
     if(rejection)body.rejectedSource=rejection;else delete body.rejectedSource;
     this.db.prepare('UPDATE tasks SET body=? WHERE key=?').run(JSON.stringify(body),task.key);
-    if(rejection?.count>=3&&this.clock()-rejection.firstSeen>=86_400_000&&!body.pdfPending)return this.settleSourceFailure(task,error);
+    if(confirmed&&!body.pdfPending)return this.settleSourceFailure(task,error);
     const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):transientSourceDelay(task.attempts));
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.key);
   }

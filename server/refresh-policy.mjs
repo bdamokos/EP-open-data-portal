@@ -1,38 +1,42 @@
-import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, SOURCE_RECHECK_MS} from './source-retry.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, confirmSourceRejection, SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
-import {mutableDocumentCandidates,mutableBackfillCutoff} from './mutable-document-recovery.mjs';
+import {mutableDocumentCandidates,mutableBackfillCutoff,MUTABLE_LIMIT} from './mutable-document-recovery.mjs';
 import {amendmentListDocumentId,documentDetailEndpoint,documentRouteOwned,documentRouteDeferredOwners} from './document-detail-routing.mjs';
 
-export const DAY=86_400_000, MUTABLE_LIMIT=100, GAP_LIMIT=25;
+export {MUTABLE_LIMIT};
+export const DAY=86_400_000, GAP_LIMIT=25;
 const ordinaryBackfillQuantum=8;
 
 // Reserve a bounded share of dispatches, not extra requests. Canonical tasks
 // retain their priority, cursor and retry ownership; only due tasks can run.
 // Persist the turn so small budgets and restarts cannot reset the allowance.
-export function nextBackfillTask(store,generation,ordinaryTask) {
+export function nextBackfillTask(store,generation,ordinaryTask,amendmentJob) {
   store.assertWriter();
   if(!ordinaryTask)return ordinaryTask;
+  const preferred=ordinaryTask;
+  ordinaryTask=ordinaryRefreshTask(store,generation,preferred,amendmentJob);
   const saved=store.get('backfillSchedule');
-  const state=saved?.generation===generation&&Number.isInteger(saved.ordinary)&&saved.ordinary>=0&&saved.ordinary<=ordinaryBackfillQuantum&&[0,1].includes(saved.nextLane)
+  const state=saved?.generation===generation&&Number.isInteger(saved.ordinary)&&saved.ordinary>=0&&saved.ordinary<=ordinaryBackfillQuantum&&[0,1,2].includes(saved.nextLane)
     ?saved:{generation,ordinary:0,nextLane:0};
-  if(state.ordinary>=ordinaryBackfillQuantum) {
+  if(!ordinaryTask||state.ordinary>=ordinaryBackfillQuantum) {
     const predicates=[
       "EXISTS(SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
       "(task.kind='document' AND (task.key GLOB '/adopted-texts/TA-10-*' OR task.key GLOB '/external-documents/SP-*') OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
+      "EXISTS(SELECT 1 FROM mutable_refresh_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
     ];
-    for(const lane of [state.nextLane,1-state.nextLane]) {
+    for(const lane of [state.nextLane,(state.nextLane+1)%3,(state.nextLane+2)%3]) {
       const task=store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_order
         WHERE task.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=? AND ${predicates[lane]}
         ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
       if(!task)continue;
-      store.set('backfillSchedule',{generation,ordinary:0,nextLane:1-lane});
+      store.set('backfillSchedule',{generation,ordinary:0,nextLane:(lane+1)%3});
       return {...task,body:JSON.parse(task.body)};
     }
   }
   store.set('backfillSchedule',{...state,ordinary:Math.min(ordinaryBackfillQuantum,state.ordinary+1)});
-  return ordinaryTask;
+  return ordinaryTask||preferred;
 }
 export const feedStart=(store,now)=>new Date(Date.parse(store.get('lastSuccess') || store.get('working')?.startedAt || new Date(now).toISOString())-2*DAY).toISOString().slice(0,10);
 const official=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
@@ -98,6 +102,8 @@ export function refreshPolicyTables(db) {
     CREATE INDEX IF NOT EXISTS refresh_gap_due ON refresh_gaps(generation,retry_at,key);
     CREATE INDEX IF NOT EXISTS refresh_gap_sitting ON refresh_gaps(generation,sitting_id,retry_at);
     CREATE INDEX IF NOT EXISTS refresh_gap_endpoint ON refresh_gaps(generation,kind,json_extract(body,'$.endpoint'));
+    CREATE INDEX IF NOT EXISTS task_pending_kind ON tasks(generation,kind,key) WHERE done IN (-1,0) OR done IS NULL;
+    CREATE TABLE IF NOT EXISTS mutable_refresh_admissions(generation INTEGER,key TEXT,PRIMARY KEY(generation,key));
     CREATE TABLE IF NOT EXISTS refresh_gap_admissions(generation INTEGER,key TEXT,PRIMARY KEY(generation,key));
     CREATE INDEX IF NOT EXISTS task_feed_endpoint ON tasks(generation,kind,json_extract(body,'$.endpoint'),done);
     CREATE TABLE IF NOT EXISTS feed_catalog_recovery(generation INTEGER,endpoint TEXT,start TEXT,end TEXT,PRIMARY KEY(generation,endpoint,start));
@@ -126,17 +132,20 @@ export function scheduleMutable(worker,generation) {
   const store=worker.store,now=worker.clock();
   const admitted=store.transaction(()=>{
     store.assertWriter();const eligible=[];
+    const pending=store.db.prepare('SELECT COUNT(*) n FROM mutable_refresh_admissions WHERE generation=?').get(generation).n;
+    if(pending>=MUTABLE_LIMIT)return 0;
     const cutoff=worker.recoveryMode==='backfill'?mutableBackfillCutoff(store.get('working'),generation,now):now;
     for(const {key} of mutableDocumentCandidates(store.db,generation,cutoff)) {
-      eligible.push(key);if(eligible.length>=MUTABLE_LIMIT)break;
+      eligible.push(key);if(eligible.length>=MUTABLE_LIMIT-pending)break;
     }
     let count=0;
     for(const key of eligible)if(store.enqueue(generation,key,'document',{endpoint:key},84,true)) {
+      store.db.prepare('INSERT OR IGNORE INTO mutable_refresh_admissions VALUES (?,?)').run(generation,key);
       store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(now+7*DAY,generation,key);count++;
     }
     return count;
   });
-  if(worker.recoveryMode!=='backfill')scheduleGapRecovery(worker,generation);
+  scheduleGapRecovery(worker,generation);
   return admitted;
 }
 
@@ -151,21 +160,21 @@ function dueRecoveryGaps(store,generation,now,limit) {
   }
   return result;
 }
-export const gapRecoveryDue=(store,generation,now=store.clock())=>dueRecoveryGaps(store,generation,now,1).length>0;
+export const gapRecoveryDue=(store,generation,now=store.clock())=>store.db.prepare('SELECT COUNT(*) n FROM refresh_gap_admissions WHERE generation=?').get(generation).n<GAP_LIMIT&&dueRecoveryGaps(store,generation,now,1).length>0;
 
 export function scheduleGapRecovery(worker,generation) {
-  const store=worker.store,now=worker.clock(),backfill=worker.recoveryMode==='backfill';
+  const store=worker.store,now=worker.clock();
   return store.transaction(()=>{
     store.assertWriter();
-    const today=localDay(now),prior=store.get('slowGapAdmissions');
-    let count=backfill?0:prior?.day===today?prior.count:0;
-    for(const gap of dueRecoveryGaps(store,generation,now,Math.max(0,GAP_LIMIT-count))) {
+    // Legacy daily counters no longer govern admission. Retire them lazily.
+    if(store.get('slowGapAdmissions')!=null)store.set('slowGapAdmissions',null);
+    const pending=store.db.prepare('SELECT COUNT(*) n FROM refresh_gap_admissions WHERE generation=?').get(generation).n;
+    let count=0;
+    for(const gap of dueRecoveryGaps(store,generation,now,Math.max(0,GAP_LIMIT-pending))) {
       if(!store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true}))continue;
-      store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(now+7*DAY,generation,gap.key);
       if(gap.kind==='motion-outcomes')store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(now+7*DAY,generation,gap.sitting_id);
       count++;
     }
-    if(!backfill)store.set('slowGapAdmissions',{day:today,count});
     return count;
   });
 }
@@ -179,8 +188,11 @@ export function recordTaskGap(worker,task,error) {
   // Pre-policy pending feeds carry only their endpoint. Pin their interval
   // before an incomplete publication advances the global successful-run date.
   if(task.kind==='feed' && !task.body.start)task={...task,body:{...task.body,start:feedStart(worker.store,now)}};
+  const {rejection,confirmed}=confirmSourceRejection(task.body.rejectedSource,error,{descriptor:JSON.stringify({...task.body,rejectedSource:undefined}),parserVersion:1,now});
+  task={...task,body:{...task.body}};
+  if(rejection)task.body.rejectedSource=rejection;else delete task.body.rejectedSource;
   const correcting=task.kind==='motion-outcomes' && localDay(now)<sittingConfirmationDay(task.body.sittingId);
-  const retryAt=now+Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?Math.max(missingSourceDelay(task.attempts),correcting?6*60*60_000:0):(permanentSourceIssue(error)?SOURCE_RECHECK_MS:Math.max(correcting?6*60*60_000:0,transientSourceDelay(task.attempts))));
+  const retryAt=now+Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?Math.max(missingSourceDelay(task.attempts),correcting?6*60*60_000:0):(confirmed?SOURCE_RECHECK_MS:Math.max(correcting?6*60*60_000:0,transientSourceDelay(task.attempts))));
   worker.store.transaction(()=>{
     worker.store.finishTask(task);
     worker.store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(task.generation,task.key,task.kind,JSON.stringify(task.body),task.priority,String(error.message).slice(0,350),task.attempts+1,new Date(now).toISOString(),retryAt,task.body.sittingId || null);
@@ -197,4 +209,44 @@ export function coverageGap(store,generation,key,body,message,now) {
     if(saved.start && saved.start<body.start)body={...body,start:saved.start};
   }
   store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'coverage',JSON.stringify(body),0,message,0,new Date(now).toISOString(),Number.MAX_SAFE_INTEGER,null);
+}
+
+function ordinaryRefreshTask(store,generation,preferred,amendmentJob) {
+  const tables=['refresh_gap_admissions','mutable_refresh_admissions'];
+  const admitted=task=>!task.amendmentJob&&tables.some(table=>store.db.prepare(`SELECT 1 FROM ${table} WHERE generation=? AND key=?`).get(generation,task.key));
+  let ordinary=preferred;
+  if(admitted(preferred)) {
+    const dueWhere=`task.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=?
+      AND NOT EXISTS(SELECT 1 FROM refresh_gap_admissions a WHERE a.generation=task.generation AND a.key=task.key)
+      AND NOT EXISTS(SELECT 1 FROM mutable_refresh_admissions a WHERE a.generation=task.generation AND a.key=task.key)`;
+    // Bound the idle probe by deadline before considering priority order. The
+    // admitted due rows are bounded by the recovery queue caps.
+    const due=store.db.prepare(`SELECT 1 FROM tasks task INDEXED BY task_pending_due WHERE ${dueWhere} LIMIT 1`).get(generation,store.clock());
+    const row=due&&store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_due
+      WHERE ${dueWhere} ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
+    ordinary=row?{...row,body:JSON.parse(row.body)}:null;
+  }
+  return amendmentJob&&(!ordinary||amendmentJob.priority>ordinary.priority)?amendmentJob:ordinary;
+}
+
+// Recovery lanes alternate after eight ordinary dispatches. Read admission keys
+// first (bounded by the queue caps), then probe each task by its primary key.
+export function nextRefreshTask(store,generation,preferred,amendmentJob) {
+  if(!preferred)return preferred;
+  store.assertWriter();
+  const saved=store.get('refreshDispatch');
+  const state=saved?.generation===generation?saved:{generation,ordinary:0,nextLane:0};
+  const tables=['refresh_gap_admissions','mutable_refresh_admissions'];
+  const ordinary=ordinaryRefreshTask(store,generation,preferred,amendmentJob);
+  if(!ordinary||state.ordinary>=8) {
+    for(const lane of [state.nextLane,1-state.nextLane]) {
+      const row=store.db.prepare(`SELECT task.* FROM ${tables[lane]} a CROSS JOIN tasks task
+        ON task.generation=a.generation AND task.key=a.key
+        WHERE a.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=?
+        ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
+      if(row){store.set('refreshDispatch',{generation,ordinary:0,nextLane:1-lane});return {...row,body:JSON.parse(row.body)};}
+    }
+  }
+  store.set('refreshDispatch',{...state,ordinary:Math.min(8,state.ordinary+1)});
+  return ordinary||preferred;
 }
