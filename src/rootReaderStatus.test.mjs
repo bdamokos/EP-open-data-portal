@@ -394,3 +394,25 @@ test('main speech reader retains the translation return control through an unava
   await h.click(button('Show translation (English)'));await h.wait();
   assert.equal(reader.querySelector('.explorer-transcript').textContent,'Exact English translation.');
 });
+
+
+test('saved category and first-page source 204 remain unavailable with a working retry',async t=>{
+  const {SpeechInterventions}=await import('../server/speech-intervention-service.mjs');
+  let calls=0,unavailable=true;
+  const service=new SpeechInterventions({request:async()=>{
+    calls++;
+    if(unavailable)throw Object.assign(new Error('No content'),{code:'odp_no_content'});
+    return {payload:{data:[],meta:{total:0}},url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:'2026-11-01T12:00:00Z'};
+  }});
+  const h=await harness(t,{module:'speeches',items:[],category:'written',summary:()=>service.member(member.id,0)});
+  await h.wait();
+  assert.match(h.container.textContent,/Contributions unavailable/);
+  assert(!h.container.textContent.includes('No matching contributions'));
+  assert(!h.container.querySelector('#speech-filter-results-'+member.id).textContent.includes('0 loaded'));
+  const retry=[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Retry counts');
+  assert(retry);assert.equal(calls,1);
+  unavailable=false;await h.click(retry);await h.wait();
+  assert.equal(calls,2);
+  assert.match(h.container.textContent,/No matching contributions/);
+  assert(!h.container.textContent.includes('Contributions unavailable'));
+});

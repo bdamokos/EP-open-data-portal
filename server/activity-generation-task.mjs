@@ -41,5 +41,5 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     if(!store.renew())throw new Error('Activity-index writer lease was lost.');
     }
     return value;
-  } finally {store.generationTaskActive=false;elapsed({operation});}
+  } finally {store.generationTaskActive=false;store.invalidateMemberProfiles?.();elapsed({operation});}
 }

@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Elutasítja a javaslatot",
+  "amendment.rejects_council_position": "Elutasítja a Tanács álláspontját",
   "MemberMotionReader.choose_a_motion_text": "Válasszon indítványszöveget",
   "MemberMotionReader.joint_motion_id": "Közös indítvány · {id}",
   "MemberMotionReader.original_motion_id": "Eredeti indítvány · {id}",

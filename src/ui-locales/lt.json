@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Atmeta pasiūlymą",
+  "amendment.rejects_council_position": "Atmeta Tarybos poziciją",
   "MemberMotionReader.choose_a_motion_text": "Pasirinkite pasiūlymo dėl rezoliucijos tekstą",
   "MemberMotionReader.joint_motion_id": "Bendras pasiūlymas dėl rezoliucijos · {id}",
   "MemberMotionReader.original_motion_id": "Pradinis pasiūlymas dėl rezoliucijos · {id}",

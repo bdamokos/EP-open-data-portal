@@ -1,5 +1,7 @@
+import {integerFromEnvironment} from './config.mjs';
+import {boundedUpstream,backoffUpstream} from './odp.mjs';
+import {hintOfficialContext} from './official-context-hints.mjs';
 import {XMLParser} from 'fast-xml-parser';
-import {setTimeout as pause} from 'node:timers/promises';
 import path from 'node:path';
 import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -22,17 +24,17 @@ async function limitedText(response,maximum) {
   return Buffer.concat(parts).toString('utf8');
 }
 export class OfficialContextSources {
-  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
-    Object.assign(this,{clock,fetchSource});this.queues=new Map();
+  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run,writable=false,beforeFetch,maxDiskBytes=integerFromEnvironment('OFFICIAL_CONTEXT_MAX_DISK_MIB',32768,1,1048576)*1024*1024}={}) {
+    Object.assign(this,{clock,fetchSource,writable,beforeFetch});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
-    // Keep official pages on disk with a small recent set in memory.
-    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:4096,maxBytes:4*1024*1024,maxDiskBytes:128*1024*1024,pruneEvery:32});
+    // Keep memory bounded separately from the retained historical source pages.
+    this.cache=new InsightViewCache({clock,directory,writable,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:1000000,maxDiskBytes,retainDisk:true});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
     // OEIL and Publications Office have no ODP quota. These are local resource
     // caps per origin; their own Retry-After pauses still apply.
-    if(!queue){queue=new UpstreamQueue(origin==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:{});this.queues.set(origin,queue);}
+    if(!queue){queue=new UpstreamQueue(origin==='https://oeil.europarl.europa.eu'?{maximum:1}:{});this.queues.set(origin,queue);}
     let release;
     try{release=await queue.acquire(priority,{signal});}
     catch(error){
@@ -45,40 +47,52 @@ export class OfficialContextSources {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
+    if(priority!=='background') {
+      const saved=await this.cache.stored(this.cache.key(key));
+      if(!saved||this.clock()-saved.at>(typeof freshMs==='function'?freshMs(saved.value):freshMs))hintOfficialContext(url);
+    }
     const record=await waitForRequest(this.cache.get(key,()=>runWithRequestSignal(undefined,()=>{
       // The cache owns one budget across admission, redirects and body reads.
       const signal=AbortSignal.timeout(20_000);
       return this.run(async()=>{
-        let target=url,response;
+        let target=url;
         for(let attempt=0;attempt<3;attempt++) {
-          const queue=this.queues.get(source.origin);
-          if(attempt&&source.hostname==='oeil.europarl.europa.eu'&&queue){
-            await pause(Math.max(0,queue.nextStart-Date.now()),undefined,{signal});
-            queue.nextStart=Date.now()+queue.interval;
-          }
-          response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
-          if(![301,302,303,307,308].includes(response.status))break;
-          const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
-          const redirected=officialSourceUrl(new URL(next,target));
-          if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
-          target=redirected.href;
+          // Each redirect is a new HTTP start on the shared origin queue. Hold
+          // its grant through body consumption; never nest origin admissions.
+          const result=await boundedUpstream(async()=>{
+            await this.beforeFetch?.(source.origin);
+            const response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
+            if([301,302,303,307,308].includes(response.status)){
+              const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
+              const redirected=officialSourceUrl(new URL(next,target));
+              if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
+              return {redirect:redirected.href};
+            }
+            if(response.status===429||response.status>=500){
+              const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
+              this.queues.get(source.origin)?.backoff(retryAfter);backoffUpstream(retryAfter,{source:source.origin});await response.body?.cancel();
+              throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
+            }
+            if(!response.ok||response.status===202)throw Object.assign(new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.'),{sourceStatus:response.status,cause:{status:response.status}});
+            const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
+            if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
+            const text=await limitedText(response,json?3*1024*1024:1024*1024);
+            return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
+          },{source:source.origin,priority,signal,backgroundRank:priority==='background'?1:0});
+          if(!result.redirect)return result;
+          target=result.redirect;
         }
-        if(response?.status===429||response?.status>=500){
-          const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
-          this.queues.get(source.origin)?.backoff(retryAfter);await response.body?.cancel();
-          throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
-        }
-        if(!response?.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
-        const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
-        if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
-        const text=await limitedText(response,json?3*1024*1024:1024*1024);
-        return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
+        throw new HttpError(502,'official_redirect','The source redirected too many times.');
       },{priority,origin:source.origin,signal});
     }),{freshMs,includeRetryAt,background:priority==='background',validate:record=>{
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);
     }}));
     if(waitForFresh&&record.viewCache?.stale){const pending=this.cache.pending.get(this.cache.key(key));if(!pending)throw new HttpError(503,'official_source_unavailable','The official source is temporarily unavailable.');const fresh=await waitForRequest(pending);return {...fresh.value,viewCache:{stale:false}};}
+    if(priority==='background') {
+      const pending=this.cache.pending.get(this.cache.key(key));
+      if(pending)return (await waitForRequest(pending)).value;
+    }
     return record;
   }
 }

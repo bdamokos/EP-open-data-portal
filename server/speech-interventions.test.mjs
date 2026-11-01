@@ -308,3 +308,13 @@ test('evicting an unfinished member selection restarts the browser page walk wit
   assert.equal(completed.coverage.complete,true);assert.equal(completed.coverage.available,51);assert.equal(completed.counts.blueQuestions,51);
   assert.deepEqual(offsets,[0,0,50]);
 });
+
+
+test('a first-page 204 withholds member counts without inventing zero speeches',async()=>{
+  const service=new SpeechInterventions({request:async()=>{throw Object.assign(Error('No content'),{code:'odp_no_content'});}});
+  const result=await service.member('256956');
+  assert.equal(result.coverage.total,null);assert.equal(result.coverage.complete,false);
+  assert(result.coverage.issues.includes('source-unavailable'));
+  for(const value of Object.values(result.counts))assert.equal(value,null);
+  assert.equal(result.nextPage,null);
+});

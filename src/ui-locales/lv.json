@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Noraida priekšlikumu",
+  "amendment.rejects_council_position": "Noraida Padomes nostāju",
   "MemberMotionReader.choose_a_motion_text": "Izvēlieties rezolūcijas priekšlikuma tekstu",
   "MemberMotionReader.joint_motion_id": "Kopīgs rezolūcijas priekšlikums · {id}",
   "MemberMotionReader.original_motion_id": "Sākotnējais rezolūcijas priekšlikums · {id}",

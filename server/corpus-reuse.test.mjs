@@ -437,3 +437,107 @@ test('discovery repairs an existing selection row left behind newer metadata',as
   const worker=new CorpusWorker(store,{clock:now,fetchRecord:()=>{throw new Error('No source fetch');}});await worker.discover();
   assert.equal(store.speechPage({member:'42'}).total,0);assert.equal(store.speechPage({member:'7',kinds:['PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true}).records[0].metadata.activity.activity_id,id);
 });
+
+test('member speech list reads bounded saved summaries without upstream or transcript parses',async t=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const {store,add}=fixture(t);
+  for(let i=1;i<=52;i++)add(activity(i));
+  add(activity(99,{member:'99'}));
+  store.db.prepare('UPDATE texts SET raw=?').run(Buffer.from('unreadable XML'));
+  store.db.exec('PRAGMA query_only=ON');
+  const first=await odpSpeeches('42','hu',0);
+  const result=await odpSpeeches('42','hu',50,first.pagination);
+  assert.equal(result.total,52);assert.equal(result.items.length,2);
+  assert.deepEqual(result.items.map(row=>row.id),[activity(51).activity_id,activity(52).activity_id]);
+  assert.equal(result.coverage.authoritativeComplete,false);
+  assert.equal(result.coverage.basis,'retained-corpus');assert.equal(Date.parse(result.fetchedAt),Date.parse(fetchedAt));
+});
+
+test('member selection projection follows participant changes, revisions, replacement and deletion',t=>{
+  const {store,add}=fixture(t,{realReaders:false});const id=add(activity(1));
+  const read=member=>store.speechPage({member,metadataOnly:true});
+  assert.equal(read('42').total,1);const before=read('42').revision;
+  store.db.prepare('UPDATE speech_catalog SET revision=revision+1 WHERE source_id=?').run(id);
+  assert.notEqual(read('42').revision,before);
+  store.projectSpeechCatalog(activity(1,{member:'99'}));
+  assert.equal(read('42').total,0);assert.equal(read('99').total,1);
+  store.db.prepare('DELETE FROM speech_catalog WHERE source_id=?').run(id);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM speech_member_catalog').get().n,0);
+});
+
+test('stopped-app migration backfills retained participant selections before readers open',async t=>{
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');
+  const {store,add}=fixture(t,{realReaders:false});add(activity(1));
+  store.db.exec('DROP TRIGGER speech_member_insert; DROP TRIGGER speech_member_update; DROP TRIGGER speech_member_delete; DROP TABLE speech_member_catalog');
+  store.set('speechMemberIndex',1);store.release();
+  assert.throws(()=>new CorpusStore(path.dirname(store.filename),{readOnly:true}),/indexes need preparation/);
+  prepareIndexes({corpusDirectory:path.dirname(store.filename),log:()=>{}});
+  const reader=new CorpusStore(path.dirname(store.filename),{readOnly:true});
+  try {assert.equal(reader.speechPage({member:'42',metadataOnly:true}).total,1);}finally {reader.close();}
+});
+
+test('cold local member endpoints stay below one second with 100000 unrelated catalogue records',async t=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const {store,add}=fixture(t,{realReaders:false});
+  for(let i=1;i<=50;i++)add(activity(i));
+  const put=store.db.prepare('INSERT INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)');
+  store.transaction(()=>{for(let i=0;i<100000;i++)put.run('synthetic-'+i,'2026-10-07','PLENARY_DEBATE_SPEECH',null,i,'["99"]','[]',i,fetchedAt);});
+  store.db.exec('PRAGMA wal_checkpoint(TRUNCATE); PRAGMA cache_size=-2048; PRAGMA mmap_size=0; PRAGMA shrink_memory; PRAGMA query_only=ON');
+  const readCorpusPage=params=>store.speechPage(params),request=()=>assert.fail('local endpoints must not read upstream');
+  let started=performance.now();
+  const speeches=await odpSpeeches('42','en',0,{request,readCorpusPage});
+  const speechMs=performance.now()-started;
+  store.db.exec('PRAGMA shrink_memory');started=performance.now();
+  const statistics=await new SpeechInterventions({request,readCorpusPage}).member('42');
+  const statisticsMs=performance.now()-started;
+  assert.equal(speeches.total,50);assert.equal(statistics.coverage.total,50);
+  t.diagnostic(`100k catalogue: speeches ${speechMs.toFixed(1)} ms; statistics ${statisticsMs.toFixed(1)} ms`);
+  assert(speechMs<1000,`speech list: ${speechMs} ms`);assert(statisticsMs<1000,`statistics: ${statisticsMs} ms`);
+});
+
+test('saved and public member lists agree on timezone chronology, source-order ties and page boundaries',async t=>{
+  const {odpSpeeches,orderedSpeeches}=await import('./odp.mjs');
+  const {store,add}=fixture(t,{realReaders:false});
+  // Numbering and IDs deliberately disagree with source order. Equal instants
+  // span the 50-row boundary; offsets must not reverse their source order.
+  const rows=Array.from({length:53},(_,i)=>({...activity(100-i),activity_start_date:i===0?'2026-10-07T10:00:00+02:00':i===1?'2026-10-07T09:00:00Z':i===52?null:i%2?'2026-10-07T11:00:00+02:00':'2026-10-07T09:00:00Z'}));
+  for(const row of rows)add(row);
+  const payload={data:[...rows].reverse(),searchResults:{hits:rows.map(row=>({id:row.id}))}};
+  const expected=orderedSpeeches(payload);
+  const request=async(_path,params)=>({payload:{data:expected.slice(params.offset,params.offset+50).map(summary=>rows.find(row=>row.activity_id===summary.id)),meta:{total:rows.length}},fetchedAt});
+  const readCorpusPage=params=>store.speechPage(params);
+  const savedFirst=await odpSpeeches('42','en',0,{readCorpusPage,request});
+  const savedLast=await odpSpeeches('42','en',50,{readCorpusPage,request,...savedFirst.pagination});
+  const publicFirst=await odpSpeeches('42','en',0,{readCorpusPage,request,catalogue:'public'});
+  const publicLast=await odpSpeeches('42','en',50,{readCorpusPage,request,...publicFirst.pagination});
+  assert.deepEqual([...savedFirst.items,...savedLast.items].map(row=>row.id),expected.map(row=>row.id));
+  assert.deepEqual(savedFirst.items,publicFirst.items);assert.deepEqual(savedLast.items,publicLast.items);
+  const key=store.db.prepare('SELECT order_ms,source_order FROM speech_member_catalog WHERE source_id=?');
+  assert.equal(key.get(rows[0].activity_id).order_ms,Date.parse(rows[0].activity_start_date));
+  const originalOrder=key.get(rows[2].activity_id).source_order;
+  add({...rows[2],activity_label:{en:'Updated'}});
+  assert.equal(key.get(rows[2].activity_id).source_order,originalOrder,'metadata refresh preserves observed source order');
+});
+
+test('odpSpeeches restarts the 51 saved / 52 public continuation when retained reads become unavailable',async t=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const {store,add}=fixture(t,{realReaders:false});
+  const rows=Array.from({length:52},(_,i)=>({...activity(52-i),activity_start_date:new Date(Date.parse('2026-10-07T12:00:00Z')-i*60000).toISOString()}));
+  for(const row of rows.slice(1))add(row);
+  let available=true;const offsets=[];
+  const readCorpusPage=params=>available?store.speechPage(params):null;
+  const request=async(_path,params)=>{offsets.push(params.offset);return {payload:{data:rows.slice(params.offset,params.offset+50),meta:{total:52}},fetchedAt};};
+  const first=await odpSpeeches('42','en',0,{request,readCorpusPage});
+  assert.equal(first.total,51);assert.equal(first.items.at(-1).id,activity(2).activity_id);
+  available=false;
+  const next=await odpSpeeches('42','en',50,{request,readCorpusPage,...first.pagination});
+  assert.equal(next.restarted,true);assert.equal(next.offset,0);assert.equal(next.total,52);assert.deepEqual(offsets,[0]);
+  assert.equal(next.items[0].id,activity(52).activity_id);assert.equal(next.pagination.catalogue,'public');
+  available=true;
+  const last=await odpSpeeches('42','en',50,{request,readCorpusPage,...next.pagination});
+  assert.equal(last.restarted,false);assert.equal(last.total,52);assert.deepEqual(last.items.map(row=>row.id),[activity(2).activity_id,activity(1).activity_id]);
+  const changed=await odpSpeeches('42','en',50,{request,readCorpusPage,...first.pagination,revision:'51:0'});
+  assert.equal(changed.offset,0);assert.equal(changed.restarted,true);assert.equal(changed.pagination.catalogue,'retained');
+  const unbound=await odpSpeeches('42','en',50,{request,readCorpusPage});
+  assert.equal(unbound.offset,0);assert.equal(unbound.restarted,true);
+});

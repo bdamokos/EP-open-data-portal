@@ -48,7 +48,9 @@ function savedStore() {
   return {clock:()=>Date.now(),get:()=>null,readSnapshot:fn=>fn(),status:()=>({currentMeps:1,servingGeneration:1,complete:false,sourceCounts:{document:1}}),db:{prepare(sql){
     if(sql.includes('FROM group_history_snapshots'))return {get:()=>undefined};
     if(sql.includes('FROM refresh_gaps'))return {all:()=>[]};
-    if(sql.startsWith("SELECT json_extract(body,'$.work_type')"))return {iterate:()=>[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]};
+    if(sql.includes('FROM fast_read_progress'))return {get:()=>({ready:1})};
+    if(sql.includes('FROM question_frontiers')&&sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:sql.includes('IS NULL')?0:1})};
+    if(sql.includes('FROM question_frontiers'))return {iterate:(generation,subtype)=>subtype==='QUESTION_WRITTEN'?[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]:[]};
     if(sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:1})};
     if(sql.startsWith('SELECT key,body'))return {all:()=>[{key:'/parliamentary-questions/'+work.identifier,body:JSON.stringify(work),fetched_at:'2026-10-02T10:00:00Z'}]};
     if(sql.startsWith('SELECT id,body'))return {all:()=>[{id:'1',body:JSON.stringify({id:'1',countryCode:'FR'})}]};

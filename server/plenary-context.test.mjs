@@ -137,7 +137,7 @@ test('summary service defaults to real first reading and fetches only actual lin
 });
 test('EuroVoc catalogue coalesces identical batches and persists reproducible per-dossier results',async()=>{
   const directory=mkdtempSync(path.join(os.tmpdir(),'eurovoc-test-'));let calls=0;const sources={get:async url=>{calls++;await new Promise(resolve=>setImmediate(resolve));return {url,fetchedAt:new Date(now()).toISOString(),data:fixture.topics};}};
-  try{const catalog=new EurovocCatalog(sources,{directory,clock:now});await Promise.all([catalog.load(['2025-0407'],'en'),catalog.load(['2025-0407'],'en')]);assert.equal(calls,1);const second=new EurovocCatalog(sources,{directory,clock:now});assert.equal((await second.known(['2025-0407'],'en')).get('2025-0407').concepts.length,11);}finally{rmSync(directory,{recursive:true,force:true});}
+  try{const catalog=new EurovocCatalog(sources,{writable:true,directory,clock:now});await Promise.all([catalog.load(['2025-0407'],'en'),catalog.load(['2025-0407'],'en')]);assert.equal(calls,1);const second=new EurovocCatalog(sources,{writable:true,directory,clock:now});assert.equal((await second.known(['2025-0407'],'en')).get('2025-0407').concepts.length,11);}finally{rmSync(directory,{recursive:true,force:true});}
 });
 test('saved timeline keeps votes, debates and committee work separate and deduplicates shared events',()=>storeFor(async(store,generation)=>{
   const raw=fixture.procedure.payload.data[0];store.putSource(generation,'/procedures/2025-0407','procedure',projectProcedure(raw),fixture.procedure.fetchedAt,[]);store.db.exec('PRAGMA query_only=ON');

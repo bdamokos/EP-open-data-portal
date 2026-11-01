@@ -1,5 +1,5 @@
 // Visible objects, final-revision visibility and source boundaries.
-export const DOCX_EXTRACTION_VERSION=10;
+export const DOCX_EXTRACTION_VERSION=11;
 
 // Paths describe the original XML, including elements whose text is omitted.
 // Paragraph ordinals therefore do not imply adjacency after extraction.
@@ -55,7 +55,8 @@ export function documentStructure(record) {
   let previous=-1;
   for(const source of record.paragraphSources) {
     if(!path(source?.path)||!path(source.containerPath)||!containers.has(source.container)||!Number.isSafeInteger(source.ordinal)||source.ordinal<=previous
-      ||!Number.isSafeInteger(source.segment)||source.segment<0||typeof source.complete!=='boolean')return unknown;
+      ||!Number.isSafeInteger(source.segment)||source.segment<0||typeof source.complete!=='boolean'
+      ||source.previousParagraph!==undefined&&!path(source.previousParagraph))return unknown;
     previous=source.ordinal;
   }
   for(const object of record.documentObjects) {

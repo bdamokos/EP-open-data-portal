@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Rejects the proposal",
+  "amendment.rejects_council_position": "Rejects the Council position",
   "MemberMotionReader.choose_a_motion_text": "Choose a motion text",
   "MemberMotionReader.joint_motion_id": "Joint motion · {id}",
   "MemberMotionReader.original_motion_id": "Original motion · {id}",

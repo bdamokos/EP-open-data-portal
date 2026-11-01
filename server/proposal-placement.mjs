@@ -158,6 +158,21 @@ function siblingOrder(siblings,label) {
 function completeBoundary(proposal,unit) {
   return unit.complete&&!unparsedArticleHeading(proposal,unit)&&proposal.paragraphs.slice(unit.extent.start,unit.extent.end).every(p=>p.complete&&p.source&&p.source.complete!==false)&&!proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=unit.extent.start&&gap.paragraph<unit.extent.end);
 }
+// Repeated labels inside a replacement quotation make its children ambiguous,
+// but do not move the next printed instruction. Use that boundary only for a
+// sibling insertion, with consecutive native rows and no other incompleteness.
+function quotedConflictBoundary(proposal,unit,next) {
+  if(unit.scope!=='proposal'||unit.kind!=='point'||unit.pathConflict||!unit.instruction||!next||
+    unit.extent.end!==next.extent.start||parentKey(unit)!==parentKey(next)||!completeBoundary(proposal,next))return false;
+  const descendants=flat([unit]);
+  if(!descendants.some(child=>child.pathConflict)||descendants.some(child=>child.boundaryAmbiguous||
+    child.pathConflict&&child.scope!=='quoted'||child.kind==='table'&&!child.table.complete))return false;
+  const intact=child=>child.content.every(index=>proposal.paragraphs[index].complete)&&child.children.every(intact)&&!child.boundaryAmbiguous;
+  if(!intact(unit)||unparsedArticleHeading(proposal,unit)||proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=unit.extent.start&&gap.paragraph<unit.extent.end))return false;
+  const rows=proposal.paragraphs.slice(unit.extent.start,next.extent.start+1);
+  return rows.every((row,index)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!index||
+    row.source.containerPath===rows[index-1].source.containerPath&&row.source.segment===rows[index-1].source.segment&&row.source.ordinal===rows[index-1].source.ordinal+1));
+}
 function insertionPlacement(items,target,candidatesFor,eligible) {
   const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix),preceding=target.segments.slice(0,-1);
   if(!label.isNew||rank<0||(!label.suffix&&label.kind!=='point'))return {reason:'insertion_reference_unavailable'};
@@ -206,7 +221,8 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
     const unit=ordered[i],previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
     if(unit.pathConflict||current.rank<0||previous&&(previous.extent.end>unit.extent.start||before.number>current.number||before.number===current.number&&before.rank>=current.rank))return {reason:'source_structure_unavailable'};
   }
-  if(!completeBoundary(proposal,anchor.unit))return {reason:'source_passage_incomplete'};
+  const next=ordered[ordered.indexOf(anchor.unit)+1];
+  if(!completeBoundary(proposal,anchor.unit)&&!(label.suffix&&!label.negative&&quotedConflictBoundary(proposal,anchor.unit,next)))return {reason:'source_passage_incomplete'};
   if(label.negative){
     if(!completeBoundary(proposal,parent.unit)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
     return {itemIndex:anchor.itemIndex,insertBefore:anchor.unit.extent.start,anchor:anchor.unit,basis:'first-sibling-start'};
@@ -217,6 +233,42 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
 }
 
 const sameAddress=(left,right)=>!!left&&left.length===right.length&&left.every((segment,index)=>segment.kind===right[index].kind&&segment.value===right[index].value);
+
+// Some Word lists flatten a numbered paragraph and its lettered points to
+// peers. Recover only the printed, colon-introduced list bounded by the next
+// numeric paragraph, using both published target lines and the act instruction.
+function twoLinePointInsertion(selected,targetPath,proposedText,language) {
+  const {unit:owner,proposal,itemIndex}=selected,reference=targetPath?.underlying?.[0];
+  if(language!=='en'||targetPath?.language!==language||proposal.language!==language||targetPath.underlying?.length!==1||!reference?.document)return null;
+  const inner=parseTargetLabel(reference.raw,language),[article,paragraph,label]=inner.segments;
+  if(!inner.complete||inner.segments.length!==3||article.kind!=='article'||paragraph.kind!=='paragraph'||paragraph.isNew||paragraph.suffix||
+    label.kind!=='point'||!label.isNew||!/^([a-z])[ab]$/u.test(label.value))return null;
+  const printed=proposedText.trim().match(/^\(([a-z])\s*([ab])\)\s+\S/u);
+  if(!printed||printed[1]+printed[2]!==label.value||instructionOperation(proposedText,language))return {reason:'conflicting_target_evidence'};
+  let chain=[];
+  const visit=(units,parents=[])=>{for(const unit of units){if(unit===owner){chain=[...parents,unit];return true;}if(visit(unit.children,[...parents,unit]))return true;}return false;};
+  visit(proposal.units);
+  const named=chain.map(unit=>unit.instruction?.raw.replace(/\s+/gu,' ').trim()).filter(raw=>/^(?:Regulation|Directive|Decision) .+ is amended as follows:$/u.test(raw??'')).at(-1);
+  if(named!==reference.document.replace(/\s+/gu,' ').trim()+' is amended as follows:')return {reason:'conflicting_target_evidence'};
+  const quotes=owner.children.filter(unit=>unit.kind==='quotation'&&sameAddress(unit.instructionPath,owner.path));
+  if(quotes.length!==1)return null;
+  const articles=flat(quotes).filter(unit=>unit.kind==='article'&&sameAddress(unit.underlyingPath,[article]));
+  if(articles.length!==1)return {reason:'conflicting_target_evidence'};
+  const container=articles[0],lines=proposal.paragraphs.slice(container.extent.start,container.extent.end);
+  const starts=lines.filter(p=>new RegExp(`^${escape(paragraph.value)}\\.\\s+`).test(p.text));
+  if(starts.length!==1||!/:\s*$/u.test(starts[0].text))return {reason:'source_structure_unavailable'};
+  const start=starts[0].index,end=lines.find(p=>p.index>start&&/^\d+\.\s+/u.test(p.text))?.index;
+  if(end===undefined)return {reason:'source_structure_unavailable'};
+  const points=proposal.paragraphs.slice(start+1,end);
+  const labels=points.map(p=>/^\(([a-z])\)\s+\S/u.exec(p.text)?.[1]);
+  if(!labels.length||labels.some((value,index)=>!value||value!==String.fromCharCode(97+index)))return {reason:'source_structure_unavailable'};
+  const index=labels.indexOf(label.value[0]);
+  if(index<0||index+1>=points.length)return {reason:'insertion_reference_unavailable'};
+  const boundary=proposal.paragraphs.slice(start,end+1);
+  if(!owner.complete||owner.pathConflict||!container.complete||boundary.some((p,index)=>!p.complete||!p.source||p.source.complete===false||p.source.container!=='body'||
+    index&&(p.source.segment!==boundary[index-1].source?.segment||p.source.ordinal!==boundary[index-1].source?.ordinal+1)))return {reason:'source_passage_incomplete'};
+  return {itemIndex,insertBefore:points[index+1].index,evidence:[{basis:'two-line-act-target',label:reference.document,target:reference.raw,anchor:owner.id},{basis:'printed-paragraph-point-boundary',paragraph:paragraph.value,preceding:labels[index],following:labels[index+1]}]};
+}
 
 // ISG 3.3.2: an English numeric subdivision inserted between Na and Nb
 // starts at Naa. This is a local, source-bounded family, not a suffix order.
@@ -422,7 +474,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?quotedInteriorInsertion(candidates[0],targetPath,proposedText,language):null;
+    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);

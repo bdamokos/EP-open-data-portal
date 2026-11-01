@@ -1,4 +1,5 @@
-import {mkdir, open, readdir, rename, stat, unlink, writeFile} from 'node:fs/promises';
+import {lstat, mkdir, open, readdir, rename, stat, unlink, writeFile} from 'node:fs/promises';
+import {constants} from 'node:fs';
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {HttpError} from './http-utils.mjs';
@@ -101,11 +102,14 @@ export class PortraitCache {
     if (!this.directory) return null;
     let file;
     try {
-      await this.initialize();
-      if (!this.files.has(id)) return null;
-      file = await open(path.join(this.directory, `${id}.portrait`), 'r');
+      // Read the exact retained file without starting directory inventory or pruning.
+      // Writes still initialize and account for the entire disk budget.
+      const name = path.join(this.directory, `${id}.portrait`);
+      // Preserve the inventory's regular-file boundary when opening directly.
+      if (!constants.O_NOFOLLOW && !(await lstat(name)).isFile()) return null;
+      file = await open(name, constants.O_RDONLY | (constants.O_NOFOLLOW || 0) | (constants.O_NONBLOCK || 0));
       const info = await file.stat();
-      if (info.size > IMAGE_LIMIT + HEADER_LIMIT + 4) return null;
+      if (!info.isFile() || info.size > IMAGE_LIMIT + HEADER_LIMIT + 4) return null;
       const data = await file.readFile();
       requestSignal()?.throwIfAborted();
       const headerLength = data.length >= 4 ? data.readUInt32BE(0) : 0;
@@ -118,7 +122,7 @@ export class PortraitCache {
           digest(body) !== header.sha256) return null;
       return this.remember(id, {...header, etag: entityTag(header.etag), lastModified: httpDate(header.lastModified), body});
     } catch (error) {
-      if (!(error instanceof SyntaxError) && !(error instanceof HttpError) && error.code !== 'ENOENT') this.diskError();
+      if (!(error instanceof SyntaxError) && !(error instanceof HttpError) && !['ENOENT', 'ELOOP'].includes(error.code)) this.diskError();
       return null;
     } finally {
       await file?.close();

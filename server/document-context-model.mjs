@@ -59,8 +59,12 @@ function sourceStructure(text) {
 function consecutive(left, right) {
   return left.source.container === right.source.container
     && left.source.containerPath === right.source.containerPath
-    && left.source.segment === right.source.segment
-    && right.source.ordinal === left.source.ordinal + 1;
+    && (left.source.segment === right.source.segment && right.source.ordinal === left.source.ordinal + 1
+      // A-10-2026-0042 embeds paragraph 52 in the physical row for 51.
+      // A trailing blank cannot certify a boundary for the first label alone.
+      || right.source.previousParagraph === left.source.path && !/[;.!?]\s*[1-9]\d{0,5}[.)]\t/u.test(left.value)
+        && right.source.ordinal > left.source.ordinal
+        && right.source.segment - left.source.segment === right.source.ordinal - left.source.ordinal - 1);
 }
 
 function quotedTargets(rows, quote) {
@@ -516,6 +520,13 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
+    if(ref?.negative&&ref.isNew&&ref.kind==='paragraph'&&options.language==='fi'&&/^-1[a-z]?$/u.test(ref.label)&&!referenceText) {
+      const paragraphs=units.filter(unit=>unit.kind==='paragraph');
+      const first=paragraphs[0];
+      if(first?.label!=='1'||paragraphs.filter(unit=>unit.label==='1').length!==1||first.start<1||!complete(first.start,first.end)||!consecutive(rows[first.start-1],rows[first.start]))return unresolved('insertion_reference_unavailable');
+      evidence.push({basis:'published-reference',label:ref.label,anchor:first.label});
+      return {operation,status:'placed',insertAfter:first.start-1,insertBefore:first.start,evidence};
+    }
     if (!ref || ref.negative || (!ref.suffix && !ref.after) || !['paragraph', 'recital', 'point', 'citation'].includes(ref.kind)) return unresolved('insertion_reference_unavailable');
     if (!ref.after && matching(ref).length) return unresolved('duplicate_target_label');
     if (ref.kind === 'point') {

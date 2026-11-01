@@ -9,6 +9,7 @@ export function groupVoicesSchema(db){
   db.exec(`CREATE TABLE IF NOT EXISTS group_voice_observations(generation INTEGER,speech TEXT,date TEXT,body TEXT,PRIMARY KEY(generation,speech));
     CREATE TABLE IF NOT EXISTS group_voice_state(generation INTEGER PRIMARY KEY,version INTEGER);
     CREATE TABLE IF NOT EXISTS group_voice_jobs(generation INTEGER,key TEXT,kind TEXT,body TEXT,priority INTEGER,done INTEGER DEFAULT 0,attempts INTEGER DEFAULT 0,retry_at INTEGER DEFAULT 0,error TEXT,PRIMARY KEY(generation,key));
+    CREATE INDEX IF NOT EXISTS group_voice_job_due ON group_voice_jobs(generation,retry_at) WHERE done=0;
     CREATE INDEX IF NOT EXISTS group_voice_observation_date ON group_voice_observations(generation,date);
     CREATE TABLE IF NOT EXISTS group_voice_designations(generation INTEGER,speech TEXT,person TEXT,group_id TEXT,date TEXT,subject TEXT,PRIMARY KEY(generation,speech,person,group_id));
     CREATE INDEX IF NOT EXISTS group_voice_group_date ON group_voice_designations(generation,group_id,date DESC,speech,person,subject);`);
@@ -47,7 +48,16 @@ export function enqueueGroupVoice(store,generation,key,body,priority=20){
   store.assertWriter();
   store.db.prepare("INSERT OR IGNORE INTO group_voice_jobs(generation,key,kind,body,priority) VALUES (?,?,'speeches',?,?)").run(generation,key,JSON.stringify(body),priority);
 }
-export function nextGroupVoiceTask(store,generation){
+export function nextGroupVoiceTask(store,generation,coreTask=null){
+  // Probe by deadline before walking priority order, including on idle ticks.
+  if(!store.db.prepare('SELECT 1 FROM group_voice_jobs INDEXED BY group_voice_job_due WHERE generation=? AND done=0 AND retry_at<=? LIMIT 1').get(generation,store.clock()))return coreTask;
+  const saved=store.get('groupVoiceDispatch');
+  const count=saved?.generation===generation?saved.count:0;
+  if(coreTask){
+    store.assertWriter();
+    if(count<8){store.set('groupVoiceDispatch',{generation,count:count+1});return coreTask;}
+    store.set('groupVoiceDispatch',{generation,count:0});
+  }
   const row=store.db.prepare('SELECT * FROM group_voice_jobs WHERE generation=? AND done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,store.clock());
   return row?{...row,body:JSON.parse(row.body),groupVoiceJob:true}:null;
 }

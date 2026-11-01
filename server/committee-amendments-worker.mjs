@@ -136,7 +136,7 @@ export function prepareCommitteeList(worker,generation,work,fetchedAt,endpoint,{
 export function rebuildCommitteeList(worker,generation,key,{rosterMembers,scheduleMandateProfiles,verifiedWording,discover=true}={}) {
   const store=worker.store,id=key.slice('committee:'.length),saved=store.source(generation,listKey(id)),list=saved?.work;
   if(!committeeListId(id)||!list||!validCommitteeWork(list)||list.scopeKey!==key)return;
-  const extraction=list.extraction,rows=[],gaps=[],contexts=new Map(),profiles=store.sources(generation,'amendment-member');
+  const extraction=list.extraction,rows=[],gaps=[],contexts=new Map(),profiles=store.memberProfiles(generation);
   const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
   const revisionLists=committeeRevisionLists(list),countConflict=revisionLists.length>0;
   const descriptors=list.distributionEvidence?.descriptors||[],selectedLanguage=descriptors.some(file=>file.language==='en')?'en':descriptors[0]?.language;

@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Forkaster forslaget",
+  "amendment.rejects_council_position": "Forkaster Rådets holdning",
   "MemberMotionReader.choose_a_motion_text": "Vælg en beslutningsforslagstekst",
   "MemberMotionReader.joint_motion_id": "Fælles beslutningsforslag · {id}",
   "MemberMotionReader.original_motion_id": "Oprindeligt beslutningsforslag · {id}",

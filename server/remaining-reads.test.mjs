@@ -12,7 +12,7 @@ import {CorpusWorker} from './corpus-worker.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {memberVoteWeeks} from './member-vote-weeks.mjs';
 import {followingResponse,followingIdsSql} from './insights-following.mjs';
-import {activityOnly,motionDocuments} from './activity-read-projections.mjs';
+import {activityOnly,motionDocuments,activityReadVersion} from './activity-read-projections.mjs';
 import {discoverQuestionFiles,changedQuestionsSql,missingQuestionFilesSql} from './question-discovery.mjs';
 import {prepareIndexes} from './migrate-indexes.mjs';
 import {questionFiles,questionFileEdition} from './question-files.mjs';
@@ -253,10 +253,41 @@ test('edition projection preparation preserves legacy text, generation pointers 
   index.release();corpus.release();
   const options={activityDirectory:path.join(directory,'index'),corpusDirectory:path.join(directory,'corpus'),clock:now,log:()=>{}};
   assert.equal(prepareIndexes(options).find(result=>result.kind==='activity').noop,false);
-  assert.equal(index.get('activityReadVersion'),3);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
+  assert.equal(index.get('activityReadVersion'),activityReadVersion);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
   assert.deepEqual(index.source(1,key),beforeSource);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
   assert.deepEqual(JSON.parse(index.db.prepare('SELECT body FROM question_files').get().body).edition,edition);
   assert(corpus.acquire());await discoverQuestionFiles(worker,1);
   assert.deepEqual(corpus.task('docx:'+file.url),beforeTask);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
   corpus.release();assert(prepareIndexes(options).every(result=>result.noop));
+});
+
+test('startup prepares legacy corpus observation indexes and counter before HTTP without a separate migration',t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'observation-startup-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  let store=new CorpusStore(directory);assert(store.acquire());
+  const put=store.db.prepare('INSERT INTO source_observations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  for(let n=0;n<3;n++)put.run('id-'+n,'source-'+n,'questions',null,'metadata',null,null,'2026-10-01',null,null,'2026-10-01','2026-10-01','baseline',null);
+  store.db.exec('DROP TRIGGER observation_insert; DROP TRIGGER observation_delete; DROP INDEX source_observation_event; DROP TABLE observation_count;');
+  store.set('availabilityHistoryVersion',null);store.release();store.close();
+  assert.equal(prepareIndexes({corpusDirectory:directory,log:()=>{}})[0].noop,false);
+  store=new CorpusStore(directory);assert.equal(store.get('availabilityHistoryVersion'),2);
+  assert.equal(store.db.prepare('SELECT n FROM observation_count').get().n,3);store.close();
+  assert.equal(prepareIndexes({corpusDirectory:directory,log:()=>{}})[0].noop,true);
+});
+
+test('PDF manifest backfill resumes after writer restart and never requeues retained DOCX',async t=>{
+ const {backfillQuestionFiles,questionFileBackfillDue}=await import('./activity-read-projections.mjs');
+ const {index,corpus,worker}=fixture(t);
+ for(let n=1;n<=3;n++) {
+  const work=editionQuestion(100,'2026-10-01T08:00:00Z');work.identifier='E-10-2026-'+String(n).padStart(6,'0');work.work_type='QUESTION_WRITTEN';
+  work.is_realized_by.push({language:'hu',is_embodied_by:[{format:'PDF',byteSize:200,is_exemplified_by:'https://data.europarl.europa.eu/distribution/test/'+n+'.pdf'}]});
+  index.putSource(1,'/parliamentary-questions/'+work.identifier,'document',work,fetched);retainQuestion(corpus,work);
+ }
+ index.db.exec("DELETE FROM question_files WHERE json_extract(body,'$.format')='pdf'");
+ assert.equal(backfillQuestionFiles(index,1,{limit:1}),1);const cursor=index.get('questionFileBackfill:1');assert.ok(cursor.after);assert.equal(questionFileBackfillDue(index,1),true);
+ index.release();
+ const resumed=new ActivityStore(path.join(path.dirname(index.filename)),{clock:now});assert(resumed.acquire());assert.deepEqual(resumed.get('questionFileBackfill:1'),cursor);resumed.release();resumed.close();assert(index.acquire());
+ assert.equal(backfillQuestionFiles(index,1,{limit:1}),1);assert.equal(backfillQuestionFiles(index,1,{limit:1}),1);assert.equal(backfillQuestionFiles(index,1,{limit:1}),0);assert.equal(questionFileBackfillDue(index,1),false);
+ index.set('active',1);index.set('sequence',1);const cycle=index.beginCycle();assert.equal(questionFileBackfillDue(index,cycle.generation),false,'copied manifests retain the completed backfill marker');
+ await discoverQuestionFiles(worker,1);assert.equal(corpus.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='docx'").get().n,0);assert.equal(corpus.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='pdf'").get().n,3);
 });

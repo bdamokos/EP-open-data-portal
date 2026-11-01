@@ -1,4 +1,5 @@
-import {Worker,isMainThread,parentPort} from 'node:worker_threads';
+import {createHash} from 'node:crypto';
+import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {performance} from 'node:perf_hooks';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {extractAmendments} from './amendment-documents.mjs';
@@ -20,11 +21,11 @@ function stopThread(target,error) {
   void target.terminate().catch(()=>{});
 }
 function startThread() {
-  const worker=new Worker(new URL(import.meta.url),{resourceLimits:{maxOldGenerationSizeMb:AMENDMENT_EXTRACTION_THREAD.maxHeapMiB}});
+  const worker=new Worker(new URL(import.meta.url),{workerData:{amendmentExtraction:true},resourceLimits:{maxOldGenerationSizeMb:AMENDMENT_EXTRACTION_THREAD.maxHeapMiB}});
   worker.on('message',({id,result,error})=>{
     const entry=pending.get(id);if(!entry)return;
     pending.delete(id);clearTimeout(entry.timer);entry.signal?.removeEventListener('abort',entry.abort);
-    if(error)entry.reject(Object.assign(new Error(error.message),{name:error.name}));else entry.resolve(result);
+    if(error)entry.reject(Object.assign(new Error(error.message),{name:error.name,code:error.code,sourceHash:error.sourceHash}));else entry.resolve(result);
     if(!pending.size&&thread===worker){clearTimeout(idleTimer);idleTimer=setTimeout(()=>stopThread(worker,new Error('Amendment extraction thread stopped.')),AMENDMENT_EXTRACTION_THREAD.idleMs);idleTimer.unref();}
   });
   worker.on('error',error=>stopThread(worker,error));
@@ -70,9 +71,11 @@ export function endExtractionTurn(state,startedAt,{now=()=>performance.now()}={}
   state.endedAt=now();state.lastMs=state.endedAt-startedAt;
 }
 
-if(!isMainThread&&parentPort) {
+// Importing this helper inside the source writer must not install a parser on
+// that writer's control port. Only the dedicated extraction thread receives it.
+if(!isMainThread&&workerData?.amendmentExtraction&&parentPort) {
   parentPort.on('message',({id,buffer,options})=>{
     try {parentPort.postMessage({id,result:extractAmendments(Buffer.from(buffer.buffer,buffer.byteOffset,buffer.byteLength),options)});}
-    catch(error){parentPort.postMessage({id,error:{name:error?.name || 'Error',message:String(error?.message ?? error)}});}
+    catch(error){parentPort.postMessage({id,error:{name:error?.name || 'Error',message:String(error?.message ?? error),code:'source_parser_rejection',sourceHash:createHash('sha256').update(buffer).digest('hex')}});}
   });
 }

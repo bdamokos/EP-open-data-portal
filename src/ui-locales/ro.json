@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Respinge propunerea",
+  "amendment.rejects_council_position": "Respinge poziția Consiliului",
   "MemberMotionReader.choose_a_motion_text": "Alegeți textul unei propuneri de rezoluție",
   "MemberMotionReader.joint_motion_id": "Propunere comună de rezoluție · {id}",
   "MemberMotionReader.original_motion_id": "Propunere inițială de rezoluție · {id}",

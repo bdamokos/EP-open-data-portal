@@ -108,7 +108,8 @@ test('a large plenary cloud searches by exact period and country while delayed h
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root,resolveCloud;
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  // Settle a cloud read left pending so its request deadline does not keep the file alive.
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await act(async()=>resolveCloud?.(Response.json({})));if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const searches=[],cloudCalls=[];
   const speeches=Array.from({length:1001},(_,i)=>({id:'MTG-PL-2026-10-07-OTH-'+i,date:'2026-10-07',title:'Speech '+i,machineTranslation:false,people:[]}));
   const cloud={scope:{kind:'week',phase:'past'},language:'en',words:[{word:'energy',label:'Energy',speechCount:1001,occurrences:1001,speechIds:[speech]}],speeches,window:{start:'2026-10-05',end:'2026-10-09'},nextPage:null,coverage:{transcripts:1001,matchedSpeechRecords:1001,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false}};
@@ -160,8 +161,9 @@ test('explicit plenary navigation clears contextual result positions before remo
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root,resolvePeriod,resolveCloud,deferPeriod=false;
-  const pending=new Map(),searches=[],textRequests=[];
-  t.after(async()=>{if(root)await act(async()=>root.unmount());for(const request of pending.values())request.resolve(Response.json(request.data));if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  // Every deferred read is settled at teardown so request deadlines do not keep the file alive.
+  const pending=new Map(),unsettled=new Set(),searches=[],textRequests=[];
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await act(async()=>{for(const request of pending.values())request.resolve(Response.json(request.data));for(const resolve of unsettled)resolve(Response.json({}));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const stats={denominator:0,uniquePeople:0,uniqueCurrentMeps:0,peopleOutsideCurrentRoster:0,referenceDate:days[0],dimensions:{country:[],group:[],gender:[],age:[]}};
   function legislation(sittingId,topicId){const sitting=sittings.find(day=>day.id===sittingId)||sittings[0],topic=topics.find(item=>item.id===topicId);return {view:'legislation',sitting,sittings,topics:topics.filter(item=>item.sittingId===sitting.id),coverage:{agendaError:null,agendaComplete:true,indexComplete:true},detail:topic?{...topic,phase:'past',procedures:[],committeeWork:[],roles:[],people:[],stats,speeches:[{sourceId:topic.speech,date:topic.date,title:topic.title,kind:'PLENARY_DEBATE_WRITTEN_STATEMENT',start:null,end:null,people:[]}],voteCoverage:{truncated:false},coverage:{gaps:[],roleRowsTruncated:false,speechAssociations:{sources:[],truncated:false}}}:null};}
   const stored=id=>({sourceId:id,sourceKey:'fr',kind:'speech',parentId:null,date:days[0],language:'fr',translationType:'original',sourceUrl:'https://www.europarl.europa.eu/example/'+id,sha256:'fixture-hash',snippet:'\u0002Energy\u0003 policy',body:'Energy policy',highlightedBody:'\u0002Energy\u0003 policy',fetchedAt:'2026-10-15T12:00:00Z',checkedAt:'2026-10-15T12:00:00Z'});
@@ -169,11 +171,11 @@ test('explicit plenary navigation clears contextual result positions before remo
     const url=new URL(input,window.location.href),params=url.searchParams;
     if(url.pathname.endsWith('/insights/legislation')){
       const data=legislation(params.get('sitting'),params.get('topic'));
-      if(params.has('topic'))return new Promise(resolve=>pending.set(params.get('topic'),{resolve,data}));
-      if(deferPeriod&&params.get('sitting')===c.sittingId){deferPeriod=false;return new Promise(resolve=>{resolvePeriod=()=>resolve(Response.json(data));});}
+      if(params.has('topic'))return new Promise(resolve=>{unsettled.add(resolve);pending.set(params.get('topic'),{resolve,data});});
+      if(deferPeriod&&params.get('sitting')===c.sittingId){deferPeriod=false;return new Promise(resolve=>{unsettled.add(resolve);resolvePeriod=()=>resolve(Response.json(data));});}
       return Response.json(data);
     }
-    if(url.pathname.endsWith('/insights/speech-cloud'))return new Promise(resolve=>{const date=params.get('sitting')?.slice(7)||c.date;resolveCloud=()=>resolve(Response.json({scope:{kind:'sitting',phase:'past'},language:'en',words:[],speeches:[],coverage:{transcripts:0,matchedSpeechRecords:0,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:date,end:date},nextPage:null}));});
+    if(url.pathname.endsWith('/insights/speech-cloud'))return new Promise(resolve=>{unsettled.add(resolve);const date=params.get('sitting')?.slice(7)||c.date;resolveCloud=()=>resolve(Response.json({scope:{kind:'sitting',phase:'past'},language:'en',words:[],speeches:[],coverage:{transcripts:0,matchedSpeechRecords:0,missingLanguage:0,unreadableText:0,complete:true,truncated:false,associationUnavailable:false},window:{start:date,end:date},nextPage:null}));});
     if(url.pathname.endsWith('/insights/participation'))return Response.json({topics:[{...d,upcoming:false,speakers:1,voters:0,amendmentVotes:0,rollCalls:0}],series:[],window:{start:days[2],end:days[2]},coverage:{gaps:[]}});
     if(url.pathname.endsWith('/corpus/search')){
       const body=JSON.parse(options.body);searches.push(body);const id=body.sourceIds?.[0]||(body.from===d.date?d.speech:c.speech);

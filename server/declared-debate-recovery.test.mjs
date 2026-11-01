@@ -9,7 +9,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery} from './declared-debate-recovery.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
-import {recordTaskGap,scheduleGapRecovery} from './refresh-policy.mjs';
+import {reopenRuleVersions,recordTaskGap,scheduleGapRecovery,coverageGap} from './refresh-policy.mjs';
 import {DossierActivity} from './dossier-activity.mjs';
 
 const time='2026-10-30T10:00:00.000Z',now=()=>Date.parse(time);
@@ -99,7 +99,11 @@ test('discovery and parent child fan-out resume bounded cursors after reopening'
   assert.equal(x.store.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='debate-links'").get().n,100);
   const reopened=new ActivityStore(path.join(x.directory,'index'),{clock:now});t.after(()=>reopened.close());
   x.store.release();assert(reopened.acquire());
-  const worker=new ActivityWorker(reopened,{clock:now,recoveryMode:'backfill'});scheduleDeclaredDebateRecovery(worker,x.generation);
+  const worker=new ActivityWorker(reopened,{clock:now,recoveryMode:'normal'});
+  scheduleDeclaredDebateRecovery(worker,x.generation);
+  assert.equal(reopened.get('declaredDebateRecovery').afterKey,'/procedures/2024-0099','unfinished slice retains its cursor');
+  for(const row of reopened.db.prepare("SELECT * FROM tasks WHERE kind='debate-links'").all())reopened.finishTask({...row,body:JSON.parse(row.body)});
+  scheduleDeclaredDebateRecovery(worker,x.generation);
   assert(reopened.db.prepare('SELECT 1 FROM tasks WHERE key=?').get('debate-links:/procedures/2024-0100'));
   assert.equal(reopened.get('declaredDebateRecovery').complete,true);
   reopened.release();assert(x.store.acquire());
@@ -119,8 +123,8 @@ test('post-request lease loss fences metadata and child jobs',async t=>{
   await assert.rejects(x.worker.task(x.task(key)),/lease/);
   assert.equal(x.store.source(x.generation,key),undefined);assert.equal(x.task(key).done,0);
 });
-test('the real dispatch loop finishes the scan before publishing when its first batch already completed',async t=>{
-  const x=fixture(t);
+test('the normal dispatch loop finishes the scan before publishing when its first batch already completed',async t=>{
+  const x=fixture(t);x.worker.recoveryMode='normal';
   for(let i=0;i<101;i++) {
     const id='2024-'+String(i).padStart(4,'0');x.procedure(id,[]);
     if(i<100){const key='debate-links:/procedures/'+id;x.store.enqueue(x.generation,key,'debate-links',{endpoint:'/procedures/'+id,offset:0},102);x.store.finishTask(x.task(key));}
@@ -348,4 +352,65 @@ for(const emptyRow of [false,true])test(`six-hour discovery reopens ${emptyRow?'
   const pending=corpus.task(key);
   ms+=6*3600000;assert(corpus.acquire());await discoverDeclaredSpeeches(worker,x.generation);
   assert.deepEqual(corpus.task(key),pending,'real future owner and its clock survive another scan');
+});
+
+test('deterministic declaration failures settle immediately as coverage without retry admission',async t=>{
+  const x=fixture(t),key='/events/'+child(777);
+  x.store.enqueue(x.generation,key,'declared-event',{id:child(777),role:'child',parent},103);
+  x.records.set(key,node(child(777),'PLENARY_DEBATE_SPEECH'));
+  let failure;try{await x.worker.task(x.task(key));}catch(error){failure=error;}
+  assert.equal(failure.code,'source_rule_violation');
+  assert(recordTaskGap(x.worker,x.task(key),failure));
+  assert.equal(x.task(key).done,1);assert.equal(x.task(key).attempts,0);
+  const gap=x.store.db.prepare('SELECT * FROM refresh_gaps WHERE key=?').get(key);
+  assert.equal(gap.kind,'coverage');assert.equal(gap.error,'Declared speech lacks its own current-term identity or date.');
+  assert.equal(scheduleGapRecovery(x.worker,x.generation),0);
+  assert.equal(x.store.enqueue(x.generation,key,'declared-event',{id:child(777),role:'child',parent},103,true),false);
+  // A completed parent must be revisited by the next relationship scan.
+  x.store.enqueue(x.generation,'/events/'+parent,'declared-event',{id:parent,role:'debate'},103);
+  x.store.finishTask(x.task('/events/'+parent));
+  x.records.set(key,node(child(777),'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  x.store.putSource(x.generation,'/events/'+parent,'debate',{id:parent,kind:'PLENARY_DEBATE',classificationVersion:1,children:[child(777)],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+parent+'?format=application%2Fld%2Bjson',fetchedAt:new Date(x.worker.clock()).toISOString()}},new Date(x.worker.clock()).toISOString());
+  x.store.putSource(x.generation,'/procedures/2024-1234','procedure',{consists_of:[{id:uri(parent),had_activity_type:'def/ep-activities/PLENARY_DEBATE'}]},new Date(x.worker.clock()).toISOString());
+  x.store.enqueue(x.generation,'debate-links:/procedures/2024-1234','debate-links',{endpoint:'/procedures/2024-1234',offset:0},102,true);
+  await x.worker.task(x.task('debate-links:/procedures/2024-1234'));
+  await x.worker.task(x.task('/events/'+parent));
+  assert.equal(x.task(key).done,0,'normal declared-child admission reopens changed evidence');
+  const reopened=JSON.parse(x.store.db.prepare('SELECT body FROM tasks WHERE key=?').get(key).body);
+  assert.equal(reopened.ruleRejection,undefined);
+  await x.worker.task(x.task(key));
+  assert.equal(x.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE key=?').get(key),undefined,'a successful corrected exact observation clears the coverage gap');
+  for(const error of [Object.assign(Error('server'),{status:503}),Object.assign(Error('limited'),{status:429}),Error('network')])assert.equal(recordTaskGap(x.worker,{...x.task(key),attempts:0},error),false);
+});
+
+test('startup rule version repair reopens only a bounded page',t=>{
+  const x=fixture(t);
+  for(let i=0;i<30;i++) {
+    const key='/events/'+child(900+i),body={id:child(900+i),role:'child',parent};
+    x.store.enqueue(x.generation,key,'declared-event',body,103);
+    recordTaskGap(x.worker,x.task(key),Object.assign(Error('old rule'),{code:'source_rule_violation'}));
+    const saved=JSON.parse(x.store.db.prepare('SELECT body FROM refresh_gaps WHERE key=?').get(key).body);
+    saved.ruleRejection.version=0;
+    x.store.db.prepare('UPDATE refresh_gaps SET body=? WHERE key=?').run(JSON.stringify(saved),key);
+  }
+  assert.equal(reopenRuleVersions(x.store,x.generation),25);
+  assert.equal(reopenRuleVersions(x.store,x.generation),5);
+  assert.equal(reopenRuleVersions(x.store,x.generation),0);
+  assert.equal(x.store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE done=0 AND kind=?').get('declared-event').n,30);
+});
+
+test('a corrected speech detail reopens its rule-rejected recovery owner through the relationship scan',async t=>{
+  const x=fixture(t),id=child(778),key='recovery:/speeches/'+id;
+  x.store.enqueue(x.generation,key,'speeches',{recoveryId:id,declaredParent:parent,offset:0},103);
+  coverageGap(x.store,x.generation,key,{...x.task(key).body,sourceTaskKind:'speeches',ruleRejection:{version:1,fingerprint:'rejected-observation',endpoint:'/speeches/'+id,reason:'Declared speech detail conflicts with its parent.'}},'Declared speech detail conflicts with its parent.',x.worker.clock());
+  x.store.db.prepare('UPDATE tasks SET done=1 WHERE generation=? AND key=?').run(x.generation,key);
+  assert.equal(x.store.enqueue(x.generation,key,'speeches',{recoveryId:id,offset:0},103,true),false,'an unchanged rule gap stays gated');
+  x.store.putSource(x.generation,'/events/'+parent,'debate',{id:parent,kind:'PLENARY_DEBATE',classificationVersion:1,children:[id],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:time}},time);
+  x.store.enqueue(x.generation,'/events/'+parent,'declared-event',{id:parent,role:'debate'},103);
+  x.records.set('/events/'+parent,node(parent,'PLENARY_DEBATE',{activity_date:'2024-10-07',consists_of:[uri(id)]}));
+  x.records.set('/events/'+id,node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  x.records.set('/speeches/'+id,node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  await x.worker.task(x.task('/events/'+parent));
+  assert(x.calls.includes('/speeches/'+id),'the scan observes the exact speech-detail owner');
+  assert.equal(x.task(key).done,0,'a changed speech-detail observation reopens the recovery owner');
 });

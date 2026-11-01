@@ -9,7 +9,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { ActivityStore } from './activity-index-store.mjs';
 import { CorpusStore, corpusQuery } from './corpus-store.mjs';
-import { CorpusWorker, corpus, corpusSearchOptions, fragmentText, questionFiles, speechTexts } from './corpus-worker.mjs';
+import { CorpusWorker, corpus, corpusSearchOptions, fragmentText, questionFiles, speechTexts, speechRecheckCadence } from './corpus-worker.mjs';
 import { CorpusReader } from './corpus-reader.mjs';
 import { handleRequest } from './index.mjs';
 import { server } from './index.mjs';
@@ -92,14 +92,14 @@ test('status counts documents once and reflects variant, task and character chan
     const first=s.corpus.status();
     assert.deepEqual(first.documents.speech,{discovered:1,withText:1});
     assert.deepEqual(first.documents.question,{discovered:1,withText:0});
-    assert.deepEqual(first.tasks.docx,{total:2,done:1,retrying:1});
+    assert.deepEqual(first.tasks.docx,{total:2,done:1,retrying:1,sourceIssues:0,satisfiedByAlternative:0});
     assert.equal(first.texts.find(text=>text.language==='en').characters,'🌊 Ocean'.length);
     assert.equal(first.lastError.key,'retry');
     put('en','Longer ocean policy');s.corpus.finishTask(s.corpus.task('retry'));
     const updated=s.corpus.status();
     assert.equal(updated.texts.find(text=>text.language==='en').characters,'Longer ocean policy'.length);
     assert.equal(updated.lastError,null);
-    assert.deepEqual(updated.tasks.docx,{total:2,done:2,retrying:0});
+    assert.deepEqual(updated.tasks.docx,{total:2,done:2,retrying:0,sourceIssues:0,satisfiedByAlternative:0});
     s.corpus.db.prepare('DELETE FROM documents WHERE source_id=?').run(id);
     const deleted=s.corpus.status();
     assert.deepEqual(deleted.documents.speech,{discovered:0,withText:0});
@@ -830,4 +830,70 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     for(const [key,value] of Object.entries(savedEnv)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
     s.cleanup();
   }
+});
+
+test('old completed speech months receive at most one pending full verification after metadata checks',async()=>{
+  const s=stores();try {
+    const worker=new CorpusWorker(s.corpus,{clock:instant});await worker.discover();
+    const old=instant()-91*86400_000;
+    s.corpus.db.prepare("UPDATE tasks SET done=1,done_at=? WHERE kind='speeches'").run(old);
+    await worker.discover();
+    s.corpus.db.prepare("UPDATE tasks SET done=1,done_at=? WHERE kind='speech-editions'").run(instant());
+    await worker.discover();
+    const historical=()=>s.corpus.db.prepare("SELECT * FROM tasks WHERE done=0 AND json_extract(body,'$.historicalRecheck')=1").all();
+    assert.equal(historical().length,1);await worker.discover();assert.equal(historical().length,1);
+
+  }finally{s.cleanup();}
+});
+
+test('historical speech refresh parses only new or changed exact fragments',async()=>{
+  const s=stores();try {
+    const id='MTG-PL-2024-09-16-OTH-1',original=speech(id,{en:fragment('en','Existing')});
+    const retained=speechTexts(original,'https://example.test',fetchedAt);s.corpus.putDocument(retained.document,retained.texts);
+    const before=s.corpus.db.prepare("SELECT * FROM texts WHERE source_key='en'").get();
+    const changed=speech(id,{en:fragment('en','Existing'),fr:fragment('fr','New translation')});
+    const worker=new CorpusWorker(s.corpus,{clock:instant,fetchRecord:async()=>({payload:{data:[changed]},fetchedAt})});
+    let parsed;const extract=worker.extractSpeech.bind(worker);worker.extractSpeech=async(node,...args)=>{parsed=[...args[2]];return extract(node,...args);};
+    const body={start:'2024-09-01',end:'2024-09-30',offset:0,limit:25,historicalRecheck:true};
+    s.corpus.enqueue('historical-test','speeches',body,59);await worker.task(s.corpus.task('historical-test'));
+    assert.deepEqual(s.corpus.db.prepare("SELECT * FROM texts WHERE source_key='en'").get(),before);
+    assert.deepEqual(parsed,['fr']);assert.equal(s.corpus.raw(id,'en'),retained.texts[0].raw);assert.match(s.corpus.raw(id,'fr'),/New translation/);
+  }finally{s.cleanup();}
+});
+
+for(const languages of ['primary','all'])test(`historical refresh preserves sibling original-language evidence under ${languages}`,async()=>{
+ const s=stores();try {
+  const id='MTG-PL-2024-09-16-OTH-1',original=speech(id,{en:fragment('en','Existing','de-t-en-mtec')});
+  delete original.recorded_in_a_realization_of[0].originalLanguage;
+  const retained=speechTexts(original,'https://example.test',fetchedAt);s.corpus.putDocument(retained.document,retained.texts);
+  const changed=structuredClone(original);changed.recorded_in_a_realization_of[0]['api:xmlFragment'].mul=fragment('de','Neu');
+  const worker=new CorpusWorker(s.corpus,{languages,clock:instant,fetchRecord:async()=>({payload:{data:[changed]},fetchedAt})});
+  s.corpus.enqueue('historical-original','speeches',{start:'2024-09-01',end:'2024-09-30',offset:0,limit:25,historicalRecheck:true},59);
+  await worker.task(s.corpus.task('historical-original'));
+  const row=s.corpus.db.prepare("SELECT language,translation_type FROM texts WHERE source_key='mul'").get();
+  assert.equal(row.language,'de');assert.equal(row.translation_type,'original');assert.equal(s.corpus.raw(id,'en'),retained.texts[0].raw);
+ }finally{s.cleanup();}
+});
+
+test('speech recheck cadence decays at four, twelve and twenty-four months',()=>{
+ const DAY=86400_000,today='2026-11-01';
+ assert.equal(speechRecheckCadence('2026-08-31',today),null);
+ for(const [end,metadata,verification] of [['2026-07-31',30,90],['2025-11-30',90,180],['2024-11-30',180,365]])
+   assert.deepEqual(speechRecheckCadence(end,today),{metadata:metadata*DAY,verification:verification*DAY});
+});
+
+test('edition listing omits XML, skips unchanged IDs, and queues new, changed and removed IDs',async()=>{
+ const s=stores();try {
+  const ids=[1,2,3,4].map(n=>'MTG-PL-2024-09-16-OTH-'+n),nodes=ids.map(id=>speech(id,{en:fragment('en','Retained')}));
+  for(const node of nodes.slice(0,3))s.corpus.putSpeechMetadata(node,'https://example.test',fetchedAt);
+  const metadata=nodes.filter((_,i)=>i!==2).map(node=>{const copy=structuredClone(node);delete copy.recorded_in_a_realization_of[0]['api:xmlFragment'];return copy;});
+  metadata[1].edition='corrected';let calls=0;
+  const worker=new CorpusWorker(s.corpus,{clock:instant,fetchRecord:async(endpoint,params)=>{
+   assert.equal(params['include-output'],undefined);return {payload:{data:calls++?[]:metadata},fetchedAt};
+  }});
+  s.corpus.enqueue('editions-test','speech-editions',{start:'2024-09-01',end:'2024-09-30',offset:0,limit:25},59);
+  await worker.task(s.corpus.task('editions-test'));await worker.task(s.corpus.task('editions-test'));
+  assert.ok(!s.corpus.task('speech:'+ids[0]));
+  for(const id of ids.slice(1))assert.equal(s.corpus.task('speech:'+id).body.editionRecheck,true);
+ }finally{s.cleanup();}
 });

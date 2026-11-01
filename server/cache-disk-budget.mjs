@@ -8,8 +8,8 @@ const TEMPORARY = /^(.+)\.[0-9a-f-]{36}\.tmp$/;
 // read records are removed first; file modification times carry recency across
 // restarts. Only names matching `pattern` and their temporary files are managed.
 export class CacheDiskBudget {
-  constructor(directory, {maxBytes, maxEntries, pattern, clock = Date.now} = {}) {
-    Object.assign(this, {directory, maxBytes, maxEntries, pattern, clock});
+  constructor(directory, {maxBytes, maxEntries, pattern, clock = Date.now, evict = true} = {}) {
+    Object.assign(this, {directory, maxBytes, maxEntries, pattern, clock, evict});
     this.entries = new Map(); this.bytes = 0; this.ready = null; this.work = Promise.resolve();
   }
 
@@ -62,7 +62,13 @@ export class CacheDiskBudget {
     return this.work;
   }
 
+  async canSave(name,size) {
+    await this.initialize();
+    return this.bytes-(this.entries.get(name)?.size||0)+size<=this.maxBytes && (this.entries.has(name)||this.entries.size<this.maxEntries);
+  }
+
   async trim(keep) {
+    if(!this.evict)return;
     const oldest = [...this.entries].sort((a, b) => a[1].usedAt - b[1].usedAt);
     for (const [name] of oldest) {
       if (this.bytes <= this.maxBytes && this.entries.size <= this.maxEntries) break;

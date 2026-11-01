@@ -6,12 +6,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {projectMemberDecision} from '../server/member-votes-model.mjs';
 
 const MEMBER=197673,WEEK='2026-03-23',SITTING='MTG-PL-2026-03-25',SNAPSHOT='a'.repeat(64);
 const SUBJECT='MTG-PL-2026-03-25-VOT-ITM-8',DOCUMENT='A-10-2026-0001',AMENDMENT=DOCUMENT+'-AM-7';
 const decision=number=>SITTING+'-DEC-'+number;
+// The compatibility transform is stateless, so its cases can share one transform server.
+const statusCompatibilityServer=Symbol('member votes status compatibility');
 const emptyPage={state:'complete',pages:1,rows:0,stopReason:'end',error:null,sources:[]};
 
 function vote(number,patch={}) {
@@ -46,7 +48,7 @@ function stateFrom(url) {
 }
 function responseFor(url,{items=[vote(1)],subjects,selected,snapshotId=SNAPSHOT,pagination={},coverage={},...patch}={}) {
   const state=stateFrom(url),week=state.week==='latest'?WEEK:state.week;
-  return {version:10,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
+  return {version:11,member:{id:String(MEMBER),uri:'https://data.europarl.europa.eu/person/'+MEMBER,mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'},
     period:state.sittingId?{kind:'sitting',week:null,sittingId:state.sittingId,from:state.sittingId.slice(7),to:state.sittingId.slice(7)}:{kind:'week',week,sittingId:null,from:week,to:new Date(Date.parse(week+'T12:00:00Z')+6*86400000).toISOString().slice(0,10)},
     snapshotId,positions:state.positions,alignment:state.alignment,alignmentCounts:coverage.status==='unavailable'?null:{with:items.filter(item=>item.alignment==='with').length,against:items.filter(item=>item.alignment==='against').length,abstained:items.filter(item=>item.alignment==='abstained').length,unclassified:(pagination.observedTotal??state.offset+items.length)-items.filter(item=>item.alignment!=='unclassified').length},subjects:subjects??[subject(items)],
     pagination:{offset:state.offset,limit:50,returned:items.length,observedTotal:state.offset+items.length,recordedTotal:coverage.status==='unavailable'?null:items.filter(item=>item.actualPosition.status==='recorded').length,filteredTotal:state.offset+items.length,nextOffset:null,...pagination},items,
@@ -62,11 +64,11 @@ async function mount(t,{state={},calendar={version:2,weeks:[{week:WEEK,sittings:
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
-  let vite,root,current,props,renderKey=0;
+  let load,root,current,props,renderKey=0;
   const calls=[],changes=[],contexts=[];
   t.after(async()=>{
     if(root)await act(async()=>root.unmount());
-    if(vite)await vite.close();
+    if(load)await load.close();
     await window.happyDOM.close();
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
   });
@@ -89,10 +91,10 @@ async function mount(t,{state={},calendar={version:2,weeks:[{week:WEEK,sittings:
     assert(source.includes(needle),'shared hook changed; remove or update the temporary status compatibility transform');
     return source.replace(needle,'error: e.message, retryAt: e.retryAt, status: e.status, loading: false');
   }}]:[];
-  vite=await createServer({configFile:false,plugins,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const module=await vite.ssrLoadModule('/src/MemberVotes.tsx');
-  const DocumentContextReader=renderContext==='reader'?(await vite.ssrLoadModule('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
-  const {PersonNamesProvider}=await vite.ssrLoadModule('/src/PersonName.tsx');
+  load=await freshLoader({configFile:false,plugins,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:statusCompatibility?statusCompatibilityServer:undefined});
+  const module=await load('/src/MemberVotes.tsx');
+  const DocumentContextReader=renderContext==='reader'?(await load('/src/DocumentContextReader.tsx')).DocumentContextReader:null;
+  const {PersonNamesProvider}=await load('/src/PersonName.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   current={...structuredClone(module.defaultMemberVotesState),...state};

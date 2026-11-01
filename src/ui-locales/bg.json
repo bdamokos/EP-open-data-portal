@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Отхвърля предложението",
+  "amendment.rejects_council_position": "Отхвърля позицията на Съвета",
   "MemberMotionReader.choose_a_motion_text": "Изберете текст на предложение за резолюция",
   "MemberMotionReader.joint_motion_id": "Общо предложение за резолюция · {id}",
   "MemberMotionReader.original_motion_id": "Първоначално предложение за резолюция · {id}",

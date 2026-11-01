@@ -73,10 +73,10 @@ test('PDF download verifies the actual edition and fences cancellation before pa
 test('reader falls back for broken question DOCX and preserves independent PDF provenance and cache',async t=>{
  const directory=fixture(t),item=work();let words=0,pdfs=0;
  const options={directory,clock:now,download:async()=>{words++;throw invalidDocx(Error('Invalid DOCX archive'));},downloadPdf:async file=>{pdfs++;assert.equal(file.url,questionPdf(item,'en').url);return {paragraphs:['PDF answer'],sourceHash:'f'.repeat(64)};}};
- const result=await documentText(item,'en',options);
+ const result=await documentText(item,'en',{...options,collector:true});
  assert.equal(result.status,'available');assert.equal(result.sourceFormat,'PDF');assert.equal(result.textLanguage,'en');assert.equal(result.sourceUrl,questionPdf(item,'en').url);assert.equal(result.sourceVersion.issued,'2026-05-02T12:00:00Z');assert.equal(result.notesStatus,'not-extracted');
  const saved=await documentText(item,'en',{...options,cacheOnly:true});assert.equal(saved.status,'available');assert.equal(saved.sourceFormat,'PDF');
- await documentText(item,'en',options);assert.equal(words,1);assert.equal(pdfs,1);
+ await documentText(item,'en',options);assert.equal(words,2);assert.equal(pdfs,1);
 });
 
 test('reader preserves working DOCX and does not bypass quota, transport or unchanged cooldowns',async t=>{
@@ -93,20 +93,20 @@ test('reader preserves working DOCX and does not bypass quota, transport or unch
 function corpusFixture(t){const directory=fixture(t),store=new CorpusStore(directory,{clock:now});assert.equal(store.acquire(),true);t.after(()=>{if(store.db.isOpen)store.close();});return {directory,store};}
 function job(store,item){const file=questionFiles(item)[0],key='docx:'+file.url;store.enqueue(key,'docx',file,50);return store.task(key);}
 
-test('ordinary DOCX owner retains independent PDF without completing or shortening the failed owner',async t=>{
+test('ordinary DOCX owner settles as satisfied by alternative and retains its failure',async t=>{
  const {store}=corpusFixture(t),item=work(),task=job(store,item);let pdfs=0;
  const worker=new CorpusWorker(store,{clock:now,runUpstream:fn=>fn(worker.controller.signal),download:async()=>{throw invalidDocx(Error('Invalid DOCX archive'));},downloadPdf:async()=>{pdfs++;return {paragraphs:['Searchable PDF answer'],sourceHash:'a'.repeat(64),observedByteSize:200};}});
- await assert.rejects(worker.task(task),/Invalid DOCX/);store.failTask(task,invalidDocx(Error('Invalid DOCX archive')));
+ await worker.task(task);
  const failed=store.task(task.key),record=store.text({sourceId:item.identifier,sourceKey:'en'});
- assert.equal(failed.done,0);assert.equal(failed.attempts,1);assert.equal(failed.retry_at,now()+60000);assert.equal(record.sourceFormat,'pdf');assert.equal(record.sourceUrl,task.body.pdf.url);assert.equal(record.sourceVersion.observedByteSize,200);assert.equal(store.search({query:'searchable'}).total,1);
- await assert.rejects(worker.task(failed),/Invalid DOCX/);assert.equal(pdfs,1,'the identical retained PDF is not downloaded again');
+ assert.equal(failed.done,1);assert.equal(failed.attempts,1);assert.equal(store.db.prepare('SELECT state FROM source_failures WHERE key=?').get(task.key).state,'satisfied-by-alternative');assert.equal(record.sourceFormat,'pdf');assert.equal(record.sourceUrl,task.body.pdf.url);assert.equal(record.sourceVersion.observedByteSize,200);assert.equal(store.search({query:'searchable'}).total,1);
+ await worker.task(failed);assert.equal(pdfs,1,'the identical retained PDF is not downloaded again');
 });
 
 test('failed PDF alternatives retain the DOCX failure and honor every observed Retry-After',async t=>{
  for(const [message,extra] of [['No readable PDF',{}],['PDF reference mismatch',{}],['PDF rate limit',{status:429,retryAfter:3600}],['PDF unavailable',{status:503,retryAfter:120}]]) {
   const {store}=corpusFixture(t),task=job(store,work()),pdfError=Object.assign(Error(message),extra);let failure;
   const worker=new CorpusWorker(store,{clock:now,runUpstream:fn=>fn(worker.controller.signal),download:async()=>{throw invalidDocx(Error('Invalid DOCX archive'));},downloadPdf:async()=>{throw pdfError;}});
-  await assert.rejects(worker.task(task),error=>{failure=error;assert.equal(error.code,'invalid_docx');assert.match(error.message,/Invalid DOCX archive/);assert.ok(error.message.includes(message));return true;});
+  await assert.rejects(worker.task(task),error=>{failure=error;assert.equal(error.code,extra.code);assert.match(error.message,/Invalid DOCX archive/);assert.ok(error.message.includes(message));return true;});
   store.failTask(task,failure);const failed=store.task(task.key);
   assert.equal(failed.done,0);assert.equal(failed.attempts,1);assert.equal(failed.retry_at,now()+Math.max(60,extra.retryAfter||0)*1000);assert.match(failed.error,/Invalid DOCX archive/);assert.ok(failed.error.includes(message));
  }
@@ -119,7 +119,7 @@ test('a failed deferred PDF step preserves its DOCX owner and the PDF cooldown',
  await assert.rejects(first.task(task),error=>{failure=error;return error.code==='invalid_docx';});store.failTask(task,failure);
  const retry=store.task(task.key);store.clock=()=>retry.retry_at;
  const second=new CorpusWorker(store,{...options,clock:store.clock,downloadPdf:async()=>{throw Object.assign(Error('PDF rate limited'),{status:429,retryAfter:3600});}});second.dispatches=1;
- await assert.rejects(second.task(retry),error=>{failure=error;assert.equal(error.code,'invalid_docx');assert.match(error.message,/Original DOCX invalid/);assert.match(error.message,/PDF rate limited/);return true;});
+ await assert.rejects(second.task(retry),error=>{failure=error;assert.equal(error.status,429);assert.match(error.message,/Original DOCX invalid/);assert.match(error.message,/PDF rate limited/);return true;});
  store.failTask(retry,failure);const failed=store.task(task.key);
  assert.equal(failed.done,0);assert.equal(failed.attempts,2);assert.equal(failed.retry_at,retry.retry_at+3600000);assert.equal(failed.body.pdfPending,undefined);assert.equal(words,1);
 });
@@ -146,7 +146,7 @@ test('PDF fallback respects the existing per-iteration request allowance and nev
  const worker=new CorpusWorker(store,{clock:now,runUpstream:fn=>fn(worker.controller.signal),download:async()=>{throw invalidDocx(Error('Invalid DOCX'));},downloadPdf:async()=>{pdfs++;return {paragraphs:['PDF']};}});
  worker.dispatches=worker.budget;await assert.rejects(worker.task(task),/Invalid DOCX/);assert.equal(pdfs,0);
  worker.dispatches=0;store.putDocument({sourceId:item.identifier,kind:'question'},[{sourceKey:'en',language:'en',translationType:'original',sourceFormat:'docx',sourceUrl:task.body.url,fetchedAt:new Date(now()).toISOString(),body:'Retained Word text',raw:null}]);
- await assert.rejects(worker.task(task),/Invalid DOCX/);assert.equal(pdfs,0);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).body,'Retained Word text');
+ await worker.task(task);assert.equal(pdfs,0);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).body,'Retained Word text');
 });
 
 test('stopped-app PDF migration preserves row IDs, raw bytes, FTS results and future task clocks',t=>{
@@ -203,8 +203,8 @@ test('a one-request worker resumes PDF fallback at its unchanged natural retry',
  await assert.rejects(first.task(task),/Invalid DOCX/);store.failTask(task,invalidDocx(Error('Invalid DOCX')));
  const retry=store.task(task.key);assert.ok(retry.body.pdfPending);assert.equal(retry.retry_at,now()+60000);assert.equal(pdfs,0);
  const second=new CorpusWorker(store,{...options,clock:()=>retry.retry_at});second.dispatches=1;
- await assert.rejects(second.task(retry),/Invalid DOCX/);assert.equal(pdfs,1);assert.equal(words,1,'the retry slot performs only its saved PDF step');
- assert.equal(store.task(task.key).retry_at,retry.retry_at);assert.equal(store.task(task.key).done,0);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).sourceFormat,'pdf');
+ await second.task(retry);assert.equal(pdfs,1);assert.equal(words,1,'the retry slot performs only its saved PDF step');
+ assert.equal(store.task(task.key).retry_at,retry.retry_at);assert.equal(store.task(task.key).done,1);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).sourceFormat,'pdf');
 });
 
 test('preparation refuses a live writer before changing PDF schema or task state',t=>{
@@ -220,7 +220,7 @@ test('PDF memory, disk and pending caches keep exact document identity',async t=
  second.is_realized_by[0].is_embodied_by[1].is_exemplified_by=shared;
  const reference='E-'+first.identifier.split('-').at(-1)+'/2026',buffer=pdf();let downloads=0;
  const options={directory,clock:now,download:async()=>{throw invalidDocx(Error('Invalid DOCX'));},downloadPdf:file=>downloadQuestionPdf(file,{download:async()=>{downloads++;return {body:buffer};},extract:async()=>({paragraphs:[reference,'The verified answer']})})};
- const good=await documentText(first,'en',options);assert.equal(good.status,'available');
+ const good=await documentText(first,'en',{...options,collector:true});assert.equal(good.status,'available');
  const wrong=await documentText(second,'en',options);assert.equal(wrong.status,'error');assert.deepEqual(wrong.paragraphs,[]);assert.equal(downloads,2);
  const name=id=>createHash('sha256').update(JSON.stringify(['pdf',id,'en',questionPdf(first,'en').url])).digest('hex')+'.json';
  const folder=path.join(directory,'document-text-v1'),record=JSON.parse(readFileSync(path.join(folder,name(first.identifier)),'utf8'));
@@ -269,20 +269,15 @@ test('actual discovery invalidates a saved PDF phase when the failed DOCX editio
 });
 
 
-test('a shared PDF URL keeps the selected language edition and refreshes only that edition',async t=>{
- const directory=fixture(t),item=work(),file=item.is_realized_by[0].is_embodied_by.find(file=>file.format==='PDF'),url=file.is_exemplified_by;
- item.is_realized_by=[{language:'ENG',is_embodied_by:[{...file,id:'english-pdf',byteSize:100,issued:'2026-01-01T00:00:00Z'}]},
-  {language:'DEU',is_embodied_by:[{...file,id:'german-pdf',byteSize:36594,issued:'2026-04-23T11:22:43+02:00',is_exemplified_by:url}]}];
- let downloads=0,release,started;const gate=new Promise(resolve=>release=resolve),refreshStarted=new Promise(resolve=>started=resolve);
- const options={directory,clock:now,downloadPdf:async selected=>{downloads++;assert.equal(selected.language,'de');if(downloads===2){started();await gate;}return {paragraphs:['Selected German PDF'],observedByteSize:33245,byteSizeMatches:false};}};
- const first=await documentText(item,'de',options);assert.equal(first.sourceVersion.byteSize,36594);assert.equal(first.sourceVersion.issued,'2026-04-23T11:22:43+02:00');assert.equal(first.textLanguage,'de');
- const german=item.is_realized_by[1].is_embodied_by[0];german.byteSize=36595;german.issued='2026-05-01T00:00:00Z';
- const changed=await documentText(item,'de',options);assert.equal(changed.stale,true);assert.equal(changed.refreshInProgress,true);assert.equal(changed.sourceVersion.byteSize,36594);await refreshStarted;assert.equal(downloads,2);release();
- let current=changed;const deadline=performance.now()+5000;
- while(current.refreshInProgress&&performance.now()<deadline){await new Promise(resolve=>setTimeout(resolve,10));current=await documentText(item,'de',options);}
- assert.equal(current.refreshInProgress,false);assert.equal(current.stale,false);assert.equal(current.sourceVersion.byteSize,36595);assert.equal(current.sourceVersion.issued,'2026-05-01T00:00:00Z');
- const english=item.is_realized_by[0].is_embodied_by[0];english.byteSize=101;english.issued='2026-06-01T00:00:00Z';
- const unchanged=await documentText(item,'de',options);assert.equal(unchanged.stale,false);assert.equal(unchanged.refreshInProgress,false);assert.equal(unchanged.sourceVersion.byteSize,36595);assert.equal(downloads,2);
+test('a shared PDF URL refreshes only the selected language through the collector',async t=>{
+ const directory=fixture(t),item=work();let downloads=0;
+ const options={directory,clock:now,downloadPdf:async()=>{downloads++;return {paragraphs:['Selected PDF']};}};
+ item.is_realized_by[0].is_embodied_by=item.is_realized_by[0].is_embodied_by.filter(file=>file.format==='PDF');
+ await documentText(item,'en',{...options,collector:true});
+ item.is_realized_by[0].is_embodied_by[0].byteSize++;
+ const stale=await documentText(item,'en',options);assert.equal(stale.stale,true);assert.equal(downloads,1);
+ await documentText(item,'en',{...options,collector:true});assert.equal(downloads,2);
+ assert.equal((await documentText(item,'en',options)).stale,false);
 });
 
 test('earlier PDF extraction caches are not reused',async t=>{
@@ -294,4 +289,77 @@ test('earlier PDF extraction caches are not reused',async t=>{
  let downloads=0;const result=await documentText(item,'en',{directory,clock:now,cacheOnly:true,downloadPdf:async()=>{downloads++;return {paragraphs:['Unexpected download']};}});
  assert.equal(result.status,'unavailable');assert.deepEqual(result.paragraphs,[]);assert.equal(downloads,0);
  }
+});
+
+test('PDF-only question and answer languages own standalone tasks and retain byte provenance',async t=>{
+ const directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock:now});index.acquire();
+ const store=new CorpusStore(path.join(directory,'corpus'),{clock:now,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+ const item=work(),answer=work();answer.identifier+='-ASW';answer.work_type='def/ep-document-types/QUESTION_WRITTEN_ANSWER';
+ item.is_realized_by[0].is_embodied_by.shift();item.is_realized_by[0].is_embodied_by[0].byteSize=pdf().length;answer.is_realized_by[0].language='HUN';answer.is_realized_by[0].is_embodied_by.shift();answer.is_realized_by[0].is_embodied_by[0].byteSize=pdf().length;item.inverse_answers_to=[answer];
+ index.putSource(1,'/parliamentary-questions/'+item.identifier,'document',item,new Date(now()).toISOString());
+ let words=0,pdfs=0;const worker=new CorpusWorker(store,{clock:now,download:async()=>{words++;throw Error('Unexpected DOCX');},runUpstream:(fn,options)=>{assert.equal(options.source,'documents');assert.equal(options.priority,'background');return fn(worker.controller.signal);},downloadPdf:file=>{pdfs++;return downloadQuestionPdf(file,{download:async()=>({body:pdf(),resolvedSourceUrl:file.url})});}});
+ await discoverQuestionFiles(worker,1);
+ const tasks=store.db.prepare('SELECT key FROM tasks').all().map(row=>store.task(row.key));assert.equal(tasks.length,2);
+ assert.deepEqual(tasks.map(task=>task.body.language).sort(),['en','hu']);
+ for(const task of tasks){assert.equal(task.kind,'pdf');assert.match(task.key,/^pdf:/);await worker.task(task);assert.equal(store.task(task.key).done,1);}
+ assert.equal(words,0);assert.equal(pdfs,2);
+ const saved=store.text({sourceId:answer.identifier,sourceKey:'hu'});assert.equal(saved.sourceFormat,'pdf');assert.match(saved.body,/official answer/);
+ const edition=JSON.parse(store.db.prepare('SELECT source_edition FROM texts WHERE source_url=?').get(tasks.find(task=>task.body.kind==='answer').body.url).source_edition);
+ assert.equal(edition.byteSize,pdf().length);assert.equal(edition.byteSizeMatches,true);assert.equal(edition.issued,'2026-05-02T12:00:00Z');assert.equal(edition.sha256,createHash('sha256').update(pdf()).digest('hex'));assert.equal(edition.observedByteSize,pdf().length);
+ await discoverQuestionFiles(worker,1);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE done=0').get().n,0);
+});
+
+test('PDF parser rejections carry byte identity while transport failures keep their retry class',async t=>{
+ const buffer=pdf();let rejection;
+ await assert.rejects(downloadQuestionPdf({url:'fixture'},{download:async()=>({body:buffer}),extract:async()=>{throw Error('Unreadable PDF');}}),error=>{rejection=error;return error.code==='source_parser_rejection'&&error.sourceHash===createHash('sha256').update(buffer).digest('hex');});
+ const {store}=corpusFixture(t),file=questionFiles(work())[0];file.format='pdf';file.url=file.pdf.url;file.edition={byteSize:200};store.enqueue('pdf:'+file.url,'pdf',file,50);const task=store.task('pdf:'+file.url);
+ for(const error of [Object.assign(Error('Missing'),{status:404}),Object.assign(Error('Limited'),{status:429,retryAfter:7200}),rejection]) {
+  store.failTask(task,error);const saved=store.task(task.key);assert.equal(saved.done,0);assert.ok(saved.retry_at>now());
+  if(error.status===404)assert.equal(saved.retry_at,now()+3600000);
+  if(error.status===429)assert.equal(saved.retry_at,now()+7200000);
+  if(error===rejection)assert.equal(saved.body.rejectedSource.hash,error.sourceHash);
+ }
+});
+
+test('standalone PDF parser failures settle only after repeated identical bytes across a day',t=>{
+ const {store}=corpusFixture(t),item=work();item.is_realized_by[0].is_embodied_by.shift();
+ const file=questionFiles(item)[0],key='pdf:'+file.url;store.enqueue(key,'pdf',file,50);
+ let instant=now();store.clock=()=>instant;
+ const error=Object.assign(Error('Unreadable PDF'),{code:'source_parser_rejection',sourceHash:'b'.repeat(64)});
+ for(const offset of [0,3600000,86400000]) {instant=now()+offset;assert(store.acquire());store.failTask(store.task(key),error);}
+ assert.equal(store.task(key).done,1);assert.equal(store.db.prepare('SELECT state FROM source_failures WHERE key=?').get(key).state,'permanent-source-issue');
+ file.edition.byteSize++;store.reopen(key,file,50);assert.equal(store.task(key).done,0);
+});
+
+test('a later DOCX declaration retires the pending standalone PDF owner',async t=>{
+  const directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock:now});index.acquire();
+  const store=new CorpusStore(path.join(directory,'corpus'),{clock:now,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+  const full=work(),pdfOnly=structuredClone(full);pdfOnly.is_realized_by[0].is_embodied_by.shift();
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',pdfOnly,new Date(now()).toISOString());
+  const worker=new CorpusWorker(store,{clock:now});
+  await discoverQuestionFiles(worker,1);
+  const pending=()=>store.db.prepare('SELECT key FROM tasks WHERE done=0 ORDER BY key').all().map(row=>row.key);
+  assert.deepEqual(pending().map(key=>key.split(':')[0]),['pdf']);
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',full,new Date(now()+1000).toISOString());
+  await discoverQuestionFiles(worker,1);
+  assert.deepEqual(pending().map(key=>key.split(':')[0]),['docx'],'the DOCX is the only active owner');
+});
+
+test('a retired PDF owner cannot be reopened by its retained failure record',async t=>{
+  const directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock:now});index.acquire();
+  let instant=now();const clock=()=>instant;
+  const store=new CorpusStore(path.join(directory,'corpus'),{clock,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+  const full=work(),pdfOnly=structuredClone(full);pdfOnly.is_realized_by[0].is_embodied_by.shift();
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',pdfOnly,new Date(now()).toISOString());
+  const worker=new CorpusWorker(store,{clock});
+  await discoverQuestionFiles(worker,1);
+  const pdfKey=store.db.prepare("SELECT key FROM tasks WHERE key GLOB 'pdf:*'").get().key;
+  const error=Object.assign(Error('Unreadable PDF'),{code:'source_parser_rejection',sourceHash:'c'.repeat(64)});
+  for(const offset of [0,3600000,86400000]){instant=now()+offset;assert(store.acquire());store.failTask(store.task(pdfKey),error);}
+  assert.equal(store.task(pdfKey).done,1);assert(store.db.prepare('SELECT 1 FROM source_failures WHERE key=?').get(pdfKey));
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',full,new Date(instant+1000).toISOString());
+  await discoverQuestionFiles(worker,1);
+  assert.equal(store.db.prepare('SELECT 1 FROM source_failures WHERE key=?').get(pdfKey),undefined);
+  instant+=40*86400000;assert(store.acquire());store.recheckSourceFailures();
+  assert.equal(store.task(pdfKey).done,1,'a later recheck leaves the superseded PDF settled');
 });

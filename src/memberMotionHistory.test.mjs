@@ -145,12 +145,14 @@ for(const exit of ['Back to members','MEPs'])test('opening another MEP through '
 
 for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': actual motion body scroll survives cold pending restore, a second departure, and Refresh list',async t=>{
  let delayed=false,releaseBody;
+ const delayedBodies=new Set();
  const h=await harness(t,query({}),{context:url=>{
   const payload=contextResponse(url);payload.document=contextDocument(payload.documentId,payload.requestedLanguage,207);
-  if(delayed&&url.searchParams.get('adopted')!=='1')return new Promise(resolve=>{releaseBody=()=>resolve(payload);});
+  if(delayed&&url.searchParams.get('adopted')!=='1')return new Promise(resolve=>{releaseBody=()=>resolve(payload);delayedBodies.add(releaseBody);});
   return payload;
  }});
- t.after(()=>releaseBody?.());
+ // Release every delayed body so request deadlines do not keep the file alive.
+ t.after(()=>{for(const release of delayedBodies)release();});
  await h.click(button(h.container,'Read motion'));
  const contextUrl=location.href,outer=()=>h.container.querySelector(scroller),prototype=h.window.HTMLElement.prototype;
  assert.equal(h.container.querySelectorAll('.document-context-reader [data-source-paragraph]').length,207);
