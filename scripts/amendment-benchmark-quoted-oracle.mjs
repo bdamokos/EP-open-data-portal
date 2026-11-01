@@ -83,7 +83,7 @@ const field=(rows,name)=>{
   const matches=rows.flatMap(row=>[...row.text.matchAll(new RegExp('<'+name+'>([\\s\\S]*?)</'+name+'>','gu'))].map(m=>m[1]));
   return matches.length===1?matches[0]:null;
 };
-function comparison(body,number) {
+export function quotedWordComparison(body,number) {
   const starts=body.flatMap((row,index)=>row.kind==='paragraph'&&row.text.includes('<Amend>')&&new RegExp('<NumAm>'+number+'</NumAm>','u').test(row.text)?[index]:[]);
   if(starts.length!==1)return null;
   const start=starts[0],relativeEnd=body.slice(start+1).findIndex(row=>row.kind==='paragraph'&&row.text.includes('</Amend>'));
@@ -107,7 +107,7 @@ export function rawQuotedProposalAssertion({proposal,wording,placement,nativeQuo
   if(!Array.isArray(proposal?.paragraphs)||wording?.language!=='en'||wording.baseline!=='commission-proposal'||placement?.status!=='placed'||placement.operation!=='insert'||!nativeQuoted)return unknown('oracle-quoted-input-unavailable');
   if(!Number.isSafeInteger(nativeQuoted.number)||nativeQuoted.number<1)return unknown('oracle-quoted-input-unavailable');
   let source,amendment;
-  try{amendment=comparison(quotedWordBody(nativeQuoted.amendmentBuffer),nativeQuoted.number);}catch{return unknown('oracle-quoted-native-unavailable');}
+  try{amendment=quotedWordComparison(quotedWordBody(nativeQuoted.amendmentBuffer),nativeQuoted.number);}catch{return unknown('oracle-quoted-native-unavailable');}
   if(!amendment||amendment.language!=='{EN}en'||amendment.outer+'\n'+amendment.act+' — '+amendment.inner!==wording.targetLabel||amendment.original!==wording.originalText||amendment.proposed!==wording.proposedText)return unknown('oracle-quoted-comparison-unavailable');
   // Literal English fields only. The one optional space is a published nested
   // suffix spelling, never a global whitespace/suffix normalization.
