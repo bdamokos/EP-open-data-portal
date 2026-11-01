@@ -105,7 +105,7 @@ export class MemberAttendance {
       requestSignal()?.throwIfAborted();const evidence=sourceEvidence(record,this.limits.sourceBytes),metadata=attendanceRegister(record.payload,sittingId,'en');
       if(metadata){
         Object.assign(register,metadata,{source:evidence});
-        const codes=new Set(list(record.payload.data).flatMap(node=>list(node.is_realized_by).map(expression=>relative(expression.id).split('/').at(-1))).filter(code=>/^[a-z]{2}$/.test(code)));
+        const codes=new Set(list(record.payload.data).flatMap(node=>list(node?.is_realized_by).map(expression=>relative(expression?.id).split('/').at(-1))).filter(code=>/^[a-z]{2}$/.test(code)));
         for(const code of codes)registers[code]={...attendanceRegister(record.payload,sittingId,code),source:evidence};
       }
     }catch(error){if(requestSignal()?.aborted)throw error;/* Optional metadata cannot revoke the meeting observation. */}

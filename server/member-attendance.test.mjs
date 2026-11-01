@@ -100,3 +100,11 @@ test('up to five sitting reads are sequential and each reader owns only its wait
   assert.equal((await second).sittings[0].memberStatus,'listed-present');assert.equal(started,1,'cancelling the first reader must not start its later sittings');
   await service.query('42',query(ids));assert.equal(maximum,1);assert.equal(started,6);
 });
+
+
+test('malformed unrelated register expressions do not change requested-language selection',async()=>{
+  const node=metadata();node.is_realized_by.unshift(null);
+  const service=new MemberAttendance({request:async endpoint=>record(endpoint.startsWith('/meetings/')?meeting():node,endpoint)});
+  const result=await service.query('42',query([SITTING],'fr'));
+  assert.equal(result.sittings[0].register.pdf.language,'fr');
+});
