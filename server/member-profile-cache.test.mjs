@@ -21,3 +21,30 @@ test('member profiles are parsed once per generation and refreshed by profile wr
   store.putSource(1,'amendment:member:102','amendment-member',profile('102'),fetched);
   assert.deepEqual(store.memberProfiles(1).map(source=>source.work.id).sort(),['101','102'],'a profile write invalidates the parse');
 });
+
+test('another writer between leases and generation lifecycle writes invalidate cached profiles',async t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'member-profiles-'));
+  const a=new ActivityStore(dir,{initializeIndexes:true}),b=new ActivityStore(dir,{initializeIndexes:true});
+  t.after(()=>{a.close();b.close();rmSync(dir,{recursive:true,force:true});});
+  const fetched='2026-10-20T09:00:00.000Z',key='amendment:member:101';
+  assert(a.acquire());
+  a.putSource(1,key,'amendment-member',{id:'101',familyName:'Old'},fetched);
+  assert.equal(a.memberProfiles(1)[0].work.familyName,'Old');
+  a.release();
+  assert(b.acquire());b.putSource(1,key,'amendment-member',{id:'101',familyName:'New'},fetched);b.release();
+  assert(a.acquire());
+  assert.equal(a.memberProfiles(1)[0].work.familyName,'New','a reacquired lease cannot reuse a parse from before another writer');
+  assert.equal(a.memberProfiles(1).length,1);
+  a.pruneGenerations(2);
+  assert.deepEqual(a.memberProfiles(1),a.sources(1,'amendment-member'),'pruning invalidates cached generations');
+  const {activityGenerationTask}=await import('./activity-generation-task.mjs');
+  const {EventEmitter}=await import('node:events');
+  a.putSource(3,key,'amendment-member',{id:'101',familyName:'Before'},fetched);
+  assert.equal(a.memberProfiles(3)[0].work.familyName,'Before');
+  const createWorker=()=>{const thread=new EventEmitter();thread.terminate=async()=>0;queueMicrotask(()=>{
+    // A separate connection changes the generation, as the off-thread helper does.
+    b.owner=a.owner;b.db.prepare('UPDATE sources SET body=? WHERE generation=3 AND key=?').run(JSON.stringify({id:'101',familyName:'After'}),key);
+    thread.emit('message',{type:'complete',value:null});thread.emit('exit',0);});return thread;};
+  await activityGenerationTask(a,'publish',{generation:3,createWorker});
+  assert.equal(a.memberProfiles(3)[0].work.familyName,'After','off-thread generation work invalidates the parent cache');
+});

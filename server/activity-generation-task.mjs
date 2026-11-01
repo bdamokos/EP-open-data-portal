@@ -37,5 +37,5 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     // an expired or replaced owner must reacquire on a later ordinary tick.
     if(!store.renew())throw new Error('Activity-index writer lease was lost.');
     return value;
-  } finally {store.generationTaskActive=false;elapsed({operation});}
+  } finally {store.generationTaskActive=false;store.invalidateMemberProfiles?.();elapsed({operation});}
 }
