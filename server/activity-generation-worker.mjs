@@ -1,3 +1,4 @@
+import {finishStoryProjection} from './story-facts-aggregate.mjs';
 import {buildStoryFacts} from './story-facts-project.mjs';
 import {finishTopicProjection} from './topics-store.mjs';
 import {questionCountryMetadata} from './question-place-askers.mjs';
@@ -16,7 +17,7 @@ try {
   // No acquisition or collector starts here. The caller remains the sole
   // logical owner; begin/publish check it after obtaining BEGIN IMMEDIATE.
   store.owner=owner;
-  let value;if(operation==='begin')value=store.beginCycle();else if(operation==='publish')value=store.finalize(generation);else if(operation==='stories'){store.set('recordTopicProjection',null);await buildStoryFacts(store,generation);finishTopicProjection(store,generation,[],{questionCountries:await questionCountryMetadata(store,generation,process.env.ODP_CACHE_DIR)});value=store.get('storyProjection');}else {value=await buildTopics(store,{generation});store.set('topicProjectionDirty',false);}
+  let value;if(operation==='begin')value=store.beginCycle();else if(operation==='publish')value=store.finalize(generation);else if(operation==='stories'){store.set('recordTopicProjection',null);await buildStoryFacts(store,generation);finishTopicProjection(store,generation,[],{questionCountries:await questionCountryMetadata(store,generation,process.env.ODP_CACHE_DIR)});await finishStoryProjection(store,generation);value=store.get('storyProjection');}else {value=await buildTopics(store,{generation});store.set('topicProjectionDirty',false);}
   message={type:'complete',value};
 } catch(error){message={type:'failed',error:error.message};}
 finally {

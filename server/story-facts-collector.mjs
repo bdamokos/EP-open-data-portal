@@ -6,7 +6,10 @@ export function storyCollectionDue(store,now){
  if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='story_jobs'").get())return false;
  return Boolean(store.db.prepare("SELECT 1 FROM story_jobs WHERE state='pending' AND next_read<=? LIMIT 1").get(now));
 }
-function* expanded(work,depth=0){if(depth>8)throw Error('Agenda nesting exceeds the source bound.');yield work;for(const child of array(work.consists_of))if(child&&typeof child==='object')yield* expanded(child,depth+1);}
+function* expanded(work){
+ const stack=[[work][Symbol.iterator]()],seen=new WeakSet();
+ while(stack.length){const next=stack.at(-1).next();if(next.done){stack.pop();continue;}const value=next.value;if(!value||typeof value!=='object'||seen.has(value))continue;seen.add(value);yield value;stack.push(array(value.consists_of)[Symbol.iterator]());}
+}
 export async function collectStorySource(worker){
  const store=worker.store;store.assertWriter();storyTables(store.db);
  if(worker.controller.signal.aborted||worker.requests>=worker.budget)return false;
@@ -25,16 +28,16 @@ export async function collectStorySource(worker){
   const signature=createHash('sha256').update(JSON.stringify([...new Set(ids)].sort())).digest('hex');
   store.db.exec('CREATE TABLE IF NOT EXISTS story_seen_pages(job TEXT,signature TEXT,PRIMARY KEY(job,signature))');
   if(store.db.prepare('SELECT 1 FROM story_seen_pages WHERE job=? AND signature=?').get(row.key,signature)){update('partial','repeated-page',row.offset,signature);store.set('storyProjectionDirty',true);return true;}
-  const source={url:record.url,fetchedAt:record.fetchedAt};let batch=[],n=0;
+  const source={url:record.url,fetchedAt:record.fetchedAt};let batch=[];
   const save=()=>store.transaction(()=>{store.assertWriter();for(const w of batch)stageStoryInput(store,w,source,{rank:4});});
   for(const work of works)for(const w of row.kind==='agenda'?expanded(work):[work]){
-   if(++n>10000)throw Error('Story source exceeds the item bound.');batch.push(w);if(batch.length===25){save();batch=[];store.renew();await new Promise(setImmediate);}
+   batch.push(w);if(batch.length===25){save();batch=[];store.renew();await new Promise(setImmediate);}
   }
   if(batch.length)save();
   store.transaction(()=>{store.assertWriter();store.db.prepare('INSERT OR IGNORE INTO story_seen_pages VALUES (?,?)').run(row.key,signature);
    // The decisions endpoint ignores pagination. One full response completes it.
-   const more=row.kind==='agenda'&&works.length===STORY_PAGE_SIZE&&row.offset<STORY_PAGE_SIZE*31;
-   update(more?'pending':row.kind==='agenda'&&works.length===STORY_PAGE_SIZE?'partial':'available',more?null:row.kind==='agenda'&&works.length===STORY_PAGE_SIZE?'page-bound':null,row.offset+(row.kind==='agenda'?works.length:0),signature);
+   const more=row.kind==='agenda'&&works.length===STORY_PAGE_SIZE;
+   update(more?'pending':'available',null,row.offset+(row.kind==='agenda'?works.length:0),signature);
    store.set(row.kind==='decisions'?'storyProjectionDirty':'topicProjectionDirty',true);
   });
  }catch(error){if(worker.controller.signal.aborted)throw error;store.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(row.attempts,6));store.db.prepare('UPDATE story_jobs SET attempts=attempts+1,next_read=?,error=? WHERE key=?').run(Math.max(worker.clock()+delay,Number(error.retryAt)||0,worker.clock()+(Number(error.retryAfter)||0)*1000),String(error.message).slice(0,200),row.key);}

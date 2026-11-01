@@ -1,3 +1,4 @@
+import {finishStoryProjection} from './story-facts-aggregate.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
@@ -9,13 +10,13 @@ import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
 import {storyTables,stageStoryInput,queueStoryRead} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,STORY_FACTS_VERSION} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
 const geo=id=>[...eurovocCountries].find(([,country])=>country===id)[0];
 const candidate=(id,label,extra={})=>({id,labels:{en:label},headings:{},references:{},outcome:'ADOPTED',decisionMethod:'VOTE_ROLLCALL',date:'2025-03-12',for:100,against:20,abstentions:0,on:[],...extra});
-async function fixture(t){const dir=await mkdtemp(path.join(tmpdir(),'story-facts-')),store=new ActivityStore(dir,{initializeIndexes:true});store.acquire();store.set('active',1);storyTables(store.db);t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});return {dir,store};}
+async function fixture(t,options={}){const dir=await mkdtemp(path.join(tmpdir(),'story-facts-')),store=new ActivityStore(dir,{initializeIndexes:true,...options});store.acquire();store.set('active',1);storyTables(store.db);t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});return {dir,store};}
 
 test('whole-text decisions require exact references and a unique highest-priority match',()=>{
  const doc={id:'RC-10-2025-0010',reference:'RC-B10-0010/2025'};
@@ -87,8 +88,8 @@ test('story questions preserve per-place home flags and elsewhere selections',as
  const {store}=await fixture(t);store.setMembers([{id:'1',name:'Greek member',countryCode:'GR'}]);
  for(const [id,title] of [['P-10-2025-000001','Greece and Cyprus'],['P-10-2025-000002','Greece']])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/'+id,id,'1','written-questions','2025-03-12',JSON.stringify({titles:{en:title}}));
  await buildTopics(store);
- const all=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1'));assert.equal(all.questions.length,2);assert.deepEqual(all.questionsByPlace.GRC['2025-Q1'].map(q=>q.askers),['home','home']);
- const elsewhere=storyFacts(store,new URLSearchParams('scope=place&key=CYP&period=2025-Q1&askers=elsewhere'));assert.equal(elsewhere.questions.length,1);assert.equal(elsewhere.questions[0].askers.CYP,'elsewhere');assert.equal(elsewhere.questionsByPlace.CYP['2025-Q1'][0].home,false);
+ const all=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1&list=questions'));assert.equal(all.questions.length,2);assert.equal(all.counts.questions,2);assert.equal(all.counts.questionHome,2);assert(all.questions.every(q=>q.askers.GRC==='home'));
+ const elsewhere=storyFacts(store,new URLSearchParams('scope=place&key=CYP&period=2025-Q1&askers=elsewhere&list=questions'));assert.equal(elsewhere.questions.length,1);assert.equal(elsewhere.questions[0].askers.CYP,'elsewhere');assert.equal(elsewhere.counts.questionElsewhere,1);assert.deepEqual(elsewhere.questions[0].home,[]);
  assert.equal(storyFacts(store,new URLSearchParams('scope=place&key=GRC&askers=elsewhere')).questions.length,0);
 });
 
@@ -100,18 +101,24 @@ test('procedural exclusions use only agenda types and format labels',()=>{
  assert.equal(proceduralAgenda(null),false);
 });
 
-test('each story quarter returns the top fifty debates plus every urgency with explicit totals',async t=>{
+test('exact counters, all tied winners, complete urgencies and cursor pages replace the debate cap',async t=>{
  const {store}=await fixture(t);await buildTopics(store);
  const insert=store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)'),place=store.db.prepare('INSERT INTO story_places VALUES (?,?,?,?,?,?)');
  for(let n=0;n<62;n++){
   const date=n<60?'2025-03-12':'2025-04-02',id='MTG-PL-'+date+'-PVCRE-ITM-'+n;
-  const body={id,date,titles:{en:'Debate '+n},meps:n===59?1:100-n,speeches:100,format:n===59?'urgency':null,procedures:[],docs:[],places:[{id:'UKR',basis:'title',bases:['title']}]};
+  const body={id,date,titles:{en:'Debate '+n},meps:n===59?1:n===1?100:100-n,speeches:100,format:n===59?'urgency':null,procedures:[],docs:[],places:[{id:'UKR',basis:'title',bases:['title']}]};
   insert.run(1,'debate',id,date,JSON.stringify(body));place.run(1,'UKR','debate',id,date,'title');
  }
+ await finishStoryProjection(store,1);
  const response=storyFacts(store,new URLSearchParams('scope=place&key=UKR'));
- assert.equal(response.debatesTotal,62);assert.equal(response.debatesTruncated,true);assert.equal(response.debates.length,53);assert(response.debates.some(d=>d.meps===1&&d.format==='urgency'));
- const q1=response.blocks.find(b=>b.period==='2025-Q1');assert.equal(q1.debatesTotal,60);assert.equal(q1.debatesTruncated,true);assert.equal(q1.debates.length,51);assert.equal(response.series.UKR['2025-Q1'].debates,60);
- const q2=storyFacts(store,new URLSearchParams('scope=place&key=UKR&period=2025-Q2'));assert.equal(q2.debates.length,2);assert.equal(q2.debatesTruncated,false);
+ assert.equal(response.counts.debates,62);assert.equal(response.counts.debates3Plus,61);assert.equal(response.counts.urgencyDebates,1);assert.equal(response.debatesTruncated,undefined);
+ assert.equal(response.winners.busiestDebates.length,2);assert(response.winners.busiestDebates.every(d=>d.meps===100));assert.equal(response.sets.urgencyDebates['2025-Q1'].length,1);assert(response.debates.length<response.counts.debates);
+ assert.equal(response.periodCounts.find(p=>p.period==='2025-Q1').debates,60);assert.equal(response.series.UKR['2025-Q1'].debates,60);
+ let cursor=null,seen=[];do{const params=new URLSearchParams('scope=place&key=UKR&list=debates');if(cursor)params.set('cursor',cursor);const r=storyFacts(store,params);assert.equal(r.page.total,62);seen.push(...r.page.items.map(x=>x.id));cursor=r.page.nextCursor;}while(cursor);
+ assert.equal(new Set(seen).size,62);assert.equal(seen.length,62);
+ const first=storyFacts(store,new URLSearchParams('scope=place&key=UKR&list=debates'));assert(first.page.nextCursor);assert.throws(()=>storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',list:'debates',cursor:first.page.nextCursor})),/Reload this list/);
+ const q2=storyFacts(store,new URLSearchParams('scope=place&key=UKR&period=2025-Q2'));assert.equal(q2.counts.debates,2);
+
 });
 
 test('full projection pruning retains only the serving and previous story generations',async t=>{
@@ -131,8 +138,8 @@ test('full projection pruning retains only the serving and previous story genera
 test('topic stories retain placed oral questions from their exact policy memberships',async t=>{
  const {store}=await fixture(t);store.setMembers([{id:'1',countryCode:'GR'}]);
  const record={id:'O-10-2025-000001',kind:'question',date:'2025-03-12',titles:{en:'Cyprus'},members:['1'],status:'classified',assignments:[{key:'place:CYP',role:'place',paths:[{basis:'title',steps:[],sources:[]}]},{key:'oeil:8.20',role:'topic',paths:[{basis:'debate',steps:[],sources:[]}]}]};
- writeTopicProjection(store,{records:[record],concepts:[{key:'place:CYP',role:'place',labels:{en:'Cyprus'}},{key:'oeil:8.20',role:'topic',labels:{en:'Enlargement'}}]});store.set('storyProjection',{generation:1,version:STORY_FACTS_VERSION});
- const selected=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&askers=elsewhere'));assert.equal(selected.questions[0].id,record.id);assert.equal(selected.questions[0].askers.CYP,'elsewhere');
+ writeTopicProjection(store,{records:[record],concepts:[{key:'place:CYP',role:'place',labels:{en:'Cyprus'}},{key:'oeil:8.20',role:'topic',labels:{en:'Enlargement'}}]});await finishStoryProjection(store,1);
+ const selected=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&askers=elsewhere&list=questions'));assert.equal(selected.questions[0].id,record.id);assert.equal(selected.questions[0].askers.CYP,'elsewhere');
  assert.equal(storyFacts(store,new URLSearchParams('scope=topic&key=oeil:4.40')).questions.length,0);
 });
 
@@ -146,4 +153,60 @@ test('retained unavailable procedure reads propagate through exact document, deb
  store.putSource(1,'/speeches/'+speech,'speech',{outside:{id:speech,date:day,titles:{en:'Debate'},parentIds:[debate],participants:['1'],source}},stamp);
  await buildTopics(store);const reader=new RecordTopics(store);
  assert.equal(reader.record(doc,'en').status,'unavailable');assert.equal(reader.record(debate,'en').status,'unavailable');assert.equal(reader.record(speech,'en').status,'unavailable');
+});
+
+test('map ties, question mentions, complete adopted sets and cross-quarter outcomes use all records',async t=>{
+ const {store}=await fixture(t);await buildTopics(store);const put=store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)');
+ for(let n=0;n<4;n++){
+  const id='MTG-PL-2025-03-12-PVCRE-ITM-'+n,place=n<2?'GRC':'CYP',d={id,date:'2025-03-12',titles:{en:'Debate '+n},meps:n%2?1:50,speeches:50,format:n%2?'urgency':null,agendaClassified:true,procedures:[],docs:n===0?['B-10-2025-0001','B-10-2025-0002']:[],places:[{id:place,basis:'title',bases:['title']}]};put.run(1,'debate',id,d.date,JSON.stringify(d));
+  for(const doc of d.docs)store.db.prepare('INSERT INTO story_links VALUES (?,?,?,?)').run(1,'debate-document',id,doc);
+ }
+ for(let n=1;n<=4;n++){
+  const id='B-10-2025-000'+n,o=n===4?null:{decisionId:'decision-'+n,date:'2025-04-02',outcome:'ADOPTED',for:n===3?null:100,against:n===3?null:98,abstentions:n===3?null:0,decisionMethod:n===3?'VOTE_HAND':'VOTE_ROLLCALL',labels:{en:'Whole text'},references:{en:'Motion for a resolution (as a whole)'}};
+  const d={id,reference:'B10-000'+n+'/2025',type:'RESOLUTION_MOTION',date:'2025-03-12',titles:{en:'Motion '+n},rule:[],groups:[],groupsAvailable:true,places:['GRC'],keywords:[],procedures:[],derivedFrom:[],outcome:o,outcomeStatus:o?'known':'unknown'};put.run(1,'document',id,d.date,JSON.stringify(d));
+ }
+ const q='E-10-2025-000001';store.db.prepare('INSERT INTO record_topic_records VALUES (?,?,?,?,?,?,?)').run(1,q,'question','2025-03-12',q,'record',JSON.stringify({titles:{en:'Greece and Cyprus'},members:['1']}));
+ for(const [place,askers] of [['GRC','home'],['CYP','elsewhere']])store.db.prepare('INSERT INTO record_topic_question_places VALUES (?,?,?,?,?,?)').run(1,'place:'+place,q,askers,'2025-03-12',q);
+ await finishStoryProjection(store,1);
+ const map=storyFacts(store,new URLSearchParams('scope=map&period=2025-Q1'));assert.equal(map.counts.questions,1);assert.equal(map.counts.questionMentions,2);assert.equal(map.counts.questionHome,1);assert.equal(map.counts.questionElsewhere,1);assert.equal(map.counts.debates,4);assert.equal(map.counts.debates3Plus,2);assert.equal(map.winners.busiestDebates.length,2);assert.equal(map.winners.mostQuestionedPlaces.length,2);assert.equal(map.winners.mostDebatedPlaces.length,2);assert.equal(map.counts.placesWithQuestions,2);
+ const elsewhere=storyFacts(store,new URLSearchParams('scope=map&period=2025-Q1&askers=elsewhere'));assert.equal(elsewhere.counts.questions,1);assert.equal(elsewhere.counts.questionMentions,1);assert.equal(elsewhere.winners.mostQuestionedPlaces[0].id,'CYP');
+ const publication=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1'));assert.equal(publication.counts.documents,4);assert.equal(publication.counts.documentsWithUnknownOutcome,1);assert.equal(publication.counts.adoptedTexts,0);
+ const adoption=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q2'));assert.equal(adoption.counts.adoptedTexts,3);assert.equal(adoption.counts.adoptedTextsWithTallies,2);assert.equal(adoption.sets.adoptedTexts['2025-Q2'].length,3);assert.equal(adoption.winners.closestAdoptedTexts.length,2);assert(adoption.winners.closestAdoptedTexts.every(x=>x.margin===2));assert.equal(adoption.winners.headlineAdoptedTexts.length,2);assert.equal(adoption.docs.find(d=>d.id.endsWith('0003')).outcome.for,null);
+});
+
+test('question totals remain exact beyond the former 20000-row evidence limit',async t=>{
+ const {store}=await fixture(t);store.setMembers([{id:'1',countryCode:'GR'}]);await buildTopics(store);
+ store.db.prepare('INSERT INTO record_topic_concepts VALUES (?,?,?,?)').run(1,'place:GRC','place',JSON.stringify({key:'place:GRC',role:'place',labels:{en:'Greece'}}));
+ store.transaction(()=>{store.db.exec(`WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<20005) INSERT INTO record_topic_records SELECT 1,'E-10-2025-'||printf('%06d',x),'question','2025-03-12','E-10-2025-'||printf('%06d',x),'record',json_object('titles',json_object('en','Greece'),'members',json_array('1'),'assignments',json_array()) FROM n`);store.db.exec("INSERT INTO record_topic_memberships SELECT generation,'place:GRC',id,kind,date,group_key FROM record_topic_records WHERE generation=1 AND kind='question'");});
+ const {finishTopicProjection}=await import('./topics-store.mjs');finishTopicProjection(store,1,[]);await finishStoryProjection(store,1);
+ const prepare=store.db.prepare.bind(store.db);let captured;
+ store.db.prepare=sql=>{const stmt=prepare(sql);if(sql.startsWith('SELECT id,kind,date FROM story_scope_records')){const all=stmt.all.bind(stmt);stmt.all=(...args)=>{captured={sql,args};return all(...args);};}return stmt;};
+ const response=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1&list=questions'));
+ store.db.prepare=prepare;assert(captured);const plan=store.db.prepare('EXPLAIN QUERY PLAN '+captured.sql).all(...captured.args).map(r=>r.detail).join(' ');assert.match(plan,/COVERING INDEX story_scope_period/);assert.doesNotMatch(plan,/USE TEMP B-TREE/);
+
+ assert.equal(response.counts.questions,20005);assert.equal(response.counts.questionMentions,20005);assert.equal(response.counts.questionHome,20005);assert.equal(response.counts.groups,20005);assert.equal(response.page.total,20005);assert.equal(response.page.items.length,20);assert(response.page.nextCursor);assert.equal(response.questions.length,20);assert.equal(response.coverage.truncated,undefined);
+ const next=storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',period:'2025-Q1',list:'questions',cursor:response.page.nextCursor}));assert.equal(new Set([...response.page.items,...next.page.items].map(r=>r.id)).size,40);
+});
+
+test('agenda collection continues beyond the former page ceiling and keeps deep source trees',async t=>{
+ const {store}=await fixture(t),sitting='MTG-PL-2025-03-12';queueStoryRead(store,'agenda',sitting);store.db.prepare('UPDATE story_jobs SET offset=?').run(STORY_PAGE_SIZE*31);let calls=0;
+ const worker={store,clock:Date.now,requests:0,budget:10,controller:new AbortController(),request:async(_endpoint,params)=>{calls++;worker.requests++;return {url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/foreseen-activities?offset='+params.offset,fetchedAt:stamp,payload:{data:calls===1?Array.from({length:STORY_PAGE_SIZE},(_,i)=>({activity_id:sitting+'-OJ-ITM-D-'+(params.offset+i)})):[]}};}};
+ assert(await collectStorySource(worker));assert.equal(store.db.prepare('SELECT state FROM story_jobs').get().state,'pending');assert(await collectStorySource(worker));assert.equal(store.db.prepare('SELECT state FROM story_jobs').get().state,'available');assert.equal(calls,2);
+ const other='MTG-PL-2025-03-13';queueStoryRead(store,'agenda',other);let tree={activity_id:other+'-OJ-ITM-D-12'};for(let i=11;i>=0;i--)tree={activity_id:other+'-OJ-ITM-D-'+i,consists_of:[tree]};worker.request=async()=>({url:'https://data.europarl.europa.eu/api/v2/meetings/'+other+'/foreseen-activities',fetchedAt:stamp,payload:{data:[tree]}});assert(await collectStorySource(worker));assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_inputs WHERE id LIKE ?").get(other+'%').n,13);assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE id=?').get(other).state,'available');
+});
+
+test('rank-four adoption evidence retains every boundary tie',async t=>{
+ const {store}=await fixture(t);await buildTopics(store);let n=0;
+ for(const place of ['GRC','CYP','UKR','HUN','BLR']){const id='B-10-2025-'+String(++n).padStart(4,'0'),d={id,reference:'B10-'+String(n).padStart(4,'0')+'/2025',type:'RESOLUTION_MOTION',date:'2025-03-12',titles:{en:place},rule:[],groups:[],places:[place],keywords:[],procedures:[],derivedFrom:[],outcomeStatus:'known',outcome:{decisionId:'d'+n,date:'2025-03-12',outcome:'ADOPTED',for:100,against:0,abstentions:0,labels:{},references:{}}};store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(1,'document',id,d.date,JSON.stringify(d));}
+ await finishStoryProjection(store,1);const r=storyFacts(store,new URLSearchParams('scope=map&period=2025-Q1&mode=d'));assert.equal(r.counts.adoptedTexts,5);assert.equal(r.counts.placesWithAdoptedTexts,5);assert.equal(r.winners.mostAdoptedPlaces.length,5);assert.equal(r.winners.topAdoptedPlaces.length,5);
+});
+
+test('riser winners use complete earlier quarters, thresholds and all ties',async t=>{
+ const {store}=await fixture(t,{clock:()=>Date.parse(stamp)});await buildTopics(store);let seq=0;
+ for(const place of ['GRC','CYP'])for(const [date,n] of [['2024-08-12',12],['2024-12-12',1],['2025-03-12',8],['2025-06-12',7],['2026-10-12',100]])for(let i=0;i<n;i++){
+  const id='E-10-2025-'+String(++seq).padStart(6,'0');store.db.prepare('INSERT INTO record_topic_records VALUES (?,?,?,?,?,?,?)').run(1,id,'question',date,id,'record',JSON.stringify({titles:{en:place},members:[]}));store.db.prepare('INSERT INTO record_topic_question_places VALUES (?,?,?,?,?,?)').run(1,'place:'+place,id,'elsewhere',date,id);
+ }
+ await finishStoryProjection(store,1);
+ const q1=storyFacts(store,new URLSearchParams('scope=map&period=2025-Q1'));assert.equal(q1.winners.risingQuestionPlaces.length,2);for(const p of q1.winners.risingQuestionPlaces){assert.equal(p.count,8);assert.equal(p.baselineTotal,1);assert.equal(p.baselinePeriods,1);assert.equal(p.ratio,8);}
+ assert.deepEqual(storyFacts(store,new URLSearchParams('scope=map&period=2025-Q2')).winners.risingQuestionPlaces,[]);assert.deepEqual(storyFacts(store,new URLSearchParams('scope=map&period=2026-Q4')).winners.risingQuestionPlaces,[]);
 });

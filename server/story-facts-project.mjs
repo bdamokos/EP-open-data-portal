@@ -1,7 +1,7 @@
 import {rootSourceValues,sourceByteChunks} from './topic-source-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
 import {storyTables,stageStoryInput,storyInput,queueStoryRead} from './story-facts-storage.mjs';
-import {STORY_FACTS_VERSION,array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,debateFormat,debatePlaces,speakerEligible,proceduralAgenda} from './story-facts-model.mjs';
+import {array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,debateFormat,debatePlaces,speakerEligible,proceduralAgenda} from './story-facts-model.mjs';
 import {speechParentDocumentId} from './speech-agenda.mjs';
 import {countryLabels} from './topic-roles.mjs';
 import {quarter} from './topics-store.mjs';
@@ -83,23 +83,23 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{}}={
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');
   const roleCounts=speakerRoles.get(d.id);
-  const procedural=proceduralAgenda(agenda),body={...d,...counts,procedural,speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
+  const procedural=proceduralAgenda(agenda),body={...d,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
   put.run(generation,'debate',d.id,d.date,JSON.stringify(body));addLinks('debate-document',d.id,body.docs);addLinks('debate-procedure',d.id,body.procedures);
   for(const p of procedural?[]:body.places)place.run(generation,p.id,'debate',d.id,d.date,p.basis);
   if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
   if(!agenda||!Object.keys(agenda.formats||{}).length)queueStoryRead(store,'agenda','MTG-PL-'+d.date,{unavailable:d.date<'2024-12-16'});
  }} )());
- const topicKeys=store.db.prepare("SELECT DISTINCT m.key FROM record_topic_memberships m JOIN record_topic_concepts c ON c.generation=m.generation AND c.key=m.key WHERE m.generation=? AND m.record_id IN (SELECT value FROM json_each(?)) AND c.role IN ('topic','keyword')");
+ const topicKeys=store.db.prepare("SELECT DISTINCT m.key FROM json_each(?) j CROSS JOIN record_topic_memberships m INDEXED BY record_topic_record CROSS JOIN record_topic_concepts c WHERE m.generation=? AND m.record_id=j.value AND c.generation=m.generation AND c.key=m.key AND c.role IN ('topic','keyword')");
  // Policy/keyword selections reuse the serving projection's exact memberships.
  await topicBatches(store,(function*(){for(const row of store.db.prepare('SELECT kind,id,date,body FROM story_facts WHERE generation=? ORDER BY kind,id').iterate(generation)){
   yield;const body=JSON.parse(row.body),ids=row.kind==='document'?[row.id]:unique([row.id,body.agendaId,...body.docs].filter(Boolean));
-  for(const key of topicKeys.all(generation,JSON.stringify(ids)))topic.run(generation,key.key,row.kind,row.id,row.date);
+  for(const key of topicKeys.all(JSON.stringify(ids),generation))topic.run(generation,key.key,row.kind,row.id,row.date);
  }} )());
  onProgress('story-facts');
  await applyStrongPlaces(store,generation,{concepts,fact,docsFor});onProgress('story-places');
  const jobs={};for(const row of store.db.prepare('SELECT kind,state,COUNT(*) n FROM story_jobs GROUP BY kind,state').iterate())(jobs[row.kind]??={})[row.state]=row.n;
  store.set('storyCoverage',{generation,jobs,speakers:{...roleCoverage,nullCapacityChairLimit:true}});
- store.set('storyProjection',{generation,version:STORY_FACTS_VERSION,builtAt:new Date().toISOString()});store.set('storyProjectionDirty',false);
+
 }
 
 async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){

@@ -1,10 +1,11 @@
+import {finishStoryProjection} from './story-facts-aggregate.mjs';
 import {storyTables,stageStoryInput,storyTopicObservations} from './story-facts-storage.mjs';
 import {buildStoryFacts} from './story-facts-project.mjs';
 import {topicWorkFields} from './topic-work-fields.mjs';
 import {topicCachedWorks} from './topic-cache-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
 import {questionCountryMetadata} from './question-place-askers.mjs';
-import {readFile,readdir,stat} from 'node:fs/promises';
+import {readFile,readdir} from 'node:fs/promises';
 import path from 'node:path';
 import {topicObservationNodes,topicObservationSteps} from './record-topic-observations.mjs';
 import {projectRecordTopics,projectTopicSteps,conceptIdentity,RECORD_TOPICS_VERSION} from './record-topics.mjs';
@@ -41,7 +42,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  }
  onProgress('sources');
  if(cache)for(const file of await readdir(cache).catch(()=>[]))if(/^[a-f0-9]{64}\.json$/.test(file)){
- const name=path.join(cache,file);if((await stat(name)).size>12*1024*1024)continue;
+ const name=path.join(cache,file);
  for await(const {json,source} of topicCachedWorks(name)){
   const w=readWork(json);
   const observation={work:w,source:{...source,fetchedAt:sourceDate(source.fetchedAt)},projection:'raw'};
@@ -133,9 +134,9 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  await topicBatches(store,(function*(){for(const c of concepts.values()){yield;conceptPut.run(generation,c.key,c.role,JSON.stringify(c));}})());
  await buildStoryFacts(store,generation,{concepts,onProgress});
  const questionCountries=await questionCountryMetadata(store,generation,cache);
- finishTopicProjection(store,generation,concepts.values(),{questionCountries});onProgress('totals');
+ finishTopicProjection(store,generation,concepts.values(),{questionCountries});await finishStoryProjection(store,generation);onProgress('totals');
  const previous=store.get('previous')||generation;
- for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups','story_facts','story_links','story_places','story_topics','story_parents']){const lo=Math.min(generation,previous),hi=Math.max(generation,previous);let n;do{store.transaction(()=>{store.assertWriter();n=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation<? OR generation>? OR (generation>? AND generation<?) LIMIT 500)').run(lo,hi,lo,hi).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(n);}
+ for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups','story_facts','story_links','story_places','story_topics','story_parents','story_scope_records','story_scope_counts','story_rank','story_place_rank','story_map_groups']){const lo=Math.min(generation,previous),hi=Math.max(generation,previous);let n;do{store.transaction(()=>{store.assertWriter();n=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation<? OR generation>? OR (generation>? AND generation<?) LIMIT 500)').run(lo,hi,lo,hi).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(n);}
  return {version:RECORD_TOPICS_VERSION,generation,coverage};
  }finally{clearInterval(heartbeat);store.db.exec('PRAGMA cache_size='+Number(previousCacheSize));}
 }
