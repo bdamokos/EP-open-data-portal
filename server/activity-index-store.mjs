@@ -457,12 +457,17 @@ export class ActivityStore {
     // mapping and attribution evidence. Do not guess roles from endpoint names.
     // Unknown authors/speakers and collection windows remain archive diagnostics,
     // matching the identified-person coverage rule used by speech/people views.
-    const gapCategories=new Set(this.db.prepare(`SELECT DISTINCT item.category FROM items AS item
-      WHERE item.generation=? AND item.mep=? AND EXISTS (
-        SELECT 1 FROM refresh_gaps AS gap WHERE gap.generation=item.generation
-        AND gap.key IN (item.source_key,'recovery:'||item.source_key)
-        AND (gap.kind='document' OR gap.kind='speeches')
-      )`).all(generation,String(mep)).map(row=>row.category));
+    // Gap-first seeks avoid loading every activity body for prolific members.
+    // Queue keys can differ from document endpoints; speech recovery details
+    // are stored by saveSpeech under /speeches/<recoveryId>.
+    const gapCategories=new Set(this.db.prepare(`SELECT DISTINCT item.category
+      FROM refresh_gaps AS gap CROSS JOIN items AS item INDEXED BY item_source
+      WHERE gap.generation=? AND gap.kind IN ('document','speeches')
+      AND item.generation=gap.generation AND item.mep=?
+      AND item.source_key IN (gap.key,json_extract(gap.body,'$.endpoint'),
+        CASE WHEN gap.kind='speeches' THEN '/speeches/'||json_extract(gap.body,'$.recoveryId') END,
+        CASE WHEN substr(gap.key,1,9)='recovery:' THEN substr(gap.key,10) END)
+    `).all(generation,String(mep)).map(row=>row.category));
     const activityOnly=" AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
     // Keep counts and role-filtered pages on the member-leading partial index;
     // the global role frontier cannot narrow a read to this MEP.

@@ -145,7 +145,7 @@ test('cold and repeated profile reads never aggregate global status',t=>{
   assert(!queries.some(sql=>/COUNT\s*\(|GROUP BY/i.test(sql)&&!/FROM items/i.test(sql)),queries.join('\n'));
   const scoped=queries.find(sql=>sql.includes('SELECT DISTINCT item.category'));
   const plan=prepare('EXPLAIN QUERY PLAN '+scoped).all(store.get('active'),'42').map(row=>row.detail).join('\n');
-  assert.doesNotMatch(plan,/SCAN (?:item|gap)/);assert.match(plan,/generation=\? AND key=\?/);
+  assert.doesNotMatch(plan,/SCAN (?:item|gap)/);assert.match(plan,/generation=\? AND source_key=\?/);
 });
 
 test('initial activity backfill and unreconciled snapshots retain their coverage states',t=>{
@@ -154,4 +154,16 @@ test('initial activity backfill and unreconciled snapshots retain their coverage
   assert.equal(store.page('42',{category:'written-questions'}).categoryCoverage['written-questions'].status,'backfilling');
   store.set('active',generation);store.set('refreshPolicyGeneration',generation+1);
   assert.equal(store.page('42',{category:'written-questions'}).categoryCoverage['written-questions'].status,'incomplete-joins');
+});
+
+
+test('gap queue aliases use the worker endpoint and exact speech recovery identity',t=>{
+  const {store,generation}=fixture(t),gap=store.db.prepare('INSERT INTO refresh_gaps(generation,key,kind,body) VALUES (?,?,?,?)');
+  gap.run(generation,'retry:question','document',JSON.stringify({endpoint:'/source/question'}));
+  assert.equal(store.page('42',{category:'written-questions'}).total,null);
+  assert.equal(store.page('99',{category:'written-questions'}).total,0);
+  store.db.prepare("UPDATE items SET source_key='/speeches/speech-a' WHERE source_id='speech-a'").run();
+  gap.run(generation,'retry:speech','speeches',JSON.stringify({recoveryId:'speech-a'}));
+  assert.equal(store.page('42',{category:'plenary-contributions'}).total,null);
+  assert.equal(store.page('99',{category:'plenary-contributions'}).total,1);
 });
