@@ -9,7 +9,7 @@ import { AMENDMENT_EXTRACTION_VERSION } from './amendment-documents.mjs';
 import { createAmendmentAuthorResolver, votingAliases } from './amendment-authors.mjs';
 import {AMENDMENT_AUTHOR_NAMES_VERSION,memberNameFields,alternateAuthorDescriptor,authorNameVariants,resolveParallelAuthors,listAuthorResolver,hasNonLatinAuthors} from './amendment-author-names.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, docxRetrievedAfterIssue, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, docxRetrievedAfterIssue, distributionEvidenceFor, pairingDistributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
 import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
 import {reconcileAmendmentDocumentGap} from './document-route-recovery.mjs';
 import {sanitizeFreshDocument} from './document-detail-routing.mjs';
@@ -111,7 +111,7 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
   const reportWording=reportWordingEvidence(worker,generation,target,list,distributionEvidence);
   const root=worker.store.source(generation,targetKey(target));
-  const pairingDistributionEvidence=root?distributionEvidenceFor(root.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:root.fetchedAt,language:null}):null;
+  const pairingDistributionEvidence=root?pairingDistributionEvidenceFor(root.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:root.fetchedAt,language:null}):null;
   const descriptor=currentDocxDescriptor({distributionEvidence,pairingDistributionEvidence,targetDocumentId:target,reportWording});
   const unchanged=descriptor&&samePublishedDescriptor(descriptor,currentDocxDescriptor(prior?.work));
   const confirmedAt=reportWording?reportWording.distributionEvidence.source?.fetchedAt:evidence.fetchedAt;
@@ -146,7 +146,7 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sitt
       // The list's unchanged relationship proof does not freeze its parent
       // report's independently observed distribution metadata.
       const reportWording=reportWordingEvidence(worker,generation,id,prior.work,prior.work.distributionEvidence);
-      const pairingDistributionEvidence=distributionEvidenceFor(work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(id)+'?format=application%2Fld%2Bjson',fetchedAt,language:null});
+      const pairingDistributionEvidence=pairingDistributionEvidenceFor(work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(id)+'?format=application%2Fld%2Bjson',fetchedAt,language:null});
       if(JSON.stringify(reportWording)!==JSON.stringify(prior.work.reportWording || null)||JSON.stringify(pairingDistributionEvidence)!==JSON.stringify(prior.work.pairingDistributionEvidence || null)) {
         const next={...prior.work,pairingDistributionEvidence};delete next.reportWording;
         if(reportWording) {
@@ -940,7 +940,7 @@ export async function amendmentTask(worker,task) {
           authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,parserVersion:AMENDMENT_EXTRACTION_VERSION,primaryDescriptor:publication.sourceDescriptor,descriptor:otherPublication.sourceDescriptor,source,amendments:parsed.amendments.map(({listId,targetDocumentId,number,authors,date,documentDate,dateBasis})=>({listId,targetDocumentId,number,authors,date,documentDate,dateBasis}))};
         }catch(error){signal.throwIfAborted();authorNames={version:AMENDMENT_AUTHOR_NAMES_VERSION,descriptor:alternate,error:String(error.message).slice(0,350),source:{url:alternate.url,language:alternate.language},attemptedAt:new Date(worker.clock()).toISOString(),amendments:[]};}
       }
-      const next={...saved.work,sourceRetentionRetryAt:!authorNames?.error&&sources.has(file)&&(!alternate||sources.has(alternate))?null:new Date(worker.clock()+7*DAY).toISOString(),authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language,...(extraction.reportId?{reportId:extraction.reportId}:{})},extraction.reportId?null:saved.work.document_date),...publication}};
+      const next={...saved.work,sourceRetentionRetryAt:!authorNames?.error&&sources.has(file)&&(!alternate||sources.has(alternate))?null:new Date(worker.clock()+7*DAY).toISOString(),authorNames,extraction:{authorNamesVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...mergeExtractionRefresh(proposerDatedExtraction(store,generation,saved.work),extraction,{url:file.url,fetchedAt,language:file.language,contentHash:publication.sourceHash,...(extraction.reportId?{reportId:extraction.reportId}:{})},extraction.reportId?null:saved.work.document_date),...publication}};
       delete next.wordingRefreshFailure;
       store.putSource(generation,sourceKey(body.listId),'amendment-list',next,next.extraction.fetchedAt);
       rebuildAmendmentTarget(worker,generation,body.targetDocumentId,{discover:!parserUpgrade});

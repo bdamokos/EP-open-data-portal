@@ -745,3 +745,16 @@ test('shared language pairing advances past an unavailable counterpart without t
     assert.equal(result.amendment.variants.at(-1).proposedText,'Published fr');assert.ok(selected.includes('fr'));
   }
 });
+
+for(const documentId of ['B-10-2026-0406','A-10-2026-0103','A-10-2026-0170','A-10-2026-0171'])test('indexed French wording pairs with its declared French base by exact ID: '+documentId,async()=>{
+  const exactList=documentId+'-AM-001-001',exactAmendment=documentId+'-AM-1';
+  const frenchSource={url:'https://data.europarl.europa.eu/distribution/mock/'+exactList+'/fr.docx',language:'fr',fetchedAt:source.fetchedAt,contentHash:'f'.repeat(64)};
+  const publication={...work,id:'eli/dl/doc/'+documentId,identifier:documentId,work_type:'def/ep-document-types/'+(documentId.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY'),is_realized_by:[{language:'fr',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/mock/base-fr.docx'}]}]};
+  const reader=service({request:async()=>record(publication),findAmendment:()=>({...indexed,id:exactAmendment,targetDocumentId:documentId,listId:exactList,baseline:'motion-resolution',language:'fr',targetLabelLanguage:'fr',wordingSource:frenchSource,originalText:'Texte original.',proposedText:'Texte proposé.'}),readText:async()=>({...summary,textLanguage:'fr',availableTextLanguages:['fr'],paragraphs:['Texte original.']})});
+  reader.readList=async()=>{throw Error('An unrelated or guessed translation must not be read');};
+  const result=await reader.query({id:documentId,amendmentId:exactAmendment,listId:exactList,wordingLanguage:'fr',language:'en',includeBody:true},{store:{}});
+  assert.equal(result.requestedLanguage,'en');assert.equal(result.requestedWordingLanguage,'fr');
+  assert.equal(result.document.selectedText.textLanguage,'fr');assert.equal(result.target.evidence.wordingLanguage,'fr');
+  assert.equal(result.target.evidence.amendmentId,exactAmendment);assert.equal(result.target.evidence.listId,exactList);
+  assert.deepEqual(result.target.evidence.wordingSource,frenchSource);assert.equal(result.wordingLanguageFallback,null);
+});

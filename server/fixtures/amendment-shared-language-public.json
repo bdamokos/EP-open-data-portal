@@ -1,0 +1,360 @@
+{
+  "description": "Exact English/French/German DOCX declaration excerpts from the frozen 2026-10-27 public metadata. Other languages are omitted from this fixture; declarations do not establish byte availability and production observations can differ.",
+  "cases": [
+    {
+      "documentId": "B-10-2026-0406",
+      "metadataSource": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/B-10-2026-0406?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-27T17:06:47.323Z",
+        "sha256": "04a21689ab4d67dea52b9f1e0a67523bc79227e177dc28d24fd6d8ebe51484a1"
+      },
+      "base": {
+        "id": "eli/dl/doc/B-10-2026-0406",
+        "identifier": "B-10-2026-0406",
+        "work_type": "def/ep-document-types/RESOLUTION_MOTION",
+        "document_date": "2026-09-14",
+        "parliamentary_term": "org/ep-10",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/B-10-2026-0406/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0406/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0406/B-10-2026-0406_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-09-18T10:52:48+02:00",
+                "byteSize": "55744"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          },
+          {
+            "id": "eli/dl/doc/B-10-2026-0406/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0406/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRe/B-10-2026-0406/B-10-2026-0406_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-09-16T12:56:48+02:00",
+                "byteSize": "55388"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          }
+        ]
+      },
+      "list": {
+        "id": "eli/dl/doc/B-10-2026-0406-AM-001-006",
+        "identifier": "B-10-2026-0406-AM-001-006",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-09-15",
+        "parliamentary_term": "org/ep-10",
+        "foresees_change_of": "eli/dl/doc/B-10-2026-0406",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/B-10-2026-0406-AM-001-006/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0406-AM-001-006/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0406-AM-001-006/B-10-2026-0406-AM-001-006_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-09-16T18:16:09+02:00",
+                "byteSize": "68497"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          },
+          {
+            "id": "eli/dl/doc/B-10-2026-0406-AM-001-006/en",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0406-AM-001-006/en/docx",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0406-AM-001-006/B-10-2026-0406-AM-001-006_en.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-09-16T13:36:08+02:00",
+                "byteSize": "69199"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/ENG"
+          },
+          {
+            "id": "eli/dl/doc/B-10-2026-0406-AM-001-006/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/B-10-2026-0406-AM-001-006/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRe_Amd/B-10-2026-0406-AM-001-006/B-10-2026-0406-AM-001-006_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-09-16T17:52:08+02:00",
+                "byteSize": "67510"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          }
+        ]
+      }
+    },
+    {
+      "documentId": "A-10-2026-0103",
+      "metadataSource": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2026-0103?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-27T16:52:49.038Z",
+        "sha256": "f253c5e5fe70c74ab656b8fe51e088de5ff115ca1ed29f333130907c6ba8b376"
+      },
+      "base": {
+        "id": "eli/dl/doc/A-10-2026-0103",
+        "identifier": "A-10-2026-0103",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "document_date": "2026-04-20",
+        "parliamentary_term": "org/ep-10",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/A-10-2026-0103/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0103/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0103/A-10-2026-0103_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-04-24T18:54:12+02:00",
+                "byteSize": "75439"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0103/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0103/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0103/A-10-2026-0103_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-04-24T17:24:12+02:00",
+                "byteSize": "84519"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          }
+        ]
+      },
+      "list": {
+        "id": "eli/dl/doc/A-10-2026-0103-AM-001-002",
+        "identifier": "A-10-2026-0103-AM-001-002",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-04-22",
+        "parliamentary_term": "org/ep-10",
+        "foresees_change_of": "eli/dl/doc/A-10-2026-0103",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/A-10-2026-0103-AM-001-002/en",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0103-AM-001-002/en/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0103-AM-001-002/A-10-2026-0103-AM-001-002_en.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-05-11T18:42:08+02:00",
+                "byteSize": "42799"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/ENG"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0103-AM-001-002/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0103-AM-001-002/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0103-AM-001-002/A-10-2026-0103-AM-001-002_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-05-18T11:02:08+02:00",
+                "byteSize": "43366"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0103-AM-001-002/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0103-AM-001-002/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0103-AM-001-002/A-10-2026-0103-AM-001-002_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-05-18T12:04:10+02:00",
+                "byteSize": "43455"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          }
+        ]
+      }
+    },
+    {
+      "documentId": "A-10-2026-0170",
+      "metadataSource": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2026-0170?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-27T16:56:31.097Z",
+        "sha256": "d89e82c322c98c8e4b98ce8389fb22a329c939af099db74b3604f3f1e3890ed2"
+      },
+      "base": {
+        "id": "eli/dl/doc/A-10-2026-0170",
+        "identifier": "A-10-2026-0170",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "document_date": "2026-06-11",
+        "parliamentary_term": "org/ep-10",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/A-10-2026-0170/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0170/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0170/A-10-2026-0170_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-01T17:54:12+02:00",
+                "byteSize": "44578"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          }
+        ]
+      },
+      "list": {
+        "id": "eli/dl/doc/A-10-2026-0170-AM-001-001",
+        "identifier": "A-10-2026-0170-AM-001-001",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-06-30",
+        "parliamentary_term": "org/ep-10",
+        "foresees_change_of": "eli/dl/doc/A-10-2026-0170",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/A-10-2026-0170-AM-001-001/en",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0170-AM-001-001/en/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0170-AM-001-001/A-10-2026-0170-AM-001-001_en.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-01T17:18:08+02:00",
+                "byteSize": "41089"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/ENG"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0170-AM-001-001/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0170-AM-001-001/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0170-AM-001-001/A-10-2026-0170-AM-001-001_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-02T16:18:08+02:00",
+                "byteSize": "35153"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0170-AM-001-001/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0170-AM-001-001/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0170-AM-001-001/A-10-2026-0170-AM-001-001_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-06T14:08:08+02:00",
+                "byteSize": "41294"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          }
+        ]
+      }
+    },
+    {
+      "documentId": "A-10-2026-0171",
+      "metadataSource": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2026-0171?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-27T16:56:36.466Z",
+        "sha256": "ea4f922d43478bca273ef9b7a241040a6c34f8184da54c24c6eb9f544e6b3db5"
+      },
+      "base": {
+        "id": "eli/dl/doc/A-10-2026-0171",
+        "identifier": "A-10-2026-0171",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "document_date": "2026-06-12",
+        "parliamentary_term": "org/ep-10",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/A-10-2026-0171/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0171/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0171/A-10-2026-0171_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-01T10:14:12+02:00",
+                "byteSize": "54646"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0171/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0171/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp/A-10-2026-0171/A-10-2026-0171_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-02T18:44:12+02:00",
+                "byteSize": "55235"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          }
+        ]
+      },
+      "list": {
+        "id": "eli/dl/doc/A-10-2026-0171-AM-001-007",
+        "identifier": "A-10-2026-0171-AM-001-007",
+        "work_type": "def/ep-document-types/AMENDMENT_LIST",
+        "document_date": "2026-07-01",
+        "parliamentary_term": "org/ep-10",
+        "foresees_change_of": "eli/dl/doc/A-10-2026-0171",
+        "is_realized_by": [
+          {
+            "id": "eli/dl/doc/A-10-2026-0171-AM-001-007/de",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0171-AM-001-007/de/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0171-AM-001-007/A-10-2026-0171-AM-001-007_de.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-06T16:06:08+02:00",
+                "byteSize": "47003"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/DEU"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0171-AM-001-007/fr",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0171-AM-001-007/fr/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0171-AM-001-007/A-10-2026-0171-AM-001-007_fr.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-06T11:00:08+02:00",
+                "byteSize": "47676"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/FRA"
+          },
+          {
+            "id": "eli/dl/doc/A-10-2026-0171-AM-001-007/en",
+            "is_embodied_by": [
+              {
+                "id": "eli/dl/doc/A-10-2026-0171-AM-001-007/en/docx",
+                "is_exemplified_by": "distribution/reds_iPlRp_Amd/A-10-2026-0171-AM-001-007/A-10-2026-0171-AM-001-007_en.docx",
+                "format": "http://publications.europa.eu/resource/authority/file-type/DOCX",
+                "issued": "2026-07-01T21:00:08+02:00",
+                "byteSize": "47050"
+              }
+            ],
+            "language": "http://publications.europa.eu/resource/authority/language/ENG"
+          }
+        ]
+      }
+    }
+  ]
+}

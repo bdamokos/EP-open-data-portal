@@ -9,9 +9,9 @@ const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document
 const rows=[{id:documentId+'-AM-1',number:1,targetDocumentId:documentId,listId,language:'en',baseline:'motion-resolution',wordingSource:{url:'https://data.europarl.europa.eu/distribution/test/list_en.docx'}}];
 const contexts=new Map([['en',{plain:{value:{document:{selectedText:{availableTextLanguages:['fr','de','es'],textLanguage:'fr'}}}}}]]);
 
-test('matching wording preference preserves requested, English, originals and display ordering',()=>{
-  assert.deepEqual(amendmentLanguagePreference(['bg','de','fr','en','es'],'bg',['de']),['bg','en','de','fr','es']);
-  assert.deepEqual(amendmentLanguagePreference(['it','es','de','fr'],'en',['it']),['it','fr','es','de']);
+test('matching wording preference uses requested, English, then shared ISO order',()=>{
+  assert.deepEqual(amendmentLanguagePreference(['bg','de','fr','en','es'],'bg',['de']),['bg','en','de','es','fr']);
+  assert.deepEqual(amendmentLanguagePreference(['it','es','de','fr'],'en',['it']),['de','es','fr','it']);
 });
 
 test('supplementary acquisition uses embedded exact-list declarations and one matching edition',async()=>{
