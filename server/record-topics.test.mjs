@@ -45,3 +45,9 @@ test('Greek question authors match Greece through authority ISO notation and Cyp
  const overview=askers=>service.query(new URLSearchParams({role:'place',askers}),'overview'),all=overview('all'),greece=all.items.find(p=>p.id==='GRC').series[0];assert.equal(greece.question,2);assert.equal(greece.questionHome,1);assert.equal(greece.questionElsewhere,0);assert.equal(greece.questionUnknown,1);assert.equal(overview('elsewhere').items.find(p=>p.id==='CYP').counts.question,1);assert(!overview('elsewhere').items.some(p=>p.id==='GRC'));assert.equal(overview('home').items.find(p=>p.id==='GRC').counts.question,1);
  const detail=service.query(new URLSearchParams('key=place:GRC&askers=home'),'detail');assert.equal(detail.total,1);assert.equal(detail.groups[0].items[0].id,ns[0].id);assert.equal(detail.series[0].questionHome,1);assert.equal(detail.series[0].questionUnknown,0);assert(!service.query(new URLSearchParams('q=Greece&askers=elsewhere'),'search').results.some(p=>p.key==='place:GRC'));assert.throws(()=>overview('unknown'));
 });
+
+test('official urgency-request ballots remain votes rather than debates',t=>{
+ const store=fixture(t),id='MTG-PL-2026-10-20-OJ-ITM-V-88';
+ writeTopicProjection(store,projectRecordTopics([{id,kind:'event',activityType:'def/ep-activities/REQUEST_VOTE_URGENCY',date:'2026-10-20'}]));
+ assert.equal(new RecordTopics(store).record(id,'en').kind,'vote');
+});

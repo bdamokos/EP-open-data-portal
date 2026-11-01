@@ -95,7 +95,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  const projected=projection.records;
  await topicBatches(store,(function*(){
   for(const r of projected.values()){yield;if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>pendingProcedures.has(id))){r.status='pending';projected.set(r.id,r);}else if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>unavailableProcedures.has(id))){r.status='unavailable';projected.set(r.id,r);}}
-  for(let pass=0;pass<4;pass++)for(const n of nodes){yield;const r=projected.get(n.id);if(!r||r.status==='ambiguous'||(n.kind==='question'&&!n.id.startsWith('O-')))continue;if([...(n.documentIds||[]),...(n.executed||[]),...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id),...(n.kind==='question'&&n.id.startsWith('O-')?r.eventIds||[]:[])].some(id=>projected.get(id)?.status==='pending')){r.status='pending';projected.set(r.id,r);}}
+  for(let pass=0;pass<4;pass++)for(const n of nodes){yield;const r=projected.get(n.id);if(!r||r.status==='ambiguous'||(n.kind==='question'&&!n.id.startsWith('O-')))continue;const states=[...(n.documentIds||[]),...(n.executed||[]),...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id),...(n.kind==='question'&&n.id.startsWith('O-')?r.eventIds||[]:[])].map(id=>projected.get(id)?.status),status=r.status==='pending'||states.includes('pending')?'pending':r.status==='unavailable'||states.includes('unavailable')?'unavailable':null;if(status&&r.status!==status){r.status=status;projected.set(r.id,r);}}
  })());
 
  if(!store.renew())throw Error('Activity-index writer lease was lost.');store.assertWriter();store.set('recordTopicProjection',null);
@@ -127,11 +127,11 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead).length,unavailable:[...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable).length};
  store.set('recordTopicCoverage',{generation,...coverage});
  onProgress('speeches');
- await buildStoryFacts(store,generation,{concepts});
+ await buildStoryFacts(store,generation,{concepts,onProgress});
  const questionCountries=await questionCountryMetadata(store,generation,cache);
  finishTopicProjection(store,generation,concepts.values(),{questionCountries});onProgress('totals');
  const previous=store.get('previous')||generation;
- for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups']){const lo=Math.min(generation,previous),hi=Math.max(generation,previous);let n;do{store.transaction(()=>{store.assertWriter();n=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation<? OR generation>? OR (generation>? AND generation<?) LIMIT 500)').run(lo,hi,lo,hi).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(n);}
+ for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups','story_facts','story_links','story_places','story_topics','story_parents']){const lo=Math.min(generation,previous),hi=Math.max(generation,previous);let n;do{store.transaction(()=>{store.assertWriter();n=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation<? OR generation>? OR (generation>? AND generation<?) LIMIT 500)').run(lo,hi,lo,hi).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(n);}
  return {version:RECORD_TOPICS_VERSION,generation,coverage};
  }finally{clearInterval(heartbeat);store.db.exec('PRAGMA cache_size='+Number(previousCacheSize));}
 }

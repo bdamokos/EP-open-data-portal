@@ -3,7 +3,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=1;
+export const STORY_FACTS_VERSION=3;
 export const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 export const tail=v=>String(v?.id||v||'').split('/').at(-1);
 export const unique=v=>[...new Set(v)];
@@ -82,4 +82,13 @@ export function speakerEligible(item,header){
  const role=tail(item.speechRole||item.intervention?.kind||item.role).toUpperCase();
  if(['CHAIR','CHAIRING','PRESIDENT'].includes(role))return false;
  return !header?.capacity||header.capacity==='member';
+}
+
+// Only published agenda classifications exclude procedural contributions.
+// A debate heading is never evidence for this decision.
+export function proceduralAgenda(agenda){
+ if(!agenda||agenda.conflicted)return false;
+ const type=tail(agenda.type);
+ if(['PLENARY_VOTE','PLENARY_VOTE_RESULTS','PLENARY_OUTCOME','REQUEST_VOTE_URGENCY','EXPLANATIONS_OF_VOTES','EXPLANATION_OF_VOTE','PLENARY_EXPLANATION_OF_VOTE','PLENARY_EXPLANATIONS_OF_VOTES','OPENING_OF_SITTING','CLOSING_OF_SITTING','PLENARY_OPENING','PLENARY_CLOSING','MINUTES','APPROVAL_OF_MINUTES','ORDER_OF_BUSINESS'].includes(type))return true;
+ return (agenda.formats?.en||[]).some(value=>/^(?:voting time|explanations? of votes?|opening(?: of (?:the )?(?:sitting|session))?|closing(?: of (?:the )?(?:sitting|session))?|closure of (?:the )?(?:sitting|session)|minutes|approval of (?:the )?minutes|order of business)\s*[:.]?$/i.test(value));
 }

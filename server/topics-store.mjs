@@ -5,7 +5,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=5;
+export const TOPICS_VERSION=8;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -27,7 +27,7 @@ export function topicTables(db){questionPlaceTables(db);db.exec(`
 const topicWriteStatements=new WeakMap();
 export function putTopicRecords(store,generation,records){
  const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {remove,group,put,member}=statements;
- for(const record of records){const r={...record,kind:record.kind==='event'?/\/(?:PLENARY_VOTE|PLENARY_VOTE_RESULTS|PLENARY_OUTCOME)$/.test(record.activityType||'')?'vote':'debate':record.kind};
+ for(const record of records){const r={...record,kind:record.kind==='event'?/\/(?:PLENARY_VOTE|PLENARY_VOTE_RESULTS|PLENARY_OUTCOME|REQUEST_VOTE_URGENCY)$/.test(record.activityType||'')?'vote':'debate':record.kind};
  const parents=r.kind==='speech'?r.parentIds:r.kind==='debate'?r.agendaIds:r.eventIds||[];
  const resolvedParents=[...new Set((parents||[]).map(id=>group.get(generation,id)?.group_key||id))];
  const parent=resolvedParents.length===1?resolvedParents[0]:null,procedure=r.procedureIds?.length===1?r.procedureIds[0]:null;
@@ -42,7 +42,7 @@ export function finishTopicProjection(store,generation,concepts,{questionCountri
  const put=store.db.prepare('INSERT OR REPLACE INTO record_topic_concepts VALUES (?,?,?,?)');
  store.transaction(()=>{store.assertWriter();for(const c of concepts)put.run(generation,c.key,c.role,JSON.stringify(c));});
  writeQuestionPlaceAskers(store,generation,questionCountries);
- store.generationTransaction(()=>{store.assertWriter();store.db.prepare(`INSERT OR REPLACE INTO record_topic_totals SELECT generation,key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER),kind,COUNT(*) FROM record_topic_memberships WHERE generation=? AND date>='2024-07-16' AND date<=? AND kind IN ('debate','document','question','speech','vote') GROUP BY key,3,kind`).run(generation,new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(store.clock?.()??Date.now()));const end=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(store.clock?.()??Date.now());
+ store.generationTransaction(()=>{store.assertWriter();store.db.prepare('DELETE FROM record_topic_totals WHERE generation=?').run(generation);store.db.prepare(`INSERT OR REPLACE INTO record_topic_totals SELECT generation,key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER),kind,COUNT(*) FROM record_topic_memberships WHERE generation=? AND date>='2024-07-16' AND date<=? AND kind IN ('debate','document','question','speech','vote') GROUP BY key,3,kind`).run(generation,new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(store.clock?.()??Date.now()));const end=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(store.clock?.()??Date.now());
  store.db.prepare('DELETE FROM record_topic_groups WHERE generation=?').run(generation);store.db.prepare('DELETE FROM record_topic_group_summary WHERE generation=?').run(generation);
  store.db.prepare(`INSERT INTO record_topic_groups SELECT m.generation,m.key,substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER),m.group_key,MAX(m.date),COUNT(*),NULL FROM record_topic_memberships m WHERE m.generation=? AND m.date BETWEEN '2024-07-16' AND ? AND m.kind IN ('debate','document','question','speech','vote') GROUP BY m.key,3,m.group_key`).run(generation,end);
  const groupSummarySql=`INSERT INTO record_topic_group_summary SELECT g.generation,g.key,g.period,COUNT(*),(SELECT json_object('key',t.group_key,'date',t.date,'titles',json(COALESCE((SELECT NULLIF(json_extract(r.body,'$.titles'),'{}') FROM record_topic_records r WHERE r.generation=t.generation AND r.id=t.group_key),(SELECT json_extract(r.body,'$.titles') FROM record_topic_records r WHERE r.generation=t.generation AND r.group_key=t.group_key ORDER BY r.date DESC,r.id LIMIT 1),'{}'))) FROM record_topic_groups t WHERE t.generation=g.generation AND t.key=g.key AND t.period=g.period ORDER BY t.n DESC,t.date DESC,t.group_key LIMIT 1) FROM record_topic_groups g WHERE generation=? GROUP BY key,period`;store.db.prepare(groupSummarySql).run(generation);
