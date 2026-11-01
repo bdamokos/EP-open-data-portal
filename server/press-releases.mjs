@@ -1,4 +1,5 @@
 import {sourceMissing,transientSourceDelay,permanentSourceIssue,SOURCE_RECHECK_MS} from './source-retry.mjs';
+import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync,mkdirSync} from 'node:fs';
 import path from 'node:path';
@@ -19,7 +20,9 @@ const SCHEMA=`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT 
   CREATE TABLE IF NOT EXISTS releases (id TEXT PRIMARY KEY, url TEXT NOT NULL, body TEXT NOT NULL, discovered_at INTEGER NOT NULL, checked_at INTEGER, next_check INTEGER, attempts INTEGER NOT NULL DEFAULT 0, error TEXT);
   CREATE INDEX IF NOT EXISTS release_due ON releases(next_check) WHERE next_check IS NOT NULL;
   CREATE TABLE IF NOT EXISTS links (kind TEXT NOT NULL, value TEXT NOT NULL, release TEXT NOT NULL, label TEXT, PRIMARY KEY(kind,value,release));
-  CREATE INDEX IF NOT EXISTS link_release ON links(release);`;
+  CREATE INDEX IF NOT EXISTS link_release ON links(release);
+  CREATE TABLE IF NOT EXISTS feed_observations (feed TEXT NOT NULL,id TEXT NOT NULL,signature TEXT NOT NULL,present INTEGER NOT NULL,PRIMARY KEY(feed,id));
+  CREATE INDEX IF NOT EXISTS feed_present ON feed_observations(feed,id) WHERE present=1;`;
 const MATCH=`(l.kind='procedure' AND l.value=?) OR (l.kind='summary' AND l.value IN (SELECT value FROM json_each(?))) OR (l.kind='document' AND l.value IN (SELECT value FROM json_each(?)))`;
 
 // Brussels wall-clock time on a page → UTC instant.
@@ -71,16 +74,20 @@ export class PressStore {
     catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   release(id){const row=this.tables()&&this.db.prepare('SELECT * FROM releases WHERE id=?').get(id);return row?{...row,body:parse(row.body)}:null;}
-  // A fresh feed observation reopens failed releases, including terminal ones.
+  // Changed announcements and reappearances reopen failures; continued presence preserves retries.
   discover(item,{feed,now}) {
+    const signature=createHash('sha256').update(JSON.stringify([item.feedPubDate??item.publishedAt??null,item.feedGuid??null,item.feedLink??item.url,item.title??null])).digest('hex');
+    const observation=this.db.prepare('SELECT signature,present FROM feed_observations WHERE feed=? AND id=?').get(feed,item.id);
     const old=this.release(item.id);
+    const changed=Boolean(observation&&(observation.signature!==signature||!observation.present));
+    this.db.prepare('INSERT OR REPLACE INTO feed_observations VALUES (?,?,?,1)').run(feed,item.id,signature);
     if(!old) {
       const body={id:item.id,url:item.url,title:item.title??null,feedPublishedAt:item.publishedAt??null,committees:item.committees||[],feeds:[feed]};
       this.db.prepare('INSERT INTO releases(id,url,body,discovered_at,next_check) VALUES (?,?,?,?,?)').run(item.id,item.url,JSON.stringify(body),now,now);
       return true;
     }
     if(!old.body.feeds.includes(feed))this.db.prepare('UPDATE releases SET body=? WHERE id=?').run(JSON.stringify({...old.body,feeds:[...old.body.feeds,feed]}),item.id);
-    if(old.error){this.db.prepare('UPDATE releases SET next_check=?,attempts=0,failure_state=NULL,missing_since=NULL,discovered_at=? WHERE id=?').run(now,now,item.id);return true;}
+    if(old.error&&changed){this.db.prepare('UPDATE releases SET next_check=?,attempts=0,failure_state=NULL,missing_since=NULL,discovered_at=? WHERE id=?').run(now,now,item.id);return true;}
     return false;
   }
   hasDue(now){return this.tables()&&Boolean(this.db.prepare('SELECT 1 FROM releases INDEXED BY release_due WHERE next_check IS NOT NULL AND next_check<=? LIMIT 1').get(now));}
@@ -177,6 +184,7 @@ export class PressFollower {
       const now=this.clock();
       this.write(()=>{
         const follow=this.store.get('follow')||{since:null,feeds:{}},current=follow.poll&&now-follow.poll.startedAt<PRESS_LIMITS.pollInterval?follow.poll:{startedAt:now,done:[]};
+        if(items)this.store.db.prepare('UPDATE feed_observations SET present=0 WHERE present=1 AND feed=? AND id NOT IN (SELECT value FROM json_each(?))').run(feed.id,JSON.stringify(items.map(item=>item.id)));
         const added=items?items.filter(item=>this.store.discover(item,{feed:feed.id,now})).length:0;
         follow.feeds={...follow.feeds,[feed.id]:items?{url:feed.url,lastSuccessAt:attemptedAt,items:items.length,added,error:null}:{...follow.feeds?.[feed.id],url:feed.url,lastAttemptAt:attemptedAt,error:message(failure)}};
         if(items)follow.since??=attemptedAt;

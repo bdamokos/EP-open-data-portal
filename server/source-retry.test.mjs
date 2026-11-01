@@ -70,3 +70,18 @@ test('API and DOCX response errors retain missing status and long numeric/date r
   }
   assert.equal(drained,6,'every failed HTTPS response is drained without reading a document');
 });
+
+for(const [name,type,bytes,code] of [
+ ['HTTP 200 maintenance HTML','text/html',Buffer.from('<html>Maintenance</html>'),'unexpected_document_format'],
+ ['clean early archive end without declared size','application/octet-stream',Buffer.from('PK\x03\x04incomplete'),'invalid_docx'],
+])test(name+' needs three identical rejections spanning a day',async t=>{
+ const {Readable}=await import('node:stream'),{downloadDocx}=await import('./document-text.mjs'),{createHash}=await import('node:crypto');
+ let now=Date.now();const directory=mkdtempSync(path.join(os.tmpdir(),'rejected-source-'));const store=new CorpusStore(directory,{clock:()=>now});
+ t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();store.enqueue('bad','docx',{url:'https://data.europarl.europa.eu/distribution/test/a.docx'},10);
+ t.mock.method(https,'get',(_url,_options,callback)=>{queueMicrotask(()=>callback(Object.assign(Readable.from([bytes]),{statusCode:200,headers:{'content-type':type}})));return new EventEmitter();});
+ for(let i=0;i<3;i++) {
+   store.acquire();await assert.rejects(downloadDocx(store.task('bad').body.url),error=>{assert.equal(error.code,code);assert.equal(error.sourceHash,createHash('sha256').update(bytes).digest('hex'));store.failTask(store.task('bad'),error);return true;});
+   assert.equal(store.task('bad').done,i===2?1:0);if(i<2){assert(store.task('bad').retry_at>now);now+=12*3600000;}
+ }
+ assert.equal(store.status().sourceIssues.count,1);
+});
