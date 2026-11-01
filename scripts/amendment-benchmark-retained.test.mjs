@@ -152,6 +152,6 @@ test('CLI acquire-only seals v2 bytes without cache or upstream requests',async 
  await main(['--api-base','https://explorer.test','--cache-dir',directory,'--document',document,'--as-of','2026-11-01','--production-data-dir',f.root,'--acquire-only']);
  const snapshot=JSON.parse(await readFile(path.join(directory,'snapshot.json'),'utf8'));
  assert.equal(snapshot.manifest.find(m=>m.url===epUrl).sha256,f.row.sha256);
- const offline=new InputCache(directory,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline upstream')});await offline.seal(snapshot.manifest);assert.deepEqual((await offline.get(epUrl)).body,f.native);
+ const offline=new InputCache(path.join(directory,'inputs'),{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline upstream')});await offline.seal(snapshot.manifest);assert.deepEqual((await offline.get(epUrl)).body,f.native);
  assert.deepEqual((await readdir(f.root)).sort(),['corpus','index']);
 });
