@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Worker} from 'node:worker_threads';
 import {once} from 'node:events';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
+import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {tmpdir} from 'node:os';
 import http from 'node:http';
@@ -97,17 +99,47 @@ test('a two-second synchronous writer loop leaves main-thread timers responsive'
   await finished;
 });
 
-test('a two-second synchronous writer loop adds at most 100 ms to an HTTP request',loopback,async t=>{
-  const {worker}=await fixture(t),server=http.createServer((_request,response)=>response.end('ready'));
-  server.listen(0,'127.0.0.1');await once(server,'listening');
-  t.after(()=>new Promise(resolve=>{server.closeAllConnections();server.close(resolve);}));
+test('production server serves HTTP during a two-second real activity writer iteration', {...loopback,timeout:30000},async t=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'source-http-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
+  const marker=path.join(directory,'block');
+  // Reserve a free port; config deliberately disallows PORT=0.
+  const probe=http.createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');
+  const port=probe.address().port;await new Promise(resolve=>probe.close(resolve));
+  const hook=new URL('./test-support/source-writer-block.mjs',import.meta.url).href;
+  const child=spawn(process.execPath,['--import',hook,'server/index.mjs'],{
+    cwd:new URL('..',import.meta.url),
+    env:{...process.env,HOST:'127.0.0.1',PORT:String(port),
+      ACTIVITY_INDEX_ENABLED:'true',ACTIVITY_INDEX_DIR:path.join(directory,'activity'),
+      CORPUS_ENABLED:'false',ODP_CACHE_DIR:path.join(directory,'cache'),ERROR_LOG_DIR:path.join(directory,'logs'),
+      TEST_SOURCE_WRITER_BLOCK_FILE:marker},stdio:['ignore','pipe','pipe'],
+  });
+  let output='';for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>output+=chunk);
+  const exited=once(child,'exit');
+  t.after(async()=>{child.kill('SIGKILL');await exited;});
+  const waitFor=async predicate=>{
+    const deadline=Date.now()+20000;
+    while(!predicate()){
+      assert.equal(child.exitCode,null,output);assert(Date.now()<deadline,output);await delay(5);
+    }
+  };
+  await waitFor(()=>output.includes('listening on')&&existsSync(`${marker}.ready`));
   const request=()=>new Promise((resolve,reject)=>{
-    const started=performance.now();http.get({host:'127.0.0.1',port:server.address().port},response=>{response.resume();response.once('end',()=>resolve(performance.now()-started));}).once('error',reject);
+    const started=performance.now();
+    http.get({host:'127.0.0.1',port,path:'/healthz'},response=>{
+      response.resume();response.once('end',()=>{
+        assert.equal(response.statusCode,200);resolve(performance.now()-started);
+      });
+    }).once('error',reject);
   });
   await request();const baseline=await request();
-  const busy=messages(worker,'busy-start'),finished=messages(worker,'done');worker.postMessage({type:'busy',id:1});await busy;
-  const elapsed=await request();t.diagnostic(`HTTP baseline ${baseline.toFixed(1)} ms; busy worker ${elapsed.toFixed(1)} ms`);
-  // Shared runners can have nontrivial loopback scheduling overhead. Bound the
-  // additional writer delay and still reject a two-second event-loop stall.
-  assert(elapsed<1000&&elapsed-baseline<100,`HTTP baseline ${baseline} ms, busy worker ${elapsed} ms`);await finished;
+  await writeFile(`${marker}.go`,'go');await waitFor(()=>existsSync(`${marker}.start`));
+  const sent=Date.now(),elapsed=await request(),received=Date.now();
+  t.diagnostic(`Production HTTP baseline ${baseline.toFixed(1)} ms; blocked activity writer ${elapsed.toFixed(1)} ms`);
+  assert(elapsed<1000&&elapsed-baseline<100,`HTTP baseline ${baseline} ms, blocked writer ${elapsed} ms`);
+  // Prove the entire request occurred within the real writer's blocking span.
+  assert(!existsSync(`${marker}.end`),'Writer finished before the HTTP response.');
+  await waitFor(()=>existsSync(`${marker}.end`));
+  const start=Number(await readFile(`${marker}.start`,'utf8')),end=Number(await readFile(`${marker}.end`,'utf8'));
+  assert(start<=sent&&received<end);assert(end-start>=2000);
 });
