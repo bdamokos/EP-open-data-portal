@@ -1,3 +1,5 @@
+import {serveRetention} from './base-source-rpc.mjs';
+import {retainBaseObservation} from './base-source-store.mjs';
 import {parentPort,workerData} from 'node:worker_threads';
 import {setUpstreamBridge} from './odp.mjs';
 import {UpstreamRpcClient} from './upstream-rpc.mjs';
@@ -7,6 +9,7 @@ import {observePublications} from './source-publications.mjs';
 import {booleanFromEnvironment} from './config.mjs';
 import {acceptSittingSnapshotHints} from './sitting-snapshot-hints-rpc.mjs';
 
+const stopRetention=serveRetention(workerData.retentionPort,retainBaseObservation);
 const rpc=new UpstreamRpcClient(workerData.upstreamPort);
 setUpstreamBridge(rpc);
 let stopActivity=()=>{},stopCorpus=()=>{},closing=false;
@@ -24,6 +27,7 @@ parentPort.on('message',message=>{
   closing=true;
   void (async()=>{
     await Promise.all([stopActivity(),stopCorpus()]);
+    await stopRetention();
     for(const stop of unobserve)stop();
     for(const service of stores){service.press?.close();service.store.close();}
     rpc.close();parentPort.close();
