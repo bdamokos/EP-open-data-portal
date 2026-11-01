@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
+const texts=['Article 1','Regulation (EU) 2024/123 is amended as follows:','(3)\tArticle 7 is amended as follows:','(a)\tA complete instruction.','(4)\tNext instruction.','Article 2'];
+const proposal={paragraphs:texts.map((text,index)=>({index,text,properties:{styleId:index===2||index===4?'Point0':'Normal'},complete:true,source:{container:'body',complete:true,ordinal:index,segment:0}}))};
+const wording={targetPath:{proposal:[{raw:'Article 1 – paragraph 1 – point 3'}],underlying:[{document:'Regulation (EU) 2024/123',raw:'Article 7'}]}};
+const placement={splice:{start:{paragraph:2,offset:0},end:{paragraph:3,offset:texts[3].length}}};
+test('elision oracle independently requires the complete instruction and exact act',()=>{assert.equal(assertElidedDeletion(proposal,wording,placement).status,'verified');assert.equal(assertElidedDeletion(proposal,wording,{splice:{...placement.splice,end:{paragraph:2,offset:texts[2].length}}}).status,'failed');assert.equal(assertElidedDeletion(proposal,{targetPath:{...wording.targetPath,underlying:[{document:'Regulation (EU) 2024/124',raw:'Article 7'}]}},placement).status,'unverified');});
