@@ -50,6 +50,7 @@ export function projectQuestionFiles(db,generation,key,kind,work) {
 export function copyQuestionFiles(db,generation,active) {
   db.prepare('INSERT INTO question_file_sources SELECT ?,source_key,signature FROM question_file_sources WHERE generation=?').run(generation,active);
   db.prepare('INSERT INTO question_files SELECT ?,source_key,ordinal,url,language,is_primary,body FROM question_files WHERE generation=?').run(generation,active);
+  db.prepare('INSERT OR REPLACE INTO meta SELECT ?,value FROM meta WHERE key=?').run('questionFileBackfill:'+generation,'questionFileBackfill:'+active);
 }
 
 export function prepareQuestionFiles(db,log=()=>{}) {
@@ -59,4 +60,26 @@ export function prepareQuestionFiles(db,log=()=>{}) {
   for(const row of db.prepare("SELECT generation,key,body FROM sources WHERE kind='document' AND key>='/parliamentary-questions/' AND key<'/parliamentary-questions0' AND key LIKE '/parliamentary-questions/%'").iterate())
     {projectQuestionFiles(db,row.generation,row.key,'document',JSON.parse(row.body));count++;}
   log('activity: question-file projection completed: '+count+' sources in '+Math.round(performance.now()-started)+' ms');
+}
+
+// Upgrade saved manifests through the existing source writer, one bounded page
+// per iteration. The cursor commits with each file manifest, so a restart never
+// loses a page or needs to fetch source metadata again.
+export function questionFileBackfillDue(store,generation) {
+  return Boolean(generation)&&store.get('questionFileBackfill:'+generation)?.version!==1;
+}
+export function backfillQuestionFiles(store,generation,{limit=100}={}) {
+  if(!questionFileBackfillDue(store,generation))return 0;
+  let count=0;
+  store.transaction(()=>{
+    store.assertWriter();
+    const marker='questionFileBackfill:'+generation,after=store.get(marker)?.after||'/parliamentary-questions/';
+    const rows=store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND key>? AND key<'/parliamentary-questions0' AND kind='document' ORDER BY key LIMIT ?").all(generation,after,limit);
+    for(const row of rows) {
+      store.db.prepare('DELETE FROM question_files WHERE generation=? AND source_key=?').run(generation,row.key);
+      projectQuestionFiles(store.db,generation,row.key,'document',JSON.parse(row.body));count++;
+    }
+    store.set(marker,rows.length===limit?{after:rows.at(-1).key}:{version:1});
+  });
+  return count;
 }
