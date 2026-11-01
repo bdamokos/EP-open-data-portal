@@ -436,7 +436,7 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   const projected=fastReadsReady(store,generation,'amendments');
   const scalar=projected&&!committee&&!outcome&&!procedure&&!member&&!(document&&scope==='committee');
   const table=projected?'(SELECT page.*,source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id) amendments':'amendments',where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM '+(scalar?'amendment_page_reads':table)+' WHERE '+where).get(...args).n;
-  const pageSql=scalar?'SELECT source.body FROM (SELECT generation,id FROM amendment_page_reads WHERE '+where+' ORDER BY date DESC,target,number,id LIMIT ? OFFSET ?) page JOIN amendments source ON source.generation=page.generation AND source.id=page.id':'SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?";
+  const pageSql=scalar?'SELECT source.body FROM (SELECT generation,id,date,target,number FROM amendment_page_reads WHERE '+where+' ORDER BY date DESC,target,number,id LIMIT ? OFFSET ?) page JOIN amendments source ON source.generation=page.generation AND source.id=page.id ORDER BY page.date DESC,page.target,page.number,page.id':'SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?";
   const items=store.db.prepare(pageSql).all(...args,limit,offset).map(record=>{
     const row=checkedAmendmentRead(parse(record.body));
     if(member) {
