@@ -335,3 +335,17 @@ test('standalone PDF parser failures settle only after repeated identical bytes 
  assert.equal(store.task(key).done,1);assert.equal(store.db.prepare('SELECT state FROM source_failures WHERE key=?').get(key).state,'permanent-source-issue');
  file.edition.byteSize++;store.reopen(key,file,50);assert.equal(store.task(key).done,0);
 });
+
+test('a later DOCX declaration retires the pending standalone PDF owner',async t=>{
+  const directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock:now});index.acquire();
+  const store=new CorpusStore(path.join(directory,'corpus'),{clock:now,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+  const full=work(),pdfOnly=structuredClone(full);pdfOnly.is_realized_by[0].is_embodied_by.shift();
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',pdfOnly,new Date(now()).toISOString());
+  const worker=new CorpusWorker(store,{clock:now});
+  await discoverQuestionFiles(worker,1);
+  const pending=()=>store.db.prepare('SELECT key FROM tasks WHERE done=0 ORDER BY key').all().map(row=>row.key);
+  assert.deepEqual(pending().map(key=>key.split(':')[0]),['pdf']);
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',full,new Date(now()+1000).toISOString());
+  await discoverQuestionFiles(worker,1);
+  assert.deepEqual(pending().map(key=>key.split(':')[0]),['docx'],'the DOCX is the only active owner');
+});

@@ -34,8 +34,12 @@ export async function discoverQuestionFiles(worker,generation) {
         const manifest=store.db.prepare('SELECT signature FROM idx.question_file_sources WHERE generation=? AND source_key=?').get(generation,source.source_key);
         if(!manifest)return;
         let blocked=false;
-        for(const row of store.db.prepare(missingQuestionFilesSql).iterate(generation,source.source_key,languages)) {
-          const file=JSON.parse(row.body),priority=file.primary?50:10,kind=file.format||'docx',key=kind+':'+file.url;
+        const files=store.db.prepare(missingQuestionFilesSql).all(generation,source.source_key,languages).map(row=>JSON.parse(row.body));
+        const variant=file=>JSON.stringify([file.sourceId,file.language,file.parentId??null]);
+        const docxVariants=new Set(files.filter(file=>(file.format||'docx')==='docx').map(variant));
+        for(const file of files) {
+          const priority=file.primary?50:10,kind=file.format||'docx',key=kind+':'+file.url;
+          if(kind==='pdf'&&docxVariants.has(variant(file)))continue;
           const prior=store.task(key);
           // A URL's existing retry remains its owner. New metadata can update
           // that owner's selected edition, without resetting its retry clocks.
@@ -45,6 +49,9 @@ export async function discoverQuestionFiles(worker,generation) {
             if(prior.done)store.reopen(key,file,priority);
             else store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify({...prior.body,...file}),key);
           }
+          // A declared DOCX becomes the variant's owner. Retire any pending
+          // standalone PDF owner and its retry state; retained text stays.
+          if(kind==='docx')store.db.prepare("UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key GLOB 'pdf:*' AND done=0 AND json_extract(body,'$.sourceId')=? AND json_extract(body,'$.language')=? AND COALESCE(json_extract(body,'$.parentId'),'')=?").run(worker.clock(),file.sourceId,file.language,file.parentId??'');
           const issued=Date.parse(file.edition?.issued);
           if(issued>worker.clock())store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,key);
         }
