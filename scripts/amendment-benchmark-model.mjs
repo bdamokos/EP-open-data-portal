@@ -279,7 +279,12 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     const left = key(source), right = key(wording.originalText);
     const footnotes=proposal&&assertFootnoteComparison(proposal,wording,placement);
     if(footnotes?.status==='failed')return footnotes;
-    if(!footnotes&&(!left||!right||left!==right))return fail('oracle-original-span-mismatch');
+    if(!footnotes&&(!left||!right||left!==right)){
+      const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
+      if(proposal&&quotes(source)===quotes(wording.originalText))return locationOracle({proposal,text,target,wording,placement,labels});
+      if(proposal&&placement.operation==='delete'&&/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim()))return rawProposalAssertion({proposal,wording,placement});
+      return fail('oracle-original-span-mismatch');
+    }
     return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
