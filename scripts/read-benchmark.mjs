@@ -15,7 +15,7 @@ export function baselineFrom(result) {
 
 export function compareReads(baseline,current) {
   const failures=[],lines=['| Scenario | Baseline pages | Current pages | Delta | Current ms (informational) | Plan change |','| --- | ---: | ---: | ---: | ---: | --- |'];
-  for(const key of ['sqliteVersion','nodeVersion','nodeSqliteVersion']) {
+  for(const key of ['sqliteVersion','nodeSqliteVersion']) {
     if(!baseline[key] || baseline[key]!==current[key])failures.push(`Toolchain mismatch (${key}): baseline ${baseline[key]??'missing'}, runtime ${current[key]??'missing'}. Run the CI read-benchmarks job, save its regenerated baseline JSON, then run npm run bench:reads -- --update-baseline /path/to/ci-baseline.json and commit the result.`);
   }
   const previous=new Map(baseline.scenarios.map(row=>[row.name,row]));

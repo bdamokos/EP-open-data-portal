@@ -52,7 +52,7 @@ test('CLI metrics detect an actual lost index without scanstatus support',t=>{
 
 test('toolchain mismatches fail with refresh instructions and timings stay informational',()=>{
   const result={...profile,scenarios:[row()]};
-  for(const key of Object.keys(profile)) {
+  for(const key of ['sqliteVersion','nodeSqliteVersion']) {
     for(const value of ['different',undefined]) {
       const comparison=compareReads({...result,[key]:value},result);
       assert.equal(comparison.failures.length,1);
@@ -60,5 +60,7 @@ test('toolchain mismatches fail with refresh instructions and timings stay infor
       assert.match(comparison.markdown,/--update-baseline/);
     }
   }
+  // Node patch upgrades alone don't change SQLite page counts; nodeSqliteVersion gates the engine.
+  assert.deepEqual(compareReads({...result,nodeVersion:'v26.0.0'},result).failures,[]);
   assert.match(compare(row(),row({wallClockMs:999999})).markdown,/999999/);
 });
