@@ -53,7 +53,7 @@ export function parsePressFeed(xml) {
     if(!identity||seen.has(identity.id))return [];
     seen.add(identity.id);
     const committees=array(item.category).filter(category=>category?.['@_domain']==='body').map(text).filter(code=>/^[A-Z]{4}$/.test(code));
-    return [{...identity,title:decodeHtml(text(item.title)).replace(/^Press release - /,'').trim()||null,publishedAt:Number.isFinite(published)?new Date(published).toISOString():null,committees}];
+    return [{...identity,feedPubDate:text(item.pubDate).trim()||null,feedGuid:text(item.guid).trim()||null,feedLink:text(item.link).trim(),title:decodeHtml(text(item.title)).replace(/^Press release - /,'').trim()||null,publishedAt:Number.isFinite(published)?new Date(published).toISOString():null,committees}];
   });
 }
 

@@ -84,7 +84,7 @@ export async function finishStoryProjection(store,generation){
   const put=(metric,score,secondary=0,body=null)=>{for(const p of periods)rank.run(generation,r.scope,r.key,r.askers,p,metric,r.id,score,secondary,r.date,body?JSON.stringify(body):null);};
   if(r.kind==='debate'){
    put('busiestDebates',r.meps);if(!r.urgency)put('busiestNonUrgencyDebates',r.meps);if(r.primary_place&&!r.urgency)put('busiestPrimaryNonUrgencyDebates',r.meps);if(r.scope==='place'&&r.meps>=3)put('leadingPlaceDebates3Plus',r.primary_place,r.meps);
-  }else{const meps=relatedMeps.get(r.scope,r.key,r.askers,generation,r.id,1).n||0;put('headlineAdoptedTexts',meps,r.for_votes??-1);put('headlineAdoptedTexts3Plus',relatedMeps.get(r.scope,r.key,r.askers,generation,r.id,3).n||0,r.for_votes??-1);if(r.tallies)put('closestAdoptedTexts',-r.margin,0,{margin:r.margin});}
+  }else{const meps=relatedMeps.get(r.scope,r.key,r.askers,generation,r.id,1).n||0;put('headlineAdoptedTexts',meps,r.for_votes??-1);const qualifiedMeps=relatedMeps.get(r.scope,r.key,r.askers,generation,r.id,3).n;if(qualifiedMeps>=3)put('headlineAdoptedTexts3Plus',qualifiedMeps,r.for_votes??-1);if(r.tallies)put('closestAdoptedTexts',-r.margin,0,{margin:r.margin});}
  }} )());
  const placePut=db.prepare('INSERT OR REPLACE INTO story_place_rank VALUES (?,?,?,?,?,?,?,?,?)');
  await topicBatches(store,(function*(){for(const r of db.prepare("SELECT key,askers,period,body FROM story_scope_counts WHERE generation=? AND scope='place' ORDER BY key,askers,period").iterate(generation)){

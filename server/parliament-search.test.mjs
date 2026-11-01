@@ -19,7 +19,7 @@ function setup(t,{missing=false,agenda}={}) {
   store.setMembers([{id:'43',name:'Éva Example',nameVariants:[{value:'Eva Alternate'}]}]);
   const work=activity.documents.find(d=>d.endpoint.startsWith('/parliamentary-questions')).work;
   store.putSource(generation,'/parliamentary-questions/'+work.identifier,'document',projectDocument(work),activity.verifiedAt);
-  store.publish(generation);store.release();
+  store.publish(generation);while(store.backfillFastReads(generation)){}store.release();
   const calls=[],request=yearCatalogue(async(endpoint,params)=>{
     calls.push([endpoint,params]);
     if(missing)throw Object.assign(new Error('Not retained'),{code:'odp_cache_miss'});
@@ -148,11 +148,24 @@ test('query validation bounds types, dates, offsets and repeated parameters',()=
 
 for(const boundary of ['2026-10-14','2026-10-15'])test('question scan cap is scoped to the unprocessed ordered boundary '+boundary,async t=>{
  const {service,store}=setup(t),prepare=store.db.prepare.bind(store.db);
- t.mock.method(store.db,'prepare',sql=>sql.includes('FROM sources INDEXED BY question_window')?{iterate:function*(){
+ t.mock.method(store.db,'prepare',sql=>sql.includes('FROM question_reads')&&sql.includes('expression_titles')?{iterate:function*(){
    for(let i=0;i<50000;i++)yield {id:'invalid',key:'/invalid',date:'2026-10-15'};
    yield {id:'invalid',key:'/invalid',date:boundary};
  }}:prepare(sql));
  const section=(await service.query(query('q=none&type=question&from=2026-10-15&to=2026-10-15'))).sections[0];
  assert.equal(section.coverage.limited,boundary==='2026-10-15');
  assert.equal(section.coverage.complete,boundary==='2026-10-14');
+});
+
+test('indexed title matches do not restrict coverage or let future and malformed dates hide the retained frontier',async t=>{
+  const {service,store,generation,work}=setup(t);store.clock=clock;
+  const baseline=(await service.query(query('q=unmatched-title&type=question'))).sections[0].coverage.availability.latestObservedDate;
+  store.acquire();
+  for(const [n,date] of [['999998','9999-01-01'],['999999','invalid']]) {
+    const identifier='E-10-2026-'+n;
+    store.putSource(generation,'/parliamentary-questions/'+identifier,'document',{...projectDocument(work),identifier,document_date:date},activity.verifiedAt);
+  }
+  store.release();
+  const section=(await service.query(query('q=unmatched-title&type=question'))).sections[0];
+  assert.equal(section.total,0);assert.equal(section.coverage.availability.latestObservedDate,baseline);assert(baseline);
 });

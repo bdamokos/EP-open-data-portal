@@ -1,6 +1,7 @@
 import {brusselsDay} from './analysis-period.mjs';
 import {sourceTime,validDay} from './source-availability.mjs';
 
+export const availabilityHistoryVersion=2;
 export const AVAILABILITY_HISTORY_LIMITS=Object.freeze({days:90,observations:20000,checks:256});
 const cutoff=now=>new Date(now-AVAILABILITY_HISTORY_LIMITS.days*86400_000).toISOString();
 const atomic=store=>{store.assertWriter();if(!store.db.isTransaction)throw new Error('Availability evidence must commit with its source.');};
@@ -11,10 +12,15 @@ export function initializeAvailabilityHistory(store) {
     event_date TEXT,first_source_at TEXT,last_source_at TEXT,first_observed_at TEXT NOT NULL,last_observed_at TEXT NOT NULL,
     acquisition TEXT NOT NULL,source_url TEXT);
     CREATE INDEX IF NOT EXISTS source_observation_age ON source_observations(last_observed_at,identity);
+    CREATE INDEX IF NOT EXISTS source_observation_event ON source_observations(event_date,identity);
+    CREATE TABLE IF NOT EXISTS observation_count(id INTEGER PRIMARY KEY,n INTEGER NOT NULL);
+    CREATE TRIGGER IF NOT EXISTS observation_insert AFTER INSERT ON source_observations BEGIN UPDATE observation_count SET n=n+1 WHERE id=1; END;
+    CREATE TRIGGER IF NOT EXISTS observation_delete AFTER DELETE ON source_observations BEGIN UPDATE observation_count SET n=n-1 WHERE id=1; END;
     CREATE TABLE IF NOT EXISTS source_checks (
     id INTEGER PRIMARY KEY,source_key TEXT NOT NULL,scope TEXT NOT NULL,start TEXT,end TEXT,first_source_at TEXT,last_source_at TEXT,
     observed_at TEXT NOT NULL,pages INTEGER NOT NULL,first_url TEXT,last_url TEXT,acquisition TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS source_check_age ON source_checks(observed_at,id);`);
+  if(!store.db.prepare('SELECT n FROM observation_count WHERE id=1').get())store.db.exec('INSERT INTO observation_count SELECT 1,COUNT(*) FROM source_observations');
   for(const table of ['tasks','group_voice_jobs','amendment_jobs','refresh_gaps']) {
     if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table))continue;
     for(const [label,event] of [['insert','INSERT'],['update',table!=='refresh_gaps'?'UPDATE OF done,error':'UPDATE'],['delete','DELETE']])
@@ -22,6 +28,7 @@ export function initializeAvailabilityHistory(store) {
         INSERT INTO meta(key,value) VALUES ('availabilityRevision','1') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1;
         INSERT INTO meta(key,value) VALUES ('availabilityCoverageRevision','1') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1; END;`);
   }
+  if(store.get('availabilityHistoryVersion')!==availabilityHistoryVersion)store.set('availabilityHistoryVersion',availabilityHistoryVersion);
   if(!store.get('availabilityHistoryStartedAt')){store.set('availabilityHistoryStartedAt',new Date(store.clock()).toISOString());touchAvailability(store);}
 }
 export function touchAvailability(store) {
@@ -31,12 +38,12 @@ function prune(store) {
   const now=store.clock();
   let removed=0;
   if(!store.get('availabilityHistoryPrunedAt')||now-store.get('availabilityHistoryPrunedAt')>=60_000) {
-    removed+=store.db.prepare('DELETE FROM source_observations WHERE last_observed_at<? OR event_date<?').run(cutoff(now),cutoff(now).slice(0,10)).changes;
+    for(const [column,value] of [['last_observed_at',cutoff(now)],['event_date',cutoff(now).slice(0,10)]])removed+=store.db.prepare('DELETE FROM source_observations WHERE identity IN (SELECT identity FROM source_observations WHERE '+column+'<? LIMIT 64)').run(value).changes;
     removed+=store.db.prepare('DELETE FROM source_checks WHERE observed_at<?').run(cutoff(now)).changes;
     store.set('availabilityHistoryPrunedAt',now);
   }
-  const excess=store.db.prepare('SELECT COUNT(*) n FROM source_observations').get().n-AVAILABILITY_HISTORY_LIMITS.observations;
-  if(excess>0)removed+=store.db.prepare('DELETE FROM source_observations WHERE identity IN (SELECT identity FROM source_observations ORDER BY last_observed_at,identity LIMIT ?)').run(excess).changes;
+  const excess=store.db.prepare('SELECT n FROM observation_count WHERE id=1').get().n-AVAILABILITY_HISTORY_LIMITS.observations;
+  if(excess>0)removed+=store.db.prepare('DELETE FROM source_observations WHERE identity IN (SELECT identity FROM source_observations ORDER BY last_observed_at,identity LIMIT ?)').run(Math.min(excess,64)).changes;
   const checks=store.db.prepare('DELETE FROM source_checks WHERE id IN (SELECT id FROM source_checks ORDER BY id DESC LIMIT -1 OFFSET ?)').run(AVAILABILITY_HISTORY_LIMITS.checks).changes;
   if(removed||checks){store.set('availabilityHistoryLimitedAt',new Date(now).toISOString());store.set('availabilityCoverageRevision',(store.get('availabilityCoverageRevision')||0)+1);}
 }

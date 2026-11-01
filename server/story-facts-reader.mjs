@@ -40,7 +40,7 @@ import {topicPeriods,quarter} from './topics-store.mjs';
  * closestAdoptedTexts
  * => minimum absolute for-against among adopted texts with tallies; headlineAdopted
  * => max linked debate MEPs, then votes for (headlineAdoptedTexts3Plus uses only
- * linked debates with >=3 MEPs). leadingPlaceDebates3Plus returns the best two
+ * linked debates with >=3 MEPs and is empty when no such link exists). leadingPlaceDebates3Plus returns the best two
  * >=3-MEP debates, primary-place first then MEPs, including every boundary tie.
  * Map most*Places return every
  * place equal to the maximum; topAdoptedPlaces includes all ties at rank four.

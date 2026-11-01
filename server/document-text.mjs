@@ -1,9 +1,10 @@
+import {documentBodyHints} from './document-body-hints.mjs';
 import {publishDocumentImages} from './document-image-store.mjs';
 import {docxImages} from './docx-images.mjs';
 import {languagePreference} from './language-order.mjs';
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {readFile,stat} from 'node:fs/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
 import https from 'node:https';
@@ -25,7 +26,7 @@ import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
 import {questionPdf,downloadQuestionPdf} from './question-pdf.mjs';
 import {invalidDocx,pdfFallbackEligible} from './document-file-failure.mjs';
 import {documentFileEdition} from './document-file-edition.mjs';
-export const DOCUMENT_TEXT_VERSION=7;
+export const DOCUMENT_TEXT_VERSION=8;
 const failureEvidence=Symbol('document failure');
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
@@ -34,10 +35,7 @@ export {documentFormatting} from './docx-formatting.mjs';
 // Bound the aggregate inflated parts independently of the download size.
 const MAX_FILE=8*1024*1024,MAX_XML=12*1024*1024,DAY=86400000;
 const NOTE_LIMITS=Object.freeze({notes:500,text:4000,links:10,documentLinks:500});
-let memoryBytes=0;
-const memorySizes=new Map();
-function remember(key,record){const size=Buffer.byteLength(JSON.stringify(record));memoryBytes-=memorySizes.get(key)||0;memory.delete(key);memorySizes.delete(key);if(size>64*1024*1024)return;memory.set(key,record);memorySizes.set(key,size);memoryBytes+=size;while(memory.size>100||memoryBytes>64*1024*1024){const first=memory.keys().next().value;memoryBytes-=memorySizes.get(first)||0;memory.delete(first);memorySizes.delete(first);}}
-const memory=new Map(),pending=new Map(),failures=new Map(),reformatted=new Set();
+const pending=new Map(),failures=new Map(),reformatted=new Set();
 // Published DOCX files carry no HTTP validators. Recent texts are re-read weekly;
 // a text retrieved 60 or more days after publication is treated as settled, and a
 // changed size or issue time in the API's file listing marks a re-publication.
@@ -45,8 +43,20 @@ const RECENT_REFRESH_MS=7*DAY,SETTLED_AFTER_MS=60*DAY;
 const budgets=new Map();
 function diskBudget(directory){
   const folder=path.join(directory,'document-text-v1');
-  if(!budgets.has(folder))budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:config.documentTextMaxDiskBytes,maxEntries:20000,pattern:/^[0-9a-f]{64}\.json$/}));
+  if(!budgets.has(folder))budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:config.documentTextMaxDiskBytes,maxEntries:1000000,evict:false,pattern:/^[0-9a-f]{64}\.json$/}));
   return budgets.get(folder);
+}
+export const DOCUMENT_TEXT_MAX_RECORD_BYTES=32*1024*1024;
+export async function documentTextCapacity(directory,{reconcile=false}={}){
+  const budget=diskBudget(directory);
+  await budget.work;await budget.initialize();
+  if(reconcile){
+    for(const [name,entry] of budget.entries){
+      try{await stat(path.join(budget.directory,name));}
+      catch(error){if(error.code==='ENOENT'){budget.entries.delete(name);budget.bytes-=entry.size;}else throw error;}
+    }
+  }
+  return {bytes:budget.bytes,maxBytes:budget.maxBytes,reservationBytes:Math.min(DOCUMENT_TEXT_MAX_RECORD_BYTES,Math.floor(budget.maxBytes*.1)),highWaterBytes:Math.floor(budget.maxBytes*.9)};
 }
 function fileDescriptor(work,url){
   for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
@@ -213,28 +223,37 @@ function templateText(nodes) {
     key==='w:t' ? value.map(item=>item['#text'] || '').join('') : Array.isArray(value)&&!['w:del','w:moveFrom'].includes(key) ? templateText(value) : [])).join('');
 }
 function paragraphsOf(nodes,context) {
-  context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0;
+  context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0,blankStart=null;
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
       const out={text:'',marks:[],spans:[],objects:[],...(context.formatting?{runs:[]}:{})},counterGaps={...context.counterGaps};
       context.paragraphStyle=property(children(value,'w:pPr'),'w:pStyle');
-      inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
+      const paragraphVisibility=context.style.styledHidden(context.paragraphStyle || context.style.defaultParagraph,context.style.defaults);
+      inline(value,paragraphVisibility,out,context);
       const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),unknownList=!!number?.label&&counterGaps.lists,
         label=unknownList?'?':number?.label,section=context.paragraphSections?.get(node);
       if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
       if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}for(const run of out.runs||[]){run.start+=prefix.length;run.end+=prefix.length;}}
+      // Only physically empty paragraphs certify an omitted blank. Hidden text,
+      // numbering and unsupported blocks retain their ordinary source gaps.
+      const hiddenBlank=paragraphVisibility.vanish||paragraphVisibility.webHidden||hiddenValue(children(properties,'w:rPr'))===true||hiddenValue(children(properties,'w:rPr'),'webHidden')===true;
+      const empty=!hiddenBlank&&!child(properties,'w:sectPr')&&!number?.label&&!number?.incomplete&&(value||[]).every(item=>Object.keys(item).every(key=>key===':@'||key==='w:pPr'));
+      const previous=result.at(-1)?.source, location=context.sourceIndex.get(node);
+      const previousParagraph=previous&&previous.container===boundary.container&&previous.containerPath===boundary.containerPath
+        &&location.ordinal-previous.ordinal===segment-previous.segment+1&&segment>previous.segment&&blankStart===previous.path?previous.path:null;
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
       if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,paragraphStyle:context.paragraphStyle,authorMarker:/<Depute>/.test(templateText(value)),
         properties:{styleId:property(properties,'w:pStyle')||context.style.defaultParagraph||null,numberingLabel:label||'',numberingComplete:!unknownList&&!number?.incomplete,notesComplete:!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
-        source:{...context.sourceIndex.get(node),...boundary,segment,complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
+        source:{...context.sourceIndex.get(node),...boundary,segment,...(previousParagraph?{previousParagraph}:{}),complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
         marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start),
         ...(context.formatting?{format:paragraphFormat(context.formatting.paragraph(properties),out.runs.map(run=>({...run,start:at(run.start),end:at(run.end)})),context.formatting.baseSize,text.length)}:{})});
-      else segment++;
+      else {if(!empty)blankStart=null;else if(segment===previous?.segment)blankStart=previous.path;segment++;}
+      if(text)blankStart=null;
     }
     else if(blockContainers.has(key)&&Array.isArray(value)) {
-      const separated=['w:tbl','w:tc'].includes(key);if(separated)segment++;
+      const separated=['w:tbl','w:tc'].includes(key);if(separated){segment++;blankStart=null;}
       const tables=context.tables,layout=tables?.layout;
       // Only the outermost table is laid out; nested tables stay inside their cell.
       if(tables&&key==='w:tbl'&&!layout){tables.layout={rows:[],bordered:context.formatting.tableBordered(children(value,'w:tblPr'))};}
@@ -244,15 +263,15 @@ function paragraphsOf(nodes,context) {
       const cell=tables&&key==='w:tc'&&tables.depth===1?tables.cell:null;
       if(tables&&key==='w:tbl')tables.depth++;
       visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);
-      if(separated)segment++;
+      if(separated){segment++;blankStart=null;}
       if(cell){cell.end=result.length;tables.layout.rows.at(-1).cells.push(cell);tables.cell=null;}
       if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start)))tables.found.push(tableLayout(done));}
     }
     else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
       counterGap(node,context);
-      segment++;context.warnings.add('Some document blocks could not be read; paragraph source boundaries retain the gap.');
+      segment++;blankStart=null;context.warnings.add('Some document blocks could not be read; paragraph source boundaries retain the gap.');
     }
-    else if(['w:del','w:moveFrom'].includes(key))segment++;
+    else if(['w:del','w:moveFrom'].includes(key)){segment++;blankStart=null;}
   }
   }
   visit(nodes);
@@ -355,32 +374,41 @@ export function allowedDownload(value) {
     ((u.hostname==='data.europarl.europa.eu' && u.pathname.startsWith('/distribution/')) || (u.hostname==='redmapl3.europarl.europa.eu' && u.pathname.startsWith('/RedmapFront/media/')))
     && u.pathname.endsWith('.docx');}catch{return false;}
 }
-export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expectedByteSize=null}={}) {
+export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expectedByteSize=null,priority='interactive'}={}) {
   let url=sourceUrl;const requests=[];
   for(let hop=0;hop<4;hop++) {
     signal?.throwIfAborted();
     if(!allowedDownload(url))throw new Error('Unapproved official document download URL.');
     // This published distribution route returns 500 to Node fetch but a normal
     // 302 to Node HTTPS/Python. Use standard HTTPS without browser impersonation.
+    const pool=new URL(url).hostname==='data.europarl.europa.eu'?'odp':'document-files';
+    const downloaded=await boundedUpstream(async()=>{
     const headers={Accept:'*/*','User-Agent':userAgent('document text')};
     const response=await new Promise((resolve,reject)=>https.get(url,{headers,signal:AbortSignal.any([AbortSignal.timeout(25000),...(signal?[signal]:[])])},resolve).on('error',reject));
     requests.push({url,method:'GET',headers,response:{status:response.statusCode,contentType:response.headers['content-type']??null,...(response.headers.location?{location:response.headers.location}:{})}});
-    const limited=upstreamResponseError(response,{source:'documents'});
+    const limited=upstreamResponseError(response,{source:pool});
     if(limited){response.resume();throw limited;}
-    if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
+    if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');return {redirect:new URL(target,url).href};}
     if(response.statusCode!==200){response.resume();const hint=response.headers['retry-after'];throw Object.assign(new Error(`Official document download unavailable (${response.statusCode}).`),{status:response.statusCode,retryAfter:hint?retryAfterSeconds(hint):0});}
-    if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw Object.assign(new Error('Unexpected document download format.'),{code:'unexpected_document_format'});}
+    const expectedFormat=/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '');
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
     if(Number.isSafeInteger(expectedByteSize)&&expectedByteSize>=0&&size!==expectedByteSize)throw new Error('Official document size does not match the selected edition.');
-    return {buffer:Buffer.concat(chunks),resolvedSourceUrl:url,fetchedAt:new Date().toISOString(),requests};
+    const buffer=Buffer.concat(chunks);
+    if(!expectedFormat)throw Object.assign(new Error('Unexpected document download format.'),{code:'unexpected_document_format',sourceHash:createHash('sha256').update(buffer).digest('hex')});
+    return {buffer,resolvedSourceUrl:url,fetchedAt:new Date().toISOString(),requests};
+    },{source:pool,priority,signal});
+    if(downloaded.redirect){url=downloaded.redirect;continue;}
+    return downloaded;
   }
   throw new Error('Too many document download redirects.');
 }
 export async function downloadDocx(sourceUrl,options={}) {
   const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
+  const sourceHash=createHash('sha256').update(buffer).digest('hex');
+  if(sourceHash===options?.rejectedHash)throw Object.assign(invalidDocx(Error('Unchanged rejected DOCX bytes.')),{sourceHash});
   try{return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};}
-  catch(error){throw invalidDocx(error);}
+  catch(error){throw Object.assign(invalidDocx(error),{sourceHash:createHash('sha256').update(buffer).digest('hex')});}
 }
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
@@ -392,7 +420,7 @@ export function documentNotes(record) {
     &&record.links.every(link=>Number.isInteger(link?.paragraph)&&link.paragraph>=0&&link.paragraph<paragraphs.length&&validSpan(link,paragraphs[link.paragraph]));
   return valid?{notesStatus:'extracted',notes:record.notes,noteAnchors:record.anchors,documentLinks:record.links}:{notesStatus:'not-extracted',notes:[],noteAnchors:[],documentLinks:[]};
 }
-async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false,format='DOCX',selectedFile=null}={}) {
+async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_DIR,download=downloadDocx,clock=Date.now,cacheOnly=false,format='DOCX',selectedFile=null,collector=false,enqueue=true}={}) {
   const extractionVersion=format==='PDF'?4:EXTRACTION_VERSION;
   requestSignal()?.throwIfAborted();
   const files=selectedFile?[selectedFile]:documentFiles(work).filter(f=>f.format==='DOCX' && allowedDownload(f.url));
@@ -408,38 +436,52 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const sourceId=work.identifier||tail(work.id),sourceUrl=chosen.url;
   const key=format==='PDF'?JSON.stringify(['pdf',sourceId,chosen.language,sourceUrl]):sourceUrl;
   const name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
-  const budget=directory?diskBudget(directory):null,descriptor=format==='PDF'?documentFileEdition(chosen):fileDescriptor(work,sourceUrl);
-  let saved=memory.get(key);
-  if(saved)budget?.used(name);
+  const budget=directory&&collector?diskBudget(directory):null,descriptor=format==='PDF'?documentFileEdition(chosen):fileDescriptor(work,sourceUrl);
+  let saved;
   if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===extractionVersion && record.sourceUrl===sourceUrl
     &&(format!=='PDF'||record.sourceId===sourceId&&record.sourceLanguage===chosen.language&&record.sourceFormat==='PDF')
-    &&Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;remember(key,record);budget.used(name);}}catch{}
+    &&Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;}}catch{}
   requestSignal()?.throwIfAborted();
+  const pendingKey=JSON.stringify([key,collector]);
   const refresh=priority=> {
-    if(pending.has(key))return pending.get(key);
+    if(pending.has(pendingKey))return pending.get(pendingKey);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(sourceUrl,{signal});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(sourceUrl,{signal,priority});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
-      if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
+      if(file&&collector){
+        const size=Buffer.byteLength(serialized);
+        if(size>Math.min(DOCUMENT_TEXT_MAX_RECORD_BYTES,Math.floor(budget.maxBytes*.1)))throw Object.assign(new Error('Extracted document exceeds the retained record limit.'),{code:'source_parser_rejection',sourceHash:result.sourceHash});
+        const fits=await budget.canSave(name,size);
+        if(!fits&&collector)throw Object.assign(new Error('Document text cache reached its configured disk limit.'),{code:'document_text_capacity'});
+        if(fits){
+        if(!await writeCacheFile(file,serialized,{signal}))throw new Error('Document text cache publication failed.');
+        await budget.saved(name,size);
+        }
+      }
       signal.throwIfAborted();
-      remember(key,record);failures.delete(key);return record;
-    },{source:'documents',priority,signal})).catch(error=>{if(!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(key));
-    pending.set(key,job);return job;
+      failures.delete(key);return record;
+    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(pendingKey));
+    pending.set(pendingKey,job);return job;
   };
   // The URL can be reused for a republished edition. Its predecessor's failed
   // download must not suppress a newly declared issue time or size.
   const previousFailure=failures.get(key);
   const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
   const failure=changedEdition?null:previousFailure;
-  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory}),sourceHash:record.sourceHash||null,
+  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory:collector?directory:null}),sourceHash:record.sourceHash||null,
     extractionVersion:record.extractionVersion,sourceVersion:record.source?{...record.source,...(format==='PDF'?{observedByteSize:record.observedByteSize,byteSizeMatches:record.byteSizeMatches}:{} )}:null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
+  if(collector){
+    if(!saved||documentNeedsRefresh(saved,work,descriptor,clock())||saved.formattingVersion!==FORMATTING_VERSION) saved=await waitForRequest(refresh('background'));
+    return present(saved);
+  }
+  if(!saved&&!cacheOnly&&enqueue)documentBodyHints.enqueue(sourceId,language);
   if(cacheOnly)return saved?present(saved):{...base,reason:'No saved document text is available.'};
   // Keep saved text readable while a background read adds formatting/byline metadata.
   if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=format==='DOCX'&&(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
     if((stale||reformat) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
-      void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});
-    }return {...await present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+      if(enqueue)documentBodyHints.enqueue(sourceId,language);
+    }return {...await present(saved),stale,refreshInProgress:pending.has(pendingKey),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString(),[failureEvidence]:failure};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString(),[failureEvidence]:error};}
@@ -448,13 +490,19 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
 // A readable DOCX remains preferred. Only a declared PDF of that same language
 // can replace a missing/broken question file; upstream failures do not fan out.
 export async function documentText(work,language,options={}) {
-  const result=await readDocumentText(work,language,options);
+  let result;
+  try {result=options.collectorPdfOnly?{status:'unavailable',textLanguage:options.selectedFile?.language,availableTextLanguages:[]}:await readDocumentText(work,language,options);}
+  catch(error){
+    if(!options.collector||!pdfFallbackEligible(error)||!questionPdf(work,options.selectedFile?.language||language))throw error;
+    if(options.requestBudget===1)throw Object.assign(new Error('PDF alternative queued for the next body slice.'),{code:'document_body_pdf_pending'});
+    result={status:'error',textLanguage:options.selectedFile?.language,availableTextLanguages:[],[failureEvidence]:error};
+  }
   if(result.status==='available'||result.status==='error'&&!pdfFallbackEligible(result[failureEvidence]))return result;
   const available=documentFiles(work).filter(f=>f.format==='PDF').map(f=>f.language).filter(Boolean);
   const chosen=result.textLanguage||languagePreference(available,language)[0];
   const file=questionPdf(work,chosen);
   if(!file||Date.parse(file.issued)>(options.clock||Date.now)())return result;
   const fallback=await readDocumentText(work,language,{...options,format:'PDF',selectedFile:file,
-    download:(_url,{signal})=>(options.downloadPdf||downloadQuestionPdf)(file,{signal})});
+    download:(_url,{signal,priority})=>(options.downloadPdf||downloadQuestionPdf)(file,{signal,priority})});
   return {...fallback,availableTextLanguages:languagePreference([...result.availableTextLanguages,...available.filter(code=>questionPdf(work,code))],language)};
 }

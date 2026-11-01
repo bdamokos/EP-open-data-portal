@@ -60,3 +60,9 @@ test('oversized OEIL pages retain an unavailable observation and do not loop',as
  const worker={store,clock:()=>Date.parse('2026-11-01T12:00Z'),requests:0,budget:10,controller:new AbortController()};let calls=0;const sources={get:async()=>{calls++;throw Object.assign(Error('Source too large'),{code:'official_source_size'});}};
  assert(await collectTopicProcedure(worker,{sources}));assert(!topicCollectionDue(store,worker.clock()));assert.equal(await collectTopicProcedure(worker,{sources}),false);assert.equal(calls,1);const body=JSON.parse(store.db.prepare('SELECT body FROM topic_procedure_pages').get().body);assert.equal(body.state,'unavailable');assert.equal(body.reason,'source-too-large');
 });
+
+test('topic collector defers at retained-source capacity without fetching or marking failure',async t=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'topic-capacity-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.acquire();topicCollectorTables(store.db);store.db.prepare('INSERT INTO topic_procedure_queue VALUES (?,?,0)').run('2023-0284','2023/0284(COD)');
+ const now=Date.parse('2026-11-01T12:00Z'),sources={cache:{capacity:async()=>({state:'capacity'})},get:()=>assert.fail('capacity pauses source reads')},worker={store,clock:()=>now,requests:0,budget:10,controller:new AbortController(),officialContext:{sources}};
+ assert.equal(await collectTopicProcedure(worker),false);assert.equal(worker.requests,0);assert.equal(store.db.prepare('SELECT next_read FROM topic_procedure_queue').get().next_read,now+60_000);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM topic_procedure_pages').get().n,0);assert.equal(store.get('topicProjectionDirty'),null);
+});

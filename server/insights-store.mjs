@@ -1,3 +1,4 @@
+import {fastReadsReady} from './fast-read-projections.mjs';
 import {demographicMetadata,demographicObservation,demographicPerson,retainedDemographicMetadata} from './demographic-metadata.mjs';
 import {questionGroupMetrics,contributionGroup} from './group-aggregation.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
@@ -21,20 +22,24 @@ export {brusselsDay} from './analysis-period.mjs';
 
 export const INSIGHTS_LIMITS = Object.freeze({ termStart:CURRENT_TERM_START,questions:5000,page:50,offset:5000,cacheEntries:4,cacheBytes:32*1024*1024,cacheMs:60_000 });
 const questionSubtypes=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'];
-function questionCoverageRecords(store,generation,types) {
-  const today=brusselsDay(store.clock()),settled=new Set(),records=[];
-  const rows=store.db.prepare("SELECT json_extract(body,'$.work_type') subtype,json_extract(body,'$.document_date') date,fetched_at fetchedAt FROM sources INDEXED BY question_window WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%' AND "+types+" ORDER BY json_extract(body,'$.document_date') DESC,key").iterate(generation);
-  for(const row of rows) {
-    const subtype=questionSubtypes.find(type=>String(row.subtype).endsWith('/'+type));
-    if(!subtype||settled.has(subtype))continue;
-    // Use the shared chronology rules. Keep admissible future dates as well,
-    // so a day change during async preparation can still advance coverage.
-    if(!sourceAvailability({sourceKey:subtype,records:[row],today:row.date}).latestObservedDate)continue;
-    records.push(row);
-    if(row.date<=today)settled.add(subtype);
-    if(settled.size===questionSubtypes.length)break;
+export function questionCoverageRecords(store,generation) {
+  if(!fastReadsReady(store,generation))return store.db.prepare("SELECT json_extract(body,'$.document_date') date,fetched_at fetchedAt,json_extract(body,'$.work_type') subtype FROM sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'").all(generation);
+  const today=brusselsDay(store.clock()),records=[];
+  for(const subtype of questionSubtypes) {
+    const rows=store.db.prepare("SELECT subtype,date,fetched_at fetchedAt FROM question_frontiers WHERE generation=? AND subtype=? AND key LIKE '/parliamentary-questions/%' ORDER BY date DESC,key").iterate(generation,subtype);
+    for(const row of rows) {
+      if(!sourceAvailability({sourceKey:subtype,records:[row],today:row.date}).latestObservedDate)continue;
+      records.push({...row,subtype:'/'+subtype});
+      if(row.date<=today)break;
+    }
   }
   return records;
+}
+// Counts seek the writer-maintained scalar projection; no JSON body pages.
+export function questionCounts(store,generation,{start,end}) {
+  const count=store.db.prepare("SELECT COUNT(*) n FROM question_frontiers WHERE generation=? AND (subtype LIKE 'QUESTION_WRITTEN' OR subtype LIKE 'QUESTION_WRITTEN_PRIORITY' OR subtype LIKE 'QUESTION_ORAL') AND date BETWEEN ? AND ?").get(generation,start,end).n;
+  const undatedQuestions=store.db.prepare("SELECT COUNT(*) n FROM question_frontiers WHERE generation=? AND (subtype LIKE 'QUESTION_WRITTEN' OR subtype LIKE 'QUESTION_WRITTEN_PRIORITY' OR subtype LIKE 'QUESTION_ORAL') AND (date IS NULL OR date='')").get(generation).n;
+  return {count,undatedQuestions};
 }
 function strictDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
@@ -143,14 +148,19 @@ export class QuestionInsights {
       const params=[status.servingGeneration,query.start,query.end];
       const types="(json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
       const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND "+types;
-      const frozen=this.store.readSnapshot(()=>({
-        undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
-        count:this.store.db.prepare('SELECT COUNT(*) AS n FROM sources INDEXED BY question_window WHERE '+where).get(...params).n,
-        rows:this.store.db.prepare('SELECT key,body,fetched_at FROM sources INDEXED BY question_window WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
-        members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
-        rosterFetchedAt:this.store.get('rosterFetchedAt'),
-        frontiers:questionCoverageRecords(this.store,status.servingGeneration,types)
-      }));
+      const projected=fastReadsReady(this.store,status.servingGeneration);
+      const table=projected?'question_reads INDEXED BY read_question_window':'sources';
+      const frozen=this.store.readSnapshot(()=>{
+        const counts=projected?questionCounts(this.store,status.servingGeneration,query):null;
+        return {
+          undatedQuestions:projected?counts.undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
+          count:projected?counts.count:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...params).n,
+          rows:this.store.db.prepare('SELECT key,body,fetched_at FROM '+table+' WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
+          members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
+          rosterFetchedAt:this.store.get('rosterFetchedAt'),
+          frontiers:questionCoverageRecords(this.store,status.servingGeneration)
+        };
+      });
       const {count,rows,members,undatedQuestions}=frozen;
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const [metadata,bodies]=await Promise.all([this.loadMetadata({members,store:this.store}),this.loadQuestionBodies(sources)]);

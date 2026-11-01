@@ -3,7 +3,8 @@ import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabil
 import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
-import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, confirmSourceRejection, SOURCE_RECHECK_MS, sourceDescriptor} from './source-retry.mjs';
 import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
@@ -25,6 +26,8 @@ import {questionAddressees} from './question-addressees.mjs';
 // activity index but outside its refresh generations, so a refresh never copies
 // stored text. `documents.source_id` is the exact API identifier and joins to
 // the attached index's `items.source_id`.
+export const CORPUS_STATUS_VERSION=2;
+export const CORPUS_COVERAGE_VERSION=2;
 const KINDS=['speech','question','answer'];
 const parse=value=>value==null?null:JSON.parse(value);
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -83,9 +86,10 @@ export class CorpusStore {
     this.filename=path.join(directory,'corpus-v1.sqlite');
     this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
+    this.db.function('speech_order_ms',{deterministic:true},(start,date)=>{const value=Date.parse(start||date);return Number.isFinite(value)?value:null;});
     this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
-      try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
+      try {if(this.get('speechMemberIndex')!==2||this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -121,6 +125,7 @@ export class CorpusStore {
       CREATE INDEX IF NOT EXISTS task_status_error ON tasks(done,retry_at DESC,key,error,attempts) WHERE done=0 AND error IS NOT NULL;
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if(!readOnly&&!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;');
+    if(!readOnly)this.db.exec(`CREATE TABLE IF NOT EXISTS source_failures (key TEXT PRIMARY KEY, state TEXT NOT NULL, reason TEXT NOT NULL, descriptor TEXT NOT NULL, content_hash TEXT, parser_version INTEGER NOT NULL, next_check INTEGER); CREATE INDEX IF NOT EXISTS source_failure_due ON source_failures(next_check) WHERE next_check IS NOT NULL; CREATE INDEX IF NOT EXISTS source_failure_parser ON source_failures(parser_version); CREATE INDEX IF NOT EXISTS source_failure_state ON source_failures(state,key);`);
     if(this.get('schema')!==1)throw new Error('Unsupported corpus schema.');
     if(!readOnly&&this.get('speechMetadataVersion')!==1) {
       this.set('speechMetadataBackfill',Boolean(this.db.prepare("SELECT 1 FROM documents WHERE kind='speech' LIMIT 1").get()));
@@ -141,7 +146,7 @@ export class CorpusStore {
   set(key,value){this.db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run(key,JSON.stringify(value));}
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
-    try{const out=fn();this.db.exec('COMMIT');return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
+    try{const out=fn();this.db.exec('COMMIT');this.onCommit?.();return out;}catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   snapshot(fn) {
     // Hold one WAL read snapshot across count, page and provenance queries.
@@ -185,6 +190,28 @@ export class CorpusStore {
           LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at`);
         this.set('resourceIndexes',1);initialized=true;
       }
+      if(this.get('speechMemberIndex')!==2) {
+        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+        this.db.exec(`DROP TRIGGER IF EXISTS speech_member_insert; DROP TRIGGER IF EXISTS speech_member_update; DROP TRIGGER IF EXISTS speech_member_delete;
+          DROP TABLE IF EXISTS speech_member_catalog;
+          CREATE TABLE speech_member_catalog (
+          member TEXT NOT NULL,source_id TEXT NOT NULL,date TEXT,kind TEXT,start TEXT,numbering INTEGER,revision INTEGER NOT NULL,order_ms INTEGER,source_order INTEGER NOT NULL,
+          PRIMARY KEY(member,source_id));
+          CREATE INDEX speech_member_page ON speech_member_catalog(member,date,start,numbering,source_id,kind,revision);
+          CREATE INDEX speech_member_list ON speech_member_catalog(member,order_ms DESC,source_order ASC,date,kind,revision,source_id);
+          CREATE INDEX speech_member_source ON speech_member_catalog(source_id);
+          CREATE TRIGGER speech_member_insert AFTER INSERT ON speech_catalog BEGIN
+            DELETE FROM speech_member_catalog WHERE source_id=NEW.source_id;
+            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision,speech_order_ms(NEW.start,NEW.date),NEW.rowid FROM json_each(NEW.participants); END;
+          CREATE TRIGGER speech_member_update AFTER UPDATE ON speech_catalog BEGIN
+            DELETE FROM speech_member_catalog WHERE source_id=OLD.source_id;
+            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision,speech_order_ms(NEW.start,NEW.date),NEW.rowid FROM json_each(NEW.participants); END;
+          CREATE TRIGGER speech_member_delete AFTER DELETE ON speech_catalog BEGIN
+            DELETE FROM speech_member_catalog WHERE source_id=OLD.source_id; END;
+          INSERT OR IGNORE INTO speech_member_catalog SELECT p.value,c.source_id,c.date,c.kind,c.start,c.numbering,c.revision,speech_order_ms(c.start,c.date),c.rowid
+            FROM speech_catalog c,json_each(c.participants) p;`);
+        this.set('speechMemberIndex',2);initialized=true;
+      }
       if(this.get('questionDiscoveryVersion')!==1) {
         this.db.exec('CREATE TABLE IF NOT EXISTS question_discovery (source_key TEXT PRIMARY KEY,signature TEXT NOT NULL,policy TEXT NOT NULL)');
         this.set('questionDiscoveryVersion',1);initialized=true;
@@ -219,20 +246,53 @@ export class CorpusStore {
   }
   reopen(key,body,priority) {
     this.assertWriter();
+    const failure=this.db.prepare('SELECT * FROM source_failures WHERE key=?').get(key);
+    if(failure&&failure.descriptor===sourceDescriptor(body)&&failure.parser_version===DOCX_EXTRACTION_VERSION)return;
+    this.db.prepare('DELETE FROM source_failures WHERE key=?').run(key);
     this.db.prepare('UPDATE tasks SET done=0,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=? AND done=1').run(JSON.stringify(body),priority,key);
   }
   resetTask(key,body,priority) {
     this.assertWriter();
+    this.db.prepare('DELETE FROM source_failures WHERE key=?').run(key);
     this.db.prepare('UPDATE tasks SET done=0,done_at=NULL,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=?').run(JSON.stringify(body),priority,key);
   }
   task(key){const row=this.db.prepare('SELECT * FROM tasks WHERE key=?').get(key);return row && {...row,body:parse(row.body)};}
-  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
-  nextTask(){if(!this.hasDueTask())return;const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
+  recheckSourceFailures() {
+    this.assertWriter();
+    for(const row of this.db.prepare('SELECT key FROM source_failures WHERE parser_version<? LIMIT 10').all(DOCX_EXTRACTION_VERSION)) {
+      this.db.prepare('UPDATE tasks SET done=0,retry_at=0 WHERE key=?').run(row.key);
+      this.db.prepare('DELETE FROM source_failures WHERE key=?').run(row.key);
+    }
+    for(const row of this.db.prepare('SELECT key FROM source_failures INDEXED BY source_failure_due WHERE next_check IS NOT NULL AND next_check<=? ORDER BY next_check LIMIT 10').all(this.clock())) {
+      this.db.prepare('UPDATE tasks SET done=0,retry_at=0 WHERE key=?').run(row.key);
+      this.db.prepare('UPDATE source_failures SET next_check=NULL WHERE key=?').run(row.key);
+    }
+  }
+  settleSourceFailure(task,error,state='permanent-source-issue') {
+    const settle=()=>{
+      this.assertWriter();
+      if(state==='permanent-source-issue') {
+        const body=this.task(task.key).body;
+        const previous=body.rejectedSource;
+        if(!confirmSourceRejection(previous,error,{descriptor:sourceDescriptor(body),parserVersion:DOCX_EXTRACTION_VERSION,now:this.clock(),observe:false}).confirmed)return;
+      }
+      this.db.prepare('INSERT OR REPLACE INTO source_failures VALUES (?,?,?,?,?,?,?)').run(task.key,state,String(error.message).slice(0,350),sourceDescriptor(task.body),error.sourceHash??null,DOCX_EXTRACTION_VERSION,state==='satisfied-by-alternative'?null:this.clock()+SOURCE_RECHECK_MS);
+      this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=?,attempts=attempts+1 WHERE key=?').run(this.clock(),String(error.message).slice(0,350),task.key);
+    };
+    return this.db.isTransaction?settle():this.transaction(settle);
+  }
+  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM source_failures WHERE parser_version<? LIMIT 1').get(DOCX_EXTRACTION_VERSION))||Boolean(this.db.prepare('SELECT 1 FROM source_failures INDEXED BY source_failure_due WHERE next_check IS NOT NULL AND next_check<=? LIMIT 1').get(this.clock()))||Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
+  nextTask(){if(!this.hasDueTask())return;this.recheckSourceFailures();const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
   taskProgress(task,body){this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE key=?').run(JSON.stringify(body),task.key);}
-  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
+  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('DELETE FROM source_failures WHERE key=?').run(task.key);this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
-    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
+    const body=this.task(task.key).body,previous=body.rejectedSource;
+    const {rejection,confirmed}=confirmSourceRejection(previous,error,{descriptor:sourceDescriptor(body),parserVersion:DOCX_EXTRACTION_VERSION,now:this.clock()});
+    if(rejection)body.rejectedSource=rejection;else delete body.rejectedSource;
+    this.db.prepare('UPDATE tasks SET body=? WHERE key=?').run(JSON.stringify(body),task.key);
+    if(confirmed&&!body.pdfPending)return this.settleSourceFailure(task,error);
+    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):transientSourceDelay(task.attempts));
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.key);
   }
   hasText(sourceUrl){return Boolean(this.db.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1').get(sourceUrl));}
@@ -419,7 +479,9 @@ export class CorpusStore {
   projectSpeechCatalog(activity,availableLanguages=[]) {
     const project=()=>{
       this.assertWriter();
-      this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
+      // Keep the observed catalogue insertion order on refresh. orderedSpeeches
+      // is a stable timestamp sort over hits (or data when hits are absent).
+      this.db.prepare('INSERT INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET date=excluded.date,kind=excluded.kind,start=excluded.start,numbering=excluded.numbering,participants=excluded.participants,available_languages=excluded.available_languages,revision=excluded.revision,fetched_at=excluded.fetched_at').run(activity.activity_id,activity.activity_date||null,
         String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
         (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
         this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
@@ -513,9 +575,11 @@ export class CorpusStore {
       sourceIds!==null&&(!Array.isArray(sourceIds)||sourceIds.length>1000))throw new Error('Invalid retained speech page.');
     const where=['kind IN ('+kinds.map(()=>'?').join(',')+')','date BETWEEN ? AND ?'],args=[...kinds,from,to];
     if(dates!==null){if(!Array.isArray(dates)||dates.length>5)throw new Error('Invalid retained sitting selection.');where.push('date IN ('+dates.map(()=>'?').join(',')+')');args.push(...dates);}
-    if(member!==null){where.push('EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)');args.push(String(member));}
+    const selectionName=member!==null?'speech_member_catalog':'speech_catalog';
+    const selectionTable=selectionName+(member!==null?' INDEXED BY speech_member_page':'');
+    if(member!==null){where.push('member=?');args.push(String(member));}
     if(sourceIds!==null){where.push('source_id IN ('+sourceIds.map(()=>'?').join(',')+')');args.push(...sourceIds);}
-    const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM speech_catalog WHERE '+where.join(' AND ')).get(...args);
+    const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM '+selectionTable+' WHERE '+where.join(' AND ')).get(...args);
     // Pagination follows the selected records. Background availability checks
     // change the labels below, without changing offsets or speech contents.
     const total=selection.n,revision=total+':'+selection.revision;
@@ -524,12 +588,12 @@ export class CorpusStore {
     // run the correlated text lookup for every speech in the date window,
     // exhausting the reader budget even for a member with only a few speeches.
     const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
-      SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')}
-      AND EXISTS (SELECT 1 FROM json_each(available_languages) WHERE value=?)
+      SELECT source_id FROM ${selectionTable} WHERE ${where.join(' AND ')}
+      AND source_id IN (SELECT source_id FROM speech_catalog c WHERE c.source_id=${selectionName}.source_id AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?))
     ) SELECT COUNT(*) n FROM selected c WHERE NOT EXISTS (
       SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=c.source_id AND t.source_format='xml-fragment' AND t.language=?)`).get(...args,params.language,params.language).n;
     const direction=descending?'DESC':'ASC';
-    const ids=this.db.prepare(`SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')} ORDER BY date ${direction},start ${direction},numbering ${direction},source_id ${direction} LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
+    const ids=this.db.prepare(`SELECT source_id FROM ${member!==null&&descending?'speech_member_catalog INDEXED BY speech_member_list':selectionTable} WHERE ${where.join(' AND ')} ORDER BY ${member!==null&&descending?'order_ms DESC,source_order ASC':`date ${direction},start ${direction},numbering ${direction},source_id ${direction}`}  LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
     const today=brusselsDay(this.clock());
     const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
@@ -542,7 +606,8 @@ export class CorpusStore {
       const failed=this.db.prepare("SELECT key,body FROM tasks WHERE done=0 AND error IS NOT NULL AND kind IN ('speeches','speech','speech-metadata','speech-metadata-detail') LIMIT 501").all();
       const gaps=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(parse(row.body),row.key));
       const args={family:'speeches',start:from,end:to>today?today:to,today,gaps,limited:pending,snapshot:{revision:this.get('availabilityRevision')||0},retention:{policy:this.get('speechLanguages')||null,history:historyStatus(this)}};
-      const dates=new Map(this.db.prepare('SELECT kind,MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=? GROUP BY kind').all(...kinds,today).map(row=>[row.kind,row.date]));
+      const latestKind=this.db.prepare('SELECT MAX(date) date FROM speech_catalog WHERE kind=? AND date<=?');
+      const dates=new Map(kinds.map(kind=>[kind,latestKind.get(kind,today).date]));
       availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
     }
     return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
@@ -609,10 +674,16 @@ export class CorpusStore {
       fetchedAt:row.fetched_at,sha256:row.sha256,...(row.snippet===undefined?{}:{snippet:row.snippet})};
   }
 
+  settledSources() {
+    const summary=state=>({count:this.db.prepare('SELECT COUNT(*) n FROM source_failures WHERE state=?').get(state).n,
+      examples:this.db.prepare('SELECT key,reason,content_hash AS contentHash,parser_version AS parserVersion FROM source_failures WHERE state=? ORDER BY key LIMIT 5').all(state).map(row=>({...row}))});
+    return {sourceIssues:summary('permanent-source-issue'),satisfiedByAlternative:summary('satisfied-by-alternative')};
+  }
+
   // Cheap coverage for every search response; full counts stay in status().
   coverage() {
     const backfilledAt=this.get('backfilledAt');
-    return {complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,phase:this.get('phase')||'waiting',
+    return {version:CORPUS_COVERAGE_VERSION,...this.settledSources(),complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,phase:this.get('phase')||'waiting',
       note:backfilledAt?'Initial backfill finished. Results cover stored texts, not an authoritative complete parliamentary corpus.':'Backfilling: counts and search results cover only texts stored so far.',
       countryBasis:'Current saved roster country of representation; missing countries are not inferred.'};
   }
@@ -626,11 +697,17 @@ export class CorpusStore {
     const withText=Object.fromEntries(this.db.prepare('SELECT d.kind,COUNT(*) AS n FROM documents d WHERE EXISTS (SELECT 1 FROM texts t WHERE t.document_id=d.id) GROUP BY d.kind').all().map(row=>[row.kind,row.n]));
     const texts=this.db.prepare('SELECT d.kind,t.language,COUNT(*) AS n,SUM(t.chars) AS chars FROM texts t JOIN documents d ON d.id=t.document_id GROUP BY d.kind,t.language ORDER BY d.kind,t.language').all();
     const tasks=this.db.prepare('SELECT kind,COUNT(*) AS total,SUM(done=1) AS done,SUM(done=0 AND error IS NOT NULL) AS retrying FROM tasks GROUP BY kind').all();
+    const settled=this.db.prepare(`SELECT t.kind,f.state,COUNT(*) n,SUM(t.done=1) done FROM source_failures f JOIN tasks t ON t.key=f.key GROUP BY t.kind,f.state`).all();
+    for(const row of tasks) {
+      row.sourceIssues=settled.find(item=>item.kind===row.kind&&item.state==='permanent-source-issue')?.n||0;
+      row.satisfiedByAlternative=settled.find(item=>item.kind===row.kind&&item.state==='satisfied-by-alternative')?.n||0;
+      row.done-=settled.filter(item=>item.kind===row.kind).reduce((sum,item)=>sum+item.done,0);
+    }
     const lastError=this.db.prepare('SELECT key,error,attempts,retry_at FROM tasks WHERE done=0 AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get();
     const lease=this.db.prepare('SELECT expires FROM lease WHERE id=1').get();
     const backfilledAt=this.get('backfilledAt');
     const metadataRetained=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='speech_metadata'").get()?this.db.prepare('SELECT COUNT(*) n FROM speech_metadata').get().n:0;
-    return {schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
+    return {version:CORPUS_STATUS_VERSION,...this.settledSources(),schemaVersion:1,term:10,phase:this.get('phase')||'waiting',complete:Boolean(backfilledAt),backfillComplete:Boolean(backfilledAt),authoritativeComplete:false,backfilledAt,
       availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverage:this.coverage().note,capabilities:{search:true,storedText:true,kinds:KINDS,groups:['document','question'],sorts:['relevance','newest'],sourceIdsLimit:CORPUS_LIMITS.sourceIds},
       documents:Object.fromEntries(KINDS.map(kind=>[kind,{discovered:documents[kind]||0,withText:withText[kind]||0}])),
@@ -638,7 +715,7 @@ export class CorpusStore {
         classificationVersion:this.get('speechInterventionClassificationVersion')??null,
         classificationRefreshPending:metadataRetained>0&&this.get('speechInterventionClassificationVersion')!==INTERVENTION_CLASSIFICATION_VERSION||tasks.some(task=>task.kind==='speech-intervention-refresh'&&task.total>task.done)},
       texts:texts.map(row=>({kind:row.kind,language:row.language,count:row.n,characters:row.chars})),
-      tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying}])),
+      tasks:Object.fromEntries(tasks.map(row=>[row.kind,{total:row.total,done:row.done,retrying:row.retrying,sourceIssues:row.sourceIssues,satisfiedByAlternative:row.satisfiedByAlternative}])),
       lastError:lastError?{key:lastError.key,error:lastError.error,attempts:lastError.attempts,nextRetryAt:new Date(lastError.retry_at).toISOString()}:null,
       discoveredAt:this.get('discoveredAt'),lastRunAt:this.get('lastRunAt'),languages:{speeches:this.get('speechLanguages')||null,documents:this.get('documentLanguages')||null},
       diskBytes,diskLimitBytes:diskLimit,indexAttached:this.indexAttached,exclusiveWriterActive:Boolean(lease && lease.expires>this.clock()),

@@ -21,7 +21,7 @@ export const RECOVERY_PATHS=Object.freeze([
   {family:'group designations',owner:'activity index',recovery:'group_voice_jobs after core work; monitor for starvation'},
   {family:'amendments and sitting outcomes',owner:'activity index',recovery:'amendment_jobs, saved continuations, daily gap and parser recovery'},
   {family:'speech and question/answer search text',owner:'corpus',recovery:'monthly speech tasks and exact distribution URL tasks'},
-  {family:'press releases',owner:'activity index',recovery:'daily RSS and bounded page retries; exhausted pages need intervention'},
+  {family:'press releases',owner:'activity index',recovery:'daily RSS and capped transient retries; permanent source issues recheck monthly or on re-announcement'},
   {family:'structured document reader and proposal context',owner:'on demand',recovery:'cache refresh on read; no comprehensive background backfill'},
   {family:'calendar, agendas, attendance and member votes',owner:'on demand',recovery:'bounded cached source reads; only indexed sitting outcomes have a background queue'},
   {family:'OEIL, Cellar and dossier context',owner:'on demand',recovery:'source-cache refresh on read; no comprehensive background backfill'},
@@ -124,7 +124,7 @@ export function auditIndex(db,now) {
     generations:generations.map(generation=>{
       const gaps=has(db,'refresh_gaps')?db.prepare('SELECT kind,COUNT(*) AS count,MIN(retry_at) AS earliestRetryAt FROM refresh_gaps WHERE generation=? GROUP BY kind').all(generation):null;
       const gapRecords=has(db,'refresh_gaps')?db.prepare('SELECT key,kind,error,attempts,retry_at AS retryAt FROM refresh_gaps WHERE generation=? ORDER BY key').all(generation).map(({error,...gap})=>({...gap,failure:failureClass(error)})):null;
-      const sourceGaps=has(db,'sources')?db.prepare("SELECT kind,COUNT(*) AS count FROM sources WHERE generation=? AND kind IN ('outside-gap','amendment-gap') GROUP BY kind").all(generation):null;
+      const sourceGaps=has(db,'sources')?db.prepare("SELECT kind,COALESCE(json_extract(body,'$.state'),'unclassified') AS state,COUNT(*) AS count FROM sources WHERE generation=? AND kind IN ('outside-gap','amendment-gap') GROUP BY kind,state").all(generation):null;
       const continuation=has(db,'sources')?db.prepare("SELECT body FROM sources WHERE generation=? AND key='amendment:continuations'").get(generation):null;
       const saved=continuation?JSON.parse(continuation.body):null;
       return {generation,queues:Object.fromEntries(['tasks','amendment_jobs','group_voice_jobs'].map(table=>[table,queues(db,table,now,generation)])),
@@ -144,8 +144,9 @@ export function auditCorpus(db,now) {
   const lease=has(db,'lease')?db.prepare('SELECT expires FROM lease WHERE id=1').get():null;
   return {phase:meta(db,'phase'),lastRunAt:meta(db,'lastRunAt'),backfilledAt:meta(db,'backfilledAt'),
     authoritativeComplete:false,writerLeaseActive:Boolean(lease?.expires>now),languages:meta(db,'documentLanguages'),
+    sourceFailures:has(db,'source_failures')?db.prepare('SELECT key,state,reason,descriptor,content_hash AS contentHash,parser_version AS parserVersion,next_check AS nextCheck FROM source_failures ORDER BY key').all():null,
     queues:queues(db,'tasks',now),
-    pendingTasks:has(db,'tasks')?db.prepare('SELECT key,kind,attempts,retry_at AS retryAt,error FROM tasks WHERE done=0 ORDER BY key').all().map(({error,...task})=>({...task,failure:failureClass(error)})):null,
+    pendingTasks:has(db,'tasks')?db.prepare('SELECT key,kind,attempts,retry_at AS retryAt,error FROM tasks WHERE done=0 ORDER BY key').all().map(({error,...task})=>({...task,state:'transient',failure:failureClass(error)})):null,
     documents:has(db,'documents')&&has(db,'texts')?db.prepare(`SELECT d.kind,COUNT(*) AS discovered,
       SUM(NOT EXISTS(SELECT 1 FROM texts t WHERE t.document_id=d.id)) AS withoutText FROM documents d GROUP BY d.kind`).all():null};
 }
@@ -165,19 +166,23 @@ export function reconcileQuestionFiles(indexFile,corpusFile,{exampleLimit=20,now
     if(!['all','primary'].includes(policy))return {state:'unavailable',reason:'corpus language policy unknown'};
     const text=corpus.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1');
     const task=corpus.prepare('SELECT done,retry_at FROM tasks WHERE key=?');
-    const counts={retained:0,queued:0,retryingLater:0,unowned:0,completedWithoutText:0,excludedByPolicy:0},examples=[],missing=[],universe=createHash('sha256');
-    const files=index.prepare('SELECT url,MAX(is_primary) AS is_primary FROM question_files WHERE generation=? GROUP BY url ORDER BY url').iterate(generation);
+    const failure=has(corpus,'source_failures')?corpus.prepare('SELECT state FROM source_failures WHERE key=?'):null;
+    const counts={retained:0,queued:0,retryingLater:0,unowned:0,completedWithoutText:0,excludedByPolicy:0,permanentSourceIssue:0,satisfiedByAlternative:0},examples=[],missing=[],universe=createHash('sha256');
+    const files=index.prepare("SELECT url,COALESCE(json_extract(body,'$.format'),'docx') AS format,MAX(is_primary) AS is_primary FROM question_files WHERE generation=? GROUP BY url ORDER BY url").iterate(generation);
     for(const file of files) {
       if(policy==='primary'&&!file.is_primary){counts.excludedByPolicy++;continue;}
       universe.update(file.url+'\n');
       if(text.get(file.url)){counts.retained++;continue;}
-      const queued=task.get('docx:'+file.url),state=!queued?'unowned':queued.done===1?'completedWithoutText':'queued';
+      const issue=failure?.get(file.format+':'+file.url);
+      if(issue?.state==='satisfied-by-alternative'){counts.satisfiedByAlternative++;continue;}
+      if(issue?.state==='permanent-source-issue'){counts.permanentSourceIssue++;missing.push({url:file.url,state:'permanent-source-issue'});continue;}
+      const queued=task.get(file.format+':'+file.url),state=!queued?'unowned':queued.done===1?'completedWithoutText':'queued';
       counts[state]++;
       missing.push({url:file.url,state});
       if((state==='unowned'||state==='completedWithoutText')&&examples.length<exampleLimit)examples.push({url:file.url,state});
       if(state==='queued'&&queued.retry_at>now)counts.retryingLater++;
     }
-    return {state:'observed',generation,policy,eligibleFiles:counts.retained+missing.length,eligibleUrlDigest:universe.digest('hex'),counts,missing,examples,action:counts.unowned||counts.completedWithoutText?'reconcile through the corpus writer; inspect completed empty extractions before requeue':'existing corpus queue owns known eligible files'};
+    return {state:'observed',generation,policy,eligibleFiles:counts.retained+counts.satisfiedByAlternative+missing.length,eligibleUrlDigest:universe.digest('hex'),counts,missing,examples,action:counts.unowned||counts.completedWithoutText?'reconcile through the corpus writer; inspect completed empty extractions before requeue':'existing corpus queue owns known eligible files'};
   } catch(error) {return {state:'unavailable',reason:error.code||'read failed'};}
   finally {for(const db of [index,corpus])if(db){if(db.isTransaction)db.exec('ROLLBACK');db.close();}}
 }
@@ -204,6 +209,6 @@ export function dataGapAudit({indexFile,corpusFile,pressFile,now=Date.now(),reco
   return {schemaVersion:1,observedAt:new Date(now).toISOString(),recoveryPaths:RECOVERY_PATHS,
     limits:['Queue ownership is not worker liveness; verify enabled services, run timestamps and progress on the host.','On-demand sources and unpublished upstream records are not exhaustively inventoried.','Read-only snapshots do not start collectors, reopen tasks or clear coverage gaps.'],
     index:inspect(indexFile,db=>auditIndex(db,now)),corpus:inspect(corpusFile,db=>auditCorpus(db,now)),
-    press:inspect(pressFile,db=>({releases:has(db,'releases')?db.prepare(`SELECT COUNT(*) AS total,SUM(checked_at IS NULL AND next_check IS NOT NULL) AS queued,SUM(checked_at IS NULL AND next_check IS NULL) AS exhausted FROM releases`).get():null})),
+    press:inspect(pressFile,db=>({failureStates:has(db,'releases')&&db.prepare("PRAGMA table_info('releases')").all().some(column=>column.name==='failure_state')?db.prepare('SELECT failure_state AS state,COUNT(*) AS count FROM releases WHERE error IS NOT NULL GROUP BY failure_state').all():null,releases:has(db,'releases')?db.prepare(`SELECT COUNT(*) AS total,SUM(checked_at IS NULL AND next_check IS NOT NULL) AS queued,SUM(checked_at IS NULL AND next_check IS NULL) AS exhausted FROM releases`).get():null})),
     questionFiles:reconcile&&indexFile&&corpusFile?reconcileQuestionFiles(indexFile,corpusFile,{now}):{state:'not checked',reason:'use --reconcile with both database paths'}};
 }

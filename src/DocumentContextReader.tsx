@@ -55,6 +55,8 @@ const responseFor=(data:DocumentContextResponse|null,id:string,language:string,r
 
 const placementReasons:Record<string,string>={
   ...proposalPlacementReasons,
+  rejects_proposal:'Rejects the proposal',
+  rejects_council_position:'Rejects the Council position',
   resolution_extent_uncertain:'The boundaries of this passage could not be determined.',
   resolution_end_unavailable:'The end of the resolution could not be determined.',
   baseline_unavailable:'The text this amendment changes is not included in this document.',
@@ -74,6 +76,8 @@ const placementReasons:Record<string,string>={
 };
 export const placementReasonsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : typeof placementReasons => ({
   ...proposalPlacementReasonsUi(ui),
+  rejects_proposal:ui.t("amendment.rejects_proposal"),
+  rejects_council_position:ui.t("amendment.rejects_council_position"),
   resolution_extent_uncertain:ui.t("batch6.documentcontextreader.the.boundaries.of.this.passage.could.not.be.determined.53"),
   resolution_end_unavailable:ui.t("batch6.documentcontextreader.the.end.of.the.resolution.could.not.be.determined.54"),
   baseline_unavailable:ui.t("batch6.documentcontextreader.the.text.this.amendment.changes.is.not.included.in.this.document.55"),
@@ -129,7 +133,8 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const validIndex=(index:unknown):index is number=>Number.isInteger(index)&&Number(index)>=0&&Number(index)<allParagraphs.length;
   const placed=Boolean(placement?.status==='placed'&&amendmentMatches&&wording&&((placement.operation==='insert') ? (validIndex(placement.insertAfter)&&placement.insertBefore===placement.insertAfter+1) : (placement.span&&validIndex(placement.span.start)&&validIndex(placement.span.end)&&placement.span.end>=placement.span.start)));
   const number=amendmentNumber(amendmentRequest?.amendmentId),amendmentHeading='amendment-'+useId().replace(/[^A-Za-z0-9_-]/g,'');
-  const placementReason=((placement?.reason==='different_text_languages') && (wording?.language===null)) ? ui.t("batch6.documentcontextreader.the.amendment.wording.language.is.unknown.131") : (((placement?.reason==='different_text_languages') && (!text?.textLanguage)) ? ui.t("batch6.documentcontextreader.the.document.text.language.is.unknown.132") : (placementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")));
+  const rejection=Boolean(wording&&placement?.status==='document-operation'&&placement.operation==='reject'&&data?.amendment?.id===amendmentRequest?.amendmentId&&evidence?.amendmentId===amendmentRequest?.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language);
+  const placementReason=placement?.status==='document-operation'&&!rejection ? ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67") : ((placement?.reason==='different_text_languages') && (wording?.language===null)) ? ui.t("batch6.documentcontextreader.the.amendment.wording.language.is.unknown.131") : (((placement?.reason==='different_text_languages') && (!text?.textLanguage)) ? ui.t("batch6.documentcontextreader.the.document.text.language.is.unknown.132") : (placementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")));
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
   const placementStart=placed ? ((placement?.operation==='insert') ? placement.insertAfter : placement?.span?.start) : undefined;
@@ -143,7 +148,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   }) : undefined;
   const amendmentBlock=(inPlace:boolean)=><section key="amendment" className="document-context-amendment" data-amendment-block="true" data-context-target={inPlace ? 'true' : undefined} tabIndex={inPlace ? (-1) : undefined} aria-labelledby={amendmentHeading}>
     <h4 id={amendmentHeading} lang={ui.language}>{number ? <UiMessage id="membervotes.tsx.amendment.number" values={{number: number}}/> : <UiMessage id="motionamendments.amendment.664ccf"/>}</h4>
-    {wording&&<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics="insertion-deletion" presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>}
+    {wording&&<WordingDiff originalFormatting={wording.originalFormatting} proposedFormatting={wording.proposedFormatting} original={(placement?.operation==='insert') ? '' : wording.originalText} proposed={(placement?.operation==='delete') ? '' : wording.proposedText} language={wording.language} emptySemantics={rejection ? "not-supplied" : "insertion-deletion"} highlightChanges={!rejection} presentation="context" renderOriginal={inPlace ? renderOriginal : undefined}/>}
     <AmendmentJustification record={wording}/>
   </section>;
   const sourceUrl=safeHref(text?.sourceUrl)||safeHref(document?.files.find(file=>file.language===(text?.textLanguage||language))?.url);
@@ -169,6 +174,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {loadError&&<p className="document-context-notice" role="alert">{hasText ? ui.t("batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170") : (extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170"))} <button type="button" onClick={state.retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
     {!state.loading&&!loadError&&!document&&<p><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></p>}
     {(!wording||hasText&&(!placement||scopeLanguageMismatch))&&<AmendmentJustification record={selectedVariant}/>}
+    {rejection&&!hasText&&<p className="document-context-notice" role="status">{placementReason}</p>}
     {wording&&!hasText&&<div className="document-context-text">{amendmentBlock(false)}</div>}
     {document&&<>
       {actual&&<p className="document-context-language">{(actual!==language) ? <TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/> : <><UiMessage id="membervotes.tsx.text.language.language" values={{language: languageName(actual,ui.locale)}}/></>}</p>}

@@ -79,6 +79,7 @@ export function replaySourceClients(cache,runtime) {
     const request={accept:options.headers.Accept,...(options.headers['Accept-Language']?{language:options.headers['Accept-Language']}:{})};
     const missing=await missingDeclaredRepresentation(cache,url,request);if(missing)throw missing;
     const input=await cache.get(url,{...request,raw:true,signal:options.signal});
+    if(input.acquisitionUnavailable)throw Object.assign(new Error('acquisition-unavailable'),{code:'acquisition-unavailable',source:input});
     sourceTime=Date.parse(input.fetchedAt);
     if(!Number.isFinite(sourceTime))throw new Error('Invalid source observation time: '+url);
     observedTime=Math.max(observedTime,sourceTime);
@@ -115,6 +116,7 @@ export function sourceReplay(cache,runtime) {
     const id=endpoint.split('/').at(-1),list=endpoint.startsWith('/documents/');
     const url=list?'https://data.europarl.europa.eu/api/v2/documents/'+id+'?format=application%2Fld%2Bjson':publicDocumentUrl(id);
     const input=await cache.get(url,{accept:'application/ld+json'});
+    if(input.acquisitionUnavailable)return {payload:{data:[]},url:input.url,fetchedAt:null,status:null,acquisitionUnavailable:true};
     if(!input.ok)return {payload:{data:[]},url:input.url,fetchedAt:Date.parse(input.fetchedAt),status:input.status};
     let payload;try{payload=JSON.parse(input.body.toString('utf8'));}catch{throw new Error('Invalid public document JSON: '+input.url);}
     const nodes=payload?.data;
@@ -215,7 +217,7 @@ export function sourceReplay(cache,runtime) {
         if(!input.ok)throw new Error('document-source-http-'+input.status);
         return {...runtime.docxContent(input.body),resolvedSourceUrl:input.resolvedSourceUrl||url};
       }});
-      cache.assertHealthy();return {...text,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
+      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
     },
     async proposal(options,selection) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};

@@ -1,3 +1,4 @@
+import {retainedSpeechPage} from './corpus-speeches.mjs';
 import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
@@ -49,12 +50,14 @@ function rememberOrganizationBody(key,record) {
 let cacheBytes = 0;
 const pending = new Map();
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
-// API v2 paths/IDs/queries. Reserve 100 starts for readers as a local fairness rule.
+// API v2 paths/IDs/queries. Reserve 100 starts (20%) for readers and other foreground work.
 export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:100});
 const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
 const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
 const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
-export const observedOdpFetch=(url,options)=>observations.fetch(url,options);
+let upstreamBridge;
+export function setUpstreamBridge(bridge){upstreamBridge=bridge;}
+export const observedOdpFetch=(url,options)=>(upstreamBridge||observations).fetch(url,options);
 export const odpObservations=()=>observations.snapshot();
 export const odpHeaderStatus=()=>observations.headerSnapshot();
 export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
@@ -63,11 +66,15 @@ export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
   return ()=>{clearInterval(timer);report();};
 }
 const sourceQueues=new Map([['odp',upstreamQueue]]);
-function sourceQueue(source) {
-  if(!['odp','website','documents','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
-  if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue());
-  return sourceQueues.get(source);
+function sourceQueue(source,{backgroundRank=0}={}) {
+  if(!['odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
+  if(upstreamBridge)return upstreamBridge.queue(source);
+  if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:{}));
+  const queue=sourceQueues.get(source);
+  if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
+  return queue;
 }
+export const upstreamPortServices=()=>({queueFor:sourceQueue,observations});
 export const upstreamStatus=()=>upstreamQueue.snapshot();
 const refreshFailures = new Map();
 const cacheDir = process.env.ODP_CACHE_DIR;
@@ -155,8 +162,7 @@ export function odpLanguage(value) {
   return value;
 }
 export async function boundedUpstream(operation, {source='odp',priority='interactive',signal=priority==='background'?undefined:requestSignal(),backgroundRank=0}={}) {
-  const queue=sourceQueue(source);
-  if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
+  const queue=sourceQueue(source,{backgroundRank});
   return queue.run(operation,{priority,signal,backgroundRank});
 }
 export function backoffUpstream(seconds,{source='odp'}={}) {
@@ -165,6 +171,7 @@ export function backoffUpstream(seconds,{source='odp'}={}) {
 export function upstreamResponseError(response,{source='odp'}={}) {
   if(![429,503].includes(response.status??response.statusCode))return null;
   const seconds=retryAfterSeconds(response.headers?.get?response.headers.get('retry-after'):response.headers?.['retry-after']);
+  sourceQueue(source).recordResponse?.(response.status??response.statusCode);
   backoffUpstream(seconds,{source});
   return Object.assign(new HttpError(503,'upstream_busy','The public source is temporarily limiting requests. Please try again after the pause.'),{retryAfter:seconds,retryAt:Date.now()+seconds*1000});
 }
@@ -306,21 +313,21 @@ function observeSource(entry,priority,signal) {
       // or the old foreground job deadline must not cancel the new durable owner.
       for(const follow of entry.foregroundWaiters)follow();
     }
-    upstreamQueue.reprioritize(entry,entry.readers>0?'interactive':'background');
+    sourceQueue('odp').reprioritize(entry,entry.readers>0?'interactive':'background');
     return entry.promise;
   }
   entry.readers++;
-  if(entry.backgroundOwner)upstreamQueue.reprioritize(entry,'interactive');
+  if(entry.backgroundOwner)sourceQueue('odp').reprioritize(entry,'interactive');
   let follow;
-  const read=entry.backgroundOwner?upstreamQueue.joinBackground(entry.promise,{signal}):new Promise((resolve,reject)=>{
-    follow=()=>upstreamQueue.joinBackground(entry.promise,{signal}).then(resolve,reject);
+  const read=entry.backgroundOwner?sourceQueue('odp').joinBackground(entry.promise,{signal}):new Promise((resolve,reject)=>{
+    follow=()=>sourceQueue('odp').joinBackground(entry.promise,{signal}).then(resolve,reject);
     entry.foregroundWaiters.add(follow);
     waitForRequest(entry.promise,signal).then(resolve,reject);
   });
   return read.finally(()=>{
     if(follow)entry.foregroundWaiters.delete(follow);
     entry.readers--;
-    if(entry.backgroundOwner&&entry.readers===0)upstreamQueue.reprioritize(entry,'background');
+    if(entry.backgroundOwner&&entry.readers===0)sourceQueue('odp').reprioritize(entry,'background');
     if(!entry.settled&&!entry.backgroundOwner&&entry.readers===0)entry.budget.abort(signal?.reason||cancelledRequest());
   });
 }
@@ -395,7 +402,7 @@ export async function odp(
       const reschedule=new AbortController();
       try {
         // Each attempt is admitted separately, including background retries.
-        const response = await upstreamQueue.runHeld(releaseSlot=>{
+        const response = await sourceQueue('odp').runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
           release=releaseSlot;
           return observedOdpFetch(url, {
@@ -436,7 +443,7 @@ export async function odp(
           ),{upstreamStatus:response.status,source,responseBytes});
         }
         if (response.status === 204)
-          throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
+          throw Object.assign(new HttpError(502, "odp_no_content", "Parliament supplied no content for this request."), {source:{url:key,fetchedAt:Date.now(),httpStatus:204}});
         if (!response.headers.get("content-type")?.includes("json")) {
           await response.body?.cancel();
           throw new HttpError(
@@ -1045,19 +1052,44 @@ export function orderedSpeeches(payload) {
       (a, b) => Date.parse(b.start || b.date) - Date.parse(a.start || a.date),
     );
 }
-export async function odpSpeeches(id, language, offset) {
-  const record = await odp("/speeches", {
+export const SPEECH_LIST_VERSION=3;
+export async function odpSpeeches(id, language, offset, {request=odp,readCorpusPage=request===odp?retainedSpeechPage:null,catalogue=null,revision=null}={}) {
+  if(catalogue!==null&&!['retained','public'].includes(catalogue)||revision!==null&&!/^\d+:\d+$/.test(revision))throw new HttpError(400,'invalid_pagination','Invalid speech continuation.');
+  // Older callers have only an offset. Restart their walk rather than guess
+  // which catalogue supplied the preceding page. The response offset is authoritative.
+  let restarted=offset>0&&(!catalogue||catalogue==='retained'&&!revision);
+  if(restarted)offset=0;
+  let saved=catalogue==='public'?null:await readCorpusPage?.({member:String(id),kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:50,offset,...(offset>0&&revision?{expectedRevision:revision}:{})});
+  requestSignal()?.throwIfAborted();
+  if(saved?.changed) {
+    restarted=true;offset=0;
+    saved=await readCorpusPage?.({member:String(id),kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:50,offset:0});
+  }
+  if(saved?.total>0&&!saved.truncated&&saved.records?.every(row=>row.metadata))return {
+    items:saved.records.map(row=>row.metadata.summary),total:saved.total,offset,restarted,
+    pagination:{catalogue:'retained',revision:saved.revision,nextOffset:saved.nextOffset},
+    fetchedAt:saved.records.map(row=>row.metadata.fetchedAt).filter(Boolean).sort().at(-1)||null,
+    coverage:saved.coverage,
+  };
+  if(catalogue==='retained'&&offset>0){offset=0;restarted=true;}
+  let record;
+  try {record = await request("/speeches", {
     "person-id": id,
     "parliamentary-term": 10,
     "activity-type": "PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT",
     "sort-by": "sitting-date:desc",
     limit: 50,
     offset,
-  });
+  });}catch(error){
+    if(error.code!=='odp_no_content')throw error;
+    return {items:[],total:null,offset,restarted,pagination:{catalogue:'public',revision:null,nextOffset:null},status:'unavailable',coverage:{status:'unavailable'},fetchedAt:error.source?new Date(error.source.fetchedAt).toISOString():null};
+  }
+  const items=orderedSpeeches(record.payload),total=record.payload.meta?.total??items.length;
   return {
-    items: orderedSpeeches(record.payload),
-    total: record.payload.meta?.total ?? record.payload.data.length,
-    offset,
+    items,
+    total,
+    offset,restarted,
+    pagination:{catalogue:'public',revision:null,nextOffset:items.length&&offset+items.length<total?offset+items.length:null},
     fetchedAt: new Date(record.fetchedAt).toISOString(),
   };
 }

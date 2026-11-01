@@ -156,3 +156,9 @@ test('named-vote group headings use the French UI language for unknown and trans
  const translated=headings.find(node=>node.textContent===ui.t('grouplabels.ts.epp'));assert(translated);assert.equal(translated.lang,'fr');
  const literal=headings.find(node=>node.textContent==='S&D');assert(literal);assert.equal(literal.lang,'');
 });
+
+test('a real snapshot conflict withholds old voters and offers a working retry',async t=>{
+ let conflict=true;const h=await mount(t,async()=>conflict?Response.json({error:{code:'vote_snapshot_unavailable',message:'Snapshot changed'}},{status:409}):Response.json(await voteFixture().read()));
+ await h.render();await h.open();assert.match(h.container.textContent,/Named votes unavailable/);assert.equal(h.container.querySelector('.amendment-named-votes__group'),null);
+ conflict=false;await act(async()=>h.container.querySelector('button').click());assert(h.container.querySelector('.amendment-named-votes__group'));
+});

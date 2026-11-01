@@ -1,3 +1,5 @@
+import {DatabaseSync} from 'node:sqlite';
+import {prepareFastReads} from './fast-read-projections.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {savedProcedureEvents,topicTimeline} from './topic-trends.mjs';
@@ -5,7 +7,13 @@ import {sourceAvailability} from './source-availability.mjs';
 
 const event=(day,n)=>({id:`eli/dl/event/MTG-PL-${day}-PVCRE-ITM-${n}`,had_activity_type:'def/ep-activities/PLENARY_DEBATE',activity_date:day});
 const row=(n,day)=>({key:'/procedures/2026-'+String(n).padStart(4,'0'),body:JSON.stringify({id:'eli/dl/proc/2026-'+String(n).padStart(4,'0'),consists_of:[event(day,n)]}),fetched_at:'2026-10-22T12:00:00Z'});
-const store=rows=>({status:()=>({servingGeneration:1}),db:{prepare:()=>({all:()=>rows})}});
+const store=rows=>{
+  const db=new DatabaseSync(':memory:');
+  db.exec('CREATE TABLE sources(generation,key,kind,body,fetched_at); CREATE TABLE amendments(generation,date,target,body,id,outcome); CREATE TABLE outside_contributions(generation,date,speech,person,body); CREATE TABLE amendment_targets(generation,id,body);');
+  const put=db.prepare("INSERT INTO sources VALUES (1,?,'procedure',?,?)");
+  for(const row of rows)put.run(row.key,row.body,row.fetched_at);
+  prepareFastReads(db);return {status:()=>({servingGeneration:1}),db};
+};
 
 test('procedure event frontiers ignore the selected end date and the dossier cap favours recent events',()=>{
   const rows=Array.from({length:601},(_,i)=>row(i+1,i===600?'2026-10-20':'2026-10-09'));

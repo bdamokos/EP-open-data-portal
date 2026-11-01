@@ -2,10 +2,12 @@ import {projectProcedure} from './activity-index-model.mjs';
 import {classifyProcedure} from './insights-legislation-model.mjs';
 import {getSharedOfficialContextSources,parseProcedurePage} from './official-context.mjs';
 import {topicCollectorTables} from './topics-project.mjs';
-export async function collectTopicProcedure(worker,{sources=getSharedOfficialContextSources()}={}){
+export async function collectTopicProcedure(worker,{sources=worker.officialContext?.sources||getSharedOfficialContextSources()}={}){
  const s=worker.store;topicCollectorTables(s.db);s.assertWriter();const now=worker.clock();
  if(worker.requests>=worker.budget||worker.controller.signal.aborted)return false;
  const row=s.db.prepare('SELECT * FROM topic_procedure_queue WHERE next_read<=? ORDER BY next_read,id LIMIT 1').get(now);if(!row)return false;
+ // A full retained-source store pauses admission; it is not a source failure.
+ if(sources.cache?.capacity&&(await sources.cache.capacity()).state!=='ready'){s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(now+60_000,row.id);return false;}
  if(row.reference)worker.requests++;
  // Persist the in-flight retry before reading; a crash cannot spin on this ID.
  s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(now+86400_000,row.id);

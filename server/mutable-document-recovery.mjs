@@ -1,3 +1,5 @@
+export const MUTABLE_LIMIT=100;
+
 // Shared by the normal writer and the dependency-free, read-only audit CLI.
 // An existing task, gap or saved continuation owns its own retry/cursor clock.
 export const mutableCandidateSql=`SELECT mutable.key,mutable.next_check AS nextCheck
@@ -29,6 +31,7 @@ export function mutableBackfillCutoff(cycle,generation,now) {
 }
 
 export function mutableRecoveryDue(store,generation,now=store.clock()) {
+  if(store.db.prepare('SELECT COUNT(*) n FROM mutable_refresh_admissions WHERE generation=?').get(generation).n>=MUTABLE_LIMIT)return false;
   const cutoff=mutableBackfillCutoff(store.get('working'),generation,now);
   for(const row of mutableDocumentCandidates(store.db,generation,cutoff))return true;
   return false;
