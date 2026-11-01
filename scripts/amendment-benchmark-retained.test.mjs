@@ -87,3 +87,71 @@ test('CLI seals a directory acquisition and replays missing observations without
  assert.equal(result.rows.length,1);assert.equal(result.rows[0].outcome,'acquisition-unavailable');assert.equal(result.metrics.falsePlacements,0);
  await assert.rejects(()=>main([...args,'--production-data-dir',f.root,'--acquire-only']),/new empty/);
 });
+
+const epUrl='https://data.europarl.europa.eu/distribution/reds_iPlRp/A-10-2026-0001/A-10-2026-0001_en.docx';
+async function v2Fixture(t,{mutate=()=>{},missingBlob=false}={}) {
+ const f=await fixture(t),body=Buffer.from('native retained report bytes');
+ const row={url:epUrl,language:'en',byte_size:body.length,issued:'2026-10-29T00:00:00Z',sha256:digest(body),size:body.length,retrieved_at:'2026-10-30T12:00:00Z',list_id:'A-10-2026-0001-AM-001-002'};mutate(row);
+ execFileSync('python3',['-c',`import sqlite3,sys,json
+c=sqlite3.connect(sys.argv[1])
+c.execute('CREATE TABLE amendment_sources(url TEXT, language TEXT, byte_size INTEGER, issued TEXT, sha256 TEXT, size INTEGER, retrieved_at TEXT, list_id TEXT)')
+c.execute('INSERT INTO amendment_sources VALUES (?,?,?,?,?,?,?,?)',list(json.loads(sys.argv[2]).values()))
+c.commit();c.close()`,path.join(f.root,'index/activities-v1.sqlite'),JSON.stringify(row)]);
+ await mkdir(path.join(f.root,'index/amendment-docx-v2'));
+ const blob=path.join(f.root,'index/amendment-docx-v2',row.sha256+'.docx');
+ if(!missingBlob)await writeFile(blob,body);
+ return {...f,row,blob,native:body};
+}
+test('v2 report fallback bytes work without cache and preserve the entire supplied tree',async t=>{
+ const f=await v2Fixture(t);await rm(path.join(f.root,'cache'),{recursive:true});
+ const db=path.join(f.root,'index/activities-v1.sqlite'),before=await readFile(db),blobBefore=await readFile(f.blob);
+ const reader=await RetainedInputs.open(f.root),input=await reader.get(epUrl);
+ assert.deepEqual(input.body,f.native);assert.equal(input.sha256,f.row.sha256);assert.equal(input.fetchedAt,f.row.retrieved_at);
+ assert.equal(input.retainedSource.descriptor.language,'en');assert.equal(input.retainedSource.listId,f.row.list_id);
+ const gap=await reader.get(url,{accept,language:'eng'});assert.equal(gap.acquisitionUnavailableReason,'retained-cache-missing');assert.equal(gap.status,null);
+ assert.deepEqual(await readFile(db),before);assert.deepEqual(await readFile(f.blob),blobBefore);
+ assert.deepEqual((await readdir(f.root)).sort(),['corpus','index']);assert.deepEqual((await readdir(path.dirname(db))).sort(),['activities-v1.sqlite','amendment-docx-v2']);
+ assert.equal((await reader.get(epUrl,{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'fr'})).acquisitionUnavailableReason,'amendment-source-request-mismatch');
+});
+test('v2 missing table, attestation and blob are explicit gaps',async t=>{
+ const f=await fixture(t);assert.equal((await (await RetainedInputs.open(f.root)).get(epUrl)).acquisitionUnavailableReason,'amendment-sources-table-missing');
+ const v=await v2Fixture(t,{missingBlob:true}),reader=await RetainedInputs.open(v.root);
+ assert.equal((await reader.get(epUrl)).acquisitionUnavailableReason,'amendment-source-blob-missing');
+ assert.equal((await reader.get(epUrl.replace('_en','_fr'))).acquisitionUnavailableReason,'amendment-source-attestation-missing');
+});
+test('v2 malformed descriptors, stale retrievals, wrong hash and sizes fail closed without repair',async t=>{
+ for(const mutate of [r=>r.sha256='0'.repeat(64),r=>r.size++,r=>r.byte_size++,r=>r.language='',r=>r.issued='invalid',r=>r.retrieved_at='2026-01-01',r=>r.list_id='unrelated']) {
+  const f=await v2Fixture(t,{mutate}),db=path.join(f.root,'index/activities-v1.sqlite'),before=await readFile(db),blob=await readFile(f.blob);
+  await assert.rejects(()=>(RetainedInputs.open(f.root)).then(reader=>reader.get(epUrl)),/mismatch/);
+  assert.deepEqual(await readFile(db),before);assert.deepEqual(await readFile(f.blob),blob);
+ }
+});
+test('v2 URL ambiguity and symlink escapes never choose another source',async t=>{
+ const f=await v2Fixture(t);
+ execFileSync('python3',['-c',"import sqlite3,sys;c=sqlite3.connect(sys.argv[1]);c.execute(\"INSERT INTO amendment_sources SELECT url,'fr',byte_size,issued,sha256,size,retrieved_at,list_id FROM amendment_sources\");c.commit();c.close()",path.join(f.root,'index/activities-v1.sqlite')]);
+ await assert.rejects(()=>(RetainedInputs.open(f.root)).then(reader=>reader.get(epUrl)),/Ambiguous/);
+ const v=await v2Fixture(t),outside=await mkdtemp(path.join(os.tmpdir(),'retained-outside-'));t.after(()=>rm(outside,{recursive:true,force:true}));
+ await writeFile(path.join(outside,'bytes'),v.native);await rm(v.blob);await symlink(path.join(outside,'bytes'),v.blob);
+ await assert.rejects(()=>(RetainedInputs.open(v.root)).then(reader=>reader.get(epUrl)),/escapes/);
+});
+test('v2 acquisition seals bytes and unavailable Cellar metadata for offline replay without upstream transport',async t=>{
+ const f=await v2Fixture(t);await rm(path.join(f.root,'cache'),{recursive:true});
+ const directory=await mkdtemp(path.join(os.tmpdir(),'retained-v2-cache-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const cache=new InputCache(directory,{retained:await RetainedInputs.open(f.root),apiBase:'https://explorer.test',fetchMissing:true,fetcher:()=>assert.fail('upstream transport')});
+ assert.deepEqual((await cache.get(epUrl)).body,f.native);assert.equal((await cache.get(url,{accept,language:'eng'})).acquisitionUnavailableReason,'retained-cache-missing');
+ const manifest=cache.manifest();await cache.seal(manifest);
+ const offline=new InputCache(directory,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline transport')});await offline.seal(manifest);
+ assert.deepEqual((await offline.get(epUrl)).body,f.native);assert.equal((await offline.get(url,{accept,language:'eng'})).status,null);
+});
+test('CLI acquire-only seals v2 bytes without cache or upstream requests',async t=>{
+ const f=await v2Fixture(t);await rm(path.join(f.root,'cache'),{recursive:true});
+ const directory=await mkdtemp(path.join(os.tmpdir(),'retained-v2-cli-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const document='A-10-2026-0001',id=document+'-AM-1',row={id,targetDocumentId:document,number:1,language:'en',listId:f.row.list_id,wordingSource:{url:epUrl,reportId:document},decisions:[{id:'vote',date:'2026-10-30',sittingId:'MTG-PL-2026-10-30',amendmentIds:[id],source:{url:'https://public.test',fetchedAt:'2026-10-30'}}]};
+ const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+ globalThis.fetch=async input=>{const u=new URL(input);assert.equal(u.origin,'https://explorer.test');return new Response(JSON.stringify(u.pathname==='/api/amendments'?{items:[row],total:1,limit:50,offset:0,coverage:{servingGeneration:1}}:{documentId:document}));};
+ await main(['--api-base','https://explorer.test','--cache-dir',directory,'--document',document,'--as-of','2026-11-01','--production-data-dir',f.root,'--acquire-only']);
+ const snapshot=JSON.parse(await readFile(path.join(directory,'snapshot.json'),'utf8'));
+ assert.equal(snapshot.manifest.find(m=>m.url===epUrl).sha256,f.row.sha256);
+ const offline=new InputCache(directory,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline upstream')});await offline.seal(snapshot.manifest);assert.deepEqual((await offline.get(epUrl)).body,f.native);
+ assert.deepEqual((await readdir(f.root)).sort(),['corpus','index']);
+});
