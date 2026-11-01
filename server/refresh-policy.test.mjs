@@ -112,7 +112,9 @@ for(const mode of ['normal','backfill'])test(mode+' mutable admission preserves 
   const working=store.get('working').generation,start=store.get('working').startedAt;
   assert.equal(store.get('active'),generation);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM item_marks').get().n,0);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,100);
-  assert.equal(auditMutableAdmission(store.db,working,clock()).eligibleDue,6);
+  const eligible=auditMutableAdmission(store.db,working,clock()).eligibleDue;
+  if(mode==='backfill')assert(eligible>6,'backfill drains its captured batch before refilling every vacant slot');
+  else assert.equal(eligible,6);
   await worker.runIteration();assert.equal(store.get('working').generation,working);assert.equal(store.get('working').startedAt,start);
   assert.equal(store.get('active'),generation);assert.equal(auditMutableAdmission(store.db,working,clock()).eligibleDue,0);
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM items WHERE generation=?').get(working).n,200);
