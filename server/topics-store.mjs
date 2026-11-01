@@ -5,7 +5,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=10;
+export const TOPICS_VERSION=13;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -85,7 +85,7 @@ export class RecordTopics{
  if(view==='records'&&(ids.length>50||ids.some(id=>!/^[-A-Za-z0-9_]{1,150}$/.test(id))))throw new HttpError(400,'invalid_query','Choose up to 50 records.');
  const role=params.get('role')||'topic';if(view==='overview'&&!['topic','place'].includes(role))throw new HttpError(400,'invalid_query','Choose topics or places.');
  const key=params.get('key'),kind=params.get('kind'),offset=Number(params.get('offset')||0),keyword=params.get('keyword'),place=params.get('place'),from=params.get('from'),to=params.get('to');
- if(view==='detail'&&(!validTopicKey(key)||key.startsWith('subject-matter:')||kind&&!topicKinds.includes(kind)||!Number.isSafeInteger(offset)||offset<0||offset>20000||keyword&&(!validTopicKey(keyword)||!/^eurovoc:/.test(keyword))||place&&(!validTopicKey(place)||!/^place:/.test(place))))throw new HttpError(400,'invalid_query','Choose a topic.');
+ if(view==='detail'&&(!validTopicKey(key)||key.startsWith('subject-matter:')||kind&&!topicKinds.includes(kind)||!Number.isSafeInteger(offset)||offset<0||keyword&&(!validTopicKey(keyword)||!/^eurovoc:/.test(keyword))||place&&(!validTopicKey(place)||!/^place:/.test(place))))throw new HttpError(400,'invalid_query','Choose a topic.');
  for(const d of [from,to])if(d&&(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!Number.isFinite(Date.parse(d))||new Date(d).toISOString().slice(0,10)!==d))throw new HttpError(400,'invalid_query','Choose a date.');
  if(from&&to&&from>to)throw new HttpError(400,'invalid_query','Choose a date range.');
  if(!generation)return {ready:false};
@@ -101,7 +101,7 @@ export class RecordTopics{
  for(const r of this.db.prepare("SELECT key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,askers,COUNT(*) n FROM record_topic_question_places WHERE generation=? AND date>='2024-07-16' AND date<=?"+(askers==='all'?'':' AND askers=?')+' GROUP BY key,period,askers').iterate(generation,calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now()),...(askers==='all'?[]:[askers]))){const s=summary.get(r.key)?.series.find(s=>s.period===r.period);if(s)s['question'+r.askers[0].toUpperCase()+r.askers.slice(1)]=r.n;}
  const items=[...summary.values()].sort((a,b)=>b.total-a.total||a.key.localeCompare(b.key));
  if(view==='overview')return {ready:true,coverage,...extras,periods,items:items.filter(c=>c.role===role).map(({key,label,id,iso3,deprecated,total,counts,series,groupsTotal})=>({key,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,groupsTotal,counts,series}))};
- const q=fold((params.get('q')||'').slice(0,120)),limits={topic:0,keyword:0,place:0};return {ready:true,results:items.filter(c=>(!q?c.role==='topic':fold(c.label).includes(q))&&limits[c.role]++<8).map(({key,role,label,id,iso3,deprecated,total,counts})=>({key,role,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,counts}))};
+ const text=params.get('q')||'';if(text.length>120)throw new HttpError(400,'invalid_query','Use a shorter search.');const q=fold(text),limits={topic:0,keyword:0,place:0};return {ready:true,results:items.filter(c=>(!q?c.role==='topic':fold(c.label).includes(q))&&limits[c.role]++<8).map(({key,role,label,id,iso3,deprecated,total,counts})=>({key,role,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,counts}))};
  }
  const concept=this.concept(key,language);if(concept?.role==='hidden')throw new HttpError(400,'invalid_topic','Choose a topic.');
  const where=['m.generation=?','m.key=?',"m.kind IN ('debate','document','question','speech','vote')","m.date>=?","m.date<=?"],args=[generation,key,from&&from>'2024-07-16'?from:'2024-07-16',to||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now())];

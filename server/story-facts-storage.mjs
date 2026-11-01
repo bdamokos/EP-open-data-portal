@@ -15,7 +15,7 @@ export function storyTables(db){db.exec(`
  CREATE INDEX IF NOT EXISTS story_parent_speech ON story_parents(generation,speech,parent);
  `);}
 const statements=new WeakMap();
-function prepared(db){let p=statements.get(db);if(!p){p={queue:db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)'),input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
+function prepared(db){let p=statements.get(db);if(!p){p={queue:db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)'),input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,source,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
 export function stageStoryInput(store,w,source,{rank=1}={}){
  source={...source,fetchedAt:sourceTime(source?.fetchedAt)};let kind,value;
  if(w.outside){const o=w.outside;if(!o.id)return;kind='speech';value={id:o.id,date:o.date,titles:o.titles||{},parentIds:o.parentIds||[],creIds:o.parentDocumentIds||[],creId:o.parentDocumentId||null,headers:array(o.headers).map(h=>({personId:String(h.personId),capacity:h.capacity||null,role:h.role||null})),source:o.source||source};}
@@ -30,7 +30,9 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  if(old&&(old.fetched_at>at||old.fetched_at===at&&old.rank>rank))return;
  const body=JSON.stringify({...value,source:undefined});
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body!==body){value={...value,conflicted:true};}
- p.put.run(kind,value.id,JSON.stringify({...value,source:undefined}),JSON.stringify(source),at,rank);
+ const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
+ if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
+ p.put.run(kind,value.id,saved,encodedSource,at,rank);
 }
 export function storyInput(store,kind,id){const row=prepared(store.db).input.get(kind,id);return row?{...JSON.parse(row.body),source:JSON.parse(row.source)}:null;}
 export function queueStoryRead(store,kind,id,{unavailable=false}={}){

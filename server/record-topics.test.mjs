@@ -51,3 +51,9 @@ test('official urgency-request ballots remain votes rather than debates',t=>{
  writeTopicProjection(store,projectRecordTopics([{id,kind:'event',activityType:'def/ep-activities/REQUEST_VOTE_URGENCY',date:'2026-10-20'}]));
  assert.equal(new RecordTopics(store).record(id,'en').kind,'vote');
 });
+
+test('detail has no arbitrary offset ceiling and long searches fail explicitly',t=>{
+ const store=fixture(t);writeTopicProjection(store,projectRecordTopics(nodes(),options()));const reader=new RecordTopics(store);
+ const beyond=reader.query(new URLSearchParams('key=oeil:7.30.30.06&offset=20020'),'detail');assert.equal(beyond.total,3);assert.deepEqual(beyond.groups,[]);assert.equal(beyond.nextOffset,null);
+ assert.throws(()=>reader.query(new URLSearchParams({q:'x'.repeat(121)}),'search'),/shorter search/);
+});
