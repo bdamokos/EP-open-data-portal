@@ -128,3 +128,12 @@ test('localized fallback titles retain their language and leave published event 
   assert.deepEqual(item().entries.map(row=>[row.title,row.titleLanguage]),[['Decision by Parliament','en'],['Avancement de la procédure','fr']]);
   assert.deepEqual(createDossiersStore(storage,()=>{},()=>now,ui).snapshot().items[0].entries,JSON.parse(JSON.stringify(item().entries)));
 });
+
+test('entries from one observation share their discovery time even when the clock ticks between them',()=>{
+  let now=1_800_000_000_000;const store=createDossiersStore(null,()=>{},()=>now++),id='2026/0004(COD)';
+  store.toggle({id});const item=()=>store.snapshot().items.find(entry=>entry.id===id);
+  const data=(time,events)=>({reference:id,state:'mapped',coverage:{},source:{fetchedAt:time},events});
+  store.observeProgress(id,data('2026-10-31T08:00:00Z',[]),item());
+  store.observeProgress(id,data('2026-10-31T09:00:00Z',[{id:'first:'+id,status:'recorded',date:'2026-10-30',label:'Decision by Parliament',labelLanguage:'en'},{id:'second:'+id,status:'recorded',date:'2026-10-30'}]),item());
+  const times=new Set(item().entries.map(entry=>entry.discoveredAt));assert.equal(times.size,1);
+});
