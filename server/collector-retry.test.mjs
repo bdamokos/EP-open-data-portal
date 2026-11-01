@@ -28,3 +28,8 @@ for(const kind of ['topic','story'])for(const permanent of [true,false])test(`${
  now=saved.next_read-1;store.acquire();assert.equal(await run(),false);now++;store.acquire();await run();assert.equal(calls,2);assert.equal(row().attempts,2);
  if(!permanent){for(let i=0;i<24;i++){now=row().next_read;store.acquire();await run();}assert.equal(row().next_read-now,7*DAY);}
 });
+
+test('unavailable procedure metadata keeps its failed ODP source, without inventing an OEIL reference',async t=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'collector-identity-')),now=Date.now(),store=new ActivityStore(dir,{clock:()=>now,initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});topicCollectorTables(store.db);store.db.prepare('INSERT INTO topic_procedure_queue VALUES (?,NULL,0)').run('2025-0001');
+ let calls=0;const worker={store,clock:()=>now,requests:0,budget:10,controller:new AbortController(),request:async()=>{calls++;return {payload:{data:[]}};}};await collectTopicProcedure(worker,{sources:{get:()=>assert.fail()}});const page=JSON.parse(store.db.prepare('SELECT body FROM topic_procedure_pages').get().body);assert.equal(page.state,'unavailable');assert.equal(page.url,'https://data.europarl.europa.eu/api/v2/procedures/2025-0001');assert.equal(await collectTopicProcedure(worker),false);assert.equal(calls,1);
+});
