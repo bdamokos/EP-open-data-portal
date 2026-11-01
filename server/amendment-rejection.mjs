@@ -11,6 +11,9 @@ const forms={
 };
 export function amendmentRejection(variant={}) {
   if(typeof variant.originalText!=='string'||variant.originalText.trim()||typeof variant.proposedText!=='string'||variant.gaps?.length)return null;
+  // A numbered provision conflicts with whole-document scope, even when its
+  // complete proposed cell contains a rejection sentence.
+  if(!/^[–—−-]$/u.test((variant.targetLabel||'').trim()))return null;
   const scope=forms[variant.language]?.get(variant.proposedText.normalize('NFC').replace(/\s+/gu,' ').trim());
   return scope?{operation:'reject',status:'document-operation',scope,reason:scope==='commission-proposal'?'rejects_proposal':'rejects_council_position',evidence:[{basis:'published-rejection-wording',field:'proposedText',language:variant.language}]}:null;
 }

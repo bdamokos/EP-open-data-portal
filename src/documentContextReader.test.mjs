@@ -1286,3 +1286,20 @@ test('source-attested rejection explains the whole proposal without a paragraph 
   assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
   assert(h.container.querySelector('[data-source-paragraph="1"]'));
 });
+
+for(const kind of ['commission-proposal','council-position'])test(`structured ${kind} rejection stays outside the source with plain wording`,async t=>{
+  const data=proposalContextResponse(report,amendment,list,4);
+  data.baseline.kind=kind;
+  Object.assign(data.amendment.variants[0],{originalText:'',proposedText:kind==='commission-proposal'?'The European Parliament rejects the Commission proposal.':'The European Parliament rejects the Council position at first reading.'});
+  data.placement={status:'document-operation',operation:'reject',scope:kind,reason:kind==='commission-proposal'?'rejects_proposal':'rejects_council_position',evidence:[]};
+  const h=await harness(t,()=>data);await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert.match(h.container.querySelector('[role="status"]').textContent,kind==='commission-proposal'?/Rejects the proposal/:/Rejects the Council position/);
+  assert.equal(h.container.querySelector('ins'),null);
+  assert(!h.container.textContent.includes('No original text (insertion)'));
+  assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
+  assert(h.container.querySelector('[data-proposal-item="act-1"]'));
+  const block=h.container.querySelector('[data-amendment-block]');
+  const inline=[...block.querySelectorAll('button')].find(b=>b.textContent==='Inline');
+  if(inline){await h.click(inline);assert.equal(block.querySelector('ins'),null);}
+  assert(h.container.querySelector('button[title="Find in proposal"],button[title="Find in Council position"]'),'source text remains searchable');
+});

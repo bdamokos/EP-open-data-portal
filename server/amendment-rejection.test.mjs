@@ -14,5 +14,5 @@ test('twenty attested whole-document rejection cells retain scope without paragr
 });
 test('dash, unavailable wording and whole-text replacements do not establish rejection',()=>{
   const base={language:'en',originalText:'',proposedText:'The European Parliament rejects the Commission proposal.',targetLabel:'–'};
-  for(const fields of [{proposedText:null},{originalText:null},{proposedText:'Replacement legal text.'},{originalText:'Existing provision.'},{gaps:[{code:'text-unavailable'}]},{language:'de'}])assert.notEqual(documentContextPlacement({chosen:{...base,...fields}}).status,'document-operation');
+  for(const fields of [{proposedText:null},{originalText:null},{proposedText:'Replacement legal text.'},{originalText:'Existing provision.'},{gaps:[{code:'text-unavailable'}]},{language:'de'},{targetLabel:'Citation 5 a (new)'},{targetLabel:'Article 1'},{targetLabel:''}])assert.notEqual(documentContextPlacement({chosen:{...base,...fields}}).status,'document-operation');
 });
