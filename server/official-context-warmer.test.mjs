@@ -137,3 +137,18 @@ test('request admission stops within a multi-read job when a response crosses hi
   assert.equal(fetched,1);assert.equal((await sources.cache.capacity()).state,'capacity');
   assert.equal(readdirSync(path.join(dir,'pages')).length,1,'crossing response remains retained');
 });
+
+test('retained pages are published and counted independently of a cancelled reader request',async t=>{
+  const {InsightViewCache}=await import('./insights-view-cache.mjs');
+  const {runWithRequestSignal}=await import('./request-budget.mjs');
+  const directory=mkdtempSync(path.join(os.tmpdir(),'retained-accounting-'));t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  const cache=new InsightViewCache({directory,writable:true,retainDisk:true,maxDiskBytes:1000,maxDiskEntries:100});
+  const controller=new AbortController(),key='a'.repeat(64);controller.abort(new Error('owner timed out'));
+  // An ambient expired request signal must neither abort the worker-owned write
+  // nor leave a renamed file outside the running totals.
+  await runWithRequestSignal(controller.signal,()=>cache.saveRetained(key,{payload:'x'.repeat(1200)}));
+  const files=readdirSync(directory).filter(name=>name.endsWith('.json'));
+  assert.equal(files.length,1);
+  const capacity=await cache.capacity();
+  assert.equal(capacity.entries,1);assert(capacity.bytes>1000);assert.equal(capacity.state,'capacity');
+});

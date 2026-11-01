@@ -69,7 +69,10 @@ export class InsightViewCache {
       const body=JSON.stringify(record),bytes=Buffer.byteLength(body),previous=this.diskFiles.get(key)||0;
       // An in-flight response may cross the high-water mark. Keep it, then stop
       // subsequent admission. Never discard another warmed page to make room.
-      if(await writeCacheFile(path.join(this.directory,key+'.json'),body)) {
+      // Retained pages belong to the leased worker, not to a reader's request.
+      // Without a request signal the write is awaited to completion, so a
+      // cancelled owner cannot leave a renamed file uncounted.
+      if(await writeCacheFile(path.join(this.directory,key+'.json'),body,{signal:null})) {
         this.diskBytes+=bytes-previous;this.diskFiles.set(key,bytes);
       }
     });
