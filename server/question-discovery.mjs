@@ -5,7 +5,7 @@ export const changedQuestionsSql=`SELECT source.source_key FROM idx.question_fil
   AND NOT EXISTS (SELECT 1 FROM question_discovery seen
     WHERE seen.source_key=source.source_key AND seen.signature=source.signature AND seen.policy=?)
   ORDER BY source.source_key LIMIT 100`;
-const matchingQuestionText=`text.source_url=file.url AND text.chars>0 AND text.source_format='docx'
+const matchingQuestionText=`text.source_url=file.url AND text.chars>0 AND text.source_format=COALESCE(json_extract(file.body,'$.format'),'docx')
   AND text.language=file.language AND text.source_key=file.language
   AND EXISTS (SELECT 1 FROM documents document WHERE document.id=text.document_id
     AND document.source_id=json_extract(file.body,'$.sourceId') AND document.kind=json_extract(file.body,'$.kind'))`;
@@ -14,7 +14,7 @@ export const missingQuestionFilesSql=`SELECT file.body FROM idx.question_files f
   AND (NOT EXISTS (SELECT 1 FROM texts text INDEXED BY text_source_url WHERE ${matchingQuestionText})
     OR EXISTS (SELECT 1 FROM texts text INDEXED BY text_source_url WHERE ${matchingQuestionText}
       AND julianday(json_extract(file.body,'$.edition.issued'))>julianday(text.checked_at))
-    OR EXISTS (SELECT 1 FROM tasks prior WHERE prior.key='docx:'||file.url AND (
+    OR EXISTS (SELECT 1 FROM tasks prior WHERE prior.key=COALESCE(json_extract(file.body,'$.format'),'docx')||':'||file.url AND (
       json_extract(file.body,'$.edition.byteSize') IS NOT NULL AND json_extract(prior.body,'$.edition.byteSize') IS NOT NULL
         AND json_extract(file.body,'$.edition.byteSize')<>json_extract(prior.body,'$.edition.byteSize')
       OR julianday(json_extract(file.body,'$.edition.issued')) IS NOT NULL AND julianday(json_extract(prior.body,'$.edition.issued')) IS NOT NULL
@@ -34,16 +34,31 @@ export async function discoverQuestionFiles(worker,generation) {
         const manifest=store.db.prepare('SELECT signature FROM idx.question_file_sources WHERE generation=? AND source_key=?').get(generation,source.source_key);
         if(!manifest)return;
         let blocked=false;
-        for(const row of store.db.prepare(missingQuestionFilesSql).iterate(generation,source.source_key,languages)) {
-          const file=JSON.parse(row.body),priority=file.primary?50:10,key='docx:'+file.url;
+        const files=store.db.prepare(missingQuestionFilesSql).all(generation,source.source_key,languages).map(row=>JSON.parse(row.body));
+        const variant=file=>JSON.stringify([file.sourceId,file.language,file.parentId??null]);
+        const docxVariants=new Set(files.filter(file=>(file.format||'docx')==='docx').map(variant));
+        for(const file of files) {
+          const priority=file.primary?50:10,kind=file.format||'docx',key=kind+':'+file.url;
+          if(kind==='pdf'&&docxVariants.has(variant(file)))continue;
           const prior=store.task(key);
           // A URL's existing retry remains its owner. New metadata can update
           // that owner's selected edition, without resetting its retry clocks.
           const sameOwner=prior&&['sourceId','kind','language','url'].every(field=>prior.body[field]===file[field])&&(prior.body.parentId??null)===(file.parentId??null);
-          if(prior&&(prior.kind!=='docx'||!prior.done&&!sameOwner)){blocked=true;continue;}
-          if(!store.enqueue(key,'docx',file,priority)) {
+          if(prior&&(prior.kind!==kind||!prior.done&&!sameOwner)){blocked=true;continue;}
+          if(!store.enqueue(key,kind,file,priority)) {
             if(prior.done)store.reopen(key,file,priority);
             else store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify({...prior.body,...file}),key);
+          }
+          // A declared DOCX becomes the variant's owner. Retire any pending
+          // standalone PDF owner, its retry state and any settled failure record
+          // (scheduled or parser-version rechecks would reopen it). Text stays.
+          if(kind==='docx') {
+            const superseded=store.db.prepare("SELECT key FROM tasks WHERE key GLOB 'pdf:*' AND json_extract(body,'$.sourceId')=? AND json_extract(body,'$.language')=? AND COALESCE(json_extract(body,'$.parentId'),'')=?").all(file.sourceId,file.language,file.parentId??'');
+            for(const {key:pdfKey} of superseded) {
+              store.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=? AND done=0').run(worker.clock(),pdfKey);
+              // A retained failure record would otherwise reopen it on recheck.
+              store.db.prepare('DELETE FROM source_failures WHERE key=?').run(pdfKey);
+            }
           }
           const issued=Date.parse(file.edition?.issued);
           if(issued>worker.clock())store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,key);
