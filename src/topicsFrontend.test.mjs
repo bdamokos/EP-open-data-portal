@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {titleParts,mapCode,point,quarterBounds,placeValue,riser,legacyTopics,topicsHref,agendaTitle} from './topicPresentation.mjs';
+import {titleParts,mapCode,point,quarterBounds,placeValue,riser,legacyTopics,topicsHref,agendaTitle,isEuPlace} from './topicPresentation.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 test('official titles retain every character and style English only',()=>{
  for(const title of ['REPORT on the proposal for a regulation of the European Parliament and of the Council on transport','MOTION FOR A RESOLUTION on Iran','REPORT on trade as regards apples as regards pears','Plain title']){
@@ -45,3 +45,5 @@ test('malformed quarter URLs cannot silently select an unfiltered record list',a
 test('agenda item prefixes are stripped without changing any remaining title text',()=>{
  for(const [before,after] of [['19.2. Systemic oppression…','Systemic oppression…'],['16. Simplification of waste legislation (joint debate)','Simplification of waste legislation (joint debate)'],['2.3.4. Exact — title 2026/12','Exact — title 2026/12'],['2026 priorities','2026 priorities'],['19.2.Systemic oppression','19.2.Systemic oppression'],['REPORT on 16. Trade','REPORT on 16. Trade']])assert.equal(agendaTitle(before),after);
 });
+
+test('own-country origin splitting applies only to EU places',()=>{assert.equal(isEuPlace('HUN'),true);assert.equal(isEuPlace('IRN'),false);assert.equal(isEuPlace('TUR'),false);assert.equal(isEuPlace('GBR'),false);assert.equal(isEuPlace(null),false);});

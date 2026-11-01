@@ -11,3 +11,5 @@ export function topicsHref(key:string,filters?:Record<string,string>):string;
 export function legacyTopics(query:URLSearchParams):string|null;
 
 export function agendaTitle(title:string):string;
+
+export function isEuPlace(iso3:string|null|undefined):boolean;

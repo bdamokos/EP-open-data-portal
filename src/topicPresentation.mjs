@@ -1,3 +1,5 @@
+const euPlaces=new Set('AUT BEL BGR HRV CYP CZE DNK EST FIN FRA DEU GRC HUN IRL ITA LVA LTU LUX MLT NLD POL PRT ROU SVK SVN ESP SWE'.split(' '));
+export const isEuPlace=iso3=>euPlaces.has(iso3);
 export const agendaTitle=title=>String(title||'').replace(/^\d+(?:\.\d+)*\.\s+/,'');
 export const point = (item, period) => item?.series?.find(s=>s.period===period) || {};
 export const mapCode = iso3 => iso3==='1A0'?'KOS':iso3;

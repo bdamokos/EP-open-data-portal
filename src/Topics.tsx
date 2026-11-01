@@ -11,7 +11,7 @@ import {TopicFinder} from './TopicFinder';
 import {OfficialTitle,TopicBatch,QuestionOriginTag} from './RecordTopics';
 import {FollowTopic} from './TopicFollowing';
 import {TopicStory} from './TopicStory';
-import {point,topicsHref,quarterBounds,partialQuarter,lastFullQuarter,placeValue,riser,agendaTitle} from './topicPresentation.mjs';
+import {point,topicsHref,quarterBounds,partialQuarter,lastFullQuarter,placeValue,riser,agendaTitle,isEuPlace} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
 import type {InsightProps} from './InsightTypes';
 import type {TopicOverview,TopicDetail,TopicSeries,TopicGroup} from './TopicsTypes';
@@ -49,15 +49,15 @@ function Detail({topic,place,language}:{topic:string;place:string;language:strin
  const params=new URLSearchParams({key,lang:language});if(kind&&!place)params.set('kind',kind);if(keyword)params.set('keyword',keyword);if(placeFilter)params.set('place','place:'+placeFilter);
  // Fetch the full filtered series once; the quarter selection only scopes the records.
  const chart=useInsightData<TopicDetail>('topics/detail?'+params),bounds=quarterBounds(quarter);
- const listParams=new URLSearchParams(params);if(kind)listParams.set('kind',kind);if(bounds){listParams.set('from',bounds.from);listParams.set('to',bounds.to);}if(askers)listParams.set('askers',askers);else if(place&&own==='1'&&(!kind||kind==='question'))listParams.set('askers','elsewhere');listParams.set('offset',String(offset));
+ const eu=isEuPlace(chart.data?.concept?.iso3);
+ const listParams=new URLSearchParams(params);if(kind)listParams.set('kind',kind);if(bounds){listParams.set('from',bounds.from);listParams.set('to',bounds.to);}if(askers)listParams.set('askers',askers);else if(eu&&own==='1'&&(!kind||kind==='question'))listParams.set('askers','elsewhere');listParams.set('offset',String(offset));
  // The reader admits two workers: serialize caption lookups so they can
  // share that budget with the record list, then load the optional story facts.
- const eu=new Set('AUT BEL BGR HRV CYP CZE DNK EST FIN FRA DEU GRC HUN IRL ITA LVA LTU LUX MLT NLD POL PRT ROU SVK SVN ESP SWE'.split(' ')).has(chart.data?.concept?.iso3||'');
  const captionRoute=(recordKind:string,origin='')=>{const q=new URLSearchParams(params);q.set('kind',recordKind);q.set('offset','0');if(origin)q.set('askers',origin);return 'topics/detail?'+q;};
  const captionEnabled=Boolean(place&&chart.data?.ready),captionDocuments=useInsightData<TopicDetail>(captionEnabled?captionRoute('document'):null),documentsDone=captionEnabled&&!captionDocuments.loading;
  const captionQuestions=useInsightData<TopicDetail>(documentsDone?captionRoute('question',eu?'home':''):null),questionsDone=documentsDone&&!captionQuestions.loading;
  const captionElsewhere=useInsightData<TopicDetail>(questionsDone&&eu?captionRoute('question','elsewhere'):null),captionsReady=!place||questionsDone&&(!eu||!captionElsewhere.loading);
- const same=!bounds&&!offset&&!askers&&!(place&&(own==='1'||kind)),ownGap=Boolean(place&&own==='1'&&!askers&&(!kind||kind==='question')&&chart.data?.ready&&chart.data.series.some(s=>(!quarter||s.period===quarter)&&s.questionUnknown>0));
+ const same=!bounds&&!offset&&!askers&&!(place&&(eu&&own==='1'||kind)),ownGap=Boolean(eu&&own==='1'&&!askers&&(!kind||kind==='question')&&chart.data?.ready&&chart.data.series.some(s=>(!quarter||s.period===quarter)&&s.questionUnknown>0));
  const list=useInsightData<TopicDetail>(same||ownGap||place&&own==='1'&&!askers&&!chart.data?.ready?null:'topics/detail?'+listParams),records=ownGap?{data:null,loading:false,error:ui.t('topics.unavailable'),retry:chart.retry}:same?chart:list;
  useEffect(()=>{const next=JSON.stringify([key,quarter,kind,keyword,placeFilter,own,askers]);if(previousFilters.current!==next){previousFilters.current=next;setOffset(0);}},[key,quarter,kind,keyword,placeFilter,own,askers]);
  useEffect(()=>{if(!focusRecords.current)heading.current?.focus({preventScroll:true});},[key,chart.data?.concept?.key]);
