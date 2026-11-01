@@ -1,7 +1,7 @@
 .topics-content {max-width:1240px;margin:0 auto;padding:0 28px 60px;color:var(--ink)}
 .topic-tabs {display:flex;gap:24px;border-bottom:1px solid var(--line);margin-bottom:24px}
-.topic-tabs button {border:0;border-radius:0;background:none;padding:12px 2px;color:var(--ink-muted)}
-.topic-tabs button[aria-current] {color:var(--accent);border-bottom:3px solid var(--accent)}
+.topics-content .topic-tabs button {border:0;border-radius:0;background:none;padding:12px 2px;color:var(--ink-muted)}
+.topics-content .topic-tabs button[aria-current] {color:var(--accent);border-bottom:3px solid var(--accent)}
 .topic-finder {position:relative;max-width:540px;margin:20px 0 28px}
 .topic-finder input {width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--line-strong);padding:12px;background:var(--surface);color:var(--ink);font:inherit}
 .topic-finder [role=listbox] {position:absolute;z-index:10;top:100%;left:0;right:0;max-height:420px;overflow:auto;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}

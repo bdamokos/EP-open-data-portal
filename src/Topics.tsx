@@ -40,13 +40,13 @@ function Detail({topic,place,language}:{topic:string;place:string;language:strin
  const listParams=new URLSearchParams(params);if(bounds){listParams.set('from',bounds.from);listParams.set('to',bounds.to);}if(place&&own==='1')listParams.set('askers','elsewhere');listParams.set('offset',String(offset));
  const same=!bounds&&!offset&&!(place&&own==='1');const list=useInsightData<TopicDetail>(same?null:'topics/detail?'+listParams),records=same?chart:list;
  useEffect(()=>{const next=JSON.stringify([key,quarter,kind,keyword,placeFilter,own]);if(previousFilters.current!==next){previousFilters.current=next;setOffset(0);}},[key,quarter,kind,keyword,placeFilter,own]);
- useEffect(()=>{heading.current?.focus({preventScroll:true});},[key]);
+ useEffect(()=>{heading.current?.focus({preventScroll:true});},[key,chart.data?.concept?.key]);
  const scope=JSON.stringify([key,quarter,kind,keyword,placeFilter,own]);
  const accumulated=useRef<{scope:string;groups:NonNullable<TopicDetail['groups']>}>({scope,groups:[]});
  if(accumulated.current.scope!==scope||offset===0)accumulated.current={scope,groups:[]};
  if(records.data?.ready){const merged=new Map(accumulated.current.groups.map(g=>[g.key,g]));for(const g of records.data.groups)merged.set(g.key,g);accumulated.current.groups=[...merged.values()];}
  const data=chart.data;
- if(!data?.ready)return <><InsightStatus loading={chart.loading} error={chart.error} retry={chart.retry}/>{!chart.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={chart.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</>;
+ if(!data?.ready||!data.concept)return <><InsightStatus loading={chart.loading} error={chart.error} retry={chart.retry}/>{!chart.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={chart.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</>;
  const eu=new Set('AUT BEL BGR HRV CYP CZE DNK EST FIN FRA DEU GRC HUN IRL ITA LVA LTU LUX MLT NLD POL PRT ROU SVK SVN ESP SWE'.split(' ')).has(data.concept?.iso3||'');
  const metrics=place?(eu?['questionElsewhere','questionHome','document']:['question','document']):['groups'];
  const questionMax=Math.max(1,...data.series.flatMap(s=>[s.questionHome||0,s.questionElsewhere||0]));
@@ -56,5 +56,5 @@ function Detail({topic,place,language}:{topic:string;place:string;language:strin
 export function Topics({language='en',...props}:InsightProps){
  const ui=useUiI18n(),[tab,setTab]=useExplorerParam<string>('t-tab','topics',['topics','places']),[topic]=useExplorerParam<string>('topic',''),[place]=useExplorerParam<string>('place','');
  const overview=useInsightData<TopicOverview>(!topic&&!place?'topics/overview?'+new URLSearchParams({role:tab==='places'?'place':'topic',lang:language}):null);
- return <InsightShell {...props} language={language} view="topics" title={ui.t('topics.topics')}><div className="topics-content">{!topic&&!place?<><nav className="topic-tabs">{['topics','places'].map(t=><button key={t} aria-current={tab===t?'page':undefined} onClick={()=>setTab(t)}><UiMessage id={'topics.'+t}/></button>)}</nav><TopicFinder language={language} onSelect={i=>{location.href=topicsHref(i.key);}}/><InsightStatus loading={overview.loading} error={overview.error} retry={overview.retry}/>{overview.data?.ready?(tab==='places'?<Places data={overview.data}/>:<HeatStrip data={overview.data}/>):!overview.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={overview.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</>:<Detail key={topic||place} topic={topic} place={place} language={language}/>}</div></InsightShell>;
+ return <InsightShell {...props} language={language} view="topics" hideTitle={Boolean(topic||place)} title={ui.t('topics.topics')}><div className="topics-content">{!topic&&!place?<><nav className="topic-tabs">{['topics','places'].map(t=><button key={t} aria-current={tab===t?'page':undefined} onClick={()=>setTab(t)}><UiMessage id={'topics.'+t}/></button>)}</nav><TopicFinder language={language} onSelect={i=>{location.href=topicsHref(i.key);}}/><InsightStatus loading={overview.loading} error={overview.error} retry={overview.retry}/>{overview.data?.ready?(tab==='places'?<Places data={overview.data}/>:<HeatStrip data={overview.data}/>):!overview.loading&&<p><UiMessage id="topics.unavailable"/> <button onClick={overview.retry}><UiMessage id="insightshared.reload.cce715"/></button></p>}</>:<Detail key={topic||place} topic={topic} place={place} language={language}/>}</div></InsightShell>;
 }
