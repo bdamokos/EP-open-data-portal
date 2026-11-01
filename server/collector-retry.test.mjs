@@ -11,7 +11,7 @@ import {collectStorySource} from './story-facts-collector.mjs';
 import {collectorRetry,collectorPermanent} from './collector-retry.mjs';
 const DAY=86400_000;
 test('retry classifications preserve source causes, identity/parse gaps and server pauses',()=>{
- for(const e of [{status:404},{code:'official_source_unavailable',cause:{status:404}},{code:'procedure_identity'},{code:'official_document_invalid'},Error('Procedure reference unavailable.'),Error('Event identity does not match the request.')])assert(collectorPermanent(e));
+ for(const e of [{status:404},{code:'official_source_unavailable',cause:{status:404}},{code:'procedure_identity'},{code:'official_document_invalid'},Error('Procedure reference unavailable.'),Error('Event identity does not match the request.'),Error('Sitting identities do not match the request.'),Error('EP API returned an invalid data array.')])assert(collectorPermanent(e));
  assert.equal(collectorRetry({code:'official_context_capacity'},8,0).attempts,8);
  assert.equal(collectorRetry({retryAfter:9*DAY/1000},20,0).next,9*DAY);
  assert.equal(collectorRetry(Error('offline'),0,0).next,60_000);assert.equal(collectorRetry(Error('offline'),1,0).next,120_000);assert.equal(collectorRetry(Error('offline'),30,0).next,7*DAY);
