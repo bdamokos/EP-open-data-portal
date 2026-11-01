@@ -15,25 +15,28 @@ const ordinaryBackfillQuantum=8;
 export function nextBackfillTask(store,generation,ordinaryTask) {
   store.assertWriter();
   if(!ordinaryTask)return ordinaryTask;
+  const preferred=ordinaryTask;
+  ordinaryTask=ordinaryRefreshTask(store,generation,preferred);
   const saved=store.get('backfillSchedule');
-  const state=saved?.generation===generation&&Number.isInteger(saved.ordinary)&&saved.ordinary>=0&&saved.ordinary<=ordinaryBackfillQuantum&&[0,1].includes(saved.nextLane)
+  const state=saved?.generation===generation&&Number.isInteger(saved.ordinary)&&saved.ordinary>=0&&saved.ordinary<=ordinaryBackfillQuantum&&[0,1,2].includes(saved.nextLane)
     ?saved:{generation,ordinary:0,nextLane:0};
-  if(state.ordinary>=ordinaryBackfillQuantum) {
+  if(!ordinaryTask||state.ordinary>=ordinaryBackfillQuantum) {
     const predicates=[
       "EXISTS(SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
       "(task.kind='document' AND (task.key GLOB '/adopted-texts/TA-10-*' OR task.key GLOB '/external-documents/SP-*') OR task.kind IN ('catalog','feed') AND json_extract(task.body,'$.endpoint')='/adopted-texts')",
+      "EXISTS(SELECT 1 FROM mutable_refresh_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)",
     ];
-    for(const lane of [state.nextLane,1-state.nextLane]) {
+    for(const lane of [state.nextLane,(state.nextLane+1)%3,(state.nextLane+2)%3]) {
       const task=store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_order
         WHERE task.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=? AND ${predicates[lane]}
         ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
       if(!task)continue;
-      store.set('backfillSchedule',{generation,ordinary:0,nextLane:1-lane});
+      store.set('backfillSchedule',{generation,ordinary:0,nextLane:(lane+1)%3});
       return {...task,body:JSON.parse(task.body)};
     }
   }
   store.set('backfillSchedule',{...state,ordinary:Math.min(ordinaryBackfillQuantum,state.ordinary+1)});
-  return ordinaryTask;
+  return ordinaryTask||preferred;
 }
 export const feedStart=(store,now)=>new Date(Date.parse(store.get('lastSuccess') || store.get('working')?.startedAt || new Date(now).toISOString())-2*DAY).toISOString().slice(0,10);
 const official=new Set('bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' '));
@@ -205,13 +208,7 @@ export function coverageGap(store,generation,key,body,message,now) {
   store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'coverage',JSON.stringify(body),0,message,0,new Date(now).toISOString(),Number.MAX_SAFE_INTEGER,null);
 }
 
-// Recovery lanes alternate after eight ordinary dispatches. Read admission keys
-// first (bounded by the queue caps), then probe each task by its primary key.
-export function nextRefreshTask(store,generation,preferred) {
-  if(!preferred)return preferred;
-  store.assertWriter();
-  const saved=store.get('refreshDispatch');
-  const state=saved?.generation===generation?saved:{generation,ordinary:0,nextLane:0};
+function ordinaryRefreshTask(store,generation,preferred) {
   const tables=['refresh_gap_admissions','mutable_refresh_admissions'];
   const admitted=task=>!task.amendmentJob&&tables.some(table=>store.db.prepare(`SELECT 1 FROM ${table} WHERE generation=? AND key=?`).get(generation,task.key));
   let ordinary=preferred;
@@ -223,6 +220,18 @@ export function nextRefreshTask(store,generation,preferred) {
       ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
     ordinary=row?{...row,body:JSON.parse(row.body)}:null;
   }
+  return ordinary;
+}
+
+// Recovery lanes alternate after eight ordinary dispatches. Read admission keys
+// first (bounded by the queue caps), then probe each task by its primary key.
+export function nextRefreshTask(store,generation,preferred) {
+  if(!preferred)return preferred;
+  store.assertWriter();
+  const saved=store.get('refreshDispatch');
+  const state=saved?.generation===generation?saved:{generation,ordinary:0,nextLane:0};
+  const tables=['refresh_gap_admissions','mutable_refresh_admissions'];
+  const ordinary=ordinaryRefreshTask(store,generation,preferred);
   if(!ordinary||state.ordinary>=8) {
     for(const lane of [state.nextLane,1-state.nextLane]) {
       const row=store.db.prepare(`SELECT task.* FROM ${tables[lane]} a CROSS JOIN tasks task

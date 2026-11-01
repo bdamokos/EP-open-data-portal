@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
-import {scheduleMutable,scheduleGapRecovery,nextRefreshTask,recordTaskGap,GAP_LIMIT,MUTABLE_LIMIT,DAY} from './refresh-policy.mjs';
+import {scheduleMutable,scheduleGapRecovery,nextRefreshTask,nextBackfillTask,recordTaskGap,GAP_LIMIT,MUTABLE_LIMIT,DAY} from './refresh-policy.mjs';
 import {enqueueGroupVoice,nextGroupVoiceTask} from './group-voices-store.mjs';
 
 function fixture(t){
@@ -38,22 +38,24 @@ test('1000 due gaps drain within a fake shared request budget, with bounded queu
   assert.equal(daily,200);assert(clock()-start<DAY);assert.equal(store.get('slowGapAdmissions'),null);
 });
 
-test('mutable and gap lanes alternate under constant core load, refill slots, and retain backoff',t=>{
+for(const dispatch of [nextRefreshTask,nextBackfillTask])test(dispatch.name+' alternates mutable and gap lanes under constant core load and retains backoff',t=>{
   const {store,generation,worker,gap,advance,clock}=fixture(t);
   store.enqueue(generation,'daily','document',{},300);
   for(let i=0;i<105;i++)store.db.prepare('INSERT INTO mutable_documents VALUES (?,?,?)').run(generation,'mutable:'+i,clock()-1);
   gap('gap',250);scheduleMutable(worker,generation);
+  store.enqueue(generation,'/adopted-texts/TA-10-2026-0001','document',{},101);
   const count=()=>store.db.prepare('SELECT COUNT(*) n FROM mutable_refresh_admissions WHERE generation=?').get(generation).n;
   assert.equal(count(),MUTABLE_LIMIT);assert.equal(scheduleMutable(worker,generation),0);
   const seen=[];
   for(let i=0;i<30;i++){
-    const task=nextRefreshTask(store,generation,store.nextTask(generation));seen.push(task.key);
+    const task=dispatch(store,generation,store.nextTask(generation));seen.push(task.key);
     if(task.key==='daily')continue;
     if(task.key==='gap')assert(recordTaskGap(worker,task,Object.assign(new Error('Missing'),{status:404})));
     else store.finishTask(task);
     scheduleMutable(worker,generation);assert(count()<=MUTABLE_LIMIT);
   }
   assert(seen.includes('daily')&&seen.includes('gap')&&seen.some(key=>key.startsWith('mutable:')));
+  if(dispatch===nextBackfillTask)assert(seen.includes('/adopted-texts/TA-10-2026-0001'),'adoption retains its backfill share');
   const retry=store.db.prepare("SELECT retry_at FROM refresh_gaps WHERE key='gap'").get().retry_at;
   assert(retry>clock());assert.equal(scheduleGapRecovery(worker,generation),0);
   advance(retry-clock()-1);assert.equal(scheduleGapRecovery(worker,generation),0);

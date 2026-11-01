@@ -824,7 +824,7 @@ export class ActivityWorker {
           const voiceTask=nextGroupVoiceTask(this.store,generation,preferredTask);
           // Advance core shares only when a core task will actually dispatch.
           const sharedTask=voiceTask?.groupVoiceJob?preferredTask:this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;
-          const coreTask=voiceTask?.groupVoiceJob?sharedTask:nextRefreshTask(this.store,generation,sharedTask);
+          const coreTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask);
           // Future jobs need no request; keep scanning across the async disk
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
