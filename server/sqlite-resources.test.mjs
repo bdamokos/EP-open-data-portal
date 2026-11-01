@@ -1,3 +1,4 @@
+import {bootstrapAmendmentDependencies} from './amendments-store.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -91,6 +92,7 @@ test('idle workers and deferred retries do not acquire leases, discover or compu
   store.db.prepare('INSERT INTO group_voice_state VALUES (?,?)').run(1,GROUP_VOICE_VERSION);
   // A retained generation is idle only after its local projection fill finishes.
   while(store.backfillFastReads(1)){}
+  while(!bootstrapAmendmentDependencies(store,1)){}
   store.release();
   const activityWorker=new ActivityWorker(store,{clock:instant});
   assert.equal(activityWorker.questionFileGenerations().length,1);

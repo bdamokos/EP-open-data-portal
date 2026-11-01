@@ -1,3 +1,5 @@
+import {observeRuleGap} from './refresh-policy.mjs';
+import {sourceRuleError} from './source-retry.mjs';
 import {array} from './activity-index-model.mjs';
 import {groupVoiceJobKey} from './group-voices-store.mjs';
 import {createHash} from 'node:crypto';
@@ -56,21 +58,21 @@ function enqueueEvent(worker,generation,id,role,parent=null) {
   if(store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND (done IS NULL OR done<>1)').get(generation,'/events/'+id))return;
   if(deferredOwned(store,generation,['/events/'+id]))return;
   if(role==='child'&&(validSaved(store.source(generation,'/events/'+id)?.work,id)||store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND key=? AND kind='speech'").get(generation,'/speeches/'+id)||speechOwned(store,generation,id)))return;
-  store.enqueue(generation,'/events/'+id,'declared-event',{id,role,...(parent?{parent}:{} )},103);
+  store.enqueue(generation,'/events/'+id,'declared-event',{id,role,...(parent?{parent}:{} )},103,role==='debate');
 }
 function root(record,id) {
   const nodes=record.payload.data.filter(node=>eventId(node)===id||node.activity_id===id);
-  if(nodes.length!==1||eventId(nodes[0])!==id||nodes[0].activity_id!==undefined&&nodes[0].activity_id!==id||!type(nodes[0].had_activity_type))throw new Error('Declared event detail has no unique exact typed record.');
+  if(nodes.length!==1||eventId(nodes[0])!==id||nodes[0].activity_id!==undefined&&nodes[0].activity_id!==id||!type(nodes[0].had_activity_type))throw sourceRuleError('Declared event detail has no unique exact typed record.');
   return nodes[0];
 }
 export function currentSpeechDetail(record,id,now=Date.now()) {
   const node=root(record,id);
-  if(!childId.test(id)||!declaredSpeechType(type(node.had_activity_type))||!currentTermSpeech(node,id,now))throw new Error('Speech detail conflicts with its exact identity, current-term date or type.');
+  if(!childId.test(id)||!declaredSpeechType(type(node.had_activity_type))||!currentTermSpeech(node,id,now))throw sourceRuleError('Speech detail conflicts with its exact identity, current-term date or type.');
   return node;
 }
 export function declaredSpeechDetail(record,id,parent,now=Date.now()) {
   const node=currentSpeechDetail(record,id,now);
-  if(!debateId.test(parent)||!sameParent(node,parent))throw new Error('Declared speech detail conflicts with its parent.');
+  if(!debateId.test(parent)||!sameParent(node,parent))throw sourceRuleError('Declared speech detail conflicts with its parent.');
   return node;
 }
 export async function declaredDebateTask(worker,task) {
@@ -90,6 +92,7 @@ export async function declaredDebateTask(worker,task) {
     const rows=store.db.prepare(`SELECT entry.key ordinal,CASE WHEN entry.type='object' THEN json_extract(entry.value,'$.id') END id,
       CASE WHEN entry.type='object' THEN json_extract(entry.value,'$.had_activity_type') END kind
       FROM json_each(?) entry WHERE entry.key>=? ORDER BY entry.key LIMIT ?`).all(source.relationships,offset,batch);
+    for(const row of rows) {const id=eventId(row.id);if(type(row.kind)==='PLENARY_DEBATE'&&debateId.test(id))await observeRuleGap(worker,generation,'/events/'+id);}
     store.transaction(()=>{
       store.assertWriter();
       for(const row of rows){const id=eventId(row.id);if(type(row.kind)==='PLENARY_DEBATE'&&debateId.test(id))enqueueEvent(worker,generation,id,'debate');}
@@ -117,11 +120,17 @@ export async function declaredDebateTask(worker,task) {
   if(body.role==='child'||!validSaved(saved,body.id)||saved.kind!=='PLENARY_DEBATE'||!Array.isArray(saved.children)||saved.children.some(id=>!childId.test(id))||worker.clock()-Date.parse(retained.fetchedAt)>=week) {
     const record=await worker.request(key),node=root(record,body.id),kind=type(node.had_activity_type);
     worker.controller.signal.throwIfAborted();store.assertWriter();
-    if(body.role==='debate'&&(kind!=='PLENARY_DEBATE'||!Array.isArray(node.consists_of)||node.consists_of.length>10000))throw new Error('Declared debate has invalid child metadata.');
-    if(body.role==='child'&&!sameParent(node,body.parent))throw new Error('Declared event detail conflicts with its parent.');
-    if(body.role==='child'&&declaredSpeechType(kind)&&!currentTermSpeech(node,body.id,worker.clock()))throw new Error('Declared speech lacks its own current-term identity or date.');
+    if(body.role==='debate'&&(kind!=='PLENARY_DEBATE'||!Array.isArray(node.consists_of)||node.consists_of.length>10000))throw sourceRuleError('Declared debate has invalid child metadata.');
+    if(body.role==='child'&&!sameParent(node,body.parent))throw sourceRuleError('Declared event detail conflicts with its parent.');
+    if(body.role==='child'&&declaredSpeechType(kind)&&!currentTermSpeech(node,body.id,worker.clock()))throw sourceRuleError('Declared speech lacks its own current-term identity or date.');
     saved={id:body.id,kind,date:validDate(node.activity_date)?node.activity_date:null,classificationVersion:1,source:{url:record.url,fetchedAt:record.fetchedAt},...(body.role==='debate'?{children:[...new Set(node.consists_of.map(eventId).filter(id=>childId.test(id)))]}:{declaredBy:body.parent})};
     store.putSource(generation,key,body.role==='debate'?'debate':'event',saved,record.fetchedAt,[],{sourceUrl:record.url,acquisition:'recovery'});
+  }
+  // Rule rejections belong to the exact owner that observed them: the child
+  // event, or the speech-detail recovery for a declared speech.
+  if(body.role==='debate')for(const id of saved.children.slice(body.childOffset||0,(body.childOffset||0)+batch)) {
+    await observeRuleGap(worker,generation,'/events/'+id);
+    await observeRuleGap(worker,generation,'recovery:/speeches/'+id);
   }
   store.transaction(()=>{
     store.assertWriter();

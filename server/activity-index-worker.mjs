@@ -1,4 +1,6 @@
 import {questionFileBackfillDue,backfillQuestionFiles} from './activity-read-projections.mjs';
+import {bootstrapAmendmentDependencies,amendmentDependenciesReady} from './amendments-store.mjs';
+import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
@@ -39,7 +41,7 @@ import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projec
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
-import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask,nextRefreshTask} from './refresh-policy.mjs';
+import {ruleVersionRecoveryDue,reopenRuleVersions,observeRuleGap,scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask,nextRefreshTask} from './refresh-policy.mjs';
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
@@ -52,7 +54,7 @@ function exactProcedure(record,id) {
   const identity=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null,expected='eli/dl/proc/'+id;
   const matches=record.payload.data.filter(work=>['id','@id'].some(key=>identity(work?.[key])===expected));
   const work=matches[0];
-  if(matches.length!==1||identity(work.id)!==expected||Object.hasOwn(work,'@id')&&identity(work['@id'])!==expected||work.process_id!=null&&work.process_id!==''&&work.process_id!==id)throw new Error('Invalid or conflicting exact procedure metadata.');
+  if(matches.length!==1||identity(work.id)!==expected||Object.hasOwn(work,'@id')&&identity(work['@id'])!==expected||work.process_id!=null&&work.process_id!==''&&work.process_id!==id)throw sourceRuleError('Invalid or conflicting exact procedure metadata.');
   return matches[0];
 }
 export function speechWindows(until) {
@@ -133,6 +135,7 @@ export class ActivityWorker {
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
     if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))return true;
+    if(generation&&(!amendmentDependenciesReady(this.store,generation)||ruleVersionRecoveryDue(this.store,generation)))return true;
     if(declaredDebateRecoveryDue(this.store,generation))return true;
     if((gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
@@ -219,6 +222,7 @@ export class ActivityWorker {
       throw error;
     }
     const observed={...record,url:url.href};
+    this.lastSourceObservation={endpoint,fingerprint:sourceObservationHash(record)};
     if(generation&&demographicId) {
       try {retainDemographicRecord(this.store,generation,demographicId,observed);}
       catch(error) {retainDemographicAttempt(this.store,generation,demographicId);throw error;}
@@ -272,6 +276,7 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
+    this.lastSourceObservation=null;
     if(task.kind==='debate-links'||task.kind==='declared-event') {
       await declaredDebateTask(this,task);
     } else if(task.kind.startsWith('group-history-')) {
@@ -375,6 +380,7 @@ export class ActivityWorker {
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
+        await observeRuleGap(this,generation,endpoint);
         if(body.endpoint==='/procedures') {
           const prior=this.store.source(generation,endpoint);
           if(prior && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated)))this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
@@ -384,6 +390,7 @@ export class ActivityWorker {
           if(amendmentListDocumentId(resolved)&&documentRouteOwned(this.store,generation,resolved,documentDeferred??=documentRouteDeferredOwners(this.store,generation)))continue;
           if(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,resolved,adoptedDeferred))continue;
           const prior=this.store.source(generation,resolved);
+          await observeRuleGap(this,generation,resolved);
           const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
           if(!gap && (!prior || (body.endpoint==='/adopted-texts'||amendmentListDocumentId(resolved)||documentRefreshState(prior.work).mutable) && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
         }
@@ -419,7 +426,7 @@ export class ActivityWorker {
       const requestedAt=this.clock(),r=await this.request(endpoint),adopted=endpoint.startsWith('/adopted-texts/');
       const work=adopted?adoptedTextRecord(endpoint,r.payload.data):listId?validateAmendmentListMetadata(r.payload,listId):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
-      if(committeeDraftId(tail(endpoint))&&(!validCommitteeWork(work)||work.identifier!==tail(endpoint)))throw new Error('Invalid or conflicting exact committee draft metadata.');
+      if(committeeDraftId(tail(endpoint))&&(!validCommitteeWork(work)||work.identifier!==tail(endpoint)))throw sourceRuleError('Invalid or conflicting exact committee draft metadata.');
       if(body.amendmentRouteVerification) {
         const proof=body.amendmentRouteVerification,at=Date.parse(r.fetchedAt),failed=Date.parse(proof.previousFailure?.failedAt);
         if(!listId||proof.version!==1||proof.endpoint!==endpoint||proof.previousFailure?.endpoint!==task.key||body.endpoint!==task.key||proof.previousFailure.status!==404||r.stale||!Number.isFinite(at)||!Number.isFinite(failed)||at<requestedAt||at<=failed||at>this.clock())throw new Error('Corrected amendment route did not return fresh exact metadata.');
@@ -781,7 +788,7 @@ export class ActivityWorker {
       }
       // Core recovery changes items and their frozen Following summaries. It
       // must publish through a working generation, even between daily cycles.
-      const recover=(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
+      const recover=(ruleVersionRecoveryDue(this.store,active)||gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
       const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
       this.controller.signal.throwIfAborted();
@@ -794,6 +801,12 @@ export class ActivityWorker {
       }
       if(this.followupStartupRepair){markFollowupAdmissionRepair(this.store,generation);this.followupStartupRepair=false;}
       scheduleFollowupAdmissionRepairs(this,generation);
+      bootstrapAmendmentDependencies(this.store,generation);
+      reopenRuleVersions(this.store,generation);
+      for(const {key} of this.store.db.prepare("SELECT gap.key FROM refresh_gaps gap JOIN mutable_documents doc ON doc.generation=gap.generation AND doc.key=gap.key WHERE gap.generation=? AND gap.kind='coverage' AND doc.next_check<=? ORDER BY doc.next_check,gap.key LIMIT 25").all(generation,this.clock())) {
+        await observeRuleGap(this,generation,key);
+        this.store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(this.clock()+7*DAY,generation,key);
+      }
       scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
@@ -871,6 +884,8 @@ export class ActivityWorker {
           if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
           // An iteration may spend 90 minutes on source jobs. Advance one
           // bounded local batch per dispatch rather than waiting for its end.
+          if(!amendmentDependenciesReady(this.store,generation))bootstrapAmendmentDependencies(this.store,generation);
+          if(ruleVersionRecoveryDue(this.store,generation))reopenRuleVersions(this.store,generation);
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
