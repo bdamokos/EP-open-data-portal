@@ -78,7 +78,7 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
 export function Saved({members,language,onBack,onMember,renderActivity}:SavedProps) {
   const ui = useUiI18n();
   const membersById=useMemo(()=>new Map(members?.map(member=>[String(member.id),member])),[members]);
-  const checkDossierUpdates=useDossierChecks();
+  useDossierChecks();
   const dossiers=useDossiers(),dossierChecking=useDossierChecking();
   const membershipCheck=useMembershipCheck(),membership=useMembership(),groups=useGroups(),saved=useSaved(),now=useSavedNow(),resolver=useResolveSavedMembers(language),items=saved.items,[checking,setChecking]=useState(false),[error,setError]=useState('');
   // Before the first manifest, persisted signals still identify unread MEPs.
@@ -113,7 +113,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
   return <section className="explorer-saved-view" lang={ui.language}>
     <Status scope={`saved-check:${context}:${attempt}`} message={((!dossiers.items.length) && (completion?.items===items)) ? completion.message : null} pending={checking||dossierChecking}/>
     <button onClick={onBack}><UiMessage id="document.back"/></button>
-    <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1><button onClick={()=>{if(items.length)check();void checkDossierUpdates();}} disabled={!items.length&&!dossiers.items.length} aria-disabled={checking||dossierChecking||undefined} style={(checking||dossierChecking) ? ({opacity:.45,cursor:'default'}) : undefined}>{(checking||dossierChecking) ? <UiMessage id="batch6.procedureprogress.checking.62"/> : <UiMessage id="Saved.check_for_updates"/>}</button></div>
+    <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1></div>
     {!saved.persistent&&<p><UiMessage id="Saved.browser_storage_is_unavailable_follows_last_only_for_this_tab"/></p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error"><UiMessage id="Saved.storageError" values={{time:new Date(saved.unsavedSince||Date.now()).toLocaleTimeString(ui.locale)}}/> <button onClick={()=>store.retryStorage()}><UiMessage id="Saved.retry_saving"/></button></p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}

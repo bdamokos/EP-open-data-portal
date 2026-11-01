@@ -79,7 +79,7 @@ function Session({selection}:{selection:FinalTextSelection}) {
       {data?.vote.status==='available'&&data.vote.scope==='individual-amendment'&&data.vote.outcome&&<p className="final-text-check__vote">{(data.vote.stage==='committee') ? <UiMessage id="finalTextCheck.committee_vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/> : ((data.vote.stage==='plenary') ? <UiMessage id="finalTextCheck.plenary_vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/> : <UiMessage id="finalTextCheck.vote_outcome" values={{outcome: <VoteOutcome outcome={data.vote.outcome}/>}}/>)}</p>}
       {data&&(shownStages.length ? shownStages.map(stage=><Stage key={stage.destination.kind+':'+stage.destination.id} stage={stage} source={data.selection.source} readerKey={readerKey}/>) : <p><UiMessage id="grouplabels.ts.unavailable"/></p>)}
       {state.error&&<p role="status">{data ? <UiMessage id="finalTextCheck.could_not_refresh_comparison"/> : <UiMessage id="finalTextCheck.could_not_load_comparison"/>}</p>}
-      {(state.error||data)&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}>{state.error ? <UiMessage id="commissionfollowups.try_again"/> : <UiMessage id="batch6.procedureprogress.check.again.64"/>}</button>}
+      {state.error&&<button type="button" disabled={state.loading} onClick={()=>setRetry(value=>value+1)}><UiMessage id="commissionfollowups.try_again"/></button>}
     </div>}
   </details>;
 }

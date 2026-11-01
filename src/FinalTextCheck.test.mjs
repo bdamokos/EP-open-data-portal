@@ -54,12 +54,13 @@ test('selection changes remount closed and late responses cannot cross document,
   await h.render({...next,wordingLanguage:'fr'});assert.equal(h.container.textContent,'In the final text?');assert.equal(h.requests.length,2);
 });
 
-test('mismatched responses are discarded and retry preserves a successful readable comparison',async t=>{
+test('mismatched responses are discarded and a failed reopen preserves a successful readable comparison',async t=>{
   let count=0;
   const h=await harness(t,()=>{count++;if(count===1)return response({...selection,wordingLanguage:'fr'});if(count===3)return new Response('{}',{status:502});return response();});
   await h.render(selection);await h.toggle();assert(!h.container.textContent.includes('Same wording'));assert(h.container.textContent.includes('Could not load comparison.'));
   await h.click('Try again');assert(h.container.textContent.includes('Same wording'));
-  await h.click('Check again');assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Could not refresh comparison.'));
+  assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Check again'),'a loaded comparison has no manual refresh');
+  await h.toggle(false);await h.toggle();assert(h.container.textContent.includes('Same wording'));assert(h.container.querySelector('.wording-diff'));assert(h.container.textContent.includes('Could not refresh comparison.'));
   await h.click('Try again');assert(h.container.textContent.includes('Same wording'));assert.equal(h.requests.length,4);
 });
 

@@ -30,6 +30,7 @@ async function harness(t) {
   return {container,requests,timers,render:props=>act(async()=>root.render(createElement(ProcedureProgress,{reference,language:'en',...props}))),
     finish:(data,request=requests.at(-1),status=200)=>act(async()=>request.resolve(Response.json(data,{status}))),
     tick:delay=>act(async()=>{const index=timers.findLastIndex(timer=>timer.delay===delay);assert(index>=0,'expected timer '+delay);const timer=timers.splice(index,1)[0];clearTimeout(timer.timer);timer.callback();}),
+    manual:()=>[...container.querySelectorAll('button')].filter(button=>/^(Check again|Try later)$/.test(button.textContent)),
     click:text=>act(async()=>{const button=[...container.querySelectorAll('button')].find(button=>button.textContent===text);assert(button,text);button.click();}),unmount:()=>act(async()=>root.unmount())};
 }
 
@@ -57,25 +58,25 @@ test('stale admitted progress reaches a settled result, keeping the timeline and
   assert.match(h.container.textContent,/No document link/);
 });
 
-test('refresh errors and admission pauses settle without losing last-good content or retrying early',async t=>{
+test('refresh errors and admission pauses settle without losing last-good content or offering a manual refresh',async t=>{
   const h=await harness(t);await h.render();await h.finish(pending());await h.tick(500);
   await h.finish(progress({source:{...progress().source,stale:true,refreshError:'Source failed'}}));
   assert.match(h.container.textContent,/Update unavailable/);assert.doesNotMatch(h.container.textContent,/Checking…/);
   assert.match(h.container.textContent,/Procedure completed/);assert.equal(h.requests.length,2);
-  await h.click('Check again');assert.match(h.container.textContent,/Procedure completed/);
+  assert.equal(h.manual().length,0,'saved progress has no manual refresh');
+  const other='2026/2938(RSP)';await h.render({reference:other});await h.finish(progress({reference:other,source:pending().source}));await h.tick(500);
   await h.finish({error:{message:'Busy',code:'upstream_busy',retryAt:Date.now()+120_000}},undefined,503);
-  const retry=[...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try later');assert(retry?.disabled);
-  assert.match(h.container.textContent,/Procedure completed/);assert.equal(h.requests.length,3,'long admission pause is not shortened');
-  const pause=h.timers.find(timer=>timer.delay>100_000);assert(pause);
-  const now=Date.now();t.mock.method(Date,'now',()=>now+120_001);await h.tick(pause.delay);
-  assert.equal([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Check again')?.disabled,false,'retry becomes usable when the admission pause ends');
+  assert.match(h.container.textContent,/Procedure completed/);assert.doesNotMatch(h.container.textContent,/Checking…/);
+  assert.equal(h.manual().length,0);assert.equal(h.requests.length,4,'an admission pause ends client polling');
 });
 
-test('refresh polling has finite attempts and an overall deadline, with a fresh explicit retry lifecycle',async t=>{
+test('refresh polling has finite attempts and an overall deadline, with a fresh lifecycle on return',async t=>{
   const h=await harness(t);await h.render();await h.finish(pending());
   for(const delay of PROGRESS_REFRESH_DELAYS){await h.tick(delay);await h.finish(pending());}
   assert.equal(h.requests.length,7);assert.doesNotMatch(h.container.textContent,/Checking…/);assert.match(h.container.textContent,/Update unavailable/);
-  await h.click('Check again');assert.equal(h.requests.length,8);await h.finish(pending());
+  assert.equal(h.manual().length,0,'saved progress has no manual refresh');
+  const other='2026/2938(RSP)';await h.render({reference:other});await h.finish(progress({reference:other}));
+  await h.render();assert.equal(h.requests.length,9,'returning to the dossier starts a fresh read');await h.finish(pending());
   await h.tick(PROGRESS_REFRESH_DEADLINE);assert.doesNotMatch(h.container.textContent,/Checking…/);assert.match(h.container.textContent,/Procedure completed/);
 });
 
@@ -99,20 +100,16 @@ test('unavailable progress stays one short gap state and future, cancelled and u
   await h.click('Show timeline');await h.click('Show all recorded events');assert.match(h.container.textContent,/Upcoming/);assert.match(h.container.textContent,/Cancelled/);assert.match(h.container.textContent,/Status unavailable/);
 });
 
-test('a degraded successful retry preserves the selected saved timeline and its retry deadline',async t=>{
-  const h=await harness(t),saved=progress({source:{...progress().source,stale:true}});
-  await h.render();await h.finish(saved);await h.click('Show timeline');
-  await h.click('Check again');
+test('a degraded refresh preserves the selected saved timeline without a manual refresh',async t=>{
+  const h=await harness(t);
+  await h.render();await h.finish(progress({source:{...progress().source,stale:true,refreshInProgress:true}}));await h.click('Show timeline');
+  await h.tick(500);
   const retryAt=Date.now()+120_000;
   await h.finish(progress({basis:'cellar',cellar:undefined,state:'unmapped',status:null,events:[],fallback:{status:'unavailable',url:oeilUrl,error:'Busy',retryAt}}));
   assert.match(h.container.textContent,/Procedure completed/);assert.match(h.container.textContent,/End of procedure in Parliament/);
   assert.equal(h.container.querySelectorAll('.procedure-progress-timeline>li').length,1);
   assert.match(h.container.textContent,/Update unavailable/);
-  assert.equal([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try later')?.disabled,true);
-  const timer=h.timers.find(timer=>timer.delay>100_000),now=Date.now();assert(timer);
-  t.mock.method(Date,'now',()=>now+120_001);await h.tick(timer.delay);
-  await h.click('Check again');assert.match(h.container.textContent,/Procedure completed/,'a repeated retry uses saved content rather than the degraded client cache');
-  await h.finish(progress({events:[event({label:'Updated event'})]}));assert.match(h.container.textContent,/Updated event/);
+  assert.equal(h.manual().length,0);
   await h.render({reference:'2026/2938(RSP)'});await h.finish(progress({reference:'2026/2938(RSP)',state:'unmapped',status:null,events:[],fallback:{status:'unavailable'}}));
   assert.doesNotMatch(h.container.textContent,/Procedure completed|Updated event/,'retained observations never cross references');
 });
@@ -121,7 +118,7 @@ test('a secondary Cellar source failure remains visible beside fresh OEIL progre
   const h=await harness(t),source=progress().source;
   await h.render();await h.finish(progress({sources:[{...source,stale:true,refreshError:'Cellar failed'},source]}));
   assert.match(h.container.textContent,/Procedure completed/);assert.match(h.container.textContent,/Update unavailable/);
-  assert([...h.container.querySelectorAll('button')].some(button=>button.textContent==='Check again'&&!button.disabled));
+  assert.equal(h.manual().length,0,'a source failure beside shown progress has no manual refresh');
   assert.doesNotMatch(h.container.textContent,/Checking…/);
 });
 
@@ -134,17 +131,17 @@ test('fallback admission backoff settles a pending Cellar refresh without pollin
   assert.equal(h.timers.filter(timer=>PROGRESS_REFRESH_DELAYS.includes(timer.delay)).length,0,'no source poll is scheduled during fallback admission backoff');
 });
 
-test('a cached primary-source retry deadline disables retry without discarding progress',async t=>{
+test('a cached primary-source retry deadline keeps progress without a manual refresh',async t=>{
   const h=await harness(t),retryAt=Date.now()+120_000;
   await h.render();await h.finish(progress({source:{...progress().source,stale:true,refreshError:'Source limited',retryAt}}));
   assert.match(h.container.textContent,/Procedure completed/);assert.match(h.container.textContent,/Update unavailable/);
-  assert.equal([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Try later')?.disabled,true);
+  assert.equal(h.manual().length,0);
   assert.equal(h.requests.length,1);
 });
 
 test('a valid empty OEIL observation clears saved completion even when Cellar has failed',async t=>{
-  const h=await harness(t);await h.render();await h.finish(progress({source:{...progress().source,stale:true}}));
-  await h.click('Check again');
+  const h=await harness(t);await h.render();await h.finish(pending());
+  await h.tick(500);
   await h.finish(progress({state:'unmapped',status:null,events:[],coverage:{limited:false,invalidRows:0,incompleteEvents:0,timeline:'available'},sources:[{url:'https://publications.europa.eu/webapi/rdf/sparql',stale:true,refreshError:'Cellar failed'},progress().source]}));
   assert.doesNotMatch(h.container.textContent,/Procedure completed|End of procedure/);assert.match(h.container.textContent,/Unavailable/);
 });
