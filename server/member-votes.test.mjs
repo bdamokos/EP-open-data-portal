@@ -433,14 +433,12 @@ test('the first term week is accepted while weeks wholly before the term remain 
   assert.throws(()=>query('sitting=MTG-PL-2024-07-15'),error=>error.status===400);
 });
 
-test('the snapshot identity changes with unprojected raw data, exact context, source provenance and coverage',async()=>{
+test('the snapshot identity changes with unprojected raw data, exact context, source content and coverage',async()=>{
   const base=await setup().service.query(MEMBER,query('sitting='+SITTING));
   const variants=[
     setup({decisions:[{...clone(finalDecision),sourceRevisionMarker:'new raw source field'}]}),
     setup({results:[{...clone(finalResult),consists_of:[finalDecision.id],based_on_a_realization_of:['eli/dl/doc/A-10-2026-9999']}]}),
     setup({agenda:fixture.foreseen.payload.data.map(row=>({...clone(row),sourceRevisionMarker:'new agenda source field'}))}),
-    setup({override:({kind,supplied})=>kind==='named'?{...supplied,fetchedAt:NOW+1000}:undefined}),
-    setup({override:({kind,supplied})=>kind==='named'?{...supplied,stale:true,refreshError:'Refresh delayed'}:undefined}),
     setup({results:[{...clone(finalResult),consists_of:[finalDecision.id,`eli/dl/event/${SITTING}-DEC-999999`]}]})
   ];
   const ids=[];
@@ -807,4 +805,17 @@ test('chairing omissions apply before counts, filters, pagination and direct sel
   assert.deepEqual(hidden.items,[]);assert.equal(hidden.pagination.observedTotal,0);assert.equal(hidden.pagination.filteredTotal,0);assert.equal(hidden.pagination.omittedWhileChairingTotal,1);assert.equal(hidden.pagination.recordedTotal,0);assert.equal(hidden.pagination.nextOffset,null);
   assert.deepEqual(hidden.selected,{status:'chairing',item:null});assert.equal(hidden.subjects.flatMap(s=>s.wholeTextDecisions).length,0);
   const other=await service.query(MEMBER,q);assert.equal(other.items.length,1);assert.equal(other.selected.status,'found');assert.equal(other.pagination.omittedWhileChairingTotal,undefined);assert.equal(reads,1,'chair sources are shared across members in the immutable period snapshot');
+});
+
+
+test('an evicted weekly snapshot opens a sitting decision and survives retrieval-time changes',async()=>{
+  let refreshed=false,changed=false;
+  const {service}=setup({override:({supplied})=>({...supplied,fetchedAt:NOW+(refreshed?1000:0),payload:changed?{...supplied.payload,changed:true}:supplied.payload})});
+  const week=await service.snapshot(query('week=latest'));
+  service.snapshotInputs.clear();
+  service.snapshots.clear();service.periods.clear();service.cacheBytes=0;refreshed=true;
+  const opened=await service.snapshot(query(`sitting=${SITTING}&decision=${finalDecision.activity_id}&snapshot=${week.id}`));
+  assert.equal(opened.id,week.id);assert.equal(opened.period.kind,'week');
+  service.snapshots.clear();service.periods.clear();service.cacheBytes=0;changed=true;
+  await assert.rejects(service.snapshot(query(`sitting=${SITTING}&snapshot=${week.id}`)),error=>error.status===409);
 });

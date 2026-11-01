@@ -125,12 +125,15 @@ export class MemberAttendance {
   async query(memberId,query) {
     const id=String(memberId);if(!positiveId(id))throw new HttpError(400,'invalid_id','Use a positive person identifier.');
     const sittings=[];
-    for(const sittingId of query.sittings){
-      requestSignal()?.throwIfAborted();
-      const {extracted,source,register}=await this.sitting(sittingId,query.language);requestSignal()?.throwIfAborted();
-      const {status,excusedSupplied,counts,conflictingIds}=extracted;
-      const memberStatus=status!=='observed'?null:conflictingIds.includes(id)?'conflicting':extracted.presentIds.includes(id)?'listed-present':extracted.excusedIds.includes(id)?'listed-excused':'not-listed';
-      sittings.push({sittingId,date:sittingId.slice(7),status,memberStatus,excusedSupplied,counts,conflictingIds,source,register});
+    for(let offset=0;offset<query.sittings.length;offset+=2){
+      const batch=await Promise.all(query.sittings.slice(offset,offset+2).map(sittingId=>this.sitting(sittingId,query.language)));
+      for(const [index,{extracted,source,register}] of batch.entries()){
+        const sittingId=query.sittings[offset+index];
+        requestSignal()?.throwIfAborted();
+        const {status,excusedSupplied,counts,conflictingIds}=extracted;
+        const memberStatus=status!=='observed'?null:conflictingIds.includes(id)?'conflicting':extracted.presentIds.includes(id)?'listed-present':extracted.excusedIds.includes(id)?'listed-excused':'not-listed';
+        sittings.push({sittingId,date:sittingId.slice(7),status,memberStatus,excusedSupplied,counts,conflictingIds,source,register});
+      }
     }
     return {version:MEMBER_ATTENDANCE_VERSION,member:{id,mandateStatus:'not-assessed'},sittings,attribution:'European Parliament Open Data API v2, CC BY 4.0'};
   }

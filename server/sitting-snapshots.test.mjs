@@ -9,7 +9,8 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {SittingSnapshotCollector,sittingSnapshotNextCheck,sittingSourcesConfirmed} from './sitting-snapshot-collector.mjs';
 import {SittingSnapshotReader,SittingSnapshotHints} from './sitting-snapshot-store.mjs';
-import {MEMBER_VOTES_VERSION} from './member-votes.mjs';
+import {decisionVotes} from './decision-votes.mjs';
+import {MemberVotes,memberVotesQuery,MEMBER_VOTES_VERSION} from './member-votes.mjs';
 import {sittingConfirmationDay,DAY} from './refresh-policy.mjs';
 import {snapshotFixture,snapshotResponses,SNAPSHOT_SITTING,SNAPSHOT_NOW} from './test-support/sitting-snapshots.mjs';
 
@@ -249,4 +250,20 @@ test('snapshot retries use shared transient and byte-confirmed permanent classif
   await h.collector.step(h.worker);
   row=h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE id='2026'").get();
   assert.equal(row.next_check,h.clock()+DAY);
+});
+
+
+test('cold decision reconstruction prefers verified persisted sitting and week observations',async t=>{
+  const h=setup(t);await drain(h);
+  const reader=()=>new MemberVotes({request:async()=>assert.fail('verified disk reconstruction must not fetch upstream'),snapshots:h.reader,clock:h.clock,readChairs:async()=>null});
+  for(const selection of [{sitting:SNAPSHOT_SITTING},{week:'2026-10-05'}]){
+    const original=await reader().snapshot(memberVotesQuery(new URLSearchParams(selection),{now:h.clock()}));
+    const decision=original.days[0].decisions[0].activity_id;
+    const query={sitting:SNAPSHOT_SITTING,decision,language:'en',snapshot:original.id};
+    const result=await decisionVotes(query,{reader:reader()});
+    assert.equal(result.snapshotId,original.id);
+    assert.equal(result.decisionId,decision);
+    assert.notEqual(result.status,'unavailable');
+    await assert.rejects(decisionVotes({...query,snapshot:'f'.repeat(64)},{reader:reader()}),error=>error.status===409);
+  }
 });
