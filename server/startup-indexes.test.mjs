@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
+import {SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 import {ActivityStore} from './activity-index-store.mjs';
 import {amendmentLinkIndexVersion} from './amendments-store.mjs';
 import {activityAvailabilityIndexVersion} from './availability-evidence.mjs';
@@ -17,6 +18,7 @@ function fixture(t) {
   store.db.exec('DROP INDEX amendment_link_invalidation');store.set('amendmentLinkIndexVersion',null);
   store.db.exec('DROP INDEX activity_role_frontier');store.set('activityAvailabilityIndexVersion',null);
   store.db.exec('DROP INDEX activity_member_roles');
+  store.db.exec('DROP TABLE sitting_snapshots; DROP TABLE sitting_snapshot_staging');store.set('sittingSnapshotSchema',null);
   return {directory,store};
 }
 function environment(t,directory) {
@@ -29,7 +31,7 @@ test('startup prepares enabled data before service construction and skips disabl
   const {directory,store}=fixture(t);store.release();store.close();environment(t,directory);
   t.mock.method(console,'log',()=>{});
   assert.equal(prepareStartupIndexes()[0].noop,false);
-  const ready=new ActivityStore(directory);assert.equal(ready.get('amendmentLinkIndexVersion'),amendmentLinkIndexVersion);assert.equal(ready.get('activityAvailabilityIndexVersion'),activityAvailabilityIndexVersion);ready.close();
+  const ready=new ActivityStore(directory);assert.equal(ready.get('sittingSnapshotSchema'),SITTING_SNAPSHOT_SCHEMA);assert(ready.db.prepare("SELECT 1 FROM sqlite_master WHERE name='sitting_snapshots'").get());assert.equal(ready.get('amendmentLinkIndexVersion'),amendmentLinkIndexVersion);assert.equal(ready.get('activityAvailabilityIndexVersion'),activityAvailabilityIndexVersion);ready.close();
   assert.equal(prepareStartupIndexes()[0].noop,true);
   process.env.ACTIVITY_INDEX_ENABLED='false';assert.deepEqual(prepareStartupIndexes(),[]);
 });

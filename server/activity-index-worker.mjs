@@ -1,3 +1,4 @@
+import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
@@ -101,8 +102,8 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal}={}) {
   },{priority:'background',signal});
 }
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal'}={}) {
-    this.store=store;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null}={}) {
+    this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
@@ -705,8 +706,8 @@ export class ActivityWorker {
   }
   async runIteration() {
     if(this.stopped)return;
-    const pressDue=Boolean(this.press?.due()),due=this.due();
-    if(!due&&!pressDue || !this.store.acquire())return;
+    const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
+    if(!due&&!pressDue&&!snapshotsDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -714,8 +715,17 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
-      if(pressDue)await this.followPress(due);
+      if(pressDue)await this.followPress(due||snapshotsDue);
+      // Reserve one dispatch before core work and one per eight core tasks.
+      // When core work is idle, drain snapshots under the same run bounds.
+      if(snapshotsDue){
+        do {
+          if(this.stopped||this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
+          if(!await this.sittingSnapshots.step(this))break;
+        }while(!due&&this.sittingSnapshots.due());
+      }
       if(!due || this.stopped)return;
+      let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
       if(!existing && active) {
@@ -820,6 +830,10 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.recoveryMode==='backfill')scheduleDeclaredDebateRecovery(this,generation);
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
+          if(++sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
+            await this.sittingSnapshots.step(this);
+            if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
+          }
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
           const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
           const coreTask=this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;
@@ -862,7 +876,7 @@ export function activityIndex() {
     diskLimit:integerFromEnvironment('ACTIVITY_INDEX_MAX_DISK_MIB',8192,64,131072)*1024*1024,
   };
   const store=new ActivityStore(directory),press=new PressStore(directory);
-  const worker=new ActivityWorker(store,{...options,press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
+  const worker=new ActivityWorker(store,{...options,sittingSnapshots:new SittingSnapshotCollector(store),press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
   worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
   service={store,worker,press};return service;
 }

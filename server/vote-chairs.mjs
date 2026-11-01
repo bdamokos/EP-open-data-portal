@@ -26,7 +26,7 @@ function distribution(payload,date){
   }catch{return null;}
 }
 
-export async function downloadMinutesXml(url){
+export async function downloadMinutesXml(url,{priority='interactive'}={}){
   const signal=requestSignal();
   return boundedUpstream(async admitted=>{
     const response=await new Promise((resolve,reject)=>https.get(url,{headers:{Accept:'application/xml','User-Agent':userAgent('voting chairs')},signal:AbortSignal.any([AbortSignal.timeout(15_000),...(admitted?[admitted]:[])])},resolve).on('error',reject));
@@ -38,7 +38,7 @@ export async function downloadMinutesXml(url){
       for await(const chunk of response){bytes+=chunk.length;if(bytes>MAX_BYTES){response.destroy();throw new Error('Minutes XML exceeds the supported size.');}chunks.push(chunk);}
       return Buffer.concat(chunks).toString('utf8');
     }catch(error){throw Object.assign(new Error(error.message,{cause:error}),{downloadedBytes:bytes});}
-  },{source:'documents',priority:'interactive',signal});
+  },{source:'documents',priority,signal});
 }
 
 // Minutes' explicit AnnexVote numbers bind to the result's exact PV VOT-ITM
@@ -86,13 +86,13 @@ export function extractVoteChairs(xml,chairPayload,date){
   return Object.fromEntries([...result].filter(([,id])=>id));
 }
 
-export async function collectVoteChairs(request,sittingId,{download=downloadMinutesXml,clock=Date.now,maxBytes=6*MAX_BYTES}={}){
+export async function collectVoteChairs(request,sittingId,{download=downloadMinutesXml,clock=Date.now,maxBytes=6*MAX_BYTES,priority='interactive'}={}){
   const date=sittingId.slice(7);let bytes=0;
   const unavailable=()=>({status:'unavailable',byResultDocument:{},sources:[],bytes});
   const parent=requestSignal(),signal=AbortSignal.any([AbortSignal.timeout(10_000),...(parent?[parent]:[])]);
   try{return await runWithRequestSignal(signal,async()=>{
     if(maxBytes<=0)return unavailable();
-    const options={priority:'interactive',staleWhileRevalidate:true,ttl:15*60_000};
+    const options={priority,staleWhileRevalidate:true,ttl:15*60_000};
     const metadata=await request('/plenary-session-documents/PV-10-'+date,{},options);
     bytes+=Buffer.byteLength(JSON.stringify(metadata.payload));
     if(metadata.refreshError||bytes>Math.min(MAX_BYTES,maxBytes))return unavailable();
@@ -101,7 +101,7 @@ export async function collectVoteChairs(request,sittingId,{download=downloadMinu
     const chairBytes=Buffer.byteLength(JSON.stringify(chairs.payload));bytes+=chairBytes;
     if(chairs.refreshError||chairBytes>MAX_BYTES||bytes>=maxBytes)return unavailable();
     let xml;
-    try{xml=await download(url);}catch(error){if(Number.isSafeInteger(error.downloadedBytes)&&error.downloadedBytes>0)bytes+=error.downloadedBytes;throw error;}
+    try{xml=await download(url,{priority});}catch(error){if(Number.isSafeInteger(error.downloadedBytes)&&error.downloadedBytes>0)bytes+=error.downloadedBytes;throw error;}
     bytes+=Buffer.byteLength(xml);
     if(bytes>maxBytes)return unavailable();
     const byResultDocument=extractVoteChairs(xml,chairs.payload,date);
