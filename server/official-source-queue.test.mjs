@@ -145,3 +145,10 @@ test('OEIL starts are serial and paced, with origin-wide 5xx Retry-After backoff
  const third=reader.get(oeil+'?reference=2025/0003(COD)',{priority:'background'});await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,2);t.mock.timers.tick(1);await third;
  assert.deepEqual(starts,[50000,53000,54000]);assert.equal(reader.queues.get(new URL(oeil).origin).maximum,1);
 });
+
+test('OEIL redirects spend paced starts before the next page can begin',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});const starts=[];
+ const reader=new OfficialContextSources({directory:null,fetchSource:async()=>{starts.push(Date.now());return starts.length===1?new Response(null,{status:302,headers:{location:oeil+'?reference=2025/0001(COD)&redirected=1'}}):new Response('<main>Read</main>',{headers:{'content-type':'text/html'}});}});
+ const first=reader.get(oeil+'?reference=2025/0001(COD)');await until(()=>starts.length===1);await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,1);t.mock.timers.tick(1);await first;
+ const second=reader.get(oeil+'?reference=2025/0002(COD)',{priority:'background'});await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,2);t.mock.timers.tick(1);await second;assert.deepEqual(starts,[1000,2000,3000]);
+});

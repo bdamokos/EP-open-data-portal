@@ -11,9 +11,12 @@ export async function activityGenerationTask(store,operation,{generation,signal,
   store.assertWriter();store.generationTaskActive=true;
   const elapsed=loopTimer('activity-generation');
   try {
-    const value=await new Promise((resolve,reject)=>{
+    let value;
+    for(const step of operation==='publish'?['publish','topics']:[operation]){
+    signal?.throwIfAborted();
+    value=await new Promise((resolve,reject)=>{
       let thread,result,failure,complete=false;
-      try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{resourceLimits:{maxOldGenerationSizeMb:40,maxYoungGenerationSizeMb:4},workerData:{directory:path.dirname(store.filename),owner:store.owner,operation,generation}});}
+      try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{...(step==='topics'?{resourceLimits:{maxOldGenerationSizeMb:32,maxYoungGenerationSizeMb:2}}:{}),workerData:{directory:path.dirname(store.filename),owner:store.owner,operation:step,generation}});}
       catch(error){reject(error);return;}
       const abort=()=>{failure=signal.reason||new Error('Activity generation operation aborted.');void thread.terminate();};
       thread.on('message',message=>{
@@ -36,6 +39,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     // final lease. Resume only after a live-owner renewal at the current clock;
     // an expired or replaced owner must reacquire on a later ordinary tick.
     if(!store.renew())throw new Error('Activity-index writer lease was lost.');
+    }
     return value;
   } finally {store.generationTaskActive=false;elapsed({operation});}
 }

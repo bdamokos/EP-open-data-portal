@@ -1,4 +1,4 @@
-import {buildTopics,topicCollectorTables} from './topics-project.mjs';
+import {buildTopics} from './topics-project.mjs';
 import {parentPort,workerData} from 'node:worker_threads';
 import {existsSync} from 'node:fs';
 import path from 'node:path';
@@ -13,7 +13,7 @@ try {
   // No acquisition or collector starts here. The caller remains the sole
   // logical owner; begin/publish check it after obtaining BEGIN IMMEDIATE.
   store.owner=owner;
-  let value;if(operation==='begin')value=store.beginCycle();else {if(operation==='publish')store.finalize(generation);topicCollectorTables(store.db);value=await buildTopics(store,{generation});store.set('topicProjectionDirty',false);}
+  let value;if(operation==='begin')value=store.beginCycle();else if(operation==='publish')value=store.finalize(generation);else {value=await buildTopics(store,{generation});store.set('topicProjectionDirty',false);}
   message={type:'complete',value};
 } catch(error){message={type:'failed',error:error.message};}
 finally {

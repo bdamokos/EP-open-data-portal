@@ -117,10 +117,10 @@ test('lease takeover after dispatch still fences the preparation thread and pres
 for(const operation of ['begin','publish'])test(operation+' renews a live logical lease after delayed commit/exit before returning to preparation',async t=>{
   let now=Date.now();const {store}=fixture(t,{clock:()=>now});
   const generation=operation==='publish'?store.beginCycle().generation:undefined;
-  const createWorker=()=>{
+  const createWorker=(_url,{workerData})=>{
     const thread=new EventEmitter();thread.terminate=async()=>0;
     queueMicrotask(()=>{
-      const value=operation==='begin'?store.beginCycle():store.finalize(generation);
+      const value=workerData.operation==='topics'?null:operation==='begin'?store.beginCycle():store.finalize(generation);
       now+=55_000;
       thread.emit('message',{type:'complete',value});thread.emit('exit',0);
     });return thread;
@@ -171,4 +171,15 @@ test('HTTP starts and stays responsive while generation rotation holds the write
   child.kill('SIGTERM');const result=await finished;if(result.error)assert.equal(result.error.signal,'SIGTERM');
   assert.equal(store.get('active'),2);assert.equal(store.get('previous'),1);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),2);
   assert(store.acquire(),'the preparation thread exited before the logical lease was released');
+});
+
+test('publication exits before a memory-bounded topics follow-up under the same logical writer',async t=>{
+ const {store}=fixture(t),cycle=store.beginCycle(),steps=[];
+ const createWorker=(_url,options)=>{
+  const thread=new EventEmitter(),step=options.workerData.operation;thread.terminate=async()=>0;steps.push(step);store.assertWriter();assert(store.generationTaskActive);
+  if(step==='publish')assert.equal(options.resourceLimits,undefined,'core publication retains its existing memory policy');
+  else {assert.equal(store.get('active'),cycle.generation);assert.equal(store.get('working'),null);assert.deepEqual(options.resourceLimits,{maxOldGenerationSizeMb:32,maxYoungGenerationSizeMb:2});}
+  queueMicrotask(()=>{if(step==='publish')store.finalize(cycle.generation);thread.emit('message',{type:'complete',value:step});thread.emit('exit',0);});return thread;
+ };
+ assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker}).promise,'topics');assert.deepEqual(steps,['publish','topics']);store.assertWriter();assert.equal(store.generationTaskActive,false);
 });
