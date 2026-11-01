@@ -1,4 +1,5 @@
 {
+  "documentcontext.council.quotation": "Text des Rates, wie im Bericht zitiert.",
   "amendment.rejects_proposal": "Lehnt den Vorschlag ab",
   "amendment.rejects_council_position": "Lehnt den Standpunkt des Rates ab",
   "MemberMotionReader.choose_a_motion_text": "Antragstext auswählen",
