@@ -117,12 +117,12 @@ function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:
   const seconds=Math.max(0,Math.ceil(((retryAt||0)-now)/1000));
   return <div className="intervention-error"><p>{message}</p><button onClick={retry} disabled={loading||seconds>0}>{loading ? ui.t("batch4.speechinterventions.tsx.retrying.sequence") : ((seconds>0) ? ui.t("batch4.speechinterventions.tsx.retry.sequence.in.seconds.s", {seconds: String(seconds)}) : ui.t("batch4.speechinterventions.tsx.retry.sequence"))}</button>{loading&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}</div>;
 }
-function scrollParent(node:HTMLElement):{scrollBy:(x:number,y:number)=>void} {
+function scrollParent(node:HTMLElement):{scrollBy:(x:number,y:number)=>void;bottom:number} {
   for(let parent=node.parentElement;parent;parent=parent.parentElement){
     const overflow=window.getComputedStyle(parent).overflowY;
-    if(/(auto|scroll)/.test(overflow)&&parent.scrollHeight>parent.clientHeight)return parent;
+    if(/(auto|scroll)/.test(overflow)&&parent.scrollHeight>parent.clientHeight)return {scrollBy:(x,y)=>parent.scrollBy(x,y),bottom:parent.getBoundingClientRect().bottom};
   }
-  return window;
+  return {scrollBy:(x,y)=>window.scrollBy(x,y),bottom:window.innerHeight};
 }
 function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{debate:SpeechContext['debates'][number];speechId:string;language:string;transcriptLanguage:string;loading:boolean;retry:()=>void}) {
   const ui = useUiI18n();
@@ -148,11 +148,15 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
   // Closing a contribution above the tapped one shortens the page; keep the tapped control where the reader left it.
   useLayoutEffect(()=>{
     const anchor=anchorRef.current;anchorRef.current=null;
-    if(anchor?.control.isConnected){const shift=anchor.control.getBoundingClientRect().top-anchor.top;if(shift)scrollParent(anchor.control).scrollBy(0,shift);}
-    if(!reading)return;
-    readingRef.current?.focus({preventScroll:true});
+    const scroller=anchor?.control.isConnected ? scrollParent(anchor.control) : null;
+    if(anchor&&scroller){const shift=anchor.control.getBoundingClientRect().top-anchor.top;if(shift)scroller.scrollBy(0,shift);}
+    const reader=readingRef.current;
+    if(!reading||!reader)return;
+    reader.focus({preventScroll:true});
     // Reply links open a contribution elsewhere in the sequence, so bring that one into view.
-    if(anchor&&!anchor.own)readingRef.current?.closest('li')?.querySelector('.intervention-read')?.scrollIntoView({block:'start'});
+    if(anchor&&!anchor.own)reader.closest('li')?.querySelector('.intervention-read')?.scrollIntoView({block:'start'});
+    // A header tapped near the bottom edge scrolls just enough to show the opening lines.
+    else if(scroller){const hidden=reader.getBoundingClientRect().top+160-scroller.bottom;if(hidden>0)scroller.scrollBy(0,hidden);}
   },[reading]);
   const time=(row:SpeechSequenceRow)=>row.start ? new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)) : null;
   const title=selectLanguageText(debate.titles,language,debate.id,'');
