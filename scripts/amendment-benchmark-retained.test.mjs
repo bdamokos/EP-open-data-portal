@@ -49,6 +49,22 @@ test('attestation and byte mismatches fail closed',async t=>{
  }
  const f=await fixture(t);await writeFile(path.join(path.dirname(f.file),f.source.sha256+'.blob'),'changed');const reader=await RetainedInputs.open(f.root);await assert.rejects(()=>reader.get(url,{accept,language:'eng'}),/hash mismatch/);
 });
+test('retained MIME checks accept application-supported parameters and preserve the original header',async t=>{
+ for(const contentType of [accept+'; charset=utf-8',accept.toUpperCase()+'; Charset=UTF-8']) {
+  const f=await fixture(t);f.source.contentType=contentType;await writeFile(f.file,JSON.stringify(f.source));
+  const reader=await RetainedInputs.open(f.root),input=await reader.get(url,{accept,language:'eng'});
+  assert.deepEqual(input.body,f.body);assert.equal(input.headers['content-type'],contentType);
+ }
+ for(const contentType of ['application/zip; type=akn4eu','Application/Zip; TYPE=AKN4EU; charset=utf-8']) {
+  const f=await fixture(t);f.source.accept='application/zip;type=akn4eu';f.source.contentType=contentType;await writeFile(f.file,JSON.stringify(f.source));
+  const reader=await RetainedInputs.open(f.root),input=await reader.get(url,{accept:f.source.accept,language:'eng'});
+  assert.equal(input.acquisitionUnavailable,true);assert.equal(input.status,null,'missing negotiation bytes cannot manufacture HTTP evidence');
+ }
+ for(const contentType of ['application/pdf','application/zip; type=other','application/zip; type=akn4eu; type=other']) {
+  const f=await fixture(t);f.source.accept='application/zip;type=akn4eu';f.source.contentType=contentType;await writeFile(f.file,JSON.stringify(f.source));
+  const reader=await RetainedInputs.open(f.root);await assert.rejects(()=>reader.get(url,{accept:f.source.accept,language:'eng'}),/attestation mismatch/);
+ }
+});
 test('sidecars reject an uncheckpointed copy without opening SQLite',async t=>{
  const f=await fixture(t);await writeFile(path.join(f.root,'index/activities-v1.sqlite-wal'),'live');await assert.rejects(()=>RetainedInputs.open(f.root),/sidecars/);
 });

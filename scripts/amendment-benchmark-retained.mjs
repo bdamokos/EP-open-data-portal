@@ -5,6 +5,13 @@ import {digest} from './amendment-benchmark-cache.mjs';
 import {cellarTransportUrl,CELLAR_DOCX_MIME,CELLAR_DECLARED_DOCX_MIME,CELLAR_LIMITS} from '../server/cellar-documents.mjs';
 
 const inside=(root,file)=>file===root||file.startsWith(root+path.sep);
+// Mirror CellarDocuments' representation checks without normalizing the saved
+// header itself. Parameters on ordinary media types do not change the format.
+function matchesRepresentation(value,accept) {
+  const [type,...parameters]=String(value||'').toLowerCase().split(';').map(part=>part.trim()).filter(Boolean);
+  if(accept===CELLAR_DECLARED_DOCX_MIME)return type==='application/zip'&&parameters.filter(part=>part.startsWith('type=')).length===1&&parameters.includes('type=akn4eu');
+  return type===accept.split(';')[0];
+}
 export class RetainedInputs {
   static async open(directory) {
     const reader=new RetainedInputs();reader.root=await realpath(directory);
@@ -55,7 +62,7 @@ finally: c.close()
     for(const {source:s,name} of matches) {
       const identity=JSON.stringify([s.celex,s.language,s.itemId,String(s.format).toLowerCase()]);
       const expected=s.format==='DOCX'?[CELLAR_DOCX_MIME,CELLAR_DECLARED_DOCX_MIME]:s.format==='XHTML'?['application/xhtml+xml']:[];
-      if(s.schemaVersion!==1||s.identity!==identity||s.key!==digest(identity)||name!==s.key+'.json'||!/^5(?:19|20)\d{2}(?:PC\d{4}|AG\d{4}\(01\))$|^[03](?:19|20)\d{2}[RLD]\d{4}(?:-\d{8})?$/.test(s.celex)||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/language\/[A-Z]{3}$/.test(s.language)||s.url!==cellarTransportUrl(s.itemId,{redirect:true})||s.resolvedSourceUrl!==s.url||!expected.includes(s.accept)||!s.contentType||s.contentType!==s.accept||!Number.isFinite(Date.parse(s.fetchedAt))||!Number.isFinite(Date.parse(s.checkedAt))||!/^[a-f0-9]{64}$/.test(s.sha256))throw new Error('Retained source attestation mismatch: '+url);
+      if(s.schemaVersion!==1||s.identity!==identity||s.key!==digest(identity)||name!==s.key+'.json'||!/^5(?:19|20)\d{2}(?:PC\d{4}|AG\d{4}\(01\))$|^[03](?:19|20)\d{2}[RLD]\d{4}(?:-\d{8})?$/.test(s.celex)||!/^http:\/\/publications\.europa\.eu\/resource\/authority\/language\/[A-Z]{3}$/.test(s.language)||s.url!==cellarTransportUrl(s.itemId,{redirect:true})||s.resolvedSourceUrl!==s.url||!expected.includes(s.accept)||!s.contentType||!matchesRepresentation(s.contentType,s.accept)||!Number.isFinite(Date.parse(s.fetchedAt))||!Number.isFinite(Date.parse(s.checkedAt))||!/^[a-f0-9]{64}$/.test(s.sha256))throw new Error('Retained source attestation mismatch: '+url);
       // The negotiation advertisement body is not retained by the application.
       // Never synthesize its406 or silently substitute the negotiated bytes.
       if(s.accept===CELLAR_DECLARED_DOCX_MIME)return unavailable();
