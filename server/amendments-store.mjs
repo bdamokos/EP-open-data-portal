@@ -353,11 +353,22 @@ export function saveAmendmentRows(store,generation,target,rows,coverage,{observe
     // changes only its own rows. Identical rows keep their stored bytes.
     const stored=new Map(prior.map(row=>[row.id,row]));
     const put=store.db.prepare('INSERT OR REPLACE INTO amendments VALUES (?,?,?,?,?,?)');
+    const memberDependencies=new Set();
     for(const row of merged.values()) {
+      // Include parallel-language and ambiguous resolution candidates whose
+      // member IDs may be absent from the raw extracted author names.
+      for(const record of [row,...(row.variants || [])])for(const author of record.authors || []) {
+        for(const value of [author.personId,...(author.evidence || []).map(proof=>proof.personId)]) {
+          const person=String(value ?? '').replace(/^person\//,'');
+          if(/^[1-9]\d*$/.test(person))memberDependencies.add(person);
+        }
+      }
       const outcome=amendmentRowOutcome(row),date=row.date || target.date || '',body=JSON.stringify({...row,outcome}),previous=stored.get(row.id);
       if(previous?.body===body&&previous.date===date&&previous.outcome===outcome)continue;
       put.run(generation,row.id,target.id,date,outcome,body);
     }
+    const dependency=store.db.prepare('INSERT OR IGNORE INTO amendment_member_dependencies VALUES (?,?,?)');
+    for(const person of memberDependencies)dependency.run(generation,person,target.id);
     const sittingIds=[...new Set([...(target.sittingIds || []),...[...merged.values()].flatMap(row=>(row.decisions || []).map(decision=>decision.sittingId).filter(Boolean))])];
     store.db.prepare('INSERT OR REPLACE INTO amendment_targets VALUES (?,?,?)').run(generation,target.id,JSON.stringify({...target,...coverage,proposerComplete:coverage.proposerComplete??Boolean(merged.size&&[...merged.values()].every(row=>[row,...(row.variants||[])].some(variant=>variant.authors?.length&&variant.authors.every(author=>resolvedAmendmentAuthorId(author))))),sittingIds,...(retained||extraGaps.size?{complete:false,gaps:[...new Set([...(coverage.gaps || []),...extraGaps,...(retained?['Previously accepted amendment components are retained after an incomplete refresh.']:[])])]}: {})}));
   });
