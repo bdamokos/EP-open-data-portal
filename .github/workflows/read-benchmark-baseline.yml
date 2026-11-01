@@ -1,10 +1,10 @@
 name: Read benchmark baseline
 
-# Measures main once a day. When page counts, plans or the toolchain differ from the
+# Measures main once a week (Monday). When page counts, plans or the toolchain differ from the
 # committed baseline, it opens or updates one refresh pull request; it never opens issues.
 on:
   schedule:
-    - cron: '23 4 * * *'
+    - cron: '23 4 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -91,7 +91,7 @@ jobs:
           fi
 
           printf '%s\n' "$BASELINE" > "$BASELINE_FILE"
-          { printf '%s\n' "$REPORT"; echo; echo 'Opened by the daily Read benchmark baseline workflow. Merging makes these numbers the baseline for pull request comparisons and the CI gate.'; } > "$RUNNER_TEMP/body.md"
+          { printf '%s\n' "$REPORT"; echo; echo 'Opened by the weekly Read benchmark baseline workflow. Merging makes these numbers the baseline for pull request comparisons and the CI gate.'; } > "$RUNNER_TEMP/body.md"
 
           if git fetch --quiet --depth=2 origin "$REFRESH_BRANCH" 2>/dev/null \
             && [ "$(git rev-parse FETCH_HEAD^1)" = "$(git rev-parse HEAD)" ] \
