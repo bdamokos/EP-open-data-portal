@@ -338,7 +338,7 @@ test('retained original XML can use exact upstream headers when the separate met
   delete fresh.recorded_in_a_realization_of[0]['api:xmlFragment'];
   t.mock.method(globalThis,'fetch',async input=>{if(String(input).includes('/speeches/'))return Response.json({data:[fresh]});throw new Error('No profile request allowed');});
   const result=await odpSpeech(id,'en');
-  assert.equal(result.xml,original);assert.equal(result.textLanguage,'de');assert.equal(Date.parse(result.fetchedAt),Date.parse(fetchedAt));
+  assert.equal(result.xml,original);assert.equal(result.textLanguage,'de');assert.equal(result.fetchedAt,fetchedAt);
   assert.equal(result.textCache.sourceUrl,url);assert.equal(result.textCache.sourceFetchedAt,fetchedAt);
   assert.notEqual(result.metadataSource.fetchedAt,fetchedAt);assert(result.metadataSource.url.includes('/speeches/'+id));
 });
