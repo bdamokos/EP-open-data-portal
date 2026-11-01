@@ -72,3 +72,68 @@ test('origin cap counts attempts durably, isolates origins, and resets next Brus
   assert.throws(()=>create().admitOrigin('https://publications.europa.eu'),/daily origin budget/);
   create().admitOrigin('https://oeil.europarl.europa.eu');now+=86400_000;store.acquire();create().admitOrigin('https://publications.europa.eu');
 });
+
+test('official source disk limit is configurable and rejects invalid overrides',t=>{
+  const old=process.env.OFFICIAL_CONTEXT_MAX_DISK_MIB;
+  t.after(()=>{if(old===undefined)delete process.env.OFFICIAL_CONTEXT_MAX_DISK_MIB;else process.env.OFFICIAL_CONTEXT_MAX_DISK_MIB=old;});
+  delete process.env.OFFICIAL_CONTEXT_MAX_DISK_MIB;
+  assert.equal(new OfficialContextSources().cache.maxDiskBytes,32768*1024*1024);
+  process.env.OFFICIAL_CONTEXT_MAX_DISK_MIB='64';
+  assert.equal(new OfficialContextSources().cache.maxDiskBytes,64*1024*1024);
+  process.env.OFFICIAL_CONTEXT_MAX_DISK_MIB='0';
+  assert.throws(()=>new OfficialContextSources(),/OFFICIAL_CONTEXT_MAX_DISK_MIB/);
+});
+
+test('capacity pauses jobs and per-request admission, retains pages across restart and resumes with more space',async t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'official-water-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const now=1000000,store=new ActivityStore(path.join(dir,'store'),{clock:()=>now});t.after(()=>store.close());store.acquire();
+  let fetched=0;
+  const settings={writable:true,directory:path.join(dir,'pages'),clock:()=>now,run:operation=>operation(),fetchSource:async()=>{fetched++;return new Response('<main>'+ 'x'.repeat(1000)+'</main>',{headers:{'content-type':'text/html'}});}};
+  const sources=new OfficialContextSources(settings),warmer=new OfficialContextWarmer(store,{clock:()=>now,sources});
+  sources.cache.maxEntries=1;
+  const url=n=>'https://oeil.europarl.europa.eu/oeil/en/document-summary?id='+n;
+  await sources.get(url(1),{priority:'background'});
+  const first=await sources.cache.capacity();
+  sources.cache.maxDiskBytes=first.bytes/0.9;
+  warmer.initialize();warmer.enqueue('url',url(2),'');
+  assert.equal(await warmer.step({controller:new AbortController()}),false);
+  assert.equal(fetched,1);
+  const visitor=new OfficialContextSources({...settings,writable:false,maxDiskBytes:1,fetchSource:async()=>new Response('<main>visitor</main>',{headers:{'content-type':'text/html'}})});
+  assert.match((await visitor.get(url(99))).html,/<main>/);
+  assert.equal(readdirSync(settings.directory).length,1,'visitor miss remains memory-only at capacity');
+  assert.equal(store.status().officialContext.state,'capacity');
+  assert.equal(store.db.prepare('SELECT attempts,next_check FROM official_context_jobs').get().attempts,0);
+  await assert.rejects(sources.beforeFetch('https://oeil.europarl.europa.eu'),/capacity reached/);
+  await sources.cache.prune();
+  assert.equal(readdirSync(settings.directory).length,1);
+  const restarted=new OfficialContextSources({...settings,maxDiskBytes:first.bytes*10});
+  const resumed=new OfficialContextWarmer(store,{clock:()=>now,sources:restarted});
+  assert.equal((await restarted.cache.capacity()).bytes,first.bytes);
+  assert.equal(await resumed.step({controller:new AbortController()}),true);
+  assert.equal(fetched,2);
+  await restarted.get(url(1),{priority:'background'});
+  assert.equal(fetched,2,'retained entry survives memory eviction and restart');
+  const before=await restarted.cache.capacity();
+  await restarted.cache.save(restarted.cache.key(['official-context-v1',url(1)]),{url:url(1),fetchedAt:new Date(now).toISOString(),html:'<main>updated</main>'});
+  const after=await restarted.cache.capacity();
+  assert.equal(after.entries,2);assert(after.bytes<before.bytes,'replacement subtracts superseded bytes');
+  restarted.cache.maxDiskEntries=2;
+  assert.equal((await restarted.cache.capacity()).state,'capacity','entry limit also stops admission');
+  await restarted.cache.prune();
+  assert.equal(readdirSync(settings.directory).length,2,'capacity never evicts retained keys');
+});
+
+test('request admission stops within a multi-read job when a response crosses high water',async t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'official-inflight-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const store=new ActivityStore(path.join(dir,'store'));t.after(()=>store.close());store.acquire();
+  let fetched=0;
+  const sources=new OfficialContextSources({writable:true,directory:path.join(dir,'pages'),maxDiskBytes:1000,run:operation=>operation(),fetchSource:async()=>{fetched++;return new Response('<main>'+ 'x'.repeat(1000)+'</main>',{headers:{'content-type':'text/html'}});}});
+  const warmer=new OfficialContextWarmer(store,{sources,catalog:{known:async()=>new Map(),load:async()=>{
+    for(const id of [1,2])await sources.get('https://oeil.europarl.europa.eu/oeil/en/document-summary?id='+id,{priority:'background'});
+    return new Map();
+  }}});
+  warmer.initialize();warmer.enqueue('mapping','2024-0001','en');
+  await warmer.step({controller:new AbortController()});
+  assert.equal(fetched,1);assert.equal((await sources.cache.capacity()).state,'capacity');
+  assert.equal(readdirSync(path.join(dir,'pages')).length,1,'crossing response remains retained');
+});

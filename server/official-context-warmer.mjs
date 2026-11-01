@@ -27,9 +27,17 @@ export class OfficialContextWarmer {
     Object.assign(this,{store,clock,sources});this.catalog=catalog||new EurovocCatalog(sources);
     this.context=context||new ProcedureContext(sources,this.catalog);this.progress=progress||new ProcedureProgress(sources);
     this.references=references;this.nextAt=0;this.dailyOriginLimit=dailyOriginLimit;
-    this.sources.beforeFetch=origin=>this.admitOrigin(origin);
+    this.sources.beforeFetch=async origin=>{
+      if(!await this.admitCapacity())throw Object.assign(new Error('Official context cache capacity reached.'),{retryAfter:60});
+      this.admitOrigin(origin);
+    };
     this.sources.cache.assertWriter=()=>this.store.assertWriter();
     if(this.catalog.cache)this.catalog.cache.assertWriter=()=>this.store.assertWriter();
+  }
+  async admitCapacity() {
+    const capacity=await this.sources.cache.capacity();
+    this.store.assertWriter();this.store.set('officialContextCapacity',capacity);
+    return capacity.state==='ready';
   }
   admitOrigin(origin) {
     this.store.assertWriter();
@@ -76,6 +84,7 @@ export class OfficialContextWarmer {
     const last=rows.at(-1);this.store.set('officialContextCursor',last?{generation,date:last.date,key:last.key}:{...cursor,complete:this.clock()});
   }
   async step(worker) {
+    if(!await this.admitCapacity()){this.nextAt=this.clock()+60_000;return false;}
     this.initialize();this.store.transaction(()=>this.discover());
     for(const url of drainOfficialHints())try{officialSourceUrl(url);this.enqueue('url',url,'','9999');}catch{/* Reject unsupported hints. */}
     const job=this.store.db.prepare('SELECT * FROM official_context_jobs INDEXED BY official_context_dispatch WHERE next_check<=? ORDER BY (next_check=0) DESC,date DESC,next_check,kind,value,language LIMIT 1').get(this.clock());
@@ -117,6 +126,7 @@ export class OfficialContextWarmer {
       const delay=Math.max(60_000*2**Math.min(job.attempts,10),Number(error.retryAfter||0)*1000);
       this.store.db.prepare('UPDATE official_context_jobs SET next_check=?,attempts=attempts+1 WHERE kind=? AND value=? AND language=?').run(this.clock()+delay,kind,value,language);
     }
+    await this.admitCapacity();
     this.nextAt=0;return true;
   }
 }
