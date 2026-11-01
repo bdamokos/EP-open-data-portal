@@ -27,7 +27,7 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
  if(saved&&saved.state!=='unavailable'&&(policy.completed||!policy.changed&&policy.next>now)){s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(policy.next,row.id);return false;}
  const held=sources.cache?.stored?await sources.cache.stored(sources.cache.key(['official-context-v1',url])):null;
  let page;
- if(held?.value?.html){const hints=procedurePageHints(held.value.html,row.reference,now);policy=procedureRefresh(metadata,{...hints,source:{fetchedAt:held.value.fetchedAt}},now);if(policy.completed||!policy.changed&&policy.next>now)page=held.value;}
+ if(held?.value?.html&&held.value.url===url&&Number.isFinite(Date.parse(held.value.fetchedAt))){const hints=procedurePageHints(held.value.html,row.reference,now);policy=procedureRefresh(metadata,{...hints,source:{fetchedAt:held.value.fetchedAt}},now);if(policy.completed||!policy.changed&&policy.next>now)page=held.value;}
  if(!page){worker.requests++;page=await sources.get(url,{priority:'background',freshMs:policy.changed?0:policy.freshMs,waitForFresh:true});}
  worker.controller.signal.throwIfAborted();s.assertWriter();if(page.viewCache?.stale)return true;
  let parsed;try{parsed=parseProcedurePage(page.html,row.reference,'en');}catch(error){if(error.code)throw error;throw Object.assign(new Error(error.message),{code:'official_document_invalid',cause:error});}
