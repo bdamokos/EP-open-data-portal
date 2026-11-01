@@ -6,7 +6,7 @@
   "scenarios": [
     {
       "name": "remaining/weeks",
-      "pageFetches": 19,
+      "pageFetches": 24,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -17,7 +17,7 @@
     },
     {
       "name": "remaining/savedCount",
-      "pageFetches": 51,
+      "pageFetches": 56,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -28,18 +28,18 @@
     },
     {
       "name": "remaining/motions",
-      "pageFetches": 70,
+      "pageFetches": 76,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
-        "SEARCH sources USING INDEX motion_documents (generation=?)"
+        "SEARCH source_reads USING INDEX read_motion_documents (generation=?)"
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
     },
     {
       "name": "remaining/savedPreviews",
-      "pageFetches": 63,
+      "pageFetches": 68,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -55,7 +55,7 @@
     },
     {
       "name": "remaining/initialQuestions",
-      "pageFetches": 1368,
+      "pageFetches": 1373,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -68,7 +68,7 @@
     },
     {
       "name": "remaining/questions",
-      "pageFetches": 155,
+      "pageFetches": 160,
       "rowsReturned": 0,
       "fullScanSteps": 0,
       "plan": [
@@ -81,7 +81,7 @@
     },
     {
       "name": "remaining/oneFileLookup",
-      "pageFetches": 37,
+      "pageFetches": 42,
       "rowsReturned": 0,
       "fullScanSteps": 0,
       "plan": [
@@ -96,6 +96,181 @@
         "SEARCH document USING INTEGER PRIMARY KEY (rowid=?)",
         "CORRELATED SCALAR SUBQUERY 5",
         "SEARCH prior USING INDEX sqlite_autoindex_tasks_1 (key=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.oldSource",
+      "pageFetches": 27,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH sources USING INDEX sqlite_autoindex_sources_1 (generation=? AND key=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.source",
+      "pageFetches": 26,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH source_reads USING INDEX sqlite_autoindex_source_reads_1 (generation=? AND key=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.questionWindow",
+      "pageFetches": 566,
+      "rowsReturned": 5000,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH question_reads USING INDEX read_question_window (generation=? AND <expr>>? AND <expr><?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.questionSearch",
+      "pageFetches": 270,
+      "rowsReturned": 110,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH question_reads USING COVERING INDEX sqlite_autoindex_question_reads_1 (generation=?)",
+        "LIST SUBQUERY 1",
+        "SCAN question_title_search VIRTUAL TABLE INDEX 0:M1"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.amendmentPage",
+      "pageFetches": 64,
+      "rowsReturned": 20,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH page USING COVERING INDEX amendment_page_order (generation=?)",
+        "SEARCH source USING INDEX sqlite_autoindex_amendments_1 (generation=? AND id=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.oldAmendmentBodies",
+      "pageFetches": 440,
+      "rowsReturned": 400,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH amendments USING INDEX amendment_target (generation=? AND target=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.amendmentIds",
+      "pageFetches": 440,
+      "rowsReturned": 400,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH amendments USING INDEX amendment_target (generation=? AND target=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.parserUpgrade",
+      "pageFetches": 26,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH sources USING INDEX source_identifier (generation=? AND kind=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.motions",
+      "pageFetches": 25,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH source_reads USING INDEX read_motion_documents (generation=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.procedureSelection",
+      "pageFetches": 34,
+      "rowsReturned": 601,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH procedure_event_reads USING COVERING INDEX procedure_event_window (generation=? AND date>? AND date<?)",
+        "USE TEMP B-TREE FOR GROUP BY",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.outsideDirectory",
+      "pageFetches": 338,
+      "rowsReturned": 10000,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH outside_directory_reads USING INDEX outside_read_term (generation=? AND term=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.outsideDates",
+      "pageFetches": 1331,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH outside_contributions USING INDEX outside_unresolved (generation=?)",
+        "USE TEMP B-TREE FOR DISTINCT"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.pruneAge",
+      "pageFetches": 43,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH source_observations USING COVERING INDEX sqlite_autoindex_source_observations_1 (identity=?)",
+        "LIST SUBQUERY 1",
+        "SEARCH source_observations USING COVERING INDEX source_observation_age (last_observed_at<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.pruneEvent",
+      "pageFetches": 44,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH source_observations USING COVERING INDEX sqlite_autoindex_source_observations_1 (identity=?)",
+        "LIST SUBQUERY 1",
+        "SEARCH source_observations USING COVERING INDEX source_observation_event (event_date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.observationCount",
+      "pageFetches": 20,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH observation_count USING INTEGER PRIMARY KEY (rowid=?)"
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
