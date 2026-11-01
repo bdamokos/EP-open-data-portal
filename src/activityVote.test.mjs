@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {readMemberVotesJourney} from './memberVotesJourney.mjs';
 
 const sitting='MTG-PL-2026-10-08',decision=sitting+'-DEC-198251';
@@ -22,12 +22,12 @@ async function mount(t,handler) {
   const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const calls=[];t.mock.method(globalThis,'fetch',async(url,options)=>{calls.push(String(url));return handler(url,options);});
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ActivityVote}=await vite.ssrLoadModule('/src/ActivityVote.tsx'),{createRoot}=await import('react-dom/client');
+  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {ActivityVote}=await load('/src/ActivityVote.tsx'),{createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);const root=createRoot(container);
-  t.after(async()=>{await act(async()=>root.unmount());await vite.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+  t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of old)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const render=patch=>act(async()=>root.render(createElement(ActivityVote,{memberId:197494,memberName:'Selected member',language:'en',decisionId:decision,...patch},createElement('p',null,'Indexed result · Adopted · Show of hands'))));
-  return {window,container,calls,render,vite,root};
+  return {window,container,calls,render,load,root};
 }
 test('activity reuses exact vote data and links without carrying filters, snapshots or context',async t=>{
   const h=await mount(t,async()=>Response.json(exactResponse()));await h.render();
@@ -97,7 +97,7 @@ test('retained lapsed outcomes retain their not-conducted semantics',async t=>{
 });
 
 test('a saved lapsed-motion explanation stays within its labelled saved result after a current adoption',async t=>{
-  const h=await mount(t,async()=>Response.json(exactResponse()));const {MotionOutcome}=await h.vite.ssrLoadModule('/src/MotionOutcome.tsx');
+  const h=await mount(t,async()=>Response.json(exactResponse()));const {MotionOutcome}=await h.load('/src/MotionOutcome.tsx');
   await act(async()=>h.root.render(createElement(MotionOutcome,{memberId:197494,memberName:'Selected member',language:'en',sourceId:'B-10-2026-0448',reference:'B10-0448/2026',outcome:{status:'lapsed',method:'VOTE_ELECTRONIC_ROLLCALL',decisionId:decision}})));
   const saved=h.container.querySelector('[aria-label="Saved activity result"]');assert.match(saved.textContent,/This text lapsed and was not adopted/);assert.match(h.container.querySelector('.member-votes-result').textContent,/Adopted/);
   assert.equal([...h.container.querySelectorAll('.explorer-motion-explanation')].filter(node=>!saved.contains(node)).length,0);
