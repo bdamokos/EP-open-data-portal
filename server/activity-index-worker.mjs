@@ -1,3 +1,4 @@
+import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 import {odp} from './odp.mjs';
 import {OfficialContextWarmer} from './official-context-warmer.mjs';
 import {LegalReferences} from './legal-references.mjs';
@@ -9,9 +10,9 @@ import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
 import {RECORD_TOPICS_VERSION} from './record-topics.mjs';
-import {collectStorySource,storyCollectionDue} from './story-facts-collector.mjs';
+import {storyCollectionDue} from './story-facts-collector.mjs';
 import {STORY_FACTS_VERSION} from './story-facts-model.mjs';
-import {collectTopicProcedure,topicCollectionDue} from './topics-collector.mjs';
+import {topicCollectionDue} from './topics-collector.mjs';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
@@ -956,8 +957,10 @@ export class ActivityWorker {
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
-          // Topic and story sources fill only idle turns, after every core, voice and recovery task.
-          if(!task){if(await collectTopicProcedure(this))continue;if(await collectStorySource(this))continue;break;}
+          // Reserve one of 32 busy dispatches; idle capacity still fills sources.
+          if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
+          if(!task)break;
+          ordinaryCollectorTurn(this);
           try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}catch(error){if(this.stopped||this.controller.signal.aborted)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}

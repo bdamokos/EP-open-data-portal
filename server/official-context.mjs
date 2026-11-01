@@ -78,7 +78,7 @@ export class OfficialContextSources {
             if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
             const text=await limitedText(response,json?3*1024*1024:1024*1024);
             return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
-          },{source:source.origin,priority,signal});
+          },{source:source.origin,priority,signal,backgroundRank:priority==='background'?1:0});
           if(!result.redirect)return result;
           target=result.redirect;
         }

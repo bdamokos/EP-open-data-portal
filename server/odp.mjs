@@ -66,10 +66,17 @@ export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
   return ()=>{clearInterval(timer);report();};
 }
 const sourceQueues=new Map([['odp',upstreamQueue]]);
+let sourceWakeQueued=false;
+function wireCollectorAdmission(queue){
+ queue.lowBackgroundAllowed=()=>![...sourceQueues.values()].some(q=>[...q.admitted].some(w=>w.priority!=='background')||q.waiters.some(w=>w.priority!=='background'));
+ queue.onActivity=()=>{if(sourceWakeQueued)return;sourceWakeQueued=true;queueMicrotask(()=>{sourceWakeQueued=false;for(const q of sourceQueues.values())q.drain();});};
+ return queue;
+}
+wireCollectorAdmission(upstreamQueue);
 function sourceQueue(source,{backgroundRank=0}={}) {
   if(!['odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
-  if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:{}));
+  if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:{})));
   const queue=sourceQueues.get(source);
   if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
   return queue;

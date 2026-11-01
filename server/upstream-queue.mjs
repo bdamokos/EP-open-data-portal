@@ -14,7 +14,7 @@ export class UpstreamQueue {
     this.interval=interval;this.maximum=maximum;this.backgroundMaximum=backgroundMaximum;
     this.interactiveWaitMs=interactiveWaitMs;this.rateLimit=rateLimit;this.starts=[];
     this.adaptive=adaptive;this.minimumInterval=interval;this.successes=0;
-    this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.admitted=new Set();this.joiners=new Set();this.timer=null;
+    this.backgroundTurns=0;this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.admitted=new Set();this.joiners=new Set();this.timer=null;
   }
   joinBackground(promise,{signal}={}) {
     if(signal?.aborted)return Promise.reject(signal.reason);
@@ -68,14 +68,14 @@ export class UpstreamQueue {
       const waiter={priority,owner,backgroundOwner,yieldBackground,backgroundRank,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
       const abort=()=>{
         const index=this.waiters.indexOf(waiter);if(index<0)return;
-        this.waiters.splice(index,1);clearTimeout(waiter.timer);waiter.cleanup();reject(signal.reason);this.drain();
+        this.waiters.splice(index,1);clearTimeout(waiter.timer);waiter.cleanup();reject(signal.reason);this.onActivity?.();this.drain();
       };
       signal?.addEventListener('abort',abort,{once:true});
       if(!backgroundOwner&&priority!=='background')waiter.timer=setTimeout(()=>{
         const index=this.waiters.indexOf(waiter);if(index<0)return;
-        this.waiters.splice(index,1);waiter.cleanup();reject(this.unavailable());this.drain();
+        this.waiters.splice(index,1);waiter.cleanup();reject(this.unavailable());this.onActivity?.();this.drain();
       },this.interactiveWaitMs);
-      this.waiters.push(waiter);this.drain();
+      this.waiters.push(waiter);this.onActivity?.();this.drain();
     });
   }
   unavailable() {
@@ -107,7 +107,7 @@ export class UpstreamQueue {
       if(waiter.backgroundOwner){waiter.priority='background';return true;}
       clearTimeout(waiter.timer);waiter.cleanup();waiter.reject(this.unavailable());return false;
     });
-    this.drain();
+    this.onActivity?.();this.drain();
   }
   readyAt(priority) {
     const now=Date.now();
@@ -125,19 +125,21 @@ export class UpstreamQueue {
     if(this.active>=this.maximum)return;
     // Foreground readers can use reserved quota without lending their reserved
     // connection to a second durable background job.
-    const eligible=w=>!w.backgroundOwner||this.background<this.backgroundMaximum;
+    const eligible=w=>(!w.backgroundOwner||this.background<this.backgroundMaximum)&&(!(w.backgroundRank>0)||this.lowBackgroundAllowed?.()!==false);
     let i=this.waiters.findIndex(w=>w.priority!=='background'&&eligible(w));
     if(i<0){let rank=Infinity;for(let j=0;j<this.waiters.length;j++){const w=this.waiters[j];if(w.priority==='background'&&eligible(w)&&w.backgroundRank<rank){i=j;rank=w.backgroundRank;}}}
+    if(i>=0&&this.waiters[i].priority==='background'&&this.backgroundTurns>=31){const low=this.waiters.findIndex(w=>w.priority==='background'&&w.backgroundRank>0&&eligible(w));if(low>=0)i=low;}
     if(i<0)return;
     const delay=this.readyAt(this.waiters[i].priority)-Date.now();
     if(delay>0){this.timer=setTimeout(()=>this.drain(),Math.min(delay,2**31-1));return;}
     const waiter=this.waiters.splice(i,1)[0];clearTimeout(waiter.timer);waiter.cleanup();this.active++;
     this.admitted.add(waiter);
-    if(waiter.backgroundOwner)this.background++;
+    if(waiter.backgroundOwner){this.background++;this.backgroundTurns=waiter.backgroundRank>0?0:Math.min(31,this.backgroundTurns+1);}
+    this.onActivity?.();
     this.nextStart=Date.now()+this.interval;
     if(this.rateLimit)this.starts.push(Date.now());
     let released=false;
-    waiter.start(()=>{if(released)return;released=true;this.admitted.delete(waiter);this.active--;if(waiter.backgroundOwner)this.background--;this.drain();},waiter.resolve,waiter.reject);
+    waiter.start(()=>{if(released)return;released=true;this.admitted.delete(waiter);this.active--;if(waiter.backgroundOwner)this.background--;this.onActivity?.();this.drain();},waiter.resolve,waiter.reject);
     this.drain();
   }
 }
