@@ -53,11 +53,19 @@ export class SittingSnapshotCollector {
     let deferred=false,retryAfter=0;
     const request=async(endpoint,params={},options={})=>{
       const key=JSON.stringify([endpoint,params]);
-      const saved=this.writer.staged(job,key,this.store.clock());if(saved)return saved;
+      const saved=this.writer.staged(job,key,this.store.clock());
+      if(saved?.failure)throw Object.assign(new Error(saved.failure.message),saved.failure);
+      if(saved)return saved;
       if(worker.requests>=worker.budget||worker.monotonic()>=worker.runDeadline){deferred=true;throw requestTimeout();}
       let record;
-      try{record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false});}
-      catch(error){retryAfter=Math.max(retryAfter,error.retryAfter||0);throw error;}
+      try{record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false,snapshotObservation:true});}
+      catch(error){
+        retryAfter=Math.max(retryAfter,error.retryAfter||0);
+        if(error.code==='odp_no_content'||error.code==='odp_unavailable'&&error.source?.httpStatus===404){
+          this.store.assertWriter();this.writer.stage(job,key,{failure:{message:error.message,code:error.code,status:error.status,upstreamStatus:error.upstreamStatus,source:error.source,responseBytes:error.responseBytes}},this.store.clock());
+        }
+        throw error;
+      }
       worker.controller.signal.throwIfAborted();this.store.assertWriter();
       this.writer.stage(job,key,record,this.store.clock());return record;
     };

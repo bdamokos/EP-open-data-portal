@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {gunzipSync} from 'node:zlib';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,statSync} from 'node:fs';
@@ -129,4 +130,27 @@ test('collector also respects the overall activity database disk cap',async t=>{
   assert.equal(await h.collector.step(h.worker),false);assert.equal(h.fixture.calls.length,0);
   const failed=h.store.db.prepare('SELECT error,next_check FROM sitting_snapshots WHERE error IS NOT NULL').get();
   assert.match(failed.error,/disk limit/);assert.equal(failed.next_check,h.clock()+60*60_000);
+});
+
+
+test('first-page 204 never becomes a complete empty background vote list',async t=>{
+  const h=setup(t,{fail:async endpoint=>{if(endpoint.endsWith('/decisions'))await snapshotHttpObservation(new Response(null,{status:204}),'https://example.test');}});
+  await drain(h);
+  assert.equal(h.store.db.prepare("SELECT complete FROM sitting_snapshots WHERE kind='votes' AND id=?").get(SNAPSHOT_SITTING).complete,0);
+});
+
+test('verified historical 404 collections retain empty coverage and resume under a one-request budget',async t=>{
+  const h=setup(t,{fail:async(endpoint,params)=>{
+    if(!/\/(decisions|vote-results|foreseen-activities)$/.test(endpoint))return;
+    const url=new URL('https://data.europarl.europa.eu/api/v2'+endpoint);
+    for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
+    await snapshotHttpObservation(new Response('Not found',{status:404}),url,{clock:()=>SNAPSHOT_NOW});
+  }});
+  h.fixture.meeting.consists_of=[];h.worker.budget=1;
+  for(let i=0;i<40&&h.collector.due();i++){h.worker.requests=0;await h.collector.step(h.worker);assert(h.worker.requests<=1);}
+  assert.equal(h.collector.due(),false);
+  const saved=h.reader.read('votes',MEMBER_VOTES_VERSION,SNAPSHOT_SITTING);
+  assert.equal(saved.day.coverage.state,'complete');assert.equal(saved.day.decisions.length,0);
+  assert(saved.day.sources.decisions.every(source=>source.httpStatus===404&&source.contentHash));
+  assert.equal(h.fixture.calls.filter(call=>call.endpoint.endsWith('/decisions')).length,2);
 });
