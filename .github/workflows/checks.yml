@@ -50,21 +50,65 @@ jobs:
   read-benchmarks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      report: ${{ steps.report.outputs.report }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The pull request merge commit's first parent is the base branch it is compared with.
+          fetch-depth: 2
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Build pinned SQLite CLI (3.45.1)
-        run: |
-          curl --fail --location https://www.sqlite.org/2024/sqlite-autoconf-3450100.tar.gz -o "$RUNNER_TEMP/sqlite.tar.gz"
-          echo "cd9c27841b7a5932c9897651e20b86c701dd740556989b01ca596fcfa3d49a0a  $RUNNER_TEMP/sqlite.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/sqlite.tar.gz" -C "$RUNNER_TEMP"
-          mkdir -p "$RUNNER_TEMP/read-benchmark-bin"
-          cc -O2 -DSQLITE_ENABLE_FTS5 "$RUNNER_TEMP/sqlite-autoconf-3450100/shell.c" "$RUNNER_TEMP/sqlite-autoconf-3450100/sqlite3.c" -lm -ldl -lpthread -o "$RUNNER_TEMP/read-benchmark-bin/sqlite3"
-          echo "$RUNNER_TEMP/read-benchmark-bin" >> "$GITHUB_PATH"
+        uses: ./.github/actions/sqlite-cli
       - run: npm run bench:reads
+        env:
+          TMPDIR: ${{ runner.temp }}
+      - name: Render benchmark report
+        id: report
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          baseline=server/test-support/read-benchmark-baseline.json
+          git show "HEAD^1:$baseline" > "$RUNNER_TEMP/main-baseline.json" 2>/dev/null || : > "$RUNNER_TEMP/main-baseline.json"
+          node scripts/read-benchmark-report.mjs \
+            --before "$RUNNER_TEMP/main-baseline.json" --before-label main \
+            --after "$RUNNER_TEMP/read-benchmark-result.json" --after-label PR \
+            --gate-baseline "$baseline" --run-url "$RUN_URL" > "$RUNNER_TEMP/report.md"
+          delimiter="report_$(openssl rand -hex 16)"
+          { echo "report<<$delimiter"; cat "$RUNNER_TEMP/report.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
+
+  # Posts from a separate job so pull request code never runs with a write token.
+  read-benchmark-comment:
+    needs: read-benchmarks
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && needs.read-benchmarks.outputs.report != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post or update the benchmark comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          REPORT: ${{ needs.read-benchmarks.outputs.report }}
+        run: |
+          printf '%s\n' "$REPORT" > "$RUNNER_TEMP/report.md"
+          marker='<!-- read-benchmark-report -->'
+          id=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | tail -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$id" -F "body=@$RUNNER_TEMP/report.md" > /dev/null
+          else
+            gh api --method POST "repos/$REPO/issues/$PR/comments" -F "body=@$RUNNER_TEMP/report.md" > /dev/null
+          fi
