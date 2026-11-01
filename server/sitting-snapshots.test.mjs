@@ -102,7 +102,8 @@ test('idle ticks use indexed metadata only and neither acquire a lease nor decod
   h.store.acquire=()=>assert.fail('idle snapshot tick must not acquire writer lease');
   h.worker.due=()=>false;
   for(let i=0;i<50;i++)await h.worker.run();
-  assert(queries.length<=150);assert(queries.every(sql=>!sql.includes('body')&&!/COUNT|SUM|json_|staging/i.test(sql)));
+  // Snapshot probes plus active/working projection-readiness probes stay bounded.
+  assert(queries.length<=450);assert(queries.every(sql=>!sql.includes('body')&&!/COUNT|SUM|json_|staging/i.test(sql)));
   assert.equal(statSync(h.store.filename+'-wal').size,before);
 });
 

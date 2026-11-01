@@ -5,8 +5,13 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {runRemainingReadBenchmark} from '../server/test-support/remaining-read-benchmark.mjs';
 
+import {runSlowReadBenchmark} from '../server/test-support/slow-read-benchmark.mjs';
+
 // Add one line per offline suite returning {scenarios: [{name, ...metrics}]}.
-const benchmarks=[runRemainingReadBenchmark];
+const benchmarks=[
+  runRemainingReadBenchmark,
+  runSlowReadBenchmark,
+];
 const baselineFile=new URL('../server/test-support/read-benchmark-baseline.json',import.meta.url);
 
 export function baselineFrom(result) {

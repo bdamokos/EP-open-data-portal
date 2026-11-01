@@ -83,11 +83,15 @@ try {
   const oldMotions="SELECT sum(length(body)) FROM sources WHERE generation=1 AND kind='document'";
   const before=ci?null:{questions:fetches(indexFile,oldQuestions),weeks:fetches(indexFile,oldWeeks),savedCount:fetches(indexFile,count),motions:fetches(indexFile,oldMotions),savedPreviews:fetches(indexFile,"SELECT sum(length(body)) FROM (SELECT source_id,MAX(date) AS date,body FROM items WHERE generation=1 AND mep='42' AND "+activityOnly+' GROUP BY source_id ORDER BY date DESC,source_id DESC LIMIT 10)')};
   const results=prepareIndexes({activityDirectory,corpusDirectory,clock});
+  // Runtime motion reads switch to the compact projection after writer backfill.
+  index=new ActivityStore(activityDirectory,{clock});index.acquire();
+  while(index.backfillFastReads(1)){}
+  index.release();index.db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');index.close();index=null;
   const attach=`ATTACH ${quote(indexFile)} AS idx; PRAGMA idx.cache_size=-2048; PRAGMA idx.mmap_size=0;`;
   const bind=(sql,values)=>{let i=0;return sql.replaceAll('?',()=>typeof values[i]==='number'?String(values[i++]):quote(values[i++]));};
   const after={weeks:fetches(indexFile,'SELECT sum(length(source_url)) FROM motion_sitting_summary WHERE generation=1 AND decisions_present=1'),
     savedCount:fetches(indexFile,count.replace('FROM items WHERE','FROM items INDEXED BY saved_activity_sources WHERE')),
-    motions:fetches(indexFile,'SELECT sum(length(body)) FROM sources INDEXED BY motion_documents WHERE generation=1 AND '+motionDocuments),
+    motions:fetches(indexFile,'SELECT sum(length(body)) FROM source_reads INDEXED BY read_motion_documents WHERE generation=1 AND '+motionDocuments),
     savedPreviews:fetches(indexFile,'SELECT sum(length(body)) FROM ('+bind(savedActivityPreviewSql,[1,'42',1,'42'])+')')};
   // Measure initial file anti-join and subsequent no-change manifest discovery.
   after.initialQuestions=fetches(corpusFile,"SELECT sum(length(file.body)) FROM idx.question_files file WHERE generation=1 AND NOT EXISTS(SELECT 1 FROM texts text WHERE text.source_url=file.url)",attach);
