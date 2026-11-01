@@ -56,7 +56,7 @@ export async function documentTextCapacity(directory,{reconcile=false}={}){
       catch(error){if(error.code==='ENOENT'){budget.entries.delete(name);budget.bytes-=entry.size;}else throw error;}
     }
   }
-  return {bytes:budget.bytes,maxBytes:budget.maxBytes,reservationBytes:DOCUMENT_TEXT_MAX_RECORD_BYTES,highWaterBytes:Math.floor(budget.maxBytes*.9)};
+  return {bytes:budget.bytes,maxBytes:budget.maxBytes,reservationBytes:Math.min(DOCUMENT_TEXT_MAX_RECORD_BYTES,Math.floor(budget.maxBytes*.1)),highWaterBytes:Math.floor(budget.maxBytes*.9)};
 }
 function fileDescriptor(work,url){
   for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
@@ -450,7 +450,7 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
       const serialized=JSON.stringify(record);
       if(file&&collector){
         const size=Buffer.byteLength(serialized);
-        if(size>DOCUMENT_TEXT_MAX_RECORD_BYTES)throw Object.assign(new Error('Extracted document exceeds the retained record limit.'),{code:'source_parser_rejection',sourceHash:result.sourceHash});
+        if(size>Math.min(DOCUMENT_TEXT_MAX_RECORD_BYTES,Math.floor(budget.maxBytes*.1)))throw Object.assign(new Error('Extracted document exceeds the retained record limit.'),{code:'source_parser_rejection',sourceHash:result.sourceHash});
         const fits=await budget.canSave(name,size);
         if(!fits&&collector)throw Object.assign(new Error('Document text cache reached its configured disk limit.'),{code:'document_text_capacity'});
         if(fits){
