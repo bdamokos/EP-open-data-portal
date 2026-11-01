@@ -174,8 +174,8 @@ test('question counts and ordered windows use the existing partial index and pre
   }
   const {sql,args}=queries[0];
   const plan=prepare('EXPLAIN QUERY PLAN '+sql).all(...args).map(row=>row.detail).join('\n');
-  assert.match(plan,/SEARCH question_reads USING INDEX read_question_window \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
-  const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='question_reads'").get().rootpage;
+  assert.match(plan,/SEARCH question_frontiers USING COVERING INDEX question_frontier_date \(generation=\?\)/);assert.doesNotMatch(plan,/SCAN|TEMP B-TREE/);
+  const program=prepare('EXPLAIN '+sql).all(...args),root=prepare("SELECT rootpage FROM sqlite_schema WHERE name='question_frontiers'").get().rootpage;
   const tableCursors=new Set(program.filter(row=>row.opcode==='OpenRead'&&row.p2===root).map(row=>row.p1));
   assert(!program.some(row=>row.opcode==='Column'&&tableCursors.has(row.p1)),'undated count must not read source-table columns');
   assert(!program.some(row=>row.opcode==='Function'&&/json_extract/.test(row.p4)),'undated count must not parse source JSON');
