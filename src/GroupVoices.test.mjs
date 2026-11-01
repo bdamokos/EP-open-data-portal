@@ -148,7 +148,7 @@ for(const capped of [false,true])test('actual group producer distinguishes a che
  });
  store.db.prepare('UPDATE tasks SET done=1 WHERE generation=?').run(generation);store.publish(generation);store.release();store.db.exec('PRAGMA query_only=ON');
  const response=groupVoicesPage(store,groupVoicesQuery(new URLSearchParams('group=PPE&subject=foreign'),{now:clock()}));
- if(capped)assert.equal(store.db.prepare("SELECT COUNT(*) n FROM group_voice_designations WHERE generation=? AND group_id='PPE' AND subject='foreign'").get(generation).n,1,'the matching retained contribution really exists beyond the cap');
+ if(capped)assert.equal(store.db.prepare("SELECT COUNT(*) n FROM group_voice_designations WHERE generation=? AND group_id='PPE' AND subject='unclassified'").get(generation).n,GROUP_VOICE_LIMITS.rows+2,'editorial identifiers no longer classify retained contributions');
  assert.equal(response.coverage.truncated,capped);assert.equal(response.total,0);
  const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects&gv-subject=foreign',{response});
  assert.equal(Boolean(h.container.querySelector('.gv-contributions .gv-empty')),!capped);

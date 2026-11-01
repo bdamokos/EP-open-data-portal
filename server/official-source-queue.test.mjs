@@ -128,3 +128,11 @@ test('local official admission failure leaves a stale source immediately retryab
     assert.equal((await reader.get(url)).data.label,'fresh');assert.equal(calls,1);
   }finally{release();}
 });
+
+test('leased topic collection awaits a stale page refresh at background priority',async()=>{
+ let now=100000,calls=0,finish;
+ const reader=new OfficialContextSources({directory:null,clock:()=>now,fetchSource:async()=>{calls++;if(calls===2)await new Promise(resolve=>finish=resolve);return new Response('<main>'+calls+'</main>',{headers:{'content-type':'text/html'}});}});
+ const url=oeil+'?reference=2026/2790(RSP)';await reader.get(url);now+=1000;
+ let settled=false;const pending=reader.get(url,{freshMs:1,priority:'background',waitForFresh:true}).then(value=>{settled=true;return value;});
+ await until(()=>finish);assert.equal(settled,false);finish();const result=await pending;assert.equal(result.viewCache.stale,false);assert(result.html.includes('2'));assert.equal(reader.cache.pending.size,0);
+});

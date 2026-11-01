@@ -40,7 +40,7 @@ export class OfficialContextSources {
     }
     try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
   }
-  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive'}={}) {
+  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive',waitForFresh=false}={}) {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
@@ -72,6 +72,7 @@ export class OfficialContextSources {
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);
     }}));
+    if(waitForFresh&&record.viewCache?.stale){const pending=this.cache.pending.get(this.cache.key(key));if(!pending)throw new HttpError(503,'official_source_unavailable','The official source is temporarily unavailable.');const fresh=await waitForRequest(pending);return {...fresh.value,viewCache:{stale:false}};}
     return record;
   }
 }

@@ -1,0 +1,992 @@
+{
+  "version": 1,
+  "sourceUrl": "https://publications.europa.eu/webapi/rdf/sparql",
+  "query": "PREFIX skos:<http://www.w3.org/2004/02/skos/core#> SELECT DISTINCT ?c ?m WHERE { ?c skos:exactMatch ?m . FILTER(STRSTARTS(STR(?c),\"http://eurovoc.europa.eu/\") && STRSTARTS(STR(?m),\"http://publications.europa.eu/resource/authority/country/\")) }",
+  "fetchedAt": "2026-11-01T11:18:49.386642+00:00",
+  "matches": [
+    {
+      "concept": "http://eurovoc.europa.eu/5948",
+      "country": "http://publications.europa.eu/resource/authority/country/EUR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4583",
+      "country": "http://publications.europa.eu/resource/authority/country/TUV"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1019",
+      "country": "http://publications.europa.eu/resource/authority/country/FIN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1085",
+      "country": "http://publications.europa.eu/resource/authority/country/FRA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/111",
+      "country": "http://publications.europa.eu/resource/authority/country/COG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1182",
+      "country": "http://publications.europa.eu/resource/authority/country/GRC"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1216",
+      "country": "http://publications.europa.eu/resource/authority/country/GIN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1228",
+      "country": "http://publications.europa.eu/resource/authority/country/HTI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1254",
+      "country": "http://publications.europa.eu/resource/authority/country/HKG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1318",
+      "country": "http://publications.europa.eu/resource/authority/country/DEU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1500",
+      "country": "http://publications.europa.eu/resource/authority/country/IRQ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1501",
+      "country": "http://publications.europa.eu/resource/authority/country/IRN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1504",
+      "country": "http://publications.europa.eu/resource/authority/country/IRL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1509",
+      "country": "http://publications.europa.eu/resource/authority/country/ISL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1518",
+      "country": "http://publications.europa.eu/resource/authority/country/ISR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1519",
+      "country": "http://publications.europa.eu/resource/authority/country/ITA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1524",
+      "country": "http://publications.europa.eu/resource/authority/country/JPN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1613",
+      "country": "http://publications.europa.eu/resource/authority/country/LBN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1617",
+      "country": "http://publications.europa.eu/resource/authority/country/LBR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1639",
+      "country": "http://publications.europa.eu/resource/authority/country/LBY"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1712",
+      "country": "http://publications.europa.eu/resource/authority/country/LUX"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1768",
+      "country": "http://publications.europa.eu/resource/authority/country/MDV"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1769",
+      "country": "http://publications.europa.eu/resource/authority/country/MLI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1819",
+      "country": "http://publications.europa.eu/resource/authority/country/MAR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1876",
+      "country": "http://publications.europa.eu/resource/authority/country/AGO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1899",
+      "country": "http://publications.europa.eu/resource/authority/country/MEX"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1965",
+      "country": "http://publications.europa.eu/resource/authority/country/MCO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2055",
+      "country": "http://publications.europa.eu/resource/authority/country/NIC"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2058",
+      "country": "http://publications.europa.eu/resource/authority/country/NGA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2084",
+      "country": "http://publications.europa.eu/resource/authority/country/NOR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2089",
+      "country": "http://publications.europa.eu/resource/authority/country/NZL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2222",
+      "country": "http://publications.europa.eu/resource/authority/country/PAK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2286",
+      "country": "http://publications.europa.eu/resource/authority/country/NLD"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2331",
+      "country": "http://publications.europa.eu/resource/authority/country/PER"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/236",
+      "country": "http://publications.europa.eu/resource/authority/country/PRK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/247",
+      "country": "http://publications.europa.eu/resource/authority/country/CRI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2543",
+      "country": "http://publications.europa.eu/resource/authority/country/POL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2563",
+      "country": "http://publications.europa.eu/resource/authority/country/PRT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/261",
+      "country": "http://publications.europa.eu/resource/authority/country/AFG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/321",
+      "country": "http://publications.europa.eu/resource/authority/country/ZAF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3763",
+      "country": "http://publications.europa.eu/resource/authority/country/ROU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3774",
+      "country": "http://publications.europa.eu/resource/authority/country/GBR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4160",
+      "country": "http://publications.europa.eu/resource/authority/country/AUS"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4161",
+      "country": "http://publications.europa.eu/resource/authority/country/SLE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4164",
+      "country": "http://publications.europa.eu/resource/authority/country/SGP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4217",
+      "country": "http://publications.europa.eu/resource/authority/country/SDN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4320",
+      "country": "http://publications.europa.eu/resource/authority/country/SWE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4324",
+      "country": "http://publications.europa.eu/resource/authority/country/CHE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4353",
+      "country": "http://publications.europa.eu/resource/authority/country/AUT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/451486",
+      "country": "http://publications.europa.eu/resource/authority/country/SSD"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4578",
+      "country": "http://publications.europa.eu/resource/authority/country/TUN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4580",
+      "country": "http://publications.europa.eu/resource/authority/country/TUR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4621",
+      "country": "http://publications.europa.eu/resource/authority/country/URY"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4707",
+      "country": "http://publications.europa.eu/resource/authority/country/VNM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4732",
+      "country": "http://publications.europa.eu/resource/authority/country/BGD"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4775",
+      "country": "http://publications.europa.eu/resource/authority/country/YEM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4839",
+      "country": "http://publications.europa.eu/resource/authority/country/BEL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5063",
+      "country": "http://publications.europa.eu/resource/authority/country/BGR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5100",
+      "country": "http://publications.europa.eu/resource/authority/country/CAN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5458",
+      "country": "http://publications.europa.eu/resource/authority/country/BLR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5458",
+      "country": "http://publications.europa.eu/resource/authority/country/BYS"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5619",
+      "country": "http://publications.europa.eu/resource/authority/country/EST"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5652",
+      "country": "http://publications.europa.eu/resource/authority/country/GEO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5858",
+      "country": "http://publications.europa.eu/resource/authority/country/MDA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5859",
+      "country": "http://publications.europa.eu/resource/authority/country/SVK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5860",
+      "country": "http://publications.europa.eu/resource/authority/country/CZE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5876",
+      "country": "http://publications.europa.eu/resource/authority/country/RUS"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5930",
+      "country": "http://publications.europa.eu/resource/authority/country/PSE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5969",
+      "country": "http://publications.europa.eu/resource/authority/country/CHN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5989",
+      "country": "http://publications.europa.eu/resource/authority/country/CYP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6036",
+      "country": "http://publications.europa.eu/resource/authority/country/COL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/690",
+      "country": "http://publications.europa.eu/resource/authority/country/EGY"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/863",
+      "country": "http://publications.europa.eu/resource/authority/country/ESP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/888",
+      "country": "http://publications.europa.eu/resource/authority/country/USA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1188",
+      "country": "http://publications.europa.eu/resource/authority/country/GRL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1196",
+      "country": "http://publications.europa.eu/resource/authority/country/DZA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1255",
+      "country": "http://publications.europa.eu/resource/authority/country/HUN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1338",
+      "country": "http://publications.europa.eu/resource/authority/country/IND"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1355",
+      "country": "http://publications.europa.eu/resource/authority/country/IDN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1557",
+      "country": "http://publications.europa.eu/resource/authority/country/KEN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1561",
+      "country": "http://publications.europa.eu/resource/authority/country/REU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1649",
+      "country": "http://publications.europa.eu/resource/authority/country/LIE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1767",
+      "country": "http://publications.europa.eu/resource/authority/country/MYS"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1774",
+      "country": "http://publications.europa.eu/resource/authority/country/MLT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1841",
+      "country": "http://publications.europa.eu/resource/authority/country/MUS"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2229",
+      "country": "http://publications.europa.eu/resource/authority/country/PNG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/235",
+      "country": "http://publications.europa.eu/resource/authority/country/KOR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/249",
+      "country": "http://publications.europa.eu/resource/authority/country/CIV"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/336",
+      "country": "http://publications.europa.eu/resource/authority/country/DNK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3410",
+      "country": "http://publications.europa.eu/resource/authority/country/MHL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4060",
+      "country": "http://publications.europa.eu/resource/authority/country/EUR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4148",
+      "country": "http://publications.europa.eu/resource/authority/country/SYC"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4212",
+      "country": "http://publications.europa.eu/resource/authority/country/SOM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4354",
+      "country": "http://publications.europa.eu/resource/authority/country/SYR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4411",
+      "country": "http://publications.europa.eu/resource/authority/country/CSK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4572",
+      "country": "http://publications.europa.eu/resource/authority/country/BHR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4779",
+      "country": "http://publications.europa.eu/resource/authority/country/COD"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5040",
+      "country": "http://publications.europa.eu/resource/authority/country/BRA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5454",
+      "country": "http://publications.europa.eu/resource/authority/country/AZE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5563",
+      "country": "http://publications.europa.eu/resource/authority/country/HRV"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5617",
+      "country": "http://publications.europa.eu/resource/authority/country/ERI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5709",
+      "country": "http://publications.europa.eu/resource/authority/country/LTU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5946",
+      "country": "http://publications.europa.eu/resource/authority/country/UKR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6223",
+      "country": "http://publications.europa.eu/resource/authority/country/SCG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/891",
+      "country": "http://publications.europa.eu/resource/authority/country/ETH"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1208",
+      "country": "http://publications.europa.eu/resource/authority/country/GTM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1217",
+      "country": "http://publications.europa.eu/resource/authority/country/GNB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1253",
+      "country": "http://publications.europa.eu/resource/authority/country/HND"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1842",
+      "country": "http://publications.europa.eu/resource/authority/country/MRT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1874",
+      "country": "http://publications.europa.eu/resource/authority/country/AND"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2224",
+      "country": "http://publications.europa.eu/resource/authority/country/PAN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3799",
+      "country": "http://publications.europa.eu/resource/authority/country/ESH"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4375",
+      "country": "http://publications.europa.eu/resource/authority/country/TWN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4778",
+      "country": "http://publications.europa.eu/resource/authority/country/YUG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4782",
+      "country": "http://publications.europa.eu/resource/authority/country/ZWE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5469",
+      "country": "http://publications.europa.eu/resource/authority/country/BIH"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5694",
+      "country": "http://publications.europa.eu/resource/authority/country/KGZ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5706",
+      "country": "http://publications.europa.eu/resource/authority/country/LVA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5892",
+      "country": "http://publications.europa.eu/resource/authority/country/SRB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5898",
+      "country": "http://publications.europa.eu/resource/authority/country/SVN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/691",
+      "country": "http://publications.europa.eu/resource/authority/country/SLV"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1168",
+      "country": "http://publications.europa.eu/resource/authority/country/GIB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1555",
+      "country": "http://publications.europa.eu/resource/authority/country/KHM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2525",
+      "country": "http://publications.europa.eu/resource/authority/country/ARG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/33",
+      "country": "http://publications.europa.eu/resource/authority/country/COM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4092",
+      "country": "http://publications.europa.eu/resource/authority/country/SEN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4246",
+      "country": "http://publications.europa.eu/resource/authority/country/LKA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4453",
+      "country": "http://publications.europa.eu/resource/authority/country/THA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4461",
+      "country": "http://publications.europa.eu/resource/authority/country/TMP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4570",
+      "country": "http://publications.europa.eu/resource/authority/country/TTO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5693",
+      "country": "http://publications.europa.eu/resource/authority/country/KAZ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5695",
+      "country": "http://publications.europa.eu/resource/authority/country/XKX"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1125",
+      "country": "http://publications.europa.eu/resource/authority/country/ALB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1522",
+      "country": "http://publications.europa.eu/resource/authority/country/JAM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1560",
+      "country": "http://publications.europa.eu/resource/authority/country/KWT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1584",
+      "country": "http://publications.europa.eu/resource/authority/country/LAO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1729",
+      "country": "http://publications.europa.eu/resource/authority/country/MDG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1771",
+      "country": "http://publications.europa.eu/resource/authority/country/FLK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2018",
+      "country": "http://publications.europa.eu/resource/authority/country/MOZ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/314",
+      "country": "http://publications.europa.eu/resource/authority/country/CUB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3415",
+      "country": "http://publications.europa.eu/resource/authority/country/DOM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1532",
+      "country": "http://publications.europa.eu/resource/authority/country/JOR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1968",
+      "country": "http://publications.europa.eu/resource/authority/country/MNG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2336",
+      "country": "http://publications.europa.eu/resource/authority/country/SAU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2368",
+      "country": "http://publications.europa.eu/resource/authority/country/PHL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4410",
+      "country": "http://publications.europa.eu/resource/authority/country/TCD"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5072",
+      "country": "http://publications.europa.eu/resource/authority/country/BDI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5965",
+      "country": "http://publications.europa.eu/resource/authority/country/CHL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/993",
+      "country": "http://publications.europa.eu/resource/authority/country/FJI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1220",
+      "country": "http://publications.europa.eu/resource/authority/country/GUF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2203",
+      "country": "http://publications.europa.eu/resource/authority/country/UGA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2820",
+      "country": "http://publications.europa.eu/resource/authority/country/ABW"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4465",
+      "country": "http://publications.europa.eu/resource/authority/country/TGO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5445",
+      "country": "http://publications.europa.eu/resource/authority/country/ARM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6252",
+      "country": "http://publications.europa.eu/resource/authority/country/ALA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1236",
+      "country": "http://publications.europa.eu/resource/authority/country/BFA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1766",
+      "country": "http://publications.europa.eu/resource/authority/country/MWI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5108",
+      "country": "http://publications.europa.eu/resource/authority/country/CPV"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5770",
+      "country": "http://publications.europa.eu/resource/authority/country/UZB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1611",
+      "country": "http://publications.europa.eu/resource/authority/country/LSO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2027",
+      "country": "http://publications.europa.eu/resource/authority/country/NAM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2547",
+      "country": "http://publications.europa.eu/resource/authority/country/PYF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5029",
+      "country": "http://publications.europa.eu/resource/authority/country/BWA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1559",
+      "country": "http://publications.europa.eu/resource/authority/country/KIR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2057",
+      "country": "http://publications.europa.eu/resource/authority/country/NER"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5746",
+      "country": "http://publications.europa.eu/resource/authority/country/MNE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1207",
+      "country": "http://publications.europa.eu/resource/authority/country/GLP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1218",
+      "country": "http://publications.europa.eu/resource/authority/country/GNQ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1822",
+      "country": "http://publications.europa.eu/resource/authority/country/MTQ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4841",
+      "country": "http://publications.europa.eu/resource/authority/country/BLZ"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1166",
+      "country": "http://publications.europa.eu/resource/authority/country/GHA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1983",
+      "country": "http://publications.europa.eu/resource/authority/country/ATA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5349",
+      "country": "http://publications.europa.eu/resource/authority/country/CAF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1294",
+      "country": "http://publications.europa.eu/resource/authority/country/FRO"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4648",
+      "country": "http://publications.europa.eu/resource/authority/country/VUT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2231",
+      "country": "http://publications.europa.eu/resource/authority/country/PRY"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3858",
+      "country": "http://publications.europa.eu/resource/authority/country/WSM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/726",
+      "country": "http://publications.europa.eu/resource/authority/country/ARE"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2088",
+      "country": "http://publications.europa.eu/resource/authority/country/NCL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2866",
+      "country": "http://publications.europa.eu/resource/authority/country/QAT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3814",
+      "country": "http://publications.europa.eu/resource/authority/country/SMR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1124",
+      "country": "http://publications.europa.eu/resource/authority/country/GAB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4662",
+      "country": "http://publications.europa.eu/resource/authority/country/VEN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1219",
+      "country": "http://publications.europa.eu/resource/authority/country/GUY"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2052",
+      "country": "http://publications.europa.eu/resource/authority/country/NPL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4342",
+      "country": "http://publications.europa.eu/resource/authority/country/SUR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5095",
+      "country": "http://publications.europa.eu/resource/authority/country/CMR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1716",
+      "country": "http://publications.europa.eu/resource/authority/country/MAC"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/484",
+      "country": "http://publications.europa.eu/resource/authority/country/DJI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6278",
+      "country": "http://publications.europa.eu/resource/authority/country/PLW"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5925",
+      "country": "http://publications.europa.eu/resource/authority/country/TJK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3401",
+      "country": "http://publications.europa.eu/resource/authority/country/ATG"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3403",
+      "country": "http://publications.europa.eu/resource/authority/country/KNA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3833",
+      "country": "http://publications.europa.eu/resource/authority/country/LCA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4567",
+      "country": "http://publications.europa.eu/resource/authority/country/BHS"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4816",
+      "country": "http://publications.europa.eu/resource/authority/country/BRB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4862",
+      "country": "http://publications.europa.eu/resource/authority/country/BTN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/8547",
+      "country": "http://publications.europa.eu/resource/authority/country/BLM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3823",
+      "country": "http://publications.europa.eu/resource/authority/country/SPM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3888",
+      "country": "http://publications.europa.eu/resource/authority/country/STP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4376",
+      "country": "http://publications.europa.eu/resource/authority/country/TZA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4780",
+      "country": "http://publications.europa.eu/resource/authority/country/ZMB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2042",
+      "country": "http://publications.europa.eu/resource/authority/country/ANT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4846",
+      "country": "http://publications.europa.eu/resource/authority/country/BEN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5944",
+      "country": "http://publications.europa.eu/resource/authority/country/TKM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3784",
+      "country": "http://publications.europa.eu/resource/authority/country/RWA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3406",
+      "country": "http://publications.europa.eu/resource/authority/country/VIR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1128",
+      "country": "http://publications.europa.eu/resource/authority/country/GMB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5020",
+      "country": "http://publications.europa.eu/resource/authority/country/BOL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1185",
+      "country": "http://publications.europa.eu/resource/authority/country/GRD"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3816",
+      "country": "http://publications.europa.eu/resource/authority/country/MAF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/5049",
+      "country": "http://publications.europa.eu/resource/authority/country/BRN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/841",
+      "country": "http://publications.europa.eu/resource/authority/country/ECU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1843",
+      "country": "http://publications.europa.eu/resource/authority/country/MYT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3381",
+      "country": "http://publications.europa.eu/resource/authority/country/IMN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/496",
+      "country": "http://publications.europa.eu/resource/authority/country/DMA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/8373",
+      "country": "http://publications.europa.eu/resource/authority/country/IOT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3857",
+      "country": "http://publications.europa.eu/resource/authority/country/SLB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1903",
+      "country": "http://publications.europa.eu/resource/authority/country/FSM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2037",
+      "country": "http://publications.europa.eu/resource/authority/country/NRU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4466",
+      "country": "http://publications.europa.eu/resource/authority/country/TON"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3405",
+      "country": "http://publications.europa.eu/resource/authority/country/VCT"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1291",
+      "country": "http://publications.europa.eu/resource/authority/country/CYM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/205",
+      "country": "http://publications.europa.eu/resource/authority/country/COK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1299",
+      "country": "http://publications.europa.eu/resource/authority/country/VGB"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/451941",
+      "country": "http://publications.europa.eu/resource/authority/country/GGY"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2138",
+      "country": "http://publications.europa.eu/resource/authority/country/OMN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4772",
+      "country": "http://publications.europa.eu/resource/authority/country/WLF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/2562",
+      "country": "http://publications.europa.eu/resource/authority/country/PRI"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3416",
+      "country": "http://publications.europa.eu/resource/authority/country/PCN"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/333",
+      "country": "http://publications.europa.eu/resource/authority/country/CUW"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/4848",
+      "country": "http://publications.europa.eu/resource/authority/country/BMU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3411",
+      "country": "http://publications.europa.eu/resource/authority/country/ASM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/451885",
+      "country": "http://publications.europa.eu/resource/authority/country/SXM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6279",
+      "country": "http://publications.europa.eu/resource/authority/country/NFK"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6281",
+      "country": "http://publications.europa.eu/resource/authority/country/TKL"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/100144",
+      "country": "http://publications.europa.eu/resource/authority/country/EUR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/6280",
+      "country": "http://publications.europa.eu/resource/authority/country/NIU"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1289",
+      "country": "http://publications.europa.eu/resource/authority/country/GUM"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1986",
+      "country": "http://publications.europa.eu/resource/authority/country/MSR"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/451462",
+      "country": "http://publications.europa.eu/resource/authority/country/MNP"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/451912",
+      "country": "http://publications.europa.eu/resource/authority/country/BES"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/8374",
+      "country": "http://publications.europa.eu/resource/authority/country/ATF"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/1298",
+      "country": "http://publications.europa.eu/resource/authority/country/TCA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/3402",
+      "country": "http://publications.europa.eu/resource/authority/country/AIA"
+    },
+    {
+      "concept": "http://eurovoc.europa.eu/8371",
+      "country": "http://publications.europa.eu/resource/authority/country/ATB"
+    }
+  ]
+}

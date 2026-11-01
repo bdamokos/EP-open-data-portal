@@ -5,7 +5,7 @@ import {loopTimer} from './sqlite-observability.mjs';
 // One logical writer delegates only its atomic generation work. Network reads,
 // request admission and their shared quotas remain in the API process.
 export async function activityGenerationTask(store,operation,{generation,signal,createWorker=(url,options)=>new Worker(url,options)}={}) {
-  if(!['begin','publish'].includes(operation)||operation==='publish'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
+  if(!['begin','publish','topics'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
   signal?.throwIfAborted();
   if(store.db.isTransaction||store.generationTaskActive)throw new Error('An activity generation operation is already active.');
   store.assertWriter();store.generationTaskActive=true;

@@ -1,3 +1,4 @@
+import {buildTopics,topicCollectorTables} from './topics-project.mjs';
 import {parentPort,workerData} from 'node:worker_threads';
 import {existsSync} from 'node:fs';
 import path from 'node:path';
@@ -7,12 +8,12 @@ let store,message;
 try {
   const {directory,owner,operation,generation}=workerData;
   if(!existsSync(path.join(directory,'activities-v1.sqlite')))throw new Error('Prepared activity database is unavailable.');
-  if(!['begin','publish'].includes(operation)||operation==='publish'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
+  if(!['begin','publish','topics'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
   store=new ActivityStore(directory,{preparedOnly:true});
   // No acquisition or collector starts here. The caller remains the sole
   // logical owner; begin/publish check it after obtaining BEGIN IMMEDIATE.
   store.owner=owner;
-  const value=operation==='begin'?store.beginCycle():store.finalize(generation);
+  let value;if(operation==='begin')value=store.beginCycle();else {if(operation==='publish')store.finalize(generation);topicCollectorTables(store.db);value=await buildTopics(store,{generation});store.set('topicProjectionDirty',false);}
   message={type:'complete',value};
 } catch(error){message={type:'failed',error:error.message};}
 finally {

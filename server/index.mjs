@@ -1,3 +1,4 @@
+import {readTopics} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
@@ -254,8 +255,11 @@ async function handleApi(request,response,url,apiPrefix){
       pressMentions??=new PressMentions(activityIndex().press,official().sources);
       result=await pressMentions.query(query);
     }
+    else if (segments.length===2 && ((segments[0]==='topics'&&['search','overview','detail'].includes(segments[1]))||(segments[0]==='insights'&&segments[1]==='record-topics'))) {
+      result=await readTopics(activityIndex().store.filename,segments[0]==='topics'?segments[1]:'records',url.searchParams);
+    }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
-      result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
+      result=await readTopics(activityIndex().store.filename,'group-voices',url.searchParams);
     }
     else if (segments.length===2 && segments[0]==='insights' && segments[1]==='following-dossiers') {
       result=followingDossiers(activityIndex().store,url.searchParams);

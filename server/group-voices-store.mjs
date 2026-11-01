@@ -1,3 +1,4 @@
+import {RecordTopics} from './topics-store.mjs';
 import {oralAvailability,savedGaps,availabilityGap} from './availability-evidence.mjs';
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from '../src/groupVoiceTerms.mjs';
 import {GROUP_VOICE_LIMITS,GROUP_VOICE_VERSION,groupVoiceProjection} from './group-voices-model.mjs';
@@ -106,35 +107,31 @@ function localized(titles,language){
 // Nothing here reads raw XML, refreshes a source or infers group membership.
 export function groupVoicesPage(store,query){return store.readSnapshot(()=>groupVoicesSnapshot(store,query));}
 function groupVoicesSnapshot(store,query){
-  const generation=generationOf(store),{rows,truncated}=scopeRows(store,generation,query);
+  const generation=generationOf(store),range=scopeRows(store,generation,query),truncated=range.truncated;
+  const topics=new RecordTopics(store),topicRecords=new Map(topics.state?range.rows.map(r=>[r.speech,topics.record(r.speech,query.language,{rankKeywords:false})]):[]),topicLabels={};
+  const known=r=>Boolean(r&&!['unavailable','not-observed','parent-not-retained','ambiguous','pending','not-linked'].includes(r.status));
+  const decorate=rows=>rows.map(r=>{const record=topicRecords.get(r.speech),topicKnown=known(record),keys=record?.topics.map(a=>{topicLabels[a.key]=a.label;return a.key;})||[];return {...r,topicKnown,topicKeys:keys};});
+  const rows=decorate(range.rows),unknownTopics=new Set(rows.filter(r=>!r.topicKnown).map(r=>r.speech)).size;
+  const topicAvailability={state:!topics.state?'unavailable':unknownTopics?'partial':'available',unresolvedContributions:unknownTopics};
   const state=coverage(store,generation,query,truncated);
   const failed=store.db.prepare('SELECT key,body FROM group_voice_jobs WHERE generation=? AND done=0 AND error IS NOT NULL LIMIT 501').all(generation);
   const jobGaps=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(JSON.parse(row.body),row.key));
-  const shared={group:query.group,period:query.period,window:{from:query.from,to:query.to},coverage:state,availability:oralAvailability(store,{generation,start:query.from,end:query.to,limited:truncated||state.pending>0||!state.initialized,gaps:[...savedGaps(store,generation,'speeches'),...jobGaps]})};
-  const selected=rows.filter(row=>(!query.person||row.person===query.person)&&(!query.subject||row.subject===query.subject));
-  const page={...shared,total:selected.length,offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
+  const shared={ready:Boolean(topics.state),topicAvailability,retiredSubject:Boolean(query.subject&&query.subject!=='unclassified'&&Object.hasOwn(GROUP_VOICE_SUBJECTS,query.subject)),group:query.group,period:query.period,window:{from:query.from,to:query.to},coverage:state,availability:oralAvailability(store,{generation,start:query.from,end:query.to,limited:truncated||state.pending>0||!state.initialized,gaps:[...savedGaps(store,generation,'speeches'),...jobGaps]})};
+  const selected=rows.filter(row=>(!query.person||row.person===query.person)&&(!query.subject||row.topicKeys.includes(query.subject)));
+  const page={...shared,contributionTotal:new Set(selected.map(r=>r.speech)).size,speakerTotal:new Set(selected.map(r=>r.person)).size,total:query.subject&&!Object.hasOwn(GROUP_VOICE_SUBJECTS,query.subject)&&topicAvailability.state!=='available'?null:query.subject==='unclassified'&&topicAvailability.state!=='available'?null:selected.length,knownTotal:selected.length,offset:query.offset,limit:query.limit,nextOffset:query.offset+query.limit<selected.length?query.offset+query.limit:null,
     contributions:selected.slice(query.offset,query.offset+query.limit).map(row=>{
       const source=savedSpeech(store,generation,row.speech);
-      return {id:row.speech,personId:row.person,date:row.date,subject:row.subject,...localized(source?.titles,query.language),
+      return {id:row.speech,personId:row.person,date:row.date,subject:row.topicKeys[0],topics:row.topicKeys,...localized(source?.titles,query.language),
         websiteUrl:source?.websiteUrl||null,websiteLanguage:source?.websiteLanguage||null,source:source?.source||null,
         designation:source?.designations.find(p=>p.person===row.person&&p.group===query.group)||null};
     })};
   if(query.part==='summary'){
     const grouped=new Map();
-    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;person.subjects[row.subject]=(person.subjects[row.subject]||0)+1;}
-    return {...page,groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(GROUP_VOICE_SUBJECTS).map(([id,label])=>({id,label})),
-      // Every group's subject counts over the same window and the same
-      // most-recent row cap as people and contributions, one covering-index
-      // range per group, so subjects can be compared across groups.
-      groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{
-        const range='FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person',args=[generation,id,query.from,query.to];
-        const subjects={};let total=0;
-        for(const row of store.db.prepare(`SELECT subject,COUNT(*) AS n FROM (SELECT subject ${range} LIMIT ?) GROUP BY subject`).all(...args,GROUP_VOICE_LIMITS.rows)){subjects[row.subject]=row.n;total+=row.n;}
-        return {id,total,subjects,truncated:Boolean(store.db.prepare(`SELECT 1 ${range} LIMIT 1 OFFSET ?`).get(...args,GROUP_VOICE_LIMITS.rows))};
-      }),
+    for(const row of rows){let person=grouped.get(row.person);if(!person){person={...identity(store,generation,row.person,row.speech),total:0,subjects:{}};grouped.set(row.person,person)}person.total++;for(const key of row.topicKeys)person.subjects[key]=(person.subjects[key]||0)+1;}
+    return {...page,ready:Boolean(topics.state),groupSubjects:Object.keys(GROUP_VOICE_GROUPS).map(id=>{const scope=scopeRows(store,generation,{...query,group:id}),subjects={},topicSets=new Map(),contributions=new Set(),speakers=new Set(),unresolvedIds=new Set();for(const row of scope.rows){contributions.add(row.speech);speakers.add(row.person);const record=topics.state?topics.record(row.speech,query.language,{rankKeywords:false}):null;if(!known(record))unresolvedIds.add(row.speech);for(const topic of record?.topics||[]){topicLabels[topic.key]=topic.label;if(!topicSets.has(topic.key))topicSets.set(topic.key,new Set());topicSets.get(topic.key).add(row.speech);}}for(const [key,ids] of topicSets)subjects[key]=ids.size;return {id,total:contributions.size,speakerTotal:speakers.size,subjects,unresolvedContributions:unresolvedIds.size,truncated:scope.truncated};}),groups:Object.entries(GROUP_VOICE_GROUPS).map(([id,label])=>({id,label})),subjects:Object.entries(topicLabels).map(([id,label])=>({id,label})),
       people:[...grouped.values()].sort((a,b)=>b.total-a.total||(a.name||a.id).localeCompare(b.name||b.id)),
       months:store.db.prepare("SELECT DISTINCT substr(date,1,7) AS month FROM group_voice_observations WHERE generation=? AND date>='2024-07-16' ORDER BY month DESC LIMIT 100").all(generation).map(r=>r.month),
-      subjectMethod:'Reviewed editorial primary-subject groupings. Unlisted records remain unclassified; these are not official annotations of individual speeches.'};
+      subjectMethod:'Official document classifications and exact debate or procedure context. Topic counts can overlap; totals count distinct speaking designations.'};
   }
   return page;
 }
