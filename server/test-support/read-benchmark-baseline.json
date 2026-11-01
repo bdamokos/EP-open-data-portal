@@ -1,10 +1,12 @@
 {
   "version": 1,
-  "sqliteVersion": "3.54.0 2026-04-09 12:25:13 8fa8248e303219400c646a885e36dfc52eae33d83f4412e3f369b2be5373aapl (64-bit)",
+  "sqliteVersion": "3.45.1 2024-01-30 16:01:20 e876e51a0ed5c5b3126f52e532044363a014bc594cfefa87ffb5b82257cc467a (64-bit)",
+  "nodeVersion": "v26.12.1",
+  "nodeSqliteVersion": "3.54.0",
   "scenarios": [
     {
       "name": "remaining/weeks",
-      "pageFetches": 23,
+      "pageFetches": 19,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -15,7 +17,7 @@
     },
     {
       "name": "remaining/savedCount",
-      "pageFetches": 55,
+      "pageFetches": 51,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -26,7 +28,7 @@
     },
     {
       "name": "remaining/motions",
-      "pageFetches": 124,
+      "pageFetches": 70,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -37,7 +39,7 @@
     },
     {
       "name": "remaining/savedPreviews",
-      "pageFetches": 67,
+      "pageFetches": 63,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -53,7 +55,7 @@
     },
     {
       "name": "remaining/initialQuestions",
-      "pageFetches": 1372,
+      "pageFetches": 1368,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -66,7 +68,7 @@
     },
     {
       "name": "remaining/questions",
-      "pageFetches": 159,
+      "pageFetches": 155,
       "rowsReturned": 0,
       "fullScanSteps": 0,
       "plan": [
@@ -79,17 +81,19 @@
     },
     {
       "name": "remaining/oneFileLookup",
-      "pageFetches": 41,
+      "pageFetches": 37,
       "rowsReturned": 0,
       "fullScanSteps": 0,
       "plan": [
         "SEARCH file USING INDEX sqlite_autoindex_question_files_1 (generation=? AND source_key=?)",
         "CORRELATED SCALAR SUBQUERY 2",
         "SEARCH text USING INDEX text_source_url (source_url=?)",
-        "SEARCH document EXISTS USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SEARCH document USING INTEGER PRIMARY KEY (rowid=?)",
         "CORRELATED SCALAR SUBQUERY 4",
         "SEARCH text USING INDEX text_source_url (source_url=?)",
-        "SEARCH document EXISTS USING INTEGER PRIMARY KEY (rowid=?)",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "SEARCH document USING INTEGER PRIMARY KEY (rowid=?)",
         "CORRELATED SCALAR SUBQUERY 5",
         "SEARCH prior USING INDEX sqlite_autoindex_tasks_1 (key=?)"
       ],
