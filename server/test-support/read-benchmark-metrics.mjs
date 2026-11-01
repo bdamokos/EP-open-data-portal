@@ -23,7 +23,7 @@ ${sql};
     return Number(value);
   };
   const rows=resultOutput.slice(0,resultOutput.indexOf('Memory Used:')).trim();
-  const largeTables=new Set(['sources','items','texts','question_files','question_file_sources','question_discovery']);
+  const largeTables=new Set(['sources','items','documents','texts','question_files','question_file_sources','question_discovery']);
   const aliases=new Map();
   for(const match of sql.matchAll(/\b(?:FROM|JOIN)\s+(?:\w+\.)?(\w+)(?:\s+(?:AS\s+)?(\w+))?/gi)) {
     aliases.set(match[1],match[1]);
