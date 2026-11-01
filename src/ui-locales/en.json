@@ -2583,7 +2583,7 @@
   "topics.story.exact.mostDebatedMany": "{places} came up in the most debates ({count} each).",
   "topics.story.exact.rises": "{changes}.",
   "topics.story.exact.questionRise": "Questions about {place} rose to {count}, from an average of {average}{home}{leader}",
-  "topics.story.exact.documentRise": "Documents about {place} rose to {count}, from an average of {average}",
+  "topics.story.exact.documentRise": "Plenary texts on {place} rose to {count}, from an average of {average}",
   "topics.story.exact.adopted": "Parliament adopted {count}{texts}.",
   "topics.story.exact.named": ": {texts}",
   "topics.story.exact.headline": "Parliament adopted {texts}.",
@@ -2598,5 +2598,6 @@
   "topics.story.exact.periods": "Quarters",
   "topics.story.pageEmpty": "No matching records on this page",
   "topics.story.comparisonsUnavailable": "Question comparisons unavailable",
-  "topics.story.exact.placeDebates": "Parliament debated {debates}."
+  "topics.story.exact.placeDebates": "Parliament debated {debates}.",
+  "topics.story.jointOnce": "Joint motions count once"
 }
