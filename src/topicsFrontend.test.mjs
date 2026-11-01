@@ -65,3 +65,8 @@ test('record-topic batches cover every ID and full reader metadata expands compl
  await act(async()=>node.querySelector('.topic-keywords button').click());assert(node.textContent.includes('Water'));assert(node.textContent.includes('Waste'));assert.equal(node.querySelectorAll('[data-topics-pending="true"]').length,0);
  const before=requests.length;await act(async()=>root.render(h(TopicStories,{selection:{periods:['2026-Q1'],place:'IRN'},fallback:'Fallback caption'})));assert.equal(node.textContent,'Fallback caption');assert.equal(requests.length,before,'Live stories remain inactive until the exact-counter contract is documented.');
 });
+
+test('group speech links state the exact contribution count without implying a speaker total',async()=>{
+ const {createAppUiI18n}=await import('./uiCatalogues.mjs');assert.equal(createAppUiI18n().forLocale('en').t('topics.speechSummary',{count:12}),'Speeches: 12');
+ const source=await readFile(new URL('./Topics.tsx',import.meta.url),'utf8');assert(!source.includes('g.speechCount-1'));
+});

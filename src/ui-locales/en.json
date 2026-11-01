@@ -2443,7 +2443,7 @@
   "topics.records": "Records",
   "topics.allQuarters": "All quarters",
   "topics.empty": "No matching records.",
-  "topics.speechSummary": "{name} and {others} others · Show speeches",
+  "topics.speechSummary": "Speeches: {count}",
   "topics.retired": "This topic list changed.",
   "topics.clear": "Clear filter",
   "topics.overlap": "A contribution can have several topics.",
