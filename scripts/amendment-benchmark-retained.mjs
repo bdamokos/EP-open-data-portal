@@ -94,14 +94,14 @@ finally: c.close()
     if(body.length!==row.size||digest(body)!==row.sha256)throw new Error('Retained amendment hash mismatch: '+url);
     return {url,status:200,ok:true,fetchedAt:row.retrieved_at,bytes:body.length,sha256:row.sha256,error:null,...(request?{request}:{}),headers:{'content-type':mime},retainedSource:{store:'amendment-docx-v2',descriptor:{url:row.url,language:row.language,byteSize:row.byte_size<0?null:row.byte_size,issued:row.issued||null},listId:row.list_id},body};
   }
-  async baseObservation(source) {
+  async baseObservation(source,request) {
     let file;try{file=await this.file('cache/base-sources-v1/'+source.sha256+'.blob');}catch(error){if(error.code==='ENOENT')return null;throw error;}
     if((await stat(file)).size!==source.bytes)throw new Error('Retained base size mismatch');
     const body=await readFile(file);
     if(body.length!==source.bytes||digest(body)!==source.sha256)throw new Error('Retained base hash mismatch');
     const d=source.descriptor;
     if(d&&(d.url!==source.url||d.byteSize!=null&&d.byteSize!==body.length||d.issued!=null&&(!Number.isFinite(Date.parse(d.issued))||Date.parse(d.issued)>Date.parse(source.fetchedAt))))throw new Error('Retained base descriptor mismatch');
-    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,request:source.request,headers:source.headers,retainedSource:{store:'base-sources-v1',descriptor:d??null,selection:source.selection??null},body};
+    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,...(request?{request}:{}),headers:source.headers,retainedSource:{store:'base-sources-v1',observedRequest:source.request,descriptor:d??null,selection:source.selection??null},body};
   }
   async selections(type) {
     const records=[];
@@ -118,7 +118,7 @@ finally: c.close()
     if(bases.length) {
       const source=bases[0];
       if(request?.language&&source.descriptor?.language&&source.descriptor.language.split('/').at(-1).toLowerCase()!==request.language)return unavailable('base-source-request-mismatch');
-      return await this.baseObservation(source)||unavailable('base-source-blob-missing');
+      return await this.baseObservation(source,request)||unavailable('base-source-blob-missing');
     }
     if(allowedDownload(url))return this.amendment(url,request,unavailable);
     if(this.cacheMissing)return unavailable('retained-cache-missing');

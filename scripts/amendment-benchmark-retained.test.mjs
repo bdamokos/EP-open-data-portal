@@ -168,6 +168,17 @@ test('base bytes and selection decisions are read without changing the retained 
  const before=await tree(f.root),reader=await RetainedInputs.open(f.root);
  assert.deepEqual((await reader.get(baseUrl,{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'})).body,body);
  assert.equal((await reader.get(baseUrl,{accept:'*/*',language:'fr'})).acquisitionUnavailable,true);
+ const inputs=await mkdtemp(path.join(os.tmpdir(),'base-repeat-'));t.after(()=>rm(inputs,{recursive:true,force:true}));
+ const cache=new InputCache(inputs,{retained:reader,apiBase:'https://explorer.test',fetchMissing:true,delay:0,fetcher:()=>assert.fail('no upstream')});
+ for(const options of [{},{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'}]) {
+   const first=await cache.get(baseUrl,options),again=await cache.get(baseUrl,options);
+   assert.deepEqual(first.body,body);assert.deepEqual(again.body,body);
+   assert.deepEqual(first.request??null,options.accept?options:null);
+   assert.deepEqual(first.retainedSource.observedRequest,source.request);
+ }
+ const offline=new InputCache(inputs,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('no replay upstream')});
+ assert.deepEqual((await offline.get(baseUrl)).body,body);
+ assert.deepEqual((await offline.get(baseUrl,{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'})).body,body);
  const selections=await reader.selections('proposal');assert.equal(selections.length,1);assert.deepEqual(selections[0].decision.items,[{}]);assert.equal(selections[0].decision.gaps[0],'ambiguous-com-candidates');
  assert.deepEqual(await tree(f.root),before);
  const name=(await readdir(store.directory)).find(n=>n.endsWith('.blob')&&n.startsWith(digest(body)));
