@@ -74,6 +74,18 @@ test('warm-up wakes only when data is due, never overlaps, and stops on shutdown
   stop();finish(100);await new Promise(resolve=>setImmediate(resolve));t.mock.timers.tick(1000);assert.equal(calls,2);
 });
 
+test('publication wakes are coalesced while a warm-up is running',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:clock()});
+  let calls=0,finish;
+  const stop=startPlenaryWarmup(()=>{calls++;return new Promise(resolve=>finish=resolve);});
+  stop.wake();stop.wake();assert.equal(calls,1);
+  finish(null);await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(1);assert.equal(calls,2);
+  finish(null);await new Promise(resolve=>setImmediate(resolve));
+  stop.wake();assert.equal(calls,3);stop();finish(null);
+  await new Promise(resolve=>setImmediate(resolve));stop.wake();assert.equal(calls,3);
+});
+
 test('there are no periodic historical cache checks between plenary weeks',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:clock()});
   let calls=0;

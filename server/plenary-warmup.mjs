@@ -13,17 +13,23 @@ export function recentPlenaryWeeks(catalogue,now=Date.now()) {
 
 // Runs in the source-owning server, never as a second process or index writer.
 export function startPlenaryWarmup(warm,{clock=Date.now,log=console.warn}={}) {
-  let stopped=false,timer;
+  let stopped=false,timer,running=false,wakePending=false;
   const schedule=at=>{
     if(stopped||at===null)return;
     timer=setTimeout(()=>{if(clock()<at)schedule(at);else void tick();},Math.min(Math.max(1,at-clock()),2**31-1));timer.unref();
   };
   const tick=async()=>{
     if(stopped)return;
+    if(running){wakePending=true;return;}
+    running=true;
     let delay=PLENARY_REFRESH_MS;
     try {delay=await warm();}catch(error){log('[plenary-warmup]',error.message);}
-    schedule(delay===null?null:clock()+(delay??PLENARY_REFRESH_MS));
+    running=false;
+    if(wakePending){wakePending=false;schedule(clock()+1);}
+    else schedule(delay===null?null:clock()+(delay??PLENARY_REFRESH_MS));
   };
   void tick();
-  return ()=>{stopped=true;clearTimeout(timer);};
+  const stop=()=>{stopped=true;clearTimeout(timer);};
+  stop.wake=()=>{if(stopped)return;clearTimeout(timer);void tick();};
+  return stop;
 }
