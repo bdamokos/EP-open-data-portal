@@ -158,6 +158,21 @@ function siblingOrder(siblings,label) {
 function completeBoundary(proposal,unit) {
   return unit.complete&&!unparsedArticleHeading(proposal,unit)&&proposal.paragraphs.slice(unit.extent.start,unit.extent.end).every(p=>p.complete&&p.source&&p.source.complete!==false)&&!proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=unit.extent.start&&gap.paragraph<unit.extent.end);
 }
+// Repeated labels inside a replacement quotation make its children ambiguous,
+// but do not move the next printed instruction. Use that boundary only for a
+// sibling insertion, with consecutive native rows and no other incompleteness.
+function quotedConflictBoundary(proposal,unit,next) {
+  if(unit.scope!=='proposal'||unit.kind!=='point'||unit.pathConflict||!unit.instruction||!next||
+    unit.extent.end!==next.extent.start||parentKey(unit)!==parentKey(next)||!completeBoundary(proposal,next))return false;
+  const descendants=flat([unit]);
+  if(!descendants.some(child=>child.pathConflict)||descendants.some(child=>child.boundaryAmbiguous||
+    child.pathConflict&&child.scope!=='quoted'||child.kind==='table'&&!child.table.complete))return false;
+  const intact=child=>child.content.every(index=>proposal.paragraphs[index].complete)&&child.children.every(intact)&&!child.boundaryAmbiguous;
+  if(!intact(unit)||unparsedArticleHeading(proposal,unit)||proposal.gaps.some(gap=>gap.code==='unclosed-quotation'&&gap.paragraph>=unit.extent.start&&gap.paragraph<unit.extent.end))return false;
+  const rows=proposal.paragraphs.slice(unit.extent.start,next.extent.start+1);
+  return rows.every((row,index)=>row.complete&&row.source?.complete===true&&row.source.container==='body'&&(!index||
+    row.source.containerPath===rows[index-1].source.containerPath&&row.source.segment===rows[index-1].source.segment&&row.source.ordinal===rows[index-1].source.ordinal+1));
+}
 function insertionPlacement(items,target,candidatesFor,eligible) {
   const label=target.segments.at(-1),rank=suffixRank(label.suffix,label.suffix),preceding=target.segments.slice(0,-1);
   if(!label.isNew||rank<0||(!label.suffix&&label.kind!=='point'))return {reason:'insertion_reference_unavailable'};
@@ -206,7 +221,8 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
     const unit=ordered[i],previous=ordered[i-1],current=order(unit.label),before=previous&&order(previous.label);
     if(unit.pathConflict||current.rank<0||previous&&(previous.extent.end>unit.extent.start||before.number>current.number||before.number===current.number&&before.rank>=current.rank))return {reason:'source_structure_unavailable'};
   }
-  if(!completeBoundary(proposal,anchor.unit))return {reason:'source_passage_incomplete'};
+  const next=ordered[ordered.indexOf(anchor.unit)+1];
+  if(!completeBoundary(proposal,anchor.unit)&&!(label.suffix&&!label.negative&&quotedConflictBoundary(proposal,anchor.unit,next)))return {reason:'source_passage_incomplete'};
   if(label.negative){
     if(!completeBoundary(proposal,parent.unit)||parent.unit.extent.start>=anchor.unit.extent.start)return {reason:'source_passage_incomplete'};
     return {itemIndex:anchor.itemIndex,insertBefore:anchor.unit.extent.start,anchor:anchor.unit,basis:'first-sibling-start'};
