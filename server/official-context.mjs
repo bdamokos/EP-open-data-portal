@@ -1,4 +1,5 @@
 import {XMLParser} from 'fast-xml-parser';
+import {setTimeout as pause} from 'node:timers/promises';
 import path from 'node:path';
 import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -50,6 +51,11 @@ export class OfficialContextSources {
       return this.run(async()=>{
         let target=url,response;
         for(let attempt=0;attempt<3;attempt++) {
+          const queue=this.queues.get(source.origin);
+          if(attempt&&source.hostname==='oeil.europarl.europa.eu'&&queue){
+            await pause(Math.max(0,queue.nextStart-Date.now()),undefined,{signal});
+            queue.nextStart=Date.now()+queue.interval;
+          }
           response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
           if(![301,302,303,307,308].includes(response.status))break;
           const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');

@@ -14,7 +14,7 @@ const fields=['id','identifier','activity_id','activity_date','activity_label','
 const compact=w=>Object.fromEntries(fields.filter(k=>w[k]!==undefined).map(k=>[k,k==='is_realized_by'?(Array.isArray(w[k])?w[k]:[w[k]]).map(e=>({title:e.title})):k==='consists_of'?(Array.isArray(w[k])?w[k]:[w[k]]).map(e=>typeof e==='object'?compact(e):e):k==='outside'?Object.fromEntries(['identifier','date','titles','source','parentIds','participants'].filter(f=>w[k][f]!==undefined).map(f=>[f,w[k][f]])):w[k]]));
 export async function buildTopics(store,{generation=store.get('active'),cache=process.env.ODP_CACHE_DIR,onProgress=()=>{}}={}){
  store.assertWriter();topicTables(store.db);topicCollectorTables(store.db);
- const previousCacheSize=store.db.prepare('PRAGMA cache_size').get().cache_size;store.db.exec('PRAGMA cache_size=-2048;PRAGMA temp_store=FILE;PRAGMA temp.cache_size=-1024');
+ const previousCacheSize=store.db.prepare('PRAGMA cache_size').get().cache_size;store.db.exec('PRAGMA cache_size=-1024;PRAGMA temp_store=FILE;PRAGMA temp.cache_size=-1024');
  const heartbeat=setInterval(()=>{try{store.renew();}catch{}},20_000);heartbeat.unref();
  try{
  const readWork=topicWorkFields(store.db);
@@ -97,7 +97,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  if(!store.renew())throw Error('Activity-index writer lease was lost.');store.assertWriter();store.set('recordTopicProjection',null);
 
  for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups']){let changes;do{store.transaction(()=>{store.assertWriter();changes=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation=? LIMIT 500)').run(generation).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(changes); }
- for(const eventPass of [true,false]){let batch=[];for(const r of projected.values()){if((r.kind==='event')!==eventPass)continue;batch.push(r);if(batch.length===50){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}}if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});}
+ for(const eventPass of [true,false]){let batch=[];for(const r of projected.values()){if((r.kind==='event')!==eventPass)continue;batch.push(r);if(batch.length===25){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}}if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});}
  onProgress('records');
  // Speeches dominate source volume. Stream them; never retain the whole speech catalogue.
 
@@ -106,14 +106,14 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  let pendingSpeeches=[];
  for(const row of speechRows.iterate(generation)){
   const w=readWork(row.body);pendingSpeeches.push(...topicObservationNodes([{work:w,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)},projection:w.outside?'outside-speech':'speech'}]).filter(n=>n.kind==='speech'));
-  if(pendingSpeeches.length>=50){store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});pendingSpeeches=[];store.renew();await new Promise(setImmediate);}
+  if(pendingSpeeches.length>=25){store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});pendingSpeeches=[];store.renew();await new Promise(setImmediate);}
  }
  if(pendingSpeeches.length)store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});
  let batch=[];
  for(const row of store.db.prepare('SELECT body FROM topic_speech_inputs ORDER BY id').iterate()){
   const n=JSON.parse(row.body),p=projectRecordTopics([n]).records[0];if(!p)continue;const parent=!n.conflicted&&n.parentIds?.length===1?parents.get(n.parentIds[0]):null;
   if(parent){p.assignments=parent.assignments.map(a=>({...a,paths:a.paths.map(path=>({...path,basis:'debate',steps:[{from:p.id,field:'inverse_consists_of',to:parent.id},...path.steps]}))}));p.status=parent.status;}
-  batch.push(p);if(batch.length>=50){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}
+  batch.push(p);if(batch.length>=25){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}
  }
  if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});
  store.db.exec('DROP TABLE temp.topic_speech_inputs');
