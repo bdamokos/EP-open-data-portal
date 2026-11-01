@@ -391,3 +391,11 @@ test('quoted sibling insertion follows the complete paragraph and preserves the 
  texts[3]='(b) the second subparagraph is replaced by the following:';
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
 });
+
+test('detached footnotes cannot enable a whole-article deletion without extent verification',()=>{
+ const proposal=structuredClone(item(source(['Article 1','1. Public body.','Article 2'],['Titrearticle','Normal','Titrearticle'])).proposal);
+ proposal.notes=[{id:'native',label:'6',text:'Public note.',complete:true}];proposal.anchors=[{paragraph:1,offset:14,note:'native',label:'6'}];
+ const originalText='Article 1\n1. Public body6.\n______\n6 Public note.',at=originalText.indexOf('6');
+ const result=resolveProposalPlacement([{kind:'act',proposal}],{language:'en',targetLabel:'Article 1',originalText,originalFormatting:[{kind:'superscript',start:at,end:at+1}],proposedText:'deleted'});
+ assert.equal(result.status,'unresolved');
+});

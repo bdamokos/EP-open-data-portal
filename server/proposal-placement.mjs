@@ -67,6 +67,8 @@ function unparsedArticleHeading(proposal,unit) {
 function footnoteBody(proposal,unit,original,formatting) {
   const divider=/\n_{5,}\s*\n/u.exec(original);
   if(!divider)return null;
+  // Whole articles need an independent extent assertion beyond note parity.
+  if(['article','annex'].includes(unit.kind))return false;
   const body=original.slice(0,divider.index),lines=original.slice(divider.index+divider[0].length).trim().split(/\n+/u);
   const marks=(formatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
   const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
