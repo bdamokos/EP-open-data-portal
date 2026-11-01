@@ -91,6 +91,7 @@ export function fastReadsReady(store,generation,projection='sources') {
 export function backfillFastReads(store,generation,limit=32) {
   return store.transaction(()=>{
     store.assertWriter();
+    let changed=false;
     for(const [projection,table,column] of [['sources','sources','key'],['outside','outside_contributions','speech'],['targets','amendment_targets','id'],['amendments','amendments','id']]) {
       store.db.prepare('INSERT OR IGNORE INTO fast_read_progress(projection,generation) VALUES (?,?)').run(projection,generation);
       const progress=store.db.prepare('SELECT * FROM fast_read_progress WHERE projection=? AND generation=?').get(projection,generation);
@@ -101,8 +102,8 @@ export function backfillFastReads(store,generation,limit=32) {
       const update=store.db.prepare(`UPDATE ${table} SET body=body WHERE generation=? AND ${column}=?`+(projection==='outside'?' AND person=?':''));
       for(const row of rows)projection==='outside'?update.run(generation,row.speech,row.person):update.run(generation,row.cursor);
       store.db.prepare('UPDATE fast_read_progress SET cursor=?,ready=? WHERE projection=? AND generation=?').run((projection==='outside'&&rows.length?JSON.stringify([rows.at(-1).speech,rows.at(-1).person]):rows.at(-1)?.cursor)||progress.cursor,Number(rows.length===0),projection,generation);
-      return true;
+      changed=true;
     }
-    return false;
+    return changed;
   });
 }

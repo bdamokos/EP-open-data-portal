@@ -754,7 +754,14 @@ export class ActivityWorker {
           if(!await this.sittingSnapshots.step(this,{requestBudget:due?1:Infinity}))break;
         }while(!due&&this.sittingSnapshots.due());
       }
-      if(!due || this.stopped)return;
+      if(!due) {
+        // Local migrations must progress even when no upstream job is due.
+        // Yield between commits and keep each idle turn within one second.
+        const localDeadline=Math.min(this.runDeadline,this.monotonic()+1000);
+        while(!this.stopped&&!this.controller.signal.aborted&&this.monotonic()<localDeadline&&this.projectionGenerations().length)await this.fillProjectionBatch();
+        return;
+      }
+      if(this.stopped)return;
       let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');

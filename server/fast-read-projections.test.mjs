@@ -107,3 +107,41 @@ test('projection dispatch bounds both retained generations without draining eith
   ready.add(1);await worker.fillProjectionBatch();assert.deepEqual(calls,[1,2,2]);
   worker.monotonic=()=>10;await worker.fillProjectionBatch();assert.deepEqual(calls,[1,2,2]);
 });
+
+import {questionCounts} from './insights-store.mjs';
+test('question counts preserve undated and subtype semantics with replacements and deletions',t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'question-counts-')),store=new ActivityStore(directory);
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();
+  const put=(id,type,date)=>store.putSource(1,'/parliamentary-questions/'+id,'document',{work_type:type,document_date:date},'2026-10-22T12:00Z');
+  for(const [id,type,date] of [['a','def/QUESTION_WRITTEN',null],['b','def/QUESTION_ORAL',''],['c','def/QUESTION_WRITTEN_PRIORITY','2026-10-10'],['d','def/ANSWER',''],['e','def/QUESTION_WRITTEN','2026-01-01'],['f','def/question_written','2026-10-10'],['g','def/QUESTIONxWRITTEN','2026-10-10']])put(id,type,date);
+  const query={start:'2026-10-01',end:'2026-10-31'};
+  const legacy=()=>{
+    const where="generation=1 AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
+    return {count:store.db.prepare("SELECT COUNT(*) n FROM sources WHERE "+where+" AND json_extract(body,'$.document_date') BETWEEN ? AND ?").get(query.start,query.end).n,undatedQuestions:store.db.prepare("SELECT COUNT(*) n FROM sources WHERE "+where+" AND (json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')").get().n};
+  };
+  while(store.backfillFastReads(1,1)){}
+  assert.deepEqual(questionCounts(store,1,query),legacy());
+  put('a','def/QUESTION_WRITTEN','2026-10-12');
+  store.db.prepare("DELETE FROM sources WHERE generation=1 AND key='/parliamentary-questions/c'").run();
+  assert.deepEqual(questionCounts(store,1,query),legacy());
+  assert.deepEqual(questionCounts(store,2,query),{count:0,undatedQuestions:0});
+});
+test('amendment preparation advances while source migration remains unfinished',t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'projection-fairness-')),store=new ActivityStore(directory);
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();
+  for(let i=0;i<10;i++)store.putSource(1,'source-'+i,'document',{title:'retained'},'2026-10-22');
+  store.db.exec(`INSERT INTO amendments VALUES (1,'AM-1','target','2026-10-20','unavailable','{"number":1}');`);
+  store.backfillFastReads(1,1);store.backfillFastReads(1,1);
+  assert.equal(store.fastReadsReady(1),false);
+  assert.equal(store.fastReadsReady(1,'amendments'),true);
+});
+test('idle worker drains local preparation without starting source work',async t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'projection-idle-')),store=new ActivityStore(directory);
+  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();store.set('active',1);
+  for(let i=0;i<100;i++)store.putSource(1,'source-'+i,'document',{title:'retained'},'2026-10-22');
+  store.release();
+  const worker=new ActivityWorker(store);worker.due=()=>false;
+  await worker.runIteration();
+  assert.equal(store.fastReadsReady(1),true);
+  assert.equal(store.get('working'),null);assert.equal(worker.requests,0);assert.equal(worker.running,false);
+});
