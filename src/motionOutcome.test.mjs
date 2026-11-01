@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {Window} from 'happy-dom';
-import {createServer} from 'vite';
+import {freshLoader} from './test-support/viteRunner.mjs';
 import {motionOutcome} from '../server/motion-outcomes.mjs';
 
 const fixture=JSON.parse(readFileSync(new URL('../server/fixtures/motion-outcomes-live-20261015.json',import.meta.url),'utf8'));
@@ -14,10 +14,10 @@ const joint={sourceId:'RC-10-2026-0441',reference:'RC-B10-0441/2026',title:'Join
 const props={outcome:outcome('B-10-2026-0441'),related:[joint],sourceId:'B-10-2026-0441',reference:'B10-0441/2026',language:'en'};
 
 test('motion cards keep each exact text and its outcome separate, with readable document links only',async t=>{
-  const vite=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const window=new Window();
-  t.after(async()=>{await vite.close();await window.happyDOM.close();});
-  const {MotionStatuses,MotionOutcome}=await vite.ssrLoadModule('/src/MotionOutcome.tsx');
+  t.after(async()=>{await load.close();await window.happyDOM.close();});
+  const {MotionStatuses,MotionOutcome}=await load('/src/MotionOutcome.tsx');
   const render=(component,properties)=>{const node=window.document.createElement('div');node.innerHTML=renderToStaticMarkup(createElement(component,properties));return node;};
   await t.test('unknown indexed methods remain omitted rather than adding unavailable method copy',()=>{
     for(const method of [null,'VOTE_UNKNOWN']){

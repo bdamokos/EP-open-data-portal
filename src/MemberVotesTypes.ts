@@ -98,7 +98,7 @@ export type MemberVoteSittingCoverage = {
 };
 
 export type MemberVotesResponse = {
-  version:10;
+  version:11;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;

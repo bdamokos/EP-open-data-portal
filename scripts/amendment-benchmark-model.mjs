@@ -2,7 +2,7 @@ import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
@@ -172,7 +172,19 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
 
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
-  if(!label.isNew||label.negative)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  if(label.negative) {
+    // Literal Finnish published pre-first paragraph family. Derive the boundary
+    // from raw resolution rows, never the returned anchor/evidence or server ref.
+    const literal=wording.language==='fi'&&/^-1( [a-z])? kohta \(uusi\)$/u.exec(wording.targetLabel||'');
+    if(!literal||!wording.proposedText?.startsWith('-1'+(literal[1]||'')+'.')||wording.originalText!==''||target.segments.length!==1||!label.isNew)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+    const raw=rawResolutionUnits(text,'fi');
+    const numbered=raw.units.filter(unit=>unit.kind==='paragraph');
+    const first=numbered[0];
+    if(raw.reason||!nativeFinnishFirst(text,first)||first?.label!=='1'||numbered.filter(unit=>unit.label==='1').length!==1||first.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    if(placement.insertBefore!==first.start||placement.insertAfter!==first.start-1)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-negative-first-paragraph-boundary');
+  }
+  if(!label.isNew)return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const raw=rawResolutionUnits(text,wording.language);
   if(raw.reason)return {status:'unverified',reason:raw.reason};
   const units=raw.units,parents=target.segments.slice(0,-1);

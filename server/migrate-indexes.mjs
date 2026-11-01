@@ -1,3 +1,5 @@
+import {availabilityHistoryVersion} from './availability-history.mjs';
+import {SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 import {corpusTextVersion} from './corpus-text-schema.mjs';
 import {followMarksVersion} from './follow-marks.mjs';
 import {activityReadVersion} from './activity-read-projections.mjs';
@@ -12,7 +14,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {absolutePathFromEnvironment,booleanFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&(kind==='activity'?store.get('committeeAmendmentIndexVersion')===committeeAmendmentIndexVersion&&store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion&&store.get('activityAvailabilityIndexVersion')===activityAvailabilityIndexVersion:store.get('questionDiscoveryVersion')===1&&store.get('corpusTextVersion')===corpusTextVersion);
+const prepared=(store,kind)=>store.get('resourceIndexes')===1&&store.get('availabilityHistoryVersion')===availabilityHistoryVersion&&(kind==='activity'?store.get('fastReadSchemaVersion')===1&&store.get('recoveryScheduleVersion')===1&&store.get('committeeAmendmentIndexVersion')===committeeAmendmentIndexVersion&&store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion&&store.get('activityAvailabilityIndexVersion')===activityAvailabilityIndexVersion&&store.get('sittingSnapshotSchema')===SITTING_SNAPSHOT_SCHEMA:store.get('questionDiscoveryVersion')===1&&store.get('corpusTextVersion')===corpusTextVersion);
 
 // Run before opening the HTTP listener or starting either source writer.
 export function prepareStartupIndexes() {

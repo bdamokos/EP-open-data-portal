@@ -12,7 +12,7 @@ import {CorpusWorker} from './corpus-worker.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {memberVoteWeeks} from './member-vote-weeks.mjs';
 import {followingResponse,followingIdsSql} from './insights-following.mjs';
-import {activityOnly,motionDocuments} from './activity-read-projections.mjs';
+import {activityOnly,motionDocuments,activityReadVersion} from './activity-read-projections.mjs';
 import {discoverQuestionFiles,changedQuestionsSql,missingQuestionFilesSql} from './question-discovery.mjs';
 import {prepareIndexes} from './migrate-indexes.mjs';
 import {questionFiles,questionFileEdition} from './question-files.mjs';
@@ -253,10 +253,24 @@ test('edition projection preparation preserves legacy text, generation pointers 
   index.release();corpus.release();
   const options={activityDirectory:path.join(directory,'index'),corpusDirectory:path.join(directory,'corpus'),clock:now,log:()=>{}};
   assert.equal(prepareIndexes(options).find(result=>result.kind==='activity').noop,false);
-  assert.equal(index.get('activityReadVersion'),3);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
+  assert.equal(index.get('activityReadVersion'),activityReadVersion);assert.equal(index.get('active'),1);assert.equal(index.get('working'),null);
   assert.deepEqual(index.source(1,key),beforeSource);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
   assert.deepEqual(JSON.parse(index.db.prepare('SELECT body FROM question_files').get().body).edition,edition);
   assert(corpus.acquire());await discoverQuestionFiles(worker,1);
   assert.deepEqual(corpus.task('docx:'+file.url),beforeTask);assert.deepEqual(corpus.db.prepare('SELECT * FROM texts').get(),beforeText);
   corpus.release();assert(prepareIndexes(options).every(result=>result.noop));
+});
+
+test('startup prepares legacy corpus observation indexes and counter before HTTP without a separate migration',t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'observation-startup-'));
+  t.after(()=>rmSync(directory,{recursive:true,force:true}));
+  let store=new CorpusStore(directory);assert(store.acquire());
+  const put=store.db.prepare('INSERT INTO source_observations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  for(let n=0;n<3;n++)put.run('id-'+n,'source-'+n,'questions',null,'metadata',null,null,'2026-10-01',null,null,'2026-10-01','2026-10-01','baseline',null);
+  store.db.exec('DROP TRIGGER observation_insert; DROP TRIGGER observation_delete; DROP INDEX source_observation_event; DROP TABLE observation_count;');
+  store.set('availabilityHistoryVersion',null);store.release();store.close();
+  assert.equal(prepareIndexes({corpusDirectory:directory,log:()=>{}})[0].noop,false);
+  store=new CorpusStore(directory);assert.equal(store.get('availabilityHistoryVersion'),2);
+  assert.equal(store.db.prepare('SELECT n FROM observation_count').get().n,3);store.close();
+  assert.equal(prepareIndexes({corpusDirectory:directory,log:()=>{}})[0].noop,true);
 });
