@@ -279,7 +279,8 @@ for(const mode of ['preparation','discovery'])for(const phase of ['published','n
     assert.equal(fetched.length,0);
     assert(['document','procedure'].includes(choose().kind),'A lower-priority dependency can now run');
     let drained=0;
-    for(let task;(task=choose());) {assert(drained++<250);await x.worker.task(task);checkpoint();}
+    // Procedure dependencies also dispatch a local declared-debate check.
+    for(let task;(task=choose());) {assert(drained++<500);await x.worker.task(task);checkpoint();}
     assert.equal(fetched.length,199);
     assert.equal(x.store.db.prepare('SELECT body FROM amendment_jobs WHERE generation=? AND key=?').get(x.generation,blocked.key).body,blocked.body,'Draining dependencies must not advance the blocked producer cursor');
     now+=60_000;assert(x.store.renew());

@@ -49,8 +49,8 @@ function rememberOrganizationBody(key,record) {
 let cacheBytes = 0;
 const pending = new Map();
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
-// API v2 paths/IDs/queries. Reserve 50 starts for readers as a local fairness rule.
-export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:50});
+// API v2 paths/IDs/queries. Reserve 100 starts (20%) for readers and other foreground work.
+export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:100});
 const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
 const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
 const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
