@@ -221,3 +221,19 @@ test('resolved adjacent-chapter records do not show as missing, while unfetched 
   }
   assert.equal(calls,2);
 });
+
+test('unavailable speech observations display no zero totals',async t=>{
+  const window=new Window({url:'http://localhost/'});
+  const globals={window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+  const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+  for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
+  let root,loader;
+  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loader)await loader.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
+  t.mock.method(globalThis,'fetch',async()=>Response.json({items:[],counts:{groupOrations:null,blueQuestions:null,blueAnswers:null,blueReactions:null},coverage:{complete:false,available:0,total:null,headers:0,unclassified:0,issues:['source-unavailable']},sources:[],nextPage:null}));
+  loader=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
+  const {InterventionStatistics}=await loader('/src/SpeechInterventions.tsx'),{createRoot}=await import('react-dom/client');
+  const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  await act(async()=>root.render(createElement(InterventionStatistics,{member:256956})));
+  assert(container.querySelectorAll('.intervention-stats-grid strong').length>0);
+  for(const cell of container.querySelectorAll('.intervention-stats-grid strong'))assert.equal(cell.textContent,'—');
+});

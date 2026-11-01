@@ -381,7 +381,7 @@ export async function odp(
           ),{upstreamStatus:response.status,source,responseBytes});
         }
         if (response.status === 204)
-          throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
+          throw Object.assign(new HttpError(502, "odp_no_content", "Parliament supplied no content for this request."), {source:{url:key,fetchedAt:Date.now(),httpStatus:204}});
         if (!response.headers.get("content-type")?.includes("json")) {
           await response.body?.cancel();
           throw new HttpError(
@@ -988,15 +988,20 @@ export function orderedSpeeches(payload) {
       (a, b) => Date.parse(b.start || b.date) - Date.parse(a.start || a.date),
     );
 }
-export async function odpSpeeches(id, language, offset) {
-  const record = await odp("/speeches", {
+export const SPEECH_LIST_VERSION=1;
+export async function odpSpeeches(id, language, offset, {request=odp}={}) {
+  let record;
+  try {record = await request("/speeches", {
     "person-id": id,
     "parliamentary-term": 10,
     "activity-type": "PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT",
     "sort-by": "sitting-date:desc",
     limit: 50,
     offset,
-  });
+  });}catch(error){
+    if(error.code!=='odp_no_content')throw error;
+    return {items:[],total:null,offset,status:'unavailable',coverage:{status:'unavailable'},fetchedAt:error.source?new Date(error.source.fetchedAt).toISOString():null};
+  }
   return {
     items: orderedSpeeches(record.payload),
     total: record.payload.meta?.total ?? record.payload.data.length,

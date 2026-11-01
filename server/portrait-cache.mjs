@@ -101,8 +101,8 @@ export class PortraitCache {
     if (!this.directory) return null;
     let file;
     try {
-      await this.initialize();
-      if (!this.files.has(id)) return null;
+      // Read the exact retained file without waiting for directory inventory or pruning.
+      // Writes still initialize and account for the entire disk budget.
       file = await open(path.join(this.directory, `${id}.portrait`), 'r');
       const info = await file.stat();
       if (info.size > IMAGE_LIMIT + HEADER_LIMIT + 4) return null;

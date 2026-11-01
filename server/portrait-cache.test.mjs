@@ -335,3 +335,19 @@ test('invalid member and upstream identities never make an upstream request', as
   for (const [i, url] of ['https://other.test/mepphoto/1.jpg', 'https://www.europarl.europa.eu/mepphoto/1.jpg?url=other', 'https://user@www.europarl.europa.eu/mepphoto/1.jpg', 'https://www.europarl.europa.eu/other/1.jpg'].entries())
     await assert.rejects(cache.get(i + 1, () => url), {code: 'portrait_unavailable'});
 });
+
+
+test('a stale disk hit bypasses inventory and does not wait for upstream revalidation',async t=>{
+  const directory=await fixture(t),gate=deferred();
+  let now=100000;
+  const writer=new PortraitCache({directory,clock:()=>now,fetchImpl:async()=>jpeg('retained')});
+  await writer.get(42,source);
+  now+=8*86400000;
+  const cache=new PortraitCache({directory,clock:()=>now,fetchImpl:()=>gate.promise});
+  cache.initialize=()=>{throw Error('inventory must stay off the read path');};
+  const image=await cache.get(42,source);
+  assert.equal(image.body.toString(),'retained');
+  assert.equal(cache.backgroundActive,1);
+  gate.resolve(jpeg('refreshed'));
+  await Promise.allSettled([...cache.refreshes.values()]);
+});
