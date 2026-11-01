@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Lükkab ettepaneku tagasi",
+  "amendment.rejects_council_position": "Lükkab nõukogu seisukoha tagasi",
   "MemberMotionReader.choose_a_motion_text": "Vali resolutsiooni ettepaneku tekst",
   "MemberMotionReader.joint_motion_id": "Resolutsiooni ühisettepanek · {id}",
   "MemberMotionReader.original_motion_id": "Algne resolutsiooni ettepanek · {id}",

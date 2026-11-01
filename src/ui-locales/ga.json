@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Diúltaíonn sé don togra",
+  "amendment.rejects_council_position": "Diúltaíonn sé do sheasamh na Comhairle",
   "MemberMotionReader.choose_a_motion_text": "Roghnaigh téacs tairisceana",
   "MemberMotionReader.joint_motion_id": "Comhthairiscint · {id}",
   "MemberMotionReader.original_motion_id": "Tairiscint bhunaidh · {id}",

@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Verwerpt het voorstel",
+  "amendment.rejects_council_position": "Verwerpt het standpunt van de Raad",
   "MemberMotionReader.choose_a_motion_text": "Kies een ontwerpresolutie",
   "MemberMotionReader.joint_motion_id": "Gezamenlijke ontwerpresolutie · {id}",
   "MemberMotionReader.original_motion_id": "Oorspronkelijke ontwerpresolutie · {id}",
