@@ -831,3 +831,28 @@ test('HTTP search POST and exact text GET are bounded read-only routes with stri
     s.cleanup();
   }
 });
+
+test('old completed speech months receive at most two durable daily rechecks',async()=>{
+  const s=stores();try {
+    const worker=new CorpusWorker(s.corpus,{clock:instant});await worker.discover();
+    const old=instant()-31*86400_000;
+    s.corpus.db.prepare("UPDATE tasks SET done=1,done_at=? WHERE kind='speeches'").run(old);
+    await worker.discover();
+    const historical=()=>s.corpus.db.prepare("SELECT * FROM tasks WHERE done=0 AND json_extract(body,'$.historicalRecheck')=1").all();
+    assert.equal(historical().length,2);await worker.discover();assert.equal(historical().length,2);
+    assert.equal(s.corpus.get('historicalSpeechRechecks').count,2);
+  }finally{s.cleanup();}
+});
+
+test('historical speech refresh parses only new or changed exact fragments',async()=>{
+  const s=stores();try {
+    const id='MTG-PL-2024-09-16-OTH-1',original=speech(id,{en:fragment('en','Existing')});
+    const retained=speechTexts(original,'https://example.test',fetchedAt);s.corpus.putDocument(retained.document,retained.texts);
+    const changed=speech(id,{en:fragment('en','Existing'),fr:fragment('fr','New translation')});
+    const worker=new CorpusWorker(s.corpus,{clock:instant,fetchRecord:async()=>({payload:{data:[changed]},fetchedAt})});
+    let parsed;const extract=worker.extractSpeech.bind(worker);worker.extractSpeech=async(node,...args)=>{parsed=Object.keys(node.recorded_in_a_realization_of[0]['api:xmlFragment']);return extract(node,...args);};
+    const body={start:'2024-09-01',end:'2024-09-30',offset:0,limit:25,historicalRecheck:true};
+    s.corpus.enqueue('historical-test','speeches',body,59);await worker.task(s.corpus.task('historical-test'));
+    assert.deepEqual(parsed,['fr']);assert.equal(s.corpus.raw(id,'en'),retained.texts[0].raw);assert.match(s.corpus.raw(id,'fr'),/New translation/);
+  }finally{s.cleanup();}
+});

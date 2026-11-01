@@ -1,3 +1,6 @@
+import {odp} from './odp.mjs';
+import {OfficialContextWarmer} from './official-context-warmer.mjs';
+import {LegalReferences} from './legal-references.mjs';
 import {questionFileBackfillDue,backfillQuestionFiles} from './activity-read-projections.mjs';
 import {bootstrapAmendmentDependencies,amendmentDependenciesReady} from './amendments-store.mjs';
 import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
@@ -121,8 +124,8 @@ export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendme
 }
 
 export class ActivityWorker {
-  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null}={}) {
-    this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+  constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null,officialContext=null}={}) {
+    this.officialContext=officialContext;this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
@@ -746,8 +749,9 @@ export class ActivityWorker {
   async runIteration() {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
+    const officialDue=Boolean(this.officialContext?.due());
     const projectionDue=this.projectionGenerations().length>0||this.questionFileGenerations().length>0;
-    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue || !this.store.acquire())return;
+    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -760,6 +764,7 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
+      if(officialDue)await this.officialContext.step(this);
       if(pressDue)await this.followPress(due||snapshotsDue);
       // Reserve one dispatch before core work and one per eight core tasks, capped at one new request when core work is due.
       // When core work is idle, drain snapshots under the same run bounds.
@@ -770,6 +775,10 @@ export class ActivityWorker {
         }while(!due&&this.sittingSnapshots.due());
       }
       if(!due) {
+        while(!this.stopped&&!this.controller.signal.aborted&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline) {
+          if(!await this.officialContext.step(this))break;
+          await projectionYield(undefined,{signal:this.controller.signal});
+        }
         // Local migrations must progress even when no upstream job is due.
         // Yield between commits and keep each idle turn within one second.
         const localDeadline=Math.min(this.runDeadline,this.monotonic()+1000);
@@ -890,6 +899,7 @@ export class ActivityWorker {
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
           if(++sittingSnapshotTurn%8===0)await this.fillProjectionBatch();
+          if(sittingSnapshotTurn%8===0&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline)await this.officialContext.step(this);
           if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
             await this.sittingSnapshots.step(this,{requestBudget:1});
             if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
@@ -944,6 +954,19 @@ export function activityIndex() {
   const store=new ActivityStore(directory,{readOnly:readerMode}),press=new PressStore(directory,{readOnly:readerMode});
   if(readerMode){service={store,press};return service;}
   const worker=new ActivityWorker(store,{...options,sittingSnapshots:new SittingSnapshotCollector(store),press:new PressFollower(press,{write:leaseFencedWrite(store,press)})});
+  const warmer=new OfficialContextWarmer(store);
+  const schedule=warmer.sources.run;
+  warmer.sources.run=(operation,settings)=>{
+    worker.controller.signal.throwIfAborted();store.assertWriter();
+    if(worker.requests>=worker.budget||worker.monotonic()>=worker.runDeadline)throw new Error('Official context background budget exhausted.');
+    worker.requests++;
+    return schedule(operation,{...settings,signal:AbortSignal.any([settings.signal,worker.controller.signal])});
+  };
+  warmer.references=new LegalReferences({get:(url,settings)=>warmer.sources.get(url,{...settings,priority:'background'})},{request:(endpoint,params)=>{
+    if(worker.requests>=worker.budget)throw new Error('Official context background budget exhausted.');
+    worker.requests++;return odp(endpoint,params,{priority:'background',signal:worker.controller.signal});
+  }});
+  worker.officialContext=warmer;
   worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
   service={store,worker,press};return service;
 }

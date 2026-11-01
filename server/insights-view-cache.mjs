@@ -7,7 +7,7 @@ import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,cacheable=()=>true}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,cacheable});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,maxDiskEntries=maxEntries,maxDiskBytes=64*1024*1024,cacheable=()=>true}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,maxDiskEntries,maxDiskBytes,cacheable});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
     if(this.cache.has(key)){const record=this.cache.get(key);return this.cacheable(record.value)?record:null;}
@@ -45,7 +45,7 @@ export class InsightViewCache {
   async prune() {
     const names=(await readdir(this.directory)).filter(n=>/^[a-f0-9]{64}\.json$/.test(n));
     const files=await Promise.all(names.map(async name=>{const info=await stat(path.join(this.directory,name));return {name,at:info.mtimeMs,bytes:info.size};}));files.sort((a,b)=>b.at-a.at);
-    let bytes=0;for(let i=0;i<files.length;i++){bytes+=files[i].bytes;if(i>=this.maxEntries||bytes>64*1024*1024)await unlink(path.join(this.directory,files[i].name)).catch(()=>{});}
+    let bytes=0;for(let i=0;i<files.length;i++){bytes+=files[i].bytes;if(i>=this.maxDiskEntries||bytes>this.maxDiskBytes)await unlink(path.join(this.directory,files[i].name)).catch(()=>{});}
   }
   refresh(key,load,{background=false,persist}={}) {
     if(this.pending.has(key))return this.pending.get(key);

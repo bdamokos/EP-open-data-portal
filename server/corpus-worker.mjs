@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {cataloguePage,acquisitionMode} from './availability-history.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
 import {downloadQuestionPdf} from './question-pdf.mjs';
@@ -31,6 +32,7 @@ const SPEECH_ID=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
 const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 // Verbatim translations are added for weeks after a sitting; recheck recent months.
 const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
+const HISTORICAL_RECHECK_EVERY=30*DAY,HISTORICAL_MONTHS_PER_DAY=2;
 const PRIORITY={speeches:60,speech:61,speechClassification:63};
 const FRAGMENT_LIMIT=2*1024*1024;
 
@@ -172,14 +174,20 @@ export class CorpusWorker {
       if(!this.store.db.prepare("SELECT 1 FROM tasks WHERE kind IN ('speech-metadata','speech-metadata-detail') AND done=0 LIMIT 1").get())this.store.set('speechMetadataBackfill',false);
     }
     if(widened){this.store.set('backfilledAt',null);this.store.set('phase','backfilling');}
+    let historical=this.store.get('historicalSpeechRechecks');
+    if(historical?.day!==today)historical={day:today,count:0};
     for(const range of speechWindows(today)) {
       const key='speeches:'+range.start.slice(0,7), body={start:range.start,end:range.end,offset:0,limit:this.pageSize};
       if(this.store.enqueue(key,'speeches',body,PRIORITY.speeches))continue;
       if(widened){this.store.resetTask(key,body,PRIORITY.speeches);continue;}
       const task=this.store.task(key);
       const recent=now-Date.parse(range.end)<RECHECK_WINDOW || range.end===today;
+      if(task.done&&!recent&&now-(task.done_at||0)>=HISTORICAL_RECHECK_EVERY&&historical.count<HISTORICAL_MONTHS_PER_DAY) {
+        this.store.reopen(key,{...body,historicalRecheck:true},PRIORITY.speeches-1);historical.count++;
+      }
       if(task.done && recent && now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY))this.store.reopen(key,body,PRIORITY.speeches);
     }
+    this.store.set('historicalSpeechRechecks',historical);
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
     if(index.generation==null){this.store.set('discoveryCheckedAt',now);return;}
@@ -232,7 +240,12 @@ export class CorpusWorker {
           this.retainSpeechMetadata(node,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
           await this.checkpoint();continue;
         }
-        const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt);
+        let changed=node;
+        if(body.historicalRecheck) {
+          const hashes=new Map(this.store.db.prepare('SELECT t.source_key,t.sha256 FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=?').all(id).map(row=>[row.source_key,row.sha256]));
+          changed={...node,recorded_in_a_realization_of:array(node.recorded_in_a_realization_of).map(doc=>typeof doc==='object'&&doc?{...doc,'api:xmlFragment':Object.fromEntries(Object.entries(doc['api:xmlFragment']||{}).filter(([key,xml])=>typeof xml==='string'&&hashes.get(key)!==createHash('sha256').update(xml).digest('hex')))}:doc)};
+        }
+        const {document,texts}=await this.extractSpeech(changed,url.href,record.fetchedAt);
         this.store.putDocument(document,this.keep(texts),{acquisition:acquisitionMode(this.store,task,{corpus:true})});
         this.retainSpeechMetadata(node,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
         await this.checkpoint();
