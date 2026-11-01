@@ -1273,3 +1273,16 @@ test('inline pictures preserve surrounding links, note anchors and table-cell po
   await h.click(cell.querySelector('button'));assert.equal(cell.querySelector('button').getAttribute('aria-expanded'),'true');assert.match(cell.querySelector('button').textContent,/Fit image/);
   assert(h.container.textContent.includes('View original pages'));assert.equal(h.requests.filter(route=>route.startsWith('document-pages')).length,0,'PDF stays lazy');
 });
+
+test('source-attested rejection explains the whole proposal without a paragraph placement',async t=>{
+  const data=overlayResponse({status:'unresolved'});
+  data.amendment.variants[0].originalText='';data.amendment.variants[0].proposedText='The European Parliament rejects the Commission proposal.';
+  data.placement={status:'document-operation',operation:'reject',scope:'commission-proposal',reason:'rejects_proposal',evidence:[]};
+  const h=await harness(t,()=>data);await h.render({request:overlayRequest,language:'en'});
+  assert.match(h.container.textContent,/Rejects the proposal/);
+  assert(!h.container.textContent.includes('No original text (insertion)'));
+  assert.equal(h.container.querySelector('ins'),null);
+  assert(!h.container.textContent.includes('location could not be determined'));
+  assert.equal(h.container.querySelector('[data-context-target="true"]'),null);
+  assert(h.container.querySelector('[data-source-paragraph="1"]'));
+});
