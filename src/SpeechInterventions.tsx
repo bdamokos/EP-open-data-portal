@@ -152,7 +152,7 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
     if(!reading)return;
     readingRef.current?.focus({preventScroll:true});
     // Reply links open a contribution elsewhere in the sequence, so bring that one into view.
-    if(anchor&&!anchor.own)readingRef.current?.closest('li')?.scrollIntoView({block:'nearest'});
+    if(anchor&&!anchor.own)readingRef.current?.closest('li')?.querySelector('.intervention-read')?.scrollIntoView({block:'start'});
   },[reading]);
   const time=(row:SpeechSequenceRow)=>row.start ? new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)) : null;
   const title=selectLanguageText(debate.titles,language,debate.id,'');
