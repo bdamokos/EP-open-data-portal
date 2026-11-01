@@ -1,3 +1,4 @@
+import {agendaTitle} from './topicPresentation.mjs';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -139,7 +140,7 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
   const title=selectLanguageText(debate.titles,language,debate.id,'');
   return <section className="intervention-debate" lang={ui.language}>
     <div className="intervention-sequence-heading"><h4>{(exchange && (!full)) ? <UiMessage id="batch4.speechinterventions.tsx.blue.card.exchange"/> : <UiMessage id="batch4.speechinterventions.tsx.debate.sequence"/>}</h4>{exchange&&<button onClick={()=>setFull(value=>!value)}>{full ? <UiMessage id="batch4.speechinterventions.tsx.show.exchange"/> : <UiMessage id="batch4.speechinterventions.tsx.show.full.debate"/>}</button>}</div>
-    <p className="intervention-caption" lang={title.language}>{title.text}</p>
+    <p className="intervention-caption" lang={title.language}>{agendaTitle(title.text)}</p>
     {debate.error ? <SequenceError message={debate.error} retryAt={debate.retryAt} loading={loading} retry={retry}/> : <ol className="intervention-sequence">{rows.map(row=><li key={row.id} className={((row.id===speechId) ? 'is-current ' : '')+(row.exchangeId ? 'is-exchange' : '')}>
       <div className="intervention-sequence-node"><InterventionIcon type={row.intervention.type}/></div>
       <div className="intervention-sequence-entry">

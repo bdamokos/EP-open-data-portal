@@ -1,3 +1,5 @@
+import {RecordTopics} from './RecordTopics';
+import {topicsHref} from './topicPresentation.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {FollowDossierButton} from './DossierControls';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
@@ -29,7 +31,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
   const amendmentLink=<AmendmentTrailLink procedure={reference} language={language}><UiMessage id="batch5.procedurecontext.tsx.27.68"/></AmendmentTrailLink>;
   if(!data)return <section lang={ui.language} className="insight-procedure-context insight-procedure-fallback" data-procedure-context-pending={(loading && (!fallbackTitle)) ? "true" : undefined}>{identity}{amendmentLink}{children}<ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>{loading&&<p role="status"><UiMessage id="batch5.procedurecontext.tsx.28.69"/></p>}{press}{!loading&&error&&<p><a href={'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference})} target="_blank" rel="noreferrer"><UiMessage id="batch5.procedurecontext.tsx.28.70"/></a></p>}</section>;
   const blocks=data.summary?.blocks||[],displayed=expanded ? blocks : blocks.slice(0,2);
-  return <section lang={ui.language} className="insight-procedure-context">
+  return <section lang={ui.language} className="insight-procedure-context"><RecordTopics id={reference.replace(/^(\d{4})\/(\d{4}[A-Z]?).*$/,'$1-$2')} full language={language}/>
     {identity}{amendmentLink}{children}
     <ProcedureProgress key={reference+':'+language} reference={reference} language={language}/>
     {data.summary&&<><header><div><h3><UiMessage id="batch5.procedurecontext.tsx.33.71"/></h3><FindInText key={data.summary.id} label={ui.t("batch5.procedurecontext.tsx.33.72")} target={summaryText} onOpen={()=>setExpanded(true)}/></div><div>{(data.summaries.length>1) ? <label className="insight-summary-stage"><span className="explorer-sr-only"><UiMessage id="batch5.procedurecontext.tsx.33.73"/></span><select value={data.summary.id} onChange={event=>{setSummary(event.target.value);setExpanded(false);}}>{data.summaries.map(item=>{const stage=summaryStage(item.stage,language, ui);return <option lang={compoundLanguage(stage.language,item.date ? language : stage.language)} value={item.id} key={item.id}>{stage.text}{item.date ? (' · '+humanDate(item.date,language)) : ''}</option>;})}</select></label> : <span lang={summaryStage(data.summary.stage,language, ui).language}>{summaryStage(data.summary.stage,language, ui).text}</span>}{data.summaries.length===1&&<time lang={language}>{humanDate(data.summary.date,language)}</time>}</div></header>
@@ -38,8 +40,8 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
     </>}
     {showTitle&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
     {press}
-    {data.topics.length>0&&<div className="insight-official-topics"><h4><UiMessage id="batch4.questiontopics.tsx.topics"/> <small><UiMessage id="procedurecontext.eurovoc.dc7d06"/></small></h4><div>{data.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
-    {data.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><span>{subject.label}</span> <small>{subject.code}</small></li>)}</ul></section>}
+    {data.topics.length>0&&<div className="insight-official-topics"><h4><UiMessage id="batch4.questiontopics.tsx.topics"/> </h4><div>{data.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
+    {data.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><a href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
     {!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer"><UiMessage id="procedurecontext.open_procedure_file.41bcb5"/></a>}
   </section>;
 }

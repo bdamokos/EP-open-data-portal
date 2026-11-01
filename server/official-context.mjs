@@ -34,16 +34,16 @@ export class OfficialContextSources {
     let queue=this.queues.get(origin);
     // OEIL and Publications Office have no ODP quota. These are local resource
     // caps per origin; their own Retry-After pauses still apply.
-    if(!queue){queue=new UpstreamQueue();this.queues.set(origin,queue);}
+    if(!queue){queue=new UpstreamQueue(origin==='https://oeil.europarl.europa.eu'?{maximum:1}:{});this.queues.set(origin,queue);}
     let release;
     try{release=await queue.acquire(priority,{signal});}
     catch(error){
       if(error?.code==='upstream_busy')throw Object.assign(new HttpError(503,'upstream_busy','The official source is busy. Please try again after the pause.'),{retryAfter:error.retryAfter,retryAt:error.retryAt});
       throw error;
     }
-    try{signal?.throwIfAborted();return await boundedUpstream(()=>waitForRequest(operation(),signal),{source:origin,priority,signal});}finally{release();}
+    try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
   }
-  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive'}={}) {
+  async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive',waitForFresh=false}={}) {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
@@ -55,31 +55,40 @@ export class OfficialContextSources {
       // The cache owns one budget across admission, redirects and body reads.
       const signal=AbortSignal.timeout(20_000);
       return this.run(async()=>{
-        let target=url,response;
+        let target=url;
         for(let attempt=0;attempt<3;attempt++) {
-          await this.beforeFetch?.(source.origin);
-          response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
-          if(![301,302,303,307,308].includes(response.status))break;
-          const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
-          const redirected=officialSourceUrl(new URL(next,target));
-          if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
-          target=redirected.href;
+          // Each redirect is a new HTTP start on the shared origin queue. Hold
+          // its grant through body consumption; never nest origin admissions.
+          const result=await boundedUpstream(async()=>{
+            await this.beforeFetch?.(source.origin);
+            const response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
+            if([301,302,303,307,308].includes(response.status)){
+              const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
+              const redirected=officialSourceUrl(new URL(next,target));
+              if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
+              return {redirect:redirected.href};
+            }
+            if(response.status===429||response.status>=500){
+              const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
+              this.queues.get(source.origin)?.backoff(retryAfter);backoffUpstream(retryAfter,{source:source.origin});await response.body?.cancel();
+              throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
+            }
+            if(!response.ok||response.status===202)throw Object.assign(new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.'),{sourceStatus:response.status,cause:{status:response.status}});
+            const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
+            if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
+            const text=await limitedText(response,json?3*1024*1024:1024*1024);
+            return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
+          },{source:source.origin,priority,signal,backgroundRank:priority==='background'?1:0});
+          if(!result.redirect)return result;
+          target=result.redirect;
         }
-        if([429,503].includes(response?.status)){
-          const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
-          this.queues.get(source.origin)?.backoff(retryAfter);backoffUpstream(retryAfter,{source:source.origin});await response.body?.cancel();
-          throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
-        }
-        if(!response?.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
-        const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
-        if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
-        const text=await limitedText(response,json?3*1024*1024:1024*1024);
-        return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
+        throw new HttpError(502,'official_redirect','The source redirected too many times.');
       },{priority,origin:source.origin,signal});
     }),{freshMs,includeRetryAt,background:priority==='background',validate:record=>{
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);
     }}));
+    if(waitForFresh&&record.viewCache?.stale){const pending=this.cache.pending.get(this.cache.key(key));if(!pending)throw new HttpError(503,'official_source_unavailable','The official source is temporarily unavailable.');const fresh=await waitForRequest(pending);return {...fresh.value,viewCache:{stale:false}};}
     if(priority==='background') {
       const pending=this.cache.pending.get(this.cache.key(key));
       if(pending)return (await waitForRequest(pending)).value;
@@ -136,7 +145,7 @@ export function parseProcedurePage(html,reference,language='en') {
   }
   const subjectIndex=all.findIndex(node=>node.tag==='p'&&/^(?:Subject|Sujet|Subject matter)$/i.test(text(node)));
   const subjectParagraph=subjectIndex>=0?all.slice(subjectIndex+1).find(node=>node.tag==='p'):null;
-  const subjects=subjectParagraph?rawText(subjectParagraph).split(/\n/).map(value=>value.trim()).map(value=>value.match(/^(\d(?:\.\d{2}){2,3})\s+(.+)$/)).filter(Boolean).map(match=>({code:match[1],label:match[2]})):[];
+  const subjects=subjectParagraph?rawText(subjectParagraph).split(/\n/).map(value=>value.trim()).map(value=>value.match(/^(\d(?:\.\d{2}){1,3})\s+(.+)$/)).filter(Boolean).map(match=>({code:match[1],label:match[2]})):[];
   // Single-subject Doceo documents the procedure file itself links.
   const documents=[...new Set(all.filter(node=>node.tag==='a').map(node=>doceoDocument(String(node.attrs?.['@_href']||''))).filter(Boolean))];
   return {reference,title,language,subjects,summaries:[...summaries.values()],documents};

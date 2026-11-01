@@ -1,9 +1,9 @@
 import {array,tail} from './activity-index-model.mjs';
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from '../src/groupVoiceTerms.mjs';
-import editorial from './group-voice-subjects.json' with {type:'json'};
 import {HttpError} from './http-utils.mjs';
 
-export const GROUP_VOICE_VERSION=editorial.version;
+export const GROUP_VOICE_VERSION=1;
+export const GROUP_VOICE_TOPICS_VERSION=2;
 export const GROUP_VOICE_LIMITS=Object.freeze({rows:20000,contributions:50,offset:20000});
 const relative=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const personId=value=>relative(value).match(/^person\/([1-9]\d{0,12})$/)?.[1];
@@ -15,9 +15,7 @@ export function groupVoiceProjection(activity,{fetchedAt,url}={}) {
   const id=activity?.activity_id,day=activity?.activity_date;
   if(tail(activity?.had_activity_type)!=='PLENARY_DEBATE_SPEECH'||!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/.test(id||'')||!date(day)||id.slice(7,17)!==day||day<'2024-07-16')return null;
   const parents=[...new Set(array(activity.inverse_consists_of).map(relative).flatMap(value=>value.match(/^eli\/dl\/event\/(MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+)$/)?.[1]||[]))];
-  const subjects=[...new Set(parents.map(id=>editorial.agendas[id]).filter(Boolean))];
-  // Conflicting joint-parent classifications stay unclassified. No title joins.
-  const subject=editorial.speeches[id]||(subjects.length===1?subjects[0]:'unclassified');
+  const subject='unclassified';
   const designations=new Map();
   for(const participation of array(activity.had_participation)){
     if(!participation||typeof participation!=='object'||tail(participation.participation_role)!=='SPEAKER')continue;
@@ -29,7 +27,7 @@ export function groupVoiceProjection(activity,{fetchedAt,url}={}) {
       designations.set(key,entry);
     }
   }
-  return {version:GROUP_VOICE_VERSION,id,date:day,subject,subjectBasis:subject==='unclassified'?'unclassified':'editorial',parentIds:parents,designations:[...designations.values()],source:{url:url||'https://data.europarl.europa.eu/api/v2/speeches/'+id+'?format=application%2Fld%2Bjson',fetchedAt:fetchedAt||null}};
+  return {version:GROUP_VOICE_VERSION,id,date:day,subject,subjectBasis:'unclassified',parentIds:parents,designations:[...designations.values()],source:{url:url||'https://data.europarl.europa.eu/api/v2/speeches/'+id+'?format=application%2Fld%2Bjson',fetchedAt:fetchedAt||null}};
 }
 
 export function groupVoicesQuery(params,{now=Date.now()}={}){
@@ -38,7 +36,7 @@ export function groupVoicesQuery(params,{now=Date.now()}={}){
   if(!Object.hasOwn(GROUP_VOICE_GROUPS,group))throw new HttpError(400,'invalid_group','Choose a recorded political group.');
   if(!['term','12m'].includes(period)&&!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(period))throw new HttpError(400,'invalid_period','Choose the current term, last 12 months or a month.');
   if(person&&!/^[1-9]\d{0,12}$/.test(person))throw new HttpError(400,'invalid_person','Invalid person identifier.');
-  if(subject&&!Object.hasOwn(GROUP_VOICE_SUBJECTS,subject))throw new HttpError(400,'invalid_subject','Choose a subject.');
+  if(subject&&!Object.hasOwn(GROUP_VOICE_SUBJECTS,subject)&&!/^oeil:\d(?:\.\d{2}){1,3}$/.test(subject))throw new HttpError(400,'invalid_subject','Choose a subject.');
   if(!['summary','contributions'].includes(part))throw new HttpError(400,'invalid_query','Invalid group-voices response.');
   const integer=(key,fallback,max)=>{const raw=params.get(key);if(raw===null)return fallback;if(!/^(0|[1-9]\d{0,5})$/.test(raw)||Number(raw)>max)throw new HttpError(400,'invalid_query','Invalid '+key+'.');return Number(raw);};
   const offset=integer('offset',0,GROUP_VOICE_LIMITS.offset),limit=integer('limit',20,GROUP_VOICE_LIMITS.contributions);

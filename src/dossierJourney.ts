@@ -86,7 +86,7 @@ function destinationMounted() {
     const panel=document.querySelector('.explorer-activities');if(!panel)return false;
     if(query.get('activity')&&!panel.querySelector('.explorer-speech-toggle[aria-expanded="true"]'))return false;
   }else if(!document.querySelector('main h1'))return false;
-  return !document.querySelector('[data-view-loading],[data-activities-pending="true"],[data-motion-pending="true"],[data-context-pending="true"],[data-reader-pending="true"],[data-dossier-pending="true"],[data-procedure-context-pending="true"],[data-agenda-pending="true"]');
+  return !document.querySelector('[data-view-loading],[data-topics-pending="true"],[data-activities-pending="true"],[data-motion-pending="true"],[data-context-pending="true"],[data-reader-pending="true"],[data-dossier-pending="true"],[data-procedure-context-pending="true"],[data-agenda-pending="true"]');
 }
 
 export function useDossierJourney() {
@@ -121,7 +121,7 @@ export function useDossierJourney() {
       apply();
     };
     const cancel=(event:Event)=>{if(event.isTrusted){pending=null;destination=null;}};
-    const observer=new window.MutationObserver(apply);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','data-agenda-topic','data-agenda-pending','data-activities-pending','data-motion-pending','data-context-pending','data-reader-pending','data-dossier-pending','data-procedure-context-pending']});
+    const observer=new window.MutationObserver(apply);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','data-topics-pending','data-agenda-topic','data-agenda-pending','data-activities-pending','data-motion-pending','data-context-pending','data-reader-pending','data-dossier-pending','data-procedure-context-pending']});
     window.addEventListener('popstate',restore);window.addEventListener(change,apply);
     for(const event of ['pointerdown','keydown','wheel','focusin'])document.addEventListener(event,cancel,{capture:true});
     return()=>{observer.disconnect();window.removeEventListener('popstate',restore);window.removeEventListener(change,apply);for(const event of ['pointerdown','keydown','wheel','focusin'])document.removeEventListener(event,cancel,true);if(scheduled.current!==null)window.cancelAnimationFrame(scheduled.current);};

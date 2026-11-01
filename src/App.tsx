@@ -1,3 +1,8 @@
+import {TopicBatch,RecordTopics,OfficialTitle} from './RecordTopics';
+const legacyTopicUrl=legacyTopics(new URLSearchParams(location.search));
+if(legacyTopicUrl)history.replaceState(history.state,'',legacyTopicUrl);
+import {legacyTopics,agendaTitle} from './topicPresentation.mjs';
+const Topics=lazyView(()=>import('./Topics').then(m=>({default:m.Topics})));
 import {usePlenaryUiLanguage} from './PlenaryLive';
 import {defaultUi} from './uiDefault.mjs';
 import {appUiI18n, uiForLocale} from './appUiI18n';
@@ -154,7 +159,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
     [body?.xml],
   );
   return <div className="explorer-speech-detail" lang={lang} data-reader-source={speech.id} data-reader-language={transcriptLanguage} data-reader-pending={state.loading ? "true" : undefined}>
-      <Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={(state.error||!body) ? null : (text.error ? ui.t("app.transcript_could_not_be_read") : (text.paragraphs.length ? ui.t("app.transcript_loaded") : ui.t("batch4.speechinterventions.tsx.transcript.unavailable")))}/>
+      <RecordTopics id={speech.id} full language={lang}/><Status scope={`transcript:${speech.id}:${lang}`} pending={state.loading} message={(state.error||!body) ? null : (text.error ? ui.t("app.transcript_could_not_be_read") : (text.paragraphs.length ? ui.t("app.transcript_loaded") : ui.t("batch4.speechinterventions.tsx.transcript.unavailable")))}/>
       {state.data?.speakers?.map(person=><div key={person.id}><strong><SpeakerName person={person} language={lang}/></strong><SpeakerRoleLine person={person} language={lang} intervention={state.data?.intervention} className="insight-secondary"/></div>)}
       {state.data?.intervention?.type!=='chair'&&<InterventionBadges value={state.data?.intervention} language={lang}/>}
       <SpeechContextPanel key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage} preload={Boolean(state.data)&&!state.loading}/>
@@ -215,7 +220,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, include
   const logo=publicationCoverLogo(text,sourceId,text?.textLanguage);
   const notes=text?.notes||[],anchors=body.exact ? (text?.noteAnchors||[]) : ([]),documentLinks=body.exact ? (text?.documentLinks||[]) : ([]);
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt ? Date.parse(text.nextRetryAt) : undefined);
-  return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}>
+  return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}><RecordTopics id={sourceId} full language={lang}/>
     <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
     <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}{text&&<TextLanguagePicker available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={(text.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
@@ -388,15 +393,15 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
       {open && pinned.loading && !items.some(isOpen) && <p role="status"><UiMessage id="insightshared.loading"/></p>}
       {open && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
       {open && state.data && !pinned.loading && !items.some(isOpen) && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={page.cache.complete} />}
-      {items.map(item=>{
+      <TopicBatch ids={items.map(item=>item.sourceId)} language={lang}>{items.map(item=>{
         const key=`${item.category}:${item.sourceId}`;
-        return <article className="explorer-speech" id={`publication-${item.id}`} key={key}>
-          <button className="explorer-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item) ? null : key;onOpen(next);}}><span><small><span><>{((item.recordKind === "answer") ? ui.t("textsearch.answer") : ((item.category === "written-questions") ? ui.t("batch4.questiontopics.tsx.written.question") : ((item.category === "oral-questions") ? ui.t("batch4.questiontopics.tsx.oral.question") : item.categoryLabel)))} · {<time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time>}</></span></small><strong lang={item.titleLanguage||""}>{item.title}</strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item) ? "−" : "+"}</b></button>
+        return <article className="explorer-speech" id={`publication-${item.id}`} key={key}><RecordTopics id={item.sourceId}/>
+          <button className="explorer-speech-toggle" aria-expanded={isOpen(item)} onClick={()=>{const next=isOpen(item) ? null : key;onOpen(next);}}><span><small><span><>{((item.recordKind === "answer") ? ui.t("textsearch.answer") : ((item.category === "written-questions") ? ui.t("batch4.questiontopics.tsx.written.question") : ((item.category === "oral-questions") ? ui.t("batch4.questiontopics.tsx.oral.question") : item.categoryLabel)))} · {<time lang={lang} dateTime={item.date}>{date(item.date,lang)}</time>}</></span></small><strong lang={item.titleLanguage||""}><OfficialTitle title={item.title} language={item.titleLanguage} agenda={item.recordKind==='speech'}/></strong>{item.recordKind!=="answer"&&item.answerStatus&&<QuestionStatus answered={item.answerStatus==="answered"}/>} {item.resolutionOutcome&&<MotionStatuses outcome={item.resolutionOutcome} related={item.relatedJointMotions} sourceId={item.sourceId}/>}</span><b aria-hidden="true">{isOpen(item) ? "−" : "+"}</b></button>
 
           {!isOpen(item)&&item.provenance.role.startsWith('RAPPORTEUR')&&<ActivityDossierLinks procedureIds={item.procedureIds} person={id} language={lang}/>}
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} memberName={memberName} motionQuery={motionQuery} onMotionChange={onMotionChange} />}
         </article>;
-      })}
+      })}</TopicBatch>
       {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}><UiMessage id="textsearch.previous"/></button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}><UiMessage id="app.next_10"/></button>}<button onClick={state.retry}><UiMessage id="app.refresh_list"/></button></div>}
       {page.cache.lastSuccessfulRefresh&&<p className="explorer-source-join"><UiMessage id="outsidevoices.updated_tolocaledatestring.62ed42" values={{date:<span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span>}}/></p>}
     </>}
@@ -478,11 +483,11 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     {!filtered&&initialSpeech && pinned.loading && <p role="status" lang={ui.language}><UiMessage id="insightshared.loading"/></p>}
     {!filtered&&initialSpeech && pinned.error && <ErrorView message={pinned.error} retry={pinned.retry} />}
     {!filtered&&initialSpeech && state.data && !pinned.loading && !items.some(item=>item.sourceId===initialSpeech) && <LinkedActivityFallback key={initialSpeech} sourceId={initialSpeech} member={id} lang={lang} complete={state.data.cache.complete} />}
-    {(filtered ? filtered.slice(filteredOffset,filteredOffset+10) : items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang, ui),city=(speech.id.startsWith('MTG-PL-'+speech.date+'-') ? sittingLocations.get('MTG-PL-'+speech.date) : null);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}>
-      <button className="explorer-speech-toggle" lang={ui.language} onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {(speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT') ? ui.t("insightshared.written_statement") : ui.t("app.plenary_speech")}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span></> : ''}{city&&<> · <span lang="en">{city}</span></>}</span><span className="explorer-speech-heading"><strong lang={speechTitle.language}>{speechTitle.text}</strong><b aria-hidden="true">{open ? '−' : '+'}</b></span></button>
+    <TopicBatch language={lang} ids={filtered ? filtered.slice(filteredOffset,filteredOffset+10).map(s=>s.id) : items.map(i=>i.sourceId)}>{(filtered ? filtered.slice(filteredOffset,filteredOffset+10) : items.map(item=>{const base=speechSummary(item),enriched=enrichedSpeeches.find(row=>row.id===item.sourceId);return {...base,...enriched,titles:{...base.titles,...enriched?.titles}};})).map(speech=>{const open=initialSpeech===speech.id,speechTitle=title(speech,lang, ui),city=(speech.id.startsWith('MTG-PL-'+speech.date+'-') ? sittingLocations.get('MTG-PL-'+speech.date) : null);return <article className="explorer-speech" key={speech.id} id={`speech-${speech.id}`}><RecordTopics id={speech.id}/>
+      <button className="explorer-speech-toggle" lang={ui.language} onClick={()=>{setSpeechLanguage(null);onOpen(open ? null : speech.id);}} aria-expanded={open}><span><span lang={lang}>{date(speech.date,lang)}</span> · {(speech.kind==='PLENARY_DEBATE_WRITTEN_STATEMENT') ? ui.t("insightshared.written_statement") : ui.t("app.plenary_speech")}{speech.start ? <> · <span lang={lang}>{time(speech.start,lang)}</span></> : ''}{city&&<> · <span lang="en">{city}</span></>}</span><span className="explorer-speech-heading"><strong lang={speechTitle.language}>{agendaTitle(speechTitle.text)}</strong><b aria-hidden="true">{open ? '−' : '+'}</b></span></button>
       {!open&&<div className="explorer-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
-    </article>})}
+    </article>})}</TopicBatch>
     {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}<button onClick={()=>{state.retry();calendar.retry();}}><UiMessage id="app.refresh_list"/></button></div>)}
     </>}
   </section>;
@@ -509,7 +514,7 @@ export default function App() {
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
   const [activityOffset,setActivityOffset]=useState(()=>queryActivityOffset(initial));
-  const [view, setView] = useState<'legislation'|'questions'|'outside'|'amendments'|'groups'|'saved'|null>(
+  const [view, setView] = useState<'legislation'|'questions'|'topics'|'outside'|'amendments'|'groups'|'saved'|null>(
     publicExplorerView(initial.get('view')),
   );
   const [tab, setTab] = useState(
@@ -657,7 +662,7 @@ export default function App() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
-  const pageTitle = (view==='legislation') ? null : (view ? {questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
+  const pageTitle = (view==='legislation') ? null : (view ? {topics:ui.t("topics.topics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
   const pageTitleLanguage=ui.language;
   useEffect(()=>{if(pageTitle)document.title = ui.t("legislation.pagetitle_european_parliament_data_explorer.42a26b", {pageTitle: String(pageTitle)});document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
@@ -673,12 +678,14 @@ export default function App() {
     const url=new URL(location.href);
     // Country on the member wall is deliberately not an explorer default.
     url.searchParams.delete('country');
-    for(const key of [...url.searchParams.keys()])if(/^(q|pl|agenda|hot|cloud|dossier|trend|ov|am|gv|mv|ma|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
+    for(const key of [...url.searchParams.keys()])if(/^(t|q|pl|agenda|hot|cloud|dossier|trend|ov|am|gv|mv|ma|mep-speech-fts|mep-activity-fts)-/.test(key))url.searchParams.delete(key);
+    url.searchParams.delete('topic');url.searchParams.delete('place');
     next ? url.searchParams.set('view',next) : url.searchParams.delete('view');
     history.pushState(history.state,'',url);setView(next);
   }
   useEffect(()=>{
     const restore=()=>{
+      const legacy=legacyTopics(new URLSearchParams(location.search));if(legacy)history.replaceState(history.state,'',legacy);
       pendingDestination.current=null;
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
@@ -753,10 +760,10 @@ export default function App() {
     navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
-  if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
+  if (view === 'topics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),questions:ui.t("textsearch.questions")}[view];
-    return <InsightFrame {...props} view={view}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
+    const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),topics:ui.t("topics.topics"),questions:ui.t("textsearch.questions")}[view];
+    return <InsightFrame {...props} view={view}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='topics') ? <Topics {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
   return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>

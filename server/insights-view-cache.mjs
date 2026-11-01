@@ -7,7 +7,7 @@ import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,maxDiskEntries=maxEntries,maxDiskBytes=64*1024*1024,cacheable=()=>true,writable=true,assertWriter=()=>{},retainDisk=false}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,maxDiskEntries,maxDiskBytes,cacheable,writable,assertWriter,retainDisk});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,maxRecordBytes=4*1024*1024,pruneEvery=1,maxDiskEntries=maxEntries,maxDiskBytes=64*1024*1024,cacheable=()=>true,writable=true,assertWriter=()=>{},retainDisk=false}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,maxRecordBytes,pruneEvery,maxDiskEntries,maxDiskBytes,cacheable,writable,assertWriter,retainDisk});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;this.writes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
     if(this.cache.has(key)){const record=this.cache.get(key);return this.cacheable(record.value)?record:null;}
@@ -15,7 +15,7 @@ export class InsightViewCache {
     const reads=this.diskReads.get(key)||new Set(),read={superseded:false};
     this.diskReads.set(key,reads);reads.add(read);
     try {
-      const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>4*1024*1024)return null;
+      const name=path.join(this.directory,key+'.json'),info=await stat(name);if(info.size>this.maxRecordBytes)return null;
       const record=JSON.parse(await readFile(name,'utf8'));requestSignal()?.throwIfAborted();
       // A publication while this read was pending wins even if memory evicted it.
       if(read.superseded)return this.cache.get(key)||null;
@@ -25,7 +25,7 @@ export class InsightViewCache {
     finally {reads.delete(read);if(!reads.size)this.diskReads.delete(key);}
   }
   remember(key,record) {
-    const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>4*1024*1024)return;
+    const bytes=Buffer.byteLength(JSON.stringify(record));if(bytes>this.maxRecordBytes)return;
     for(const read of this.diskReads.get(key)||[])read.superseded=true;
     const previous=this.cache.get(key);if(previous)this.bytes-=previous.bytes;
     this.cache.delete(key);this.cache.set(key,{...record,bytes});this.bytes+=bytes;
@@ -36,10 +36,10 @@ export class InsightViewCache {
     const record={key,at:this.clock(),value};
     if(!this.cacheable(value))return record;
     this.remember(key,record);
-    if(!this.writable||!this.directory||Buffer.byteLength(JSON.stringify(record))>4*1024*1024||persist&&!await persist())return record;
+    if(!this.writable||!this.directory||Buffer.byteLength(JSON.stringify(record))>this.maxRecordBytes||persist&&!await persist())return record;
     this.assertWriter();
     const name=path.join(this.directory,key+'.json');
-    try {if(this.retainDisk)await this.saveRetained(key,record);else {await writeCacheFile(name,JSON.stringify(record));await this.prune();}}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
+    try {if(this.retainDisk)await this.saveRetained(key,record);else {await writeCacheFile(name,JSON.stringify(record));if(this.writes++%this.pruneEvery===0)await this.prune();}}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
     requestSignal()?.throwIfAborted();
     return record;
   }

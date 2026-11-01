@@ -16,6 +16,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(key.endsWith('-country')&&!countries.has(value))return fallback;
   if((key.endsWith('-until')||key==='trend-week')&&raw&&!validDate(raw))return fallback;
   if(['q-offset','am-offset'].includes(key)&&(!Number.isInteger(value)||value<0||value>(key==='am-offset'?1000000:5000)))return fallback;
+  if(key==='t-q'&&raw&&!/^20\d{2}-Q[1-4]$/.test(raw))return fallback;
   if(key==='q-addressee'&&raw&&!validAddresseeFilter(raw))return fallback;
   if(['am-scope'].includes(key)&&!['plenary','committee'].includes(raw))return fallback;
   if(key==='am-list'&&raw&&!committeeAmendmentList(raw))return fallback;
@@ -37,7 +38,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
 export function explorerParams(query,view,member) {
   const result=new URLSearchParams();
   const ownsMember=member===undefined||Boolean(member&&query.get('member')===String(member));
-  const prefix=view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
+  const prefix=view==='topics'?/^(topic$|place$|t-)/:view==='questions'?/^q-/:view==='legislation'?/^(pl|agenda|hot|cloud|dossier|trend)-/:view==='outside'?/^ov-/:view==='amendments'?/^am-/:view==='groups'?/^gv-/:view===null&&ownsMember?/^mep-(speech|activity)-fts-/:null;
   for(const [key,value] of query)if(/^global-fts-(search|text-lang|page|offset|catalog-offset|from|to|read|kind|sort|closed)$/.test(key)||prefix?.test(key)||view===null&&ownsMember&&(key==='mep-speech-category'||isMemberVotesParam(key)||key.startsWith('ma-'))){
     if(key.endsWith('-country')){const country=readExplorerParam(query,key,null);if(country)result.set(key,country);}
     else result.set(key,value);

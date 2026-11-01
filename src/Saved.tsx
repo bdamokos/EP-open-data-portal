@@ -1,3 +1,4 @@
+import {FollowedTopics,useTopics} from './TopicFollowing';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -76,6 +77,7 @@ function FollowCard({item,directoryMember,language,onMember,renderActivity,now,r
   </article>;
 }
 export function Saved({members,language,onBack,onMember,renderActivity}:SavedProps) {
+  const topicFollows=useTopics();
   const ui = useUiI18n();
   const membersById=useMemo(()=>new Map(members?.map(member=>[String(member.id),member])),[members]);
   const checkDossierUpdates=useDossierChecks();
@@ -114,6 +116,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     <Status scope={`saved-check:${context}:${attempt}`} message={((!dossiers.items.length) && (completion?.items===items)) ? completion.message : null} pending={checking||dossierChecking}/>
     <button onClick={onBack}><UiMessage id="document.back"/></button>
     <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1><button onClick={()=>{if(items.length)check();void checkDossierUpdates();}} disabled={!items.length&&!dossiers.items.length} aria-disabled={checking||dossierChecking||undefined} style={(checking||dossierChecking) ? ({opacity:.45,cursor:'default'}) : undefined}>{(checking||dossierChecking) ? <UiMessage id="batch6.procedureprogress.checking.62"/> : <UiMessage id="Saved.check_for_updates"/>}</button></div>
+    <FollowedTopics/>
     {!saved.persistent&&<p><UiMessage id="Saved.browser_storage_is_unavailable_follows_last_only_for_this_tab"/></p>}
     {saved.storageError&&<p role="alert" className="explorer-storage-error"><UiMessage id="Saved.storageError" values={{time:new Date(saved.unsavedSince||Date.now()).toLocaleTimeString(ui.locale)}}/> <button onClick={()=>store.retryStorage()}><UiMessage id="Saved.retry_saving"/></button></p>}
     {items.some(item=>item.kind==='mep')&&<GroupUpdateStatus retry={check}/>}
@@ -126,7 +129,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {error&&membershipCheck!=='error'&&<p>{error}</p>}
     {!dossiers.persistent&&dossiers.items.length>0&&<p><UiMessage id="Saved.dossier_follows_last_only_for_this_tab"/></p>}
     {dossiers.storageError&&<p role="alert"><UiMessage id="Saved.dossier_changes_couldn_t_be_saved_in_this_browser"/> <button onClick={()=>dossierStore.retryStorage()}><UiMessage id="Saved.retry_saving"/></button></p>}
-    {!items.length&&!dossiers.items.length&&<p><UiMessage id="Saved.follow_a_mep_or_dossier_or_save_a_question_to_see_updates_here"/></p>}
+    {!items.length&&!dossiers.items.length&&!topicFollows.length&&<p><UiMessage id="Saved.follow_a_mep_or_dossier_or_save_a_question_to_see_updates_here"/></p>}
     <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
     <FollowSuggestions language={language}/>
   </section>;

@@ -1,3 +1,4 @@
+import {agendaTitle} from './topicPresentation.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {Suspense,useState} from 'react';
@@ -50,7 +51,7 @@ export function ParliamentSearchResults({query,type,language,from,to}:{query:str
       {!section.results.length&&section.coverage.available&&<p>{section.coverage.complete?ui.t('batch5.parliamentsearchresults.tsx.29.62'):ui.t('coverage.searchEmptyLoaded')}</p>}
       {section.results.map(result=><article className="explorer-search-result" key={result.id}>
         <div className="explorer-search-meta"><span>{(section.type==='mep') ? ui.t("insightshared.mep") : ((section.type==='topic') ? ui.t("parliamentsearchresults.plenary_topic.6e8e8f") : result.id)}</span>{result.date&&<time dateTime={result.date} lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date(result.date+'T12:00:00Z'))}</time>}</div>
-        <h4 lang={result.titleLanguage||''}>{(result.type==='question') ? <a href={result.sourceUrl} target="_blank" rel="noreferrer">{result.title} ↗</a> : <a href={resultUrl(result,language)}>{result.title}</a>}</h4>
+        <h4 lang={result.titleLanguage||''}>{(result.type==='question') ? <a href={result.sourceUrl} target="_blank" rel="noreferrer">{result.title} ↗</a> : <a href={resultUrl(result,language)}>{result.type==='topic'?agendaTitle(result.title):result.title}</a>}</h4>
         {result.type==='question'&&<><button type="button" className="explorer-search-link" aria-expanded={reading===result.id} onClick={()=>setReading((reading===result.id) ? null : result.id)}>{(reading===result.id) ? <UiMessage id="batch4.questiontopics.tsx.close.question"/> : <UiMessage id="parliamentsearchresults.read_question_and_answers.d9f136"/>}</button>{reading===result.id&&<Suspense fallback={<p role="status"><UiMessage id="batch5.parliamentsearchresults.tsx.33.63"/></p>}><InsightQuestionReader id={result.id} language={language} includeAnswers/></Suspense>}</>}
       </article>)}
       {section.truncated&&<p className="explorer-search-hint"><UiMessage id="batch5.parliamentsearchresults.tsx.35.64"/></p>}

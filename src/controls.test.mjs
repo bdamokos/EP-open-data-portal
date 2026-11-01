@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,7 +33,7 @@ async function harness(t,query,respond=fixture,{clock=false}={}) {
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let root,loadModule;
   t.after(async()=>{if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  t.mock.method(globalThis,'fetch',async(input,options)=>Response.json(await respond(new URL(input,location.href),options)));
+  t.mock.method(globalThis,'fetch',async(input,options)=>{const classification=topicFixture(input);if(classification)return classification;return Response.json(await respond(new URL(input,location.href),options));});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
@@ -183,7 +184,7 @@ test('member deep links and restored routes keep meaningful titles with intentio
 });
 
 test('initial feature and unavailable member links have titles before data returns',async t=>{
-  for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=legislation&pl-mode=dossier','Dossiers'],['?view=legislation&pl-mode=cloud','Plenary word cloud'],['?view=legislation&pl-mode=participation','What’s hot'],['?view=legislation&pl-mode=trends','Topic timeline'],['?view=legislation&pl-mode=invalid','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
+  for(const [query,title] of [['?view=saved','Following'],['?view=legislation','Plenary agenda'],['?view=legislation&pl-mode=dossier','Dossiers'],['?view=legislation&pl-mode=cloud','Plenary word cloud'],['?view=legislation&pl-mode=participation','What’s hot'],['?view=legislation&pl-mode=trends','Topics'],['?view=topics','Topics'],['?view=legislation&pl-mode=invalid','Plenary agenda'],['?view=questions','Questions'],['?view=outside','Outside voices'],['?member=999&module=activities','MEP 999 · Political activities']]) {
     await t.test(query,async t=>{
       const pending=[];let unavailable=false;
       const h=await harness(t,query,()=>{if(unavailable)throw Error('Fixture unavailable');return new Promise((resolve,reject)=>pending.push({resolve,reject}));});
@@ -204,7 +205,7 @@ test('plenary mode titles follow headings, gestures and restored queries without
   await h.render(createElement(App));
   assert.equal(document.title,'Dossiers — European Parliament data explorer');
   const routes=[];
-  for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Topic timeline','Topic timeline'],['Dossiers','Dossiers']]) {
+  for(const [button,title] of [['Agenda','Plenary agenda'],['Word cloud','Plenary word cloud'],['What’s hot','What’s hot'],['Dossiers','Dossiers']]) {
     const length=history.length;
     await h.click(h.button(button));routes.push(location.href);
     assert.equal(document.title,`${title} — European Parliament data explorer`);
@@ -212,7 +213,7 @@ test('plenary mode titles follow headings, gestures and restored queries without
     assert.equal(history.length,length+1,'one mode gesture adds only its existing history entry');
   }
   // Simulate the restored browser query; happy-dom truncates forward entries on replaceState.
-  for(const [index,title] of [[1,'Plenary word cloud'],[3,'Topic timeline'],[4,'Dossiers']]) {
+  for(const [index,title] of [[1,'Plenary word cloud'],[3,'Dossiers']]) {
     await act(async()=>{history.replaceState(null,'',routes[index]);window.dispatchEvent(new window.PopStateEvent('popstate'));});
     assert.equal(document.title,`${title} — European Parliament data explorer`);
     assert.equal(h.container.querySelector('h1').textContent,title);

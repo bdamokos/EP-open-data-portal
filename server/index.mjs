@@ -1,3 +1,4 @@
+import {readTopics} from './topics-reader.mjs';
 import {errorLog,clientErrorEvent,serverErrorEvent} from './error-log.mjs';
 import {documentImage} from './document-image-store.mjs';
 import {PORTRAIT_VERSION} from './portrait-version.mjs';
@@ -129,7 +130,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
@@ -255,8 +256,11 @@ async function handleApi(request,response,url,apiPrefix){
       pressMentions??=new PressMentions(activityIndex().press,official().sources);
       result=await pressMentions.query(query);
     }
+    else if (segments.length===2 && ((segments[0]==='topics'&&['search','overview','detail','story-facts'].includes(segments[1]))||(segments[0]==='insights'&&segments[1]==='record-topics'))) {
+      result=await readTopics(activityIndex().store.filename,segments[0]==='topics'?segments[1]:'records',url.searchParams,{pressFilename:activityIndex().press.filename});
+    }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
-      result=groupVoicesPage(activityIndex().store,groupVoicesQuery(url.searchParams));
+      result=await readTopics(activityIndex().store.filename,'group-voices',url.searchParams);
     }
     else if (segments.length===2 && segments[0]==='insights' && segments[1]==='following-dossiers') {
       result=followingDossiers(activityIndex().store,url.searchParams);

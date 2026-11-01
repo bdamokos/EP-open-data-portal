@@ -1,3 +1,4 @@
+import {agendaTitle} from './topicPresentation.mjs';
 import {reportUiError} from './errorDiagnostics.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -155,7 +156,7 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
         {!data.total&&<p><UiMessage id="textsearch.no_matches_in_available_text_try_another_phrase_language_or_"/></p>}
         {data.results.map(result=>{
           const sources=[...new Set(result.hits.map(hit=>hit.sourceId))];
-          return <article className="explorer-search-result" key={result.sourceId}><div className="explorer-search-meta"><span>{(group==='question') ? ui.t("textsearch.question") : kindLabel(result.kind, ui)}{result.reference ? (' · '+result.reference) : ''}</span><span lang={language}>{dateLabel((group==='question') ? (result.questionDate||result.date) : result.date,language)}</span></div><h4 lang="">{result.title||result.sourceId}</h4>
+          return <article className="explorer-search-result" key={result.sourceId}><div className="explorer-search-meta"><span>{(group==='question') ? ui.t("textsearch.question") : kindLabel(result.kind, ui)}{result.reference ? (' · '+result.reference) : ''}</span><span lang={language}>{dateLabel((group==='question') ? (result.questionDate||result.date) : result.date,language)}</span></div><h4 lang="">{result.kind==='speech'?agendaTitle(result.title||result.sourceId):result.title||result.sourceId}</h4>
           {sources.map(id=>{const versions=result.hits.filter(hit=>hit.sourceId===id),hit=versions.find(h=>textReadKey(h)===read)||versions.find(h=>h.sourceKey===variants[id])||versions.find(h=>h.language===searchedLanguage)||versions.find(h=>h.language===language)||versions[0];if(!hit)return null;const key=textReadKey(hit);return <div className="explorer-search-match" key={id}>
             <div className="explorer-search-meta"><span>{(hit.kind==='answer') ? ui.t("textsearch.match_in_institutional_answer") : ((hit.kind==='question') ? ui.t("textsearch.match_in_question_text") : ui.t("textsearch.match_in_speech"))}{((hit.kind==='answer') && hit.date) ? <> · <span lang={language}>{dateLabel(hit.date,language)}</span></> : ''}</span><span>{hit.translationType==='machine' ? <UiMessage id="textsearch.language_machine_translation" values={{language:<span lang={language}>{languageName(hit.language,language)}</span>}}/> : <span lang={language}>{languageName(hit.language,language)}</span>}</span></div>
             <div className="explorer-search-attribution"><Attribution hit={hit}/></div><p className="explorer-search-excerpt" lang={hit.language||''}><Excerpt text={hit.snippet}/></p>

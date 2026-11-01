@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import {API_VERSION} from '../server/api-version.mjs';
 import assert from 'node:assert/strict';
@@ -44,7 +45,7 @@ async function harness(t,{items=[questionItem],activity,module='activities',lang
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all app requests use isolated public-source fixtures');
   });
-  t.mock.method(globalThis,'fetch',async(input,options)=>{
+  t.mock.method(globalThis,'fetch',async(input,options)=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];if(route!=='corpus/search')assert.equal(url.searchParams.get('v'),String(API_VERSION));url.searchParams.delete('v');
     if(route?.startsWith('speech-transcript/')&&!stored)return Response.json({id:route.split('/')[1],available:false});
     if(stored&&route?.startsWith('speech-transcript/'))return new Promise(resolve=>pending.push({route:route+url.search,resolve,finished:false}));

@@ -1,3 +1,4 @@
+import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 import {odp} from './odp.mjs';
 import {OfficialContextWarmer} from './official-context-warmer.mjs';
 import {LegalReferences} from './legal-references.mjs';
@@ -8,6 +9,10 @@ import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
+import {RECORD_TOPICS_VERSION} from './record-topics.mjs';
+import {storyCollectionDue} from './story-facts-collector.mjs';
+import {STORY_FACTS_VERSION} from './story-facts-model.mjs';
+import {topicCollectionDue} from './topics-collector.mjs';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
@@ -95,13 +100,13 @@ export function feedDocuments(xml,endpoint) {
   if(entries.length && !result.length)throw new Error('Update feed entries contain no recognised API identifiers.');
   return result;
 }
-export async function apiFetch(endpoint,params={}, {xml=false,signal,snapshotObservation=false}={}) {
+export async function apiFetch(endpoint,params={}, {xml=false,signal,backgroundLow=false,preserveStatus=false,snapshotObservation=false}={}) {
   const url=new URL(ODP_BASE+endpoint);
   for (const [key,value] of Object.entries({...params,...(!xml?{format:'application/ld+json'}:{})})) url.searchParams.set(key,String(value));
   return boundedUpstream(async()=> {
     const response=await observedOdpFetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if(snapshotObservation)await snapshotHttpObservation(response,url,{signal});
-    if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
+    if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString(),...(preserveStatus?{status:204}:{})};
     if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
     if (!(xml?/xml/.test(contentType):/json/.test(contentType))) {await response.body?.cancel();throw new Error(`EP API returned unexpected ${contentType || 'missing content type'} at ${endpoint}.`);}
@@ -111,7 +116,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal,snapshotObs
     if (xml) return {xml:text,fetchedAt:new Date().toISOString()};
     const payload=JSON.parse(text);if(!Array.isArray(payload.data))throw new Error('EP API returned an invalid data array.');
     return {payload,fetchedAt:new Date().toISOString()};
-  },{priority:'background',signal});
+  },{priority:'background',signal,backgroundRank:backgroundLow?1:0});
 }
 // Amendment rebuilds can outrank due refresh tasks indefinitely, e.g. a
 // members rebuild that restarts after newly fetched profiles. When both are
@@ -136,6 +141,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
+    if(storyCollectionDue(this.store,this.clock())||this.store.get('storyProjectionDirty')||this.generationExecutor&&this.store.get('active')&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||topicCollectionDue(this.store,this.clock())||this.store.get('topicProjectionDirty')||this.generationExecutor&&this.store.get('active')&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
@@ -815,6 +821,8 @@ export class ActivityWorker {
       let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
       const active=this.store.get('active') || 0,existing=this.store.get('working');
+      if(active&&this.generationExecutor&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))await this.generationExecutor('topics',{generation:active,signal:this.controller.signal});
+      else if(active&&this.generationExecutor&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)await this.generationExecutor('stories',{generation:active,signal:this.controller.signal});
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
         // additive amendment snapshot behind. Adopt it before reading sources.
@@ -949,12 +957,17 @@ export class ActivityWorker {
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
+          // Reserve one of 32 busy dispatches; idle capacity still fills sources.
+          if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
           if(!task)break;
+          ordinaryCollectorTurn(this);
           try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}catch(error){if(this.stopped||this.controller.signal.aborted)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
         } finally {taskIteration();}
       }
       if(!this.stopped)this.controller.signal.throwIfAborted();
+      if(!this.stopped&&this.store.get('topicProjectionDirty')&&this.generationExecutor)await this.generationExecutor('topics',{generation:this.store.get('active'),signal:this.controller.signal});
+      else if(!this.stopped&&this.store.get('storyProjectionDirty')&&this.generationExecutor)await this.generationExecutor('stories',{generation:this.store.get('active'),signal:this.controller.signal});
       if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }

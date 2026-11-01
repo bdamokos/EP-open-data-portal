@@ -1,0 +1,59 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {ActivityStore} from './activity-index-store.mjs';
+import {projectRecordTopics} from './record-topics.mjs';
+import {RecordTopics,writeTopicProjection,quarter,topicPeriods} from './topics-store.mjs';
+import {countryMatches,eurovocCountries} from './topic-roles.mjs';
+const doc='B-10-2026-0423',event='MTG-PL-2026-10-07-PVCRE-ITM-12',speech='MTG-PL-2026-10-07-OTH-100',proc='2026-2790';
+const nodes=()=>[{id:doc,kind:'document',date:'2026-10-07',titles:{en:'Georgia'},eurovoc:['http://eurovoc.europa.eu/245','http://eurovoc.europa.eu/5652'],subjectMatter:['http://publications.europa.eu/resource/authority/subject-matter/DDLH'],procedureIds:[proc]}, {id:proc,kind:'procedure',reference:'2026/2790(RSP)'},{id:event,kind:'event',date:'2026-10-07',documentIds:[doc],procedureEdges:[{id:proc,field:'inverse_consists_of'}]},{id:speech,kind:'speech',date:'2026-10-07',parentIds:[event]}, {id:'E-10-2026-003158',kind:'question',date:'2026-10-07',titles:{en:'Georgia and Ukraine'},eurovoc:['http://eurovoc.europa.eu/245']}];
+const options=()=>({procedureTopics:new Map([[proc,{reference:'2026/2790(RSP)',assignments:[{concept:{key:'oeil:7.30.30.06',uri:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2026/2790(RSP)',labels:{en:'Human rights',fr:'Droits humains'}},steps:[],sources:[]}]}]])});
+function fixture(t){const dir=mkdtempSync(path.join(tmpdir(),'topics-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(()=>{store.close();rmSync(dir,{recursive:true,force:true});});store.acquire();store.set('active',1);return store;}
+test('one-to-one country mapping excludes either direction of ambiguity',()=>{const rows=[{concept:'a',country:'x/A'},{concept:'a',country:'x/B'},{concept:'c',country:'x/C'},{concept:'d',country:'x/C'},{concept:'e',country:'x/E'}];assert.deepEqual([...countryMatches(rows)],[['e','E']]);assert(!eurovocCountries.has('http://eurovoc.europa.eu/5458'));assert(![...eurovocCountries.values()].includes('EUR'));assert(eurovocCountries.size>200);});
+test('roles and exact inheritance keep written questions unclassified with title places',t=>{const store=fixture(t),projection=projectRecordTopics(nodes(),options());writeTopicProjection(store,projection);const service=new RecordTopics(store);const r=service.record(speech,'fr');assert.equal(r.topics[0].label,'Droits humains');assert(r.keywords.some(k=>k.key==='eurovoc:245'));assert(r.places.some(p=>p.id==='GEO'&&p.basis==='official'));assert(!r.keywords.some(k=>k.key==='eurovoc:5652'));assert.throws(()=>service.query(new URLSearchParams('key=eurovoc:5652'),'detail'));assert(!r.keywords.some(k=>k.key.startsWith('subject-matter:')));const q=service.record('E-10-2026-003158','en');assert.deepEqual(q.topics,[]);assert.deepEqual(q.keywords,[]);assert.equal(q.status,'not-classified');assert(q.places.some(p=>p.id==='GEO'&&p.basis==='title'));});
+test('ambiguous speech parents withhold all inherited annotations',()=>{const ns=nodes();ns.find(n=>n.id===speech).parentIds=[event,'MTG-PL-2026-10-07-PVCRE-ITM-13'];const r=projectRecordTopics(ns,options()).records.find(r=>r.id===speech);assert.equal(r.status,'ambiguous');assert.deepEqual(r.assignments,[]);});
+test('quarters use Brussels calendar date and include partial term boundaries',()=>{assert.equal(quarter('2024-07-16'),'2024-Q3');assert.deepEqual(topicPeriods(Date.parse('2024-09-30T22:30:00Z')),['2024-Q3','2024-Q4']);});
+test('overview uses sparse period objects, localized search and grouped detail',t=>{const store=fixture(t);writeTopicProjection(store,projectRecordTopics(nodes(),options()));const service=new RecordTopics(store),run=(view,query)=>service.query(new URLSearchParams(query),view);const overview=run('overview','');assert.equal(overview.items.length,1);assert.equal(overview.items[0].total,3);assert.equal(overview.items[0].series[0].period,'2026-Q4');assert.equal(run('search','q=DROITS&lang=fr').results[0].role,'topic');assert.equal(run('search','q=human').results[0].total,3);const detail=run('detail','key=oeil:7.30.30.06');assert.equal(detail.total,3);assert.equal(detail.groups.length,1);assert.equal(detail.groups[0].speechCount,1);assert.equal(detail.groups[0].items.length,2);assert.equal(detail.facets.topics[0].n,3);assert.equal(run('detail','key=oeil:7.30.30.06&kind=speech').groups[0].speechCount,1);assert.equal(run('detail','key=oeil:7.30.30.06&to=2025-01-01').total,0);});
+test('pagination counts groups rather than records; readiness never turns missing into zero',t=>{const store=fixture(t),ns=Array.from({length:43},(_,i)=>({id:'B-10-2026-'+String(i).padStart(6,'0'),kind:'document',date:'2026-10-07',eurovoc:['http://eurovoc.europa.eu/245']}));const service=new RecordTopics(store);assert.deepEqual(service.query(new URLSearchParams('key=eurovoc:245'),'detail'),{ready:false});writeTopicProjection(store,projectRecordTopics(ns));let offset=0,seen=[];do{const r=service.query(new URLSearchParams('key=eurovoc:245&offset='+offset),'detail');assert.equal(r.total,43);seen.push(...r.groups.map(g=>g.key));offset=r.nextOffset;}while(offset!==null);assert.equal(new Set(seen).size,43);store.set('active',2);assert.deepEqual(service.query(new URLSearchParams(''),'overview'),{ready:false});assert.throws(()=>service.query(new URLSearchParams('ids='+Array(51).fill('x').join(','))));});
+
+test('oral questions inherit only their explicit debate, while vote records retain their own kind',t=>{
+ const store=fixture(t),ns=nodes(),q='O-10-2026-000031';ns.push({id:q,kind:'question',date:'2026-10-07',titles:{en:'Question on Ukraine'}});ns.find(n=>n.id===event).documentIds.push(q);
+ ns.push({id:'MTG-PL-2026-10-07-OJ-ITM-V-1',kind:'event',activityType:'def/ep-activities/PLENARY_VOTE',date:'2026-10-07',documentIds:[doc]});
+ writeTopicProjection(store,projectRecordTopics(ns,options()));const service=new RecordTopics(store),question=service.record(q,'en');assert(question.topics.length);assert(question.places.some(p=>p.id==='UKR'&&p.basis==='title'));assert(!question.places.some(p=>p.id==='GEO'));assert.equal(service.record('MTG-PL-2026-10-07-OJ-ITM-V-1','en').kind,'vote');
+});
+
+test('Belarus uses the published replacement and typed ISO alpha-3 notation',async t=>{
+ const {countryIdentity}=await import('./topic-country-identity.mjs');assert.deepEqual(countryIdentity('BYS'),{id:'BLR',iso2:'BY',iso3:'BLR'});assert.equal(countryIdentity('1A0').iso3,null);
+ const store=fixture(t);writeTopicProjection(store,projectRecordTopics([{id:'E-10-2026-000001',kind:'question',date:'2026-10-07',titles:{en:'Belarus'}}]));const r=new RecordTopics(store).record('E-10-2026-000001','en');assert.equal(r.places[0].id,'BLR');assert.equal(r.places[0].iso3,'BLR');assert.equal(r.places[0].basis,'title');
+});
+test('group units, spike captions and denominators accompany sparse overview and filtered detail series',t=>{
+ const store=fixture(t);writeTopicProjection(store,projectRecordTopics(nodes(),options()));const service=new RecordTopics(store),overview=service.query(new URLSearchParams(),'overview'),item=overview.items[0],s=item.series[0];assert.equal(item.total,3);assert.equal(item.groupsTotal,1);assert.equal(s.groups,1);assert(s.top.key&&s.top.title&&s.top.date);assert.equal(overview.periodTotals['2026-Q4'].question,1);assert.equal(overview.periodTotals['2026-Q4'].document,1);assert.equal(overview.sittingDays['2026-Q4'],1);assert.equal(overview.sittingDays['2024-Q3'],null);assert.deepEqual(overview.partial,{first:'2024-07-16',last:'2026-10-07'});
+ const detail=service.query(new URLSearchParams('key=oeil:7.30.30.06&kind=speech'),'detail');assert.equal(detail.series[0].groups,1);assert.equal(detail.series[0].speech,1);assert(detail.series[0].top.title);assert.equal(detail.groupsTotal,1);
+ const places=service.query(new URLSearchParams('role=place'),'overview');for(const p of places.items)assert.equal(p.total,Object.values(p.counts).reduce((a,b)=>a+b,0));assert(places.items.find(p=>p.id==='GEO').iso3==='GEO');
+});
+
+test('keyword co-occurrence counts a shared record once across several policy areas',t=>{
+ const store=fixture(t),topicKeys=['oeil:3.10.01','oeil:7.30.30.06'],keywords=['eurovoc:100','eurovoc:200'];
+ const records=[['B-10-2026-000001',[...topicKeys,...keywords]],['B-10-2026-000002',[...topicKeys,'eurovoc:200']],['B-10-2026-000003',[topicKeys[0],'eurovoc:100']]].map(([id,keys])=>({id,kind:'document',date:'2026-10-07',status:'classified',titles:{en:'A saved heading'},assignments:keys.map(key=>({key,role:key.startsWith('oeil:')?'topic':'keyword',paths:[]}))}));
+ const concepts=[...topicKeys,...keywords].map(key=>({key,role:key.startsWith('oeil:')?'topic':'keyword',uri:'http://eurovoc.europa.eu/'+key.split(':')[1],labels:{en:'Descriptor '+key},alternatives:{en:[]}}));writeTopicProjection(store,{records,concepts});const r=new RecordTopics(store).record(records[0].id,'en');assert.deepEqual(r.keywords.map(k=>k.key),keywords);assert(r.keywords.every(k=>k.featured));assert.deepEqual(r.topics.map(k=>k.key),topicKeys);
+});
+
+test('Greek question authors match Greece through authority ISO notation and Cyprus remains elsewhere',t=>{
+ const store=fixture(t);store.setMembers([{id:'42',name:'Member',countryCode:'GR'}]);const ns=[{id:'E-10-2026-000001',kind:'question',date:'2026-10-07',titles:{en:'Greece and Cyprus'},members:['42']},{id:'E-10-2026-000002',kind:'question',date:'2026-10-07',titles:{en:'Greece and Cyprus'},members:['99']}];writeTopicProjection(store,projectRecordTopics(ns));const service=new RecordTopics(store),r=service.record(ns[0].id,'en');assert.equal(r.places.find(p=>p.id==='GRC').askers,'home');assert.equal(r.places.find(p=>p.id==='CYP').askers,'elsewhere');
+ const overview=askers=>service.query(new URLSearchParams({role:'place',askers}),'overview'),all=overview('all'),greece=all.items.find(p=>p.id==='GRC').series[0];assert.equal(greece.question,2);assert.equal(greece.questionHome,1);assert.equal(greece.questionElsewhere,0);assert.equal(greece.questionUnknown,1);assert.equal(overview('elsewhere').items.find(p=>p.id==='CYP').counts.question,1);assert(!overview('elsewhere').items.some(p=>p.id==='GRC'));assert.equal(overview('home').items.find(p=>p.id==='GRC').counts.question,1);
+ const detail=service.query(new URLSearchParams('key=place:GRC&askers=home'),'detail');assert.equal(detail.total,1);assert.equal(detail.groups[0].items[0].id,ns[0].id);assert.equal(detail.series[0].questionHome,1);assert.equal(detail.series[0].questionUnknown,0);assert(!service.query(new URLSearchParams('q=Greece&askers=elsewhere'),'search').results.some(p=>p.key==='place:GRC'));assert.throws(()=>overview('unknown'));
+});
+
+test('official urgency-request ballots remain votes rather than debates',t=>{
+ const store=fixture(t),id='MTG-PL-2026-10-20-OJ-ITM-V-88';
+ writeTopicProjection(store,projectRecordTopics([{id,kind:'event',activityType:'def/ep-activities/REQUEST_VOTE_URGENCY',date:'2026-10-20'}]));
+ assert.equal(new RecordTopics(store).record(id,'en').kind,'vote');
+});
+
+test('detail has no arbitrary offset ceiling and long searches fail explicitly',t=>{
+ const store=fixture(t);writeTopicProjection(store,projectRecordTopics(nodes(),options()));const reader=new RecordTopics(store);
+ const beyond=reader.query(new URLSearchParams('key=oeil:7.30.30.06&offset=20020'),'detail');assert.equal(beyond.total,3);assert.deepEqual(beyond.groups,[]);assert.equal(beyond.nextOffset,null);
+ assert.throws(()=>reader.query(new URLSearchParams({q:'x'.repeat(121)}),'search'),/shorter search/);
+});

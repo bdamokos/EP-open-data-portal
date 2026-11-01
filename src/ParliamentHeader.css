@@ -38,3 +38,8 @@
 .parliament-header .explorer-scheme-toggle:hover { background:var(--surface-2); border-color:var(--line); }
 .parliament-header .explorer-scheme-toggle:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
 .explorer-scheme-toggle svg { width:21px; height:21px; flex:none; }
+
+@media(max-width:620px){
+ .parliament-header nav {grid-template-columns:repeat(4,minmax(0,1fr))}
+ :is(.explorer,.explorer-insights) .parliament-header nav[aria-label] > button {min-height:44px;font-size:12px;line-height:16px;padding:6px 3px}
+}

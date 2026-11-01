@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -29,7 +30,7 @@ test('question addressee controls reset paging, preserve combined scopes and fil
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   let loadModule,root;const requests=[];
   t.after(async()=>{if(root)await act(async()=>root.unmount());await loadModule?.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
-  t.mock.method(globalThis,'fetch',async(input,init)=>{
+  t.mock.method(globalThis,'fetch',async(input,init)=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href);requests.push({url,body:init?.body?JSON.parse(init.body):null});
     if(url.pathname.endsWith('/corpus/search'))return Response.json({results:[],total:0,offset:0,limit:20,nextOffset:null,coverage:{complete:false}});
     assert(url.pathname.endsWith('/insights/questions'));return Response.json(response(url));

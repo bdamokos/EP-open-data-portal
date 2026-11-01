@@ -1,13 +1,15 @@
-import {test} from 'node:test';
+import {test,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {OfficialContextSources} from './official-context.mjs';
-import {backoffUpstream} from './odp.mjs';
+import {backoffUpstream,upstreamPortServices} from './odp.mjs';
 import {runWithRequestSignal} from './request-budget.mjs';
 import {UpstreamQueue} from './upstream-queue.mjs';
 
 const po='https://publications.europa.eu/webapi/rdf/sparql';
 const oeil='https://oeil.europarl.europa.eu/oeil/en/procedure-file';
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+// Shared origin state is process-wide; each mock-clock fixture starts idle.
+beforeEach(()=>{for(const source of [po,oeil]){const q=upstreamPortServices().queueFor(new URL(source).origin);assert.equal(q.active,0);assert.equal(q.waiters.length,0);q.nextStart=0;q.cooldownUntil=0;}});
 const until=async condition=>{for(let i=0;i<100&&!condition();i++)await flush();assert(condition(),'the expected asynchronous phase started');};
 const json=()=>Response.json({results:{bindings:[]}});
 
@@ -39,7 +41,7 @@ test('cold official sources use independent origins during a Parliament cooldown
   try{assert.equal(calls.length,2,'neither public origin waits for Parliament');}
   finally{t.mock.timers.tick(60_000);await Promise.all([first,second]);}
   assert.equal(reader.queues.size,2);
-  for(const queue of reader.queues.values()){assert.equal(queue.interval,0);assert.equal(queue.maximum,2);assert.equal(queue.active,0);}
+  for(const queue of reader.queues.values()){assert.equal(queue.interval,0);assert.equal(queue.maximum,queue===reader.queues.get(new URL(oeil).origin)?1:2);assert.equal(queue.active,0);}
 });
 
 test('an aborted reader detaches from a shared cold source without cancelling its survivor or cache write',async()=>{
@@ -128,3 +130,39 @@ test('local official admission failure leaves a stale source immediately retryab
     assert.equal((await reader.get(url)).data.label,'fresh');assert.equal(calls,1);
   }finally{release();}
 });
+
+test('leased topic collection awaits a stale page refresh at background priority',async()=>{
+ let now=100000,calls=0,finish;
+ const reader=new OfficialContextSources({directory:null,clock:()=>now,fetchSource:async()=>{calls++;if(calls===2)await new Promise(resolve=>finish=resolve);return new Response('<main>'+calls+'</main>',{headers:{'content-type':'text/html'}});}});
+ const url=oeil+'?reference=2026/2790(RSP)';await reader.get(url);now+=1000;reader.queues.get(new URL(oeil).origin).nextStart=0;upstreamPortServices().queueFor(new URL(oeil).origin).nextStart=0;
+ let settled=false;const pending=reader.get(url,{freshMs:1,priority:'background',waitForFresh:true}).then(value=>{settled=true;return value;});
+ await until(()=>finish);assert.equal(settled,false);finish();const result=await pending;assert.equal(result.viewCache.stale,false);assert(result.html.includes('2'));assert.equal(reader.cache.pending.size,0);
+});
+
+test('OEIL starts are serial and paced, with origin-wide 5xx Retry-After backoff',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:50000});
+ const starts=[],reader=new OfficialContextSources({directory:null,fetchSource:async()=>{starts.push(Date.now());return starts.length===1?new Response(null,{status:500,headers:{'retry-after':'3'}}):new Response('<main>Read</main>',{headers:{'content-type':'text/html'}});}});
+ await assert.rejects(reader.get(oeil+'?reference=2025/0001(COD)'),e=>e.retryAfter===3);
+ const next=reader.get(oeil+'?reference=2025/0002(COD)',{priority:'background'});await flush();t.mock.timers.tick(2999);await flush();assert.equal(starts.length,1);t.mock.timers.tick(1);await next;
+ const third=reader.get(oeil+'?reference=2025/0003(COD)',{priority:'background'});await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,2);t.mock.timers.tick(1);await third;
+ assert.deepEqual(starts,[50000,53000,54000]);assert.equal(reader.queues.get(new URL(oeil).origin).maximum,1);
+});
+
+test('OEIL redirects spend paced starts before the next page can begin',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});const starts=[];
+ const reader=new OfficialContextSources({directory:null,fetchSource:async()=>{starts.push(Date.now());return starts.length===1?new Response(null,{status:302,headers:{location:oeil+'?reference=2025/0001(COD)&redirected=1'}}):new Response('<main>Read</main>',{headers:{'content-type':'text/html'}});}});
+ const first=reader.get(oeil+'?reference=2025/0001(COD)');await until(()=>starts.length===1);await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,1);t.mock.timers.tick(1);await first;
+ const second=reader.get(oeil+'?reference=2025/0002(COD)',{priority:'background'});await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,2);t.mock.timers.tick(1);await second;assert.deepEqual(starts,[1000,2000,3000]);
+});
+
+ test('distinct official readers share serial OEIL starts and a redirect spends another shared grant',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});const starts=[];let finish;
+ const one=new OfficialContextSources({directory:null,fetchSource:async()=>{starts.push(Date.now());await new Promise(r=>finish=r);return new Response(null,{status:302,headers:{location:oeil+'?reference=redirected'}});}});
+ const two=new OfficialContextSources({directory:null,fetchSource:async()=>{starts.push(Date.now());return new Response('<main>Read</main>',{headers:{'content-type':'text/html'}});}});
+ const first=one.get(oeil+'?reference=one');await until(()=>finish);
+ const second=two.get(oeil+'?reference=two',{priority:'background'});await flush();t.mock.timers.tick(1000);await flush();assert.deepEqual(starts,[1000]);
+ one.fetchSource=two.fetchSource;finish();await flush();await flush();
+ // Interactive redirected hops lead background pages, but cannot skip pacing.
+ await until(()=>starts.length===2);t.mock.timers.tick(1000);await Promise.all([first,second]);assert.deepEqual(starts,[1000,2000,3000]);
+ const q=upstreamPortServices().queueFor(new URL(oeil).origin);assert.equal(q.interval,1000);assert.equal(q.maximum,1);assert.equal(q.active,0);
+ });

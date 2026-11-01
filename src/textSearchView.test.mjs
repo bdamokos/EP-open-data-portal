@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act,useRef} from 'react';
@@ -28,7 +29,7 @@ async function setup(t,{query='',respond,highlights=false,members}={}) {
   let loadModule,root;
   t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();frames.clear();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[];
-  t.mock.method(globalThis,'fetch',async(input,options={})=>{
+  t.mock.method(globalThis,'fetch',async(input,options={})=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,window.location.href),body=options.body?JSON.parse(options.body):null,call={url,options,body};calls.push(call);
     if(respond){const response=await respond(call);if(response)return response;}
     if(url.pathname.endsWith('/corpus/search'))return Response.json(results(body));

@@ -36,7 +36,7 @@ test('designation and person belong to the same exact speaking participation; du
  assert.equal(groupVoiceProjection({...a,had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT'}),null);
  assert.equal(groupVoiceProjection({...a,activity_date:'2026-02-31'}),null);
  assert.equal(groupVoiceProjection({...a,had_participation:[]}).designations.length,0);
- assert.equal(groupVoiceProjection({...a,had_participation:participation('42','S_D'),inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-18']}).subject,'foreign');
+ assert.equal(groupVoiceProjection({...a,had_participation:participation('42','S_D'),inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-06-PVCRE-ITM-18']}).subject,'unclassified');
 });
 test('retained public fixture has exact structured group designations without parsing translated headers',()=>{
  const fixture=JSON.parse(readFileSync(new URL('./fixtures/speech-interventions-live-20261015.json',import.meta.url)));
@@ -50,8 +50,8 @@ test('indexed summaries, subject/person intersections and evidence pages use sav
  for(const a of [speech('1','2026-09-01'),speech('2','2026-10-06'),speech('3','2026-10-06',[participation('43','S_D')]),speech('4','2026-10-06',[participation('42','PPE')])])worker.saveSpeech(cycle.generation,a,stamp,false,'https://data.europarl.europa.eu/api/v2/speeches');
  worker.saveSpeech(cycle.generation,speech('2','2026-10-06'),stamp); // idempotent
  const summary=groupVoicesPage(store,query());assert.equal(summary.people.length,2);assert.equal(summary.people[0].total,2);assert.equal(summary.people[0].name,'Éva Example');assert.deepEqual(summary.months,['2026-10','2026-09']);
- assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,subjects:{unclassified:3},truncated:false});assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,subjects:{unclassified:1},truncated:false});assert.equal(summary.groupSubjects.find(g=>g.id==='ECR').total,0);assert.equal(groupVoicesQuery(new URLSearchParams(),{now:now()}).group,'PPE');
- const page=groupVoicesPage(store,query('part=contributions&person=42&subject=unclassified&limit=1'));assert.equal(page.total,2);assert.equal(page.nextOffset,1);assert.equal(page.contributions[0].designation.group,'S_D');assert(page.contributions[0].source.fetchedAt);
+ assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,speakerTotal:2,subjects:{},unresolvedContributions:3,truncated:false});assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,speakerTotal:1,subjects:{},unresolvedContributions:1,truncated:false});assert.equal(summary.groupSubjects.find(g=>g.id==='ECR').total,0);assert.equal(groupVoicesQuery(new URLSearchParams(),{now:now()}).group,'PPE');
+ const page=groupVoicesPage(store,query('part=contributions&person=42&limit=1'));assert.equal(page.total,2);assert.equal(page.nextOffset,1);assert.equal(page.contributions[0].designation.group,'S_D');assert(page.contributions[0].source.fetchedAt);
  assert.equal(groupVoicesPage(store,query('period=2026-08')).coverage.authoritativeComplete,false);
  const plan=store.db.prepare('EXPLAIN QUERY PLAN SELECT speech,person,date,subject FROM group_voice_designations WHERE generation=? AND group_id=? AND date>=? AND date<=? ORDER BY date DESC,speech,person LIMIT 20001').all(cycle.generation,'S_D','2024-07-16','2026-10-17');assert(plan.some(p=>/COVERING INDEX group_voice_group_date/.test(p.detail)));
 });
@@ -160,9 +160,9 @@ test('cross-group subject counts use the same most-recent row cap as people and 
  const put=store.db.prepare('INSERT INTO group_voice_designations VALUES (?,?,?,?,?,?)');
  store.transaction(()=>{for(let i=0;i<20000;i++)put.run(cycle.generation,'MTG-PL-2026-10-06-OTH-'+i,'42','PPE','2026-10-06','foreign');put.run(cycle.generation,'MTG-PL-2025-01-20-OTH-1','43','PPE','2025-01-20','climate');put.run(cycle.generation,'MTG-PL-2025-01-20-OTH-2','44','ECR','2025-01-20','climate');});
  const summary=groupVoicesPage(store,query('group=PPE')),ppe=summary.groupSubjects.find(g=>g.id==='PPE'),ecr=summary.groupSubjects.find(g=>g.id==='ECR');
- assert.deepEqual(ppe,{id:'PPE',total:20000,subjects:{foreign:20000},truncated:true});assert.equal(summary.coverage.truncated,true);
+ assert.deepEqual(ppe,{id:'PPE',total:20000,speakerTotal:1,subjects:{},unresolvedContributions:20000,truncated:true});assert.equal(summary.coverage.truncated,true);
  assert.equal(groupVoicesPage(store,query('group=PPE&subject=climate&part=contributions')).total,0,'The capped page and the comparison agree.');
- assert.deepEqual(ecr,{id:'ECR',total:1,subjects:{climate:1},truncated:false});
+ assert.deepEqual(ecr,{id:'ECR',total:1,speakerTotal:1,subjects:{},unresolvedContributions:1,truncated:false});
 });
 
 test('group contribution display titles use preference order and retain unknown language text',t=>{
@@ -176,4 +176,13 @@ test('group contribution display titles use preference order and retain unknown 
     const row=groupVoicesPage(store,query('lang=ga&part=contributions')).contributions[0];
     assert.equal(row.title,title);assert.equal(row.titleLanguage,titleLanguage);
   }
+});
+
+test('official topics overlap without inflating distinct group contributions',async t=>{
+ const {writeTopicProjection}=await import('./topics-store.mjs');
+ const store=setup(t),cycle=store.beginCycle();initializeGroupVoices({store,clock:now},cycle.generation,[]);
+ const p=groupVoiceProjection(speech(),{fetchedAt:stamp});store.putSource(cycle.generation,'/speeches/'+p.id,'speech',{id:p.id,groupVoices:p,outside:{titles:{en:'Heading'}}},stamp);store.publish(cycle.generation);
+ const concepts=['oeil:7.30.30.06','oeil:3.10.01'].map(key=>({key,role:'topic',labels:{en:key},uri:'https://oeil.europarl.europa.eu/oeil/en'}));
+ writeTopicProjection(store,{records:[{id:p.id,kind:'speech',date:p.date,titles:{en:'Heading'},members:['42'],status:'classified',assignments:concepts.map(c=>({key:c.key,role:'topic',paths:[{basis:'debate',steps:[],sources:[]}]}))}],concepts});
+ const result=groupVoicesPage(store,query());const group=result.groupSubjects.find(g=>g.id==='S_D');assert.equal(group.total,1);assert.equal(group.speakerTotal,1);assert.equal(group.subjects['oeil:7.30.30.06'],1);assert.equal(group.subjects['oeil:3.10.01'],1);assert.equal(result.total,1);assert.equal(groupVoicesPage(store,query('subject=foreign')).retiredSubject,true);
 });

@@ -267,3 +267,7 @@ test('a late background owner upgrades retries while the original foreground rea
   assert.equal(calls,1);assert.equal(queue.waiters.length,1);
   t.mock.timers.tick(60_000);await background;assert.equal(calls,2);
 });
+
+test('shared ODP background allowance reserves 20 percent for visitors',async()=>{
+ const {ODP_RATE_LIMIT}=await import('./odp.mjs');assert.equal(ODP_RATE_LIMIT.maximum,500);assert.equal(ODP_RATE_LIMIT.windowMs,300000);assert.equal(ODP_RATE_LIMIT.foregroundReserve,100);
+});
