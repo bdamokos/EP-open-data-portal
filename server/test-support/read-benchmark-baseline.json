@@ -159,6 +159,64 @@
       "fullScanLargeTable": false
     },
     {
+      "name": "slow.amendmentsEndpoint",
+      "pageFetches": 64,
+      "rowsReturned": 20,
+      "fullScanSteps": 0,
+      "plan": [
+        "CO-ROUTINE page",
+        "SEARCH amendment_page_reads USING COVERING INDEX amendment_page_order (generation=?)",
+        "SCAN page",
+        "SEARCH source USING INDEX sqlite_autoindex_amendments_1 (generation=? AND id=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.amendmentsEndpointCount",
+      "pageFetches": 541,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH amendment_page_reads USING COVERING INDEX amendment_page_target (generation=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.insightsQuestionsCount",
+      "pageFetches": 326,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH question_frontiers USING COVERING INDEX question_frontier_date (generation=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.insightsQuestionsUndated",
+      "pageFetches": 326,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH question_frontiers USING COVERING INDEX question_frontier_date (generation=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "slow.insightsQuestionsFrontier",
+      "pageFetches": 23,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH question_frontiers USING COVERING INDEX question_frontier_date (generation=? AND subtype=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
       "name": "slow.oldAmendmentBodies",
       "pageFetches": 440,
       "rowsReturned": 400,

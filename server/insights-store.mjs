@@ -153,13 +153,14 @@ export class QuestionInsights {
       const frozen=this.store.readSnapshot(()=>{
         const counts=projected?questionCounts(this.store,status.servingGeneration,query):null;
         return {
-        undatedQuestions:projected?counts.undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
-        count:projected?counts.count:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...params).n,
-        rows:this.store.db.prepare('SELECT key,body,fetched_at FROM '+table+' WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
-        members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
-        rosterFetchedAt:this.store.get('rosterFetchedAt'),
-        frontiers:questionCoverageRecords(this.store,status.servingGeneration)
-      };});
+          undatedQuestions:projected?counts.undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
+          count:projected?counts.count:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...params).n,
+          rows:this.store.db.prepare('SELECT key,body,fetched_at FROM '+table+' WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
+          members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
+          rosterFetchedAt:this.store.get('rosterFetchedAt'),
+          frontiers:questionCoverageRecords(this.store,status.servingGeneration)
+        };
+      });
       const {count,rows,members,undatedQuestions}=frozen;
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const [metadata,bodies]=await Promise.all([this.loadMetadata({members,store:this.store}),this.loadQuestionBodies(sources)]);

@@ -113,7 +113,7 @@ test('question counts preserve undated and subtype semantics with replacements a
   const directory=mkdtempSync(path.join(tmpdir(),'question-counts-')),store=new ActivityStore(directory);
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();
   const put=(id,type,date)=>store.putSource(1,'/parliamentary-questions/'+id,'document',{work_type:type,document_date:date},'2026-10-22T12:00Z');
-  for(const [id,type,date] of [['a','def/QUESTION_WRITTEN',null],['b','def/QUESTION_ORAL',''],['c','def/QUESTION_WRITTEN_PRIORITY','2026-10-10'],['d','def/ANSWER',''],['e','def/QUESTION_WRITTEN','2026-01-01']])put(id,type,date);
+  for(const [id,type,date] of [['a','def/QUESTION_WRITTEN',null],['b','def/QUESTION_ORAL',''],['c','def/QUESTION_WRITTEN_PRIORITY','2026-10-10'],['d','def/ANSWER',''],['e','def/QUESTION_WRITTEN','2026-01-01'],['f','def/question_written','2026-10-10'],['g','def/QUESTIONxWRITTEN','2026-10-10']])put(id,type,date);
   const query={start:'2026-10-01',end:'2026-10-31'};
   const legacy=()=>{
     const where="generation=1 AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
