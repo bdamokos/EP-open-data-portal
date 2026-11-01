@@ -1,7 +1,8 @@
 name: Read benchmark baseline
 
-# Measures main once a week (Monday). When page counts, plans or the toolchain differ from the
-# committed baseline, it opens or updates one refresh pull request; it never opens issues.
+# Measures main once a week (Monday) if main had commits in the past seven days. When page
+# counts, plans or the toolchain differ from the committed baseline, it opens or updates one
+# refresh pull request; it never opens issues. Manual dispatch always measures.
 on:
   schedule:
     - cron: '23 4 * * 1'
@@ -19,8 +20,32 @@ env:
   REFRESH_BRANCH: automation/read-benchmark-baseline
 
 jobs:
-  measure:
+  activity:
     if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      active: ${{ steps.recent.outputs.active }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check for commits on main in the past seven days
+        id: recent
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ "$EVENT" != schedule ] || [ $(( $(date +%s) - last )) -lt $(( 7 * 24 * 3600 )) ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "No commits on main since $(git log -1 --format=%cI); skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  measure:
+    needs: activity
+    if: ${{ needs.activity.outputs.active == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
