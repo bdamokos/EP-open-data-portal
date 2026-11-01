@@ -79,6 +79,7 @@ export function replaySourceClients(cache,runtime) {
     const request={accept:options.headers.Accept,...(options.headers['Accept-Language']?{language:options.headers['Accept-Language']}:{})};
     const missing=await missingDeclaredRepresentation(cache,url,request);if(missing)throw missing;
     const input=await cache.get(url,{...request,raw:true,signal:options.signal});
+    if(input.acquisitionUnavailable)throw Object.assign(new Error('acquisition-unavailable'),{code:'acquisition-unavailable',source:input});
     sourceTime=Date.parse(input.fetchedAt);
     if(!Number.isFinite(sourceTime))throw new Error('Invalid source observation time: '+url);
     observedTime=Math.max(observedTime,sourceTime);
@@ -115,6 +116,7 @@ export function sourceReplay(cache,runtime) {
     const id=endpoint.split('/').at(-1),list=endpoint.startsWith('/documents/');
     const url=list?'https://data.europarl.europa.eu/api/v2/documents/'+id+'?format=application%2Fld%2Bjson':publicDocumentUrl(id);
     const input=await cache.get(url,{accept:'application/ld+json'});
+    if(input.acquisitionUnavailable)return {payload:{data:[]},url:input.url,fetchedAt:null,status:null,acquisitionUnavailable:true};
     if(!input.ok)return {payload:{data:[]},url:input.url,fetchedAt:Date.parse(input.fetchedAt),status:input.status};
     let payload;try{payload=JSON.parse(input.body.toString('utf8'));}catch{throw new Error('Invalid public document JSON: '+input.url);}
     const nodes=payload?.data;
