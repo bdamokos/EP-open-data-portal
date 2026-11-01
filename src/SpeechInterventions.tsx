@@ -101,7 +101,7 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
 function ConnectedText({speech,language}:{speech:SpeechSequenceRow;language:string}) {
   const ui = useUiI18n();
   const translation=useSpeechTranslation(speech.id,language),state=translation.state,body=state.transcript;
-  const video=useSpeechVideo((((speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT') && speech.start) && speech.end) ? speech : null,language,translation.originalAudio);
+  const video=useSpeechVideo((((speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT') && speech.start) && speech.end) ? speech : null,language);
   const paragraphs=transcriptParagraphs(body?.xml??null).paragraphs;
   return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
     {(body||video.toggle||translation.control)&&<div className="intervention-connected-tools">{body&&<p className="intervention-caption" lang={ui.language}>{body.textLanguage?.toUpperCase()}</p>}{translation.control}{video.toggle}</div>}
