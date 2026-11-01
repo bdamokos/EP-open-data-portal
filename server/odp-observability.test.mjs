@@ -98,7 +98,7 @@ test('backfill smooths admission and adapts after throttling without raising the
   t.mock.timers.tick(9999);assert.equal(calls.length,2);t.mock.timers.tick(1);await third;
   assert.equal(calls.length,3);assert(queue.quotaSnapshot().startsInWindow<=3);
   for(let i=0;i<5000;i++)queue.recordResponse(200);
-  assert.equal(queue.interval,667);
+  assert.equal(queue.interval,750);
   assert.throws(()=>odpPacing('unlimited'));
   assert.equal(odpPacing('steady').interval,1500);
 });

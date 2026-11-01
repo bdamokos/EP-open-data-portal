@@ -12,11 +12,11 @@ const ordinaryBackfillQuantum=8;
 // Reserve a bounded share of dispatches, not extra requests. Canonical tasks
 // retain their priority, cursor and retry ownership; only due tasks can run.
 // Persist the turn so small budgets and restarts cannot reset the allowance.
-export function nextBackfillTask(store,generation,ordinaryTask) {
+export function nextBackfillTask(store,generation,ordinaryTask,amendmentJob) {
   store.assertWriter();
   if(!ordinaryTask)return ordinaryTask;
   const preferred=ordinaryTask;
-  ordinaryTask=ordinaryRefreshTask(store,generation,preferred);
+  ordinaryTask=ordinaryRefreshTask(store,generation,preferred,amendmentJob);
   const saved=store.get('backfillSchedule');
   const state=saved?.generation===generation&&Number.isInteger(saved.ordinary)&&saved.ordinary>=0&&saved.ordinary<=ordinaryBackfillQuantum&&[0,1,2].includes(saved.nextLane)
     ?saved:{generation,ordinary:0,nextLane:0};
@@ -208,30 +208,33 @@ export function coverageGap(store,generation,key,body,message,now) {
   store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(generation,key,'coverage',JSON.stringify(body),0,message,0,new Date(now).toISOString(),Number.MAX_SAFE_INTEGER,null);
 }
 
-function ordinaryRefreshTask(store,generation,preferred) {
+function ordinaryRefreshTask(store,generation,preferred,amendmentJob) {
   const tables=['refresh_gap_admissions','mutable_refresh_admissions'];
   const admitted=task=>!task.amendmentJob&&tables.some(table=>store.db.prepare(`SELECT 1 FROM ${table} WHERE generation=? AND key=?`).get(generation,task.key));
   let ordinary=preferred;
   if(admitted(preferred)) {
-    const row=store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_order
-      WHERE task.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=?
+    const dueWhere=`task.generation=? AND (task.done IN (-1,0) OR task.done IS NULL) AND task.retry_at<=?
       AND NOT EXISTS(SELECT 1 FROM refresh_gap_admissions a WHERE a.generation=task.generation AND a.key=task.key)
-      AND NOT EXISTS(SELECT 1 FROM mutable_refresh_admissions a WHERE a.generation=task.generation AND a.key=task.key)
-      ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
+      AND NOT EXISTS(SELECT 1 FROM mutable_refresh_admissions a WHERE a.generation=task.generation AND a.key=task.key)`;
+    // Bound the idle probe by deadline before considering priority order. The
+    // admitted due rows are bounded by the recovery queue caps.
+    const due=store.db.prepare(`SELECT 1 FROM tasks task INDEXED BY task_pending_due WHERE ${dueWhere} LIMIT 1`).get(generation,store.clock());
+    const row=due&&store.db.prepare(`SELECT task.* FROM tasks task INDEXED BY task_pending_due
+      WHERE ${dueWhere} ORDER BY task.priority DESC,task.key DESC LIMIT 1`).get(generation,store.clock());
     ordinary=row?{...row,body:JSON.parse(row.body)}:null;
   }
-  return ordinary;
+  return amendmentJob&&(!ordinary||amendmentJob.priority>ordinary.priority)?amendmentJob:ordinary;
 }
 
 // Recovery lanes alternate after eight ordinary dispatches. Read admission keys
 // first (bounded by the queue caps), then probe each task by its primary key.
-export function nextRefreshTask(store,generation,preferred) {
+export function nextRefreshTask(store,generation,preferred,amendmentJob) {
   if(!preferred)return preferred;
   store.assertWriter();
   const saved=store.get('refreshDispatch');
   const state=saved?.generation===generation?saved:{generation,ordinary:0,nextLane:0};
   const tables=['refresh_gap_admissions','mutable_refresh_admissions'];
-  const ordinary=ordinaryRefreshTask(store,generation,preferred);
+  const ordinary=ordinaryRefreshTask(store,generation,preferred,amendmentJob);
   if(!ordinary||state.ordinary>=8) {
     for(const lane of [state.nextLane,1-state.nextLane]) {
       const row=store.db.prepare(`SELECT task.* FROM ${tables[lane]} a CROSS JOIN tasks task
