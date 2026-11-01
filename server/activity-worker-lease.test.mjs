@@ -77,3 +77,13 @@ test('continuous bodies leave seven of eight one-request turns for core work',as
  for(let n=0;n<16;n++)await worker.run();
  assert.equal(bodies,2);assert.equal(core,14);assert(projections>=16);
 });
+
+ test('idle context warming yields after one job and reconsiders every lane on the next turn',async t=>{
+  const {worker}=fixture(t);let contexts=0,bodies=0,projections=0,checks=0;
+  worker.due=()=>{checks++;return false;};worker.projectionGenerations=()=>[];worker.questionFileGenerations=()=>[];
+  worker.fillProjectionBatch=async()=>{projections++;};
+  worker.documentBodies={due:()=>true,step:async()=>{bodies++;}};
+  worker.officialContext={due:()=>true,step:async()=>{contexts++;return true;}};
+  await worker.run();assert.equal(contexts,1);assert.equal(bodies,1);
+  await worker.run();assert.equal(contexts,2);assert.equal(bodies,2);assert(projections>=2);assert(checks>=2);
+ });

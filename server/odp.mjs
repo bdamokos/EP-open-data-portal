@@ -67,7 +67,7 @@ export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
 }
 const sourceQueues=new Map([['odp',upstreamQueue]]);
 function sourceQueue(source) {
-  if(!['odp','website','documents','document-files','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
+  if(!['odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
   if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue());
   return sourceQueues.get(source);
