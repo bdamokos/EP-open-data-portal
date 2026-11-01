@@ -7,6 +7,22 @@ const event=(mark=1,mep='42',suffix='end')=>({id:`${mep}-m-1:${suffix}`,mep,type
 const snapshot=(generation,events=[],extra={})=>({epoch,generation,lists:{outgoing:{status:'fresh'},incoming:{status:'fresh'}},events,members:{'42':{status:'former',roster:'absent',endDate:'2026-04-13'}},...extra});
 const follows=[{kind:'mep',id:'42',savedAt:100,title:'Member 42'}];
 const storage=()=>{const values=new Map();return {getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};};
+test('membership discoveries share one time per observation with an advancing clock',()=>{
+  let now=1000;const disk=storage(),store=createMembershipStore(disk,()=>{},()=>now++);
+  store.observe(snapshot(1),follows);
+  const older={...event(2),date:'2026-04-12'},first=event(2,'42','start'),second={...first,id:'42-m-2:start'};
+  store.observe(snapshot(2,[older,second,first]),follows);
+  const added=structuredClone(store.snapshot().entries);
+  assert.equal(new Set(added.map(entry=>entry.discoveredAt)).size,1);
+  assert.deepEqual(membershipEntries(store.snapshot(),'42',now).fresh.map(entry=>entry.id),[first.id,second.id,older.id]);
+  store.markRead('42',first.id);const retained=structuredClone(store.snapshot().entries);
+  const later={...event(3),id:'42-m-3:end',date:'2026-04-11'};
+  store.observe(snapshot(3,[older,second,first,later]),follows);
+  assert(store.snapshot().entries.at(-1).discoveredAt>added[0].discoveredAt);
+  assert.equal(membershipEntries(store.snapshot(),'42',now).fresh[0].id,later.id);
+  assert.deepEqual(store.snapshot().entries.slice(0,3),retained);
+  assert.deepEqual(createMembershipStore(disk).snapshot().entries,store.snapshot().entries);
+});
 test('first availability suppresses backlog, later follow uses current generation; no automatic unfollow',()=>{
   const store=createMembershipStore(storage());store.observe(snapshot(3,[event()]),follows);
   assert.deepEqual(store.snapshot().entries,[]);assert.equal(store.snapshot().baselines['42'].generation,3);

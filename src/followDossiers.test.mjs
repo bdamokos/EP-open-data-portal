@@ -17,6 +17,33 @@ const event=(id,date='2026-10-23',status='recorded',label=id)=>({id,date,status,
 function press(mark,items=[],extra={}) {
   return {reference:id,watermark:mark,items,coverage:{followingSince:'2026-10-20',procedureLinks:{status:'available'},feeds:[]},dossier:{title:'Dossier title',language:'en',summaries:[],source:{fetchedAt:'2026-10-23T10:00:00Z'}},...extra};
 }
+for(const source of ['index','progress','summary','press'])test(`${source} discoveries share a batch time and sort by date then source order`,()=>{
+  let now=Date.parse('2026-10-23T10:00:00Z');
+  const values=new Map(),storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};
+  const clock=()=>now++,store=createDossiersStore(storage,()=>{},clock);
+  store.toggle({id});
+  const item=()=>store.snapshot().items[0];
+  const observe=(generation,rows)=>{
+    if(source==='index')store.observeIndex({epoch,generation,indexComplete:true,items:[{reference:id,status:'available',entries:rows.map(row=>({...entry(row.id,generation),date:row.date}))}]},[item()]);
+    if(source==='progress')store.observeProgress(id,progress(new Date(now).toISOString(),rows.map(row=>event(row.id,row.date))),item());
+    if(source==='summary')store.observePress(id,press(generation,[],{dossier:{title:'Dossier',summaries:rows,source:{fetchedAt:new Date(now).toISOString()}}}),item());
+    if(source==='press')store.observePress(id,press(generation,rows.map(row=>({...row,linkedAt:generation,publishedAt:row.date}))),item());
+  };
+  observe(1,[]);
+  const rows=[{id:'older',date:'2026-10-20'},{id:'first',date:'2026-10-22'},{id:'second',date:'2026-10-22'}];
+  observe(2,rows);
+  const added=structuredClone(item().entries);
+  assert.equal(new Set(added.map(row=>row.discoveredAt)).size,1);
+  assert.deepEqual(followEntries(item(),now).fresh.map(row=>row.date),['2026-10-22','2026-10-22','2026-10-20']);
+  assert(added[0].id.includes('first'));assert(added[1].id.includes('second'));
+  store.markEntryRead(id,added[0].id);
+  const retained=structuredClone(item().entries);
+  observe(3,[...rows,{id:'later-batch',date:'2026-10-19'}]);
+  assert(item().entries[0].id.includes('later-batch'));
+  assert(item().entries[0].discoveredAt>added[0].discoveredAt);
+  for(const row of retained)assert.deepEqual(item().entries.find(entry=>entry.id===row.id),row);
+  assert.deepEqual(createDossiersStore(storage,()=>{},clock).snapshot().items[0].entries,JSON.parse(JSON.stringify(item().entries)));
+});
 test('separate storage survives older tabs, reloads and exact full reference suffixes',()=>{
   const h=setup(),old=createSavedStore(h.storage);old.toggle({kind:'mep',id:'42',title:'MEP'});old.publish(true);
   assert(h.values.has(DOSSIERS_KEY));const reload=createDossiersStore(h.storage);assert.equal(reload.snapshot().items[0].id,id);
