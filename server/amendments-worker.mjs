@@ -991,9 +991,9 @@ export async function amendmentTask(worker,task) {
       }
       const put=store.db.prepare('INSERT OR IGNORE INTO amendment_member_pending VALUES (?,?)');
       for(const target of body.targets || [])put.run(generation,target);
-      return enqueueAmendment(store,generation,'amendment:member-changes','amendment-rebuild',{rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})},107,true);
+      return enqueueAmendment(store,generation,'amendment:member-changes','amendment-rebuild',{rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})},107,true,{deferOnCapacity:true});
     });
-    if(!admitted)return;
+    if(!admitted){deferPreparation(worker,task);return;}
   } else if(task.kind==='amendment-aliases') {
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(body.sittingId))throw new Error('Invalid voting-alias sitting identifier.');
     const date=body.sittingId.slice(7);

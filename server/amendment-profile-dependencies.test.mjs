@@ -265,3 +265,16 @@ test('profiles arriving mid-members pass coalesce into one dependent-only follow
   for(const id of ids)rebuildAmendmentTarget(worker,generation,id,{discover:false});
   assert.deepEqual(store.db.prepare('SELECT id,body FROM amendments WHERE generation=? ORDER BY id').all(generation),incremental);
 });
+
+test('a full queue defers profile handoff without repeating the profile fetch',async t=>{
+  const context=fixture(t),{store,worker,generation}=context;context.seed(targetA);
+  for(let i=0;i<199;i++)enqueueAmendment(store,generation,'blocker:'+i,'amendment-reparse',{},1);
+  await worker.task(task(directProfile(store,generation)));
+  const waiting=directProfile(store,generation);
+  assert.equal(waiting.done,0);assert.equal(JSON.parse(waiting.body).profileStored,true);
+  assert(waiting.retry_at>store.clock());assert.equal(context.requests(),1);
+  assert.equal(store.db.prepare("SELECT 1 FROM amendment_jobs WHERE key='amendment:member-changes'").get(),undefined);
+  store.db.prepare("DELETE FROM amendment_jobs WHERE key='blocker:0'").run();
+  context.advanceTo(waiting.retry_at);await completeProfile(context);
+  assert.equal(context.requests(),1);assertResolved(context,[targetA]);
+});
