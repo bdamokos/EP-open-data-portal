@@ -48,3 +48,25 @@ test('another writer between leases and generation lifecycle writes invalidate c
   await activityGenerationTask(a,'publish',{generation:3,createWorker});
   assert.equal(a.memberProfiles(3)[0].work.familyName,'After','off-thread generation work invalidates the parent cache');
 });
+
+test('cached sitting and alias sources follow source writes, leases and the size bound',t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'source-cache-'));
+  const a=new ActivityStore(dir,{initializeIndexes:true}),b=new ActivityStore(dir,{initializeIndexes:true});
+  t.after(()=>{a.close();b.close();rmSync(dir,{recursive:true,force:true});});
+  const fetched='2026-10-20T09:00:00.000Z',key='amendment:aliases:MTG-PL-2026-10-20';
+  assert(a.acquire());
+  a.putSource(1,key,'amendment-aliases',{aliases:[],decisions:['old']},fetched);
+  const first=a.cachedSource(1,key);
+  assert.equal(a.cachedSource(1,key),first,'repeated target rebuilds reuse one parse');
+  assert(Object.isFrozen(first.work));
+  assert.equal(a.cachedSource(1,'amendment:aliases:missing'),null);
+  a.putSource(1,key,'amendment-aliases',{aliases:[],decisions:['new']},fetched);
+  assert.deepEqual(a.cachedSource(1,key).work.decisions,['new'],'a source write replaces the cached parse');
+  a.release();assert(b.acquire());b.putSource(1,key,'amendment-aliases',{aliases:[],decisions:['other writer']},fetched);b.release();assert(a.acquire());
+  assert.deepEqual(a.cachedSource(1,key).work.decisions,['other writer'],'a new lease cannot reuse an older parse');
+  const large='x'.repeat(9*1024*1024);
+  a.putSource(1,'amendment:aliases:A','amendment-aliases',{aliases:[],pad:large},fetched);
+  a.putSource(1,'amendment:aliases:B','amendment-aliases',{aliases:[],pad:large},fetched);
+  a.cachedSource(1,'amendment:aliases:A');a.cachedSource(1,'amendment:aliases:B');
+  assert(a.sourceCacheChars<=16*1024*1024,'retained body length stays within the bound');
+});

@@ -40,6 +40,7 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   FROM motion_links AS link JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
+const SOURCE_CACHE_CHARS=16*1024*1024;
 const deepFreeze=value=>{if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const child of Object.values(value))deepFreeze(child);}return value;};
 export class ActivityStore {
   #generationLeaseOwner;
@@ -313,7 +314,20 @@ export class ActivityStore {
   // parse per generation until the next profile write.
   // The cache lives within one continuous lease: another writer, or a
   // generation copy/prune on a separate connection, can change profiles.
-  invalidateMemberProfiles() {this.memberProfileRevision=(this.memberProfileRevision||0)+1;this.memberProfileCache=null;}
+  invalidateMemberProfiles() {this.memberProfileRevision=(this.memberProfileRevision||0)+1;this.memberProfileCache=null;this.sourceCache=null;this.sourceCacheChars=0;}
+  // Amendment rebuilds reread the same large sitting and alias sources for each
+  // target. Keep a small parse cache with the profile cache's lifetime, bounded
+  // by retained body length.
+  cachedSource(generation,key) {
+    const id=generation+'\u0000'+key,hit=this.sourceCache?.get(id);
+    if(hit){this.sourceCache.delete(id);this.sourceCache.set(id,hit);return hit.value;}
+    const row=this.db.prepare('SELECT body,fetched_at FROM sources WHERE generation=? AND key=?').get(generation,key);
+    const value=row?deepFreeze({work:parse(row.body),fetchedAt:row.fetched_at}):null,chars=row?.body.length||0;
+    if(this.db.isTransaction||chars>SOURCE_CACHE_CHARS)return value;
+    this.sourceCache??=new Map();this.sourceCache.set(id,{value,chars});this.sourceCacheChars=(this.sourceCacheChars||0)+chars;
+    for(const [oldest,entry] of this.sourceCache){if(this.sourceCacheChars<=SOURCE_CACHE_CHARS)break;this.sourceCache.delete(oldest);this.sourceCacheChars-=entry.chars;}
+    return value;
+  }
   memberProfiles(generation) {
     const cached=this.memberProfileCache;
     if(cached?.generation===generation&&cached.revision===this.memberProfileRevision)return cached.value;
@@ -372,6 +386,7 @@ export class ActivityStore {
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }
   putSource(generation,key,kind,work,fetchedAt,rows=[],{acquisition='unknown',sourceUrl=null}={}) {
     if(kind==='amendment-member')this.invalidateMemberProfiles();
+    {const id=generation+'\u0000'+key,entry=this.sourceCache?.get(id);if(entry){this.sourceCache.delete(id);this.sourceCacheChars-=entry.chars;}}
     this.transaction(()=> {
       this.assertWriter();
       const existed=Boolean(this.db.prepare('SELECT 1 FROM sources WHERE generation=? AND key=?').get(generation,key));
