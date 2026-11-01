@@ -1,7 +1,7 @@
 import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
@@ -179,7 +179,7 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     const raw=rawResolutionUnits(text,'fi');
     const numbered=raw.units.filter(unit=>unit.kind==='paragraph');
     const first=numbered[0];
-    if(raw.reason||first?.label!=='1'||numbered.filter(unit=>unit.label==='1').length!==1||first.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    if(raw.reason||!nativeFinnishFirst(text,first)||first?.label!=='1'||numbered.filter(unit=>unit.label==='1').length!==1||first.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
     if(placement.insertBefore!==first.start||placement.insertAfter!==first.start-1)return fail('oracle-insertion-boundary-mismatch');
     return verified('oracle-negative-first-paragraph-boundary');
   }

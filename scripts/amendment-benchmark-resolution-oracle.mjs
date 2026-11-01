@@ -25,11 +25,38 @@ const contiguous=(a,b)=>a?.complete===true&&b?.complete===true&&a.container==='b
 
 // Only native XML certifies omitted blanks. Never consume previousParagraph,
 // segment deltas, runtime units or placement evidence to establish continuity.
+const nativeBodies=new WeakMap();
+const nativeValue=row=>(row.numberingLabel?row.numberingLabel+'\t':'')+row.text.trim();
+function nativeBody(text) {
+  if(nativeBodies.has(text))return nativeBodies.get(text);
+  try{const body=quotedWordBody(text.nativeBuffer);nativeBodies.set(text,body);return body;}catch{return null;}
+}
+// Native scope and text establish the first provision before projection indices
+// are compared. A relabelled paragraph-two projection cannot supply this truth.
+export function nativeFinnishFirst(text,unit) {
+  const body=nativeBody(text);if(!body||!unit?.complete)return false;
+  const headings=body.filter(row=>row.kind==='paragraph'&&row.text.trim()==='EUROOPAN PARLAMENTIN PÄÄTÖSLAUSELMAESITYS'&&!row.hidden);
+  if(headings.length!==1)return false;
+  const heading=body.indexOf(headings[0]);
+  const opening=body.findIndex((row,i)=>i>heading&&row.kind==='paragraph'&&/^Euroopan parlamentti(?:, joka)?[,]?$/u.test(row.text.trim())&&!row.hidden);
+  if(opening<0)return false;
+  const first=body.findIndex((row,i)=>i>opening&&row.kind==='paragraph'&&/^[1-9]\d*[.)]\s/u.test(nativeValue(row)));
+  if(first<0||!/^1[.)]\s/u.test(nativeValue(body[first])))return false;
+  if(text.paragraphSources[unit.start]?.path!==body[first].path)return false;
+  const before=unit.start-1,prior=body.findIndex(row=>row.path===text.paragraphSources[before]?.path);
+  if(prior<opening||prior>=first||nativeValue(body[prior])!==text.paragraphs[before]||body[prior].hidden)return false;
+  if(body.slice(prior+1,first).some(row=>row.kind!=='paragraph'||row.hidden||row.unsafe||row.numbered||row.nodes.some(node=>Object.keys(node).some(key=>key!==':@'&&key!=='w:pPr'))))return false;
+  for(let i=unit.start;i<=unit.end;i++) {
+    const source=body.find(row=>row.path===text.paragraphSources[i]?.path);
+    if(!source||source.hidden||nativeValue(source)!==text.paragraphs[i])return false;
+  }
+  return true;
+}
 const nativePairsCache=new WeakMap();
 export function nativeBlankPairs(text) {
   if(nativePairsCache.has(text))return nativePairsCache.get(text);
   const pairs=new Set();let body;
-  try{body=quotedWordBody(text.nativeBuffer);}catch{return pairs;}
+  body=nativeBody(text);if(!body)return pairs;
   nativePairsCache.set(text,pairs);
   const byPath=new Map(body.map((row,i)=>[row.path,i]));
   for(let i=1;i<(text.paragraphSources?.length||0);i++) {
@@ -38,9 +65,9 @@ export function nativeBlankPairs(text) {
     if(!Number.isInteger(a)||!Number.isInteger(b)||b<=a+1)continue;
     const first=body[a],last=body[b];
     if([...first.text.matchAll(/(?:^|[;.!?])\s*[1-9]\d*[.)]\t/gu)].length>1)continue;
-    if(first.hidden||last.hidden||first.text.trim()!==text.paragraphs[i-1]||last.text.trim()!==text.paragraphs[i])continue;
+    if(first.hidden||last.hidden||nativeValue(first)!==text.paragraphs[i-1]||nativeValue(last)!==text.paragraphs[i])continue;
     const omitted=body.slice(a+1,b);
-    if(omitted.every(row=>row.kind==='paragraph'&&!row.hidden&&!row.numbered&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'))
+    if(omitted.every(row=>row.kind==='paragraph'&&!row.hidden&&!row.unsafe&&!row.numbered&&row.nodes.every(node=>Object.keys(node).every(key=>key===':@'||key==='w:pPr'))
       &&!row.nodes.some(node=>node['w:pPr']?.some(prop=>prop['w:numPr']||prop['w:sectPr']))))pairs.add(left.path+'|'+right.path);
   }
   return pairs;
