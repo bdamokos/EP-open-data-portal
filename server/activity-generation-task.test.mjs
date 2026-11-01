@@ -178,7 +178,7 @@ test('publication exits before a memory-bounded topics follow-up under the same 
  const createWorker=(_url,options)=>{
   const thread=new EventEmitter(),step=options.workerData.operation;thread.terminate=async()=>0;steps.push(step);store.assertWriter();assert(store.generationTaskActive);
   if(step==='publish')assert.equal(options.resourceLimits,undefined,'core publication retains its existing memory policy');
-  else {assert.equal(store.get('active'),cycle.generation);assert.equal(store.get('working'),null);assert.deepEqual(options.resourceLimits,{maxOldGenerationSizeMb:32,maxYoungGenerationSizeMb:2});}
+  else {assert.equal(store.get('active'),cycle.generation);assert.equal(store.get('working'),null);assert.deepEqual(options.resourceLimits,{maxOldGenerationSizeMb:28,maxYoungGenerationSizeMb:2});}
   queueMicrotask(()=>{if(step==='publish')store.finalize(cycle.generation);thread.emit('message',{type:'complete',value:step});thread.emit('exit',0);});return thread;
  };
  assert.equal(await run(t,store,'publish',{generation:cycle.generation,createWorker}).promise,'topics');assert.deepEqual(steps,['publish','topics']);store.assertWriter();assert.equal(store.generationTaskActive,false);

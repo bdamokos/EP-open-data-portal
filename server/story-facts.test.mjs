@@ -9,7 +9,7 @@ import {buildTopics} from './topics-project.mjs';
 import {RecordTopics} from './topics-store.mjs';
 import {storyTables,stageStoryInput,queueStoryRead} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -70,4 +70,58 @@ test('an agenda source that repeats a page stops with an explicit partial observ
  const {store}=await fixture(t),sitting='MTG-PL-2025-03-12';queueStoryRead(store,'agenda',sitting);let calls=0;
  const data=Array.from({length:STORY_PAGE_SIZE},(_,i)=>({activity_id:sitting+'-OJ-ITM-D-'+i})),worker={store,clock:Date.now,requests:0,budget:10,controller:new AbortController(),request:async()=>{calls++;worker.requests++;return {url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/foreseen-activities',fetchedAt:stamp,payload:{data}};}};
  assert(await collectStorySource(worker));assert(await collectStorySource(worker));assert.equal(await collectStorySource(worker),false);assert.equal(calls,2);assert.equal(store.db.prepare('SELECT state,error FROM story_jobs').get().error,'repeated-page');
+});
+
+test('an actual 204 agenda is terminal and a 429 retains a deferred lowest-priority job',async t=>{
+ const {store}=await fixture(t);let now=Date.parse(stamp),calls=0;
+ queueStoryRead(store,'agenda','MTG-PL-2025-03-12');
+ const worker={store,clock:()=>now,requests:0,budget:10,controller:new AbortController(),request:async(_endpoint,_params,options)=>{calls++;assert.equal(options.backgroundLow,true);return {status:204};}};
+ assert(await collectStorySource(worker));assert.equal(await collectStorySource(worker),false);assert.equal(calls,1);assert.equal(store.db.prepare("SELECT state,error FROM story_jobs WHERE kind='agenda'").get().error,'http-204');
+ queueStoryRead(store,'event','MTG-PL-2025-03-12-PVCRE-ITM-1');
+ worker.request=async(_endpoint,_params,options)=>{calls++;assert.equal(options.backgroundLow,true);throw Object.assign(new Error('Rate limited'),{status:429,retryAfter:60});};
+ assert(await collectStorySource(worker));const job=store.db.prepare("SELECT state,next_read FROM story_jobs WHERE kind='event'").get();assert.equal(job.state,'pending');assert.equal(job.next_read,now+60_000);assert.equal(await collectStorySource(worker),false);assert.equal(calls,2);
+});
+
+test('story questions preserve per-place home flags and elsewhere selections',async t=>{
+ const {store}=await fixture(t);store.setMembers([{id:'1',name:'Greek member',countryCode:'GR'}]);
+ for(const [id,title] of [['P-10-2025-000001','Greece and Cyprus'],['P-10-2025-000002','Greece']])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/'+id,id,'1','written-questions','2025-03-12',JSON.stringify({titles:{en:title}}));
+ await buildTopics(store);
+ const all=storyFacts(store,new URLSearchParams('scope=place&key=GRC&period=2025-Q1'));assert.equal(all.questions.length,2);assert.deepEqual(all.questionsByPlace.GRC['2025-Q1'].map(q=>q.askers),['home','home']);
+ const elsewhere=storyFacts(store,new URLSearchParams('scope=place&key=CYP&period=2025-Q1&askers=elsewhere'));assert.equal(elsewhere.questions.length,1);assert.equal(elsewhere.questions[0].askers.CYP,'elsewhere');assert.equal(elsewhere.questionsByPlace.CYP['2025-Q1'][0].home,false);
+ assert.equal(storyFacts(store,new URLSearchParams('scope=place&key=GRC&askers=elsewhere')).questions.length,0);
+});
+
+
+test('procedural exclusions use only agenda types and format labels',()=>{
+ assert(proceduralAgenda({type:'PLENARY_VOTE'}));
+ for(const format of ['Voting time','Explanations of votes','Opening of the sitting','Closing of the session','Approval of the minutes','Order of business'])assert(proceduralAgenda({type:'PLENARY_DEBATE',formats:{en:[format]}}));
+ assert.equal(proceduralAgenda({type:'PLENARY_DEBATE',titles:{en:'Voting time'},headings:{en:'Explanations of votes'},formats:{en:['Commission statement']}}),false);
+ assert.equal(proceduralAgenda(null),false);
+});
+
+test('each story quarter returns the top fifty debates plus every urgency with explicit totals',async t=>{
+ const {store}=await fixture(t);await buildTopics(store);
+ const insert=store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)'),place=store.db.prepare('INSERT INTO story_places VALUES (?,?,?,?,?,?)');
+ for(let n=0;n<62;n++){
+  const date=n<60?'2025-03-12':'2025-04-02',id='MTG-PL-'+date+'-PVCRE-ITM-'+n;
+  const body={id,date,titles:{en:'Debate '+n},meps:n===59?1:100-n,speeches:100,format:n===59?'urgency':null,procedures:[],docs:[],places:[{id:'UKR',basis:'title',bases:['title']}]};
+  insert.run(1,'debate',id,date,JSON.stringify(body));place.run(1,'UKR','debate',id,date,'title');
+ }
+ const response=storyFacts(store,new URLSearchParams('scope=place&key=UKR'));
+ assert.equal(response.debatesTotal,62);assert.equal(response.debatesTruncated,true);assert.equal(response.debates.length,53);assert(response.debates.some(d=>d.meps===1&&d.format==='urgency'));
+ const q1=response.blocks.find(b=>b.period==='2025-Q1');assert.equal(q1.debatesTotal,60);assert.equal(q1.debatesTruncated,true);assert.equal(q1.debates.length,51);assert.equal(response.series.UKR['2025-Q1'].debates,60);
+ const q2=storyFacts(store,new URLSearchParams('scope=place&key=UKR&period=2025-Q2'));assert.equal(q2.debates.length,2);assert.equal(q2.debatesTruncated,false);
+});
+
+test('full projection pruning retains only the serving and previous story generations',async t=>{
+ const {store}=await fixture(t);store.set('active',2);store.set('previous',1);
+ for(const generation of [0,1,2,3]){
+  store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(generation,'debate','old','2025-03-12','{}');
+  store.db.prepare('INSERT INTO story_links VALUES (?,?,?,?)').run(generation,'debate-document','old','document');
+  store.db.prepare('INSERT INTO story_places VALUES (?,?,?,?,?,?)').run(generation,'UKR','debate','old','2025-03-12','title');
+  store.db.prepare('INSERT INTO story_topics VALUES (?,?,?,?,?)').run(generation,'oeil:8.20','debate','old','2025-03-12');
+  store.db.prepare('INSERT INTO story_parents VALUES (?,?,?)').run(generation,'old','speech');
+ }
+ await buildTopics(store);
+ for(const table of ['story_facts','story_links','story_places','story_topics','story_parents'])assert.deepEqual(store.db.prepare('SELECT DISTINCT generation FROM '+table+' ORDER BY generation').all().map(r=>r.generation),[1]);
 });
