@@ -7,7 +7,7 @@ import {writeCacheFile} from './cache-publication.mjs';
 
 // Reproducible assembled responses live separately from raw ODP records and index state.
 export class InsightViewCache {
-  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,maxDiskEntries=maxEntries,maxDiskBytes=64*1024*1024,cacheable=()=>true,writable=true,assertWriter=()=>{}}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,maxDiskEntries,maxDiskBytes,cacheable,writable,assertWriter});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
+  constructor({directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'insights-views-v3'),clock=Date.now,freshMs=5*60_000,maxEntries=48,maxBytes=32*1024*1024,maxDiskEntries=maxEntries,maxDiskBytes=64*1024*1024,cacheable=()=>true,writable=true,assertWriter=()=>{},retainDisk=false}={}) {Object.assign(this,{directory,clock,freshMs,maxEntries,maxBytes,maxDiskEntries,maxDiskBytes,cacheable,writable,assertWriter,retainDisk});this.cache=new Map();this.pending=new Map();this.background=new Set();this.foregroundPending=new Map();this.failures=new Map();this.diskReads=new Map();this.bytes=0;}
   key(value){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
   async stored(key) {
     if(this.cache.has(key)){const record=this.cache.get(key);return this.cacheable(record.value)?record:null;}
@@ -39,12 +39,47 @@ export class InsightViewCache {
     if(!this.writable||!this.directory||Buffer.byteLength(JSON.stringify(record))>4*1024*1024||persist&&!await persist())return record;
     this.assertWriter();
     const name=path.join(this.directory,key+'.json');
-    try {await writeCacheFile(name,JSON.stringify(record));await this.prune();}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
+    try {if(this.retainDisk)await this.saveRetained(key,record);else {await writeCacheFile(name,JSON.stringify(record));await this.prune();}}catch{/* Disk cache is reproducible; a write failure must not hide available data. */}
     requestSignal()?.throwIfAborted();
     return record;
   }
+  // Retained public sources have one writer. Inventory once, then account only
+  // successful atomic replacements; capacity never evicts a referenced page.
+  async inventoryDisk() {
+    if(!this.diskInventory)this.diskInventory=(async()=>{
+      this.diskFiles=new Map();this.diskBytes=0;
+      if(!this.directory)return;
+      let names;
+      try{names=await readdir(this.directory);}catch(error){if(error.code==='ENOENT')return;throw error;}
+      for(const name of names)if(/^[a-f0-9]{64}\.json$/.test(name)) {
+        const info=await stat(path.join(this.directory,name));
+        this.diskFiles.set(name.slice(0,-5),info.size);this.diskBytes+=info.size;
+      }
+    })();
+    await this.diskInventory;
+  }
+  async capacity() {
+    await this.inventoryDisk();
+    return {state:this.diskBytes>=this.maxDiskBytes*0.9||this.diskFiles.size>=this.maxDiskEntries*0.9?'capacity':'ready',
+      bytes:this.diskBytes,entries:this.diskFiles.size,maxBytes:this.maxDiskBytes,maxEntries:this.maxDiskEntries,highWater:0.9};
+  }
+  async saveRetained(key,record) {
+    const operation=(this.diskTail||Promise.resolve()).catch(()=>{}).then(async()=>{
+      await this.inventoryDisk();this.assertWriter();
+      const body=JSON.stringify(record),bytes=Buffer.byteLength(body),previous=this.diskFiles.get(key)||0;
+      // An in-flight response may cross the high-water mark. Keep it, then stop
+      // subsequent admission. Never discard another warmed page to make room.
+      // Retained pages belong to the leased worker, not to a reader's request.
+      // Without a request signal the write is awaited to completion, so a
+      // cancelled owner cannot leave a renamed file uncounted.
+      if(await writeCacheFile(path.join(this.directory,key+'.json'),body,{signal:null})) {
+        this.diskBytes+=bytes-previous;this.diskFiles.set(key,bytes);
+      }
+    });
+    this.diskTail=operation;await operation;
+  }
   async prune() {
-    if(!this.writable)return;
+    if(!this.writable||this.retainDisk)return;
     this.assertWriter();
     const names=(await readdir(this.directory)).filter(n=>/^[a-f0-9]{64}\.json$/.test(n));
     const files=await Promise.all(names.map(async name=>{const info=await stat(path.join(this.directory,name));return {name,at:info.mtimeMs,bytes:info.size};}));files.sort((a,b)=>b.at-a.at);
