@@ -590,3 +590,31 @@ test('a failed revision commit after durable source bytes invalidates pre-change
     assert.equal(JSON.parse(await fs.readFile(revisionFile,'utf8')).pending,undefined);
   `);
 });
+
+for(const group of ['agenda','plenary'])for(const replacement of ['denied','unreadable'])test(group+' keeps readable aliases when canonical reads fail and replacement is '+replacement,async t=>{
+  await fixture(t,`
+    const fs=(await import('node:fs')).default,fsp=(await import('node:fs/promises')).default;
+    const {Readable}=await import('node:stream'),{syncBuiltinESMExports}=await import('node:module');
+    let time=Date.parse('2026-10-29T12:00:00Z');Date.now=()=>time;
+    const group=${JSON.stringify(group)},replacement=${JSON.stringify(replacement)};
+    const endpoint=group==='agenda'?'/meetings/MTG-PL-2026-10-07/foreseen-activities':'/procedures/2026-0001';
+    const settings=group==='agenda'?{}:{cacheGroup:'plenary'};
+    const retained=await save(endpoint,{data:[{identifier:'retained alias'}]});
+    const hash=createHash('sha256').update(retained.url).digest('hex'),alias=path.join(directory,hash+'.json');
+    const canonical=path.join(directory,group==='agenda'?'plenary-agendas-v1':'plenary-sources-v1',hash+'.json');
+    await fsp.mkdir(path.dirname(canonical),{recursive:true});await fsp.writeFile(canonical,JSON.stringify(retained));
+    const createReadStream=fs.createReadStream,write=fsp.writeFile;
+    fs.createReadStream=(file,...args)=>String(file)===canonical?new Readable({read(){this.destroy(Object.assign(new Error('Canonical read denied'),{code:'EACCES'}));}}):createReadStream(file,...args);
+    fsp.writeFile=async(file,...args)=>{if(replacement==='denied'&&String(file).startsWith(canonical+'.'))throw Object.assign(new Error('Replacement denied'),{code:'EACCES'});return write(file,...args);};
+    syncBuiltinESMExports();allowed=true;time++;networkPayload={data:[{identifier:'fresh data'}]};
+    assert.equal((await odp(endpoint,{}, {...settings,force:true})).payload.data[0].identifier,'fresh data');
+    assert.deepEqual(JSON.parse(await fsp.readFile(alias,'utf8')),retained,'an unreadable canonical file cannot justify removing the readable alias');
+    const restarted=await import(${JSON.stringify(moduleUrl+'?unreadable-canonical-')}+group+'-'+replacement);
+    assert.equal((await restarted.odp(endpoint,{}, {...settings,cachedOnly:true})).payload.data[0].identifier,'retained alias','restart retains the readable observation');
+    fs.createReadStream=createReadStream;fsp.writeFile=write;syncBuiltinESMExports();
+    time++;await restarted.odp(endpoint,{}, {...settings,force:true});
+    assert.equal(JSON.parse(await fsp.readFile(canonical,'utf8')).payload.data[0].identifier,'fresh data');
+    await assert.rejects(fsp.stat(alias),error=>error.code==='ENOENT');
+    assert.equal(calls,2,'recovery follows the normal source path');
+  `);
+});

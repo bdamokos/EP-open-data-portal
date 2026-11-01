@@ -255,8 +255,15 @@ function publishSourceFile(key, record, serialized, signal,cacheGroup=null) {
       try {
         // Migrate the retained observation before removing aliases. If cleanup
         // or the fresh write fails, it remains available across a restart.
-        const exists=await stat(filename(key,cacheGroup)).then(info=>info.isFile(),error=>{if(error.code==='ENOENT')return false;throw error;});
-        if(disk&&!exists&&!await publishLocked(key,JSON.stringify(disk),cacheGroup))return false;
+        const preserved=async()=>{
+          try {
+            const saved=JSON.parse(await readSourceRecord(filename(key,cacheGroup),signal));
+            return saved.url===key&&Number.isFinite(saved.fetchedAt)&&saved.fetchedAt>=disk.fetchedAt&&Array.isArray(saved.payload?.data);
+          }catch{signal?.throwIfAborted();return false;}
+        };
+        if(disk&&!await preserved()) {
+          if(!await publishLocked(key,JSON.stringify(disk),cacheGroup)||!await preserved())return false;
+        }
         for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
       }catch(error){console.warn('[source-cache-migration]',error.code||error.name);return false;}
     }
