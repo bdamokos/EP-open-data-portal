@@ -1,18 +1,25 @@
+import {suppliedTitles} from './insights-model.mjs';
+import {sourceAvailability} from './source-availability.mjs';
 import {languageCode} from './ep-links.mjs';
 import {array,tail} from './activity-index-model.mjs';
 import {motionDocuments} from './activity-read-projections.mjs';
 export function registerFastReads(db) {
-  db.function('compact_source_read',{deterministic:true},(body,mode)=>{
+  db.function('projection_event_date',{deterministic:true},(date,at)=>{
+    const timestamp=/^\d+(\.\d+)?$/.test(at||'')?Number(at):Date.parse(at);
+    const fetchedAt=Number.isFinite(timestamp)?new Date(timestamp).toISOString():null;
+    return sourceAvailability({records:[{date,fetchedAt}],today:date}).latestObservedDate;
+  });
+  db.function('compact_source_read',{deterministic:true,varargs:true},(body,mode,key)=>{
     const work=JSON.parse(body,(key,value)=>['extraction','amendmentEvidence','xml_fragment'].includes(key)?undefined:value);
     if(mode==='subtype')return typeof work.work_type==='string'&&work.work_type.includes('/')?tail(work.work_type):'';
     if(mode==='procedure-id')return tail(work.id)||'';
     if(mode==='events')return JSON.stringify(array(work.consists_of).filter(event=>{
       const type=tail(event.had_activity_type);
       return (['PLENARY_DEBATE','PLENARY_VOTE'].includes(type)||type.startsWith('COMMITTEE_'))&&/^eli\/dl\/event\/[A-Z0-9-]{1,150}$/.test(String(event.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''))&&/^\d{4}-\d{2}-\d{2}$/.test(event.activity_date||'');
-    }).map(event=>({activity_date:event.activity_date,had_activity_type:tail(event.had_activity_type)})));
+    }).map(event=>({activity_date:event.activity_date,had_activity_type:tail(event.had_activity_type)==='PLENARY_DEBATE'?'debates':tail(event.had_activity_type)==='PLENARY_VOTE'?'votes':'committee'})));
     if(mode==='outside')return JSON.stringify(Object.fromEntries(['id','personId','date','term','start','parentIds','reportedParentIds','parentDocumentIds','parentDocumentsComplete','header'].filter(key=>Object.hasOwn(work,key)).map(key=>[key,work[key]])));
     if(mode==='target')return JSON.stringify(Object.fromEntries(['id','scope','targetDocumentId','procedureIds','committees','gaps','listProjectionVersion','committeeProjectionVersion','complete','wordingComplete','proposerComplete','lastUpdated','emptyObservation','linkedListObservationCount','unresolvedListObservationCount'].filter(key=>Object.hasOwn(work,key)).map(key=>[key,work[key]])));
-    if(mode==='search')return [work.identifier,...Object.values(work.title_dcterms||{}),...array(work.is_realized_by).flatMap(expression=>Object.values(expression.title||{}))].filter(value=>typeof value==='string').join('\n').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
+    if(mode==='search')return [work.identifier||key.split('/').at(-1),...Object.values(suppliedTitles(work))].join('\n').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
     if(mode==='question') {
       const result=Object.fromEntries(['id','identifier','work_type','document_date','title_dcterms','creator','workHadParticipation','answersObserved'].filter(key=>Object.hasOwn(work,key)).map(key=>[key,work[key]]));
       if(Object.hasOwn(work,'inverse_answers_to'))result.inverse_answers_to=work.inverse_answers_to==null?work.inverse_answers_to:array(work.inverse_answers_to).filter(answer=>answer&&typeof answer==='object').map(answer=>typeof answer==='object'?Object.fromEntries(['id','identifier','document_date','creator'].filter(key=>Object.hasOwn(answer,key)).map(key=>[key,answer[key]])):answer);
@@ -40,23 +47,24 @@ export function prepareFastReads(db) {
     CREATE TRIGGER IF NOT EXISTS question_search_delete AFTER DELETE ON question_reads BEGIN INSERT INTO question_title_search(question_title_search,rowid,search_text) VALUES ('delete',OLD.rowid,OLD.search_text); END;`);
   const body=ref=>`compact_source_read(${ref}.body,'metadata')`;
   const validEvents=ref=>`${ref}.kind='procedure' AND ${ref}.key GLOB '/procedures/[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND (length(${ref}.key)=21 OR (length(${ref}.key)=22 AND substr(${ref}.key,22) GLOB '[A-Z]')) AND compact_source_read(${ref}.body,'procedure-id')=substr(${ref}.key,13)`;
-  const events=ref=>`SELECT ${ref}.generation,${ref}.key,json_extract(event.value,'$.activity_date'),json_extract(event.value,'$.had_activity_type'),${ref}.fetched_at FROM json_each(compact_source_read(${ref}.body,'events')) event WHERE ${validEvents(ref)}`;
-  db.exec(`CREATE TABLE IF NOT EXISTS procedure_event_reads(generation INTEGER,source_key TEXT,date TEXT,type TEXT,fetched_at TEXT);
+  const events=ref=>`SELECT ${ref}.generation,${ref}.key,json_extract(event.value,'$.activity_date'),json_extract(event.value,'$.had_activity_type'),${ref}.fetched_at,projection_event_date(json_extract(event.value,'$.activity_date'),${ref}.fetched_at) FROM json_each(compact_source_read(${ref}.body,'events')) event WHERE ${validEvents(ref)}`;
+  db.exec(`CREATE TABLE IF NOT EXISTS procedure_event_reads(generation INTEGER,source_key TEXT,date TEXT,type TEXT,fetched_at TEXT,admissible_date TEXT);
+    CREATE INDEX IF NOT EXISTS procedure_event_admissible ON procedure_event_reads(generation,type,admissible_date DESC);
     CREATE INDEX IF NOT EXISTS procedure_event_window ON procedure_event_reads(generation,date DESC,source_key);
     CREATE INDEX IF NOT EXISTS procedure_event_frontiers ON procedure_event_reads(generation,type,date,fetched_at);
     CREATE INDEX IF NOT EXISTS procedure_event_source ON procedure_event_reads(generation,source_key);
-    CREATE INDEX IF NOT EXISTS parser_upgrade_due ON sources(generation,COALESCE(json_extract(body,'$.extraction.parserVersion'),''),key) WHERE kind='amendment-list' AND json_type(body,'$.extraction')='object';
-    CREATE INDEX IF NOT EXISTS motion_classification_due ON sources(generation,COALESCE(json_extract(body,'$.motionClassificationVersion'),0),key) WHERE ${motionDocuments};
     CREATE INDEX IF NOT EXISTS read_motion_documents ON source_reads(generation,key) WHERE ${motionDocuments};
-    CREATE INDEX IF NOT EXISTS amendment_all_page ON amendments(generation,date DESC,target,CAST(json_extract(body,'$.number') AS INTEGER),id);
-    CREATE INDEX IF NOT EXISTS amendment_plenary_page ON amendments(generation,date DESC,target,CAST(json_extract(body,'$.number') AS INTEGER),id) WHERE target NOT GLOB 'committee:*';
-    CREATE INDEX IF NOT EXISTS amendment_target_metadata ON amendments(generation,target,id,date,outcome);
-    CREATE INDEX IF NOT EXISTS amendment_target_page ON amendments(generation,target,date DESC,CAST(json_extract(body,'$.number') AS INTEGER),id);
-    CREATE INDEX IF NOT EXISTS outside_unresolved_dates ON outside_contributions(generation,date,speech) WHERE json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0;`);
+    `);
   db.exec(`CREATE TABLE IF NOT EXISTS outside_directory_reads(generation INTEGER,speech TEXT,person TEXT,date TEXT,term INTEGER,body TEXT,PRIMARY KEY(generation,speech,person));
     CREATE INDEX IF NOT EXISTS outside_read_term ON outside_directory_reads(generation,term,date DESC,speech);
     CREATE INDEX IF NOT EXISTS outside_read_date ON outside_directory_reads(generation,date DESC,speech);
     CREATE TABLE IF NOT EXISTS amendment_target_reads(generation INTEGER,id TEXT,body TEXT,PRIMARY KEY(generation,id));`);
+  db.exec(`CREATE TABLE IF NOT EXISTS amendment_page_reads(generation INTEGER,id TEXT,target TEXT,date TEXT,outcome TEXT,number INTEGER,PRIMARY KEY(generation,id));
+    CREATE INDEX IF NOT EXISTS amendment_page_order ON amendment_page_reads(generation,date DESC,target,number,id);
+    CREATE INDEX IF NOT EXISTS amendment_page_target ON amendment_page_reads(generation,target,date DESC,number,id);`);
+  for(const [name,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_amendment_page_${name} AFTER ${event} ON amendments BEGIN
+    ${name==='insert'?'':`DELETE FROM amendment_page_reads WHERE generation=OLD.generation AND id=OLD.id;`}
+    ${ref?`INSERT OR REPLACE INTO amendment_page_reads VALUES (${ref}.generation,${ref}.id,${ref}.target,${ref}.date,${ref}.outcome,CAST(json_extract(${ref}.body,'$.number') AS INTEGER));`:''} END;`);
   for(const [table,projection,columns,selection] of [
     ['outside_contributions','outside_directory_reads','generation,speech,person,date,term,body',ref=>`${ref}.generation,${ref}.speech,${ref}.person,${ref}.date,json_extract(${ref}.body,'$.term'),compact_source_read(${ref}.body,'outside')`],
     ['amendment_targets','amendment_target_reads','generation,id,body',ref=>`${ref}.generation,${ref}.id,compact_source_read(${ref}.body,'target')`],
@@ -65,16 +73,36 @@ export function prepareFastReads(db) {
     for(const [label,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_${table}_${label} AFTER ${event} ON ${table} BEGIN
       ${label!=='insert'?`DELETE FROM ${projection} WHERE generation=OLD.generation AND ${identity};`:''}
       ${ref?`INSERT OR REPLACE INTO ${projection}(${columns}) SELECT ${selection(ref)};`:''} END;`);
-    db.exec(`DELETE FROM ${projection}; INSERT INTO ${projection}(${columns}) SELECT ${selection('source')} FROM ${table} source;`);
+
   }
   for(const [name,event,ref] of [['insert','INSERT','NEW'],['update','UPDATE OF body,kind,fetched_at','NEW'],['delete','DELETE',null]])db.exec(`CREATE TRIGGER IF NOT EXISTS fast_reads_${name} AFTER ${event} ON sources BEGIN
     DELETE FROM source_reads WHERE generation=${ref||'OLD'}.generation AND key=${ref||'OLD'}.key;
     DELETE FROM question_reads WHERE generation=${ref||'OLD'}.generation AND key=${ref||'OLD'}.key;
     DELETE FROM procedure_event_reads WHERE generation=${ref||'OLD'}.generation AND source_key=${ref||'OLD'}.key;
     ${ref?`INSERT INTO source_reads SELECT ${ref}.generation,${ref}.key,${ref}.kind,${body(ref)},${ref}.fetched_at WHERE ${ref}.kind IN ('document','procedure','motion-outcomes','amendment-list');
-    INSERT INTO question_reads SELECT ${ref}.generation,${ref}.key,${ref}.kind,compact_source_read(${ref}.body,'question'),${ref}.fetched_at,compact_source_read(${ref}.body,'search') WHERE ${ref}.kind='document' AND (${ref}.key LIKE '/parliamentary-questions/%' OR json_extract(${ref}.body,'$.work_type') LIKE '%/QUESTION_%');
+    INSERT INTO question_reads SELECT ${ref}.generation,${ref}.key,${ref}.kind,compact_source_read(${ref}.body,'question'),${ref}.fetched_at,compact_source_read(${ref}.body,'search',${ref}.key) WHERE ${ref}.kind='document' AND (${ref}.key LIKE '/parliamentary-questions/%' OR json_extract(${ref}.body,'$.work_type') LIKE '%/QUESTION_%');
     INSERT INTO procedure_event_reads ${events(ref)};`:''} END;`);
-  db.exec(`DELETE FROM source_reads; INSERT INTO source_reads SELECT source.generation,source.key,source.kind,${body('source')},source.fetched_at FROM sources source WHERE source.kind IN ('document','procedure','motion-outcomes','amendment-list');
-    DELETE FROM question_reads; INSERT INTO question_reads SELECT generation,key,kind,compact_source_read(body,'question'),fetched_at,compact_source_read(body,'search') FROM sources WHERE kind='document' AND (key LIKE '/parliamentary-questions/%' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_%');
-    DELETE FROM procedure_event_reads; INSERT INTO procedure_event_reads SELECT source.generation,source.key,json_extract(event.value,'$.activity_date'),json_extract(event.value,'$.had_activity_type'),source.fetched_at FROM sources source,json_each(compact_source_read(source.body,'events')) event WHERE ${validEvents('source')};`);
+  db.exec(`CREATE TABLE IF NOT EXISTS fast_read_progress(projection TEXT,generation INTEGER,cursor TEXT NOT NULL DEFAULT '',ready INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(projection,generation));`);
+}
+export function fastReadsReady(store,generation,projection='sources') {
+  try{return Boolean(store.db.prepare('SELECT ready FROM fast_read_progress WHERE projection=? AND generation=?').get(projection,generation)?.ready);}catch{return false;}
+}
+// One writer reservation and commit per call. Cursor and rows advance atomically.
+export function backfillFastReads(store,generation,limit=32) {
+  return store.transaction(()=>{
+    store.assertWriter();
+    for(const [projection,table,column] of [['sources','sources','key'],['outside','outside_contributions','speech'],['targets','amendment_targets','id'],['amendments','amendments','id']]) {
+      store.db.prepare('INSERT OR IGNORE INTO fast_read_progress(projection,generation) VALUES (?,?)').run(projection,generation);
+      const progress=store.db.prepare('SELECT * FROM fast_read_progress WHERE projection=? AND generation=?').get(projection,generation);
+      if(progress.ready)continue;
+      const count=Math.max(1,Math.min(limit,32));
+      const rows=projection==='outside'?store.db.prepare('SELECT speech,person FROM outside_contributions WHERE generation=? AND (speech,person)>(?,?) ORDER BY speech,person LIMIT ?').all(generation,...(progress.cursor?JSON.parse(progress.cursor):['','']),count):store.db.prepare(`SELECT ${column} cursor FROM ${table} WHERE generation=? AND ${column}>? ORDER BY ${column} LIMIT ?`).all(generation,progress.cursor,count);
+      // Re-fire the normal inline maintenance, preserving every source byte and timestamp.
+      const update=store.db.prepare(`UPDATE ${table} SET body=body WHERE generation=? AND ${column}=?`+(projection==='outside'?' AND person=?':''));
+      for(const row of rows)projection==='outside'?update.run(generation,row.speech,row.person):update.run(generation,row.cursor);
+      store.db.prepare('UPDATE fast_read_progress SET cursor=?,ready=? WHERE projection=? AND generation=?').run((projection==='outside'&&rows.length?JSON.stringify([rows.at(-1).speech,rows.at(-1).person]):rows.at(-1)?.cursor)||progress.cursor,Number(rows.length===0),projection,generation);
+      return true;
+    }
+    return false;
+  });
 }

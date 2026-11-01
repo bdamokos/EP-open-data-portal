@@ -1,3 +1,5 @@
+import {fastReadsReady} from './fast-read-projections.mjs';
+import {brusselsDay} from './analysis-period.mjs';
 import {sourceAvailability,periodAvailability} from './source-availability.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -26,6 +28,7 @@ export function procedureTitle(work,language) {
   return {title:code!==undefined?titles[code].trim():null,titleLanguage:code||null};
 }
 export function savedProcedureEvents(store,{start,end,language='en'}) {
+  if(!fastReadsReady(store,store.status().servingGeneration))return legacyProcedureEvents(store,{start,end,language});
   const generation=store.status().servingGeneration;
   const candidates=store.db.prepare(`SELECT source_key,MAX(date) date FROM procedure_event_reads WHERE generation=? AND date BETWEEN ? AND ? GROUP BY source_key ORDER BY date DESC,source_key LIMIT 601`).all(generation,start,end);
   const read=store.db.prepare('SELECT key,body,fetched_at FROM source_reads WHERE generation=? AND key=?');
@@ -44,8 +47,9 @@ export function savedProcedureEvents(store,{start,end,language='en'}) {
     });
     if(events.length)procedures.push({id,events,fetchedAt,...procedureTitle(work,language),status:procedureStatus(work,fetchedAt?.slice(0,10))});
   }
-  for(const event of store.db.prepare('SELECT date,type,MAX(fetched_at) fetchedAt FROM procedure_event_reads WHERE generation=? GROUP BY type,date').all(generation)) {
-    const kind=eventKind(tail(event.type));if(kind&&/^\d{4}-\d{2}-\d{2}$/.test(event.date||''))frontiers[kind].push({date:event.date,fetchedAt:event.fetchedAt});
+  for(const type of ['debates','votes','committee']) {
+    const row=store.db.prepare('SELECT admissible_date date FROM procedure_event_reads INDEXED BY procedure_event_admissible WHERE generation=? AND type=? AND admissible_date<=? ORDER BY admissible_date DESC LIMIT 1').get(generation,type,brusselsDay(store.clock()));
+    if(row)frontiers[type].push({date:row.date,fetchedAt:null});
   }
   procedures.sort((a,b)=>b.events.map(e=>e.date).sort().at(-1).localeCompare(a.events.map(e=>e.date).sort().at(-1))||a.id.localeCompare(b.id));
   return {procedures:procedures.slice(0,600),truncated:candidates.length>600,frontiers};
@@ -106,4 +110,25 @@ export class TopicTrends {
       state.result={view:'topic-trends',language:query.language,window:{start:query.start,end:query.end,days:query.days},...timeline,coverage:{procedures:ids.length,mapped,unmapped:[...known.values()].filter(v=>v.state!=='mapped').length,pending:remaining,sourceError,truncated:state.truncated,indexComplete:state.indexComplete},savedSources:state.procedures.map(p=>({id:p.id,fetchedAt:p.fetchedAt})),nextPage:remaining&&!sourceError&&state.page<11?state.page+1:null,sources:[...new Map([...known.values()].filter(v=>v.source).map(v=>[v.source.url,v.source])).values()],computedAt:new Date(this.clock()).toISOString()};return state.result;
     }).finally(()=>state.pending=null);state.pending=job;return waitForRequest(job);
   }
+}
+
+export function legacyProcedureEvents(store,{start,end,language='en'}) {
+  const generation=store.status().servingGeneration;
+  const rows=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='procedure' ORDER BY key").all(generation);
+  const procedures=[],frontiers=Object.fromEntries(['debates','votes','committee'].map(kind=>[kind,[]]));
+  for(const row of rows) {
+    const id=row.key.match(/^\/procedures\/(\d{4}-\d{4}[A-Z]?)$/)?.[1];if(!id)continue;
+    const work=JSON.parse(row.body);if(tail(work.id)!==id)continue;
+    const timestamp=/^\d+(\.\d+)?$/.test(row.fetched_at||'')?Number(row.fetched_at):Date.parse(row.fetched_at);
+    const fetchedAt=Number.isFinite(timestamp)?new Date(timestamp).toISOString():null;
+    const events=array(work.consists_of).flatMap(event=>{
+      const kind=eventKind(tail(event.had_activity_type)),eventId=tail(event.id),date=event.activity_date;
+      if(!kind||!/^eli\/dl\/event\/[A-Z0-9-]{1,150}$/.test(String(event.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''))||!/^\d{4}-\d{2}-\d{2}$/.test(date||''))return [];
+      frontiers[kind].push({date,fetchedAt});
+      return date<start||date>end?[]:[{id:eventId,date,kind,procedureId:id}];
+    });
+    if(events.length)procedures.push({id,events,fetchedAt,...procedureTitle(work,language),status:procedureStatus(work,fetchedAt?.slice(0,10))});
+  }
+  procedures.sort((a,b)=>b.events.map(e=>e.date).sort().at(-1).localeCompare(a.events.map(e=>e.date).sort().at(-1))||a.id.localeCompare(b.id));
+  return {procedures:procedures.slice(0,600),truncated:procedures.length>600,frontiers};
 }

@@ -143,6 +143,7 @@ test('question counts and ordered windows use the existing partial index and pre
   save('def/QUESTION_WRITTEN',' ');save('def/QUESTION_WRITTEN','invalid');
   save('def/QUESTION_WRITTEN',null,{kind:'catalog'});
   save('def/QUESTION_WRITTEN',null,{generation:generation+1});
+  while(store.backfillFastReads(generation)){}
   const prepare=store.db.prepare.bind(store.db),queries=[];
   t.mock.method(store.db,'prepare',sql=>{
     const statement=prepare(sql);
@@ -263,6 +264,7 @@ test('coverage closes its newest-first read early and retains future observation
     const id='E-10-2026-'+String(++sequence).padStart(6,'0');
     insert.run(generation,'/parliamentary-questions/'+id,'document',JSON.stringify({identifier:id,work_type:'def/'+subtype,document_date:date,title_dcterms:{en:'Water safety'},creator:['person/42']}),'2026-10-14T22:30:00Z');
   }
+  while(store.backfillFastReads(generation)){}
   const prepare=store.db.prepare.bind(store.db);let visited=0,closed=false;
   t.mock.method(store.db,'prepare',sql=>{
     const statement=prepare(sql);

@@ -38,20 +38,21 @@ try {
     const put=store.db.prepare('INSERT INTO outside_contributions VALUES (1,?,?,?,?)');
     for(let i=0;i<outside;i++)put.run('speech-'+i,String(i),'2026-10-10',JSON.stringify({term:10,parentIds:[],header:{name:'Speaker'},padding:'x'.repeat(4096)}));
   });
+  const backfillStart=performance.now();let batches=0;while(store.backfillFastReads(1))batches++;console.log(JSON.stringify({backfillMs:performance.now()-backfillStart,batches}));
   store.release();store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   const queries={
     oldSource:"SELECT body,fetched_at FROM sources WHERE generation=1 AND key='motion-outcomes:MTG-PL-2026-10-10'",
     source:"SELECT body,fetched_at FROM source_reads WHERE generation=1 AND key='motion-outcomes:MTG-PL-2026-10-10'",
     questionWindow:"SELECT key,body,fetched_at FROM question_reads INDEXED BY read_question_window WHERE generation=1 AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') AND json_extract(body,'$.document_date') BETWEEN '2026-10-01' AND '2026-10-22' ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 5000",
     questionSearch:`SELECT key FROM question_reads WHERE generation=1 AND rowid IN (SELECT rowid FROM question_title_search WHERE question_title_search MATCH '"unique fisheries"')`,
-    amendmentPage:"SELECT body FROM amendments WHERE generation=1 AND target NOT GLOB 'committee:*' ORDER BY date DESC,target,CAST(json_extract(body,'$.number') AS INTEGER),id LIMIT 20",
+    amendmentPage:"SELECT source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id WHERE page.generation=1 AND page.target NOT GLOB 'committee:*' ORDER BY page.date DESC,page.target,page.number,page.id LIMIT 20",
     oldAmendmentBodies:"SELECT id,date,outcome,body FROM amendments WHERE generation=1 AND target='A-10-2026-0001'",
     amendmentIds:"SELECT id,date,outcome FROM amendments WHERE generation=1 AND target='A-10-2026-0001'",
-    parserUpgrade:"SELECT 1 FROM sources INDEXED BY parser_upgrade_due WHERE generation=1 AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>999 LIMIT 1",
+    parserUpgrade:"SELECT 1 FROM sources WHERE generation=1 AND kind='amendment-list' AND json_type(body,'$.extraction')='object' AND COALESCE(json_extract(body,'$.extraction.parserVersion'),'')<>999 LIMIT 1",
     motions:"SELECT key,body,fetched_at FROM source_reads INDEXED BY read_motion_documents WHERE generation=1 AND kind='document' AND (COALESCE(json_extract(body,'$.work_type.id'),json_extract(body,'$.work_type')) IN ('RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT') OR COALESCE(json_extract(body,'$.work_type.id'),json_extract(body,'$.work_type')) GLOB '*/RESOLUTION_MOTION' OR COALESCE(json_extract(body,'$.work_type.id'),json_extract(body,'$.work_type')) GLOB '*/RESOLUTION_MOTION_JOINT')",
     procedureSelection:"SELECT source_key,MAX(date) date FROM procedure_event_reads WHERE generation=1 AND date BETWEEN '2026-10-01' AND '2026-10-22' GROUP BY source_key ORDER BY date DESC,source_key LIMIT 601",
     outsideDirectory:"SELECT body FROM outside_directory_reads WHERE generation=1 AND term=10 ORDER BY date DESC,speech LIMIT 50001",
-    outsideDates:"SELECT DISTINCT date FROM outside_contributions INDEXED BY outside_unresolved_dates WHERE generation=1 AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501",
+    outsideDates:"SELECT DISTINCT date FROM outside_contributions INDEXED BY outside_unresolved WHERE generation=1 AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501",
     pruneAge:"DELETE FROM source_observations WHERE identity IN (SELECT identity FROM source_observations WHERE last_observed_at<'2026-10-01' LIMIT 64)",
     pruneEvent:"DELETE FROM source_observations WHERE identity IN (SELECT identity FROM source_observations WHERE event_date<'2026-10-01' LIMIT 64)",
     observationCount:'SELECT n FROM observation_count WHERE id=1',

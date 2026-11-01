@@ -19,7 +19,7 @@ function setup(t,{missing=false,agenda}={}) {
   store.setMembers([{id:'43',name:'Éva Example',nameVariants:[{value:'Eva Alternate'}]}]);
   const work=activity.documents.find(d=>d.endpoint.startsWith('/parliamentary-questions')).work;
   store.putSource(generation,'/parliamentary-questions/'+work.identifier,'document',projectDocument(work),activity.verifiedAt);
-  store.publish(generation);store.release();
+  store.publish(generation);while(store.backfillFastReads(generation)){}store.release();
   const calls=[],request=yearCatalogue(async(endpoint,params)=>{
     calls.push([endpoint,params]);
     if(missing)throw Object.assign(new Error('Not retained'),{code:'odp_cache_miss'});

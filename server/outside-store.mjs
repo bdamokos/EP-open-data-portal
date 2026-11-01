@@ -1,3 +1,4 @@
+import {fastReadsReady} from './fast-read-projections.mjs';
 import {indexAvailability,savedGaps,availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
@@ -72,7 +73,8 @@ function generationOf(store) {
   return active && store.source(active,'outside:state') ? active : store.get('working')?.generation || active || 0;
 }
 function rowsFor(store, generation, {term='all',person=null}={}) {
-  const table=person?'outside_contributions':'outside_directory_reads',termColumn=person?"json_extract(body,'$.term')":'term';
+  const projected=!person&&fastReadsReady(store,generation,'outside');
+  const table=projected?'outside_directory_reads':'outside_contributions',termColumn=!projected?"json_extract(body,'$.term')":'term';
   const rows = store.db.prepare("SELECT body FROM "+table+" WHERE generation=?" + (person?' AND person=?':'') + (term!=='all'?' AND '+termColumn+'=?':'') + ' ORDER BY date DESC,speech LIMIT 50001').all(generation,...(person?[person]:[]),...(term!=='all'?[Number(term)]:[]));
   return {rows:rows.slice(0,50000).map(row => classified(parse(row.body))),truncated:rows.length>50000};
 }
@@ -104,7 +106,7 @@ export function outsideCoverage(store, generation, truncated=false, query={}) {
   const gapIntervals=boundedIntervals(failed.map(row=>({body:JSON.parse(row.body).taskBody||{},sourceId:row.key})));
   const pendingRows=store.db.prepare("SELECT key,body FROM tasks WHERE generation=? AND (done<>1 OR done IS NULL) AND (kind LIKE 'outside-%' OR kind='speeches') LIMIT 501").all(generation);
   const pendingIntervals=boundedIntervals(pendingRows.map(row=>({body:JSON.parse(row.body),sourceId:row.key})));
-  const unresolvedDates=store.db.prepare("SELECT DISTINCT date FROM outside_contributions INDEXED BY outside_unresolved_dates WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501").all(generation);
+  const unresolvedDates=store.db.prepare("SELECT DISTINCT date FROM outside_contributions INDEXED BY outside_unresolved WHERE generation=? AND (json_extract(body,'$.header.name') IS NULL OR json_array_length(body,'$.parentIds')=0) LIMIT 501").all(generation);
   const unresolvedIntervals=boundedIntervals(unresolvedDates.map(row=>({body:{date:row.date}})));
   const window={start:query.term==='9'||query.term==='all'?'2019-07-02':'2024-07-16',end:query.term==='9'?'2024-07-15':brusselsDay(store.clock())};
   const latestObservedDate=store.db.prepare('SELECT MAX(date) date FROM outside_contributions WHERE generation=? AND date<=?'+(query.term&&query.term!=='all'?" AND json_extract(body,'$.term')=?":'')).get(generation,window.end,...(query.term&&query.term!=='all'?[Number(query.term)]:[])).date||null;

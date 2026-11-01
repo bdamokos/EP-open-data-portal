@@ -1,3 +1,4 @@
+import {fastReadsReady} from './fast-read-projections.mjs';
 import {demographicMetadata,demographicObservation,demographicPerson,retainedDemographicMetadata} from './demographic-metadata.mjs';
 import {questionGroupMetrics,contributionGroup} from './group-aggregation.mjs';
 import {indexAvailability,savedGaps} from './availability-evidence.mjs';
@@ -22,6 +23,7 @@ export {brusselsDay} from './analysis-period.mjs';
 export const INSIGHTS_LIMITS = Object.freeze({ termStart:CURRENT_TERM_START,questions:5000,page:50,offset:5000,cacheEntries:4,cacheBytes:32*1024*1024,cacheMs:60_000 });
 const questionSubtypes=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'];
 export function questionCoverageRecords(store,generation) {
+  if(!fastReadsReady(store,generation))return store.db.prepare("SELECT json_extract(body,'$.document_date') date,fetched_at fetchedAt,json_extract(body,'$.work_type') subtype FROM sources WHERE generation=? AND kind='document' AND key LIKE '/parliamentary-questions/%'").all(generation);
   const today=brusselsDay(store.clock()),records=[];
   for(const subtype of questionSubtypes) {
     const rows=store.db.prepare("SELECT subtype,date,fetched_at fetchedAt FROM question_frontiers WHERE generation=? AND subtype=? AND key LIKE '/parliamentary-questions/%' ORDER BY date DESC,key").iterate(generation,subtype);
@@ -140,10 +142,11 @@ export class QuestionInsights {
       const params=[status.servingGeneration,query.start,query.end];
       const types="(json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
       const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND "+types;
+      const table=fastReadsReady(this.store,status.servingGeneration)?'question_reads INDEXED BY read_question_window':'sources';
       const frozen=this.store.readSnapshot(()=>({
-        undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM question_reads INDEXED BY read_question_window WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
-        count:this.store.db.prepare('SELECT COUNT(*) AS n FROM question_reads INDEXED BY read_question_window WHERE '+where).get(...params).n,
-        rows:this.store.db.prepare('SELECT key,body,fetched_at FROM question_reads INDEXED BY read_question_window WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
+        undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
+        count:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...params).n,
+        rows:this.store.db.prepare('SELECT key,body,fetched_at FROM '+table+' WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
         rosterFetchedAt:this.store.get('rosterFetchedAt'),
         frontiers:questionCoverageRecords(this.store,status.servingGeneration)

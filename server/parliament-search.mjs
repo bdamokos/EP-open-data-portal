@@ -1,3 +1,4 @@
+import {fastReadsReady} from './fast-read-projections.mjs';
 import {questionCoverageRecords} from './insights-store.mjs';
 import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
@@ -51,12 +52,14 @@ export class ParliamentSearch {
       coverage.mep.complete=Boolean(status.currentMeps);
     }
     if(matches.has('question')) {
-      const indexedTerms=query.terms.filter(term=>[...term].length>=3);
+      const projected=fastReadsReady(this.store,generation);
+      const table=projected?'question_reads':'sources';
+      const indexedTerms=(projected?query.terms:[]).filter(term=>[...term].length>=3);
       const titleMatch=indexedTerms.map(term=>'"'+term.replaceAll('"','""')+'"').join(' AND ');
       const args=[generation,...(titleMatch?[titleMatch]:[])];
       const rows=this.store.db.prepare(`SELECT key,json_extract(body,'$.identifier') id,json_extract(body,'$.document_date') date,
-        json_extract(body,'$.title_dcterms') titles,(SELECT json_group_array(json_extract(expression.value,'$.title')) FROM json_each(question_reads.body,'$.is_realized_by') expression) expression_titles,fetched_at
-        FROM question_reads ${titleMatch?'':'INDEXED BY read_question_window'} WHERE generation=? ${titleMatch?'AND rowid IN (SELECT rowid FROM question_title_search WHERE question_title_search MATCH ?)':''} AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 50001`).iterate(...args);
+        json_extract(body,'$.title_dcterms') titles,(SELECT json_group_array(json_extract(expression.value,'$.title')) FROM json_each(${table}.body,'$.is_realized_by') expression) expression_titles,fetched_at
+        FROM ${table} ${projected&&!titleMatch?'INDEXED BY read_question_window':''} WHERE generation=? ${titleMatch?'AND rowid IN (SELECT rowid FROM question_title_search WHERE question_title_search MATCH ?)':''} AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL') ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT 50001`).iterate(...args);
       const seen=new Set();let scanned=0,latestObservedDate=null;
       for(const row of rows) {
         if(scanned++===50000){coverage.question.limited=!(query.from||query.to)||Boolean(row.date&&(!query.from||row.date>=query.from));break;}

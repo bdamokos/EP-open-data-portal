@@ -1,3 +1,4 @@
+import {setImmediate as projectionYield} from 'node:timers/promises';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
@@ -706,7 +707,8 @@ export class ActivityWorker {
   async runIteration() {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due();
-    if(!due&&!pressDue || !this.store.acquire())return;
+    const projectionDue=this.store.fastReadsReady&&[this.store.get('active'),this.store.get('working')?.generation].filter(Boolean).some(g=>!['sources','outside','targets','amendments'].every(p=>this.store.fastReadsReady(g,p)));
+    if(!due&&!pressDue&&!projectionDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -714,6 +716,12 @@ export class ActivityWorker {
     this.runDeadline=this.monotonic()+this.maxDuration;
     const heartbeat=setInterval(()=>{if(!this.store.generationTaskActive&&!this.store.renew())this.controller.abort(new Error('Activity-index writer lease was lost.'));},20_000);heartbeat.unref();
     try {
+      const projectionGeneration=[this.store.get('active'),this.store.get('working')?.generation].filter(Boolean).find(g=>!['sources','outside','targets','amendments'].every(p=>this.store.fastReadsReady?.(g,p)));
+      if(projectionGeneration&&this.store.backfillFastReads) {
+        const until=this.monotonic()+Math.min(24_000,this.maxDuration*0.8);
+        while(!this.stopped&&!this.controller.signal.aborted&&this.monotonic()<until&&this.store.backfillFastReads(projectionGeneration))await projectionYield();
+        if(!['sources','outside','targets','amendments'].every(p=>this.store.fastReadsReady(projectionGeneration,p)))return;
+      }
       if(pressDue)await this.followPress(due);
       if(!due || this.stopped)return;
       this.controller.signal.throwIfAborted();

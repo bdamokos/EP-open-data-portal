@@ -1,4 +1,4 @@
-import {prepareFastReads,registerFastReads} from './fast-read-projections.mjs';
+import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
 import {generationGroupOn} from './group-attribution.mjs';
 import {activityAffiliation} from './group-aggregation.mjs';
 import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,touchAvailability,historyStatus} from './availability-history.mjs';
@@ -36,7 +36,7 @@ const motionLinkSelect = (source,from='') => `SELECT ${source}.generation,${orig
   WHERE ${source}.kind='document' AND json_extract(${source}.body,'$.work_type') LIKE '%/RESOLUTION_MOTION_JOINT'
   AND ${originalMotionRef} LIKE 'eli/dl/doc/B-10-%'`;
 const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
-  FROM motion_links AS link JOIN source_reads AS source ON source.generation=link.generation AND source.key=link.joint_key
+  FROM motion_links AS link JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
 export class ActivityStore {
@@ -121,9 +121,10 @@ export class ActivityStore {
         this.set('motionLinksIndexVersion',1);
       }
       if(this.get('activityReadVersion')!==activityReadVersion) {
-        initializeActivityReads(this.db);prepareFastReads(this.db);prepareQuestionFiles(this.db,this.prepareLog);
+        initializeActivityReads(this.db);prepareQuestionFiles(this.db,this.prepareLog);
         this.set('activityReadVersion',activityReadVersion);initialized=true;refresh();
       }
+      if(this.get('fastReadSchemaVersion')!==1){prepareFastReads(this.db);this.set('fastReadSchemaVersion',1);}
       if(this.get('refreshPolicyVersion')!==1) {
         if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
         refreshPolicySchema(this);initialized=true;refresh();
@@ -281,7 +282,9 @@ export class ActivityStore {
   }
   taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN done=1 THEN 1 ELSE 0 END),0) AS completed,COALESCE(SUM(CASE WHEN (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT body,fetched_at FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
-  sourceMetadata(generation,key) { const s=this.db.prepare('SELECT body,fetched_at FROM source_reads WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
+  fastReadsReady(generation,projection='sources') {return fastReadsReady(this,generation,projection);}
+  backfillFastReads(generation,limit=32) {return backfillFastReads(this,generation,limit);}
+  sourceMetadata(generation,key) { const s=this.db.prepare("SELECT "+(fastReadsReady(this,generation)?'body':"compact_source_read(body,'metadata') body")+" ,fetched_at FROM "+(fastReadsReady(this,generation)?'source_reads':'sources')+' WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
   sources(generation,kind,workType=null) {
     const rows=this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?'+(workType?" AND json_extract(body,'$.work_type') LIKE ?":'')).all(generation,kind,...(workType?['%/'+workType]:[]));
     return rows.map(s=>({key:s.key,work:parse(s.body),fetchedAt:s.fetched_at}));
@@ -291,14 +294,14 @@ export class ActivityStore {
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
   motionClassificationPending(generation) {
-    return Boolean(this.db.prepare("SELECT 1 FROM sources INDEXED BY motion_classification_due WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? LIMIT 1").get(generation,MOTION_CLASSIFICATION_VERSION));
+    return Boolean(this.db.prepare("SELECT 1 FROM sources WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? LIMIT 1").get(generation,MOTION_CLASSIFICATION_VERSION));
   }
   reclassifyMotions(generation,limit=100) {
     this.transaction(()=>{
       this.assertWriter();
       // Work only on the unpublished generation. Retain metadata and retrieval times.
       if(this.get('working')?.generation!==generation)throw new Error('Motion classification requires a working generation.');
-      const rows=this.db.prepare("SELECT key,body,fetched_at FROM sources INDEXED BY motion_classification_due WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? ORDER BY key LIMIT ?").all(generation,MOTION_CLASSIFICATION_VERSION,limit);
+      const rows=this.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND "+motionDocuments+" AND COALESCE(json_extract(body,'$.motionClassificationVersion'),0)<>? ORDER BY key LIMIT ?").all(generation,MOTION_CLASSIFICATION_VERSION,limit);
       const update=this.db.prepare('UPDATE sources SET body=? WHERE generation=? AND key=?');
       for(const row of rows) {
         const work=parse(row.body);
@@ -310,7 +313,7 @@ export class ActivityStore {
     return this.motionClassificationPending(generation);
   }
   *motionDocuments(generation) {
-    for(const source of this.db.prepare('SELECT key,body,fetched_at FROM source_reads INDEXED BY read_motion_documents WHERE generation=? AND '+motionDocuments).iterate(generation))
+    for(const source of this.db.prepare('SELECT key,body,fetched_at FROM '+(fastReadsReady(this,generation)?'source_reads INDEXED BY read_motion_documents':'sources')+' WHERE generation=? AND '+motionDocuments).iterate(generation))
       yield {key:source.key,work:parse(source.body),fetchedAt:source.fetched_at};
   }
   *reportsForProcedure(generation,id) {
