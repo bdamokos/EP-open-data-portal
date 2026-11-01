@@ -65,7 +65,7 @@ function Detail({topic,place,language}:{topic:string;place:string;language:strin
  useEffect(()=>{const origin=focusRecords.current;if(!origin||records.loading||!chart.data?.ready||!recordsHeading.current)return;if(records.data||records.error){focusRecords.current=null;if(document.activeElement===origin||document.activeElement===document.body){recordsHeading.current?.focus({preventScroll:true});recordsHeading.current?.scrollIntoView({block:'start'});}}},[records.loading,records.data,records.error,chart.data]);
  type SavedGroup={group:TopicGroup;offset:number};
  const [retainedGroups,setRetainedGroups]=useDossierReaderState<SavedGroup[]>('topic-group-pages',[]);
- const scope=JSON.stringify([key,quarter,kind,keyword,placeFilter,own,askers]);
+ const scope=JSON.stringify([language,key,quarter,kind,keyword,placeFilter,own,askers]);
  const pageGroups=useRef(new Map<string,Map<string,SavedGroup>>([[scope,new Map(retainedGroups.map(row=>[row.group.key,row]))]]));
  if(!pageGroups.current.has(scope))pageGroups.current.set(scope,new Map());
  const savedGroups=pageGroups.current.get(scope)!;
