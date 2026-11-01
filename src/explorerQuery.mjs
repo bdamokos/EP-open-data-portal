@@ -16,6 +16,7 @@ export function readExplorerParam(query,key,fallback,allowed) {
   if(key.endsWith('-country')&&!countries.has(value))return fallback;
   if((key.endsWith('-until')||key==='trend-week')&&raw&&!validDate(raw))return fallback;
   if(['q-offset','am-offset'].includes(key)&&(!Number.isInteger(value)||value<0||value>(key==='am-offset'?1000000:5000)))return fallback;
+  if(key==='t-q'&&raw&&!/^20\d{2}-Q[1-4]$/.test(raw))return fallback;
   if(key==='q-addressee'&&raw&&!validAddresseeFilter(raw))return fallback;
   if(['am-scope'].includes(key)&&!['plenary','committee'].includes(raw))return fallback;
   if(key==='am-list'&&raw&&!committeeAmendmentList(raw))return fallback;

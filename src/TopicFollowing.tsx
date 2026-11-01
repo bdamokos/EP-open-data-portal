@@ -1,3 +1,4 @@
+import {dossierLinkClick} from './dossierJourney';
 import {useState,useSyncExternalStore} from 'react';
 import {UiMessage} from './UiI18nReact';
 import {topicsHref} from './topicPresentation.mjs';
@@ -8,4 +9,4 @@ function reload(){try{const value=JSON.parse(localStorage.getItem(key)||'[]');it
 reload();window.addEventListener('storage',e=>{if(e.key===key||e.key===null)reload();});
 export function useTopics(){return useSyncExternalStore(f=>{listeners.add(f);return()=>listeners.delete(f);},()=>items);}
 export function FollowTopic({concept}:{concept:TopicConcept}){const [error,setError]=useState(false),saved=useTopics().some(i=>i.key===concept.key);return <><button aria-pressed={saved} onClick={()=>{const next=saved?items.filter(i=>i.key!==concept.key):[...items,concept];try{localStorage.setItem(key,JSON.stringify(next));setError(false);reload();}catch{setError(true);}}}><UiMessage id={saved?'topics.following':'topics.follow'}/></button>{error&&<p role="alert"><UiMessage id="topics.saveError"/></p>}</>;}
-export function FollowedTopics(){const saved=useTopics();return <>{saved.map(c=><article className="explorer-saved-card" key={c.key}><small><UiMessage id={c.key.startsWith('place:')?'topics.place':'topics.topic'}/></small><h2><a href={topicsHref(c.key)}>{c.label}</a></h2><FollowTopic concept={c}/></article>)}</>;}
+export function FollowedTopics(){const saved=useTopics();return <>{saved.map(c=><article className="explorer-saved-card" key={c.key}><small><UiMessage id={c.key.startsWith('place:')?'topics.place':'topics.topic'}/></small><h2><a onClick={dossierLinkClick} href={topicsHref(c.key)}>{c.label}</a></h2><FollowTopic concept={c}/></article>)}</>;}

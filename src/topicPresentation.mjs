@@ -7,7 +7,7 @@ export const quarterBounds = period => {
 };
 export const partialQuarter=(period,partial)=>Boolean(period===partial?.first?.slice(0,4)+'-Q'+Math.ceil(Number(partial?.first?.slice(5,7))/3)||period===partial?.last?.slice(0,4)+'-Q'+Math.ceil(Number(partial?.last?.slice(5,7))/3));
 export const lastFullQuarter=data=>[...data.periods].reverse().find(p=>!partialQuarter(p,data.partial))||data.periods[0];
-export const placeValue=(s,mode='q',own=true)=>mode==='d'?(s.document||0):own?(s.questionElsewhere??Math.max(0,(s.question||0)-(s.questionHome||0))):(s.question||0);
+export const placeValue=(s,mode='q',own=true)=>mode==='d'?(s.document||0):own?Math.max(0,(s.question||0)-(s.questionHome||0)):(s.question||0);
 export function riser(data,index,mode,own){
  if(index<2||partialQuarter(data.periods[index],data.partial))return null;
  const earlier=data.periods.slice(0,index).filter(p=>!partialQuarter(p,data.partial));if(!earlier.length)return null;

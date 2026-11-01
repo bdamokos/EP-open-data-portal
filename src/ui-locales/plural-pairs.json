@@ -370,38 +370,43 @@
     "count": "count"
   },
   {
-    "one": "topics.story.busiestOne",
-    "other": "topics.story.busiest",
+    "one": "topics.story.count.questionsOne",
+    "other": "topics.story.count.questions",
     "count": "count"
   },
   {
-    "one": "topics.story.urgencyOne",
-    "other": "topics.story.urgency",
+    "one": "topics.story.count.questionsEachOne",
+    "other": "topics.story.count.questionsEach",
     "count": "count"
   },
   {
-    "one": "topics.story.leaderOne",
-    "other": "topics.story.leader",
+    "one": "topics.story.count.debatesOne",
+    "other": "topics.story.count.debates",
     "count": "count"
   },
   {
-    "one": "topics.story.leaderSoFarOne",
-    "other": "topics.story.leaderSoFar",
+    "one": "topics.story.count.resolutionsOne",
+    "other": "topics.story.count.resolutions",
     "count": "count"
   },
   {
-    "one": "topics.story.placeQuestionsOne",
-    "other": "topics.story.placeQuestions",
+    "one": "topics.story.count.groupsOne",
+    "other": "topics.story.count.groups",
     "count": "count"
   },
   {
-    "one": "topics.story.textsOne",
-    "other": "topics.story.texts",
+    "one": "topics.story.count.textsOne",
+    "other": "topics.story.count.texts",
     "count": "count"
   },
   {
-    "one": "topics.story.topicSummaryOne",
-    "other": "topics.story.topicSummary",
+    "one": "topics.story.count.mepsOne",
+    "other": "topics.story.count.meps",
+    "count": "count"
+  },
+  {
+    "one": "topics.story.tally.abstentionsOne",
+    "other": "topics.story.tally.abstentions",
     "count": "count"
   }
 ]

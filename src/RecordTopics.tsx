@@ -1,3 +1,4 @@
+import {dossierLinkClick} from './dossierJourney';
 import {createContext,useContext,type ReactNode} from 'react';
 import {useInsightData} from './InsightData';
 import {UiMessage} from './UiI18nReact';
@@ -21,6 +22,6 @@ export function RecordTopics({id,full=false,language='en'}:{id:string;full?:bool
 }
 export function TopicLine({record,full=false,language='en'}:{record:RecordTopic;full?:boolean;language?:string}){
  const topic=record.topics[0],place=record.places[0];
- return <>{(topic||place)&&<div className="record-topics">{topic&&<><a href={topicsHref(topic.key)} lang={topic.language||language}>{topic.label}</a>{record.topics.length>1&&<span className="topic-muted"> +{record.topics.length-1}</span>}</>}{place&&<> <a href={topicsHref(place.key)} lang={place.language||language}>⌖ {place.label}</a></>}</div>}{full&&record.keywords.some(k=>k.featured)&&<p className="topic-muted"><UiMessage id="topics.keywordLine" values={{keywords:record.keywords.filter(k=>k.featured).slice(0,3).map((k,i)=><span key={k.key}>{i>0?' · ':''}<a href={topicsHref(k.key)} lang={k.language||language}>{k.label}</a></span>)}}/></p>}{full&&record.status==='pending'&&<p><UiMessage id="topics.pending"/></p>}</>;
+ return <>{(topic||place)&&<div className="record-topics">{topic&&<><a onClick={dossierLinkClick} href={topicsHref(topic.key)} lang={topic.language||language}>{topic.label}</a>{record.topics.length>1&&<span className="topic-muted"> +{record.topics.length-1}</span>}</>}{place&&<> <a onClick={dossierLinkClick} href={topicsHref(place.key)} lang={place.language||language}>⌖ {place.label}</a></>}</div>}{full&&record.keywords.some(k=>k.featured)&&<p className="topic-muted"><UiMessage id="topics.keywordLine" values={{keywords:record.keywords.filter(k=>k.featured).slice(0,3).map((k,i)=><span key={k.key}>{i>0?' · ':''}<a onClick={dossierLinkClick} href={topicsHref(k.key)} lang={k.language||language}>{k.label}</a></span>)}}/></p>}{full&&record.status==='pending'&&<p><UiMessage id="topics.pending"/></p>}</>;
 }
 export function QuestionOriginTag({id,place}:{id:string;place:string}){const records=useContext(Batch),record=records?.get(id);return record?.places.some(p=>p.id===place&&p.askers==='home')?<small className="topic-muted"><UiMessage id="topics.ownMepTag"/></small>:null;}

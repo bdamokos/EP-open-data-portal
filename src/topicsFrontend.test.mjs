@@ -25,7 +25,7 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
  assert.equal(renderToStaticMarkup(h(TopicLine,{record:{...record,topics:[],places:[],keywords:[]}})),'');
 });
 
-test('own-country exclusion follows the supported elsewhere drilldown without merging unknown-origin counts',()=>{assert.equal(placeValue({question:12,questionHome:3,questionElsewhere:7,questionUnknown:2},'q',true),7);});
+test('own-country exclusion retains unknown-origin questions rather than treating them as home',()=>{assert.equal(placeValue({question:12,questionHome:3,questionElsewhere:7,questionUnknown:2},'q',true),9);});
 test('finder selects the active result with arrows and Enter and closes with Escape',async t=>{
  const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
  const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
@@ -39,3 +39,5 @@ test('finder selects the active result with arrows and Enter and closes with Esc
 });
 
 test('legacy EuroVoc URI bookmarks keep exact concept identity',()=>{assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-topic=http%3A%2F%2Feurovoc.europa.eu%2F404')),'?view=topics&topic=eurovoc%3A404');});
+
+test('malformed quarter URLs cannot silently select an unfiltered record list',async()=>{const {readExplorerParam}=await import('./explorerQuery.mjs');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q8'),'t-q',''),'');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q3'),'t-q',''),'2026-Q3');});
