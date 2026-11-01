@@ -117,13 +117,6 @@ export function rawProposalAssertion({proposal,wording,placement}) {
       const first=article.rows.find(row=>row.index===scope.start);
       if(first?.text.trimEnd().endsWith(':'))scope.end=scope.start+1;
     } else if(segment.kind==='subparagraph') {
-      // An unnumbered amending introduction owns the whole printed list.
-      // Some editions call that containing paragraph a first subparagraph.
-      const implicit=article.nodes.filter(node=>node.kind==='paragraph'&&node.implicit);
-      const next=tail[tail.indexOf(segment)+1];
-      if(!parent&&segment.value==='1'&&next?.kind==='point'&&implicit.length===1&&article.rows[implicit[0].start]?.text.trimEnd().endsWith(':')&&article.nodes.some(node=>node.parent===implicit[0]&&node.kind==='point'&&node.value==='1')){
-        parent=implicit[0];scope={start:parent.start,end:parent.end};continue;
-      }
       sub=subparagraphs(scope,article)[Number(segment.value)-1];
       if(!sub)return unknown('oracle-raw-subparagraph-unavailable');
       scope=sub;

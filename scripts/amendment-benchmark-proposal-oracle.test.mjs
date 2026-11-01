@@ -108,3 +108,8 @@ test('a published new marker cannot erase an existing address during replacement
  assert.equal(check(p,'Article 1 – paragraph 1 – point 2 (new)',replace(3)).status,'verified');
  assert.equal(check(p,'Article 1 – paragraph 1 – point 2 (new)',replace(2)).status,'failed');
 });
+
+test('Dutch instructions retain the consecutive list across a numbered added paragraph',async()=>{
+ const {oracleInstruction}=await import('./amendment-oracle-grammar.mjs');
+ assert.deepEqual(oracleInstruction('59) Aan artikel 115 wordt het volgende lid 4 toegevoegd:','nl'),{value:'59',level:0});
+});
