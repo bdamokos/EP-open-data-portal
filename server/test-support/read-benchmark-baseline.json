@@ -167,7 +167,8 @@
         "CO-ROUTINE page",
         "SEARCH amendment_page_reads USING COVERING INDEX amendment_page_order (generation=?)",
         "SCAN page",
-        "SEARCH source USING INDEX sqlite_autoindex_amendments_1 (generation=? AND id=?)"
+        "SEARCH source USING INDEX sqlite_autoindex_amendments_1 (generation=? AND id=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
