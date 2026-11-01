@@ -84,7 +84,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  }
  // Persist collector's retained pages independently of its bounded HTTP cache.
  for(const row of store.db.prepare('SELECT id,reference,body FROM topic_procedure_pages').iterate()){
- const node=byId.get(row.id);if(!node||node.reference!==row.reference)continue;const p=JSON.parse(row.body),existing=procedureTopics.get(row.id)||{reference:row.reference,assignments:[]};if(p.state==='unavailable'){existing.oeilUnavailable=p.reason;procedureTopics.set(row.id,existing);continue;}existing.oeilRead=true;
+ const node=byId.get(row.id);if((node?.reference??null)!==row.reference)continue;const p=JSON.parse(row.body),existing=procedureTopics.get(row.id)||{reference:row.reference,assignments:[]};if(p.state==='unavailable'){existing.oeilUnavailable=p.reason;procedureTopics.set(row.id,existing);continue;}existing.oeilRead=true;
  for(const s of p.subjects){const key='oeil:'+s.code,c={key,scheme:'oeil',role:'topic',uri:p.url+'#subject-'+s.code,labels:{[p.language]:s.label},source:p.source};concepts.set(key,c);if(!existing.assignments.some(a=>a.concept.key===key))existing.assignments.push({concept:c,basis:'direct',steps:[{from:row.id,field:'OEIL subject',to:s.code}],sources:[p.source]});}procedureTopics.set(row.id,existing);
  }
  const referenced=new Set();for(const n of nodes)if((!n.date||n.date>='2024-07-16')&&(n.kind!=='question'||n.id.startsWith('O-')))for(const id of [...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id)])referenced.add(id);
@@ -140,4 +140,4 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  return {version:RECORD_TOPICS_VERSION,generation,coverage};
  }finally{clearInterval(heartbeat);store.db.exec('PRAGMA cache_size='+Number(previousCacheSize));}
 }
-export function topicCollectorTables(db){db.exec(`CREATE TABLE IF NOT EXISTS topic_procedure_queue(id TEXT PRIMARY KEY,reference TEXT,next_read INTEGER);CREATE INDEX IF NOT EXISTS topic_procedure_due ON topic_procedure_queue(next_read,id);CREATE TABLE IF NOT EXISTS topic_procedure_metadata(id TEXT PRIMARY KEY,body TEXT,url TEXT,fetched_at TEXT);CREATE TABLE IF NOT EXISTS topic_procedure_pages(id TEXT PRIMARY KEY,reference TEXT,body TEXT);`);}
+export function topicCollectorTables(db){db.exec(`CREATE TABLE IF NOT EXISTS topic_procedure_queue(id TEXT PRIMARY KEY,reference TEXT,next_read INTEGER);CREATE TABLE IF NOT EXISTS topic_procedure_attempts(id TEXT PRIMARY KEY,attempts INTEGER,error TEXT);CREATE INDEX IF NOT EXISTS topic_procedure_due ON topic_procedure_queue(next_read,id);CREATE TABLE IF NOT EXISTS topic_procedure_metadata(id TEXT PRIMARY KEY,body TEXT,url TEXT,fetched_at TEXT);CREATE TABLE IF NOT EXISTS topic_procedure_pages(id TEXT PRIMARY KEY,reference TEXT,body TEXT);`);}

@@ -73,7 +73,7 @@ export class OfficialContextSources {
               this.queues.get(source.origin)?.backoff(retryAfter);backoffUpstream(retryAfter,{source:source.origin});await response.body?.cancel();
               throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
             }
-            if(!response.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
+            if(!response.ok||response.status===202)throw Object.assign(new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.'),{sourceStatus:response.status,cause:{status:response.status}});
             const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
             if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
             const text=await limitedText(response,json?3*1024*1024:1024*1024);

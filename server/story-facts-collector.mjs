@@ -1,10 +1,11 @@
+import {collectorRetry} from './collector-retry.mjs';
 import {createHash} from 'node:crypto';
 import {storyTables,stageStoryInput} from './story-facts-storage.mjs';
 import {array,tail} from './story-facts-model.mjs';
 export const STORY_PAGE_SIZE=250;
 export function storyCollectionDue(store,now){
  if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='story_jobs'").get())return false;
- return Boolean(store.db.prepare("SELECT 1 FROM story_jobs WHERE state='pending' AND next_read<=? LIMIT 1").get(now));
+ return Boolean(store.db.prepare("SELECT 1 FROM story_jobs WHERE state IN ('pending','unavailable') AND next_read<=? LIMIT 1").get(now));
 }
 function* expanded(work){
  const stack=[[work][Symbol.iterator]()],seen=new WeakSet();
@@ -13,8 +14,8 @@ function* expanded(work){
 export async function collectStorySource(worker){
  const store=worker.store;store.assertWriter();storyTables(store.db);
  if(worker.controller.signal.aborted||worker.requests>=worker.budget)return false;
- const row=store.db.prepare("SELECT * FROM story_jobs WHERE state='pending' AND next_read<=? ORDER BY next_read,key LIMIT 1").get(worker.clock());if(!row)return false;
- const update=(state,error=null,offset=row.offset,signature=null)=>store.db.prepare('UPDATE story_jobs SET state=?,next_read=?,offset=?,signature=?,error=? WHERE key=?').run(state,state==='pending'?0:null,offset,signature,error,row.key);
+ const row=store.db.prepare("SELECT * FROM story_jobs WHERE state IN ('pending','unavailable') AND next_read<=? ORDER BY next_read,key LIMIT 1").get(worker.clock());if(!row)return false;
+ const update=(state,error=null,offset=row.offset,signature=null)=>store.db.prepare('UPDATE story_jobs SET attempts=0,state=?,next_read=?,offset=?,signature=?,error=? WHERE key=?').run(state,state==='pending'?0:null,offset,signature,error,row.key);
  if(row.kind==='agenda'&&row.id.slice(7,17)<'2024-12-16'){update('unavailable','not-served-before-2024-12-16');store.set('storyProjectionDirty',true);return true;}
  const endpoint=row.kind==='event'?'/events/'+row.id:'/meetings/'+row.id+(row.kind==='agenda'?'/foreseen-activities':'/decisions');
  const params=row.kind==='decisions'?{'filter-output':'voters'}:row.kind==='agenda'?{limit:STORY_PAGE_SIZE,offset:row.offset}:{};
@@ -40,6 +41,6 @@ export async function collectStorySource(worker){
    update(more?'pending':'available',null,row.offset+(row.kind==='agenda'?works.length:0),signature);
    store.set(row.kind==='decisions'?'storyProjectionDirty':'topicProjectionDirty',true);
   });
- }catch(error){if(worker.controller.signal.aborted)throw error;store.assertWriter();const delay=Math.min(30*60_000,30_000*2**Math.min(row.attempts,6));store.db.prepare('UPDATE story_jobs SET attempts=attempts+1,next_read=?,error=? WHERE key=?').run(Math.max(worker.clock()+delay,Number(error.retryAt)||0,worker.clock()+(Number(error.retryAfter)||0)*1000),String(error.message).slice(0,200),row.key);}
+ }catch(error){if(worker.controller.signal.aborted)throw error;store.assertWriter();const retry=collectorRetry(error,row.attempts,worker.clock());store.db.prepare('UPDATE story_jobs SET state=?,attempts=?,next_read=?,error=? WHERE key=?').run(retry.permanent?'unavailable':'pending',retry.attempts,retry.next,retry.paused?null:String(error.message).slice(0,200),row.key);if(retry.permanent)store.set('storyProjectionDirty',true);}
  return true;
 }
