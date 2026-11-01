@@ -1,9 +1,10 @@
+import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {languageQuotedSibling} from './amendment-language-quoted-oracle.mjs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
-import {oracleAddress,oracleFold,oracleOpening,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {oracleAddress,oracleFold,oracleOpening,oracleRelative,oracleInstruction} from './amendment-oracle-grammar.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
@@ -92,6 +93,7 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   // Map by original XML path only; never by wording similarity. Proposal rows
   // expose source through the production source projection, not unit ownership.
   if(proposal)for(let i=0;i<observed.length;i++)observed[i].path ||= proposal.paragraphSources?.[i]?.path;
+  const nativeRows=()=>observed.map((p,index)=>{const r=sourceRows.find(row=>row.path===p.path);return {index,text:r?.text??'',properties:{styleId:r?.style},source:{container:r?.body?'body':'table',complete:Boolean(r&&!r.uncertain&&!r.automatic)},complete:Boolean(r&&!r.uncertain&&!r.automatic)};});
   const rawProposal=()=>{
     if(expected.sectionKind!=='commission-proposal')return unknown('raw-proposal-section-unverified');
     const rows=observed.map((p,index)=>{
@@ -110,7 +112,11 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   const span=placement.span;
   if(expected.operation==='insert') {
     if(proposal) {
-      if(targetKind!=='recital')return rawProposal();
+      if(targetKind!=='recital'){
+        const ordinary=rawProposal();if(ordinary.status!=='unverified')return ordinary;
+        const custom=assertMaintainerPrinciple({proposal:{paragraphs:nativeRows()},wording:expected,placement});
+        return custom.status==='verified'?{...custom,location:{section:'commission-proposal',kind:'point',value:expected.targetLabel,scope:'proposal'}}:ordinary;
+      }
       if(expected.sectionKind!=='commission-proposal')return unknown('raw-proposal-section-unverified');
       const address=simpleAddress(expected.targetLabel,expected.language),recitals=proposalRecitals(raw),anchors=recitals.filter(p=>p.value===address?.base);
       if(!address?.suffix||anchors.length!==1)return unknown('raw-proposal-insertion-boundary-unverified');
@@ -152,6 +158,11 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   if(rawSelected.some((p,i)=>!p||p.uncertain||p.automatic||rawNormal(p.text)!==rawNormal(selected[i].text)))return unknown('raw-span-projection-unverified');
   if(proposal) {
     if(targetKind!=='recital'){
+      const normalLine=s=>s.normalize('NFC').replace(/[‘’]/gu,"'").replace(/[“”]/gu,'"').replace(/\s+/gu,' ').trim();
+      if(span.start===span.end&&expected.originalText.includes('\n')&&oracleInstruction(rawSelected[0].text,expected.language)&&normalLine(rawSelected[0].text)===normalLine(expected.originalText.split('\n')[0])){
+        const address=rawProposal();
+        if(address.status==='verified'&&address.rawSourceRows?.[1]===span.start)return {...address,reason:'raw-exact-instruction-anchor'};
+      }
       if(strip(splicedSource)!==strip(expected.originalText)){
         if(oracleSimilarity(splicedSource,expected.originalText)<.95)return failed('raw-original-splice-mismatch');
         const address=rawProposal();if(address.status!=='verified')return address;

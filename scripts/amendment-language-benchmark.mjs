@@ -22,7 +22,7 @@ async function runtimeIdentity(directory) {
   return {head:git(['rev-parse','HEAD']),dirty:Boolean(git(['status','--porcelain'])),treeHash:digest(JSON.stringify(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(directory,file)))]))))};
 }
 async function oracleIdentity() {
-  return digest(Buffer.concat(await Promise.all(['amendment-similarity-oracle.mjs','amendment-language-quoted-oracle.mjs','amendment-benchmark-quoted-oracle.mjs','amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-benchmark-scope-oracle.mjs','fixtures/amendment-language-scope-oracle.json','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
+  return digest(Buffer.concat(await Promise.all(['amendment-maintainer-oracle.mjs','amendment-similarity-oracle.mjs','amendment-language-quoted-oracle.mjs','amendment-benchmark-quoted-oracle.mjs','amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-benchmark-scope-oracle.mjs','fixtures/amendment-language-scope-oracle.json','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
 }
 async function immutableJson(file,value) {
   const bytes=JSON.stringify(value,null,2)+'\n';

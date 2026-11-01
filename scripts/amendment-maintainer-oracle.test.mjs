@@ -13,3 +13,15 @@ test('negative instructions start before the existing quotation',()=>{
 test('partial replacement keeps its subordinate points with the numbered paragraph',()=>{
  const i=input('2 b. New paragraph.',['(2) The second subparagraph is replaced by the following:','‘2. Conditions:','(a) First condition;','(b) Second condition.’']);assert.equal(assertMaintainerPrinciple(i).status,'verified');
 });
+
+test('a standalone instruction terminator stays after the inserted quoted paragraph',()=>{
+ const i=input('3a. New paragraph.',['(2) Article 4 is replaced by the following:','‘Article 4','3. Existing paragraph.’',';']);
+ i.placement.insertBefore=5;i.placement.insertAfter=4;assert.equal(assertMaintainerPrinciple(i).status,'verified');
+ i.placement.insertBefore=6;i.placement.insertAfter=5;assert.equal(assertMaintainerPrinciple(i).status,'failed');
+});
+
+test('a quoted numbered paragraph stops at the next paragraph with native double quotation marks',()=>{
+ const i=input('4a. New paragraph.',['(2) The following paragraphs are added:','“4. Existing paragraph.','5. Next paragraph.”']);
+ i.proposal.paragraphs[0].text='Article 1\nAmending provisions';i.placement.insertBefore=4;i.placement.insertAfter=3;
+ assert.equal(assertMaintainerPrinciple(i).status,'verified');
+});
