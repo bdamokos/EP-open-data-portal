@@ -332,14 +332,15 @@ test('speech card with an unknown city retains its time without guessing Brussel
  assert.doesNotMatch(card.textContent,/Brussels|Strasbourg/);
 });
 
-test('Refresh list restores sitting cities after a failed calendar request',async t=>{
+test('sitting cities recover automatically after a failed calendar request',async t=>{
  let available=false,calls=0;
  const calendar={version:3,weeks:[{week:'2026-10-05',sittings:[{sittingId:'MTG-PL-2026-10-07',date:'2026-10-07',location:'Strasbourg'}]}],coverage:{status:'complete',years:[]}};
  const h=await harness(t,'en',{items:[speeches[0]],query:{member:String(member.id),module:'speeches'},calendarResponse:()=>{calls++;return available?Response.json(calendar):Response.json({error:'Unavailable'},{status:503});}});
  await h.wait();
  assert.doesNotMatch(h.container.querySelector('.explorer-speech-toggle').textContent,/Strasbourg|Brussels/);
  const before=calls;available=true;
- await h.click([...h.container.querySelectorAll('button')].find(button=>button.textContent==='Refresh list'));
+ assert(![...h.container.querySelectorAll('button')].some(button=>button.textContent==='Refresh list'));
+ await h.tick(30_000);
  await h.wait();
  assert(calls>before);
  assert.match(h.container.querySelector('.explorer-speech-toggle').textContent,/Strasbourg/);
