@@ -156,3 +156,16 @@ for(const boundary of ['2026-10-14','2026-10-15'])test('question scan cap is sco
  assert.equal(section.coverage.limited,boundary==='2026-10-15');
  assert.equal(section.coverage.complete,boundary==='2026-10-14');
 });
+
+test('indexed title matches do not restrict coverage or let future and malformed dates hide the retained frontier',async t=>{
+  const {service,store,generation,work}=setup(t);store.clock=clock;
+  const baseline=(await service.query(query('q=unmatched-title&type=question'))).sections[0].coverage.availability.latestObservedDate;
+  store.acquire();
+  for(const [n,date] of [['999998','9999-01-01'],['999999','invalid']]) {
+    const identifier='E-10-2026-'+n;
+    store.putSource(generation,'/parliamentary-questions/'+identifier,'document',{...projectDocument(work),identifier,document_date:date},activity.verifiedAt);
+  }
+  store.release();
+  const section=(await service.query(query('q=unmatched-title&type=question'))).sections[0];
+  assert.equal(section.total,0);assert.equal(section.coverage.availability.latestObservedDate,baseline);assert(baseline);
+});

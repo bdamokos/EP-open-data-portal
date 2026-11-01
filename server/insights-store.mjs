@@ -21,7 +21,7 @@ export {brusselsDay} from './analysis-period.mjs';
 
 export const INSIGHTS_LIMITS = Object.freeze({ termStart:CURRENT_TERM_START,questions:5000,page:50,offset:5000,cacheEntries:4,cacheBytes:32*1024*1024,cacheMs:60_000 });
 const questionSubtypes=['QUESTION_WRITTEN','QUESTION_WRITTEN_PRIORITY','QUESTION_ORAL'];
-function questionCoverageRecords(store,generation,types) {
+export function questionCoverageRecords(store,generation) {
   const today=brusselsDay(store.clock()),records=[];
   for(const subtype of questionSubtypes) {
     const rows=store.db.prepare("SELECT subtype,date,fetched_at fetchedAt FROM question_frontiers WHERE generation=? AND subtype=? AND key LIKE '/parliamentary-questions/%' ORDER BY date DESC,key").iterate(generation,subtype);
@@ -146,7 +146,7 @@ export class QuestionInsights {
         rows:this.store.db.prepare('SELECT key,body,fetched_at FROM question_reads INDEXED BY read_question_window WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
         rosterFetchedAt:this.store.get('rosterFetchedAt'),
-        frontiers:questionCoverageRecords(this.store,status.servingGeneration,types)
+        frontiers:questionCoverageRecords(this.store,status.servingGeneration)
       }));
       const {count,rows,members,undatedQuestions}=frozen;
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));

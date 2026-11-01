@@ -1,3 +1,4 @@
+import {questionCoverageRecords} from './insights-store.mjs';
 import {HttpError} from './http-utils.mjs';
 import {odp,odpLanguage} from './odp.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
@@ -11,7 +12,7 @@ import {indexAvailability} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {periodAvailability} from './source-availability.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=6;
+export const PARLIAMENT_SEARCH_VERSION=7;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -67,8 +68,8 @@ export class ParliamentSearch {
         const titles=suppliedTitles({title_dcterms:JSON.parse(row.titles||'{}'),is_realized_by:JSON.parse(row.expression_titles||'[]').map(title=>({title}))});
         if(match([id,...Object.values(titles)]))add({id,type:'question',...title(titles,id),date:row.date,sourceUrl:`https://www.europarl.europa.eu/doceo/document/${id}_${query.language.toUpperCase()}.html`,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:row.fetched_at}});
       }
-      latestObservedDate=this.store.db.prepare("SELECT MAX(json_extract(body,'$.document_date')) date FROM question_reads INDEXED BY read_question_window WHERE generation=? AND kind='document' AND (json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')").get(generation).date||null;
-      coverage.question.availability=indexAvailability(this.store,{sourceKey:'questions',family:'questions',generation,start:query.from||'2024-07-16',end:query.to||brusselsDay(this.clock()),latestObservedDate,limited:coverage.question.limited});
+      const frontierRecords=questionCoverageRecords(this.store,generation);
+      coverage.question.availability=indexAvailability(this.store,{sourceKey:'questions',family:'questions',generation,start:query.from||'2024-07-16',end:query.to||brusselsDay(this.clock()),records:frontierRecords,limited:coverage.question.limited});
       // Completeness must also support an empty lookup; positive matches do
       // not close another known read failure in the same requested interval.
       coverage.question.complete=periodAvailability({start:query.from||'2024-07-16',end:query.to||brusselsDay(this.clock())},coverage.question.availability,0,{today:brusselsDay(this.clock())}).state==='observed';
