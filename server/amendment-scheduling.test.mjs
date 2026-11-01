@@ -10,8 +10,9 @@ import {ActivityWorker} from './activity-index-worker.mjs';
 import {projectDocument,documentRows} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {SPLIT_PARSER_VERSION} from './amendment-splits.mjs';
+import {AMENDMENT_AUTHOR_NAMES_VERSION} from './amendment-author-names.mjs';
 import {amendmentsPage,enqueueAmendment,nextAmendmentTask} from './amendments-store.mjs';
-import {prepareAmendments,refreshSittingTargets} from './amendments-worker.mjs';
+import {prepareAmendments,refreshSittingTargets,failAmendmentTask} from './amendments-worker.mjs';
 
 const date='2026-10-02',stamp='2026-10-17T08:00:00.000Z',sitting='MTG-PL-2026-10-07';
 const member={id:'1',givenName:'Example',familyName:'Member'};
@@ -260,7 +261,64 @@ for(const kind of ['roster','members'])test(kind+' fan-out resumes beyond ten ta
     assert.equal(target(store,generation,earlier).sentinel,undefined);assert.equal(task(store,generation,key).body.rebuild.offset,13);
   } else await worker.task(saved);
   saved=task(store,generation,key);assert.equal(saved.done,1);assert.equal(ids.filter(targetId=>!target(store,generation,targetId).sentinel).length,12);
-  assert.deepEqual(store.source(generation,evidenceKey),evidence);assert.equal(calls.length,1);assert.equal(worker.requests,1);assert.equal(store.get('working').requests,1);
+  const retained=store.source(generation,evidenceKey);
+  if(kind==='members') {
+    assert.match(retained.work.rebuildRevision,/^[a-f0-9]{64}$/);
+    const {rebuildRevision,...work}=retained.work;assert.deepEqual({...retained,work},evidence);
+  } else assert.deepEqual(retained,evidence);
+  assert.equal(calls.length,1);assert.equal(worker.requests,1);assert.equal(store.get('working').requests,1);
+});
+
+test('dated-roster failure reuses a retained term directory after its job was reclaimed',t=>{
+  const {store,worker,generation}=setup(t),key='amendment:members:10';
+  store.putSource(generation,key,'amendment-members',{nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION,members:[member]},stamp);
+  const failed={generation,key:'failed-dated-roster',kind:'amendment-roster',body:{date,offset:0,members:[],sources:[]},priority:114,attempts:0,amendmentJob:true};
+  enqueueAmendment(store,generation,failed.key,failed.kind,failed.body,114);
+  failAmendmentTask(worker,failed,new Error('Dated roster unavailable'));
+  assert.equal(store.get('amendmentMandateFallback'),true);
+  assert.equal(row(store,generation,key),undefined,'retained evidence must prevent an unchanged full members pass');
+});
+
+test('a reclaimed term-members job stays complete through dated-roster failures and unchanged source refreshes',async t=>{
+  const {store,worker,generation}=setup(t),key='amendment:members:10',ids=Array.from({length:24},(_,i)=>id(i));
+  for(const targetId of ids)seedTarget(store,generation,targetId,{sentinel:true});
+  const members=[member,{id:'2',givenName:'Other',familyName:'Member'}];
+  worker.fetchRecord=async()=>({payload:{data:[]},fetchedAt:stamp});
+  enqueueAmendment(store,generation,key,'amendment-members',{offset:2,members},108);
+  await worker.task(task(store,generation,key));
+  let cursor=task(store,generation,key).body.rebuild.afterTarget;
+  assert(cursor&&cursor<ids.at(-1));
+  // Routine scheduling cannot replace a running members cursor.
+  enqueueAmendment(store,generation,key,'amendment-members',{offset:0,members:[]},108,true);
+  assert.equal(task(store,generation,key).body.rebuild.afterTarget,cursor);
+  while(row(store,generation,key).done===0) {
+    await worker.task(task(store,generation,key));
+    assert(task(store,generation,key).body.rebuild.afterTarget>=cursor);
+    cursor=task(store,generation,key).body.rebuild.afterTarget;
+  }
+  const revision=store.source(generation,key).work.rebuildRevision;assert(revision);
+  // The bounded queue routinely reclaims completed jobs. Failed dated reads
+  // must reuse the retained term directory rather than starting another pass.
+  store.db.prepare('DELETE FROM amendment_jobs WHERE generation=? AND key=?').run(generation,key);
+  store.set('amendmentMandateFallback',false);
+  const failed={generation,key:'failed-dated-roster',kind:'amendment-roster',body:{date,offset:0,members:[],sources:[]},priority:114,attempts:0,amendmentJob:true};
+  enqueueAmendment(store,generation,failed.key,failed.kind,failed.body,114);
+  failAmendmentTask(worker,failed,new Error('Dated roster unavailable'));
+  assert.equal(row(store,generation,key),undefined);assert.equal(store.get('amendmentMandateFallback'),true);
+  store.db.exec('CREATE TABLE rebuilt_targets(id TEXT); CREATE TEMP TRIGGER count_member_rebuild AFTER INSERT ON amendment_targets BEGIN INSERT INTO rebuilt_targets VALUES (NEW.id); END');
+  // Retrieval time and API order are not changes to the name/ID directory.
+  worker.fetchRecord=async()=>({payload:{data:[]},fetchedAt:'2026-10-18T08:00:00.000Z'});
+  enqueueAmendment(store,generation,key,'amendment-members',{offset:2,members:[...members].reverse()},108,true);
+  await worker.task(task(store,generation,key));
+  assert.equal(row(store,generation,key).done,1);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM rebuilt_targets').get().n,0);
+  assert.equal(store.source(generation,key).work.rebuildRevision,revision);
+  // A real source-name change still starts and completes a fresh sliced pass.
+  enqueueAmendment(store,generation,key,'amendment-members',{offset:2,members:[{...member,familyName:'Changed'},members[1]]},108,true);
+  await worker.task(task(store,generation,key));assert.equal(row(store,generation,key).done,0);
+  assert.notEqual(task(store,generation,key).body.rebuild.revision,revision);
+  while(row(store,generation,key).done===0)await worker.task(task(store,generation,key));
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM rebuilt_targets').get().n,24);
+  assert.notEqual(store.source(generation,key).work.rebuildRevision,revision);
 });
 
 test('a newer sitting revision arriving halfway through fan-out requires a second bounded pass',async t=>{

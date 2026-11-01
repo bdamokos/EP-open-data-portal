@@ -26,6 +26,9 @@ const sourceKey=id=>'amendment:list:'+id;
 const samePublishedDescriptor=(left,right)=>sameDocxDescriptor(left,right)&&Boolean(left?.issued)===Boolean(right?.issued);
 const distributionFingerprint=evidence=>createHash('sha256').update(JSON.stringify(evidence || null)).digest('hex');
 const rosterKey=date=>'amendment:roster:'+date;
+const memberDirectoryRevision=work=>createHash('sha256').update(JSON.stringify([work.nameVersion,
+  [...work.members].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).map(({id,givenName,familyName})=>[id,givenName,familyName]),
+])).digest('hex');
 const targetKey=id=>'/plenary-documents/'+id;
 const idOf=work=>work.identifier || tail(work.id);
 const utcDay=worker=>new Date(worker.clock()).toISOString().slice(0,10);
@@ -976,8 +979,10 @@ export async function amendmentTask(worker,task) {
     for(const member of members){if(!/^[1-9]\d*$/.test(member.id)||!Number.isSafeInteger(Number(member.id))||identities.has(member.id))throw new Error('Term MEP roster contains invalid or repeated identities.');identities.add(member.id);}
     if(members.length){store.taskProgress(task,{...body,members:[...body.members,...members],offset:body.offset+members.length});return;}
     if(!body.members.length)throw new Error('Term MEP roster is unavailable.');
-    store.putSource(generation,'amendment:members:10','amendment-members',{nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION,members:body.members,source:{url:record.url,fetchedAt:record.fetchedAt}},record.fetchedAt);
-    if(!await beginRebuild(worker,task,{kind:'members'}))return;
+    const work={nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION,members:body.members,source:{url:record.url,fetchedAt:record.fetchedAt}},revision=memberDirectoryRevision(work);
+    const complete=store.source(generation,'amendment:members:10')?.work.rebuildRevision===revision;
+    store.putSource(generation,'amendment:members:10','amendment-members',{...work,...(complete?{rebuildRevision:revision}:{})},record.fetchedAt);
+    if(!complete&&!await beginRebuild(worker,task,{kind:'members',revision}))return;
   } else if(task.kind==='amendment-member') {
     if(!/^[1-9]\d*$/.test(body.id))throw new Error('Invalid amendment author person ID.');
     if(!body.profileStored) {
@@ -1027,6 +1032,15 @@ export async function amendmentTask(worker,task) {
     store.putSource(generation,'amendment:aliases:'+body.sittingId,'amendment-aliases',{aliases,sources:[body.documentSource,{url:file.url,fetchedAt}]},fetchedAt);
     const sitting=store.source(generation,motionSourceKey(body.sittingId));if(sitting&&!await beginRebuild(worker,task,{kind:'sitting',sittingId:body.sittingId}))return;
   } else throw new Error('Unknown amendment task.');
+  if(task.kind==='amendment-members'&&task.body.rebuild) {
+    const saved=store.source(generation,'amendment:members:10');
+    if(saved) {
+      const revision=memberDirectoryRevision(saved.work);
+      // Legacy cursors have no revision; completing them also establishes the
+      // marker. Source retrieval dates alone must never request another pass.
+      if(task.body.rebuild.revision==null||task.body.rebuild.revision===revision)store.putSource(generation,'amendment:members:10','amendment-members',{...saved.work,rebuildRevision:revision},saved.fetchedAt);
+    }
+  }
   store.finishTask(task);
   if(task.kind==='amendment-list-detail')reconcileAmendmentDocumentGap(worker,generation,body.listId);
   store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='amendment-gap'").run(generation,'amendment:gap:'+task.key);
@@ -1034,7 +1048,11 @@ export async function amendmentTask(worker,task) {
 export function failAmendmentTask(worker,task,error) {
   if(task.kind.startsWith('amendment-committee-')||!task.kind.startsWith('amendment-')||task.kind==='amendment-prepare'||task.kind==='amendment-parser-upgrade'||task.kind==='amendment-rebuild'||task.body.rebuild)return false;
   if(worker.stopped || worker.controller?.signal.aborted)return false;
-  if(task.kind==='amendment-roster'){worker.store.set('amendmentMandateFallback',true);enqueueAmendment(worker.store,task.generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108);}
+  if(task.kind==='amendment-roster') {
+    worker.store.set('amendmentMandateFallback',true);
+    const directory=worker.store.source(task.generation,'amendment:members:10');
+    if(!directory||directory.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)enqueueAmendment(worker.store,task.generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108);
+  }
   let evidence={rejection:null,confirmed:false};
   if(task.kind==='amendment-extract') {
     const row=worker.store.db.prepare('SELECT body FROM amendment_jobs WHERE generation=? AND key=?').get(task.generation,task.key);
