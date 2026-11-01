@@ -347,7 +347,7 @@ function quotedInteriorInsertion(selected,targetPath,proposedText,language) {
 
 // A suffixed sibling may follow a whole provision supplied by an instruction.
 // Partial-subparagraph replacements never establish the whole sibling's end.
-function quotedSiblingInsertion(selected,proposedText,language) {
+function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   if(language!=='en')return null;
   const {proposal,unit:owner,itemIndex}=selected;
   if(owner.scope!=='proposal'||!owner.instruction||!completeBoundary(proposal,owner)||/subparagraph/u.test(owner.instruction.raw))return null;
@@ -364,6 +364,14 @@ function quotedSiblingInsertion(selected,proposedText,language) {
   if(anchors.length!==1)return null;
   const anchor=anchors[0],quote=quotes.find(q=>q.extent.start<=anchor.extent.start&&q.extent.end>=anchor.extent.end);
   if(!quote||!completeBoundary(proposal,anchor)||anchor.pathConflict)return null;
+  const reference=targetPath?.underlying;
+  if(reference?.length){
+    if(reference.length!==1)return null;
+    const inner=parseTargetLabel(reference[0].raw,language),root=inner.segments[0];
+    const actual=anchor.underlyingPath?.find(segment=>segment.kind==='article');
+    if(!inner.complete||root?.kind!=='article'||root.isNew||!actual||root.value!==actual.value)return null;
+  }
+
   // A quotation with no explicit article must be a whole-paragraph/point
   // insertion or replacement, with the same printed label in its instruction.
   const article=units.find(u=>u.kind==='article'&&u.extent.start<=anchor.extent.start&&u.extent.end>=anchor.extent.end);
@@ -534,7 +542,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],proposedText,language)):null;
+    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);
