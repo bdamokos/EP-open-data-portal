@@ -22,7 +22,7 @@ import { amendmentReadVersion, amendmentReadIndexes, amendmentLinkIndexVersion, 
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {outsideSchema,outsideCopy,outsidePrune} from './outside-store.mjs';
 import {observeSqlite} from './sqlite-observability.mjs';
-import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches} from './refresh-policy.mjs';
+import {refreshPolicyTables,refreshPolicySchema,updateDocumentRefresh,updateSittingRefresh,assertRefreshSnapshot,refreshSnapshotMatches,GAP_LIMIT} from './refresh-policy.mjs';
 
 const parse = value => value == null ? null : JSON.parse(value);
 const motionReferenceValue = `CASE WHEN ref.type='object' THEN json_extract(ref.value,'$.id') ELSE ref.value END`;
@@ -49,7 +49,7 @@ export class ActivityStore {
     this.db = observeSqlite(new DatabaseSync(this.filename),'activity');
     if(!this.initializeIndexes) {
       try {
-        if(this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion)throw new Error('Unprepared activity indexes.');
+        if(this.get('recoveryScheduleVersion')!==1||this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||this.get('resourceIndexes')!==1||this.get('amendmentReadVersion')!==amendmentReadVersion||this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion||this.get('motionLinksIndexVersion')!==1||this.get('activityReadVersion')!==activityReadVersion||this.get('refreshPolicyVersion')!==1||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion)throw new Error('Unprepared activity indexes.');
       } catch {this.db.close();throw new Error('Activity indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(this.initializeIndexes)this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
@@ -133,6 +133,17 @@ export class ActivityStore {
       if(this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion) {
         prepareActivityAvailability(this.db);
         this.set('activityAvailabilityIndexVersion',activityAvailabilityIndexVersion);initialized=true;refresh();
+      }
+      if(this.get('recoveryScheduleVersion')!==1) {
+        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+        // Adopt already queued legacy mutable refreshes without resetting cursors.
+        this.db.exec(`INSERT OR IGNORE INTO mutable_refresh_admissions
+          SELECT task.generation,task.key FROM tasks task JOIN mutable_documents mutable
+          ON mutable.generation=task.generation AND mutable.key=task.key
+          WHERE task.kind='document' AND (task.done IN (-1,0) OR task.done IS NULL)
+          AND NOT EXISTS(SELECT 1 FROM refresh_gap_admissions gap WHERE gap.generation=task.generation AND gap.key=task.key)`);
+        this.set('slowGapAdmissions',null);
+        this.set('recoveryScheduleVersion',1);
       }
       refresh();
       return true;
@@ -219,12 +230,13 @@ export class ActivityStore {
         this.db.prepare('INSERT INTO items SELECT ?,source_key,source_id,mep,category,date,body FROM items WHERE generation=?').run(generation,active);
         copyQuestionFiles(this.db,generation,active);
         this.db.prepare('INSERT INTO refresh_gaps SELECT ?,key,kind,body,priority,error,attempts,failed_at,retry_at,sitting_id FROM refresh_gaps WHERE generation=?').run(generation,active);
+        this.db.prepare('INSERT INTO mutable_refresh_admissions SELECT ?,key FROM mutable_refresh_admissions WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO refresh_gap_admissions SELECT ?,key FROM refresh_gap_admissions WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO sitting_refresh SELECT ?,sitting_id,next_check FROM sitting_refresh WHERE generation=?').run(generation,active);
         this.db.prepare('INSERT INTO feed_catalog_recovery SELECT ?,endpoint,start,end FROM feed_catalog_recovery WHERE generation=?').run(generation,active);
         // Preserve bounded selection progress across generations.
         this.db.prepare('INSERT INTO mutable_documents SELECT ?,key,next_check FROM mutable_documents WHERE generation=?').run(generation,active);
-        for(const table of ['refresh_gaps','refresh_gap_admissions','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
+        for(const table of ['mutable_refresh_admissions','refresh_gaps','refresh_gap_admissions','mutable_documents','continuation_sittings','sitting_refresh','feed_catalog_recovery'])this.db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(active,generation);
         outsideCopy(this.db,generation,active);
         groupVoicesCopy(this.db,generation,active);
         amendmentsCopy(this.db,generation,active);
@@ -241,7 +253,7 @@ export class ActivityStore {
       this.assertWriter();
       const gap=this.db.prepare('SELECT kind,body,priority,retry_at,attempts FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
       if(gap) {
-        if(!retryGap || gap.retry_at>this.clock() || this.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key))return false;
+        if(!retryGap || gap.retry_at>this.clock() || this.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key) || this.db.prepare('SELECT COUNT(*) n FROM refresh_gap_admissions WHERE generation=?').get(generation).n>=GAP_LIMIT)return false;
         // Admission and its marker commit together. Checkpoints retain any
         // subsequently progressed cursor until completion or another failure.
         kind=gap.kind;body=parse(gap.body);priority=gap.priority;
@@ -269,6 +281,7 @@ export class ActivityStore {
         const removedGap=this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(task.generation,task.key).changes;
         if(removedGap)touchAvailability(this);
         this.db.prepare('DELETE FROM refresh_gap_admissions WHERE generation=? AND key=?').run(task.generation,task.key);
+        this.db.prepare('DELETE FROM mutable_refresh_admissions WHERE generation=? AND key=?').run(task.generation,task.key);
       }
     };
     return this.db.isTransaction?finish():this.transaction(finish);

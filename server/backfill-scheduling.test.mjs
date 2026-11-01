@@ -86,6 +86,7 @@ for(const mode of ['backfill','normal'])test(mode+' worker preserves its budget 
   };
   store.release();await worker.runIteration();
   assert.equal(worker.requests,40);
+  assert(dispatches.some(key=>key.startsWith('group-voices:')),'group voices dispatch while the core backlog remains due');
   assert.equal(store.get('active'),generation);assert.equal(store.get('working').generation,cycle.generation);
   assert.equal(store.source(generation,adopted),undefined,'serving data stays frozen');
   assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE generation=? AND key LIKE ? AND done=0').get(cycle.generation,'/busy/%').n>0,true);
@@ -98,6 +99,6 @@ for(const mode of ['backfill','normal'])test(mode+' worker preserves its budget 
     assert.equal(store.get('active'),cycle.generation);assert.equal(store.get('working'),null);
     assert.equal(store.source(cycle.generation,adopted).work.identifier,adopted.split('/').at(-1));
   } else {
-    assert.deepEqual(calls,[]);assert.equal(store.get('backfillSchedule'),null,'normal scheduling remains unchanged');
+    assert(calls.includes(recovery),'normal mode reserves recovery service too');assert.equal(store.get('backfillSchedule'),null);
   }
 });

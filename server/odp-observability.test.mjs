@@ -92,13 +92,13 @@ test('backfill smooths admission and adapts after throttling without raising the
   const queue=new UpstreamQueue({...odpPacing('backfill'),rateLimit:{maximum:3,windowMs:5000,foregroundReserve:1}});
   const calls=[];await queue.run(()=>calls.push(Date.now()),{priority:'background'});
   const second=queue.run(()=>calls.push(Date.now()),{priority:'background'});
-  t.mock.timers.tick(666);assert.equal(calls.length,1);t.mock.timers.tick(1);await second;
-  queue.recordResponse(429);assert.equal(queue.interval,1001);
+  t.mock.timers.tick(749);assert.equal(calls.length,1);t.mock.timers.tick(1);await second;
+  queue.recordResponse(429);assert.equal(queue.interval,1125);
   queue.backoff(10);const third=queue.run(()=>calls.push(Date.now()),{priority:'background'});
   t.mock.timers.tick(9999);assert.equal(calls.length,2);t.mock.timers.tick(1);await third;
   assert.equal(calls.length,3);assert(queue.quotaSnapshot().startsInWindow<=3);
   for(let i=0;i<5000;i++)queue.recordResponse(200);
-  assert.equal(queue.interval,667);
+  assert.equal(queue.interval,750);
   assert.throws(()=>odpPacing('unlimited'));
   assert.equal(odpPacing('steady').interval,1500);
 });
