@@ -1,3 +1,6 @@
+import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
+import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
+import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
@@ -254,6 +257,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
   if(quoted.status!=='unverified')return quoted;
+  const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
+  if(sibling.status!=='unverified')return sibling;
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
@@ -276,7 +281,14 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     if (source.includes('\uFFFC') || wording.originalText.includes('\uFFFC')) return {status:'unverified',reason:'oracle-object-comparison-unavailable'};
     const key = value => wording.baseline==='present-text'?existingLawOracleNormal(value,labels):oracleNormal(value,labels);
     const left = key(source), right = key(wording.originalText);
-    if(!left||!right||left!==right)return fail('oracle-original-span-mismatch');
+    const footnotes=proposal&&assertFootnoteComparison(proposal,wording,placement);
+    if(footnotes?.status==='failed')return footnotes;
+    if(!footnotes&&(!left||!right||left!==right)){
+      const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
+      if(proposal&&quotes(source)===quotes(wording.originalText))return locationOracle({proposal,text,target,wording,placement,labels});
+      if(proposal&&placement.operation==='delete'&&/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim()))return assertElidedDeletion(proposal,wording,placement);
+      return fail('oracle-original-span-mismatch');
+    }
     return locationOracle({proposal,text,target,wording,placement,labels});
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
