@@ -11,3 +11,9 @@ test('raw oracle includes quoted continuations and stops before the instruction 
  arg.placement.insertBefore=5;arg.placement.insertAfter=4;assert.equal(assertQuotedSibling(arg).status,'failed');
 });
 test('a quoted subparagraph cannot establish a whole paragraph sibling',()=>assert.equal(assertQuotedSibling(input('(b)\tthe second subparagraph is replaced by the following:')).status,'unverified'));
+test('a published new-article address cannot verify a paragraph sibling, including spaced suffixes',()=>{
+ for(const raw of ['Article 2 a (new)','Article 2a (new)']){
+  const arg=input();arg.wording.targetPath={underlying:[{document:'Regulation (EU) 2021/697 [European Defence Fund]',raw}]};
+  assert.equal(assertQuotedSibling(arg).status,'unverified',raw);
+ }
+});

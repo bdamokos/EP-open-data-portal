@@ -7,7 +7,7 @@ export function assertQuotedSibling({proposal,wording,placement,nativeQuoted}){
  const target=/^(Article \d+|Annex [IVX]+) – paragraph 1 – point (\d+)(?: [–-] point ([a-z]))?$/u.exec(wording.targetLabel.split('\n')[0]);
  if(!target)return unknown();
  const inner=wording.targetPath?.underlying;
- if(inner?.some(ref=>/^Article \d+[a-z]* \(new\)/u.test(ref.raw)))return unknown();
+ if(inner?.some(ref=>/^Article \d+\s*[a-z]* \(new\)/u.test(ref.raw)))return unknown();
  let raw;try{raw=quotedWordBody(nativeQuoted.proposalBuffer);}catch{return unknown();}
  const heading=raw.filter(r=>r.kind==='paragraph'&&r.text.trim().toLowerCase()===target[1].toLowerCase());
  if(heading.length!==1)return unknown();
