@@ -119,5 +119,5 @@ export class OdpObservations {
 // published ceiling; steady is an optional gentler periodic-update setting.
 export function odpPacing(mode='normal') {
   if(!['normal','backfill','steady'].includes(mode))throw new Error('Invalid ODP_REQUEST_MODE.');
-  return {mode,interval:mode==='backfill'?667:mode==='steady'?1500:0,adaptive:mode!=='normal'};
+  return {mode,interval:mode==='backfill'?750:mode==='steady'?1500:0,adaptive:mode!=='normal'};
 }
