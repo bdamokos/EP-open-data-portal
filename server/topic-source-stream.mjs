@@ -42,7 +42,10 @@ export function* rootSourceValues(chunks,{arrays=[],scalars=[]}={}){
  yield* scan(decoder.decode());
  if(!closed||string||capture)throw Error('Incomplete source envelope.');
 }
+const sourceReaders=new WeakMap();
 export function* sourceByteChunks(db,rowid,{chunkSize=65536}={}){
- const read=db.prepare('SELECT substr(CAST(body AS BLOB),?,?) chunk FROM sources WHERE rowid=?');
+ // SQLite statement registers can retain a complete source cell. Reuse one
+ // statement rather than leaving a large register behind for every sitting.
+ let read=sourceReaders.get(db);if(!read){read=db.prepare('SELECT substr(CAST(body AS BLOB),?,?) chunk FROM sources WHERE rowid=?');sourceReaders.set(db,read);}
  for(let offset=1;;offset+=chunkSize){const chunk=read.get(offset,chunkSize,rowid)?.chunk;if(!chunk?.length)break;yield chunk;if(chunk.length<chunkSize)break;}
 }
