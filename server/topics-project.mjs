@@ -1,3 +1,4 @@
+import {questionCountryMetadata} from './question-place-askers.mjs';
 import {readFile,readdir,stat} from 'node:fs/promises';
 import path from 'node:path';
 import {topicObservationNodes} from './record-topic-observations.mjs';
@@ -63,13 +64,13 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  if(!store.renew())throw Error('Activity-index writer lease was lost.');
  const projection=projectRecordTopics(nodes,{concepts,procedureTopics});
  const pendingProcedures=new Set([...referenced].filter(id=>!procedureTopics.get(id)?.oeilRead));
- for(const r of projection.records)if((r.procedureIds||[]).some(id=>pendingProcedures.has(id)))r.status='pending';
+ for(const r of projection.records)if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>pendingProcedures.has(id)))r.status='pending';
  const projected=new Map(projection.records.map(r=>[r.id,r]));
  for(let pass=0;pass<4;pass++)for(const n of nodes){const r=projected.get(n.id);if(!r||r.status==='ambiguous'||(n.kind==='question'&&!n.id.startsWith('O-')))continue;if([...(n.documentIds||[]),...(n.executed||[]),...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id)].some(id=>projected.get(id)?.status==='pending'))r.status='pending';}
 
  if(!store.renew())throw Error('Activity-index writer lease was lost.');store.assertWriter();store.set('recordTopicProjection',null);
  projection.records.sort((a,b)=>(a.kind==='event'?-1:1)-(b.kind==='event'?-1:1));
- for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary']){let changes;do{store.transaction(()=>{store.assertWriter();changes=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation=? LIMIT 500)').run(generation).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(changes); }
+ for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups']){let changes;do{store.transaction(()=>{store.assertWriter();changes=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation=? LIMIT 500)').run(generation).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(changes); }
  for(let i=0;i<projection.records.length;i+=200){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,projection.records.slice(i,i+200));});store.renew();await new Promise(setImmediate);}
  // Speeches dominate source volume. Stream them; never retain the whole speech catalogue.
  projection.records.sort((a,b)=>(a.kind==='event'?-1:1)-(b.kind==='event'?-1:1));
@@ -94,9 +95,10 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
 
  const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead).length};
  store.set('recordTopicCoverage',{generation,...coverage});
- finishTopicProjection(store,generation,concepts.values());
+ const questionCountries=await questionCountryMetadata(store,generation,cache);
+ finishTopicProjection(store,generation,concepts.values(),{questionCountries});
  const previous=store.get('previous')||generation;
- for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary']){const lo=Math.min(generation,previous),hi=Math.max(generation,previous);let n;do{store.transaction(()=>{store.assertWriter();n=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation<? OR generation>? OR (generation>? AND generation<?) LIMIT 500)').run(lo,hi,lo,hi).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(n);}
+ for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups']){const lo=Math.min(generation,previous),hi=Math.max(generation,previous);let n;do{store.transaction(()=>{store.assertWriter();n=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation<? OR generation>? OR (generation>? AND generation<?) LIMIT 500)').run(lo,hi,lo,hi).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(n);}
  return {version:RECORD_TOPICS_VERSION,generation,coverage};
  }finally{clearInterval(heartbeat);store.db.exec('PRAGMA cache_size='+Number(previousCacheSize));}
 }

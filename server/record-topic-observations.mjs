@@ -1,3 +1,4 @@
+import {authorEvidence,suppliedTitles} from './insights-model.mjs';
 import {outsideSpeech} from './outside-model.mjs';
 import {classifyProcedure} from './insights-legislation-model.mjs';
 const arr=x=>x==null?[]:Array.isArray(x)?x:[x],tail=x=>String(x?.id||x||'').split('/').at(-1);
@@ -36,7 +37,7 @@ export function topicObservationNodes(observations){
   const {work:w,source:s,projection,conflicted}=o;
   if(projection==='speech'||projection==='outside-speech'){
    const v=w.outside||w;nodes.set(id,{id,kind:'speech',date:v.date,titles:v.titles||{},members:v.participants||[],parentIds:conflicted?[]:v.parentIds||[],conflicted,source:v.source||s});
-  }else if(w.work_type&&w.identifier){nodes.set(id,{id,kind:/\/QUESTION_/.test(w.work_type)?'question':'document',date:w.document_date,titles:w.title_dcterms||Object.assign({},...arr(w.is_realized_by).map(e=>e.title||{})),members:unique([...arr(w.creator),...arr(w.workHadParticipation).flatMap(p=>arr(p.had_participant_person))].map(person).filter(Boolean)),eurovoc:conflicted?[]:arr(w.is_about),subjectMatter:conflicted?[]:arr(w.isAboutSubjectMatter),procedureIds:conflicted?[]:refs(w.inverse_created_a_realization_of),source:s,conflicted});
+  }else if(w.work_type&&w.identifier){nodes.set(id,{id,kind:/\/QUESTION_/.test(w.work_type)?'question':'document',date:w.document_date,titles:suppliedTitles(w),members:/\/QUESTION_/.test(w.work_type)?authorEvidence(w,'',s?.fetchedAt).map(a=>a.id):unique([...arr(w.creator),...arr(w.workHadParticipation).flatMap(p=>arr(p.had_participant_person))].map(person).filter(Boolean)),eurovoc:conflicted?[]:arr(w.is_about),subjectMatter:conflicted?[]:arr(w.isAboutSubjectMatter),procedureIds:conflicted?[]:refs(w.inverse_created_a_realization_of),source:s,conflicted});
   }else if(String(w.id).includes('/proc/')){
    const code=classifyProcedure(w).code,reference=typeof w.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]+\)$/.test(w.label)?w.label:code?id.replace('-','/')+'('+code+')':null;
    nodes.set(id,{id,kind:'procedure',reference:conflicted?null:reference,titles:typeof w.process_title==='string'?{en:w.process_title}:w.process_title||{},source:s,conflicted});

@@ -43,3 +43,11 @@ test('equal-time compact and raw speech observations must agree on normalized pa
 test('published procedure URIs survive when the target metadata is not yet retained',()=>{
  const nodes=topicObservationNodes([observation({activity_id:event,inverse_was_scheduled_in:['eli/dl/proc/2026-2790']},'24')]);assert.deepEqual(nodes.find(n=>n.id===event).procedureEdges.map(e=>e.id),['2026-2790']);
 });
+
+test('question membership retains exact authors and excludes addressee participations',()=>{
+ const q={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',work_type:'def/ep-document-types/QUESTION_WRITTEN',creator:['person/1'],workHadParticipation:[{participation_role:'def/ep-roles/AUTHOR',had_participant_person:['person/2']},{participation_role:'def/ep-roles/ADDRESSEE',had_participant_person:['person/3']}]};assert.deepEqual(topicObservationNodes([observation(q,'24')])[0].members,['1','2']);
+});
+
+test('question titles merge supplied expressions and work labels using the Questions source rules',()=>{
+ const q={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',work_type:'def/ep-document-types/QUESTION_WRITTEN',title_dcterms:{fr:'Question'},is_realized_by:[{title:{en:'Greece and Cyprus'}}]};assert.deepEqual(topicObservationNodes([observation(q,'24')])[0].titles,{en:'Greece and Cyprus',fr:'Question'});
+});

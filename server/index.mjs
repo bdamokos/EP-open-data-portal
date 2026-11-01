@@ -129,7 +129,7 @@ async function jsonRequestBody(request,{limit=CORPUS_LIMITS.requestBytes,subject
 
 // Browser transport for this app. The gateway admits the same finite route set.
 let diagnosticWindow=0,diagnosticCount=0;
-const apiEndpoints=new Set(['client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
+const apiEndpoints=new Set(['client-errors','healthz','directory','profile','portrait','speeches','activities','document','document-context','document-pages','document-image','commission-followups','speech','speech-transcript','activity-index','latest-activities','insights','topics','outside','references','reference-summary','amendments','motion-comparison','motion-amendments','member-votes','decision-votes','member-attendance','member-vote-explanations','vote-periods','source-record','corpus','speech-statistics','speech-media','speech-context','plenary-live']);
 
 async function handleApi(request,response,url,apiPrefix){
  assertSameOrigin(request);
