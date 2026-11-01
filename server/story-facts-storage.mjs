@@ -15,7 +15,7 @@ export function storyTables(db){db.exec(`
  CREATE INDEX IF NOT EXISTS story_parent_speech ON story_parents(generation,speech,parent);
  `);}
 const statements=new WeakMap();
-function prepared(db){let p=statements.get(db);if(!p){p={input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
+function prepared(db){let p=statements.get(db);if(!p){p={queue:db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)'),input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
 export function stageStoryInput(store,w,source,{rank=1}={}){
  source={...source,fetchedAt:sourceTime(source?.fetchedAt)};let kind,value;
  if(w.outside){const o=w.outside;if(!o.id)return;kind='speech';value={id:o.id,date:o.date,titles:o.titles||{},parentIds:o.parentIds||[],creIds:o.parentDocumentIds||[],creId:o.parentDocumentId||null,headers:array(o.headers).map(h=>({personId:String(h.personId),capacity:h.capacity||null,role:h.role||null})),source:o.source||source};}
@@ -35,7 +35,7 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
 export function storyInput(store,kind,id){const row=prepared(store.db).input.get(kind,id);return row?{...JSON.parse(row.body),source:JSON.parse(row.source)}:null;}
 export function queueStoryRead(store,kind,id,{unavailable=false}={}){
  const key=kind+':'+id;
- store.db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)').run(key,kind,id,unavailable?'unavailable':'pending',unavailable?null:0,unavailable?'not-served-before-2024-12-16':null);
+ prepared(store.db).queue.run(key,kind,id,unavailable?'unavailable':'pending',unavailable?null:0,unavailable?'not-served-before-2024-12-16':null);
 }
 export function* storyTopicObservations(store){
  for(const row of store.db.prepare("SELECT kind,id,body,source FROM story_inputs WHERE kind IN ('agenda','event') ORDER BY kind,id").iterate()){

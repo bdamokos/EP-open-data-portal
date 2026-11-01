@@ -127,6 +127,10 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead).length,unavailable:[...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable).length};
  store.set('recordTopicCoverage',{generation,...coverage});
  onProgress('speeches');
+ // Story topic joins need the concept roles before their indexed memberships
+ // are built. Keep readers unavailable until both projections finish.
+ const conceptPut=store.db.prepare('INSERT OR REPLACE INTO record_topic_concepts VALUES (?,?,?,?)');
+ await topicBatches(store,(function*(){for(const c of concepts.values()){yield;conceptPut.run(generation,c.key,c.role,JSON.stringify(c));}})());
  await buildStoryFacts(store,generation,{concepts,onProgress});
  const questionCountries=await questionCountryMetadata(store,generation,cache);
  finishTopicProjection(store,generation,concepts.values(),{questionCountries});onProgress('totals');

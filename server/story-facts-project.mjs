@@ -60,6 +60,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{}}={
  store.db.exec('DROP TABLE IF EXISTS temp.story_speakers;CREATE TEMP TABLE story_speakers(debate TEXT,person TEXT,speech TEXT,capacity TEXT,eligible INTEGER,PRIMARY KEY(debate,person,speech));CREATE INDEX temp.story_speaker_debate ON story_speakers(debate,eligible,person,speech)');
  const speaker=store.db.prepare('INSERT OR REPLACE INTO story_speakers VALUES (?,?,?,?,?)'),parent=store.db.prepare('INSERT OR REPLACE INTO story_parents VALUES (?,?,?)'),items=store.db.prepare("SELECT mep,body FROM items WHERE generation=? AND source_id=? AND category='plenary-contributions'");
  const speakerCounts=store.db.prepare('SELECT COUNT(DISTINCT person) meps,COUNT(DISTINCT speech) speeches FROM story_speakers WHERE debate=? AND eligible=1');
+ const speakerRoles=store.db.prepare('SELECT SUM(eligible=1 AND capacity IS NULL) unknownCapacity,SUM(eligible=0 AND capacity IS NOT NULL) institutionalExcluded,SUM(eligible=0 AND capacity IS NULL) chairExcluded FROM story_speakers WHERE debate=?');
  const roleCoverage={unknownCapacity:0,institutionalExcluded:0,chairExcluded:0,unresolvedParents:0};
  await topicBatches(store,(function*(){
   for(const row of store.db.prepare("SELECT id,json_object('parentIds',json_extract(body,'$.parentIds'),'status',json_extract(body,'$.status'),'date',date) body FROM record_topic_records WHERE generation=? AND kind='speech' ORDER BY id").iterate(generation)){
@@ -81,7 +82,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{}}={
   if(agendaLink.agendaId)documents=[...new Map([...documents,...docsFor(agendaLink.agendaId)].map(x=>[x.id,x])).values()];
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');
-  const roleCounts=store.db.prepare('SELECT SUM(eligible=1 AND capacity IS NULL) unknownCapacity,SUM(eligible=0 AND capacity IS NOT NULL) institutionalExcluded,SUM(eligible=0 AND capacity IS NULL) chairExcluded FROM story_speakers WHERE debate=?').get(d.id);
+  const roleCounts=speakerRoles.get(d.id);
   const procedural=proceduralAgenda(agenda),body={...d,...counts,procedural,speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
   put.run(generation,'debate',d.id,d.date,JSON.stringify(body));addLinks('debate-document',d.id,body.docs);addLinks('debate-procedure',d.id,body.procedures);
   for(const p of procedural?[]:body.places)place.run(generation,p.id,'debate',d.id,d.date,p.basis);
@@ -107,7 +108,7 @@ async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){
  const conceptPut=store.db.prepare('INSERT OR REPLACE INTO record_topic_concepts VALUES (?,?,?,?)');
  const save=(row,r,geography,edge)=>{
   const old=r.assignments.filter(a=>a.role==='place'),next=r.assignments.filter(a=>a.role!=='place');
-  for(const p of geography.places){let a=old.find(a=>a.key==='place:'+p.id);if(!a||p.basis==='title')a={key:'place:'+p.id,role:'place',paths:[{basis:edge?'debate':p.basis,steps:edge?[{from:r.id,field:'inverse_consists_of',to:edge}]:[],sources:r.source?[r.source]:[]}]};next.push(a);
+  for(const p of geography.places){let a=old.find(a=>a.key==='place:'+p.id);if(!a||p.basis==='title')a={key:'place:'+p.id,role:'place',paths:[{basis:p.basis==='title'?'title':edge?'debate':p.basis,steps:edge?[{from:r.id,field:'inverse_consists_of',to:edge}]:[],sources:r.source?[r.source]:[]}]};next.push(a);
    const c={key:a.key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+p.id,labels:{en:countryLabels.get(p.id)||p.id}};if(concepts&&!concepts.has(c.key))concepts.set(c.key,c);if(!conceptHas.get(generation,c.key))conceptPut.run(generation,c.key,'place',JSON.stringify(c));
   }
   if(JSON.stringify(r.assignments)===JSON.stringify(next))return;r.placeKeywords=unique(old.map(a=>a.key));r.assignments=next;remove.run(generation,r.id);for(const a of next.filter(a=>a.role==='place'))member.run(generation,a.key,r.id,row.kind,row.date,row.group_key);update.run(JSON.stringify(r),generation,r.id);
