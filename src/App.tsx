@@ -397,7 +397,7 @@ function Activities({ id, lang, memberName, initialActivity, onOpen, category, o
           {isOpen(item) && <JoinedDetails item={item} lang={lang} member={id} memberName={memberName} motionQuery={motionQuery} onMotionChange={onMotionChange} />}
         </article>;
       })}
-      {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}><UiMessage id="textsearch.previous"/></button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}><UiMessage id="app.next_10"/></button>}<button onClick={state.retry}><UiMessage id="app.refresh_list"/></button></div>}
+      {state.data && <div className="explorer-category-top">{offset>0 && <button onClick={()=>{moveToResults.current=true;onOffset(Math.max(0,offset-10));onOpen(null);}}><UiMessage id="textsearch.previous"/></button>}{state.data.nextOffset!==null && <button onClick={()=>{moveToResults.current=true;onOffset(state.data!.nextOffset!);onOpen(null);}}><UiMessage id="app.next_10"/></button>}</div>}
       {page.cache.lastSuccessfulRefresh&&<p className="explorer-source-join"><UiMessage id="outsidevoices.updated_tolocaledatestring.62ed42" values={{date:<span lang={lang}>{date(page.cache.lastSuccessfulRefresh,lang)}</span>}}/></p>}
     </>}
     {open && state.error && !state.data && <LinkedActivityFallback key={sourceId} sourceId={sourceId} member={id} lang={lang} complete={false} />}
@@ -419,6 +419,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
   const ui = useUiI18n();
   const c=interfaceCopy(lang);
   const calendar=useData<VotePeriodsResponse>('vote-periods');
+  useEffect(()=>{
+    if(!calendar.error || calendar.loading)return;
+    const timer=setTimeout(calendar.retry,30_000);return ()=>clearTimeout(timer);
+  },[calendar.error,calendar.loading,calendar.retry]);
   const sittingLocations=new Map(validateVotePeriods(calendar.data) ? calendar.data.weeks.flatMap(week=>week.sittings.map(sitting=>[sitting.sittingId,sitting.location] as const)) : []);
   const [offset,setOffset]=useState(0),[speechLanguage,setSpeechLanguage]=useState<string|null>(null);
   const [enrichedSpeeches,setEnrichedSpeeches]=useState<Speech[]>([]);
@@ -452,6 +456,10 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
     return()=>{document.removeEventListener('focusin',cancel);speechOrigin.current=null;};
   },[id,initialSpeech]);
   const state=useData<JoinedActivityPage>(`latest-activities/${id}?lang=${lang}&limit=10&offset=${offset}&category=plenary-contributions`);
+  useEffect(()=>{
+    if(!state.data || state.data.cache.complete || initialSpeech)return;
+    const timer=window.setInterval(state.retry,30_000);return ()=>window.clearInterval(timer);
+  },[state.data?.cache.complete,initialSpeech,state.retry]);
   const pinned=useData<JoinedActivityPage>(((initialSpeech && state.data) && (!state.data.items.some(item=>item.sourceId===initialSpeech))) ? (`latest-activities/${id}?lang=${lang}&limit=10&category=plenary-contributions&source-id=${encodeURIComponent(initialSpeech)}`) : null);
   useEffect(()=>{setOffset(0);setSpeechLanguage(null);},[id,lang]);
   useEffect(()=>{setEnrichedSpeeches([]);},[id]);
@@ -483,7 +491,7 @@ function Speeches({ id, lang, initialSpeech, onOpen }: { id:number;lang:string;i
       {!open&&<div className="explorer-speech-list-badges"><InterventionBadges value={speech.intervention} language={lang}/></div>}
       {open && <Detail speech={speech} lang={lang} transcriptLanguage={speechLanguage||lang} />}
     </article>})}
-    {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}<button onClick={()=>{state.retry();calendar.retry();}}><UiMessage id="app.refresh_list"/></button></div>)}
+    {filtered ? <div className="explorer-category-top" lang={ui.language}>{filteredOffset>0&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(Math.max(0,filteredOffset-10));onOpen(null);}}><UiMessage id="app.newer"/></button>}{filteredOffset+10<filtered.length&&<button onClick={()=>{revealFilter.current=true;setCategoryOffset(filteredOffset+10);onOpen(null);}}><UiMessage id="app.older"/></button>}<button onClick={()=>{setCategory('');setCategoryOffset(0);changePage(0);}}><UiMessage id="app.clear_filter"/></button></div> : (state.data && <div className="explorer-category-top" lang={ui.language}>{offset>0 && <button onClick={()=>changePage(Math.max(0,offset-10))}><UiMessage id="app.newer"/></button>}{state.data.nextOffset!==null && <button onClick={()=>changePage(state.data!.nextOffset!)}><UiMessage id="app.older"/></button>}</div>)}
     </>}
   </section>;
 }
