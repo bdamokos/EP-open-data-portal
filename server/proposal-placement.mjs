@@ -351,9 +351,9 @@ function quotedSiblingInsertion(selected,proposedText,language) {
   if(language!=='en')return null;
   const {proposal,unit:owner,itemIndex}=selected;
   if(owner.scope!=='proposal'||!owner.instruction||!completeBoundary(proposal,owner)||/subparagraph/u.test(owner.instruction.raw))return null;
-  const printed=/^(?:[‘']?)(\d+\s*[a-z]+)\.\s|^\(([a-z])\s+([a-z]+)\)\s/u.exec(proposedText.trim());
+  const printed=/^[‘']?(\d+\s*[a-z]+)\.\s/u.exec(proposedText.trim());
   const instruction=/^(?:The following paragraph (\d+\s*[a-z]+) is inserted:|The following paragraph is inserted after the (seventh) paragraph:)/u.exec(proposedText.trim());
-  const value=printed?(printed[1]?.replace(/\s/gu,'')??printed[2]+printed[3]):instruction?(instruction[1]?.replace(/\s/gu,'')??'7a'):null;
+  const value=printed?(printed[1].replace(/\s/gu,'')):instruction?(instruction[1]?.replace(/\s/gu,'')??'7a'):null;
   if(!value)return null;
   const quotes=owner.children.filter(u=>u.kind==='quotation');
   if(!quotes.length)return null;

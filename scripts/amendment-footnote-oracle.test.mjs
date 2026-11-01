@@ -9,3 +9,8 @@ test('oracle rejects moved anchors and changed payloads',()=>{
  assert.equal(assertFootnoteComparison({...proposal,anchors:[{paragraph:0,offset:9,note:'native'}]},wording,placement).status,'failed');
  assert.equal(assertFootnoteComparison(proposal,{...wording,originalText:wording.originalText.replace('public','private')},placement).status,'failed');
 });
+test('notes printed in the body keep the complete literal wording comparison',()=>{
+ const text='A legal body*.\n______\n* A public note.';
+ const inline={paragraphs:[{index:0,text}],anchors:[],notes:[]};
+ assert.equal(assertFootnoteComparison(inline,{originalText:text,originalFormatting:[]},{span:{start:0,end:0}}),null);
+});

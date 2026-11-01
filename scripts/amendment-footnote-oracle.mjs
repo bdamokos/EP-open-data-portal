@@ -2,6 +2,11 @@
 export function assertFootnoteComparison(proposal,wording,placement) {
   const cut=/\n_{5,}\s*\n/u.exec(wording.originalText);
   if(!cut)return null;
+  // Asterisk notes printed in the legal body are literal comparison text,
+  // rather than detached Word notes. The caller still compares their full text.
+  const span=placement.span??{start:placement.splice?.start.paragraph,end:placement.splice?.end.paragraph};
+  const printed=proposal.paragraphs.filter(p=>p.index>=span.start&&p.index<=span.end).map(p=>p.text).join('\n');
+  if(/\n_{5,}\s*\n/u.test(printed))return null;
   const noSpace=s=>s.normalize('NFC').replace(/\s/gu,'');
   const body=wording.originalText.slice(0,cut.index),payload=wording.originalText.slice(cut.index+cut[0].length).trim().split(/\n+/u);
   const marks=(wording.originalFormatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
