@@ -349,3 +349,22 @@ test('a later DOCX declaration retires the pending standalone PDF owner',async t
   await discoverQuestionFiles(worker,1);
   assert.deepEqual(pending().map(key=>key.split(':')[0]),['docx'],'the DOCX is the only active owner');
 });
+
+test('a retired PDF owner cannot be reopened by its retained failure record',async t=>{
+  const directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock:now});index.acquire();
+  let instant=now();const clock=()=>instant;
+  const store=new CorpusStore(path.join(directory,'corpus'),{clock,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+  const full=work(),pdfOnly=structuredClone(full);pdfOnly.is_realized_by[0].is_embodied_by.shift();
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',pdfOnly,new Date(now()).toISOString());
+  const worker=new CorpusWorker(store,{clock});
+  await discoverQuestionFiles(worker,1);
+  const pdfKey=store.db.prepare("SELECT key FROM tasks WHERE key GLOB 'pdf:*'").get().key;
+  const error=Object.assign(Error('Unreadable PDF'),{code:'source_parser_rejection',sourceHash:'c'.repeat(64)});
+  for(const offset of [0,3600000,86400000]){instant=now()+offset;assert(store.acquire());store.failTask(store.task(pdfKey),error);}
+  assert.equal(store.task(pdfKey).done,1);assert(store.db.prepare('SELECT 1 FROM source_failures WHERE key=?').get(pdfKey));
+  index.putSource(1,'/parliamentary-questions/'+pdfOnly.identifier,'document',full,new Date(instant+1000).toISOString());
+  await discoverQuestionFiles(worker,1);
+  assert.equal(store.db.prepare('SELECT 1 FROM source_failures WHERE key=?').get(pdfKey),undefined);
+  instant+=40*86400000;assert(store.acquire());store.recheckSourceFailures();
+  assert.equal(store.task(pdfKey).done,1,'a later recheck leaves the superseded PDF settled');
+});

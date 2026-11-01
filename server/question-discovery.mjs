@@ -50,8 +50,16 @@ export async function discoverQuestionFiles(worker,generation) {
             else store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify({...prior.body,...file}),key);
           }
           // A declared DOCX becomes the variant's owner. Retire any pending
-          // standalone PDF owner and its retry state; retained text stays.
-          if(kind==='docx')store.db.prepare("UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key GLOB 'pdf:*' AND done=0 AND json_extract(body,'$.sourceId')=? AND json_extract(body,'$.language')=? AND COALESCE(json_extract(body,'$.parentId'),'')=?").run(worker.clock(),file.sourceId,file.language,file.parentId??'');
+          // standalone PDF owner, its retry state and any settled failure record
+          // (scheduled or parser-version rechecks would reopen it). Text stays.
+          if(kind==='docx') {
+            const superseded=store.db.prepare("SELECT key FROM tasks WHERE key GLOB 'pdf:*' AND json_extract(body,'$.sourceId')=? AND json_extract(body,'$.language')=? AND COALESCE(json_extract(body,'$.parentId'),'')=?").all(file.sourceId,file.language,file.parentId??'');
+            for(const {key:pdfKey} of superseded) {
+              store.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=? AND done=0').run(worker.clock(),pdfKey);
+              // A retained failure record would otherwise reopen it on recheck.
+              store.db.prepare('DELETE FROM source_failures WHERE key=?').run(pdfKey);
+            }
+          }
           const issued=Date.parse(file.edition?.issued);
           if(issued>worker.clock())store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,key);
         }
