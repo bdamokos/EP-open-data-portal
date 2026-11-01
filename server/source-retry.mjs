@@ -21,3 +21,7 @@ export function confirmSourceRejection(previous,error,{descriptor,parserVersion,
     ?(observe?{hash:error.sourceHash,parserVersion,descriptor,count:same?previous.count+1:1,firstSeen:same?previous.firstSeen:now}:same?previous:null):null;
   return {rejection,confirmed:Boolean(rejection?.count>=3&&now-rejection.firstSeen>=86_400_000)};
 }
+
+// Exact source-rule violations need no repeated byte/parser confirmation.
+export const deterministicSourceIssue=error=>error?.code==='source_rule_violation';
+export const sourceRuleError=message=>Object.assign(new Error(message),{code:'source_rule_violation'});

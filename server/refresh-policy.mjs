@@ -1,4 +1,4 @@
-import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, confirmSourceRejection, SOURCE_RECHECK_MS} from './source-retry.mjs';
+import {deterministicSourceIssue,sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, confirmSourceRejection, SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
@@ -183,6 +183,13 @@ export function recordTaskGap(worker,task,error) {
   if(task.groupVoiceJob || task.kind.startsWith('amendment-') || task.kind.startsWith('outside-') || worker.controller.signal.aborted || /lease/i.test(error.message))return false;
   // An empty roster cannot provide a usable first publication.
   if(task.kind==='roster' && !worker.store.db.prepare('SELECT 1 FROM members LIMIT 1').get())return false;
+  if(deterministicSourceIssue(error)) {
+    worker.store.transaction(()=>{
+      worker.store.finishTask(task);
+      coverageGap(worker.store,task.generation,task.key,{...task.body,sourceTaskKind:task.kind},String(error.message).slice(0,350),worker.clock());
+    });
+    return true;
+  }
   if(!sourceMissing(error) && !permanentSourceIssue(error) && task.attempts<4)return false;
   const now=worker.clock();
   // Pre-policy pending feeds carry only their endpoint. Pin their interval

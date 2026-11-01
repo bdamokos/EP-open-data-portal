@@ -154,6 +154,9 @@ export function amendmentsSchema(db) {
     CREATE INDEX IF NOT EXISTS amendment_target ON amendments(generation,target,date DESC,id);
     CREATE INDEX IF NOT EXISTS amendment_outcome ON amendments(generation,outcome,date DESC,id);
     CREATE TABLE IF NOT EXISTS amendment_jobs (generation INTEGER,key TEXT,kind TEXT,body TEXT,priority INTEGER,done INTEGER DEFAULT 0,attempts INTEGER DEFAULT 0,retry_at INTEGER DEFAULT 0,error TEXT,PRIMARY KEY(generation,key));
+    CREATE TABLE IF NOT EXISTS amendment_author_targets (generation INTEGER,name TEXT,target TEXT,PRIMARY KEY(generation,name,target));
+    CREATE TABLE IF NOT EXISTS amendment_member_dependencies (generation INTEGER,person_id TEXT,target TEXT,PRIMARY KEY(generation,person_id,target));
+    CREATE TABLE IF NOT EXISTS amendment_member_pending (generation INTEGER,target TEXT,PRIMARY KEY(generation,target));
     CREATE TABLE IF NOT EXISTS amendment_targets (generation INTEGER,id TEXT,body TEXT,PRIMARY KEY(generation,id));
     CREATE TABLE IF NOT EXISTS amendment_split_failures (request_id TEXT,part_id TEXT,language TEXT,body TEXT,PRIMARY KEY(request_id,part_id,language));
     CREATE INDEX IF NOT EXISTS amendment_list_target ON sources(generation,kind,json_extract(body,'$.targetDocumentId'));`);
@@ -188,15 +191,18 @@ export function amendmentsCopy(db,generation,active) {
   const source=extensionGeneration(db) || active;
   if(source && source!==generation) {
     db.prepare('INSERT OR IGNORE INTO amendments SELECT ?,id,target,date,outcome,body FROM amendments WHERE generation=?').run(generation,source);
+    db.prepare('INSERT OR IGNORE INTO amendment_author_targets SELECT ?,name,target FROM amendment_author_targets WHERE generation=?').run(generation,source);
+    db.prepare('INSERT OR IGNORE INTO amendment_member_dependencies SELECT ?,person_id,target FROM amendment_member_dependencies WHERE generation=?').run(generation,source);
+    db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT ?,target FROM amendment_member_pending WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_targets SELECT ?,id,body FROM amendment_targets WHERE generation=?').run(generation,source);
     db.prepare('INSERT OR IGNORE INTO amendment_jobs SELECT ?,key,kind,body,priority,done,attempts,retry_at,error FROM amendment_jobs WHERE generation=? AND done=0').run(generation,source);
   }
   db.prepare('INSERT OR REPLACE INTO meta VALUES (?,?)').run('amendmentSnapshotGeneration',JSON.stringify(generation));
-  if(source!==generation)for(const table of ['amendments','amendment_targets','amendment_jobs'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,source || generation);
+  if(source!==generation)for(const table of ['amendments','amendment_targets','amendment_jobs','amendment_member_dependencies','amendment_member_pending','amendment_author_targets'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,source || generation);
 }
 
 export function amendmentsPrune(db,generation,old) {
-  for(const table of ['amendments','amendment_targets','amendment_jobs'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
+  for(const table of ['amendments','amendment_targets','amendment_jobs','amendment_member_dependencies','amendment_member_pending','amendment_author_targets'])db.prepare(`DELETE FROM ${table} WHERE generation NOT IN (?,?)`).run(generation,old || generation);
 }
 export function recordSplitResults(store,result) {
   store.assertWriter();

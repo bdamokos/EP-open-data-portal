@@ -1,3 +1,4 @@
+import {sourceRuleError} from './source-retry.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
@@ -51,7 +52,7 @@ function exactProcedure(record,id) {
   const identity=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null,expected='eli/dl/proc/'+id;
   const matches=record.payload.data.filter(work=>['id','@id'].some(key=>identity(work?.[key])===expected));
   const work=matches[0];
-  if(matches.length!==1||identity(work.id)!==expected||Object.hasOwn(work,'@id')&&identity(work['@id'])!==expected||work.process_id!=null&&work.process_id!==''&&work.process_id!==id)throw new Error('Invalid or conflicting exact procedure metadata.');
+  if(matches.length!==1||identity(work.id)!==expected||Object.hasOwn(work,'@id')&&identity(work['@id'])!==expected||work.process_id!=null&&work.process_id!==''&&work.process_id!==id)throw sourceRuleError('Invalid or conflicting exact procedure metadata.');
   return matches[0];
 }
 export function speechWindows(until) {
@@ -418,7 +419,7 @@ export class ActivityWorker {
       const requestedAt=this.clock(),r=await this.request(endpoint),adopted=endpoint.startsWith('/adopted-texts/');
       const work=adopted?adoptedTextRecord(endpoint,r.payload.data):listId?validateAmendmentListMetadata(r.payload,listId):r.payload.data.find(w=>w.type==='Work') || r.payload.data[0];
       if(!work)throw new Error('EP document detail was empty.');
-      if(committeeDraftId(tail(endpoint))&&(!validCommitteeWork(work)||work.identifier!==tail(endpoint)))throw new Error('Invalid or conflicting exact committee draft metadata.');
+      if(committeeDraftId(tail(endpoint))&&(!validCommitteeWork(work)||work.identifier!==tail(endpoint)))throw sourceRuleError('Invalid or conflicting exact committee draft metadata.');
       if(body.amendmentRouteVerification) {
         const proof=body.amendmentRouteVerification,at=Date.parse(r.fetchedAt),failed=Date.parse(proof.previousFailure?.failedAt);
         if(!listId||proof.version!==1||proof.endpoint!==endpoint||proof.previousFailure?.endpoint!==task.key||body.endpoint!==task.key||proof.previousFailure.status!==404||r.stale||!Number.isFinite(at)||!Number.isFinite(failed)||at<requestedAt||at<=failed||at>this.clock())throw new Error('Corrected amendment route did not return fresh exact metadata.');

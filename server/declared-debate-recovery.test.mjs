@@ -353,3 +353,21 @@ for(const emptyRow of [false,true])test(`six-hour discovery reopens ${emptyRow?'
   ms+=6*3600000;assert(corpus.acquire());await discoverDeclaredSpeeches(worker,x.generation);
   assert.deepEqual(corpus.task(key),pending,'real future owner and its clock survive another scan');
 });
+
+test('deterministic declaration failures settle immediately as coverage without retry admission',async t=>{
+  const x=fixture(t),key='/events/'+child(777);
+  x.store.enqueue(x.generation,key,'declared-event',{id:child(777),role:'child',parent},103);
+  x.records.set(key,node(child(777),'PLENARY_DEBATE_SPEECH'));
+  let failure;try{await x.worker.task(x.task(key));}catch(error){failure=error;}
+  assert.equal(failure.code,'source_rule_violation');
+  assert(recordTaskGap(x.worker,x.task(key),failure));
+  assert.equal(x.task(key).done,1);assert.equal(x.task(key).attempts,0);
+  const gap=x.store.db.prepare('SELECT * FROM refresh_gaps WHERE key=?').get(key);
+  assert.equal(gap.kind,'coverage');assert.equal(gap.error,'Declared speech lacks its own current-term identity or date.');
+  assert.equal(scheduleGapRecovery(x.worker,x.generation),0);
+  assert.equal(x.store.enqueue(x.generation,key,'declared-event',{id:child(777),role:'child',parent},103,true),false);
+  x.records.set(key,node(child(777),'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  await x.worker.task(x.task(key));
+  assert.equal(x.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE key=?').get(key),undefined,'a successful corrected exact observation clears the coverage gap');
+  for(const error of [Object.assign(Error('server'),{status:503}),Object.assign(Error('limited'),{status:429}),Error('network')])assert.equal(recordTaskGap(x.worker,{...x.task(key),attempts:0},error),false);
+});

@@ -524,6 +524,7 @@ function sittingRebuildContext(worker,generation,sittingId) {
   return {work,directTargets,observedDecisionIds:work.amendmentVersion===AMENDMENTS_VERSION?(work.decisions || []).filter(hasDecisionReferenceSet).map(decision=>tail(decision.id)):[]};
 }
 function rebuildQuery(generation,scope,context) {
+  if(scope.kind==='member-changes')return {sql:'SELECT target AS id FROM amendment_member_pending WHERE generation=?',args:[generation]};
   if(scope.kind==='members')return {sql:'SELECT id FROM amendment_targets WHERE generation=?',args:[generation]};
   if(scope.kind==='roster')return {sql:"SELECT DISTINCT COALESCE(json_extract(source.body,'$.scopeKey'),json_extract(source.body,'$.targetDocumentId')) AS id FROM sources AS source WHERE generation=? AND kind='amendment-list' AND (json_extract(source.body,'$.document_date')=? OR EXISTS(SELECT 1 FROM json_each(source.body,'$.extraction.amendments') AS amendment WHERE json_extract(amendment.value,'$.date')=? OR json_extract(amendment.value,'$.documentDate')=? OR json_extract(amendment.value,'$.proposerDate')=?) OR json_extract(source.body,'$.scope')='committee' AND EXISTS(SELECT 1 FROM json_each(source.body,'$.procedureEvidence') AS proof WHERE json_extract(proof.value,'$.activityType')='COMMITTEE_TABLING_AMENDMENT' AND json_extract(proof.value,'$.date')=?))",args:[generation,scope.date,scope.date,scope.date,scope.date,scope.date]};
   return {sql:`SELECT value AS id FROM json_each(?) UNION SELECT id FROM amendment_targets AS target WHERE generation=? AND EXISTS(SELECT 1 FROM json_each(target.body,'$.sittingIds') AS sitting WHERE sitting.value=?)
@@ -542,11 +543,16 @@ async function runRebuildSlice(worker,task) {
   const complete=await runAmendmentWorkSlice(worker,task,{
     select:body=>body.rebuild.kind==='profile'?(body.targets?.[body.rebuild.offset]!=null?{id:body.targets[body.rebuild.offset]}:null):store.db.prepare('SELECT id FROM ('+query.sql+') WHERE id>? AND id<=? ORDER BY id LIMIT 1').get(...query.args,body.rebuild.afterTarget,body.rebuild.throughTarget),
     action:({id})=>{
-      if(id?.startsWith('committee:')||amendmentTarget(id)&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{});
+      if(id?.startsWith('committee:')||amendmentTarget(id)&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{discover:scope.kind!=='member-changes'});
+      if(scope.kind==='members'||scope.kind==='member-changes')store.db.prepare('DELETE FROM amendment_member_pending WHERE generation=? AND target=?').run(generation,id);
     },
     advance:({id},body)=>({rebuild:{...body.rebuild,...(body.rebuild.kind==='profile'?{offset:body.rebuild.offset+1}:{afterTarget:id})}}),
   });
-  if(complete&&task.body.rebuild.requestedRevision!==task.body.rebuild.revision) {
+  if(complete&&scope.kind==='member-changes'&&store.db.prepare('SELECT 1 FROM amendment_member_pending WHERE generation=? LIMIT 1').get(generation)) {
+    store.taskProgress(task,{...task.body,rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})});
+    return false;
+  }
+  if(complete&&scope.kind==='sitting'&&task.body.rebuild.requestedRevision!==task.body.rebuild.revision) {
     const latest=task.body.rebuild;
     store.taskProgress(task,{...task.body,rebuild:newRebuildScope(worker,generation,{kind:latest.kind,sittingId:latest.sittingId,revision:latest.requestedRevision,requestedRevision:latest.requestedRevision})});
     return false;
@@ -588,11 +594,11 @@ function scheduleProfileDependency(worker,generation,id,targetId,enqueue=enqueue
     const existing=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key);
     const saved=store.source(generation,checkpointKey)?.work || {},deferred=(saved.tasks || []).filter(task=>task.key===key&&task.done!==1);
     const pending=existing?[existing,...deferred]:deferred;
-    const dependencies=[...new Set([...pending.flatMap(task=>array(JSON.parse(task.body).targets)),targetId])],overflow=new Set();
+    const dependencies=[...new Set([...pending.flatMap(task=>array(JSON.parse(task.body).targets)),targetId])];
     const extend=body=>{
       const targets=[...array(body.targets)];
       for(const target of dependencies)if(!targets.includes(target)) {
-        if(targets.length<100)targets.push(target);else overflow.add(target);
+        if(targets.length<100)targets.push(target);
       }
       return {...body,targets};
     };
@@ -602,14 +608,8 @@ function scheduleProfileDependency(worker,generation,id,targetId,enqueue=enqueue
       store.db.prepare('UPDATE amendment_jobs SET body=? WHERE generation=? AND key=?').run(JSON.stringify(extend(JSON.parse(existing.body))),generation,key);
     } else if(!deferred.length) {
       const body=extend(existing?JSON.parse(existing.body):{id,targets:[]});
-      if(existing?.done===1)delete body.rebuild;
+      if(existing?.done===1){delete body.rebuild;delete body.profileStored;}
       enqueue(store,generation,key,'amendment-member',body,107,existing?.done===1);
-    }
-    if(overflow.size) {
-      const message='Some amendment author-profile dependencies exceed the 100-target processing limit; author coverage remains incomplete.';
-      const prior=next.capacityGap || {};
-      next={...next,capacityGap:{...prior,count:Math.max(1,prior.count || 0),message:prior.message?prior.message.includes(message)?prior.message:prior.message+' '+message:message}};
-      for(const target of overflow)if(amendmentTarget(target))store.db.prepare("UPDATE sources SET body=json_remove(body,'$.amendmentLinksVersion') WHERE generation=? AND json_type(body,'$.amendmentLinksVersion') IS NOT NULL AND key=? AND kind='document'").run(generation,targetKey(target));
     }
     if(next!==saved) {
       // Admission can also append a full snapshot or capacity gap. Preserve
@@ -621,14 +621,19 @@ function scheduleProfileDependency(worker,generation,id,targetId,enqueue=enqueue
   return store.db.isTransaction?merge():store.transaction(merge);
 }
 function scheduleMandateProfiles(worker,generation,targetId,lists,aliases,enqueue=enqueueAmendment) {
-  const store=worker.store;if(!store.get('amendmentMandateFallback'))return;
+  const store=worker.store;
   const needsNames=lists.some(({work})=>hasNonLatinAuthors(work.extraction));
   const directory=store.source(generation,'amendment:members:10');
-  if(!directory||needsNames&&directory.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION){enqueue(store,generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108,true);return;}
-  const members=directory.work.members || [],names=new Set(lists.flatMap(({work})=>(work.extraction?.amendments || []).flatMap(amendment=>amendment.authors || [])).map(normalizedName));
+  if(store.get('amendmentMandateFallback')&&(!directory||needsNames&&directory.work.nameVersion!==AMENDMENT_AUTHOR_NAMES_VERSION)){enqueue(store,generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108,true);return;}
+  const members=[...(directory?.work.members || []),...store.memberProfiles(generation).map(source=>source.work)],names=new Set(lists.flatMap(({work})=>(work.extraction?.amendments || []).flatMap(amendment=>amendment.authors || [])).map(normalizedName));
+  const authorTarget=store.db.prepare('INSERT OR IGNORE INTO amendment_author_targets VALUES (?,?,?)');
+  for(const name of names)if(name)authorTarget.run(generation,name,targetId);
   const ids=new Set(members.filter(member=>[['givenName','familyName'],['officialGivenName','officialFamilyName']].some(([g,f])=>member[g]&&member[f]&&(names.has(normalizedName(member[g]+' '+member[f]))||names.has(normalizedName(member[f]+' '+member[g]))))).map(member=>member.id));
   for(const alias of aliases)if(names.has(normalizedName(alias.alias)))ids.add(String(alias.personId));
   const latestDate=lists.flatMap(({work})=>(work.extraction?.amendments || []).map(amendment=>amendmentProposerDate(amendment,{documentDate:amendment.documentDate || amendment.date,listDate:work.document_date})?.date)).filter(Boolean).sort().at(-1);
+  const dependency=store.db.prepare('INSERT OR IGNORE INTO amendment_member_dependencies VALUES (?,?,?)');
+  for(const id of ids)dependency.run(generation,String(id).replace(/^person\//,''),targetId);
+  if(!store.get('amendmentMandateFallback'))return;
   for(const id of ids) {
     const profile=store.source(generation,'amendment:member:'+id);
     if(profile&&(!needsNames||profile.work.nameVersion===AMENDMENT_AUTHOR_NAMES_VERSION) && (!latestDate || profile.fetchedAt.slice(0,10)>=latestDate))continue;
@@ -966,11 +971,29 @@ export async function amendmentTask(worker,task) {
     if(!await beginRebuild(worker,task,{kind:'members'}))return;
   } else if(task.kind==='amendment-member') {
     if(!/^[1-9]\d*$/.test(body.id))throw new Error('Invalid amendment author person ID.');
-    const record=await worker.request('/meps/'+body.id),person=record.payload.data.find(person=>String(person.identifier || tail(person.id))===body.id);
-    if(!person)throw new Error('Amendment author profile is unavailable.');
-    const member={id:body.id,nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...memberNameFields(person),hasMembership:array(person.hasMembership).filter(membership=>tail(membership.role)==='MEMBER_PARLIAMENT'),sourceUrl:record.url,fetchedAt:record.fetchedAt};
-    store.putSource(generation,'amendment:member:'+body.id,'amendment-member',member,record.fetchedAt);
-    if(!await beginRebuild(worker,task,{kind:'profile'}))return;
+    if(!body.profileStored) {
+      const record=await worker.request('/meps/'+body.id),person=record.payload.data.find(person=>String(person.identifier || tail(person.id))===body.id);
+      if(!person)throw new Error('Amendment author profile is unavailable.');
+      const member={id:body.id,nameVersion:AMENDMENT_AUTHOR_NAMES_VERSION,...memberNameFields(person),hasMembership:array(person.hasMembership).filter(membership=>tail(membership.role)==='MEMBER_PARLIAMENT'),sourceUrl:record.url,fetchedAt:record.fetchedAt};
+      store.putSource(generation,'amendment:member:'+body.id,'amendment-member',member,record.fetchedAt);
+      store.taskProgress(task,{...body,profileStored:true});
+    }
+    const member=store.source(generation,'amendment:member:'+body.id)?.work;
+    if(!member)throw new Error('Saved amendment author profile is unavailable.');
+    // One disk-backed set coalesces all profile arrivals, without a target cap.
+    const admitted=store.transaction(()=>{
+      store.db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT generation,target FROM amendment_member_dependencies WHERE generation=? AND person_id=?').run(generation,body.id);
+      // New official names may resolve an author which had no prior member ID.
+      const byName=store.db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT generation,target FROM amendment_author_targets WHERE generation=? AND name=?');
+      for(const [g,f] of [['givenName','familyName'],['officialGivenName','officialFamilyName']])if(member[g]&&member[f]) {
+        byName.run(generation,normalizedName(member[g]+' '+member[f]));
+        byName.run(generation,normalizedName(member[f]+' '+member[g]));
+      }
+      const put=store.db.prepare('INSERT OR IGNORE INTO amendment_member_pending VALUES (?,?)');
+      for(const target of body.targets || [])put.run(generation,target);
+      return enqueueAmendment(store,generation,'amendment:member-changes','amendment-rebuild',{rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})},107,true);
+    });
+    if(!admitted)return;
   } else if(task.kind==='amendment-aliases') {
     if(!/^MTG-PL-\d{4}-\d{2}-\d{2}$/.test(body.sittingId))throw new Error('Invalid voting-alias sitting identifier.');
     const date=body.sittingId.slice(7);

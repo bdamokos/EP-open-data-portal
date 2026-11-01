@@ -523,6 +523,8 @@ test('a failed dated roster falls back to exact author profiles and their actual
   await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM amendment_jobs WHERE kind='amendment-member'").get().n,2);
   for(let n=0;n<2;n++)await worker.task(nextAmendmentTask(store,generation));
+  const followup=nextAmendmentTask(store,generation);assert.equal(followup.key,'amendment:member-changes');
+  await worker.task(followup);
   assert.deepEqual(calls.slice(0,2),[['/meps',0],['/meps',3]]);
   assert(!calls.some(([endpoint])=>endpoint==='/meps/103'));
   const items=amendmentsPage(store,{document:targetId}).items;
