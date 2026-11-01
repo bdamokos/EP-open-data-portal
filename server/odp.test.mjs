@@ -196,3 +196,11 @@ test('a member catalogue 204 is unavailable rather than an observed zero',async(
   const empty=await odpSpeeches(256956,'en',0,{request:async()=>({fetchedAt:Date.now(),payload:{data:[],meta:{total:0}}})});
   assert.equal(empty.total,0);
 });
+
+// Stable Array.sort must not add a numbering or identifier tie-breaker.
+test('speech timestamp ties retain hits order or graph order when hits are absent',()=>{
+  const data=[{id:'z',activity_id:'z',activity_date:'2026-10-07',activity_start_date:'2026-10-07T10:00:00+02:00'},
+    {id:'a',activity_id:'a',activity_date:'2026-10-07',activity_start_date:'2026-10-07T08:00:00Z'}];
+  assert.deepEqual(orderedSpeeches({data}).map(row=>row.id),['z','a']);
+  assert.deepEqual(orderedSpeeches({data,searchResults:{hits:[{id:'a'},{id:'z'}]}}).map(row=>row.id),['a','z']);
+});
