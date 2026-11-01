@@ -1,0 +1,87 @@
+{
+  "sourceUrl": "https://publications.europa.eu/resource/cellar/f0d882b4-06d0-11ef-a251-01aa75ed71a1.0010.01/DOC_1",
+  "sourceSha256": "293b3651da8b4a5e3aafa139541241dd19f8e2d66d1f6dd8fab4bd86f12de238",
+  "amendmentUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_nl.docx",
+  "retrievedAt": "2026-10-27T20:18:22.771658+00:00",
+  "targetLabel": "Artikel 1 – alinea 1 – punt 64",
+  "originalText": "4.\tLidstaten die aan boord gaan van een vaartuig dat zonder nationaliteit actief is, stellen de Commissie daarvan onverwijld in kennis. De Commissie stelt het GFCM-secretariaat onverwijld in kennis.",
+  "root": [
+    {
+      "text": "Artikel 1 \nWijziging van Verordening (EU) 2023/2124",
+      "style": "Titrearticle",
+      "path": "/w:document[1]/w:body[1]/w:p[89]"
+    },
+    {
+      "text": "Verordening (EU) 2023/2124 wordt als volgt gewijzigd:",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[90]"
+    }
+  ],
+  "instruction59": {
+    "text": "59) Aan artikel 115 wordt het volgende lid 4 toegevoegd:",
+    "style": "Normal",
+    "path": "/w:document[1]/w:body[1]/w:p[606]"
+  },
+  "instruction64": [
+    {
+      "text": "64) Het volgende artikel 130 bis wordt ingevoegd tussen de artikelen 130 en 131:",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[731]"
+    },
+    {
+      "text": "“Artikel 130 bis",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[732]"
+    },
+    {
+      "text": "Waarnemingen van vaartuigen",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[733]"
+    },
+    {
+      "text": "1. Wanneer wordt waargenomen dat een onder buitenlandse vlag varend vaartuig, een vaartuig met een onbepaalde nationaliteit of een vaartuig zonder nationaliteit betrokken is bij visserij- of visserijgerelateerde activiteiten die als illegaal, ongemeld en ongereglementeerd worden aangemerkt, verzamelen de lidstaten zo veel mogelijk informatie door middel van handhavings- en surveillanceverrichtingen van hun bevoegde autoriteiten in het GFCM-toepassingsgebied.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[734]"
+    },
+    {
+      "text": "2. De lidstaten verzamelen informatie over waarnemingen van vaartuigen overeenkomstig het waarnemingsformulier van bijlage VII.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[735]"
+    },
+    {
+      "text": "3. Wanneer een vaartuig wordt waargenomen, zendt de waarnemende lidstaat het waarnemingsformulier en alle geregistreerde beelden van het vaartuig onverwijld toe aan de autoriteiten van de vlaggenlidstaat, van de overeenkomstsluitende vlaggenpartijen bij de GFCM of van de niet-overeenkomstsluitende vlaggenpartijen van het waargenomen vaartuig en:",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[736]"
+    },
+    {
+      "text": "a) wanneer het waargenomen vaartuig de vlag van een lidstaat voert, onderneemt de vlaggenlidstaat onverwijld passende actie ten aanzien van het betrokken vaartuig. Zowel de waarnemende lidstaat als de vlaggenlidstaat van het waargenomen vaartuig verstrekt de Commissie en het Europees Bureau voor visserijcontrole (EFCA) informatie over de waarneming, met inbegrip van bijzonderheden over eventuele follow-upactie;",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[737]"
+    },
+    {
+      "text": "b) indien het waargenomen vaartuig de vlag van een andere overeenkomstsluitende partij bij de GFCM of niet-overeenkomstsluitende partij voert, een onbepaalde vlag voert of geen nationaliteit heeft, verstrekt de waarnemende lidstaat de Commissie en het EFCA onverwijld alle relevante informatie over de waarneming. De Commissie zendt de informatie over de waarneming in passende gevallen door aan het GFCM-secretariaat.”.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[738]"
+    },
+    {
+      "text": "5. Lidstaten die aan boord gaan van een vaartuig dat zonder nationaliteit actief is, stellen de Commissie daarvan onverwijld in kennis. De Commissie stelt het GFCM-secretariaat onverwijld in kennis.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[739]"
+    },
+    {
+      "text": "6. De lidstaten verstrekken de Commissie onmiddellijk relevante informatie die is verzameld bij de aanhouding van vaartuigen van niet-overeenkomstsluitende partijen die met betrekking tot soorten die onder GFCM-beheersmaatregelen vallen, visserij- of visserijgerelateerde activiteiten verrichten in niet onder nationale jurisdictie vallende wateren van het GFCM-toepassingsgebied. De Commissie stelt het GFCM-secretariaat onverwijld in kennis.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[740]"
+    },
+    {
+      "text": "7. Ter ondersteuning van het vaartuigwaarnemingsproces zoals vastgelegd in dit artikel, verzamelen vissers- en ondersteuningsvaartuigen van lidstaten die actief zijn in het GFCM-toepassingsgebied, relevante informatie, die zij aan hun binnenlandse autoriteiten verstrekken.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[741]"
+    },
+    {
+      "text": "8. De Commissie is bevoegd om gedelegeerde handelingen vast te stellen tot aanvulling van deze verordening overeenkomstig artikel 140 van deze verordening en artikel 18, leden 1 tot en met 6, van Verordening (EU) nr. 1380/2013 wat betreft de gegevens van bijlage VII.”.",
+      "style": "Normal",
+      "path": "/w:document[1]/w:body[1]/w:p[742]"
+    }
+  ]
+}

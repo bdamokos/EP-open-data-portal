@@ -113,3 +113,15 @@ test('Dutch instructions retain the consecutive list across a numbered added par
  const {oracleInstruction}=await import('./amendment-oracle-grammar.mjs');
  assert.deepEqual(oracleInstruction('59) Aan artikel 115 wordt het volgende lid 4 toegevoegd:','nl'),{value:'59',level:0});
 });
+
+test('recorded Dutch AM104 verifies its complete instruction address and independent similarity margin',async()=>{
+ const f=JSON.parse(await readFile(new URL('./fixtures/dutch-added-paragraph-oracle.json',import.meta.url)));
+ const rows=[...f.root.map(r=>[r.text,r.style]),...Array.from({length:58},(_,i)=>[`${i+1}) Artikel 1 wordt vervangen:`, 'Normal']),[f.instruction59.text,f.instruction59.style],...Array.from({length:4},(_,i)=>[`${i+60}) Artikel 1 wordt vervangen:`, 'Normal']),...f.instruction64.map(r=>[r.text,r.style]),['65) Artikel 1 wordt vervangen:','Normal'],['Artikel 2','Titrearticle']];
+ const p=proposal(rows),at=p.paragraphs.findIndex(r=>r.text.startsWith('5. Lidstaten die aan boord'));
+ const placement={...replace(at),splice:{start:{paragraph:at,offset:0},end:{paragraph:at,offset:p.paragraphs[at].text.length}}};
+ const wording={language:'nl',targetLabel:f.targetLabel,originalText:f.originalText};
+ const address=rawProposalAssertion({proposal:p,wording,placement});assert.equal(address.status,'verified');
+ const {assertSimilarPlacement}=await import('./amendment-similarity-oracle.mjs');assert.equal(assertSimilarPlacement({proposal:p,wording,placement,address}).status,'verified');
+ const damaged=structuredClone(p);damaged.paragraphs.find(r=>r.text===f.instruction59.text).text='59) Onduidelijke instructie.';
+ assert.equal(rawProposalAssertion({proposal:damaged,wording,placement}).status,'unverified');
+});
