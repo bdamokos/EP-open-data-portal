@@ -89,17 +89,16 @@ const questionDateLabels={
   ro:['Depunere','Dată-limită'],sk:['Predložené','Termín na zodpovedanie'],sl:['Vloženo','Rok za odgovor'],sv:['Ingiven','Sista svarsdag'],
 };
 
-// Drop the closing submission line of a question when the card already shows
-// that same date. A following deadline ("Lapses:") line stays visible.
-export function withoutSubmittedLine(body,documentId,language,shownDate) {
-  const unchanged={body,trailer:[]},labels=questionDateLabels[language];
-  if(!labels||!shownDate||!/^[EPHO]-10-\d{4}-\d+$/.test(String(documentId)))return unchanged;
+// Source index of a question's closing submission line when the card already
+// shows that same date, or null. A following deadline ("Lapses:") line stays.
+export function repeatedSubmittedLine(body,documentId,language,shownDate) {
+  const labels=questionDateLabels[language];
+  if(!labels||!shownDate||!/^[EPHO]-10-\d{4}-\d+$/.test(String(documentId)))return null;
   const dated=label=>new RegExp(`^${label}\\s*:\\s*(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$`,'u');
   const paragraphs=body.paragraphs,last=paragraphs.length-1;
   const lapses=last>0&&dated(labels[1]).test(paragraphs[last].trim());
   const index=lapses?last-1:last,line=paragraphs[index]?.trim().match(dated(labels[0]));
-  if(!line||index<1)return unchanged;
+  if(!line||index<1)return null;
   const submitted=`${line[3]}-${line[2].padStart(2,'0')}-${line[1].padStart(2,'0')}`;
-  if(submitted!==String(shownDate).slice(0,10))return unchanged;
-  return {body:{...body,paragraphs:paragraphs.slice(0,index)},trailer:paragraphs.slice(index+1)};
+  return submitted===String(shownDate).slice(0,10)?body.start+index:null;
 }

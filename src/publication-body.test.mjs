@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {publicationBody,withoutSubmittedLine} from './publication-body.mjs';
+import {publicationBody,repeatedSubmittedLine} from './publication-body.mjs';
 test('a matching English question starts at its body and retains the source header separately',()=>{
   const input=['Question for written answer E-002520/2026/rev.1','to the Commission','Rule 144','Actual author list','Subject: Actual subject','First body paragraph','Second body paragraph'];
   const result=publicationBody(input,'E-10-2026-002520','en');assert.deepEqual(result.paragraphs,input.slice(5));assert.deepEqual(result.header,input.slice(0,5));assert.equal(input.length,7);
@@ -71,15 +71,16 @@ test('unknown or mismatched adopted covers and A/B/RC readers retain all origina
   ]){const p=[...taParagraphs];mutate(p);assert.equal(publicationBody(p,taId,'en').start,0);}
 });
 
-test('the closing submission line is dropped only when the card shows the same date',()=>{
+test('the closing submission line is hidden only when the card shows the same date',()=>{
   const written=['Question for written answer E-003900/2026','to the Commission','Rule 144','Author (EPP)','Subject: Fisheries support','Body paragraph.','1.\tA question?','Submitted: 7.10.2026'];
   const body=publicationBody(written,'E-10-2026-003900','en');
-  assert.deepEqual(withoutSubmittedLine(body,'E-10-2026-003900','en','2026-10-07'),{body:{...body,paragraphs:written.slice(5,7)},trailer:[]});
-  for(const [date,language] of [['2026-10-08','en'],[null,'en'],['2026-10-07','fr']]) assert.equal(withoutSubmittedLine(body,'E-10-2026-003900',language,date).body,body);
+  // The returned index is the source paragraph, so offsets, notes and links stay aligned.
+  assert.equal(repeatedSubmittedLine(body,'E-10-2026-003900','en','2026-10-07'),7);
+  for(const [date,language] of [['2026-10-08','en'],[null,'en'],['2026-10-07','fr']]) assert.equal(repeatedSubmittedLine(body,'E-10-2026-003900',language,date),null);
   const oral=['Question for oral answer O-000042/2026','to the Commission','Rule 142','Author (S&D)','Subject:\tScams','Body.','Submitted: 9.10.2026','Lapses: 10.1.2027'];
-  const oralBody=publicationBody(oral,'O-10-2026-000042','en');
-  assert.deepEqual(withoutSubmittedLine(oralBody,'O-10-2026-000042','en','2026-10-09'),{body:{...oralBody,paragraphs:['Body.']},trailer:['Lapses: 10.1.2027']});
-  assert.equal(withoutSubmittedLine(body,'A-10-2026-000001','en','2026-10-07').body,body);
+  assert.equal(repeatedSubmittedLine(publicationBody(oral,'O-10-2026-000042','en'),'O-10-2026-000042','en','2026-10-09'),6);
+  assert.equal(repeatedSubmittedLine(body,'A-10-2026-000001','en','2026-10-07'),null);
+  assert.equal(repeatedSubmittedLine({paragraphs:['Submitted: 7.10.2026'],start:0},'E-10-2026-003900','en','2026-10-07'),null);
 });
 test('the submission line is recognised in every official language',()=>{
   // Closing lines as printed in the language versions of EP oral questions.
@@ -87,9 +88,7 @@ test('the submission line is recognised in every official language',()=>{
   assert.equal(closing.length,24);
   for(const [language,submitted,lapses] of closing) {
     const date=submitted.match(/(\d+)\.(\d+)\.(\d{4})$/),iso=`${date[3]}-${date[2].padStart(2,'0')}-${date[1].padStart(2,'0')}`;
-    const body={paragraphs:['Body.',submitted,lapses],header:[],start:0,exact:true};
-    assert.deepEqual(withoutSubmittedLine(body,'O-10-2026-000042',language,iso),{body:{...body,paragraphs:['Body.']},trailer:[lapses]},language);
-    const written={...body,paragraphs:['Body.',submitted]};
-    assert.deepEqual(withoutSubmittedLine(written,'E-10-2026-000042',language,iso).body.paragraphs,['Body.'],language);
+    assert.equal(repeatedSubmittedLine({paragraphs:['Body.',submitted,lapses],start:3},'O-10-2026-000042',language,iso),4,language);
+    assert.equal(repeatedSubmittedLine({paragraphs:['Body.',submitted],start:0},'E-10-2026-000042',language,iso),1,language);
   }
 });
