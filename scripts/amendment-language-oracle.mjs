@@ -1,3 +1,4 @@
+import {languageQuotedSibling} from './amendment-language-quoted-oracle.mjs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {LANGUAGE_SECTIONS} from './amendment-language-vocabulary.mjs';
@@ -74,7 +75,7 @@ function proposalRecitals(raw) {
 }
 const unknown=reason=>({status:'unverified',reason});
 const failed=(reason,details={})=>({status:'failed',reason,...details});
-export function verifyLanguagePlacement({expected,placement,text,items,rawText,rawItems}) {
+export function verifyLanguagePlacement({expected,placement,text,items,rawText,rawItems,nativeQuoted}) {
   if(placement.status==='not-applicable'&&(!expected?.operation||expected.gap))return unknown(expected?.gap||'raw-operation-unavailable');
   const scope=verifyLanguageScope(placement,expected?.scope);
   if(scope)return scope;
@@ -98,7 +99,11 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
     });
     const result=rawProposalAssertion({proposal:{paragraphs:rows,sourceKind:'docx'},wording:expected,placement});
     const target=oracleAddress(expected.targetLabel,expected.language);
-    if(result.status!=='verified')return result;
+    if(result.status==='failed')return result;
+    if(result.status!=='verified'){
+      const quoted=languageQuotedSibling({expected,proposal,placement,nativeQuoted});
+      return quoted.status==='unverified'?result:quoted;
+    }
     return {...result,location:{section:'commission-proposal',kind:target.at(-1).kind,value:target.map(s=>s.kind+':'+s.value).join('/'),scope:'proposal'}};
   };
   const span=placement.span;
