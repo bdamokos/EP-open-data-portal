@@ -824,6 +824,10 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.recoveryMode==='backfill')scheduleDeclaredDebateRecovery(this,generation);
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
+          // Give continuous topic backfill a bounded share even while core or
+          // optional queues remain busy. All reads retain background admission.
+          this.topicDispatches=((this.topicDispatches||0)+1)%8;
+          if(this.topicDispatches===0&&topicCollectionDue(this.store,this.clock())&&await collectTopicProcedure(this))continue;
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
           const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
           const coreTask=this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask):preferredTask;

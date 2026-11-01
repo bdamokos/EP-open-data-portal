@@ -6,17 +6,22 @@ import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {buildTopics,topicCollectorTables} from './topics-project.mjs';
 import {RecordTopics} from './topics-store.mjs';
-import {collectTopicProcedure,topicCollectionDue,TOPIC_DAILY_CAP} from './topics-collector.mjs';
+import {collectTopicProcedure,topicCollectionDue} from './topics-collector.mjs';
 test('offline generation build reports pending, coverage and durable collector admission bounds',async t=>{
  const dir=await mkdtemp(path.join(tmpdir(),'topic-collector-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.acquire();const c=store.beginCycle();
  const stamp='2026-11-01T12:00:00Z';
  store.putSource(c.generation,'/procedures/2026-2790','procedure',{id:'eli/dl/proc/2026-2790',label:'2026/2790(RSP)'},stamp);
  store.putSource(c.generation,'/plenary-documents/B-10-2026-0423','document',{id:'eli/dl/doc/B-10-2026-0423',identifier:'B-10-2026-0423',work_type:'def/ep-document-types/MOTION',document_date:'2026-10-07',inverse_created_a_realization_of:['eli/dl/proc/2026-2790']},stamp);
  store.putSource(c.generation,'/parliamentary-questions/E-10-2026-000001','document',{id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',work_type:'def/ep-document-types/QUESTION_WRITTEN',document_date:'2026-10-07',inverse_created_a_realization_of:['eli/dl/proc/2026-2790']},stamp);
- store.publish(c.generation);const result=await buildTopics(store);assert.deepEqual(result.coverage,{referenced:1,withSubjects:0,read:0});assert.equal(new RecordTopics(store).record('B-10-2026-0423','en').status,'pending');assert.equal(new RecordTopics(store).record('E-10-2026-000001','en').status,'not-classified');
+ const oral='O-10-2026-000002',event='MTG-PL-2026-10-07-PVCRE-ITM-12';
+ store.putSource(c.generation,'/parliamentary-questions/'+oral,'document',{identifier:oral,work_type:'def/ep-document-types/QUESTION_ORAL',document_date:'2026-10-07'},stamp);
+ store.putSource(c.generation,'/events/'+event,'outside-agenda',{activity_id:event,activity_date:'2026-10-07',based_on_a_realization_of:['eli/dl/doc/'+oral],inverse_consists_of:['eli/dl/proc/2026-2790']},stamp);
+ store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(c.generation,'/parliamentary-questions/'+oral,oral,'1','oral-questions','2026-10-07',JSON.stringify({titles:{en:'Oral question'}}));
+ store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(c.generation,'/parliamentary-questions/E-10-2026-000001','E-10-2026-000001','1','written-questions','2026-10-07',JSON.stringify({titles:{en:'Written question'}}));
+ store.publish(c.generation);const result=await buildTopics(store);assert.deepEqual(result.coverage,{referenced:1,withSubjects:0,read:0});assert.equal(new RecordTopics(store).record('B-10-2026-0423','en').status,'pending');assert.equal(new RecordTopics(store).record('E-10-2026-000001','en').status,'not-classified');assert.equal(new RecordTopics(store).record(oral,'en').status,'pending');
  const now=Date.parse(stamp),worker={store,clock:()=>now,requests:0,budget:5,controller:new AbortController()};let calls=0;
  assert(topicCollectionDue(store,now));await collectTopicProcedure(worker,{sources:{get:async(url,options)=>{calls++;assert.equal(options.priority,'background');assert(url.includes('2026%2F2790'));throw Error('offline');}}});assert.equal(calls,1);assert.equal(worker.requests,1);assert(!topicCollectionDue(store,now));
- store.db.prepare('UPDATE topic_procedure_queue SET next_read=0').run();store.set('topicCollectorBudget',{day:'2026-11-01',used:TOPIC_DAILY_CAP});assert(!topicCollectionDue(store,now));assert.equal(await collectTopicProcedure(worker,{sources:{get:()=>assert.fail()}}),false);
+ store.db.prepare('UPDATE topic_procedure_queue SET next_read=0').run();store.set('topicCollectorBudget',{day:'2026-11-01',used:10000});assert(topicCollectionDue(store,now));worker.requests=worker.budget;assert.equal(await collectTopicProcedure(worker,{sources:{get:()=>assert.fail()}}),false);
 });
 
 test('missing procedure metadata is resolved only by its exact published ID before collecting OEIL',async t=>{
@@ -33,4 +38,19 @@ test('disk staging retains raw speech parents, numeric retrieval dates and equal
  await buildTopics(store,{cache});let record=new RecordTopics(store).record(speech,'en');assert(record.keywords.some(k=>k.key==='eurovoc:245'));const saved=JSON.parse(store.db.prepare('SELECT body FROM record_topic_records WHERE generation=1 AND id=?').get(speech).body);assert.equal(saved.source.fetchedAt,'2026-10-24T12:00:00.000Z');
  await writeFile(path.join(cache,'b'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/speeches',fetchedAt:stamp,payload:{data:[{...rows[2],inverse_consists_of:['eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-13']}]}}));
  await buildTopics(store,{cache});record=new RecordTopics(store).record(speech,'en');assert.equal(record.status,'ambiguous');assert.deepEqual(record.keywords,[]);
+});
+
+test('question items are the universe, deduplicating authors without requiring document metadata',async t=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'topic-question-items-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.acquire();store.set('active',1);
+ const put=store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)'),written='E-10-2025-000001',oral='O-10-2025-000002';
+
+ store.db.prepare('INSERT INTO members VALUES (?,?)').run('1',JSON.stringify({id:'1',countryCode:'GR'}));
+ store.db.prepare('INSERT INTO members VALUES (?,?)').run('2',JSON.stringify({id:'2',countryCode:'CY'}));
+ store.putSource(1,'/parliamentary-questions/'+oral,'document',{identifier:oral,work_type:'def/ep-document-types/QUESTION_ORAL',document_date:'2025-05-06',title_dcterms:{fr:'Grèce'},creator:['person/999']},'2025-06-01');
+ store.putSource(1,'/parliamentary-questions/E-10-2025-999999','document',{identifier:'E-10-2025-999999',work_type:'def/ep-document-types/QUESTION_WRITTEN',title_dcterms:{en:'Greece'}},'2025-06-01');
+ for(const [id,mep,category,title] of [[written,'1','written-questions','Greece and Cyprus'],[written,'2','written-questions','Greece and Cyprus'],[oral,'2','oral-questions','Greece']])put.run(1,'/parliamentary-questions/'+id,id,mep,category,'2025-05-06',JSON.stringify({titles:{en:title},provenance:{apiUrl:'https://data.europarl.europa.eu/api/v2/parliamentary-questions/'+id,sourceFetchedAt:'2025-06-02T00:00:00Z'}}));
+ await buildTopics(store);
+ const reader=new RecordTopics(store);assert.equal(reader.record(written,'en').kind,'question');assert.equal(reader.record(oral,'en').places[0].askers,'elsewhere');assert.equal(reader.record(written,'en').places.find(p=>p.id==='GRC').askers,'home');assert.equal(reader.record(written,'en').places.find(p=>p.id==='CYP').askers,'home');
+ const rows=store.db.prepare("SELECT id,body FROM record_topic_records WHERE generation=1 AND kind='question' ORDER BY id").all();assert.equal(rows.length,2);assert.deepEqual(JSON.parse(rows[0].body).members,['1','2']);assert.equal(JSON.parse(rows[0].body).assignments[0].paths[0].sources[0].fetchedAt,'2025-06-02T00:00:00Z');assert.equal(JSON.parse(rows[1].body).titles.fr,'Grèce');
+ const overview=reader.query(new URLSearchParams('role=place'),'overview');assert.equal(overview.items.find(p=>p.id==='GRC').counts.question,2);assert.equal(Object.values(overview.periodTotals).reduce((n,p)=>n+p.question,0),2);
 });

@@ -2,13 +2,12 @@ import {projectProcedure} from './activity-index-model.mjs';
 import {classifyProcedure} from './insights-legislation-model.mjs';
 import {getSharedOfficialContextSources,parseProcedurePage} from './official-context.mjs';
 import {topicCollectorTables} from './topics-project.mjs';
-export const TOPIC_DAILY_CAP=100;
 export async function collectTopicProcedure(worker,{sources=getSharedOfficialContextSources()}={}){
- const s=worker.store;topicCollectorTables(s.db);s.assertWriter();const now=worker.clock(),day=new Date(now).toISOString().slice(0,10),budget=s.get('topicCollectorBudget');
- const used=budget?.day===day?budget.used:0;if(used>=TOPIC_DAILY_CAP||worker.requests>=worker.budget||worker.controller.signal.aborted)return false;
+ const s=worker.store;topicCollectorTables(s.db);s.assertWriter();const now=worker.clock();
+ if(worker.requests>=worker.budget||worker.controller.signal.aborted)return false;
  const row=s.db.prepare('SELECT * FROM topic_procedure_queue WHERE next_read<=? ORDER BY next_read,id LIMIT 1').get(now);if(!row)return false;
- s.set('topicCollectorBudget',{day,used:used+1});if(row.reference)worker.requests++;
- // Persist admission before the read; a failed origin waits at least one day.
+ if(row.reference)worker.requests++;
+ // Persist the in-flight retry before reading; a crash cannot spin on this ID.
  s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(now+86400_000,row.id);
  try{
  if(!row.reference){
@@ -22,12 +21,16 @@ export async function collectTopicProcedure(worker,{sources=getSharedOfficialCon
  if(page.viewCache?.stale)return true;
  const parsed=parseProcedurePage(page.html,row.reference,'en');
  s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify({subjects:parsed.subjects,language:parsed.language,url:page.url,source:{url:page.url,fetchedAt:page.fetchedAt}}));s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(now+90*86400_000,row.id);s.set('topicProjectionDirty',true);});
- }catch(error){if(worker.controller.signal.aborted)throw error;}
+ }catch(error){
+  if(worker.controller.signal.aborted)throw error;s.assertWriter();
+  const retryAt=Math.max(worker.clock()+60_000,Number(error.retryAt)||0,worker.clock()+(Number(error.retryAfter)||0)*1000);
+  s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(retryAt,row.id);
+ }
+
  return true;
 }
 
 export function topicCollectionDue(store,now){
  if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='topic_procedure_queue'").get())return false;
- const b=store.get('topicCollectorBudget'),day=new Date(now).toISOString().slice(0,10);
- return (b?.day!==day||b.used<TOPIC_DAILY_CAP)&&Boolean(store.db.prepare('SELECT 1 FROM topic_procedure_queue WHERE next_read<=? LIMIT 1').get(now));
+ return Boolean(store.db.prepare('SELECT 1 FROM topic_procedure_queue WHERE next_read<=? LIMIT 1').get(now));
 }

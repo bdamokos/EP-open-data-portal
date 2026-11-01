@@ -13,7 +13,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
   try {
     const value=await new Promise((resolve,reject)=>{
       let thread,result,failure,complete=false;
-      try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{workerData:{directory:path.dirname(store.filename),owner:store.owner,operation,generation}});}
+      try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{resourceLimits:{maxOldGenerationSizeMb:40,maxYoungGenerationSizeMb:4},workerData:{directory:path.dirname(store.filename),owner:store.owner,operation,generation}});}
       catch(error){reject(error);return;}
       const abort=()=>{failure=signal.reason||new Error('Activity generation operation aborted.');void thread.terminate();};
       thread.on('message',message=>{

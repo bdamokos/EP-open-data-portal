@@ -31,7 +31,7 @@ export class OfficialContextSources {
     let queue=this.queues.get(origin);
     // OEIL and Publications Office have no ODP quota. These are local resource
     // caps per origin; their own Retry-After pauses still apply.
-    if(!queue){queue=new UpstreamQueue();this.queues.set(origin,queue);}
+    if(!queue){queue=new UpstreamQueue(origin==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:{});this.queues.set(origin,queue);}
     let release;
     try{release=await queue.acquire(priority,{signal});}
     catch(error){
@@ -57,7 +57,7 @@ export class OfficialContextSources {
           if(redirected.origin!==source.origin)throw new HttpError(502,'official_redirect','The source redirected to a different origin.');
           target=redirected.href;
         }
-        if([429,503].includes(response?.status)){
+        if(response?.status===429||response?.status>=500){
           const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
           this.queues.get(source.origin)?.backoff(retryAfter);await response.body?.cancel();
           throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
