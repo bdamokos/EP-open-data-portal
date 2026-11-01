@@ -1,3 +1,5 @@
+import {acceptOfficialHints} from './official-context-hints.mjs';
+import {acceptDocumentBodyHints} from './document-body-hints-rpc.mjs';
 import {parentPort,workerData} from 'node:worker_threads';
 import {setUpstreamBridge} from './odp.mjs';
 import {UpstreamRpcClient} from './upstream-rpc.mjs';
@@ -17,6 +19,8 @@ function identifyLease(service,source) {
   parentPort.postMessage({type:'lease-owner',source,filename:service.store.filename});
 }
 parentPort.on('message',message=>{
+  if(!closing&&acceptOfficialHints(message)){parentPort.postMessage({type:'official-context-hints-received'});return;}
+  if(!closing&&acceptDocumentBodyHints(message)){parentPort.postMessage({type:'document-body-hints-received'});return;}
   if(!closing&&acceptSittingSnapshotHints(message)){
     parentPort.postMessage({type:'sitting-hints-received'});return;
   }

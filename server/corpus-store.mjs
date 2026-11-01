@@ -86,9 +86,10 @@ export class CorpusStore {
     this.filename=path.join(directory,'corpus-v1.sqlite');
     this.initializeIndexes=!readOnly&&(initializeIndexes||!existsSync(this.filename));
     this.db=observeSqlite(new DatabaseSync(this.filename,{readOnly}),'corpus');
+    this.db.function('speech_order_ms',{deterministic:true},(start,date)=>{const value=Date.parse(start||date);return Number.isFinite(value)?value:null;});
     this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
-      try {if(this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
+      try {if(this.get('speechMemberIndex')!==2||this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -188,6 +189,28 @@ export class CorpusStore {
         this.db.exec(`INSERT OR IGNORE INTO speech_catalog_dirty SELECT m.source_id FROM speech_metadata m
           LEFT JOIN speech_catalog c ON c.source_id=m.source_id WHERE c.source_id IS NULL OR c.fetched_at IS NOT m.fetched_at`);
         this.set('resourceIndexes',1);initialized=true;
+      }
+      if(this.get('speechMemberIndex')!==2) {
+        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+        this.db.exec(`DROP TRIGGER IF EXISTS speech_member_insert; DROP TRIGGER IF EXISTS speech_member_update; DROP TRIGGER IF EXISTS speech_member_delete;
+          DROP TABLE IF EXISTS speech_member_catalog;
+          CREATE TABLE speech_member_catalog (
+          member TEXT NOT NULL,source_id TEXT NOT NULL,date TEXT,kind TEXT,start TEXT,numbering INTEGER,revision INTEGER NOT NULL,order_ms INTEGER,source_order INTEGER NOT NULL,
+          PRIMARY KEY(member,source_id));
+          CREATE INDEX speech_member_page ON speech_member_catalog(member,date,start,numbering,source_id,kind,revision);
+          CREATE INDEX speech_member_list ON speech_member_catalog(member,order_ms DESC,source_order ASC,date,kind,revision,source_id);
+          CREATE INDEX speech_member_source ON speech_member_catalog(source_id);
+          CREATE TRIGGER speech_member_insert AFTER INSERT ON speech_catalog BEGIN
+            DELETE FROM speech_member_catalog WHERE source_id=NEW.source_id;
+            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision,speech_order_ms(NEW.start,NEW.date),NEW.rowid FROM json_each(NEW.participants); END;
+          CREATE TRIGGER speech_member_update AFTER UPDATE ON speech_catalog BEGIN
+            DELETE FROM speech_member_catalog WHERE source_id=OLD.source_id;
+            INSERT OR IGNORE INTO speech_member_catalog SELECT value,NEW.source_id,NEW.date,NEW.kind,NEW.start,NEW.numbering,NEW.revision,speech_order_ms(NEW.start,NEW.date),NEW.rowid FROM json_each(NEW.participants); END;
+          CREATE TRIGGER speech_member_delete AFTER DELETE ON speech_catalog BEGIN
+            DELETE FROM speech_member_catalog WHERE source_id=OLD.source_id; END;
+          INSERT OR IGNORE INTO speech_member_catalog SELECT p.value,c.source_id,c.date,c.kind,c.start,c.numbering,c.revision,speech_order_ms(c.start,c.date),c.rowid
+            FROM speech_catalog c,json_each(c.participants) p;`);
+        this.set('speechMemberIndex',2);initialized=true;
       }
       if(this.get('questionDiscoveryVersion')!==1) {
         this.db.exec('CREATE TABLE IF NOT EXISTS question_discovery (source_key TEXT PRIMARY KEY,signature TEXT NOT NULL,policy TEXT NOT NULL)');
@@ -456,7 +479,9 @@ export class CorpusStore {
   projectSpeechCatalog(activity,availableLanguages=[]) {
     const project=()=>{
       this.assertWriter();
-      this.db.prepare('INSERT OR REPLACE INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)').run(activity.activity_id,activity.activity_date||null,
+      // Keep the observed catalogue insertion order on refresh. orderedSpeeches
+      // is a stable timestamp sort over hits (or data when hits are absent).
+      this.db.prepare('INSERT INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET date=excluded.date,kind=excluded.kind,start=excluded.start,numbering=excluded.numbering,participants=excluded.participants,available_languages=excluded.available_languages,revision=excluded.revision,fetched_at=excluded.fetched_at').run(activity.activity_id,activity.activity_date||null,
         String(activity.had_activity_type||'').split('/').at(-1),activity.activity_start_date||null,
         (activity.recorded_in_a_realization_of||[]).find(doc=>Number.isSafeInteger(doc?.numbering))?.numbering??null,JSON.stringify(speechPeople(activity)),JSON.stringify(availableLanguages),
         this.nextSpeechRevision(),this.db.prepare('SELECT fetched_at FROM speech_metadata WHERE source_id=?').get(activity.activity_id)?.fetched_at||null);
@@ -550,9 +575,11 @@ export class CorpusStore {
       sourceIds!==null&&(!Array.isArray(sourceIds)||sourceIds.length>1000))throw new Error('Invalid retained speech page.');
     const where=['kind IN ('+kinds.map(()=>'?').join(',')+')','date BETWEEN ? AND ?'],args=[...kinds,from,to];
     if(dates!==null){if(!Array.isArray(dates)||dates.length>5)throw new Error('Invalid retained sitting selection.');where.push('date IN ('+dates.map(()=>'?').join(',')+')');args.push(...dates);}
-    if(member!==null){where.push('EXISTS (SELECT 1 FROM json_each(participants) WHERE value=?)');args.push(String(member));}
+    const selectionName=member!==null?'speech_member_catalog':'speech_catalog';
+    const selectionTable=selectionName+(member!==null?' INDEXED BY speech_member_page':'');
+    if(member!==null){where.push('member=?');args.push(String(member));}
     if(sourceIds!==null){where.push('source_id IN ('+sourceIds.map(()=>'?').join(',')+')');args.push(...sourceIds);}
-    const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM speech_catalog WHERE '+where.join(' AND ')).get(...args);
+    const selection=this.db.prepare('SELECT COUNT(*) n,COALESCE(SUM(revision),0) revision FROM '+selectionTable+' WHERE '+where.join(' AND ')).get(...args);
     // Pagination follows the selected records. Background availability checks
     // change the labels below, without changing offsets or speech contents.
     const total=selection.n,revision=total+':'+selection.revision;
@@ -561,12 +588,12 @@ export class CorpusStore {
     // run the correlated text lookup for every speech in the date window,
     // exhausting the reader budget even for a member with only a few speeches.
     const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
-      SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')}
-      AND EXISTS (SELECT 1 FROM json_each(available_languages) WHERE value=?)
+      SELECT source_id FROM ${selectionTable} WHERE ${where.join(' AND ')}
+      AND source_id IN (SELECT source_id FROM speech_catalog c WHERE c.source_id=${selectionName}.source_id AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?))
     ) SELECT COUNT(*) n FROM selected c WHERE NOT EXISTS (
       SELECT 1 FROM documents d JOIN texts t ON t.document_id=d.id WHERE d.source_id=c.source_id AND t.source_format='xml-fragment' AND t.language=?)`).get(...args,params.language,params.language).n;
     const direction=descending?'DESC':'ASC';
-    const ids=this.db.prepare(`SELECT source_id FROM speech_catalog WHERE ${where.join(' AND ')} ORDER BY date ${direction},start ${direction},numbering ${direction},source_id ${direction} LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
+    const ids=this.db.prepare(`SELECT source_id FROM ${member!==null&&descending?'speech_member_catalog INDEXED BY speech_member_list':selectionTable} WHERE ${where.join(' AND ')} ORDER BY ${member!==null&&descending?'order_ms DESC,source_order ASC':`date ${direction},start ${direction},numbering ${direction},source_id ${direction}`}  LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
     const today=brusselsDay(this.clock());
     const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
@@ -579,7 +606,8 @@ export class CorpusStore {
       const failed=this.db.prepare("SELECT key,body FROM tasks WHERE done=0 AND error IS NOT NULL AND kind IN ('speeches','speech','speech-metadata','speech-metadata-detail') LIMIT 501").all();
       const gaps=failed.length>500?[{reason:'source-gap'}]:failed.map(row=>availabilityGap(parse(row.body),row.key));
       const args={family:'speeches',start:from,end:to>today?today:to,today,gaps,limited:pending,snapshot:{revision:this.get('availabilityRevision')||0},retention:{policy:this.get('speechLanguages')||null,history:historyStatus(this)}};
-      const dates=new Map(this.db.prepare('SELECT kind,MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=? GROUP BY kind').all(...kinds,today).map(row=>[row.kind,row.date]));
+      const latestKind=this.db.prepare('SELECT MAX(date) date FROM speech_catalog WHERE kind=? AND date<=?');
+      const dates=new Map(kinds.map(kind=>[kind,latestKind.get(kind,today).date]));
       availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
     }
     return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};

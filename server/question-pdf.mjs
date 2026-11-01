@@ -14,9 +14,9 @@ export function questionPdf(work,language) {
   return file?{...file,sourceId:work.identifier||tail(work.id)}:null;
 }
 
-export async function downloadQuestionPdf(file,{signal,download=downloadPdf,extract=extractPdfText}={}) {
+export async function downloadQuestionPdf(file,{signal,priority='interactive',download=downloadPdf,extract=extractPdfText}={}) {
   signal?.throwIfAborted();
-  const result=await download(file.url,{signal,maxBytes:PDF_TEXT_LIMITS.bytes});signal?.throwIfAborted();
+  const result=await download(file.url,{signal,priority,maxBytes:PDF_TEXT_LIMITS.bytes});signal?.throwIfAborted();
   const body=result.body;
   const sourceHash=Buffer.isBuffer(body)?createHash('sha256').update(body).digest('hex'):undefined;
   try {

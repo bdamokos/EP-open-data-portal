@@ -24,3 +24,18 @@ test('answer pages require the exact answer relationship in the parent question'
  const service=new DocumentPages({read:async path=>{endpoint=path;return {payload:{data:[root]}};},download:async()=>({body})});await service.query(answer,'en');assert.equal(endpoint,'/parliamentary-questions/'+question);
  root.inverse_answers_to=[];await assert.rejects(()=>service.query(answer,'en'));
 });
+
+test('PDF hops use HTTP-owned admission and propagate cooldown to the matching origin',async t=>{
+ const https=(await import('node:https')).default,{Readable}=await import('node:stream'),{EventEmitter}=await import('node:events');
+ const {setUpstreamBridge}=await import('./odp.mjs'),{downloadPdf}=await import('./document-pages.mjs');
+ const admissions=[],pauses=[];
+ setUpstreamBridge({queue:source=>({run:async(fn,{priority})=>{admissions.push([source,priority]);return fn();},recordResponse:()=>{},backoff:seconds=>pauses.push([source,seconds])})});
+ t.after(()=>setUpstreamBridge(null));let hop=0;
+ t.mock.method(https,'get',(_url,_options,receive)=>{
+  const response=Readable.from([]);response.statusCode=hop++===0?302:429;
+  response.headers=hop===1?{location:'https://redmapl3.europarl.europa.eu/RedmapFront/media/redirect.pdf'}:{'retry-after':'60'};
+  queueMicrotask(()=>receive(response));return new EventEmitter();
+ });
+ await assert.rejects(downloadPdf(url,{priority:'background'}),error=>error.retryAfter===60);
+ assert.deepEqual(admissions,[['odp','background'],['document-files','background']]);assert.deepEqual(pauses,[['document-files',60]]);
+});

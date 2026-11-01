@@ -1,3 +1,4 @@
+import {bodyDiscoverySql,bodyDueSql,bodyUndatedDiscoverySql} from '../document-body-collector.mjs';
 // Offline synthetic benchmark. Requires sqlite3 CLI for cold SQLite-cache page
 // fetch counts; no production files, network calls or OS-cache eviction.
 import {execFileSync} from 'node:child_process';
@@ -102,6 +103,9 @@ try {
   after.oneFileLookup=fetches(corpusFile,bind(missingQuestionFilesSql,[1,'/parliamentary-questions/E-10-2026-000001','all']),attach);
   const names=['weeks','savedCount','motions','savedPreviews','initialQuestions','questions','oneFileLookup'];
   const current=scenarios.slice(-names.length).map((result,i)=>({name:`remaining/${names[i]}`,...result}));
+  current.push({name:'remaining/documentBodyDiscovery',...measureRead(indexFile,bind(bodyDiscoverySql,[1,'9999','zzzz','zzzz','zzzz']))});
+  current.push({name:'remaining/documentBodyUndated',...measureRead(indexFile,bind(bodyUndatedDiscoverySql,[1,'zzzz','zzzz','zzzz']))});
+  current.push({name:'remaining/documentBodyIdle',...measureRead(indexFile,bind(bodyDueSql,[clock()]))});
   return {scenarios:current,scale:{questions,otherDocuments,motions,sittings,items,retainedTexts},sqliteVersion:execFileSync('sqlite3',['-version'],{encoding:'utf8'}).trim(),before,after,preparation:results,totalBytes:statSync(indexFile).size+statSync(corpusFile).size};
 } finally {index?.close();corpus?.close();rmSync(directory,{recursive:true,force:true});}
 

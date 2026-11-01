@@ -30,8 +30,10 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now, ui = d
     items=items.map(item=>item.id===id&&(!expected||item.savedAt===expected.savedAt)?change(item):item);return publish();
   };
   const add=(item,entries)=>{
-    const existing=new Map(item.entries.map(entry=>[entry.id,entry]));
-    for(const value of entries){const entry=cleanEntry(value);if(entry&&!existing.has(entry.id))existing.set(entry.id,{...entry,discoveredAt:clock(),readAt:null});}
+    // One observation discovers its entries together; a millisecond tick
+    // between them must not reorder same-date updates.
+    const existing=new Map(item.entries.map(entry=>[entry.id,entry])),discoveredAt=clock();
+    for(const value of entries){const entry=cleanEntry(value);if(entry&&!existing.has(entry.id))existing.set(entry.id,{...entry,discoveredAt,readAt:null});}
     return {...item,entries:[...existing.values()]};
   };
   const observation=(id,expected,source,read)=>update(id,expected,item=>{

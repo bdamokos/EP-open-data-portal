@@ -1,3 +1,5 @@
+import {forwardOfficialHints} from './official-context-hints.mjs';
+import {forwardDocumentBodyHints} from './document-body-hints-rpc.mjs';
 import {randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {Worker,MessageChannel} from 'node:worker_threads';
@@ -23,7 +25,7 @@ export function startSourceWriters({
     const started=Date.now(),leaseOwners={activity:randomUUID(),corpus:randomUUID()},leaseFiles=new Map();
     try {worker=createWorker(workerUrl,{workerData:{...workerData,leaseOwners,upstreamPort:port2},transferList:[port2],resourceLimits:{maxOldGenerationSizeMb:512}});}
     catch(error){disposePort();port2.close();log('[source-writers]',error.message);schedule();return;}
-    const stopHints=forwardSittingSnapshotHints(worker);
+    const stopHints=forwardSittingSnapshotHints(worker),stopOfficialHints=forwardOfficialHints(worker),stopBodyHints=forwardDocumentBodyHints(worker);
     exited=new Promise(resolve=>{
       worker.on('message',message=>{
         if(message?.type==='lease-owner'&&Object.hasOwn(leaseOwners,message.source))leaseFiles.set(message.source,message.filename);
@@ -31,7 +33,7 @@ export function startSourceWriters({
       });
       worker.once('error',error=>log('[source-writers]',error.message));
       worker.once('exit',code=>{
-        stopHints();disposePort();worker=undefined;
+        stopHints();stopOfficialHints();stopBodyHints();disposePort();worker=undefined;
         // Exit proves this isolate can no longer write. Never clear another
         // process's lease, including a takeover that raced with termination.
         for(const [source,filename] of leaseFiles){
