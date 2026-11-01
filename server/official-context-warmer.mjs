@@ -3,6 +3,7 @@ import {EurovocCatalog} from './eurovoc.mjs';
 import {ProcedureContext} from './procedure-context.mjs';
 import {ProcedureProgress} from './procedure-progress.mjs';
 import {findReferences} from './legal-reference-text.mjs';
+import {integerFromEnvironment} from './config.mjs';
 import {drainOfficialHints} from './official-context-hints.mjs';
 const DAY=86400_000;
 export const CONTEXT_LANGUAGES='bg es cs da de et el en fr ga hr it lv lt hu mt nl pl pt ro sk sl fi sv'.split(' ');
@@ -22,10 +23,21 @@ export function contextReferences(work) {
   visit(work);return {ids:[...ids],keys:[...keys]};
 }
 export class OfficialContextWarmer {
-  constructor(store,{clock=Date.now,sources=new OfficialContextSources(),catalog,context,progress,references}={}) {
+  constructor(store,{clock=Date.now,sources=new OfficialContextSources({writable:true}),catalog,context,progress,references,dailyOriginLimit=integerFromEnvironment('OFFICIAL_CONTEXT_DAILY_ORIGIN_LIMIT',2000,1,100000)}={}) {
     Object.assign(this,{store,clock,sources});this.catalog=catalog||new EurovocCatalog(sources);
     this.context=context||new ProcedureContext(sources,this.catalog);this.progress=progress||new ProcedureProgress(sources);
-    this.references=references;this.nextAt=0;
+    this.references=references;this.nextAt=0;this.dailyOriginLimit=dailyOriginLimit;
+    this.sources.beforeFetch=origin=>this.admitOrigin(origin);
+    this.sources.cache.assertWriter=()=>this.store.assertWriter();
+    this.catalog.cache&&(this.catalog.cache.assertWriter=()=>this.store.assertWriter());
+  }
+  admitOrigin(origin) {
+    this.store.assertWriter();
+    const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(new Date(this.clock()));
+    const key='officialContextOrigin:'+origin,old=this.store.get(key);
+    const usage=old?.day===day?old:{day,count:0};
+    if(usage.count>=this.dailyOriginLimit)throw Object.assign(new Error('Official context daily origin budget exhausted.'),{retryAfter:86400});
+    this.store.set(key,{day,count:usage.count+1});
   }
   due(){return this.clock()>=this.nextAt;}
   initialize() {
@@ -65,7 +77,7 @@ export class OfficialContextWarmer {
   async step(worker) {
     this.initialize();this.store.transaction(()=>this.discover());
     for(const url of drainOfficialHints())try{officialSourceUrl(url);this.enqueue('url',url,'','9999');}catch{/* Reject unsupported hints. */}
-    const job=this.store.db.prepare('SELECT * FROM official_context_jobs WHERE next_check<=? ORDER BY next_check,date DESC,kind,value,language LIMIT 1').get(this.clock());
+    const job=this.store.db.prepare('SELECT * FROM official_context_jobs WHERE next_check<=? ORDER BY (next_check=0) DESC,date DESC,next_check,kind,value,language LIMIT 1').get(this.clock());
     if(!job){this.nextAt=this.clock()+60_000;return false;}
     const {kind,value,language,date}=job,options={priority:'background'};
     try {

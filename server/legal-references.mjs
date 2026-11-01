@@ -105,9 +105,9 @@ class BatchCache extends InsightViewCache {
   async pruneBatch(){return super.prune();}
 }
 export class LegalReferences {
-  constructor(sources,{clock=Date.now,request=odp,requestBudgetMs=28_000,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'legal-references-v1')}={}) {
+  constructor(sources,{clock=Date.now,request=odp,requestBudgetMs=28_000,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'legal-references-v1'),writable=sources?.writable===true}={}) {
     Object.assign(this,{sources,clock,request,requestBudgetMs});
-    this.cache=new BatchCache({directory,clock,maxEntries:3000,maxBytes:8*1024*1024,freshMs:REFERENCE_LIMITS.freshMs});
+    this.cache=new BatchCache({directory,clock,writable,maxEntries:3000,maxBytes:8*1024*1024,freshMs:REFERENCE_LIMITS.freshMs});
   }
   cacheKey(key,language){return this.cache.key([key.startsWith('question:')?'question-reference-v'+QUESTION_REFERENCE_VERSION:'legal-reference-v1',key,language]);}
   fresh(record){return record&&this.clock()-record.at<(record.value.status==='found'?REFERENCE_LIMITS.freshMs:REFERENCE_LIMITS.missingFreshMs);}

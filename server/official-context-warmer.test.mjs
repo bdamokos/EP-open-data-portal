@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readdirSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -38,7 +38,7 @@ test('warmer retries failed jobs and expands an exact mapping to every language'
 
 test('official source cache survives a new client and background reads reuse existing keys',async t=>{
   const dir=mkdtempSync(path.join(os.tmpdir(),'official-cache-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
-  let fetched=0;const options={directory:dir,clock:()=>1000,run:operation=>operation(),fetchSource:async()=>{fetched++;return new Response('<main>retained</main>',{headers:{'content-type':'text/html'}});}};
+  let fetched=0;const options={writable:true,directory:dir,clock:()=>1000,run:operation=>operation(),fetchSource:async()=>{fetched++;return new Response('<main>retained</main>',{headers:{'content-type':'text/html'}});}};
   const url='https://oeil.europarl.europa.eu/oeil/fr/procedure-file?reference=2024%2F0001%28COD%29';
   await new OfficialContextSources(options).get(url);
   assert.equal((await new OfficialContextSources(options).get(url,{priority:'background'})).html,'<main>retained</main>');assert.equal(fetched,1);
@@ -48,4 +48,25 @@ test('request hints coalesce and remain bounded',()=>{
   drainOfficialHints();for(let n=0;n<200;n++)hintOfficialContext('https://example.test/'+n);
   assert.equal(drainOfficialHints().length,64);
   assert.equal(acceptOfficialHints({type:'official-context-hints',urls:Array(65).fill('x')}),false);
+});
+
+ test('interactive official context and derived caches never publish or prune disk',async t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'official-reader-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const sources=new OfficialContextSources({directory:dir,run:operation=>operation(),fetchSource:async()=>new Response('<main>live</main>',{headers:{'content-type':'text/html'}})});
+  await sources.get('https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference=2024%2F0001%28COD%29');
+  const {EurovocCatalog}=await import('./eurovoc.mjs'),{LegalReferences}=await import('./legal-references.mjs');
+  for(const client of [new EurovocCatalog(sources,{directory:dir}),new LegalReferences(sources,{directory:dir})]) {
+    await client.cache.save(client.cache.key(['test']),{value:'fallback'});
+    await client.cache.pruneBatch();assert.equal(client.cache.cache.size,1);
+  }
+  assert.deepEqual(readdirSync(dir),[]);assert.equal(sources.cache.cache.size,1);
+});
+
+test('origin cap counts attempts durably, isolates origins, and resets next Brussels day',t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'official-cap-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  let now=Date.parse('2026-11-01T12:00Z');const store=new ActivityStore(dir,{clock:()=>now});t.after(()=>store.close());store.acquire();
+  const create=()=>new OfficialContextWarmer(store,{clock:()=>now,dailyOriginLimit:2});
+  create().admitOrigin('https://publications.europa.eu');create().admitOrigin('https://publications.europa.eu');
+  assert.throws(()=>create().admitOrigin('https://publications.europa.eu'),/daily origin budget/);
+  create().admitOrigin('https://oeil.europarl.europa.eu');now+=86400_000;store.acquire();create().admitOrigin('https://publications.europa.eu');
 });

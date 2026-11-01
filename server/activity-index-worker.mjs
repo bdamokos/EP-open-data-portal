@@ -782,10 +782,6 @@ export class ActivityWorker {
         }while(!due&&this.sittingSnapshots.due());
       }
       if(!due) {
-        while(!this.stopped&&!this.controller.signal.aborted&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline) {
-          if(!await this.officialContext.step(this))break;
-          await projectionYield(undefined,{signal:this.controller.signal});
-        }
         // Local migrations must progress even when no upstream job is due.
         // Yield between commits and keep each idle turn within one second.
         const localDeadline=Math.min(this.runDeadline,this.monotonic()+1000);
@@ -969,10 +965,11 @@ export function activityIndex() {
     worker.requests++;
     return schedule(operation,{...settings,signal:AbortSignal.any([settings.signal,worker.controller.signal])});
   };
-  warmer.references=new LegalReferences({get:(url,settings)=>warmer.sources.get(url,{...settings,priority:'background'})},{request:(endpoint,params)=>{
+  warmer.references=new LegalReferences({writable:true,get:(url,settings)=>warmer.sources.get(url,{...settings,priority:'background'})},{request:(endpoint,params)=>{
     if(worker.requests>=worker.budget)throw new Error('Official context background budget exhausted.');
     worker.requests++;return odp(endpoint,params,{priority:'background',signal:worker.controller.signal});
   }});
+  warmer.references.cache.assertWriter=()=>store.assertWriter();
   worker.officialContext=warmer;
   worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
   service={store,worker,press};return service;

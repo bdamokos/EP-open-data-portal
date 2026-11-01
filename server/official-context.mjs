@@ -23,11 +23,11 @@ async function limitedText(response,maximum) {
   return Buffer.concat(parts).toString('utf8');
 }
 export class OfficialContextSources {
-  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
-    Object.assign(this,{clock,fetchSource});this.queues=new Map();
+  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run,writable=false,beforeFetch}={}) {
+    Object.assign(this,{clock,fetchSource,writable,beforeFetch});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
     // Keep memory bounded separately from the retained historical source pages.
-    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:100000,maxDiskBytes:512*1024*1024});
+    this.cache=new InsightViewCache({clock,directory,writable,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:100000,maxDiskBytes:512*1024*1024});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
@@ -46,13 +46,17 @@ export class OfficialContextSources {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
-    if(priority!=='background'&&!await this.cache.stored(this.cache.key(key)))hintOfficialContext(url);
+    if(priority!=='background') {
+      const saved=await this.cache.stored(this.cache.key(key));
+      if(!saved||this.clock()-saved.at>(typeof freshMs==='function'?freshMs(saved.value):freshMs))hintOfficialContext(url);
+    }
     const record=await waitForRequest(this.cache.get(key,()=>runWithRequestSignal(undefined,()=>{
       // The cache owns one budget across admission, redirects and body reads.
       const signal=AbortSignal.timeout(20_000);
       return this.run(async()=>{
         let target=url,response;
         for(let attempt=0;attempt<3;attempt++) {
+          await this.beforeFetch?.(source.origin);
           response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
           if(![301,302,303,307,308].includes(response.status))break;
           const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
