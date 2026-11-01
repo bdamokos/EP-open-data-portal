@@ -64,9 +64,9 @@ test('cached sitting and alias sources follow source writes, leases and the size
   assert.deepEqual(a.cachedSource(1,key).work.decisions,['new'],'a source write replaces the cached parse');
   a.release();assert(b.acquire());b.putSource(1,key,'amendment-aliases',{aliases:[],decisions:['other writer']},fetched);b.release();assert(a.acquire());
   assert.deepEqual(a.cachedSource(1,key).work.decisions,['other writer'],'a new lease cannot reuse an older parse');
-  const large='x'.repeat(9*1024*1024);
+  const large='x'.repeat(5*1024*1024);
   a.putSource(1,'amendment:aliases:A','amendment-aliases',{aliases:[],pad:large},fetched);
   a.putSource(1,'amendment:aliases:B','amendment-aliases',{aliases:[],pad:large},fetched);
   a.cachedSource(1,'amendment:aliases:A');a.cachedSource(1,'amendment:aliases:B');
-  assert(a.sourceCacheChars<=16*1024*1024,'retained body length stays within the bound');
+  assert(a.sourceCacheChars<=8*1024*1024,'retained body length stays within the bound');
 });

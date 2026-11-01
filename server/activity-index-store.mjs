@@ -40,7 +40,7 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   FROM motion_links AS link JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
-const SOURCE_CACHE_CHARS=16*1024*1024;
+const SOURCE_CACHE_CHARS=8*1024*1024;
 const deepFreeze=value=>{if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const child of Object.values(value))deepFreeze(child);}return value;};
 export class ActivityStore {
   #generationLeaseOwner;
