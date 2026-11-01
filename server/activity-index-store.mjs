@@ -1,3 +1,4 @@
+export const OFFICIAL_CONTEXT_STATUS_VERSION=1;
 export const DOCUMENT_BODY_STATUS_VERSION=1;
 import {prepareDocumentBodies} from './document-body-collector.mjs';
 import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
@@ -498,7 +499,7 @@ export class ActivityStore {
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:2, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       history:historyReadiness(this,generation),
-      refreshSnapshotReady,documentBodies:this.get('documentBodyCapacity')||null,
+      refreshSnapshotReady,officialContext:this.get('officialContextCapacity')?{version:OFFICIAL_CONTEXT_STATUS_VERSION,...this.get('officialContextCapacity')}:null,documentBodies:this.get('documentBodyCapacity')||null,
       availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverageGaps:{count:gapCount,examples:gapExamples},
       phase:cycle?.phase || (active?'ready':'waiting'), lastSuccessfulRefresh:this.get('lastSuccess'), refreshStartedAt:cycle?.startedAt || null,

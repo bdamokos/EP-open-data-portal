@@ -45,10 +45,12 @@ import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projec
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
-import {ruleVersionRecoveryDue,reopenRuleVersions,observeRuleGap,scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask,nextRefreshTask} from './refresh-policy.mjs';
+import {ruleVersionRecoveryDue,reopenRuleVersions,observeRuleGap,scheduleMutable,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask,nextRefreshTask} from './refresh-policy.mjs';
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
+const PUBLICATION_RECOVERY_BATCHES=4;
+const pendingTasks='(task.done IN (-1,0) OR task.done IS NULL)';
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
 const customFeeds=new Set(['/procedures','/adopted-texts']);
 const day = t => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t));
@@ -747,6 +749,27 @@ export class ActivityWorker {
       await projectionYield(undefined,{signal:this.controller.signal});
     }
   }
+  scheduleRecovery(generation) {
+    const store=this.store,cycle=store.get('working');
+    if(this.recoveryMode==='backfill'&&cycle?.generation===generation) {
+      // Once ordinary core work finishes, drain finite batches instead of
+      // refilling every vacant recovery slot forever. Persist across resumes.
+      const pending=Boolean(store.db.prepare(`SELECT 1 FROM tasks task INDEXED BY task_pending_due WHERE generation=? AND ${pendingTasks} LIMIT 1`).get(generation));
+      let batches=cycle.publicationRecoveryBatches;
+      if(batches==null) {
+        const ordinary=store.db.prepare(`SELECT 1 FROM tasks task INDEXED BY task_pending_due WHERE generation=? AND ${pendingTasks}
+          AND NOT EXISTS(SELECT 1 FROM refresh_gap_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key)
+          AND NOT EXISTS(SELECT 1 FROM mutable_refresh_admissions admitted WHERE admitted.generation=task.generation AND admitted.key=task.key) LIMIT 1`).get(generation);
+        if(!ordinary){batches=pending?1:0;store.updateCycle({publicationRecoveryBatches:batches});}
+      }
+      if(batches!=null) {
+        if(pending||batches>=PUBLICATION_RECOVERY_BATCHES)return;
+        if(!gapRecoveryDue(store,generation,this.clock())&&!mutableRecoveryDue(store,generation,this.clock()))return;
+        store.updateCycle({publicationRecoveryBatches:batches+1});
+      }
+    }
+    scheduleMutable(this,generation);
+  }
   async runIteration() {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
@@ -819,7 +842,6 @@ export class ActivityWorker {
         await observeRuleGap(this,generation,key);
         this.store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(this.clock()+7*DAY,generation,key);
       }
-      scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);
       prepareCommitteeAmendments(this,generation);
@@ -852,9 +874,6 @@ export class ActivityWorker {
           scheduleGroupHistory(this.store,cycle.generation);this.store.updateCycle({groupHistoryScheduled:true});
         }
         await runHistoryReadiness(this,cycle.generation);
-        if(!this.store.get('working').mutableScheduled||this.recoveryMode==='backfill') {
-          scheduleMutable(this,cycle.generation);this.store.updateCycle({mutableScheduled:true});
-        }
         // Upgrade a saved, endlessly retrying generation without issuing one
         // more request for every exhausted cursor.
         for(const row of this.store.db.prepare('SELECT * FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND attempts>=5 AND error IS NOT NULL').all(generation))recordTaskGap(this,{...row,body:JSON.parse(row.body)},new Error(row.error));
@@ -889,6 +908,8 @@ export class ActivityWorker {
       }
       initializeOutsideAgendaUpgrade(this.store,generation,new Date(this.clock()).toISOString());
       initializeGroupVoices(this,generation,freshSpeechLoad?[]:speechWindows(day(this.clock())));
+      // Admission is durable even when this tick has no dispatch budget.
+      if(cycle)this.scheduleRecovery(generation);
       while(!this.stopped && !this.controller.signal.aborted && this.requests<this.budget && this.clock()-started<this.maxDuration && this.monotonic()<this.runDeadline) {
         const taskIteration=loopTimer('activity-task',{threshold:5000});
         try {
@@ -899,13 +920,22 @@ export class ActivityWorker {
           if(!amendmentDependenciesReady(this.store,generation))bootstrapAmendmentDependencies(this.store,generation);
           if(ruleVersionRecoveryDue(this.store,generation))reopenRuleVersions(this.store,generation);
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
-          if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
+          if(cycle&&this.store.get('working')){this.scheduleRecovery(generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
           if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});if(this.requests>=this.budget)break;}
           if(sittingSnapshotTurn%8===0&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline)await this.officialContext.step(this);
           if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
             await this.sittingSnapshots.step(this,{requestBudget:1});
             if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
+          }
+          const corePending=this.store.db.prepare(`SELECT 1 FROM tasks task INDEXED BY task_pending_due WHERE generation=? AND ${pendingTasks} LIMIT 1`).get(generation);
+          if(cycle&&this.store.get('working')&&!corePending) {
+            // Amendment rows already serve independently and retain their own
+            // jobs/cursors through amendmentsCopy and saved continuations.
+            if(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))||declaredDebateRecoveryDue(this.store,generation))continue;
+            if(adoptedTextRepairDue(this.store,generation))break;
+            if(this.catchUp(this.store.get('working')))continue;
+            await this.finalize(generation);break;
           }
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
           const preferredTask=alternateAmendmentDispatch(this.store,generation,ordinaryTask,amendmentJob);
@@ -914,22 +944,11 @@ export class ActivityWorker {
           const voiceTask=nextGroupVoiceTask(this.store,generation,preferredTask);
           // Advance core shares only when a core task will actually dispatch.
           const sharedTask=voiceTask?.groupVoiceJob?preferredTask:this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask,amendmentCandidate):preferredTask;
-          const coreTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask,amendmentCandidate);
+          const dispatchTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask,amendmentCandidate);
           // Future jobs need no request; keep scanning across the async disk
           // checkpoint until the cursor completes or this run reaches a bound.
-          if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
-          // Publish a finished core generation before spending budget on optional metadata.
-          if(!coreTask&&cycle&&this.store.get('working')){
-            const counts=this.store.taskCounts(generation);
-            if(counts.total===counts.completed){
-              // Keep this snapshot open for the next bounded admission batch;
-              // don't copy the entire index again for every 25 recovered gaps.
-              if(this.recoveryMode==='backfill'&&(gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())))break;
-              if(adoptedTextRepairDue(this.store,generation))break;
-              if(this.catchUp(this.store.get('working')))continue;await this.finalize(generation);
-            }
-          }
-          const task=voiceTask?.groupVoiceJob?voiceTask:coreTask;
+          if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
+          const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
           if(!task)break;
           try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}catch(error){if(this.stopped||this.controller.signal.aborted)break;if(!task.groupVoiceJob&&(this.failOutside(task,error)||failAmendmentTask(this,task,error)||recordTaskGap(this,task,error)))continue;this.store.failTask(task,error);if(error.retryAfter)this.store.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET retry_at=MAX(retry_at,?) WHERE generation=? AND key=?`).run(this.clock()+error.retryAfter*1000,task.generation,task.key);}
           finally {if(!task.groupVoiceJob&&(!cycle || this.store.source(generation,CONTINUATIONS_KEY)) && this.store.db.prepare('SELECT 1 FROM lease WHERE id=1 AND owner=? AND expires>?').get(this.store.owner,this.clock()))this.checkpointContinuations(generation,{includeCore:!cycle});}
