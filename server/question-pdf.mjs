@@ -18,17 +18,24 @@ export async function downloadQuestionPdf(file,{signal,download=downloadPdf,extr
   signal?.throwIfAborted();
   const result=await download(file.url,{signal,maxBytes:PDF_TEXT_LIMITS.bytes});signal?.throwIfAborted();
   const body=result.body;
-  if(!Buffer.isBuffer(body)||body.length>PDF_TEXT_LIMITS.bytes||body.toString('ascii',0,5)!=='%PDF-')throw new Error('Invalid or oversized PDF document.');
-  const declaredSize=file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null;
-  const byteSizeMatches=declaredSize===null?null:body.length===declaredSize;
-  const text=await extract(body,{signal});signal?.throwIfAborted();
-  // Some API PDF manifestations repeat their DOCX size. Do not call those
-  // bytes an edition match: require the exact printed parliamentary reference
-  // as additional evidence, retaining both the declaration and actual digest.
-  if(byteSizeMatches===false) {
-    const match=/^([EP])-\d+-(\d{4})-(\d{6})(?:-ASW)?$/.exec(file.sourceId||'');
-    const reference=match&&new RegExp('(?<![A-Z0-9])'+match[1]+'\\s*[-–−]\\s*'+match[3]+'\\s*/\\s*'+'(?:'+match[2]+'|'+match[2].slice(-2)+')(?![0-9])');
-    if(!reference?.test(text.paragraphs.join('\n')))throw new Error('Official PDF size differs and its exact parliamentary reference could not be verified.');
+  const sourceHash=Buffer.isBuffer(body)?createHash('sha256').update(body).digest('hex'):undefined;
+  try {
+    if(!Buffer.isBuffer(body)||body.length>PDF_TEXT_LIMITS.bytes||body.toString('ascii',0,5)!=='%PDF-')throw new Error('Invalid or oversized PDF document.');
+    const declaredSize=file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null;
+    const byteSizeMatches=declaredSize===null?null:body.length===declaredSize;
+    const text=await extract(body,{signal});signal?.throwIfAborted();
+    // Some API PDF manifestations repeat their DOCX size. Do not call those
+    // bytes an edition match: require the exact printed parliamentary reference
+    // as additional evidence, retaining both the declaration and actual digest.
+    if(byteSizeMatches===false) {
+      const match=/^([EP])-\d+-(\d{4})-(\d{6})(?:-ASW)?$/.exec(file.sourceId||'');
+      const reference=match&&new RegExp('(?<![A-Z0-9])'+match[1]+'\\s*[-–−]\\s*'+match[3]+'\\s*/\\s*'+'(?:'+match[2]+'|'+match[2].slice(-2)+')(?![0-9])');
+      if(!reference?.test(text.paragraphs.join('\n')))throw new Error('Official PDF size differs and its exact parliamentary reference could not be verified.');
+    }
+    return {...text,resolvedSourceUrl:result.resolvedSourceUrl,sourceHash,observedByteSize:body.length,byteSizeMatches};
+  } catch(error) {
+    signal?.throwIfAborted();
+    if(error.code==='upstream_busy')throw error;
+    throw Object.assign(new Error(error.message,{cause:error}),{code:'source_parser_rejection',sourceHash});
   }
-  return {...text,resolvedSourceUrl:result.resolvedSourceUrl,sourceHash:createHash('sha256').update(body).digest('hex'),observedByteSize:body.length,byteSizeMatches};
 }

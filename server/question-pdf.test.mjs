@@ -295,3 +295,43 @@ test('earlier PDF extraction caches are not reused',async t=>{
  assert.equal(result.status,'unavailable');assert.deepEqual(result.paragraphs,[]);assert.equal(downloads,0);
  }
 });
+
+test('PDF-only question and answer languages own standalone tasks and retain byte provenance',async t=>{
+ const directory=fixture(t),index=new ActivityStore(path.join(directory,'index'),{clock:now});index.acquire();
+ const store=new CorpusStore(path.join(directory,'corpus'),{clock:now,indexFile:index.filename});store.acquire();t.after(()=>{store.close();index.close();});
+ const item=work(),answer=work();answer.identifier+='-ASW';answer.work_type='def/ep-document-types/QUESTION_WRITTEN_ANSWER';
+ item.is_realized_by[0].is_embodied_by.shift();item.is_realized_by[0].is_embodied_by[0].byteSize=pdf().length;answer.is_realized_by[0].language='HUN';answer.is_realized_by[0].is_embodied_by.shift();answer.is_realized_by[0].is_embodied_by[0].byteSize=pdf().length;item.inverse_answers_to=[answer];
+ index.putSource(1,'/parliamentary-questions/'+item.identifier,'document',item,new Date(now()).toISOString());
+ let words=0,pdfs=0;const worker=new CorpusWorker(store,{clock:now,download:async()=>{words++;throw Error('Unexpected DOCX');},runUpstream:(fn,options)=>{assert.equal(options.source,'documents');assert.equal(options.priority,'background');return fn(worker.controller.signal);},downloadPdf:file=>{pdfs++;return downloadQuestionPdf(file,{download:async()=>({body:pdf(),resolvedSourceUrl:file.url})});}});
+ await discoverQuestionFiles(worker,1);
+ const tasks=store.db.prepare('SELECT key FROM tasks').all().map(row=>store.task(row.key));assert.equal(tasks.length,2);
+ assert.deepEqual(tasks.map(task=>task.body.language).sort(),['en','hu']);
+ for(const task of tasks){assert.equal(task.kind,'pdf');assert.match(task.key,/^pdf:/);await worker.task(task);assert.equal(store.task(task.key).done,1);}
+ assert.equal(words,0);assert.equal(pdfs,2);
+ const saved=store.text({sourceId:answer.identifier,sourceKey:'hu'});assert.equal(saved.sourceFormat,'pdf');assert.match(saved.body,/official answer/);
+ const edition=JSON.parse(store.db.prepare('SELECT source_edition FROM texts WHERE source_url=?').get(tasks.find(task=>task.body.kind==='answer').body.url).source_edition);
+ assert.equal(edition.byteSize,pdf().length);assert.equal(edition.byteSizeMatches,true);assert.equal(edition.issued,'2026-05-02T12:00:00Z');assert.equal(edition.sha256,createHash('sha256').update(pdf()).digest('hex'));assert.equal(edition.observedByteSize,pdf().length);
+ await discoverQuestionFiles(worker,1);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE done=0').get().n,0);
+});
+
+test('PDF parser rejections carry byte identity while transport failures keep their retry class',async t=>{
+ const buffer=pdf();let rejection;
+ await assert.rejects(downloadQuestionPdf({url:'fixture'},{download:async()=>({body:buffer}),extract:async()=>{throw Error('Unreadable PDF');}}),error=>{rejection=error;return error.code==='source_parser_rejection'&&error.sourceHash===createHash('sha256').update(buffer).digest('hex');});
+ const {store}=corpusFixture(t),file=questionFiles(work())[0];file.format='pdf';file.url=file.pdf.url;file.edition={byteSize:200};store.enqueue('pdf:'+file.url,'pdf',file,50);const task=store.task('pdf:'+file.url);
+ for(const error of [Object.assign(Error('Missing'),{status:404}),Object.assign(Error('Limited'),{status:429,retryAfter:7200}),rejection]) {
+  store.failTask(task,error);const saved=store.task(task.key);assert.equal(saved.done,0);assert.ok(saved.retry_at>now());
+  if(error.status===404)assert.equal(saved.retry_at,now()+3600000);
+  if(error.status===429)assert.equal(saved.retry_at,now()+7200000);
+  if(error===rejection)assert.equal(saved.body.rejectedSource.hash,error.sourceHash);
+ }
+});
+
+test('standalone PDF parser failures settle only after repeated identical bytes across a day',t=>{
+ const {store}=corpusFixture(t),item=work();item.is_realized_by[0].is_embodied_by.shift();
+ const file=questionFiles(item)[0],key='pdf:'+file.url;store.enqueue(key,'pdf',file,50);
+ let instant=now();store.clock=()=>instant;
+ const error=Object.assign(Error('Unreadable PDF'),{code:'source_parser_rejection',sourceHash:'b'.repeat(64)});
+ for(const offset of [0,3600000,86400000]) {instant=now()+offset;assert(store.acquire());store.failTask(store.task(key),error);}
+ assert.equal(store.task(key).done,1);assert.equal(store.db.prepare('SELECT state FROM source_failures WHERE key=?').get(key).state,'permanent-source-issue');
+ file.edition.byteSize++;store.reopen(key,file,50);assert.equal(store.task(key).done,0);
+});

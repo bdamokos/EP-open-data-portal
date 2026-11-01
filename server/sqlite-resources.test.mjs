@@ -92,6 +92,11 @@ test('idle workers and deferred retries do not acquire leases, discover or compu
   // A retained generation is idle only after its local projection fill finishes.
   while(store.backfillFastReads(1)){}
   store.release();
+  const activityWorker=new ActivityWorker(store,{clock:instant});
+  assert.equal(activityWorker.questionFileGenerations().length,1);
+  await activityWorker.run();
+  assert.equal(activityWorker.questionFileGenerations().length,0);
+  assert.equal(activityWorker.requests,0);
   t.mock.method(store,'status',()=>assert.fail('idle status aggregate'));
   t.mock.method(store,'acquire',()=>assert.fail('idle writer lease'));
   await new ActivityWorker(store,{clock:instant}).run();

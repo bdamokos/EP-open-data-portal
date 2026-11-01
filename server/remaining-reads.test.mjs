@@ -274,3 +274,20 @@ test('startup prepares legacy corpus observation indexes and counter before HTTP
   assert.equal(store.db.prepare('SELECT n FROM observation_count').get().n,3);store.close();
   assert.equal(prepareIndexes({corpusDirectory:directory,log:()=>{}})[0].noop,true);
 });
+
+test('PDF manifest backfill resumes after writer restart and never requeues retained DOCX',async t=>{
+ const {backfillQuestionFiles,questionFileBackfillDue}=await import('./activity-read-projections.mjs');
+ const {index,corpus,worker}=fixture(t);
+ for(let n=1;n<=3;n++) {
+  const work=editionQuestion(100,'2026-10-01T08:00:00Z');work.identifier='E-10-2026-'+String(n).padStart(6,'0');work.work_type='QUESTION_WRITTEN';
+  work.is_realized_by.push({language:'hu',is_embodied_by:[{format:'PDF',byteSize:200,is_exemplified_by:'https://data.europarl.europa.eu/distribution/test/'+n+'.pdf'}]});
+  index.putSource(1,'/parliamentary-questions/'+work.identifier,'document',work,fetched);retainQuestion(corpus,work);
+ }
+ index.db.exec("DELETE FROM question_files WHERE json_extract(body,'$.format')='pdf'");
+ assert.equal(backfillQuestionFiles(index,1,{limit:1}),1);const cursor=index.get('questionFileBackfill:1');assert.ok(cursor.after);assert.equal(questionFileBackfillDue(index,1),true);
+ index.release();
+ const resumed=new ActivityStore(path.join(path.dirname(index.filename)),{clock:now});assert(resumed.acquire());assert.deepEqual(resumed.get('questionFileBackfill:1'),cursor);resumed.release();resumed.close();assert(index.acquire());
+ assert.equal(backfillQuestionFiles(index,1,{limit:1}),1);assert.equal(backfillQuestionFiles(index,1,{limit:1}),1);assert.equal(backfillQuestionFiles(index,1,{limit:1}),0);assert.equal(questionFileBackfillDue(index,1),false);
+ index.set('active',1);index.set('sequence',1);const cycle=index.beginCycle();assert.equal(questionFileBackfillDue(index,cycle.generation),false,'copied manifests retain the completed backfill marker');
+ await discoverQuestionFiles(worker,1);assert.equal(corpus.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='docx'").get().n,0);assert.equal(corpus.db.prepare("SELECT COUNT(*) n FROM tasks WHERE kind='pdf'").get().n,3);
+});
