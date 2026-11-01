@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {publicationBody} from './publication-body.mjs';
+import {publicationBody,withoutSubmittedLine} from './publication-body.mjs';
 test('a matching English question starts at its body and retains the source header separately',()=>{
   const input=['Question for written answer E-002520/2026/rev.1','to the Commission','Rule 144','Actual author list','Subject: Actual subject','First body paragraph','Second body paragraph'];
   const result=publicationBody(input,'E-10-2026-002520','en');assert.deepEqual(result.paragraphs,input.slice(5));assert.deepEqual(result.header,input.slice(0,5));assert.equal(input.length,7);
@@ -69,4 +69,16 @@ test('unknown or mismatched adopted covers and A/B/RC readers retain all origina
     p=>p[4]='P10_TA(2026)0008',p=>p[5]+='\uFFFC',p=>p[6]='Unrecognised opening',p=>p[8]='Unstructured text',
     p=>p.push('The European Parliament,','– another resolution'),
   ]){const p=[...taParagraphs];mutate(p);assert.equal(publicationBody(p,taId,'en').start,0);}
+});
+
+test('the closing submission line is dropped only when the card shows the same date',()=>{
+  const written=['Question for written answer E-003900/2026','to the Commission','Rule 144','Author (EPP)','Subject: Fisheries support','Body paragraph.','1.\tA question?','Submitted: 7.10.2026'];
+  const body=publicationBody(written,'E-10-2026-003900','en');
+  assert.deepEqual(withoutSubmittedLine(body,'E-10-2026-003900','en','2026-10-07'),{body:{...body,paragraphs:written.slice(5,7)},trailer:[]});
+  for(const [date,language] of [['2026-10-08','en'],[null,'en'],['2026-10-07','fr']]) assert.equal(withoutSubmittedLine(body,'E-10-2026-003900',language,date).body,body);
+  const oral=['Question for oral answer O-000042/2026','to the Commission','Rule 142','Author (S&D)','Subject:\tScams','Body.','Submitted: 9.10.2026','Lapses: 10.1.2027'];
+  const oralBody=publicationBody(oral,'O-10-2026-000042','en');
+  assert.deepEqual(withoutSubmittedLine(oralBody,'O-10-2026-000042','en','2026-10-09'),{body:{...oralBody,paragraphs:['Body.']},trailer:['Lapses: 10.1.2027']});
+  const unmatched=publicationBody(written,'E-10-2026-003901','en');
+  assert.equal(withoutSubmittedLine(unmatched,'E-10-2026-003901','en','2026-10-07').body,unmatched);
 });

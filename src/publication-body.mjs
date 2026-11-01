@@ -78,3 +78,17 @@ export function publicationHasMissingContent(text,body,decorative=null) {
   if(objects.some(object=>object.paragraph<body.start&&!(object.paragraph===logo&&object.offset===0&&object.kind==='drawing'&&object.status==='unresolved')))return true;
   return warnings.some(warning=>warning!=='A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.');
 }
+
+// Drop the closing "Submitted:" line of an English question when the card
+// already shows that same date. A following "Lapses:" line stays visible.
+export function withoutSubmittedLine(body,documentId,language,shownDate) {
+  const unchanged={body,trailer:[]};
+  if(language!=='en'||!shownDate||!/^[EPHO]-10-\d{4}-\d+$/.test(String(documentId))||body.header.length===0)return unchanged;
+  const paragraphs=body.paragraphs,last=paragraphs.length-1;
+  const lapses=last>0&&/^Lapses:\s*\d{1,2}\.\d{1,2}\.\d{4}$/.test(paragraphs[last].trim());
+  const index=lapses?last-1:last,line=paragraphs[index]?.trim().match(/^Submitted:\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(!line||index<1)return unchanged;
+  const submitted=`${line[3]}-${line[2].padStart(2,'0')}-${line[1].padStart(2,'0')}`;
+  if(submitted!==String(shownDate).slice(0,10))return unchanged;
+  return {body:{...body,paragraphs:paragraphs.slice(0,index)},trailer:paragraphs.slice(index+1)};
+}
