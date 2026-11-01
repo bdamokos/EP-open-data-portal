@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Rejette la proposition",
+  "amendment.rejects_council_position": "Rejette la position du Conseil",
   "MemberMotionReader.choose_a_motion_text": "Choisir un texte de proposition de résolution",
   "MemberMotionReader.joint_motion_id": "Proposition de résolution commune · {id}",
   "MemberMotionReader.original_motion_id": "Proposition de résolution initiale · {id}",

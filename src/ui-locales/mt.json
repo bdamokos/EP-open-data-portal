@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Jiċħad il-proposta",
+  "amendment.rejects_council_position": "Jiċħad il-pożizzjoni tal-Kunsill",
   "MemberMotionReader.choose_a_motion_text": "Agħżel test ta’ mozzjoni",
   "MemberMotionReader.joint_motion_id": "Mozzjoni konġunta · {id}",
   "MemberMotionReader.original_motion_id": "Mozzjoni oriġinali · {id}",

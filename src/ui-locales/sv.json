@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Avvisar förslaget",
+  "amendment.rejects_council_position": "Avvisar rådets ståndpunkt",
   "MemberMotionReader.choose_a_motion_text": "Välj en resolutionsförslagstext",
   "MemberMotionReader.joint_motion_id": "Gemensamt resolutionsförslag · {id}",
   "MemberMotionReader.original_motion_id": "Ursprungligt resolutionsförslag · {id}",

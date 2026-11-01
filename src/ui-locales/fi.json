@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Hylkää ehdotuksen",
+  "amendment.rejects_council_position": "Hylkää neuvoston kannan",
   "MemberMotionReader.choose_a_motion_text": "Valitse päätöslauselmaesityksen teksti",
   "MemberMotionReader.joint_motion_id": "Yhteinen päätöslauselmaesitys · {id}",
   "MemberMotionReader.original_motion_id": "Alkuperäinen päätöslauselmaesitys · {id}",

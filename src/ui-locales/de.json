@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Lehnt den Vorschlag ab",
+  "amendment.rejects_council_position": "Lehnt den Standpunkt des Rates ab",
   "MemberMotionReader.choose_a_motion_text": "Antragstext auswählen",
   "MemberMotionReader.joint_motion_id": "Gemeinsamer Antrag · {id}",
   "MemberMotionReader.original_motion_id": "Ursprünglicher Antrag · {id}",

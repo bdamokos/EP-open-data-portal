@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Odbija prijedlog",
+  "amendment.rejects_council_position": "Odbija stajalište Vijeća",
   "MemberMotionReader.choose_a_motion_text": "Odaberite tekst prijedloga",
   "MemberMotionReader.joint_motion_id": "Zajednički prijedlog · {id}",
   "MemberMotionReader.original_motion_id": "Izvorni prijedlog · {id}",
