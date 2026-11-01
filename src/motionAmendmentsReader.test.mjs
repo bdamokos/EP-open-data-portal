@@ -1001,7 +1001,7 @@ function summaryBallot(id,position,outcome) {
   const vote={id,sittingId:sitting,date,title:'Exact amendment decision',titleLanguage:'en',titles:{en:'Exact amendment decision'},referenceTexts:{en:'Amendment 13'},
     method:'VOTE_ELECTRONIC_ROLLCALL',outcome,ballotStatus:'conducted',scope:{kind:'amendment'},actualPosition:{status:'recorded',position},intention:{status:'not-reported',positions:[]},
     totals:{for:400,against:200,abstaining:0},alignment:'with',subjectId:null,context:{documentIds:[documentId],amendmentIds:[documentId+'-AM-13'],componentIds:[],partialReferenceIds:[]},parts:[],rollCallRequesters:[],resultRelationship:{binding:'consistent'}};
-  return {version:10,member:{id:memberId},period:{kind:'sitting',week:null,sittingId:sitting,from:date,to:date},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[vote],subjects:[],
+  return {version:11,member:{id:memberId},period:{kind:'sitting',week:null,sittingId:sitting,from:date,to:date},snapshotId:'a'.repeat(64),positions:'all',alignment:'all',alignmentCounts:{with:1,against:0,abstained:0,unclassified:0},items:[vote],subjects:[],
     pagination:{offset:0,limit:50,returned:1,observedTotal:1,recordedTotal:1,filteredTotal:1,nextOffset:null},selected:{status:'found',item:vote},coverage:{status:'partial',termWide:false}};
 }
 

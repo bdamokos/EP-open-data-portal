@@ -8,6 +8,7 @@ import {retainedSpeechMetadata,retainedSpeechPage} from './corpus-speeches.mjs';
 
 const source=record=>({url:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),stale:Boolean(record.stale)});
 const validId=id=>/^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(id||'');
+export const SPEECH_STATISTICS_VERSION=1;
 export const INTERVENTION_LIMITS=Object.freeze({memberPage:50,memberPages:20,sittingPage:500,sittingPages:4,selections:8,cacheMs:30*60_000});
 
 export class SpeechInterventions {
@@ -49,10 +50,9 @@ export class SpeechInterventions {
     // Joint agenda items can name several parents. Do not silently pick one.
     for(const parentId of parentIds.slice(0,4)) {
       try {
-        const event=await this.request('/events/'+parentId,{}, {staleWhileRevalidate:true});
+        const [event,sitting]=await Promise.all([this.request('/events/'+parentId,{}, {staleWhileRevalidate:true}),this.sitting(activity.activity_date)]);
         const parent=event.payload.data.find(a=>a.activity_id===parentId);
         if(!parent)throw new Error('The debate record is unavailable.');
-        const sitting=await this.sitting(activity.activity_date);
         const sequence=buildInterventionSequence(sitting.rows,{parentId,expectedIds:parent.consists_of||[]});
         debates.push({id:parentId,titles:parent.activity_label||{},...sequence,records:sequence.records.map(({activity,...row})=>({...speechSummary(activity),...row})),sources:[source(event),...sitting.sources],sittingCoverage:sitting.coverage});
       }catch(error){debates.push({id:parentId,titles:{},records:[],exchanges:[],coverage:{complete:false,expected:null,available:0,missingIds:[]},error:String(error.message),...(Number.isFinite(error.retryAt)?{retryAt:error.retryAt}:{})});}
@@ -74,7 +74,7 @@ export class SpeechInterventions {
   async member(id,page=0) {
     requestSignal()?.throwIfAborted();
     const key=String(id);let state=this.members.get(key),restarted=false;
-    if(state&&this.clock()-state.at>=INTERVENTION_LIMITS.cacheMs){this.members.delete(key);state=null;}
+    if(state&&(state.issues.has('source-unavailable')||this.clock()-state.at>=INTERVENTION_LIMITS.cacheMs)){this.members.delete(key);state=null;}
     if(!state){
       // A browser can outlive this bounded selection cache. Restart its walk from the public source cache.
       if(page>0){page=0;restarted=true;}
@@ -103,7 +103,12 @@ export class SpeechInterventions {
           if(rows.length!==saved.records.length)state.issues.add('retained-metadata-unavailable');
           for(const row of rows)state.summaries.set(row.id,row.metadata.summary);
           record={payload:{data:rows.map(row=>row.metadata.activity),meta:{total:saved.total}},sources:rows.flatMap(row=>[{url:row.metadata.sourceUrl,fetchedAt:row.metadata.fetchedAt,retained:true},...(row.metadata.headerSources||[])])};
-        } else record=await this.request('/speeches',{'person-id':id,'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','include-output':'xml_fragment',language:'en','sort-by':'sitting-date:desc,numbering:desc',limit:INTERVENTION_LIMITS.memberPage,offset:page*INTERVENTION_LIMITS.memberPage},{staleWhileRevalidate:true});
+        } else try {record=await this.request('/speeches',{'person-id':id,'parliamentary-term':10,'activity-type':'PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT','include-output':'xml_fragment',language:'en','sort-by':'sitting-date:desc,numbering:desc',limit:INTERVENTION_LIMITS.memberPage,offset:page*INTERVENTION_LIMITS.memberPage},{staleWhileRevalidate:true});}catch(error){
+          if(error.code!=='odp_no_content')throw error;
+          state.issues.add('source-unavailable');state.ended=true;state.page=page;
+          if(error.source)state.sources.push({...source(error.source),httpStatus:204});
+          return;
+        }
         requestSignal()?.throwIfAborted();
         state.sources.push(...(record.sources||[source(record)]));const total=record.payload.meta?.total;
         if(!Number.isSafeInteger(total)||total<0)state.issues.add('total-unavailable');else {if(state.total!==null&&state.total!==total)state.issues.add('total-changed');state.total=total;}
@@ -123,7 +128,7 @@ export class SpeechInterventions {
     const sourceComplete=state.ended&&state.issues.size===0&&state.rows.size===state.total;
     const classificationsComplete=(metadata.length>0||sourceComplete)&&(!state.corpusMode||sourceComplete)&&!metadata.some(m=>['unclassified','blue-card'].includes(m.type));
     const observed=value=>(value>0||classificationsComplete)?value:null;
-    return {memberId:key,restarted,availability:state.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(this.clock()),limited:true,route:'public-api',observedRecords:rows.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)}),items:rows.map(row=>state.summaries.get(row.activity_id)||speechSummary(row)),counts:{groupOrations:state.corpusMode?observed(groupOrations.length):groupOrations.length,blueQuestions:observed(count('blue-card-question')+count('blue-card-intervention')),blueAnswers:observed(count('blue-card-answer')),blueReactions:observed(count('blue-card-reaction')),catchTheEye:count('catch-the-eye')||null},groups:[...new Set(groupOrations.flatMap(m=>m.onBehalfOf.filter(g=>g.politicalGroup).map(g=>g.id)))].map(id=>({id,label:groupLabelsFrom(metadata,id),count:groupOrations.filter(m=>m.onBehalfOf.some(g=>g.id===id)).length})),
+    return {memberId:key,restarted,availability:state.availability||sourceAvailability({sourceKey:'speech-metadata',family:'speeches',start:'2024-07-16',end:brusselsDay(this.clock()),limited:true,route:'public-api',observedRecords:rows.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1)}),items:rows.map(row=>state.summaries.get(row.activity_id)||speechSummary(row)),counts:{groupOrations:state.corpusMode||state.issues.has('source-unavailable')?observed(groupOrations.length):groupOrations.length,blueQuestions:observed(count('blue-card-question')+count('blue-card-intervention')),blueAnswers:observed(count('blue-card-answer')),blueReactions:observed(count('blue-card-reaction')),catchTheEye:count('catch-the-eye')||null},groups:[...new Set(groupOrations.flatMap(m=>m.onBehalfOf.filter(g=>g.politicalGroup).map(g=>g.id)))].map(id=>({id,label:groupLabelsFrom(metadata,id),count:groupOrations.filter(m=>m.onBehalfOf.some(g=>g.id===id)).length})),
       coverage:{complete:sourceComplete&&classificationsComplete,available:state.rows.size,total:state.total,headers:metadata.filter(m=>m.headerAvailable).length,unclassified:count('unclassified')+count('blue-card'),issues:[...state.issues],latestDataDate:state.latestDataDate||null},
       nextPage:!state.ended&&state.page+1<INTERVENTION_LIMITS.memberPages?state.page+1:null,sources:state.sources};
   }
