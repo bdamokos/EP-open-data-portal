@@ -755,8 +755,7 @@ export class ActivityWorker {
           }
           if(gap.retry_at<=this.clock()) {
             const pending=this.store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=? AND (done IS NULL OR done<>1) UNION ALL SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND done<>1 LIMIT 1').get(generation,gap.key,generation,gap.key);
-            if(!pending)this.store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true});
-            this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
+            if(!pending&&this.store.enqueue(generation,gap.key,gap.kind,{},gap.priority,true,{retryGap:true}))this.store.db.prepare('UPDATE refresh_gaps SET retry_at=? WHERE generation=? AND key=?').run(this.clock()+delay,generation,gap.key);
           }
         } else scheduleSittingOutcomes(this,generation,row.sitting_id);
         this.store.db.prepare('UPDATE sitting_refresh SET next_check=? WHERE generation=? AND sitting_id=?').run(this.clock()+delay,generation,row.sitting_id);

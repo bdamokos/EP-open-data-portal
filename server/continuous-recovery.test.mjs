@@ -87,3 +87,13 @@ test('preparation adopts legacy queued mutable jobs and retires daily counters w
   assert(prepared.db.prepare('SELECT 1 FROM mutable_refresh_admissions WHERE generation=? AND key=?').get(generation,'legacy'));
   assert.deepEqual(prepared.db.prepare("SELECT * FROM tasks WHERE key='legacy'").get(),before);
 });
+
+
+test('direct correction-period admissions share the global gap in-flight cap',t=>{
+  const {store,generation,gap}=fixture(t);
+  for(let i=0;i<GAP_LIMIT+1;i++){
+    const key='correction:'+i;gap(key);
+    assert.equal(store.enqueue(generation,key,'document',{},100,true,{retryGap:true}),i<GAP_LIMIT);
+  }
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM refresh_gap_admissions').get().n,GAP_LIMIT);
+});
