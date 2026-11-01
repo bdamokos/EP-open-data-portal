@@ -9,7 +9,7 @@ import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION, documentFiles } from './activity-index-model.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, distributionEvidenceFor, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
-import { amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
+import { bootstrapAmendmentDependencies, amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
 import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments, scheduleSittingOutcomes } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs';
 import { resolveAmendmentAuthors } from './amendment-authors.mjs';
@@ -522,6 +522,7 @@ test('a failed dated roster falls back to exact author profiles and their actual
   assert.equal(nextAmendmentTask(store,generation).body.offset,3);
   await worker.task(nextAmendmentTask(store,generation));
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM amendment_jobs WHERE kind='amendment-member'").get().n,2);
+  while(!bootstrapAmendmentDependencies(store,generation)) {}
   for(let n=0;n<2;n++)await worker.task(nextAmendmentTask(store,generation));
   const followup=nextAmendmentTask(store,generation);assert.equal(followup.key,'amendment:member-changes');
   await worker.task(followup);

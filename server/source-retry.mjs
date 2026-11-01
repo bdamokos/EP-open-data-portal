@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 // Missing public records may be published later. Keep probing, without a
 // short fixed retry loop. attempts is the number of previous failures.
 export const sourceMissing = error => error?.status === 404 || error?.status === 410;
@@ -25,3 +26,6 @@ export function confirmSourceRejection(previous,error,{descriptor,parserVersion,
 // Exact source-rule violations need no repeated byte/parser confirmation.
 export const deterministicSourceIssue=error=>error?.code==='source_rule_violation';
 export const sourceRuleError=message=>Object.assign(new Error(message),{code:'source_rule_violation'});
+
+export const SOURCE_RULE_VERSION=1;
+export const sourceObservationHash=record=>createHash('sha256').update(JSON.stringify(record.payload??record.xml??null)).digest('hex');

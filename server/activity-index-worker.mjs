@@ -1,4 +1,5 @@
-import {sourceRuleError} from './source-retry.mjs';
+import {bootstrapAmendmentDependencies,amendmentDependenciesReady} from './amendments-store.mjs';
+import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
@@ -39,7 +40,7 @@ import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projec
 import { userAgent } from './user-agent.mjs';
 import {loopTimer} from './sqlite-observability.mjs';
 import {PressFollower,PressStore,leaseFencedWrite} from './press-releases.mjs';
-import {scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask,nextRefreshTask} from './refresh-policy.mjs';
+import {ruleVersionRecoveryDue,reopenRuleVersions,observeRuleGap,scheduleMutable,scheduleGapRecovery,gapRecoveryDue,recordTaskGap,coverageGap,sittingConfirmationDay,sittingSnapshotConfirmed,documentRefreshState,feedStart,nextBackfillTask,nextRefreshTask} from './refresh-policy.mjs';
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
@@ -133,6 +134,7 @@ export class ActivityWorker {
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
     if(!cycle&&this.coreDue())return true;
     if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))return true;
+    if(generation&&(!amendmentDependenciesReady(this.store,generation)||ruleVersionRecoveryDue(this.store,generation)))return true;
     if(declaredDebateRecoveryDue(this.store,generation))return true;
     if((gapRecoveryDue(this.store,generation,this.clock())||mutableRecoveryDue(this.store,generation,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)))return true;
     if(followupAdmissionRepairDue(this.store,generation,{restart:this.followupStartupRepair}))return true;
@@ -219,6 +221,7 @@ export class ActivityWorker {
       throw error;
     }
     const observed={...record,url:url.href};
+    this.lastSourceObservation={endpoint,fingerprint:sourceObservationHash(record)};
     if(generation&&demographicId) {
       try {retainDemographicRecord(this.store,generation,demographicId,observed);}
       catch(error) {retainDemographicAttempt(this.store,generation,demographicId);throw error;}
@@ -272,6 +275,7 @@ export class ActivityWorker {
   }
   async task(task) {
     const {generation,body}=task;
+    this.lastSourceObservation=null;
     if(task.kind==='debate-links'||task.kind==='declared-event') {
       await declaredDebateTask(this,task);
     } else if(task.kind.startsWith('group-history-')) {
@@ -375,6 +379,7 @@ export class ActivityWorker {
       for(const e of entries){
         if(e.updated && Date.parse(e.updated)<Date.parse(start))continue;
         const endpoint=body.endpoint+'/'+e.id;
+        await observeRuleGap(this,generation,endpoint);
         if(body.endpoint==='/procedures') {
           const prior=this.store.source(generation,endpoint);
           if(prior && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated)))this.store.enqueue(generation,endpoint,'procedure',{endpoint},103,true);
@@ -384,6 +389,7 @@ export class ActivityWorker {
           if(amendmentListDocumentId(resolved)&&documentRouteOwned(this.store,generation,resolved,documentDeferred??=documentRouteDeferredOwners(this.store,generation)))continue;
           if(adoptedDeferred&&adoptedTextOwnedElsewhere(this.store,generation,resolved,adoptedDeferred))continue;
           const prior=this.store.source(generation,resolved);
+          await observeRuleGap(this,generation,resolved);
           const gap=this.store.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? AND key=?').get(generation,resolved);
           if(!gap && (!prior || (body.endpoint==='/adopted-texts'||amendmentListDocumentId(resolved)||documentRefreshState(prior.work).mutable) && !(e.updated && Date.parse(prior.fetchedAt)>=Date.parse(e.updated))))this.store.enqueue(generation,resolved,'document',{endpoint:resolved,feedDiscovery:!prior},85,true);
         }
@@ -773,7 +779,7 @@ export class ActivityWorker {
       }
       // Core recovery changes items and their frozen Following summaries. It
       // must publish through a working generation, even between daily cycles.
-      const recover=(gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
+      const recover=(ruleVersionRecoveryDue(this.store,active)||gapRecoveryDue(this.store,active,this.clock())||mutableRecoveryDue(this.store,active,this.clock())||this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,active)||declaredDebateRecoveryDue(this.store,active));
       const cycle=this.coreDue()||recover?await (this.generationExecutor?this.generationExecutor('begin',{signal:this.controller.signal}):this.store.beginCycle()):null,generation=cycle?.generation || active;
       if(this.stopped)return;
       this.controller.signal.throwIfAborted();
@@ -786,6 +792,12 @@ export class ActivityWorker {
       }
       if(this.followupStartupRepair){markFollowupAdmissionRepair(this.store,generation);this.followupStartupRepair=false;}
       scheduleFollowupAdmissionRepairs(this,generation);
+      bootstrapAmendmentDependencies(this.store,generation);
+      reopenRuleVersions(this.store,generation);
+      for(const {key} of this.store.db.prepare("SELECT gap.key FROM refresh_gaps gap JOIN mutable_documents doc ON doc.generation=gap.generation AND doc.key=gap.key WHERE gap.generation=? AND gap.kind='coverage' AND doc.next_check<=? ORDER BY doc.next_check,gap.key LIMIT 25").all(generation,this.clock())) {
+        await observeRuleGap(this,generation,key);
+        this.store.db.prepare('UPDATE mutable_documents SET next_check=? WHERE generation=? AND key=?').run(this.clock()+7*DAY,generation,key);
+      }
       scheduleGapRecovery(this,generation);
       if(cycle)scheduleGroupHistoryRepair(this.store,generation);
       prepareAmendmentParserUpgrade(this,generation);

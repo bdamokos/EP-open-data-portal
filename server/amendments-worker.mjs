@@ -10,7 +10,7 @@ import { createAmendmentAuthorResolver, votingAliases } from './amendment-author
 import {AMENDMENT_AUTHOR_NAMES_VERSION,memberNameFields,alternateAuthorDescriptor,authorNameVariants,resolveParallelAuthors,listAuthorResolver,hasNonLatinAuthors} from './amendment-author-names.mjs';
 import { parseSplitRequest, SPLIT_PARSER_VERSION } from './amendment-splits.mjs';
 import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_OUTCOME_PROOF_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, AMENDMENT_EMPTY_OBSERVATION_VERSION, AMENDMENT_LIMITS, canonicalEPReference, amendmentTarget, amendmentReference, amendmentSittings, amendmentDecision, amendmentTextLosses, validAmendmentFormatting, amendmentProposerDate, validAmendmentDate, hasDecisionReferenceSet, targetMetadata, normalizedDocxDescriptor, sameDocxDescriptor, docxRetrievedAfterIssue, distributionEvidenceFor, currentDocxDescriptor, listWordingFreshness, checkedAggregateAttribution } from './amendments.mjs';
-import { recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
+import { amendmentDependenciesReady, recordSplitResults, saveAmendmentRows, enqueueAmendment, amendmentParserUpgradeKey as parserUpgradeKey, amendmentParserSourceRevisionKey } from './amendments-store.mjs';
 import {reconcileAmendmentDocumentGap} from './document-route-recovery.mjs';
 import {sanitizeFreshDocument} from './document-detail-routing.mjs';
 import { motionSourceKey } from './motion-outcomes.mjs';
@@ -524,7 +524,7 @@ function sittingRebuildContext(worker,generation,sittingId) {
   return {work,directTargets,observedDecisionIds:work.amendmentVersion===AMENDMENTS_VERSION?(work.decisions || []).filter(hasDecisionReferenceSet).map(decision=>tail(decision.id)):[]};
 }
 function rebuildQuery(generation,scope,context) {
-  if(scope.kind==='member-changes')return {sql:'SELECT target AS id FROM amendment_member_pending WHERE generation=?',args:[generation]};
+  if(scope.kind==='member-changes')return {sql:'SELECT target AS id FROM amendment_member_current WHERE generation=?',args:[generation]};
   if(scope.kind==='members')return {sql:'SELECT id FROM amendment_targets WHERE generation=?',args:[generation]};
   if(scope.kind==='roster')return {sql:"SELECT DISTINCT COALESCE(json_extract(source.body,'$.scopeKey'),json_extract(source.body,'$.targetDocumentId')) AS id FROM sources AS source WHERE generation=? AND kind='amendment-list' AND (json_extract(source.body,'$.document_date')=? OR EXISTS(SELECT 1 FROM json_each(source.body,'$.extraction.amendments') AS amendment WHERE json_extract(amendment.value,'$.date')=? OR json_extract(amendment.value,'$.documentDate')=? OR json_extract(amendment.value,'$.proposerDate')=?) OR json_extract(source.body,'$.scope')='committee' AND EXISTS(SELECT 1 FROM json_each(source.body,'$.procedureEvidence') AS proof WHERE json_extract(proof.value,'$.activityType')='COMMITTEE_TABLING_AMENDMENT' AND json_extract(proof.value,'$.date')=?))",args:[generation,scope.date,scope.date,scope.date,scope.date,scope.date]};
   return {sql:`SELECT value AS id FROM json_each(?) UNION SELECT id FROM amendment_targets AS target WHERE generation=? AND EXISTS(SELECT 1 FROM json_each(target.body,'$.sittingIds') AS sitting WHERE sitting.value=?)
@@ -532,9 +532,15 @@ function rebuildQuery(generation,scope,context) {
 }
 function newRebuildScope(worker,generation,scope) {
   if(scope.kind==='profile')return {...scope,offset:0};
+  if(scope.kind==='member-changes'&&!worker.store.db.prepare('SELECT 1 FROM amendment_member_current WHERE generation=? LIMIT 1').get(generation)) {
+    const capture=()=>{
+    worker.store.db.prepare('INSERT OR IGNORE INTO amendment_member_current SELECT * FROM amendment_member_pending WHERE generation=?').run(generation);
+    worker.store.db.prepare('DELETE FROM amendment_member_pending WHERE generation=?').run(generation);
+    };if(worker.store.db.isTransaction)capture();else worker.store.transaction(capture);
+  }
   const context=scope.kind==='sitting'?sittingRebuildContext(worker,generation,scope.sittingId):null,query=rebuildQuery(generation,scope,context);
   const throughTarget=worker.store.db.prepare('SELECT MAX(id) AS id FROM ('+query.sql+')').get(...query.args)?.id || '';
-  return {...scope,afterTarget:'',throughTarget};
+  return {...scope,...(scope.kind==='member-changes'?{passId:randomUUID()}:{}),afterTarget:'',throughTarget};
 }
 async function runRebuildSlice(worker,task) {
   const {generation}=task,store=worker.store,scope=task.body.rebuild;
@@ -544,12 +550,15 @@ async function runRebuildSlice(worker,task) {
     select:body=>body.rebuild.kind==='profile'?(body.targets?.[body.rebuild.offset]!=null?{id:body.targets[body.rebuild.offset]}:null):store.db.prepare('SELECT id FROM ('+query.sql+') WHERE id>? AND id<=? ORDER BY id LIMIT 1').get(...query.args,body.rebuild.afterTarget,body.rebuild.throughTarget),
     action:({id})=>{
       if(id?.startsWith('committee:')||amendmentTarget(id)&&store.source(generation,targetKey(id)))rebuildAmendmentTarget(worker,generation,id,context?{observedDecisionIds:context.observedDecisionIds,discoveredSittingIds:context.directTargets.has(id)?[scope.sittingId]:[]}:{discover:scope.kind!=='member-changes'});
-      if(scope.kind==='members'||scope.kind==='member-changes')store.db.prepare('DELETE FROM amendment_member_pending WHERE generation=? AND target=?').run(generation,id);
+      if(scope.kind==='member-changes')store.db.prepare('DELETE FROM amendment_member_current WHERE generation=? AND target=?').run(generation,id);
     },
     advance:({id},body)=>({rebuild:{...body.rebuild,...(body.rebuild.kind==='profile'?{offset:body.rebuild.offset+1}:{afterTarget:id})}}),
   });
   if(complete&&scope.kind==='member-changes'&&store.db.prepare('SELECT 1 FROM amendment_member_pending WHERE generation=? LIMIT 1').get(generation)) {
-    store.taskProgress(task,{...task.body,rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})});
+    store.transaction(()=>{
+      store.finishTask(task);
+      enqueueAmendment(store,generation,task.key,'amendment-rebuild',{rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})},task.priority,true);
+    });
     return false;
   }
   if(complete&&scope.kind==='sitting'&&task.body.rebuild.requestedRevision!==task.body.rebuild.revision) {
@@ -980,7 +989,12 @@ export async function amendmentTask(worker,task) {
     }
     const member=store.source(generation,'amendment:member:'+body.id)?.work;
     if(!member)throw new Error('Saved amendment author profile is unavailable.');
-    // One disk-backed set coalesces all profile arrivals, without a target cap.
+    // Until the retained dependency snapshot is ready, preserve the full walk.
+    if(!amendmentDependenciesReady(store,generation)) {
+      if(!await beginRebuild(worker,task,{kind:'members'}))return;
+      store.finishTask(task);return;
+    }
+    // Arrivals accumulate separately from the current captured pass.
     const admitted=store.transaction(()=>{
       store.db.prepare('INSERT OR IGNORE INTO amendment_member_pending SELECT generation,target FROM amendment_member_dependencies WHERE generation=? AND person_id=?').run(generation,body.id);
       // New official names may resolve an author which had no prior member ID.
@@ -991,6 +1005,7 @@ export async function amendmentTask(worker,task) {
       }
       const put=store.db.prepare('INSERT OR IGNORE INTO amendment_member_pending VALUES (?,?)');
       for(const target of body.targets || [])put.run(generation,target);
+      if(store.db.prepare("SELECT 1 FROM amendment_jobs WHERE generation=? AND key='amendment:member-changes' AND done=0").get(generation))return true;
       return enqueueAmendment(store,generation,'amendment:member-changes','amendment-rebuild',{rebuild:newRebuildScope(worker,generation,{kind:'member-changes'})},107,true,{deferOnCapacity:true});
     });
     if(!admitted){deferPreparation(worker,task);return;}

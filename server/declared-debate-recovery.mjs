@@ -1,3 +1,4 @@
+import {observeRuleGap} from './refresh-policy.mjs';
 import {sourceRuleError} from './source-retry.mjs';
 import {array} from './activity-index-model.mjs';
 import {groupVoiceJobKey} from './group-voices-store.mjs';
@@ -57,7 +58,7 @@ function enqueueEvent(worker,generation,id,role,parent=null) {
   if(store.db.prepare('SELECT 1 FROM amendment_jobs WHERE generation=? AND key=? AND (done IS NULL OR done<>1)').get(generation,'/events/'+id))return;
   if(deferredOwned(store,generation,['/events/'+id]))return;
   if(role==='child'&&(validSaved(store.source(generation,'/events/'+id)?.work,id)||store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND key=? AND kind='speech'").get(generation,'/speeches/'+id)||speechOwned(store,generation,id)))return;
-  store.enqueue(generation,'/events/'+id,'declared-event',{id,role,...(parent?{parent}:{} )},103);
+  store.enqueue(generation,'/events/'+id,'declared-event',{id,role,...(parent?{parent}:{} )},103,role==='debate');
 }
 function root(record,id) {
   const nodes=record.payload.data.filter(node=>eventId(node)===id||node.activity_id===id);
@@ -91,6 +92,7 @@ export async function declaredDebateTask(worker,task) {
     const rows=store.db.prepare(`SELECT entry.key ordinal,CASE WHEN entry.type='object' THEN json_extract(entry.value,'$.id') END id,
       CASE WHEN entry.type='object' THEN json_extract(entry.value,'$.had_activity_type') END kind
       FROM json_each(?) entry WHERE entry.key>=? ORDER BY entry.key LIMIT ?`).all(source.relationships,offset,batch);
+    for(const row of rows) {const id=eventId(row.id);if(type(row.kind)==='PLENARY_DEBATE'&&debateId.test(id))await observeRuleGap(worker,generation,'/events/'+id);}
     store.transaction(()=>{
       store.assertWriter();
       for(const row of rows){const id=eventId(row.id);if(type(row.kind)==='PLENARY_DEBATE'&&debateId.test(id))enqueueEvent(worker,generation,id,'debate');}
@@ -124,6 +126,7 @@ export async function declaredDebateTask(worker,task) {
     saved={id:body.id,kind,date:validDate(node.activity_date)?node.activity_date:null,classificationVersion:1,source:{url:record.url,fetchedAt:record.fetchedAt},...(body.role==='debate'?{children:[...new Set(node.consists_of.map(eventId).filter(id=>childId.test(id)))]}:{declaredBy:body.parent})};
     store.putSource(generation,key,body.role==='debate'?'debate':'event',saved,record.fetchedAt,[],{sourceUrl:record.url,acquisition:'recovery'});
   }
+  if(body.role==='debate')for(const id of saved.children.slice(body.childOffset||0,(body.childOffset||0)+batch))await observeRuleGap(worker,generation,'/events/'+id);
   store.transaction(()=>{
     store.assertWriter();
     if(body.role==='debate') {
