@@ -126,7 +126,12 @@ export async function declaredDebateTask(worker,task) {
     saved={id:body.id,kind,date:validDate(node.activity_date)?node.activity_date:null,classificationVersion:1,source:{url:record.url,fetchedAt:record.fetchedAt},...(body.role==='debate'?{children:[...new Set(node.consists_of.map(eventId).filter(id=>childId.test(id)))]}:{declaredBy:body.parent})};
     store.putSource(generation,key,body.role==='debate'?'debate':'event',saved,record.fetchedAt,[],{sourceUrl:record.url,acquisition:'recovery'});
   }
-  if(body.role==='debate')for(const id of saved.children.slice(body.childOffset||0,(body.childOffset||0)+batch))await observeRuleGap(worker,generation,'/events/'+id);
+  // Rule rejections belong to the exact owner that observed them: the child
+  // event, or the speech-detail recovery for a declared speech.
+  if(body.role==='debate')for(const id of saved.children.slice(body.childOffset||0,(body.childOffset||0)+batch)) {
+    await observeRuleGap(worker,generation,'/events/'+id);
+    await observeRuleGap(worker,generation,'recovery:/speeches/'+id);
+  }
   store.transaction(()=>{
     store.assertWriter();
     if(body.role==='debate') {

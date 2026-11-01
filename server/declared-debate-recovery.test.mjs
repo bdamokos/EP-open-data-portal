@@ -9,7 +9,7 @@ import {CorpusStore} from './corpus-store.mjs';
 import {CorpusWorker} from './corpus-worker.mjs';
 import {declaredDebateRecoveryDue,scheduleDeclaredDebateRecovery} from './declared-debate-recovery.mjs';
 import {declaredSpeechDiscoveryDue,discoverDeclaredSpeeches} from './declared-speech-discovery.mjs';
-import {reopenRuleVersions,recordTaskGap,scheduleGapRecovery} from './refresh-policy.mjs';
+import {reopenRuleVersions,recordTaskGap,scheduleGapRecovery,coverageGap} from './refresh-policy.mjs';
 import {DossierActivity} from './dossier-activity.mjs';
 
 const time='2026-10-30T10:00:00.000Z',now=()=>Date.parse(time);
@@ -397,4 +397,20 @@ test('startup rule version repair reopens only a bounded page',t=>{
   assert.equal(reopenRuleVersions(x.store,x.generation),5);
   assert.equal(reopenRuleVersions(x.store,x.generation),0);
   assert.equal(x.store.db.prepare('SELECT COUNT(*) n FROM tasks WHERE done=0 AND kind=?').get('declared-event').n,30);
+});
+
+test('a corrected speech detail reopens its rule-rejected recovery owner through the relationship scan',async t=>{
+  const x=fixture(t),id=child(778),key='recovery:/speeches/'+id;
+  x.store.enqueue(x.generation,key,'speeches',{recoveryId:id,declaredParent:parent,offset:0},103);
+  coverageGap(x.store,x.generation,key,{...x.task(key).body,sourceTaskKind:'speeches',ruleRejection:{version:1,fingerprint:'rejected-observation',endpoint:'/speeches/'+id,reason:'Declared speech detail conflicts with its parent.'}},'Declared speech detail conflicts with its parent.',x.worker.clock());
+  x.store.db.prepare('UPDATE tasks SET done=1 WHERE generation=? AND key=?').run(x.generation,key);
+  assert.equal(x.store.enqueue(x.generation,key,'speeches',{recoveryId:id,offset:0},103,true),false,'an unchanged rule gap stays gated');
+  x.store.putSource(x.generation,'/events/'+parent,'debate',{id:parent,kind:'PLENARY_DEBATE',classificationVersion:1,children:[id],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:time}},time);
+  x.store.enqueue(x.generation,'/events/'+parent,'declared-event',{id:parent,role:'debate'},103);
+  x.records.set('/events/'+parent,node(parent,'PLENARY_DEBATE',{activity_date:'2024-10-07',consists_of:[uri(id)]}));
+  x.records.set('/events/'+id,node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  x.records.set('/speeches/'+id,node(id,'PLENARY_DEBATE_SPEECH',{activity_date:'2024-10-07',inverse_consists_of:[uri(parent)]}));
+  await x.worker.task(x.task('/events/'+parent));
+  assert(x.calls.includes('/speeches/'+id),'the scan observes the exact speech-detail owner');
+  assert.equal(x.task(key).done,0,'a changed speech-detail observation reopens the recovery owner');
 });
