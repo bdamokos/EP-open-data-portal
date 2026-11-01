@@ -10,16 +10,20 @@ const topology=w=>JSON.stringify(Object.fromEntries(['is_about','isAboutSubjectM
 // Embedded event shapes publish a subset of fields. Resolve each supplied
 // relationship observation separately; an omitted embedded field is not a
 // retraction of a field supplied by the full event endpoint.
-export function topicObservationNodes(observations){
- const latest=new Map(),compact=new Map(),eventFields=new Map(),expanded=[];
- for(const o of observations){expanded.push(o);for(const child of arr(o.work?.consists_of)){const id=tail(child?.id||child?.activity_id);if(typeof child==='object'&&id.startsWith('MTG-PL-')&&fields.some(k=>Object.hasOwn(child,k)))expanded.push({work:{...child,activity_id:id},source:o.source,projection:'embedded-event'});}}
- for(const o of expanded){
+export function topicObservationNodes(observations){const steps=topicObservationSteps(observations);let step;do{step=steps.next();}while(!step.done);return step.value;}
+export function* topicObservationSteps(observations,{map=()=>new Map(),stream=false}={}){
+ const latest=map('latest'),compact=map('compact'),eventFields=map('event_fields');
+ const saveField=(values,key,value)=>{values[key]=value;};
+ function* expand(){for(const o of observations){yield o;for(const child of arr(o.work?.consists_of)){const id=tail(child?.id||child?.activity_id);if(typeof child==='object'&&id.startsWith('MTG-PL-')&&fields.some(k=>Object.hasOwn(child,k)))yield {work:{...child,activity_id:id},source:o.source,projection:'embedded-event'};}}}
+ const expanded=expand();
+ for(const o of expanded){yield;
   const {work:w,source:s,projection}=o;if(!w)continue;const outside=w.outside||w,id=outside.identifier||outside.activity_id||tail(outside.id);if(!id)continue;
   const speech=projection==='speech'||projection==='outside-speech'||/\/(?:PLENARY_DEBATE_SPEECH|PLENARY_DEBATE_WRITTEN_STATEMENT)$/.test(w.had_activity_type||'');
   const event=Boolean(w.activity_id&&!speech);
   if(event){
-   const values=eventFields.get(id)||new Map();eventFields.set(id,values);
-   for(const field of fields){if(projection==='embedded-event'&&!Object.hasOwn(w,field))continue;const value=refs(w[field]).sort(),old=values.get(field);if(!old||at(s)>at(old.source))values.set(field,{value,source:s,procedureIds:arr(w[field]).filter(v=>/(?:^|\/)eli\/dl\/proc\//.test(String(v?.id||v))).map(tail)});else if(at(s)===at(old.source)&&JSON.stringify(value)!==JSON.stringify(old.value))values.set(field,{...old,conflicted:true});}
+   const values=eventFields.get(id)||{};
+   for(const field of fields){if(projection==='embedded-event'&&!Object.hasOwn(w,field))continue;const value=refs(w[field]).sort(),old=values[field];if(!old||at(s)>at(old.source))saveField(values,field,{value,source:s,procedureIds:arr(w[field]).filter(v=>/(?:^|\/)eli\/dl\/proc\//.test(String(v?.id||v))).map(tail)});else if(at(s)===at(old.source)&&JSON.stringify(value)!==JSON.stringify(old.value))saveField(values,field,{...old,conflicted:true});}
+   eventFields.set(id,values);
   }
   const map=projection==='outside-agenda'?compact:latest,old=map.get(id);
   if(!old||at(s)>at(old.source))map.set(id,{...o,id});
@@ -31,9 +35,9 @@ export function topicObservationNodes(observations){
    }else if(topology(w)!==topology(old.work))map.set(id,{...old,conflicted:true});
   }
  }
- const nodes=new Map();
- for(const [id,o] of compact){const w=o.work;nodes.set(id,{id,kind:'event',date:w.date,titles:w.titles||{},source:w.source||o.source});}
- for(const [id,o] of latest){
+ const nodes=map('nodes');
+ for(const [id,o] of compact){yield;const w=o.work;nodes.set(id,{id,kind:'event',date:w.date,titles:w.titles||{},source:w.source||o.source});}
+ for(const [id,o] of latest){yield;
   const {work:w,source:s,projection,conflicted}=o;
   if(projection==='speech'||projection==='outside-speech'){
    const v=w.outside||w;nodes.set(id,{id,kind:'speech',date:v.date,titles:v.titles||{},members:v.participants||[],parentIds:conflicted?[]:v.parentIds||[],conflicted,source:v.source||s});
@@ -48,28 +52,28 @@ export function topicObservationNodes(observations){
   }
  }
  function event(id,s){if(!nodes.has(id))nodes.set(id,{id,kind:'event',titles:{},source:s});return nodes.get(id);}
- for(const [id,values] of eventFields){const e=event(id,[...values.values()][0]?.source);e.conflicted=[...values.values()].some(v=>v.conflicted);const executed=values.get('executed');e.executed=e.conflicted?[]:executed?.value||[];e.executedSource=executed?.source;}
+ for(const [id,values] of eventFields){yield;const e=event(id,Object.values(values)[0]?.source);e.conflicted=Object.values(values).some(v=>v.conflicted);const executed=values.executed;e.executed=e.conflicted?[]:executed?.value||[];e.executedSource=executed?.source;nodes.set(id,e);}
  function documentEdge(eventId,docId,field,s){
-  const e=event(eventId,s),own=eventFields.get(eventId)?.get('based_on_a_realization_of'),doc=latest.get(docId);if(e.conflicted||doc?.conflicted)return;
+  const e=event(eventId,s),own=eventFields.get(eventId)?.based_on_a_realization_of,doc=latest.get(docId);if(e.conflicted||doc?.conflicted)return;
   if(own&&at(own.source)>=at(s)&&!own.value.includes(docId))return;
   if(doc&&at(doc.source)>=at(s)&&Object.hasOwn(doc.work,'inverse_based_on_a_realization_of')&&!refs(doc.work.inverse_based_on_a_realization_of).includes(eventId)&&field==='based_on_a_realization_of')return;
-  e.documentIds=unique([...(e.documentIds||[]),docId]);e.documentEdges=[...(e.documentEdges||[]),{id:docId,field,source:s}];
+  e.documentIds=unique([...(e.documentIds||[]),docId]);e.documentEdges=[...(e.documentEdges||[]),{id:docId,field,source:s}];nodes.set(eventId,e);
  }
  function procedureEdge(eventId,procId,field,s){
   const e=event(eventId,s),proc=latest.get(procId);if(e.conflicted||proc?.conflicted)return;
   const reverse=field==='inverse_was_scheduled_in'?'was_scheduled_in':'consists_of';
   if(proc&&at(proc.source)>=at(s)&&Object.hasOwn(proc.work,reverse)&&!refs(proc.work[reverse]).includes(eventId))return;
-  const own=eventFields.get(eventId)?.get('inverse_consists_of');if(own&&at(own.source)>=at(s)&&field==='consists_of (inverse)'&&!own.value.includes(procId))return;
-  e.procedureIds=unique([...(e.procedureIds||[]),procId]);e.procedureEdges=[...(e.procedureEdges||[]),{id:procId,field,source:s}];
+  const own=eventFields.get(eventId)?.inverse_consists_of;if(own&&at(own.source)>=at(s)&&field==='consists_of (inverse)'&&!own.value.includes(procId))return;
+  e.procedureIds=unique([...(e.procedureIds||[]),procId]);e.procedureEdges=[...(e.procedureEdges||[]),{id:procId,field,source:s}];nodes.set(eventId,e);
  }
- for(const [id,o] of latest){
+ for(const [id,o] of latest){yield;
   if(o.conflicted)continue;const {work:w,source:s}=o;
   if(w.work_type){for(const field of ['inverse_based_on_a_realization_of','inverse_decided_on_a_realization_of'])for(const eventId of refs(w[field]))if(eventId.startsWith('MTG-PL-'))documentEdge(eventId,id,field+' (inverse)',s);}
   else if(String(w.id).includes('/proc/'))for(const child of arr(w.consists_of)){const eventId=child.activity_id||tail(child.id);if(eventId?.startsWith('MTG-PL-'))procedureEdge(eventId,id,'consists_of (inverse)',s);}
  }
- for(const [id,values] of eventFields){
-  const docs=values.get('based_on_a_realization_of');for(const doc of docs?.value||[])documentEdge(id,doc,'based_on_a_realization_of',docs.source);
-  for(const field of ['inverse_consists_of','inverse_was_scheduled_in']){const relationship=values.get(field);for(const procId of relationship?.value||[])if(relationship.procedureIds?.includes(procId)||latest.get(procId)?.work.id?.includes('/proc/'))procedureEdge(id,procId,field,relationship.source);}
+ for(const [id,values] of eventFields){yield;
+  const docs=values.based_on_a_realization_of;for(const doc of docs?.value||[])documentEdge(id,doc,'based_on_a_realization_of',docs.source);
+  for(const field of ['inverse_consists_of','inverse_was_scheduled_in']){const relationship=values[field];for(const procId of relationship?.value||[])if(relationship.procedureIds?.includes(procId)||latest.get(procId)?.work.id?.includes('/proc/'))procedureEdge(id,procId,field,relationship.source);}
  }
- return [...nodes.values()];
+ return stream?nodes:[...nodes.values()];
 }

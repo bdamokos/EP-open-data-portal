@@ -39,7 +39,7 @@ test('cold official sources use independent origins during a Parliament cooldown
   try{assert.equal(calls.length,2,'neither public origin waits for Parliament');}
   finally{t.mock.timers.tick(60_000);await Promise.all([first,second]);}
   assert.equal(reader.queues.size,2);
-  for(const queue of reader.queues.values()){assert.equal(queue.interval,0);assert.equal(queue.maximum,2);assert.equal(queue.active,0);}
+  for(const queue of reader.queues.values()){assert.equal(queue.interval,queue===reader.queues.get(new URL(oeil).origin)?1000:0);assert.equal(queue.maximum,queue===reader.queues.get(new URL(oeil).origin)?1:2);assert.equal(queue.active,0);}
 });
 
 test('an aborted reader detaches from a shared cold source without cancelling its survivor or cache write',async()=>{
@@ -132,7 +132,16 @@ test('local official admission failure leaves a stale source immediately retryab
 test('leased topic collection awaits a stale page refresh at background priority',async()=>{
  let now=100000,calls=0,finish;
  const reader=new OfficialContextSources({directory:null,clock:()=>now,fetchSource:async()=>{calls++;if(calls===2)await new Promise(resolve=>finish=resolve);return new Response('<main>'+calls+'</main>',{headers:{'content-type':'text/html'}});}});
- const url=oeil+'?reference=2026/2790(RSP)';await reader.get(url);now+=1000;
+ const url=oeil+'?reference=2026/2790(RSP)';await reader.get(url);now+=1000;reader.queues.get(new URL(oeil).origin).nextStart=0;
  let settled=false;const pending=reader.get(url,{freshMs:1,priority:'background',waitForFresh:true}).then(value=>{settled=true;return value;});
  await until(()=>finish);assert.equal(settled,false);finish();const result=await pending;assert.equal(result.viewCache.stale,false);assert(result.html.includes('2'));assert.equal(reader.cache.pending.size,0);
+});
+
+test('OEIL starts are serial and paced, with origin-wide 5xx Retry-After backoff',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:50000});
+ const starts=[],reader=new OfficialContextSources({directory:null,fetchSource:async()=>{starts.push(Date.now());return starts.length===1?new Response(null,{status:500,headers:{'retry-after':'3'}}):new Response('<main>Read</main>',{headers:{'content-type':'text/html'}});}});
+ await assert.rejects(reader.get(oeil+'?reference=2025/0001(COD)'),e=>e.retryAfter===3);
+ const next=reader.get(oeil+'?reference=2025/0002(COD)',{priority:'background'});await flush();t.mock.timers.tick(2999);await flush();assert.equal(starts.length,1);t.mock.timers.tick(1);await next;
+ const third=reader.get(oeil+'?reference=2025/0003(COD)',{priority:'background'});await flush();t.mock.timers.tick(999);await flush();assert.equal(starts.length,2);t.mock.timers.tick(1);await third;
+ assert.deepEqual(starts,[50000,53000,54000]);assert.equal(reader.queues.get(new URL(oeil).origin).maximum,1);
 });
