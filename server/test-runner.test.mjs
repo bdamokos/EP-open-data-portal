@@ -94,6 +94,7 @@ test('runner releases finished after hooks and removes its private temporary dir
   const temporary = stdout.match(/ tmpdir=(.+?) excluded=/)[1];
   assert.equal(path.dirname(temporary), parent);
   assert.equal(existsSync(temporary), false);
+  await assert.rejects(run(['server/fast.test.mjs'], {TEST_TMPDIR: path.join(directory, 'missing parent')}), /ENOENT/);
 });
 
 test('runner preserves failure exits and environment concurrency precedence', async t => {

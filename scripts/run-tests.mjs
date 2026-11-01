@@ -60,19 +60,20 @@ const timeout = positiveInteger(process.env.TEST_TIMEOUT_MS ?? 120000, 'TEST_TIM
 if (!files.length) throw new Error('No test files selected');
 // Tests create many short-lived SQLite databases and cache files. On VMs with
 // slow fsync, journal commits made most of the run I/O wait. Use a private
-// tmpfs directory when one has room; TEST_TMPDIR overrides the parent directory.
-function temporaryParent() {
-  if (process.env.TEST_TMPDIR) return process.env.TEST_TMPDIR;
+// tmpfs directory when one has room and accepts writes, otherwise the normal
+// temporary directory. An explicit TEST_TMPDIR parent must be usable.
+function temporaryDirectory() {
+  const prefix = 'parliament-tests-';
+  if (process.env.TEST_TMPDIR) return mkdtempSync(path.join(process.env.TEST_TMPDIR, prefix));
   if (process.platform !== 'linux') return null;
   try {
     const {bavail, bsize} = statfsSync('/dev/shm');
-    return bavail * bsize >= 1024 ** 3 ? '/dev/shm' : null;
+    return bavail * bsize >= 1024 ** 3 ? mkdtempSync(path.join('/dev/shm', prefix)) : null;
   } catch {
     return null;
   }
 }
-const parent = temporaryParent();
-const temporary = parent ? mkdtempSync(path.join(parent, 'parliament-tests-')) : null;
+const temporary = temporaryDirectory();
 console.log(`[tests] profile=${profile}${focused.length ? ' (focused)' : ''} files=${files.length} concurrency=${concurrency ?? 'Node default (CI)'} timeout=${timeout}ms tmpdir=${temporary ?? os.tmpdir()} excluded=${excluded.length ? excluded.join('; ') : 'none'}`);
 const guard = new URL('./test-network-guard.mjs', import.meta.url).href;
 const hookRelease = new URL('./test-hook-release.mjs', import.meta.url).href;
