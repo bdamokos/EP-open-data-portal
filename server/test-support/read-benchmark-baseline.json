@@ -367,6 +367,39 @@
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
+    },
+    {
+      "name": "member.speechKindFrontier",
+      "pageFetches": 9,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH speech_catalog USING COVERING INDEX speech_catalog_window (kind=? AND date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "member.memberSpeechCount",
+      "pageFetches": 14,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH speech_member_catalog USING COVERING INDEX speech_member_page (member=? AND date>? AND date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "member.memberSpeechPage",
+      "pageFetches": 11,
+      "rowsReturned": 50,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH speech_member_catalog USING COVERING INDEX speech_member_page (member=? AND date>? AND date<?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
     }
   ]
 }

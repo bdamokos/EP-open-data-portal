@@ -1,3 +1,4 @@
+import {retainedSpeechPage} from './corpus-speeches.mjs';
 import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
@@ -1048,8 +1049,26 @@ export function orderedSpeeches(payload) {
       (a, b) => Date.parse(b.start || b.date) - Date.parse(a.start || a.date),
     );
 }
-export const SPEECH_LIST_VERSION=1;
-export async function odpSpeeches(id, language, offset, {request=odp}={}) {
+export const SPEECH_LIST_VERSION=3;
+export async function odpSpeeches(id, language, offset, {request=odp,readCorpusPage=request===odp?retainedSpeechPage:null,catalogue=null,revision=null}={}) {
+  if(catalogue!==null&&!['retained','public'].includes(catalogue)||revision!==null&&!/^\d+:\d+$/.test(revision))throw new HttpError(400,'invalid_pagination','Invalid speech continuation.');
+  // Older callers have only an offset. Restart their walk rather than guess
+  // which catalogue supplied the preceding page. The response offset is authoritative.
+  let restarted=offset>0&&(!catalogue||catalogue==='retained'&&!revision);
+  if(restarted)offset=0;
+  let saved=catalogue==='public'?null:await readCorpusPage?.({member:String(id),kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:50,offset,...(offset>0&&revision?{expectedRevision:revision}:{})});
+  requestSignal()?.throwIfAborted();
+  if(saved?.changed) {
+    restarted=true;offset=0;
+    saved=await readCorpusPage?.({member:String(id),kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:50,offset:0});
+  }
+  if(saved?.total>0&&!saved.truncated&&saved.records?.every(row=>row.metadata))return {
+    items:saved.records.map(row=>row.metadata.summary),total:saved.total,offset,restarted,
+    pagination:{catalogue:'retained',revision:saved.revision,nextOffset:saved.nextOffset},
+    fetchedAt:saved.records.map(row=>row.metadata.fetchedAt).filter(Boolean).sort().at(-1)||null,
+    coverage:saved.coverage,
+  };
+  if(catalogue==='retained'&&offset>0){offset=0;restarted=true;}
   let record;
   try {record = await request("/speeches", {
     "person-id": id,
@@ -1060,12 +1079,14 @@ export async function odpSpeeches(id, language, offset, {request=odp}={}) {
     offset,
   });}catch(error){
     if(error.code!=='odp_no_content')throw error;
-    return {items:[],total:null,offset,status:'unavailable',coverage:{status:'unavailable'},fetchedAt:error.source?new Date(error.source.fetchedAt).toISOString():null};
+    return {items:[],total:null,offset,restarted,pagination:{catalogue:'public',revision:null,nextOffset:null},status:'unavailable',coverage:{status:'unavailable'},fetchedAt:error.source?new Date(error.source.fetchedAt).toISOString():null};
   }
+  const items=orderedSpeeches(record.payload),total=record.payload.meta?.total??items.length;
   return {
-    items: orderedSpeeches(record.payload),
-    total: record.payload.meta?.total ?? record.payload.data.length,
-    offset,
+    items,
+    total,
+    offset,restarted,
+    pagination:{catalogue:'public',revision:null,nextOffset:items.length&&offset+items.length<total?offset+items.length:null},
     fetchedAt: new Date(record.fetchedAt).toISOString(),
   };
 }
