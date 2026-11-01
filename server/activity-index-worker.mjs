@@ -875,6 +875,8 @@ export class ActivityWorker {
           if(size>this.diskLimit){if(this.store.get('working'))this.store.updateCycle({phase:'paused',error:'Activity index reached its configured disk limit.'});break;}
           // An iteration may spend 90 minutes on source jobs. Advance one
           // bounded local batch per dispatch rather than waiting for its end.
+          if(!amendmentDependenciesReady(this.store,generation))bootstrapAmendmentDependencies(this.store,generation);
+          if(ruleVersionRecoveryDue(this.store,generation))reopenRuleVersions(this.store,generation);
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
