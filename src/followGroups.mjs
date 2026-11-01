@@ -61,10 +61,10 @@ export function createGroupsStore(storage,notify=()=>{},clock=Date.now) {
       const observed=new Map(snapshot.events.map(event=>[event.id,event]));
       // Only an epoch that observed an event can subsequently retract it.
       const entries=state.entries.filter(entry=>entry.epoch!==snapshot.epoch||snapshot.members[entry.mep]?.coverage!=='complete'||snapshot.members[entry.mep]?.stale||observed.has(entry.id)).map(entry=>observed.has(entry.id)?{...entry,...observed.get(entry.id),epoch:snapshot.epoch}:entry);
-      const known=new Set(entries.map(entry=>entry.id));
+      const known=new Set(entries.map(entry=>entry.id)),discoveredAt=clock();
       for(const event of snapshot.events) {
         const baseline=baselines[event.mep];
-        if(!reset&&baseline?.generation!==null&&baseline?.available&&event.mark>baseline.generation&&!known.has(event.id)){entries.push({...event,epoch:snapshot.epoch,discoveredAt:clock(),readAt:null});known.add(event.id);}
+        if(!reset&&baseline?.generation!==null&&baseline?.available&&event.mark>baseline.generation&&!known.has(event.id)){entries.push({...event,epoch:snapshot.epoch,discoveredAt,readAt:null});known.add(event.id);}
       }
       state={...state,epoch:snapshot.epoch,generation:snapshot.generation,baselines,entries};publish();return true;
     },
