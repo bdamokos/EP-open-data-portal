@@ -1,3 +1,4 @@
+import {integerFromEnvironment} from './config.mjs';
 import {boundedUpstream,backoffUpstream} from './odp.mjs';
 import {hintOfficialContext} from './official-context-hints.mjs';
 import {XMLParser} from 'fast-xml-parser';
@@ -23,11 +24,11 @@ async function limitedText(response,maximum) {
   return Buffer.concat(parts).toString('utf8');
 }
 export class OfficialContextSources {
-  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run,writable=false,beforeFetch}={}) {
+  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run,writable=false,beforeFetch,maxDiskBytes=integerFromEnvironment('OFFICIAL_CONTEXT_MAX_DISK_MIB',32768,1,1048576)*1024*1024}={}) {
     Object.assign(this,{clock,fetchSource,writable,beforeFetch});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
     // Keep memory bounded separately from the retained historical source pages.
-    this.cache=new InsightViewCache({clock,directory,writable,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:100000,maxDiskBytes:512*1024*1024});
+    this.cache=new InsightViewCache({clock,directory,writable,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:1000000,maxDiskBytes,retainDisk:true});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
