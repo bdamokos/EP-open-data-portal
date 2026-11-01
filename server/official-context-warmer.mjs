@@ -29,7 +29,7 @@ export class OfficialContextWarmer {
     this.references=references;this.nextAt=0;this.dailyOriginLimit=dailyOriginLimit;
     this.sources.beforeFetch=origin=>this.admitOrigin(origin);
     this.sources.cache.assertWriter=()=>this.store.assertWriter();
-    this.catalog.cache&&(this.catalog.cache.assertWriter=()=>this.store.assertWriter());
+    if(this.catalog.cache)this.catalog.cache.assertWriter=()=>this.store.assertWriter();
   }
   admitOrigin(origin) {
     this.store.assertWriter();
