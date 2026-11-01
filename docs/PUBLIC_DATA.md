@@ -426,3 +426,5 @@ Exact-ID speech context, media lookup, legacy speech readers and legislation ass
 ## Test fixtures
 
 `server/fixtures` holds small public API responses and OEIL pages used by tests. JSON fixtures record their own source URLs and retrieval times. OEIL HTML fixtures are named after their exact procedure or summary reference. Fixtures are not runtime catalogues and their counts are not live figures.
+
+The amendment benchmark can also read a user-supplied consistent copy of the normal public-data directory in read-only mode. It copies only exact source-attested retained bytes into a separate benchmark cache. Parsed metadata and extracted text are not substitutes for raw source responses; missing bytes remain explicit acquisition gaps. Catalogue/context projections may use the configured public explorer API, with no upstream fallback or export endpoint.

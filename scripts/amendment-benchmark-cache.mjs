@@ -61,8 +61,8 @@ function publicFetch(url,options) {
   });
 }
 export class InputCache {
-  constructor(directory,{fetchMissing=false,cap=1500,delay=750,apiBase,maxRetryAfter=60_000,fetcher=publicFetch,sleep=wait}={}) {
-    Object.assign(this,{directory,fetchMissing,cap,delay,apiBase,maxRetryAfter,fetcher,sleep});
+  constructor(directory,{fetchMissing=false,cap=1500,delay=750,apiBase,maxRetryAfter=60_000,fetcher=publicFetch,sleep=wait,retained}={}) {
+    Object.assign(this,{directory,fetchMissing,cap,delay,apiBase,maxRetryAfter,fetcher,sleep,retained});
     this.requests=0;this.last=0;this.used=new Map();this.missing=new Map();
   }
   async get(url,options={}) {
@@ -83,6 +83,10 @@ export class InputCache {
       body=await readFile(bodyPath);
       if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
+    } else if(this.retained&&new URL(url).origin!==this.apiBase) {
+      const input=await this.retained.get(url,request);
+      ({body,...meta}=input);
+      await writeFile(bodyPath,body);await writeFile(metaPath,JSON.stringify(meta,null,2)+'\n');
     } else {
       if (!this.fetchMissing || this.requests>=this.cap) {
         throw new Error((this.fetchMissing?'request-cap-exhausted':'input-not-cached')+': '+url);
@@ -132,7 +136,8 @@ export class InputCache {
       await writeFile(bodyPath+'.tmp',body);await rename(bodyPath+'.tmp',bodyPath);
       await writeFile(metaPath+'.tmp',JSON.stringify(meta,null,2)+'\n');await rename(metaPath+'.tmp',metaPath);
     }
-    if(responseIsTransient(meta)||meta.status===null)throw new Error('Transient cached input; use a new snapshot: '+url);
+    if(meta.acquisitionUnavailable&&(meta.status!==null||meta.ok||meta.error!=='acquisition-unavailable'||meta.fetchedAt!==null||meta.bytes!==0))throw new Error('Invalid acquisition gap: '+url);
+    if(responseIsTransient(meta)||meta.status===null&&!meta.acquisitionUnavailable)throw new Error('Transient cached input; use a new snapshot: '+url);
     this.used.set(identity,meta);
     if(meta.redirectUrl&&!raw) {
       if(hops>=3||!allowedDownload(meta.redirectUrl)) {
