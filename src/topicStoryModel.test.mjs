@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildTopicStories,storyNumber,cleanStoryTitle,strongStoryPlace,primaryStoryPlace,normalizeStoryFacts,storyFactsRoute} from './topicStoryModel.mjs';
+import {buildReferenceTopicStories,storyNumber,cleanStoryTitle,strongStoryPlace,primaryStoryPlace,normalizeReferenceStoryFacts} from './topicStoryModel.mjs';
 const periods=['2025-Q1','2025-Q2','2025-Q3','2025-Q4'];
 const selection={periods,partial:[],period:'2025-Q3',labels:{FRA:'France',IND:'India',ESP:'Spain'}};
 const debate=(id,p,meps=10,format=null)=>({id,date:'2025-07-09',q:'2025-Q3',title:'Exact title '+id,rawTitle:'Exact title '+id,meps,format,places:{[p]:['title']},docs:[]});
 const qs=(p,period,n,home=[])=>Array.from({length:n},(_,i)=>({id:p+period+'-'+i,d:period==='2025-Q1'?'2025-01-01':period==='2025-Q2'?'2025-04-01':period==='2025-Q3'?'2025-07-01':'2025-10-01',t:'Exact question '+i,places:[p],home,authors:home.length?['home']:['outside']}));
 const facts=()=>({questions:[...qs('IND','2025-Q1',2),...qs('IND','2025-Q2',2),...qs('IND','2025-Q3',8),...qs('FRA','2025-Q3',12,['FRA'])],debates:[debate('big','FRA',20),debate('other','FRA',10),debate('urgency','IND',5,'urgency')],docs:[],topics:{},mepCountry:{home:'FR',outside:'ES'}});
 const doc=(id,outcome='ADOPTED',groups=['PPE','S_D'])=>({id,title:'JOINT MOTION FOR A RESOLUTION on India',date:'2025-07-09',type:'RESOLUTION_MOTION_JOINT',places:['IND'],keywords:['123'],groups,outcome:{id:'decision-'+id,date:'2025-07-09',outcome,for:400,against:50,abst:12}});
-const lines=(f,s={})=>buildTopicStories(f,{...selection,...s});
+const lines=(f,s={})=>buildReferenceTopicStories(f,{...selection,...s});
 function refs(value,out=[]){if(!value||typeof value==='string')return out;if(Array.isArray(value)){value.forEach(v=>refs(v,out));return out;}if(value.records){out.push(value);refs(value.text,out);}else Object.values(value.values||{}).forEach(v=>refs(v,out));return out;}
 function messages(value,out=[]){if(!value||typeof value==='string')return out;if(Array.isArray(value)){value.forEach(v=>messages(v,out));return out;}if(value.message)out.push(value.message);if(value.text)messages(value.text,out);Object.values(value.values||{}).forEach(v=>messages(v,out));return out;}
 test('map uses reviewed priority and display order with a strict four-sentence budget and exact records',()=>{
@@ -56,18 +56,10 @@ test('story debate headings and their record links remove only leading agenda nu
  const f=facts();f.debates=[{...debate('numbered','FRA',20),title:'19.2. Exact heading (debate)',rawTitle:'19.2. Exact heading (debate)'}];const rows=lines(f);const serialized=JSON.stringify(rows);assert(!serialized.includes('19.2.'));assert(serialized.includes('Exact heading (debate)'));assert.equal(f.debates[0].rawTitle,'19.2. Exact heading (debate)');
 });
 
-test('story debate selection requires at least three MEP speakers',()=>{
- const f=facts();f.debates=[debate('one','FRA',1),debate('two','FRA',2)];assert(!JSON.stringify(lines(f)).includes('Exact title'));assert(!lines(f).some(r=>r.id.includes('mostDebated')));assert(!lines(f,{place:'FRA',period:undefined}).some(r=>r.id.includes('plenary')));
+test('story debate selection busiest selection requires at least three MEP speakers',()=>{
+ const f=facts();f.debates=[debate('one','FRA',1),debate('two','FRA',2)];assert(!lines(f).some(r=>r.id.includes('bigDebate')));
  f.debates.push(debate('three','FRA',3));assert(lines(f).some(r=>r.id.includes('bigDebate')));
 });
-test('bounded debate arrays cannot supply place debate totals or most-debated claims',()=>{
- const f=facts();f.debatesTruncated=true;assert(!lines(f).some(r=>r.id.includes('mostDebated')));assert(!lines(f,{place:'FRA',period:undefined}).some(r=>r.id.includes('plenary')||r.id.endsWith('.peak')));assert(lines(f).some(r=>r.id.includes('bigDebate')));
- f.debatesTruncated={'2025-Q1':false,'2025-Q3':true};assert(!lines(f).some(r=>r.id.includes('mostDebated')));f.debatesTruncated={'2025-Q3':false};assert(lines(f).some(r=>r.id.includes('mostDebated')));
-});
-
-test('published fact shapes retain place bases, truncation metadata and show-of-hands methods',()=>{
- const f=facts(),j=doc('joint');j.outcome={...j.outcome,for:null,against:null,abst:null,decisionMethod:'VOTE_HAND'};const payload={ready:true,facts:{...f,debates:[{...f.debates[0],places:[{id:'FRA',bases:['title']}],placeBases:{FRA:['title']}}],docs:[j]},debatesTruncated:true,debatesTotal:123};const normalized=normalizeStoryFacts(payload);assert.deepEqual(normalized.debates[0].places,{FRA:['title']});assert.equal(normalized.debatesTruncated,true);assert.equal(normalized.debatesTotal,123);assert.deepEqual(normalizeStoryFacts({...payload,facts:{...payload.facts,blocks:[{period:'2025-Q3',debatesTruncated:false}]}}).debatesTruncated,{'2025-Q3':false});assert.equal(normalized.docs[0].outcome.method,'VOTE_HAND');assert.equal(normalizeStoryFacts({...payload,ready:false}),null);assert.equal(normalizeStoryFacts({...f,coverage:{truncated:true}}),null);
-});
-test('scoped fact requests retain history and all author origins for exact client selection',()=>{
- const q=new URL(storyFactsRoute({...selection,place:'IRN',excludeOwn:true}),'http://localhost').searchParams;assert.equal(q.get('scope'),'place');assert.equal(q.get('key'),'place:IRN');assert.equal(q.get('askers'),'all');assert.equal(q.get('period'),null);assert.equal(q.get('lang'),'en');const map=new URL(storyFactsRoute({...selection,mode:'d',zoom:'eu'}),'http://localhost').searchParams;assert.equal(map.get('scope'),'map');assert.equal(map.get('mode'),'d');assert.equal(map.get('zoom'),'eu');
+test('reference fact shapes retain place bases and show-of-hands methods',()=>{
+ const f=facts(),j=doc('joint');j.outcome={...j.outcome,for:null,against:null,abst:null,decisionMethod:'VOTE_HAND'};const payload={ready:true,facts:{...f,debates:[{...f.debates[0],places:[{id:'FRA',bases:['title']}],placeBases:{FRA:['title']}}],docs:[j]}};const normalized=normalizeReferenceStoryFacts(payload);assert.deepEqual(normalized.debates[0].places,{FRA:['title']});assert.equal(normalized.docs[0].outcome.method,'VOTE_HAND');assert.equal(normalizeReferenceStoryFacts({...payload,ready:false}),null);assert.equal(normalizeReferenceStoryFacts({...f,coverage:{truncated:true}}),null);
 });

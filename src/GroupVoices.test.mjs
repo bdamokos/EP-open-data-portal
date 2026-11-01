@@ -48,8 +48,8 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websit
 }
 test('integrated group navigation preserves the independent People selector, exact subject counts and Back state',async t=>{
  const h=await harness(t),name=()=>h.container.querySelector('[data-gv-person="42"]'),first=name();
- assert.equal(h.container.querySelectorAll('.gv-person').length,15);assert.match(h.container.textContent,/Foreign affairs 2/);
- await h.click(first);assert.equal(new URLSearchParams(location.search).get('gv-person'),'42');assert.equal(h.container.querySelectorAll('.gv-person').length,15);assert.equal(document.activeElement,first);assert.equal(name(),first);
+ assert.equal(h.container.querySelectorAll('.gv-person').length,23);assert.match(h.container.textContent,/Foreign affairs 2/);
+ await h.click(first);assert.equal(new URLSearchParams(location.search).get('gv-person'),'42');assert.equal(h.container.querySelectorAll('.gv-person').length,23);assert.equal(document.activeElement,first);assert.equal(name(),first);
  await h.click(h.container.querySelector('.gv-person.is-selected .gv-person-subjects button'));assert.match(h.container.querySelector('.gv-person.is-selected').textContent,/2Also this period: Climate & energy 1/);assert.match(h.container.querySelector('.gv-summary').textContent,/2recorded oral contributions1speaker1Topic/);
  await h.click(name());assert.equal(new URLSearchParams(location.search).get('gv-person'),null);assert.equal(new URLSearchParams(location.search).get('gv-subject'),'foreign');
  await h.click(name());await h.click(h.container.querySelector('.gv-jump'));assert.equal(document.activeElement,h.container.querySelector('.gv-contributions h2'));assert.equal(location.hash,'');
@@ -76,9 +76,9 @@ test('contribution titles open the exact speech inline without leaving group fil
 });
 test('search typing is one undo step; selected rows past 15 remain visible without expanding the saved limit',async t=>{
  const h=await harness(t,'?view=groups&gv-tab=people&gv-person=121');assert.equal(h.container.querySelectorAll('.gv-person').length,23);assert.equal(new URLSearchParams(location.search).has('gv-people-limit'),false);
- await h.click(h.container.querySelector('[data-gv-person="121"]'));assert.equal(h.container.querySelectorAll('.gv-person').length,15);
+ await h.click(h.container.querySelector('[data-gv-person="121"]'));assert.equal(h.container.querySelectorAll('.gv-person').length,23);
  const length=history.length;await h.input('É');await h.input('Éva');assert.equal(history.length,length+1);assert.equal(h.container.querySelectorAll('.gv-person').length,1);
- await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});assert.equal(h.container.querySelector('.gv-search input').value,'');assert.equal(h.container.querySelectorAll('.gv-person').length,15);
+ await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});assert.equal(h.container.querySelector('.gv-search input').value,'');assert.equal(h.container.querySelectorAll('.gv-person').length,23);
  await h.restore('/?view=groups&gv-tab=time&gv-person=42&gv-subject=climate');assert.equal(h.container.querySelector('.gv-tabs [aria-pressed=true]').textContent,'Topics');assert.match(h.container.querySelector('.gv-subjects').textContent,/Climate & energy/);assert.equal(h.container.querySelector('.gv-person'),null);
 });
 test('changing scope with delayed or failed data hides previous results and ignores late responses',async t=>{
@@ -153,4 +153,12 @@ for(const capped of [false,true])test('actual group producer distinguishes a che
  const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects&gv-subject=foreign',{response});
  assert.equal(Boolean(h.container.querySelector('.gv-contributions .gv-empty')),!capped);
  assert.match(h.container.querySelector('.gv-contributions h2').textContent,capped?/Unavailable/:/0/);
+});
+
+test('topic contributor previews include boundary ties and expand to all remaining people',async t=>{
+ const people=Array.from({length:7},(_,i)=>({id:String(i+1),name:'Person '+i,total:10-i,subjects:{foreign:[10,9,8,8,7,6,5][i]}}));
+ const h=await harness(t,'?view=groups&gv-tab=subjects',{response:{people}}),row=h.container.querySelector('.gv-subject-people');
+ assert.equal(row.querySelectorAll('button').length,5);assert.match(row.textContent,/Person 3/);assert.doesNotMatch(row.textContent,/Person 4/);
+ await h.click(row.querySelector('[aria-expanded=false]'));assert.equal(row.querySelectorAll('button').length,8);assert.match(row.textContent,/Person 6/);
+ await h.click(row.querySelector('[aria-expanded=true]'));assert.equal(row.querySelectorAll('button').length,5);
 });

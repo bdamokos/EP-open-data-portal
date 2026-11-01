@@ -1,9 +1,8 @@
 import {GROUP_VOICE_GROUPSUi} from './groupVoiceTerms.mjs';
 import {useEffect,useRef,useState,useId,type ReactNode} from 'react';
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import {useInsightData} from './InsightData';
 import {useExplorerParam} from './explorerUrl';
-import {buildTopicStories,storyNumber,storyFactsRoute,normalizeStoryFacts,type StoryFacts,type StoryReference,type StorySelection,type StoryValue} from './topicStoryModel.mjs';
+import {buildReferenceTopicStories,storyNumber,normalizeReferenceStoryFacts,type StoryFacts,type StoryReference,type StorySelection,type StoryValue} from './topicStoryModel.mjs';
 import {topicsHref} from './topicPresentation.mjs';
 import {recordHref} from './TopicsLinks';
 import {sourcePageUrl} from './SourceLink';
@@ -11,10 +10,11 @@ import {dossierLinkClick,navigateDossier} from './dossierJourney';
 import {InsightQuestionReader,InsightSpeechReader} from './InsightReaders';
 export function TopicStories({selection,fallback,facts:provided,onRecords}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string)=>void}){
  const ui=useUiI18n(),panel=useId(),[selected,setSelected]=useExplorerParam<string>('t-story',''),[reading,setReading]=useExplorerParam<string>('t-story-read',''),[,setQuarter]=useExplorerParam<string>('t-q','');
- const response=useInsightData<unknown>(provided?null:storyFactsRoute(selection));
- const facts=normalizeStoryFacts(provided||response.data);
+ // Only complete research fixtures drive templates until the exact-counter
+ // contract is supplied. Live views keep their API-counter fallback caption.
+ const facts=provided?normalizeReferenceStoryFacts(provided):null;
  const [shown,setShown]=useState(20);
- const lines=buildTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}),heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLAnchorElement|null>(null);
+ const lines=buildReferenceTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}),heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLAnchorElement|null>(null);
  useEffect(()=>{setShown(20);if(selected&&heading.current){heading.current.focus({preventScroll:true});heading.current.scrollIntoView({block:'start'});}else if(!selected&&opener.current?.isConnected){opener.current.focus({preventScroll:true});opener.current=null;}},[selected,Boolean(lines.length)]);
  if(!lines.length)return <>{fallback}</>;
  const refs=new Map<string,StoryReference>();

@@ -110,3 +110,5 @@
  .topic-partial-note {font-size:9px;min-height:28px}
  .topic-finder input {min-height:44px;padding:8px 10px;font-size:14px}
 }
+.topics-content .places-show-all button {margin:10px 0;min-height:44px}
+:is(.explorer,.explorer-insights) .topic-meta-toggle {min-height:32px;min-width:44px;padding:4px 6px;margin-left:6px;border:0;background:none;color:var(--accent);font:inherit;font-size:13px;vertical-align:baseline}

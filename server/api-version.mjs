@@ -1,6 +1,6 @@
 // Bump only for API response contract changes, never for commits or releases.
-export const API_CONTRACT_REVISION = 454;
-export const API_VERSION = 454;
+export const API_CONTRACT_REVISION = 455;
+export const API_VERSION = 455;
 
 // Keys are monotonic revisions, including after the public version wraps.
 export const API_CONTRACT_DIGESTS = Object.freeze({
@@ -449,15 +449,16 @@ export const API_CONTRACT_DIGESTS = Object.freeze({
   443: '22408d02b97e8dc14e2832b29abad2d17625e2862e845b8b54623aaf28074c94',
   444: 'c008264785ae07b1c5f65b700f89616373c5b73b2aa8ab40c5cf5787fc93e4df',
   445: '5a74618a72081056678f66a631fb982ae5fed4ebea7064a6815c3de27b58711d',
-  446: 'f99af835bb68ef3927e52b97f7a1706c79a86e5f2daaadb6ef660929b88115b9',
-  447: '317be69c1e3dba7977cfb632c38279bf000527f26456c2fbb5e959b99fc14cdb',
-  448: '119f97e777e04ade8e4c81906d1f3ec58931c4a23fbf09a040c8acd7711c5ee1',
-  449: 'db3867f117a2ca98f83d1212e495fcc8d8109d5819bf4c3b3b3245c43281ecfa',
-  450: '26b913b12a82e5b6fc31c01fd06e4a9724bf9b846a9da17cfeda39090806388c',
-  451: 'b9afccda0c521dbf4aa2d80cdbb97fd648a5f50f756111f7c295a7b450b4aa6b',
-  452: '826e3e73fff93fcf5c28839e094bd7e4e3cced8a771bfe63c9cd07fbf6385936',
-  453: 'fca9d736df000934b5df0562cf4bd1e97bb7d9de62dc22d505f6f2b2c1e8bbd7',
-  454: '6327a12e0be00891fe4d11429549c142ce043becbb422930030d4a6132be32c1',
+  446: '108bca92b7f111ad619c9bb9780dd76f36f71976e06a5a660d22e839c8686f24',
+  447: 'f99af835bb68ef3927e52b97f7a1706c79a86e5f2daaadb6ef660929b88115b9',
+  448: '317be69c1e3dba7977cfb632c38279bf000527f26456c2fbb5e959b99fc14cdb',
+  449: '119f97e777e04ade8e4c81906d1f3ec58931c4a23fbf09a040c8acd7711c5ee1',
+  450: 'db3867f117a2ca98f83d1212e495fcc8d8109d5819bf4c3b3b3245c43281ecfa',
+  451: '26b913b12a82e5b6fc31c01fd06e4a9724bf9b846a9da17cfeda39090806388c',
+  452: 'b9afccda0c521dbf4aa2d80cdbb97fd648a5f50f756111f7c295a7b450b4aa6b',
+  453: '826e3e73fff93fcf5c28839e094bd7e4e3cced8a771bfe63c9cd07fbf6385936',
+  454: 'fca9d736df000934b5df0562cf4bd1e97bb7d9de62dc22d505f6f2b2c1e8bbd7',
+  455: '6327a12e0be00891fe4d11429549c142ce043becbb422930030d4a6132be32c1',
 });
 
 // Called at the transport boundary; route and page URL keys stay intact.

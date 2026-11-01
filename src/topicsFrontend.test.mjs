@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {titleParts,mapCode,point,quarterBounds,placeValue,riser,legacyTopics,topicsHref,agendaTitle,isEuPlace} from './topicPresentation.mjs';
+import {titleParts,mapCode,point,quarterBounds,placeValue,riser,legacyTopics,topicsHref,agendaTitle,isEuPlace,withBoundaryTies} from './topicPresentation.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 test('official titles retain every character and style English only',()=>{
  for(const title of ['REPORT on the proposal for a regulation of the European Parliament and of the Council on transport','MOTION FOR A RESOLUTION on Iran','REPORT on trade as regards apples as regards pears','Plain title']){
@@ -47,3 +47,21 @@ test('agenda item prefixes are stripped without changing any remaining title tex
 });
 
 test('own-country origin splitting applies only to EU places',()=>{assert.equal(isEuPlace('HUN'),true);assert.equal(isEuPlace('IRN'),false);assert.equal(isEuPlace('TUR'),false);assert.equal(isEuPlace('GBR'),false);assert.equal(isEuPlace(null),false);});
+
+test('ranked previews include every tie at their boundary',()=>{const rows=[9,8,7,7,7,6].map((n,i)=>({n,id:i}));assert.deepEqual(withBoundaryTies(rows,3,r=>r.n).map(r=>r.n),[9,8,7,7,7]);assert.deepEqual(withBoundaryTies(rows,20,r=>r.n),rows);});
+
+test('record-topic batches cover every ID and full reader metadata expands completely',async t=>{
+ const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
+ const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+ const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v] of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d] of originals)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ const ids=Array.from({length:75},(_,i)=>'E-10-2026-'+String(i).padStart(6,'0')),requests=[];
+ t.mock.method(globalThis,'fetch',async input=>{const url=new URL(String(input),'http://localhost');assert.equal(url.pathname,'/api/insights/record-topics');const requested=url.searchParams.get('ids').split(',');requests.push(requested);return Response.json({ready:true,records:requested.map(id=>({id,status:'classified',topics:[{key:'oeil:1.10',label:'Trade'},{key:'oeil:1.20',label:'Climate'}],places:[{key:'place:IRN',id:'IRN',label:'Iran'},{key:'place:GEO',id:'GEO',label:'Georgia'}],keywords:['Customs','Transport','Energy','Water','Waste'].map((label,i)=>({key:'eurovoc:'+i,label,featured:i<3}))}))});});
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-batch-expansion'});
+ const {TopicBatch,RecordTopics}=await load('/src/RecordTopics.tsx'),{TopicStories}=await load('/src/TopicStories.tsx'),{createRoot}=await import('react-dom/client');const node=window.document.createElement('div');window.document.body.append(node);root=createRoot(node);
+ await act(async()=>root.render(h(TopicBatch,{ids},h(RecordTopics,{id:ids[74],full:true}))));for(let i=0;i<20&&!node.textContent.includes('Trade');i++)await act(async()=>new Promise(r=>setTimeout(r,25)));
+ assert.deepEqual(requests.map(r=>r.length),[50,25]);assert.equal(new Set(requests.flat()).size,75);assert(node.textContent.includes('Trade'));assert(!node.textContent.includes('Climate'));assert(!node.textContent.includes('Waste'));
+ await act(async()=>node.querySelector('.record-topics button').click());assert(node.textContent.includes('Climate'));assert(node.textContent.includes('Georgia'));
+ await act(async()=>node.querySelector('.topic-keywords button').click());assert(node.textContent.includes('Water'));assert(node.textContent.includes('Waste'));assert.equal(node.querySelectorAll('[data-topics-pending="true"]').length,0);
+ const before=requests.length;await act(async()=>root.render(h(TopicStories,{selection:{periods:['2026-Q1'],place:'IRN'},fallback:'Fallback caption'})));assert.equal(node.textContent,'Fallback caption');assert.equal(requests.length,before,'Live stories remain inactive until the exact-counter contract is documented.');
+});
