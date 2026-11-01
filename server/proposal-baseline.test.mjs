@@ -199,6 +199,51 @@ test('candidate discovery refuses competing works, corrigenda, missing versions 
   for(const rows of [[],[row,{...row,work:{type:'uri',value:'http://publications.europa.eu/resource/cellar/00000000-0000-0000-0000-000000000001'}}],[{...row,version:{type:'literal',value:'final/2'}}],[{...row,celex:{type:'literal',value:celex+'R(01)'}}],[{...row,version:undefined}],Array(65).fill(row)])assert.equal(resolveProposalCandidates({results:{bindings:rows}},{celex}).status,'unresolved');
 });
 
+test('native report identity selects the original COM work while retaining its distinct corrigendum',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/proposal-corrigendum-identity.json',import.meta.url),'utf8'));
+  const example=fixture.reports[0],data=fixture.candidates.data,c='52025PC0990';
+  for(const source of example.nativeSources)assert(source.nativeReferences.some(raw=>raw.includes('COM(2025)0990')&&raw.includes('2025/0418(COD)')));
+  const identity=reportProposalReference(example.report,{reportId:example.reportId,documentReferences:[{field:'DocRef',raw:example.nativeSources[0].nativeReferences[0]}]});
+  assert.equal(identity.celex,c);assert.equal(identity.procedure,'2025/0418(COD)');
+  const result=resolveProposalCandidates(data,{celex:identity.celex});
+  assert.equal(result.status,'resolved');assert.equal(result.workId,data.results.bindings[0].work.value);
+  assert.equal(result.evidence[0].rows.length,2);assert.equal(result.evidence[1].rows[0].celex,c+'R(01)');
+  const reversed=resolveProposalCandidates({results:{bindings:[...data.results.bindings].reverse()}},{celex:c});
+  assert.equal(reversed.status,'resolved');assert.equal(reversed.workId,result.workId);
+});
+
+test('corrigendum exclusion never hides competing originals, unknown identities or version conflicts',()=>{
+  const fixture=JSON.parse(readFileSync(new URL('./fixtures/proposal-corrigendum-identity.json',import.meta.url),'utf8'));
+  const [original,correction]=fixture.candidates.data.results.bindings,c=original.celex.value;
+  const resolve=rows=>resolveProposalCandidates({results:{bindings:rows}},{celex:c});
+  for(const changed of [
+    {...correction,celex:original.celex},
+    {...correction,celex:undefined},
+    {...correction,celex:{value:'52025PC0991R(01)'}},
+    {...correction,version:{value:'final'}},
+    {...correction,version:undefined},
+    {...correction,work:original.work},
+  ])assert.equal(resolve([original,changed]).status,'unresolved');
+  assert.equal(resolve([correction]).status,'unresolved');
+  assert.equal(resolve([original,correction,{...original,work:{value:'http://publications.europa.eu/resource/cellar/00000000-0000-0000-0000-000000000001'}}]).status,'unresolved');
+  assert.equal(resolve([...Array(64).fill(correction),original]).status,'unresolved');
+});
+
+test('an original selected beside a corrigendum still needs matching final RDF and complete items',async()=>{
+  const data=JSON.parse(readFileSync(new URL('./fixtures/proposal-52025PC0087-candidates.json',import.meta.url),'utf8'));
+  const original=data.results.bindings[0];
+  data.results.bindings.push({work:{type:'uri',value:'http://publications.europa.eu/resource/cellar/00000000-0000-0000-0000-000000000001'},celex:{type:'literal',value:celex+'R(01)'},version:{type:'literal',value:'final/2'}});
+  let tree=xml,downloads=0;
+  const documents={candidates:async()=>({data}),metadata:async()=>({xml:tree}),docx:async()=>{downloads++;return {buffer:docx(),source:{}};}};
+  const load=createProposalBaseline({documents});
+  const good=await load({celex,language:'en'});assert.equal(good.status,'available');assert.equal(downloads,2);
+  for(const invalid of [xml.replaceAll('>final<','>final/2<'),xml.replaceAll('/corporate-body/COM','/corporate-body/CONSIL'),xml.replaceAll('procedure/2025_39','procedure/2025_40')]) {
+    tree=invalid;downloads=0;
+    const result=await load({celex,language:'en',documentReferences:[{field:'DocRef',raw:'COM(2025)87 – 2025/0039(COD)'}]});
+    assert.equal(result.status,'unresolved');assert.equal(downloads,0);
+  }
+});
+
 test('a closing reader cancels its wait while a coalesced reader retains the bounded owner',async()=>{
   let finish,reached,calls=0;const started=new Promise(resolve=>reached=resolve),response=new Promise(resolve=>finish=resolve);
   const docs=new CellarDocuments(sourceOptions(async()=>{calls++;reached();return response;})),i=item(),controller=new AbortController(),reason=Object.assign(new Error('reader closed'),{code:'request_cancelled'});
