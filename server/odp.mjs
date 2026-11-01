@@ -1,3 +1,4 @@
+import {retainedSpeechPage} from './corpus-speeches.mjs';
 import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
@@ -1048,8 +1049,15 @@ export function orderedSpeeches(payload) {
       (a, b) => Date.parse(b.start || b.date) - Date.parse(a.start || a.date),
     );
 }
-export const SPEECH_LIST_VERSION=1;
-export async function odpSpeeches(id, language, offset, {request=odp}={}) {
+export const SPEECH_LIST_VERSION=2;
+export async function odpSpeeches(id, language, offset, {request=odp,readCorpusPage=request===odp?retainedSpeechPage:null}={}) {
+  const saved=await readCorpusPage?.({member:String(id),kinds:['PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true,descending:true,limit:50,offset});
+  requestSignal()?.throwIfAborted();
+  if(saved?.total>0&&!saved.truncated&&saved.records.every(row=>row.metadata))return {
+    items:saved.records.map(row=>row.metadata.summary),total:saved.total,offset,
+    fetchedAt:saved.records.map(row=>row.metadata.fetchedAt).filter(Boolean).sort().at(-1)||null,
+    coverage:saved.coverage,
+  };
   let record;
   try {record = await request("/speeches", {
     "person-id": id,

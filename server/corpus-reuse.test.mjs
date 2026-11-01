@@ -338,7 +338,7 @@ test('retained original XML can use exact upstream headers when the separate met
   delete fresh.recorded_in_a_realization_of[0]['api:xmlFragment'];
   t.mock.method(globalThis,'fetch',async input=>{if(String(input).includes('/speeches/'))return Response.json({data:[fresh]});throw new Error('No profile request allowed');});
   const result=await odpSpeech(id,'en');
-  assert.equal(result.xml,original);assert.equal(result.textLanguage,'de');assert.equal(result.fetchedAt,fetchedAt);
+  assert.equal(result.xml,original);assert.equal(result.textLanguage,'de');assert.equal(Date.parse(result.fetchedAt),Date.parse(fetchedAt));
   assert.equal(result.textCache.sourceUrl,url);assert.equal(result.textCache.sourceFetchedAt,fetchedAt);
   assert.notEqual(result.metadataSource.fetchedAt,fetchedAt);assert(result.metadataSource.url.includes('/speeches/'+id));
 });
@@ -436,4 +436,60 @@ test('discovery repairs an existing selection row left behind newer metadata',as
   assert.equal(store.speechPage({member:'42'}),null);
   const worker=new CorpusWorker(store,{clock:now,fetchRecord:()=>{throw new Error('No source fetch');}});await worker.discover();
   assert.equal(store.speechPage({member:'42'}).total,0);assert.equal(store.speechPage({member:'7',kinds:['PLENARY_DEBATE_WRITTEN_STATEMENT'],metadataOnly:true}).records[0].metadata.activity.activity_id,id);
+});
+
+test('member speech list reads bounded saved summaries without upstream or transcript parses',async t=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const {store,add}=fixture(t);
+  for(let i=1;i<=52;i++)add(activity(i));
+  add(activity(99,{member:'99'}));
+  store.db.prepare('UPDATE texts SET raw=?').run(Buffer.from('unreadable XML'));
+  store.db.exec('PRAGMA query_only=ON');
+  const result=await odpSpeeches('42','hu',50);
+  assert.equal(result.total,52);assert.equal(result.items.length,2);
+  assert.deepEqual(result.items.map(row=>row.id),[activity(2).activity_id,activity(1).activity_id]);
+  assert.equal(result.coverage.authoritativeComplete,false);
+  assert.equal(result.coverage.basis,'retained-corpus');assert.equal(Date.parse(result.fetchedAt),Date.parse(fetchedAt));
+});
+
+test('member selection projection follows participant changes, revisions, replacement and deletion',t=>{
+  const {store,add}=fixture(t,{realReaders:false});const id=add(activity(1));
+  const read=member=>store.speechPage({member,metadataOnly:true});
+  assert.equal(read('42').total,1);const before=read('42').revision;
+  store.db.prepare('UPDATE speech_catalog SET revision=revision+1 WHERE source_id=?').run(id);
+  assert.notEqual(read('42').revision,before);
+  store.projectSpeechCatalog(activity(1,{member:'99'}));
+  assert.equal(read('42').total,0);assert.equal(read('99').total,1);
+  store.db.prepare('DELETE FROM speech_catalog WHERE source_id=?').run(id);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM speech_member_catalog').get().n,0);
+});
+
+test('stopped-app migration backfills retained participant selections before readers open',async t=>{
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');
+  const {store,add}=fixture(t,{realReaders:false});add(activity(1));
+  store.db.exec('DROP TRIGGER speech_member_insert; DROP TRIGGER speech_member_update; DROP TRIGGER speech_member_delete; DROP TABLE speech_member_catalog');
+  store.set('speechMemberIndex',null);store.release();
+  assert.throws(()=>new CorpusStore(path.dirname(store.filename),{readOnly:true}),/indexes need preparation/);
+  prepareIndexes({corpusDirectory:path.dirname(store.filename),log:()=>{}});
+  const reader=new CorpusStore(path.dirname(store.filename),{readOnly:true});
+  try {assert.equal(reader.speechPage({member:'42',metadataOnly:true}).total,1);}finally {reader.close();}
+});
+
+test('cold local member endpoints stay below one second with 100000 unrelated catalogue records',async t=>{
+  const {odpSpeeches}=await import('./odp.mjs');
+  const {store,add}=fixture(t,{realReaders:false});
+  for(let i=1;i<=50;i++)add(activity(i));
+  const put=store.db.prepare('INSERT INTO speech_catalog VALUES (?,?,?,?,?,?,?,?,?)');
+  store.transaction(()=>{for(let i=0;i<100000;i++)put.run('synthetic-'+i,'2026-10-07','PLENARY_DEBATE_SPEECH',null,i,'["99"]','[]',i,fetchedAt);});
+  store.db.exec('PRAGMA wal_checkpoint(TRUNCATE); PRAGMA cache_size=-2048; PRAGMA mmap_size=0; PRAGMA shrink_memory; PRAGMA query_only=ON');
+  const readCorpusPage=params=>store.speechPage(params),request=()=>assert.fail('local endpoints must not read upstream');
+  let started=performance.now();
+  const speeches=await odpSpeeches('42','en',0,{request,readCorpusPage});
+  const speechMs=performance.now()-started;
+  store.db.exec('PRAGMA shrink_memory');started=performance.now();
+  const statistics=await new SpeechInterventions({request,readCorpusPage}).member('42');
+  const statisticsMs=performance.now()-started;
+  assert.equal(speeches.total,50);assert.equal(statistics.coverage.total,50);
+  t.diagnostic(`100k catalogue: speeches ${speechMs.toFixed(1)} ms; statistics ${statisticsMs.toFixed(1)} ms`);
+  assert(speechMs<1000,`speech list: ${speechMs} ms`);assert(statisticsMs<1000,`statistics: ${statisticsMs} ms`);
 });
