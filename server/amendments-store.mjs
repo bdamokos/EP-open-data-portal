@@ -434,8 +434,10 @@ export function amendmentsPage(store,{document=null,procedure=null,member=null,o
   if(procedure){clauses.push("EXISTS(SELECT 1 FROM json_each(amendments.body,'$.procedureIds') AS p WHERE p.value=?)");args.push(procedure);}
   if(member){clauses.push(`(${memberMatchesSql('amendments.body')} OR EXISTS(SELECT 1 FROM json_each(amendments.body,'$.variants') AS variant WHERE ${memberMatchesSql('variant.value')}))`);args.push(String(member),'person/'+member,String(member),'person/'+member);}
   const projected=fastReadsReady(store,generation,'amendments');
-  const table=projected?'(SELECT page.*,source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id) amendments':'amendments',where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...args).n;
-  const items=store.db.prepare('SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?").all(...args,limit,offset).map(record=>{
+  const scalar=projected&&!committee&&!outcome&&!procedure&&!member&&!(document&&scope==='committee');
+  const table=projected?'(SELECT page.*,source.body FROM amendment_page_reads page JOIN amendments source ON source.generation=page.generation AND source.id=page.id) amendments':'amendments',where=clauses.join(' AND '),total=store.db.prepare('SELECT COUNT(*) AS n FROM '+(scalar?'amendment_page_reads':table)+' WHERE '+where).get(...args).n;
+  const pageSql=scalar?'SELECT source.body FROM (SELECT generation,id FROM amendment_page_reads WHERE '+where+' ORDER BY date DESC,target,number,id LIMIT ? OFFSET ?) page JOIN amendments source ON source.generation=page.generation AND source.id=page.id':'SELECT body FROM '+table+' WHERE '+where+" ORDER BY date DESC,target,"+(projected?'number':"CAST(json_extract(body,'$.number') AS INTEGER)")+",id LIMIT ? OFFSET ?";
+  const items=store.db.prepare(pageSql).all(...args,limit,offset).map(record=>{
     const row=checkedAmendmentRead(parse(record.body));
     if(member) {
       const {memberId,basis,variantListIds}=amendmentAuthorMatch(row,member);

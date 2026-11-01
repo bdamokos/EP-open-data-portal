@@ -35,6 +35,12 @@ export function questionCoverageRecords(store,generation) {
   }
   return records;
 }
+// Counts seek the writer-maintained scalar projection; no JSON body pages.
+export function questionCounts(store,generation,{start,end}) {
+  const count=store.db.prepare("SELECT COUNT(*) n FROM question_frontiers WHERE generation=? AND (subtype LIKE 'QUESTION_WRITTEN' OR subtype LIKE 'QUESTION_WRITTEN_PRIORITY' OR subtype LIKE 'QUESTION_ORAL') AND date BETWEEN ? AND ?").get(generation,start,end).n;
+  const undatedQuestions=store.db.prepare("SELECT COUNT(*) n FROM question_frontiers WHERE generation=? AND (subtype LIKE 'QUESTION_WRITTEN' OR subtype LIKE 'QUESTION_WRITTEN_PRIORITY' OR subtype LIKE 'QUESTION_ORAL') AND (date IS NULL OR date='')").get(generation).n;
+  return {count,undatedQuestions};
+}
 function strictDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value;
 }
@@ -142,15 +148,18 @@ export class QuestionInsights {
       const params=[status.servingGeneration,query.start,query.end];
       const types="(json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_WRITTEN_PRIORITY' OR json_extract(body,'$.work_type') LIKE '%/QUESTION_ORAL')";
       const where="generation=? AND kind='document' AND json_extract(body,'$.document_date') BETWEEN ? AND ? AND "+types;
-      const table=fastReadsReady(this.store,status.servingGeneration)?'question_reads INDEXED BY read_question_window':'sources';
-      const frozen=this.store.readSnapshot(()=>({
-        undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
-        count:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...params).n,
+      const projected=fastReadsReady(this.store,status.servingGeneration);
+      const table=projected?'question_reads INDEXED BY read_question_window':'sources';
+      const frozen=this.store.readSnapshot(()=>{
+        const counts=projected?questionCounts(this.store,status.servingGeneration,query):null;
+        return {
+        undatedQuestions:projected?counts.undatedQuestions:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where.replace("json_extract(body,'$.document_date') BETWEEN ? AND ?","(json_extract(body,'$.document_date') IS NULL OR json_extract(body,'$.document_date')='')")).get(status.servingGeneration).n,
+        count:projected?counts.count:this.store.db.prepare('SELECT COUNT(*) AS n FROM '+table+' WHERE '+where).get(...params).n,
         rows:this.store.db.prepare('SELECT key,body,fetched_at FROM '+table+' WHERE '+where+" ORDER BY json_extract(body,'$.document_date') DESC,key LIMIT ?").all(...params,INSIGHTS_LIMITS.questions),
         members:new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)])),
         rosterFetchedAt:this.store.get('rosterFetchedAt'),
         frontiers:questionCoverageRecords(this.store,status.servingGeneration)
-      }));
+      };});
       const {count,rows,members,undatedQuestions}=frozen;
       const sources=rows.map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at}));
       const [metadata,bodies]=await Promise.all([this.loadMetadata({members,store:this.store}),this.loadQuestionBodies(sources)]);
