@@ -11,11 +11,13 @@ export const quarterBounds = period => {
 export const partialQuarter=(period,partial)=>Boolean(period===partial?.first?.slice(0,4)+'-Q'+Math.ceil(Number(partial?.first?.slice(5,7))/3)||period===partial?.last?.slice(0,4)+'-Q'+Math.ceil(Number(partial?.last?.slice(5,7))/3));
 export const lastFullQuarter=data=>[...data.periods].reverse().find(p=>!partialQuarter(p,data.partial))||data.periods[0];
 export const placeValue=(s,mode='q',own=true)=>mode==='d'?(s.document||0):own?Math.max(0,(s.question||0)-(s.questionHome||0)):(s.question||0);
-export function riser(data,index,mode,own){
- if(index<2||partialQuarter(data.periods[index],data.partial))return null;
- const earlier=data.periods.slice(0,index).filter(p=>!partialQuarter(p,data.partial));if(!earlier.length)return null;
- return data.items.map(item=>{const count=placeValue(point(item,data.periods[index]),mode,own),average=earlier.reduce((n,p)=>n+placeValue(point(item,p),mode,own),0)/earlier.length;return {item,count,ratio:count/Math.max(1,average)};}).filter(r=>r.count>=(mode==='d'?3:8)).sort((a,b)=>b.ratio-a.ratio||b.count-a.count||a.item.key.localeCompare(b.item.key))[0]||null;
+export function risers(data,index,mode,own){
+ if(index<2||partialQuarter(data.periods[index],data.partial))return [];
+ const earlier=data.periods.slice(0,index).filter(p=>!partialQuarter(p,data.partial));if(!earlier.length)return [];
+ const ranked=data.items.map(item=>{const count=placeValue(point(item,data.periods[index]),mode,own),average=earlier.reduce((n,p)=>n+placeValue(point(item,p),mode,own),0)/earlier.length;return {item,count,ratio:count/Math.max(1,average)};}).filter(r=>r.count>=(mode==='d'?3:8)).sort((a,b)=>b.ratio-a.ratio||b.count-a.count||a.item.key.localeCompare(b.item.key));
+ return ranked.length?ranked.filter(r=>r.ratio===ranked[0].ratio&&r.count===ranked[0].count):[];
 }
+export const riser=(...args)=>risers(...args)[0]||null;
 const PRE=/^((?:SECOND )?REPORT|(?:JOINT )?MOTION FOR A RESOLUTION|RECOMMENDATION|OPINION)\s+(?:on\s+)?(?:the\s+proposal\s+for\s+an?\s+(?:regulation|directive|decision)(?:\s+of\s+the\s+European\s+Parliament\s+and\s+of\s+the\s+Council|\s+of\s+the\s+Council)?\s*)?/i;
 export function titleParts(title,language){if(language!=='en')return ['',title];const m=title.match(PRE);let at=m?m[0].length:0;const ar=title.lastIndexOf(' as regards ');if(ar>at)at=ar+12;return [title.slice(0,at),title.slice(at)];}
 export function topicsHref(key,filters={}){const q=new URLSearchParams({view:'topics'});q.set(key.startsWith('place:')?'place':'topic',key.replace(/^place:/,''));for(const [k,v] of Object.entries(filters))if(v)q.set(k,String(v));return '?'+q;}

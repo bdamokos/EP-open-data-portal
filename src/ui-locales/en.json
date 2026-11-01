@@ -2600,5 +2600,13 @@
   "topics.story.comparisonsUnavailable": "Question comparisons unavailable",
   "topics.story.exact.placeDebates": "Parliament debated {debates}.",
   "topics.story.jointOnce": "Joint motions count once",
-  "topics.story.dateUnavailable": "Date unavailable"
+  "topics.story.dateUnavailable": "Date unavailable",
+  "topics.roseTied": "{place} rose most: {count} {unit} each, {ratio}× their usual.",
+  "topics.findSummary": "{debates} · {questions}",
+  "topics.mostCount": "{place} is most named, with {quantity}.",
+  "topics.mostTiedCount": "{place} are most named, with {quantity} each.",
+  "topics.roseCount": "{place} rose most: {quantity}, {ratio}× its usual.",
+  "topics.roseTiedCount": "{place} rose most: {quantity} each, {ratio}× their usual.",
+  "topics.classificationIncomplete": "Topic classification incomplete",
+  "topics.classificationUnavailable": "Topic classification unavailable"
 }

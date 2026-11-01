@@ -162,3 +162,16 @@ test('topic contributor previews include boundary ties and expand to all remaini
  await h.click(row.querySelector('[aria-expanded=false]'));assert.equal(row.querySelectorAll('button').length,8);assert.match(row.textContent,/Person 6/);
  await h.click(row.querySelector('[aria-expanded=true]'));assert.equal(row.querySelectorAll('button').length,5);
 });
+
+test('equally counted official topics render labels and exact filters without an editorial lookup',async t=>{
+ const people=[{id:'42',name:'Official topic speaker',total:4,subjects:{'oeil:1.10':2,'oeil:1.20':2}}],subjects=[{id:'oeil:1.10',label:'Trade'},{id:'oeil:1.20',label:'Climate'}];
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects',{response:{people,subjects,topicAvailability:{state:'available',unresolvedContributions:0},contributions:[],total:4}});
+ const rows=[...h.container.querySelectorAll('.gv-subject-title')];assert.equal(rows.length,2);assert(rows.some(r=>r.textContent==='Trade2'));assert(rows.some(r=>r.textContent==='Climate2'));await h.click(rows.find(r=>r.textContent==='Trade2').querySelector('button'));assert.equal(new URLSearchParams(location.search).get('gv-subject'),'oeil:1.10');
+ await h.restore('/?view=groups&gv-group=PPE&gv-tab=people');await viewReady(h.container);assert(h.container.querySelector('.gv-person-subjects').textContent.includes('Trade'));assert(h.container.querySelector('.gv-person-subjects').textContent.includes('Climate'));
+});
+
+for(const state of ['unavailable','partial','available'])test('topic availability stays separate from observed oral totals: '+state,async t=>{
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=subjects',{response:{people:[{id:'42',name:'Speaker',total:3,subjects:{}}],subjects:[],contributions:[],total:3,ready:state!=='unavailable',topicAvailability:{state,unresolvedContributions:state==='available'?0:3}}});
+ const values=[...h.container.querySelectorAll('.gv-summary strong')].map(n=>n.textContent);assert.deepEqual(values,['3','1',state==='available'?'0':'Unavailable']);assert.equal(Boolean(h.container.querySelector('.gv-subjects .gv-empty')),state==='available');
+ if(state!=='available'){await h.restore('/?view=groups&gv-group=PPE&gv-tab=subjects&gv-subject=oeil%3A1.10');await viewReady(h.container);assert.equal(h.container.querySelector('.gv-summary strong').textContent,'Unavailable');assert.equal(h.container.querySelector('.gv-subject-title button:last-child').textContent,'Unavailable');}
+});

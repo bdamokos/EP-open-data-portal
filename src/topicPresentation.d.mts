@@ -5,6 +5,7 @@ export function quarterBounds(period:string):{from:string;to:string}|null;
 export function partialQuarter(period:string,partial:TopicOverview['partial']):boolean;
 export function lastFullQuarter(data:TopicOverview):string;
 export function placeValue(s:Partial<TopicSeries>,mode?:string,own?:boolean):number;
+export function risers(data:TopicOverview,index:number,mode:string,own:boolean):{item:TopicItem;count:number;ratio:number}[];
 export function riser(data:TopicOverview,index:number,mode:string,own:boolean):{item:TopicItem;count:number;ratio:number}|null;
 export function titleParts(title:string,language?:string|null):[string,string];
 export function topicsHref(key:string,filters?:Record<string,string>):string;
