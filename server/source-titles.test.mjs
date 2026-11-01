@@ -44,6 +44,7 @@ test('saved raw question sources produce clean titles while retaining incomplete
     if(sql.includes('FROM group_history_snapshots'))return {get:()=>undefined};
     if(sql.includes('FROM refresh_gaps'))return {all:()=>[]};
     if(sql.includes('FROM fast_read_progress'))return {get:()=>({ready:1})};
+    if(sql.includes('FROM question_frontiers')&&sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:sql.includes('IS NULL')?0:1})};
     if(sql.includes('FROM question_frontiers'))return {iterate:(generation,subtype)=>subtype==='QUESTION_WRITTEN'?[{subtype:work.work_type,date:work.document_date,fetchedAt:'2026-10-23T10:00:00Z'}]:[]};
     if(sql.startsWith('SELECT COUNT(*)'))return {get:()=>({n:1})};
     if(sql.startsWith('SELECT key,body'))return {all:()=>[{key,body:JSON.stringify(work),fetched_at:fetchedAt}]};
