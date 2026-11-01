@@ -1,3 +1,4 @@
+import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {languageQuotedSibling} from './amendment-language-quoted-oracle.mjs';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -151,7 +152,13 @@ export function verifyLanguagePlacement({expected,placement,text,items,rawText,r
   if(rawSelected.some((p,i)=>!p||p.uncertain||p.automatic||rawNormal(p.text)!==rawNormal(selected[i].text)))return unknown('raw-span-projection-unverified');
   if(proposal) {
     if(targetKind!=='recital'){
-      if(strip(splicedSource)!==strip(expected.originalText))return failed('raw-original-splice-mismatch');
+      if(strip(splicedSource)!==strip(expected.originalText)){
+        if(oracleSimilarity(splicedSource,expected.originalText)<.95)return failed('raw-original-splice-mismatch');
+        const address=rawProposal();if(address.status!=='verified')return address;
+        const rows=observed.map((p,index)=>{const r=sourceRows.find(row=>row.path===p.path);return {index,text:r?.text??''};});
+        const similar=assertSimilarPlacement({proposal:{paragraphs:rows},wording:expected,placement,address});
+        return similar.status==='verified'?{...similar,location:address.location}:similar;
+      }
       return rawProposal();
     }
     if(expected.sectionKind!=='commission-proposal')return unknown('raw-proposal-section-unverified');
