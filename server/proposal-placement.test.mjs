@@ -345,3 +345,23 @@ test('a dotted alphabetic annex point cannot consume its following published sib
   const wrongSibling=resolveProposalPlacement(items,{language:'en',targetLabel:'Annex II – paragraph 1 – point 3 – point d',originalText:excerpt.paragraphs[excerpt.sourceParagraphIndices.indexOf(69)],proposedText:'Changed wording.'});
   assert.equal(wrongSibling.status,'unresolved');assert.equal(wrongSibling.reason,'conflicting_target_evidence');
 });
+
+test('a sibling insertion follows the complete instruction despite repeated quoted Roman labels',()=>{
+  // A-10-2026-0073 AM81/82/121/132: instruction 31 contains two lists
+  // numbered (i)/(ii), then instruction 32 supplies its outer boundary.
+  const paragraphs=['Article 1','The Regulation is amended as follows:',
+    '(31) Article 113 is amended as follows:', '(a) in the third paragraph, point (d) is added:',
+    '‘(d) The following dates apply:', '(i) First date;', '(ii) Second date.',
+    'In the absence of that decision:', '(i) Earlier date;', '(ii) Later date.’;',
+    '(b) in the third paragraph, point (e) is added:', '‘3. Articles 102 to 110 shall apply from that date.’;',
+    '(32) in Annex VIII, section B is deleted;', 'Article 2','Entry into force.'];
+  const styles=['Titrearticle','Normal','Point1','Point1','Point2','Point2','Point2','Point2','Point2','Point2','Point1','Point2','Point1','Titrearticle','Normal'];
+  const projection=source(paragraphs,styles),items=[item(projection)];
+  const target={targetLabel:'Article 1 – paragraph 1 – point 31 a (new)',originalText:'',proposedText:'(31a) New instruction.',language:'en'};
+  assert.equal(proposalCandidates(items[0].proposal,'Article 1 – paragraph 1 – point 31')[0].complete,false);
+  const placed=resolveProposalPlacement(items,target);
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,12);assert.equal(placed.insertAfter,11);
+  // Missing source rows still make the boundary unavailable.
+  const incomplete=structuredClone(projection);incomplete.paragraphSources[8].complete=false;
+  assert.equal(resolveProposalPlacement([item(incomplete)],target).status,'unresolved');
+});
