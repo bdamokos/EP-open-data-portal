@@ -7,7 +7,7 @@ import {sourceAvailability} from '../server/source-availability.mjs';
 import {brusselsDay} from '../server/analysis-period.mjs';
 import {transcriptParagraphs,TranscriptText} from './Transcript';
 import {GROUP_VOICE_GROUPS, GROUP_VOICE_GROUPSUi} from './groupVoiceTerms.mjs';
-import {useEffect,useId,useRef,useState} from 'react';
+import {useEffect,useId,useLayoutEffect,useRef,useState} from 'react';
 import {api,prefetchData,useData} from './data';
 import type {Intervention,InterventionStatistics,Speech,SpeechContext,SpeechDetail,SpeechSequenceRow} from './explorerTypes';
 import './SpeechInterventions.css';
@@ -117,6 +117,13 @@ function SequenceError({message,retryAt,loading,retry}:{message:string;retryAt?:
   const seconds=Math.max(0,Math.ceil(((retryAt||0)-now)/1000));
   return <div className="intervention-error"><p>{message}</p><button onClick={retry} disabled={loading||seconds>0}>{loading ? ui.t("batch4.speechinterventions.tsx.retrying.sequence") : ((seconds>0) ? ui.t("batch4.speechinterventions.tsx.retry.sequence.in.seconds.s", {seconds: String(seconds)}) : ui.t("batch4.speechinterventions.tsx.retry.sequence"))}</button>{loading&&<p role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.debate.sequence"/></p>}</div>;
 }
+function scrollParent(node:HTMLElement):{scrollBy:(x:number,y:number)=>void} {
+  for(let parent=node.parentElement;parent;parent=parent.parentElement){
+    const overflow=window.getComputedStyle(parent).overflowY;
+    if(/(auto|scroll)/.test(overflow)&&parent.scrollHeight>parent.clientHeight)return parent;
+  }
+  return window;
+}
 function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{debate:SpeechContext['debates'][number];speechId:string;language:string;transcriptLanguage:string;loading:boolean;retry:()=>void}) {
   const ui = useUiI18n();
   const [full,setFull]=useState(false),[reading,setReading]=useState<string|null>(null);
@@ -133,8 +140,20 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
     .sort((a,b)=>a.distance-b.distance).slice(0,12)
     .map(({row})=>`speech/${encodeURIComponent(row.id)}?lang=${transcriptLanguage}`));
   useEffect(()=>prefetchData(JSON.parse(preloadRoutes)),[preloadRoutes]);
-  const toggleReading=(id:string)=>setReading(value=>(value===id) ? null : id);
-  useEffect(()=>{if(reading){readingRef.current?.focus({preventScroll:true});readingRef.current?.scrollIntoView({block:'nearest'});}},[reading]);
+  const anchorRef=useRef<{control:HTMLElement;top:number;own:boolean}|null>(null);
+  const toggleReading=(id:string,control:HTMLElement,own=true)=>{
+    anchorRef.current={control,top:control.getBoundingClientRect().top,own};
+    setReading(value=>(value===id) ? null : id);
+  };
+  // Closing a contribution above the tapped one shortens the page; keep the tapped control where the reader left it.
+  useLayoutEffect(()=>{
+    const anchor=anchorRef.current;anchorRef.current=null;
+    if(anchor?.control.isConnected){const shift=anchor.control.getBoundingClientRect().top-anchor.top;if(shift)scrollParent(anchor.control).scrollBy(0,shift);}
+    if(!reading)return;
+    readingRef.current?.focus({preventScroll:true});
+    // Reply links open a contribution elsewhere in the sequence, so bring that one into view.
+    if(anchor&&!anchor.own)readingRef.current?.closest('li')?.scrollIntoView({block:'nearest'});
+  },[reading]);
   const time=(row:SpeechSequenceRow)=>row.start ? new Intl.DateTimeFormat(language,{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Brussels'}).format(new Date(row.start)) : null;
   const title=selectLanguageText(debate.titles,language,debate.id,'');
   return <section className="intervention-debate" lang={ui.language}>
@@ -144,13 +163,13 @@ function Sequence({debate,speechId,language,transcriptLanguage,loading,retry}:{d
       <div className="intervention-sequence-node"><InterventionIcon type={row.intervention.type}/></div>
       <div className="intervention-sequence-entry">
         {(row.intervention.type==='procedure') ? <p className="intervention-caption">{row.intervention.chair ? <><strong><SpeakerName person={row.intervention.chair} language={language} chair/></strong><br/><SpeakerRoles person={row.intervention.chair} language={language} chair/></> : ((row.intervention.procedureKind==='chair-change') ? ui.t("batch4.speechinterventions.tsx.chair.change.identity.unconfirmed") : (row.intervention.narrative ? <span lang="">{row.intervention.narrative}</span> : ui.t("batch4.speechinterventions.tsx.procedural.note.text.unavailable")))}</p> : <>
-          <button type="button" className="intervention-read" onClick={()=>toggleReading(row.id)} aria-expanded={reading===row.id} aria-controls={(reading===row.id) ? readingId : undefined}><span className="intervention-read-label"><SpeakerName person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'}/><small>{row.id===speechId ? <UiMessage id="batch4.speechinterventions.tsx.time.current.speech" values={{time:<span lang={language}>{time(row)}</span>}}/> : <span lang={language}>{time(row)}</span>}</small></span><svg className="intervention-read-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <button type="button" className="intervention-read" onClick={event=>toggleReading(row.id,event.currentTarget)} aria-expanded={reading===row.id} aria-controls={(reading===row.id) ? readingId : undefined}><span className="intervention-read-label"><SpeakerName person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'}/><small>{row.id===speechId ? <UiMessage id="batch4.speechinterventions.tsx.time.current.speech" values={{time:<span lang={language}>{time(row)}</span>}}/> : <span lang={language}>{time(row)}</span>}</small></span><svg className="intervention-read-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
           <SpeakerRoleLine person={row.intervention.speaker} language={language} chair={row.intervention.type==='chair'} intervention={row.intervention} className="intervention-caption"/>
           {row.id===exchange?.originalId&&<span className="intervention-reply"><UiMessage id="batch4.speechinterventions.tsx.original.speech"/></span>}
           {row.intervention.type!=='chair'&&<InterventionBadges value={row.intervention} language={language}/>}
           {row.replyTo&&(()=>{const text=<>{(row.replyTo===exchange?.originalId) ? <UiMessage id="batch4.speechinterventions.tsx.to.the.original.speech"/> : <UiMessage id="batch4.speechinterventions.tsx.in.reply"/>}</>,target=row.replyTo;
             // Opens the contribution being answered when it is part of the displayed sequence.
-            return rows.some(other=>other.id===target) ? <button type="button" className="intervention-reply" onClick={()=>toggleReading(target)} aria-expanded={reading===target} aria-controls={(reading===target) ? readingId : undefined}>{text}</button> : <span className="intervention-reply">{text}</span>;})()}
+            return rows.some(other=>other.id===target) ? <button type="button" className="intervention-reply" onClick={event=>toggleReading(target,event.currentTarget,false)} aria-expanded={reading===target} aria-controls={(reading===target) ? readingId : undefined}>{text}</button> : <span className="intervention-reply">{text}</span>;})()}
           {reading===row.id&&<div ref={readingRef} tabIndex={-1} id={readingId}><ConnectedText speech={row} language={transcriptLanguage}/></div>}
         </>}
       </div>

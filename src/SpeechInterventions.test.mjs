@@ -52,6 +52,13 @@ test('every contribution opens from its header while type badges remain informat
     await act(async()=>button.click());
     assert.equal(button.getAttribute('aria-expanded'),'false');assert.equal(container.querySelector('.intervention-connected-text'),null);
   }
+  // Opening a later contribution closes the earlier one; the tapped header stays where it was on screen.
+  const [first,second]=entries.map(entry=>entry.querySelector('.intervention-read'));
+  await act(async()=>first.click());
+  const tops=[600,200];second.getBoundingClientRect=()=>({top:tops.shift()??200});
+  const scrolls=[];window.scrollBy=(x,y)=>scrolls.push(y);
+  await act(async()=>second.click());
+  assert.equal(second.getAttribute('aria-expanded'),'true');assert.deepEqual(scrolls,[-400]);
 });
 
 test('procedural notes explain later contributions without speech controls, while trailing notes are omitted',async t=>{
