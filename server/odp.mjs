@@ -1,3 +1,4 @@
+import {retainBaseObservation} from './base-source-store.mjs';
 import {organizationMembershipSnapshot,organizationMembershipStatus} from './organization-memberships.mjs';
 import { HttpError } from "./http-utils.mjs";
 import {createReadStream} from "node:fs";
@@ -453,6 +454,7 @@ export async function odp(
         release?.();release=null;
         budget.signal?.throwIfAborted();
         const text=Buffer.concat(parts).toString('utf8');
+        if(/^\/api\/v2\/(?:plenary-documents|committee-documents)\/[^/]+$/.test(new URL(key).pathname))await retainBaseObservation({url:key,status:200,fetchedAt:new Date().toISOString(),request:{accept:'application/ld+json'},headers:{'content-type':response.headers.get('content-type')}},Buffer.concat(parts));
         const payload = JSON.parse(text);
         if (!Array.isArray(payload.data))
           throw new HttpError(

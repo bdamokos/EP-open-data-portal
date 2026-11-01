@@ -45,6 +45,16 @@ try:
  print(json.dumps([dict(r) for r in c.execute('SELECT url,language,byte_size,issued,sha256,size,retrieved_at,list_id FROM amendment_sources')] if exists else None))
 finally: c.close()
 `,await reader.file('index/activities-v1.sqlite')],{encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']}));
+    reader.baseRecords=[];
+    let baseNames=[];try{baseNames=await readdir(await reader.file('cache/base-sources-v1'));}catch(error){if(error.code!=='ENOENT')throw error;}
+    for(const name of baseNames.filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).sort()) {
+      const file=await reader.file('cache/base-sources-v1/'+name);
+      if((await stat(file)).size>256*1024)throw new Error('Oversized retained base descriptor');
+      const source=JSON.parse(await readFile(file,'utf8'));
+      const key=digest(JSON.stringify([source.url,source.request?.accept??null,source.request?.language??null]));
+      if(source.schemaVersion!==1||source.key!==key||name!==key+'.json'||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isSafeInteger(source.bytes)||source.bytes<0||source.bytes>12*1024*1024||![200,406].includes(source.status)||!Number.isFinite(Date.parse(source.fetchedAt)))throw new Error('Retained base attestation mismatch');
+      reader.baseRecords.push(source);
+    }
     reader.records=[];
     let names=[];try{names=await readdir(await reader.file('cache/commission-proposals-v1'));}catch(error){if(error.code!=='ENOENT')throw error;}
     for(const name of names.filter(name=>/^[a-f0-9]{64}\.json$/.test(name)).sort()) {
@@ -84,8 +94,32 @@ finally: c.close()
     if(body.length!==row.size||digest(body)!==row.sha256)throw new Error('Retained amendment hash mismatch: '+url);
     return {url,status:200,ok:true,fetchedAt:row.retrieved_at,bytes:body.length,sha256:row.sha256,error:null,...(request?{request}:{}),headers:{'content-type':mime},retainedSource:{store:'amendment-docx-v2',descriptor:{url:row.url,language:row.language,byteSize:row.byte_size<0?null:row.byte_size,issued:row.issued||null},listId:row.list_id},body};
   }
+  async baseObservation(source) {
+    let file;try{file=await this.file('cache/base-sources-v1/'+source.sha256+'.blob');}catch(error){if(error.code==='ENOENT')return null;throw error;}
+    if((await stat(file)).size!==source.bytes)throw new Error('Retained base size mismatch');
+    const body=await readFile(file);
+    if(body.length!==source.bytes||digest(body)!==source.sha256)throw new Error('Retained base hash mismatch');
+    const d=source.descriptor;
+    if(d&&(d.url!==source.url||d.byteSize!=null&&d.byteSize!==body.length||d.issued!=null&&(!Number.isFinite(Date.parse(d.issued))||Date.parse(d.issued)>Date.parse(source.fetchedAt))))throw new Error('Retained base descriptor mismatch');
+    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,request:source.request,headers:source.headers,retainedSource:{store:'base-sources-v1',descriptor:d??null,selection:source.selection??null},body};
+  }
+  async selections(type) {
+    const records=[];
+    for(const source of this.baseRecords.filter(s=>s.selection&&(!type||s.selection.type===type))) {
+      const observation=await this.baseObservation(source);
+      if(observation)records.push({input:source.selection.input,type:source.selection.type,fetchedAt:source.fetchedAt,decision:JSON.parse(observation.body.toString('utf8'))});
+    }
+    return records;
+  }
   async get(url,request) {
     const unavailable=(reason='retained-attestation-missing')=>({url,status:null,ok:false,fetchedAt:null,bytes:0,sha256:digest(''),error:'acquisition-unavailable',acquisitionUnavailable:true,acquisitionUnavailableReason:reason,...(request?{request}:{}),headers:{},body:Buffer.alloc(0)});
+    const bases=this.baseRecords.filter(s=>s.url===url&&(!request||(s.request?.accept===request.accept||s.request?.accept==='*/*'&&s.descriptor?.format==='DOCX'&&request.accept==='application/vnd.openxmlformats-officedocument.wordprocessingml.document')&&(!request.language||s.request?.language===request.language)));
+    if(bases.length>1)throw new Error('Ambiguous retained base observations: '+url);
+    if(bases.length) {
+      const source=bases[0];
+      if(request?.language&&source.descriptor?.language&&source.descriptor.language.split('/').at(-1).toLowerCase()!==request.language)return unavailable('base-source-request-mismatch');
+      return await this.baseObservation(source)||unavailable('base-source-blob-missing');
+    }
     if(allowedDownload(url))return this.amendment(url,request,unavailable);
     if(this.cacheMissing)return unavailable('retained-cache-missing');
     const matches=this.records.filter(({source})=>source.url===url&&source.accept===request?.accept&&source.language?.split('/').at(-1).toLowerCase()===request?.language);

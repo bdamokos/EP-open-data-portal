@@ -1,3 +1,4 @@
+import {retainBaseObservation} from './base-source-store.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,stat} from 'node:fs/promises';
 import path from 'node:path';
@@ -117,12 +118,14 @@ export class CellarDocuments {
           if(response.status===406&&selectedAccept===CELLAR_DOCX_MIME&&!negotiation&&/\/DOC_[1-9]\d{0,3}$/.test(new URL(initial).pathname)) {
             const buffer=await limitedCellarBody(response,negotiationBytes);signal.throwIfAborted();
             const advertisedAccept=declaredDocxRepresentation(buffer,initial);
+            if(advertisedAccept)await retainBaseObservation({url:initial,resolvedSourceUrl:target,status:406,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:selectedAccept,...(language?{language}:{})},headers:{'content-type':contentType}},buffer,{directory:this.directory&&path.dirname(this.directory)});
             if(advertisedAccept)return {advertisement:{url:target,status:406,request:{accept:selectedAccept,...(language?{language}:{})},contentType,sha256:hash(buffer),bytes:buffer.length,fetchedAt:new Date(this.clock()).toISOString(),advertisedAccept}};
           } else if(response.status===304) {
             await response.body?.cancel();return {status:304,url:target,accept:selectedAccept,contentType,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
           } else if(response.status===200) {
             if(!matchesRepresentation(contentType,selectedAccept)){await response.body?.cancel();throw failure('cellar_type','CELLAR returned an unexpected representation.');}
             const buffer=await limitedCellarBody(response,maximum);signal.throwIfAborted();
+            await retainBaseObservation({url:initial,resolvedSourceUrl:target,status:200,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:selectedAccept,...(language?{language}:{})},headers:{'content-type':contentType},descriptor:{url:initial,language:language??null,byteSize:null,issued:null}},buffer,{directory:this.directory&&path.dirname(this.directory)});
             return {status:200,url:target,accept:selectedAccept,contentType,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
           } else await response.body?.cancel();
           throw failure(response.status===300?'cellar_multipart':response.status===404||response.status===406?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');
@@ -185,7 +188,9 @@ export class CellarDocuments {
     }catch{return null;}
   }
   async save(key,record) {
-    requestSignal()?.throwIfAborted();this.remember(key,record);
+    requestSignal()?.throwIfAborted();
+    await retainBaseObservation({url:record.source.url,resolvedSourceUrl:record.source.resolvedSourceUrl,status:200,fetchedAt:record.source.fetchedAt,request:{accept:record.source.accept,language:record.source.language.split('/').at(-1).toLowerCase()},headers:{'content-type':record.source.contentType},descriptor:{...record.source,byteSize:null,issued:null}},record.buffer,{directory:this.directory&&path.dirname(this.directory)});
+    this.remember(key,record);
     if(this.directory)try {
       const blob=record.source.sha256+'.blob';await writeCacheFile(path.join(this.directory,blob),record.buffer);await this.disk.saved(blob,record.buffer.length);
       const json=JSON.stringify(record.source);await writeCacheFile(path.join(this.directory,key+'.json'),json);await this.disk.saved(key+'.json',Buffer.byteLength(json));

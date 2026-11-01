@@ -1,3 +1,4 @@
+import {retainBaseObservation} from './base-source-store.mjs';
 import {XMLParser} from 'fast-xml-parser';
 import path from 'node:path';
 import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
@@ -22,7 +23,7 @@ async function limitedText(response,maximum) {
 }
 export class OfficialContextSources {
   constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
-    Object.assign(this,{clock,fetchSource});this.queues=new Map();
+    Object.assign(this,{clock,fetchSource,directory});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
     // Retain the latest week's linked pages without increasing the byte budget.
     this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024});
@@ -66,6 +67,7 @@ export class OfficialContextSources {
         const json=url.includes('/webapi/'),type=response.headers.get('content-type')||'';
         if(json?!type.includes('json'):!type.includes('html'))throw new HttpError(502,'official_source_type','The source returned an unexpected document.');
         const text=await limitedText(response,json?3*1024*1024:1024*1024);
+        if(json)await retainBaseObservation({url,resolvedSourceUrl:target,status:200,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:'application/sparql-results+json'},headers:{'content-type':type}},Buffer.from(text),{directory:this.directory&&path.dirname(this.directory)});
         return {url,fetchedAt:new Date(this.clock()).toISOString(),...(json?{data:JSON.parse(text)}:{html:text})};
       },{priority,origin:source.origin,signal});
     }),{freshMs,includeRetryAt,background:priority==='background',validate:record=>{

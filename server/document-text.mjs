@@ -1,3 +1,4 @@
+import {retainBaseObservation} from './base-source-store.mjs';
 import {publishDocumentImages} from './document-image-store.mjs';
 import {docxImages} from './docx-images.mjs';
 import {languagePreference} from './language-order.mjs';
@@ -389,7 +390,8 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
   throw new Error('Too many document download redirects.');
 }
 export async function downloadDocx(sourceUrl,options={}) {
-  const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
+  const {buffer,resolvedSourceUrl,fetchedAt,requests}=await downloadDocxBuffer(sourceUrl,options);
+  if(options.retainedDescriptor)await retainBaseObservation({url:sourceUrl,resolvedSourceUrl,fetchedAt,status:200,request:{accept:'*/*',language:options.retainedDescriptor.language},headers:{'content-type':requests.at(-1)?.response.contentType},descriptor:options.retainedDescriptor},buffer,{directory:options.directory});
   const sourceHash=createHash('sha256').update(buffer).digest('hex');
   if(sourceHash===options?.rejectedHash)throw Object.assign(invalidDocx(Error('Unchanged rejected DOCX bytes.')),{sourceHash});
   try{return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};}
@@ -431,7 +433,7 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const refresh=priority=> {
     if(pending.has(key))return pending.get(key);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
-      const result=await download(sourceUrl,{signal});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
+      const result=await download(sourceUrl,{signal,directory,retainedDescriptor:{...descriptor,url:sourceUrl,language:chosen.language,sourceId,format}});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
       if(file&&await writeCacheFile(file,serialized,{signal}))void budget.saved(name,Buffer.byteLength(serialized));
       signal.throwIfAborted();
