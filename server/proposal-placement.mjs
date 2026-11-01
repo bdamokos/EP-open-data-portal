@@ -63,6 +63,31 @@ function unparsedArticleHeading(proposal,unit) {
   const articles=new Set(flat(proposal.units).filter(u=>u.kind==='article').map(u=>u.extent.start));
   return proposal.paragraphs.slice(unit.extent.start,unit.extent.end).some(p=>/Titrearticle/i.test(p.properties?.styleId??'')&&/^[\p{L}]+\s*\d[\p{L}\d. -]*$/u.test(p.text.trim().split(/\r?\n/)[0])&&!articles.has(p.index));
 }
+// Compare the complete original, including native notes, before matching its body.
+function footnoteBody(proposal,unit,original,formatting) {
+  const divider=/\n_{5,}\s*\n/u.exec(original);
+  if(!divider)return null;
+  const body=original.slice(0,divider.index),lines=original.slice(divider.index+divider[0].length).trim().split(/\n+/u);
+  const marks=(formatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
+  const compact=text=>text.normalize('NFC').replace(/\s/gu,'');
+  if(!marks.length||marks.length!==lines.length)return false;
+  let clean='',last=0;const positions=[];
+  for(const m of marks){
+    if(m.start<last||m.end<=m.start||!/^\d+$/u.test(body.slice(m.start,m.end)))return false;
+    clean+=body.slice(last,m.start);positions.push(compact(clean).length);last=m.end;
+  }
+  clean+=body.slice(last);
+  const rows=proposal.paragraphs.slice(unit.extent.start,unit.extent.end),text=rows.map(p=>p.text).join('\n');
+  if(compact(text)!==compact(clean))return false;
+  const anchors=(proposal.anchors??[]).filter(a=>a.paragraph>=unit.extent.start&&a.paragraph<unit.extent.end);
+  if(anchors.length!==marks.length)return false;
+  for(const [i,a] of anchors.entries()){
+    const note=proposal.notes?.find(n=>n.id===a.note),line=/^(\d+)\s+([\s\S]+)$/u.exec(lines[i]);
+    const prefix=rows.filter(p=>p.index<a.paragraph).map(p=>p.text).join('\n')+'\n'+proposal.paragraphs[a.paragraph].text.slice(0,a.offset);
+    if(!note?.complete||!line||line[1]!==body.slice(marks[i].start,marks[i].end)||compact(line[2])!==compact(note.text)||compact(prefix).length!==positions[i])return false;
+  }
+  return text;
+}
 function matchUnit(proposal,unit,original) {
   if(unparsedArticleHeading(proposal,unit))return {reason:'source_structure_unavailable'};
   const {paragraphs,text}=unitText(proposal,unit);
@@ -320,6 +345,41 @@ function quotedInteriorInsertion(selected,targetPath,proposedText,language) {
   ]};
 }
 
+// A suffixed sibling may follow a whole provision supplied by an instruction.
+// Partial-subparagraph replacements never establish the whole sibling's end.
+function quotedSiblingInsertion(selected,proposedText,language) {
+  if(language!=='en')return null;
+  const {proposal,unit:owner,itemIndex}=selected;
+  if(owner.scope!=='proposal'||!owner.instruction||!completeBoundary(proposal,owner)||/subparagraph/u.test(owner.instruction.raw))return null;
+  const printed=/^(?:[‘']?)(\d+\s*[a-z]+)\.\s|^\(([a-z])\s+([a-z]+)\)\s/u.exec(proposedText.trim());
+  const instruction=/^(?:The following paragraph (\d+\s*[a-z]+) is inserted:|The following paragraph is inserted after the (seventh) paragraph:)/u.exec(proposedText.trim());
+  const value=printed?(printed[1]?.replace(/\s/gu,'')??printed[2]+printed[3]):instruction?(instruction[1]?.replace(/\s/gu,'')??'7a'):null;
+  if(!value)return null;
+  const quotes=owner.children.filter(u=>u.kind==='quotation');
+  if(!quotes.length)return null;
+  const units=flat(quotes);
+  if(units.some(u=>u.label?.value===value))return {reason:'duplicate_target_label'};
+  const possible=units.filter(u=>['paragraph','point'].includes(u.kind)&&u.label?.value&&value.startsWith(u.label.value)&&value!==u.label.value&&/^[a-z]+$/u.test(value.slice(u.label.value.length)));
+  const longest=Math.max(...possible.map(u=>u.label.value.length)),anchors=possible.filter(u=>u.label.value.length===longest);
+  if(anchors.length!==1)return null;
+  const anchor=anchors[0],quote=quotes.find(q=>q.extent.start<=anchor.extent.start&&q.extent.end>=anchor.extent.end);
+  if(!quote||!completeBoundary(proposal,anchor)||anchor.pathConflict)return null;
+  // A quotation with no explicit article must be a whole-paragraph/point
+  // insertion or replacement, with the same printed label in its instruction.
+  const article=units.find(u=>u.kind==='article'&&u.extent.start<=anchor.extent.start&&u.extent.end>=anchor.extent.end);
+  const raw=owner.instruction.raw.replace(/\s+/gu,' ');
+  if(!article){
+    const lead=raw.replace(/^\([^)]*\)\s*/u,'');
+    const named=/^(?:the following )?paragraphs? (.+?) (?:are|is)/u.exec(lead);
+    const labels=named?.[1].split(/,\s*| and /u)??[];
+    if(!labels.includes(anchor.label.value))return null;
+  }
+  let before=anchor.extent.end;
+  while(before>anchor.extent.start&&proposal.paragraphs[before-1].text.trim()===';')before--;
+  if(before>quote.extent.end||before<=anchor.extent.start)return null;
+  return {itemIndex,insertBefore:before,evidence:[{basis:'whole-quoted-sibling',owner:owner.id,anchor:anchor.id,label:value}]};
+}
+
 // A parser can lose a target's final levels while preserving its containing
 // provision. Wording is sufficient only when it selects complete source lines
 // inside the deepest unique ancestor and occurs once in the entire document.
@@ -394,7 +454,7 @@ function ancestorFallback(target,original,candidatesFor) {
 }
 
 /** Outer addresses select proposal units; explicit inner insertions stay inside their owner. */
-export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language}={}) {
+export function resolveProposalPlacement(items,{originalText,proposedText,targetLabel,targetPath,language,originalFormatting}={}) {
   const operation=amendmentOperation({originalText,proposedText,language}),evidence=[];
   const unresolved=reason=>({operation,status:'unresolved',reason,evidence});
   const mixedScope=amendmentMixedLanguageScope({originalText,proposedText,language});
@@ -474,7 +534,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)):null;
+    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);
@@ -503,7 +563,23 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:sub.itemIndex,span:sub.match.span,splice:sub.match.splice,originalText:sub.match.originalText,evidence};
   }
   if(candidates.length>1&&new Set(candidates.map(c=>c.itemIndex+'|'+parentKey(c.unit))).size!==1)return unresolved('multiple_published_targets');
-  const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,originalText)}));
+  const adaptedOriginal=candidate=>{
+    const {proposal,unit}=candidate;
+    const notes=footnoteBody(proposal,unit,originalText,originalFormatting);
+    if(notes)return notes;
+    if(candidates.length!==1||unit.pathConflict||!completeBoundary(proposal,unit))return originalText;
+    const text=unitText(proposal,unit).text;
+    const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
+    if(quotes(text)===quotes(originalText))return text;
+    if(operation==='delete'&&new RegExp(`^\\(${escape(unit.label?.value??'')}\\)\\s*\\[\\.\\.\\.\\]$`,'u').test(originalText.trim())){
+      const ref=targetPath?.underlying;
+      const lead=proposal.paragraphs[unit.extent.start].text;
+      const named=proposal.paragraphs.slice(0,unit.extent.start).filter(p=>/^(?:Regulation|Directive|Decision) .+ is amended as follows:$/u.test(p.text)).at(-1)?.text.trim();
+      if(ref?.length===1&&/^Article \d+$/u.test(ref[0].raw)&&lead.endsWith(ref[0].raw+' is amended as follows:')&&named===ref[0].document.replace(/^Regulation (?=\d)/u,'Regulation (EU) ')+' is amended as follows:')return text;
+    }
+    return originalText;
+  };
+  const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,adaptedOriginal(candidate))}));
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
   // A resolved address with different wording is a conflict, even when a
   // unique passage occurs elsewhere in its ancestor. Repair numbering first.
