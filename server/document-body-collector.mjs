@@ -2,7 +2,7 @@ import {documentFileEdition} from './document-file-edition.mjs';
 import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
 import {DOCX_FORMATTING_VERSION} from './docx-formatting.mjs';
 import {createHash} from 'node:crypto';
-import {documentText,DOCUMENT_TEXT_VERSION,allowedDownload} from './document-text.mjs';
+import {documentText,documentTextCapacity,DOCUMENT_TEXT_VERSION,allowedDownload} from './document-text.mjs';
 import {documentBodyHints} from './document-body-hints.mjs';
 import {array,documentFiles,tail} from './activity-index-model.mjs';
 import {sourceMissing,missingSourceDelay,transientSourceDelay,confirmSourceRejection,SOURCE_RECHECK_MS} from './source-retry.mjs';
@@ -29,7 +29,7 @@ const generation=store=>store.get('working')?.generation||store.get('active')||0
 const scope=(key,work)=>/^\/(plenary-documents|adopted-texts|parliamentary-questions|committee-documents)\//.test(key)&&
   (/-10-/.test(work.identifier||tail(work.id))||key.startsWith('/committee-documents/')&&(array(work.parliamentary_term).map(tail).includes('10')||!work.parliamentary_term&&String(work.document_date||'')>='2024-07-16'));
 export class DocumentBodyCollector {
-  constructor(store,{read=documentText,hints=documentBodyHints,directory=process.env.ODP_CACHE_DIR}={}){Object.assign(this,{store,read,hints,directory});}
+  constructor(store,{read=documentText,hints=documentBodyHints,directory=process.env.ODP_CACHE_DIR,capacity=documentTextCapacity}={}){Object.assign(this,{store,read,hints,directory,capacity});}
   discovery(){return `${generation(this.store)}:${new Date(this.store.clock()).toISOString().slice(0,10)}:${parserVersion}`;}
   due(){return Boolean(this.directory&&(this.store.get('documentBodySchema')!==1||this.hints.size||this.store.get('documentBodyDiscovery')!==this.discovery()||this.store.db.prepare('SELECT 1 FROM document_body_jobs WHERE next_check<=? LIMIT 1').get(this.store.clock())));}
   enqueue(sourceKey,work,priority=0,language=null){
@@ -45,7 +45,7 @@ export class DocumentBodyCollector {
           ON CONFLICT(key) DO UPDATE SET source_key=excluded.source_key,priority=MAX(priority,excluded.priority),
           next_check=CASE WHEN edition<>excluded.edition OR (excluded.priority>=1000000000 AND state='retained') THEN 0 ELSE next_check END,
           attempts=CASE WHEN edition<>excluded.edition THEN 0 ELSE attempts END,
-          rejection=CASE WHEN edition<>excluded.edition THEN NULL ELSE rejection END,edition=excluded.edition`).run(key,sourceKey,id,file.language,edition,priority);
+          rejection=CASE WHEN edition<>excluded.edition THEN NULL ELSE rejection END,state=CASE WHEN edition<>excluded.edition THEN NULL ELSE state END,edition=excluded.edition`).run(key,sourceKey,id,file.language,edition,priority);
       }
     }
   }
@@ -72,26 +72,32 @@ export class DocumentBodyCollector {
     }
     else {const last=rows.at(-1);store.set('documentBodyCursor',{discovery:this.discovery(),position:[last.date,last.source_id,last.mep,last.category]});}
   }
-  async step(worker){
+  async step(worker,{requestBudget=Infinity}={}){
     if(!this.directory)return false;
     const store=this.store;store.assertWriter();this.admit();await yieldTurn();worker.controller.signal.throwIfAborted();
-    const now=store.clock(),job=store.db.prepare(bodyDueSql).get(now);
-    if(!job||worker.requests>=worker.budget||worker.monotonic()>=worker.runDeadline)return false;
+    const now=store.clock();
+    const previous=store.get('documentBodyCapacity');
+    const capacity=await this.capacity(this.directory,{reconcile:previous?.state==='capacity'&&now-previous.checkedAt>=60000});
+    const speculative=capacity.bytes+(capacity.reservationBytes||0)>capacity.highWaterBytes;
+    store.set('documentBodyCapacity',{...capacity,state:speculative?'capacity':'collecting',checkedAt:previous?.state==='capacity'&&now-previous.checkedAt<60000?previous.checkedAt:now});
+    const job=store.db.prepare(bodyDueSql).get(now);
+    if(!job||requestBudget<1||speculative&&job.priority<1000000000||capacity.maxBytes-capacity.bytes<(capacity.reservationBytes||1)||worker.requests>=worker.budget||worker.monotonic()>=worker.runDeadline)return false;
     const source=store.source(generation(store),job.source_key)?.work;
     const work=job.id.endsWith('-ASW')?array(source?.inverse_answers_to).find(answer=>(answer.identifier||tail(answer.id))===job.id):source;
     if(!work){store.db.prepare('DELETE FROM document_body_jobs WHERE key=?').run(job.key);return true;}
     try{
       worker.requests++;
-      const result=await runWithRequestSignal(worker.controller.signal,()=>this.read(work,job.language,{directory:this.directory,collector:true,enqueue:false,clock:store.clock,selectedFile:JSON.parse(job.edition)[0]}));
+      const result=await runWithRequestSignal(worker.controller.signal,()=>this.read(work,job.language,{directory:this.directory,collector:true,collectorPdfOnly:['pdf-pending','pdf-retry'].includes(job.state),requestBudget,enqueue:false,clock:store.clock,selectedFile:JSON.parse(job.edition)[0]}));
       if(result.status!=='available')throw Object.assign(new Error(result.reason||'Document text unavailable.'),{code:'source_parser_rejection'});
       worker.controller.signal.throwIfAborted();store.assertWriter();
       store.db.prepare("UPDATE document_body_jobs SET next_check=?,attempts=0,rejection=NULL,error=NULL,state='retained' WHERE key=?").run(now+7*86400000,job.key);
     }catch(error){
       if(worker.controller.signal.aborted)throw error;
       store.assertWriter();
+      if(error.code==='document_body_pdf_pending'){store.db.prepare("UPDATE document_body_jobs SET state='pdf-pending',next_check=0 WHERE key=?").run(job.key);return true;}
       const {rejection,confirmed}=confirmSourceRejection(job.rejection?JSON.parse(job.rejection):null,error,{descriptor:job.edition,parserVersion,now});
       const delay=error.code==='document_text_capacity'?3600000:confirmed?SOURCE_RECHECK_MS:sourceMissing(error)?missingSourceDelay(job.attempts):transientSourceDelay(job.attempts);
-      store.db.prepare('UPDATE document_body_jobs SET next_check=?,attempts=attempts+1,rejection=?,error=?,state=? WHERE key=?').run(now+Math.max(delay,(error.retryAfter||0)*1000),rejection?JSON.stringify(rejection):null,String(error.message).slice(0,250),confirmed?'permanent-source-issue':error.code==='document_text_capacity'?'capacity':'transient',job.key);
+      store.db.prepare('UPDATE document_body_jobs SET next_check=?,attempts=attempts+1,rejection=?,error=?,state=? WHERE key=?').run(now+Math.max(delay,(error.retryAfter||0)*1000),rejection?JSON.stringify(rejection):null,String(error.message).slice(0,250),confirmed?'permanent-source-issue':error.code==='document_text_capacity'?'capacity':['pdf-pending','pdf-retry'].includes(job.state)?'pdf-retry':'transient',job.key);
     }
     return true;
   }

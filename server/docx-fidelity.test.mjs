@@ -169,7 +169,7 @@ test('structure and source provenance survive persistence and settled retention 
   const url=`https://data.europarl.europa.eu/distribution/structure-${Date.now()}/report.docx`,source={byteSize:89244,issued:'2026-09-23T13:04:11+02:00'};
   const work={identifier:'A-10-2026-0237',document_date:'2026-09-16',is_realized_by:[{language:'language/ENG',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url,...source}]}]};
   const content=docxContent(zip(doc(p('Retained'))));let calls=0;
-  const result=await documentText(work,'en',{directory,clock:()=>Date.parse('2026-12-01'),download:async()=>{calls++;return content;}});
+  const result=await documentText(work,'en',{directory,collector:true,clock:()=>Date.parse('2026-12-01'),download:async()=>{calls++;return content;}});
   assert.equal(calls,1);assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);assert.deepEqual(result.sourceVersion,source);assert.equal(result.structureStatus,'extracted');
   const file=path.join(directory,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),saved=JSON.parse(await readFile(file,'utf8'));
   assert.deepEqual(saved.paragraphSources,content.paragraphSources);
@@ -189,6 +189,7 @@ test('local reader cancellation leaves the shared extraction and later retained 
   for(let i=0;i<100&&!finish;i++)await new Promise(resolve=>setImmediate(resolve));
   assert(finish);controller.abort(cancelledRequest());await rejected;finish();
   const result=await second;assert.equal(calls,1);assert.equal(result.structureStatus,'extracted');assert.deepEqual(result.paragraphs,['Survives']);
+  await documentText(work,'en',{directory,download:async()=>result,collector:true});
   assert.equal((await documentText(work,'en',{directory,download:()=>{throw new Error('Must stay retained');}})).structureStatus,'extracted');
 });
 
@@ -199,13 +200,12 @@ for(const code of ['upstream_busy','request_timeout'])test(`cold DOCX reads prop
   const failure=Object.assign(new HttpError(503,code,'Retry this reader later.'),{retryAfter:1});let calls=0;
   await assert.rejects(documentText(work,'en',{directory,download:async()=>{calls++;throw failure;}}),error=>error===failure&&error.status===503);
   const content=docxContent(zip(doc(p('Retained')))),clock=()=>Date.parse('2026-10-02');
-  const recovered=await documentText(work,'en',{directory,clock,download:async()=>{calls++;return content;}});
+  const recovered=await documentText(work,'en',{directory,collector:true,clock,download:async()=>{calls++;return content;}});
   assert.equal(calls,2,'a local failure must not poison source retry state');assert.deepEqual(recovered.paragraphs,['Retained']);
   let refreshFailed=false;
   const stale=await documentText(work,'en',{directory,clock:()=>clock()+8*86400000,download:async()=>{calls++;refreshFailed=true;throw failure;}});
   assert.equal(stale.status,'available');assert.equal(stale.stale,true);assert.deepEqual(stale.paragraphs,['Retained']);
-  for(let i=0;i<100&&!refreshFailed;i++)await new Promise(resolve=>setImmediate(resolve));
-  assert(refreshFailed);await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(refreshFailed,false);await new Promise(resolve=>setImmediate(resolve));
   const retained=await documentText(work,'en',{directory,clock,download:()=>{throw new Error('No cold refresh after local failure');}});
   assert.equal(retained.status,'available');assert.deepEqual(retained.paragraphSources,recovered.paragraphSources);assert.equal(retained.refreshError,null);
 });

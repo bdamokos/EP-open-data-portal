@@ -23,7 +23,7 @@ test('cache-only author enrichment never starts a download and returns saved tex
   let calls=0;const download=async()=>{calls++;return {paragraphs:['Saved text'],authorBylineParagraphs:['Zoë Member, Alex Common'],formattingVersion:DOCX_FORMATTING_VERSION};};
   const empty=await documentText(item,'en',{directory,download,cacheOnly:true});
   assert.equal(empty.status,'unavailable');assert.equal(calls,0);
-  await documentText(item,'en',{directory,download});
+  await documentText(item,'en',{directory,download,collector:true});
   const saved=await documentText(item,'en',{directory,download,cacheOnly:true,clock:()=>Date.now()+365*DAY});
   assert.deepEqual(saved.paragraphs,['Saved text']);assert.deepEqual(saved.authorBylineParagraphs,['Zoë Member, Alex Common']);assert.equal(calls,1);
 });
@@ -58,24 +58,15 @@ test('settled texts are never re-read, recent ones weekly, and a changed file li
   assert.equal(documentNeedsRefresh({fetchedAt: at(90)}, {...item, document_date: undefined}, {byteSize: null, issued: null}, Date.parse(at(97))), true);
 });
 
-test('a changed file listing refreshes a saved text in the background', async t => {
-  const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/changed-${Date.now()}.docx`;
-  let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`], formattingVersion: DOCX_FORMATTING_VERSION, paragraphFormats: [{}], tables: []});
-  const clock = () => Date.parse('2026-06-01T00:00:00Z');
-  assert.deepEqual((await documentText(work(url), 'en', {directory, download, clock})).paragraphs, ['version 1']);
-  const unchanged = await documentText(work(url), 'en', {directory, download, clock});
-  assert.equal(unchanged.stale, false); assert.equal(calls, 1);
-  const changed = await documentText(work(url, {byteSize: 2000}), 'en', {directory, download, clock});
-  assert.equal(changed.stale, true); assert.deepEqual(changed.paragraphs, ['version 1']);
-  // A download start does not prove that its cache publication has completed.
-  let refreshed=changed;const deadline=performance.now()+5000;
-  while(refreshed.refreshInProgress&&performance.now()<deadline){
-    await new Promise(resolve=>setTimeout(resolve,20));
-    refreshed=await documentText(work(url,{byteSize:2000}),'en',{directory,download,clock});
-  }
-  assert.equal(calls, 2);
-  assert.equal(refreshed.refreshInProgress,false);
-  assert.deepEqual(refreshed.paragraphs, ['version 2']);
+test('changed saved editions are served read-only and refreshed only by the collector',async t=>{
+  const directory=await fixture(t),url='https://data.europarl.europa.eu/distribution/doc/changed-reader.docx';
+  let calls=0;const download=async()=>({paragraphs:[`version ${++calls}`],formattingVersion:DOCX_FORMATTING_VERSION});
+  const clock=()=>Date.parse('2026-06-01');
+  await documentText(work(url),'en',{directory,download,clock,collector:true});
+  const changed=await documentText(work(url,{byteSize:2000}),'en',{directory,download,clock});
+  assert.equal(changed.stale,true);assert.deepEqual(changed.paragraphs,['version 1']);assert.equal(calls,1);
+  await documentText(work(url,{byteSize:2000}),'en',{directory,download,clock,collector:true});
+  assert.deepEqual((await documentText(work(url,{byteSize:2000}),'en',{directory,download,clock})).paragraphs,['version 2']);
 });
 
 test('the disk budget evicts the least recently read records and leaves other files alone', async t => {
@@ -114,7 +105,7 @@ test('a missing file size is not recorded as zero', async t => {
   const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/no-size-${Date.now()}.docx`;
   let calls = 0; const download = async () => ({paragraphs: [`version ${++calls}`], formattingVersion: DOCX_FORMATTING_VERSION, paragraphFormats: [{}], tables: []});
   const clock = () => Date.parse('2026-06-01T00:00:00Z');
-  await documentText(work(url, {byteSize: null}), 'en', {directory, download, clock});
+  await documentText(work(url, {byteSize: null}), 'en', {directory, download, clock,collector:true});
   const later = await documentText(work(url, {byteSize: 1000}), 'en', {directory, download, clock});
   assert.equal(later.stale, false); assert.equal(calls, 1);
 });
@@ -128,19 +119,10 @@ test('a failed cache scan is retried on the next use', async t => {
   await budget.initialize(); assert.equal(budget.bytes, 10);
 });
 
-test('a text saved before formatting stays readable and is re-read once in the background', async t => {
-  const directory = await fixture(t), url = `https://data.europarl.europa.eu/distribution/doc/unformatted-${Date.now()}.docx`;
-  const clock = () => Date.parse('2026-06-01T00:00:00Z');
-  let calls = 0; const download = async () => ++calls === 1 ? {paragraphs: ['saved text']} : {paragraphs: ['saved text'], formattingVersion: DOCX_FORMATTING_VERSION, paragraphFormats: [{align: 'center'}], tables: []};
-  assert.equal((await documentText(work(url), 'en', {directory, download, clock})).formatStatus, 'not-extracted');
-  const upgrading = await documentText(work(url), 'en', {directory, download, clock});
-  assert.deepEqual(upgrading.paragraphs, ['saved text']); assert.equal(upgrading.stale, false); assert.equal(upgrading.refreshInProgress, true);
-  let upgraded;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    upgraded = await documentText(work(url), 'en', {directory, download, clock});
-    if (!upgraded.refreshInProgress) break;
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
-  assert.equal(upgraded.formatStatus, 'extracted'); assert.deepEqual(upgraded.paragraphFormats, [{align: 'center'}]);
-  assert.equal(calls, 2);
+test('legacy formatting remains readable until the worker upgrades it',async t=>{
+ const directory=await fixture(t),url='https://data.europarl.europa.eu/distribution/doc/legacy-format.docx',clock=()=>Date.parse('2026-06-01');
+ let calls=0;const download=async()=>++calls===1?{paragraphs:['saved text']}:{paragraphs:['saved text'],formattingVersion:DOCX_FORMATTING_VERSION,paragraphFormats:[{align:'center'}],tables:[]};
+ await documentText(work(url),'en',{directory,download,clock,collector:true});
+ const reader=await documentText(work(url),'en',{directory,download,clock});assert.equal(reader.formatStatus,'not-extracted');assert.equal(calls,1);
+ const upgraded=await documentText(work(url),'en',{directory,download,clock,collector:true});assert.equal(upgraded.formatStatus,'extracted');assert.equal(calls,2);
 });

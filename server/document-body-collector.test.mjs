@@ -92,3 +92,34 @@ test('bounded discovery resumes its persisted cursor in a new collector instance
  new DocumentBodyCollector(f.store,options).admit();
  assert.equal(f.store.get('documentBodyCursor'),null);assert(f.store.get('documentBodyDiscovery'));
 });
+
+test('capacity stops speculative downloads, keeps hinted reserve, and resumes after space frees',async t=>{
+ const f=await fixture(t),hints=new DocumentBodyHints();let bytes=95,calls=0;
+ const collector=new DocumentBodyCollector(f.store,{directory:f.directory,hints,capacity:async()=>({bytes,maxBytes:100,highWaterBytes:90}),read:async()=>{calls++;return {status:'available'};}});
+ await collector.step(f.worker);assert.equal(calls,0);assert.equal(f.store.status().documentBodies.state,'capacity');
+ hints.enqueue(f.item.identifier,'en');await collector.step(f.worker);assert.equal(calls,1);
+ f.store.db.prepare('UPDATE document_body_jobs SET priority=0,next_check=0').run();
+ await collector.step(f.worker);assert.equal(calls,1);
+ bytes=10;await collector.step(f.worker);assert.equal(calls,2);assert.equal(f.store.status().documentBodies.state,'collecting');
+});
+
+test('foreground misses never publish text files and retained reads preserve file times',async t=>{
+ const f=await fixture(t),download=async()=>({paragraphs:['Reader body'],formattingVersion:DOCX_FORMATTING_VERSION});
+ await documentText(f.item,'en',{directory:f.directory,download});
+ assert.deepEqual(await readdir(f.directory),['index']);
+ await documentText(f.item,'en',{directory:f.directory,download,collector:true});
+ const folder=path.join(f.directory,'document-text-v1'),name=(await readdir(folder))[0],before=await stat(path.join(folder,name));
+ await documentText(f.item,'en',{directory:f.directory,download});
+ assert.equal((await stat(path.join(folder,name))).mtimeMs,before.mtimeMs);
+});
+
+test('one-request slices resume PDF fallback without repeating the rejected DOCX',async t=>{
+ const f=await fixture(t);f.item.work_type=['QUESTION_WRITTEN'];
+ f.item.is_realized_by[0].is_embodied_by.push({format:'PDF',is_exemplified_by:'https://data.europarl.europa.eu/distribution/body-test/body.pdf'});
+ f.store.db.prepare('UPDATE sources SET body=?').run(JSON.stringify(f.item));let docx=0,pdf=0;
+ const collector=new DocumentBodyCollector(f.store,{directory:f.directory,hints:new DocumentBodyHints(),read:(work,language,options)=>documentText(work,language,{...options,download:async()=>{docx++;throw Object.assign(Error('Invalid DOCX'),{code:'invalid_docx'});},downloadPdf:async()=>{pdf++;return {paragraphs:['PDF text']};}})});
+ await collector.step(f.worker,{requestBudget:1});assert.equal(docx,1);assert.equal(pdf,0);
+ assert.equal(f.store.db.prepare('SELECT state FROM document_body_jobs').get().state,'pdf-pending');
+ await collector.step(f.worker,{requestBudget:1});assert.equal(docx,1);assert.equal(pdf,1);
+ assert.equal(f.store.db.prepare('SELECT state FROM document_body_jobs').get().state,'retained');
+});

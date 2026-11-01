@@ -4,7 +4,7 @@ import {docxImages} from './docx-images.mjs';
 import {languagePreference} from './language-order.mjs';
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {readFile,stat} from 'node:fs/promises';
 import {writeCacheFile} from './cache-publication.mjs';
 import path from 'node:path';
 import https from 'node:https';
@@ -26,7 +26,7 @@ import {adoptedTextXmlSources} from './adopted-text-xml.mjs';
 import {questionPdf,downloadQuestionPdf} from './question-pdf.mjs';
 import {invalidDocx,pdfFallbackEligible} from './document-file-failure.mjs';
 import {documentFileEdition} from './document-file-edition.mjs';
-export const DOCUMENT_TEXT_VERSION=7;
+export const DOCUMENT_TEXT_VERSION=8;
 const failureEvidence=Symbol('document failure');
 export {documentStructure} from './docx-source-structure.mjs';
 export {documentFormatting} from './docx-formatting.mjs';
@@ -45,6 +45,18 @@ function diskBudget(directory){
   const folder=path.join(directory,'document-text-v1');
   if(!budgets.has(folder))budgets.set(folder,new CacheDiskBudget(folder,{maxBytes:config.documentTextMaxDiskBytes,maxEntries:1000000,evict:false,pattern:/^[0-9a-f]{64}\.json$/}));
   return budgets.get(folder);
+}
+export const DOCUMENT_TEXT_MAX_RECORD_BYTES=32*1024*1024;
+export async function documentTextCapacity(directory,{reconcile=false}={}){
+  const budget=diskBudget(directory);
+  await budget.work;await budget.initialize();
+  if(reconcile){
+    for(const [name,entry] of budget.entries){
+      try{await stat(path.join(budget.directory,name));}
+      catch(error){if(error.code==='ENOENT'){budget.entries.delete(name);budget.bytes-=entry.size;}else throw error;}
+    }
+  }
+  return {bytes:budget.bytes,maxBytes:budget.maxBytes,reservationBytes:DOCUMENT_TEXT_MAX_RECORD_BYTES,highWaterBytes:Math.floor(budget.maxBytes*.9)};
 }
 function fileDescriptor(work,url){
   for(const e of array(work.is_realized_by))for(const m of array(e.is_embodied_by)){
@@ -424,19 +436,21 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   const sourceId=work.identifier||tail(work.id),sourceUrl=chosen.url;
   const key=format==='PDF'?JSON.stringify(['pdf',sourceId,chosen.language,sourceUrl]):sourceUrl;
   const name=createHash('sha256').update(key).digest('hex')+'.json',file=directory && path.join(directory,'document-text-v1',name);
-  const budget=directory?diskBudget(directory):null,descriptor=format==='PDF'?documentFileEdition(chosen):fileDescriptor(work,sourceUrl);
+  const budget=directory&&collector?diskBudget(directory):null,descriptor=format==='PDF'?documentFileEdition(chosen):fileDescriptor(work,sourceUrl);
   let saved;
   if(!saved && file)try{const record=JSON.parse(await readFile(file,'utf8'));requestSignal()?.throwIfAborted();if(record.schemaVersion===1 && record.extractionVersion===extractionVersion && record.sourceUrl===sourceUrl
     &&(format!=='PDF'||record.sourceId===sourceId&&record.sourceLanguage===chosen.language&&record.sourceFormat==='PDF')
-    &&Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;budget.used(name);}}catch{}
+    &&Number.isFinite(Date.parse(record.fetchedAt)) && Array.isArray(record.paragraphs) && record.paragraphs.every(p=>typeof p==='string')){saved=record;}}catch{}
   requestSignal()?.throwIfAborted();
+  const pendingKey=JSON.stringify([key,collector]);
   const refresh=priority=> {
-    if(pending.has(key))return pending.get(key);
+    if(pending.has(pendingKey))return pending.get(pendingKey);
     const job=sharedRequest(signal=>boundedUpstream(async()=>{
       const result=await download(sourceUrl,{signal,priority});signal.throwIfAborted();if(!result.paragraphs?.some(p=>p.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});const record={schemaVersion:1,extractionVersion,sourceId,sourceUrl,sourceFormat:format,sourceLanguage:chosen.language,source:descriptor,fetchedAt:new Date(clock()).toISOString(),...result};
       const serialized=JSON.stringify(record);
-      if(file){
+      if(file&&collector){
         const size=Buffer.byteLength(serialized);
+        if(size>DOCUMENT_TEXT_MAX_RECORD_BYTES)throw Object.assign(new Error('Extracted document exceeds the retained record limit.'),{code:'source_parser_rejection',sourceHash:result.sourceHash});
         const fits=await budget.canSave(name,size);
         if(!fits&&collector)throw Object.assign(new Error('Document text cache reached its configured disk limit.'),{code:'document_text_capacity'});
         if(fits){
@@ -446,15 +460,15 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
       }
       signal.throwIfAborted();
       failures.delete(key);return record;
-    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(key));
-    pending.set(key,job);return job;
+    },{source:'documents',priority,signal})).catch(error=>{if(!collector&&!isLocalRequestFailure(error))failures.set(key,{source:descriptor,retryAt:Math.max(clock()+30000,clock()+Number(error.retryAfter||0)*1000),message:String(error.message).slice(0,250),code:error.code,status:error.status});throw error;}).finally(()=>pending.delete(pendingKey));
+    pending.set(pendingKey,job);return job;
   };
   // The URL can be reused for a republished edition. Its predecessor's failed
   // download must not suppress a newly declared issue time or size.
   const previousFailure=failures.get(key);
   const changedEdition=previousFailure&&['byteSize','issued'].some(field=>descriptor[field]!==null&&descriptor[field]!==previousFailure.source?.[field]);
   const failure=changedEdition?null:previousFailure;
-  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory}),sourceHash:record.sourceHash||null,
+  const present=async record=>({...base,status:'available',paragraphs:record.paragraphs,authorBylineParagraphs:record.authorBylineParagraphs || [],...documentNotes(record),...documentStructure(record),...documentFormatting(record),imageAssets:await publishDocumentImages(record,{directory:collector?directory:null}),sourceHash:record.sourceHash||null,
     extractionVersion:record.extractionVersion,sourceVersion:record.source?{...record.source,...(format==='PDF'?{observedByteSize:record.observedByteSize,byteSizeMatches:record.byteSizeMatches}:{} )}:null,extractionWarnings:record.extractionWarnings || [],fetchedAt:record.fetchedAt});
   if(collector){
     if(!saved||documentNeedsRefresh(saved,work,descriptor,clock())||saved.formattingVersion!==FORMATTING_VERSION) saved=await waitForRequest(refresh('background'));
@@ -466,8 +480,8 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
   if(saved){const stale=documentNeedsRefresh(saved,work,descriptor,clock()),bylineUpgrade=documentAuthorIdentities(work).length>1&&!Array.isArray(saved.authorBylineParagraphs),reformat=format==='DOCX'&&(saved.formattingVersion!==FORMATTING_VERSION||bylineUpgrade)&&!reformatted.has(key);
     if((stale||reformat) && (!failure || failure.retryAt<=clock())){
       if(reformat){if(reformatted.size>=5000)reformatted.clear();reformatted.add(key);}
-      void refresh('background').catch(()=>{if(reformat)reformatted.delete(key);});
-    }return {...await present(saved),stale,refreshInProgress:pending.has(key),refreshError:failure?.message || null};}
+      if(enqueue)documentBodyHints.enqueue(sourceId,language);
+    }return {...await present(saved),stale,refreshInProgress:pending.has(pendingKey),refreshError:failure?.message || null};}
   if(failure?.retryAt>clock())return {...base,status:'error',reason:failure.message,refreshError:failure.message,nextRetryAt:new Date(failure.retryAt).toISOString(),[failureEvidence]:failure};
   try {const record=await waitForRequest(refresh('interactive'));return present(record);}
   catch(error){requestSignal()?.throwIfAborted();if(isLocalRequestFailure(error))throw error;return {...base,status:'error',reason:String(error.message).slice(0,250),refreshError:String(error.message).slice(0,250),nextRetryAt:new Date(error.retryAt||failures.get(key)?.retryAt||clock()+(error.retryAfter||30)*1000).toISOString(),[failureEvidence]:error};}
@@ -477,9 +491,10 @@ async function readDocumentText(work,language,{directory=process.env.ODP_CACHE_D
 // can replace a missing/broken question file; upstream failures do not fan out.
 export async function documentText(work,language,options={}) {
   let result;
-  try {result=await readDocumentText(work,language,options);}
+  try {result=options.collectorPdfOnly?{status:'unavailable',textLanguage:options.selectedFile?.language,availableTextLanguages:[]}:await readDocumentText(work,language,options);}
   catch(error){
     if(!options.collector||!pdfFallbackEligible(error)||!questionPdf(work,options.selectedFile?.language||language))throw error;
+    if(options.requestBudget===1)throw Object.assign(new Error('PDF alternative queued for the next body slice.'),{code:'document_body_pdf_pending'});
     result={status:'error',textLanguage:options.selectedFile?.language,availableTextLanguages:[],[failureEvidence]:error};
   }
   if(result.status==='available'||result.status==='error'&&!pdfFallbackEligible(result[failureEvidence]))return result;
@@ -488,6 +503,6 @@ export async function documentText(work,language,options={}) {
   const file=questionPdf(work,chosen);
   if(!file||Date.parse(file.issued)>(options.clock||Date.now)())return result;
   const fallback=await readDocumentText(work,language,{...options,format:'PDF',selectedFile:file,
-    download:(_url,{signal})=>(options.downloadPdf||downloadQuestionPdf)(file,{signal})});
+    download:(_url,{signal,priority})=>(options.downloadPdf||downloadQuestionPdf)(file,{signal,priority})});
   return {...fallback,availableTextLanguages:languagePreference([...result.availableTextLanguages,...available.filter(code=>questionPdf(work,code))],language)};
 }

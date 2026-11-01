@@ -1,3 +1,4 @@
+export const DOCUMENT_BODY_STATUS_VERSION=1;
 import {prepareDocumentBodies} from './document-body-collector.mjs';
 import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
 import {prepareSittingSnapshots,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
@@ -261,10 +262,17 @@ export class ActivityStore {
     });
   }
   updateCycle(values) { this.assertWriter();this.set('working',{...this.get('working'),...values}); }
-  enqueue(generation,key,kind,body,priority=50,refreshCompleted=false,{retryGap=false}={}) {
+  enqueue(generation,key,kind,body,priority=50,refreshCompleted=false,{retryGap=false,sourceFingerprint=null}={}) {
     const enqueue=()=>{
       this.assertWriter();
-      const gap=this.db.prepare('SELECT kind,body,priority,retry_at,attempts FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+      let gap=this.db.prepare('SELECT kind,body,priority,retry_at,attempts FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key);
+      if(gap&&sourceFingerprint) {
+        const rejection=parse(gap.body).ruleRejection;
+        if(rejection&&rejection.fingerprint!==sourceFingerprint) {
+          const saved=parse(gap.body);kind=saved.sourceTaskKind;body={...saved};delete body.ruleRejection;delete body.sourceTaskKind;
+          this.db.prepare('DELETE FROM refresh_gaps WHERE generation=? AND key=?').run(generation,key);gap=null;refreshCompleted=true;
+        }
+      }
       if(gap) {
         if(!retryGap || gap.retry_at>this.clock() || this.db.prepare('SELECT 1 FROM refresh_gap_admissions WHERE generation=? AND key=?').get(generation,key) || this.db.prepare('SELECT COUNT(*) n FROM refresh_gap_admissions WHERE generation=?').get(generation).n>=GAP_LIMIT)return false;
         // Admission and its marker commit together. Checkpoints retain any
@@ -281,7 +289,7 @@ export class ActivityStore {
       }
       return true;
     };
-    return retryGap&&!this.db.isTransaction?this.transaction(enqueue):enqueue();
+    return (retryGap||sourceFingerprint)&&!this.db.isTransaction?this.transaction(enqueue):enqueue();
   }
   hasDueTask(generation) {return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? LIMIT 1').get(generation,this.clock()));}
   nextTask(generation) { if(!this.hasDueTask(generation))return;const r=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(generation,this.clock()); return r && {...r,body:parse(r.body)}; }
@@ -490,7 +498,7 @@ export class ActivityStore {
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:2, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       history:historyReadiness(this,generation),
-      refreshSnapshotReady,
+      refreshSnapshotReady,documentBodies:this.get('documentBodyCapacity')||null,
       availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverageGaps:{count:gapCount,examples:gapExamples},
       phase:cycle?.phase || (active?'ready':'waiting'), lastSuccessfulRefresh:this.get('lastSuccess'), refreshStartedAt:cycle?.startedAt || null,

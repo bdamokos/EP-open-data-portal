@@ -14,9 +14,9 @@ export function questionPdf(work,language) {
   return file?{...file,sourceId:work.identifier||tail(work.id)}:null;
 }
 
-export async function downloadQuestionPdf(file,{signal,download=downloadPdf,extract=extractPdfText}={}) {
+export async function downloadQuestionPdf(file,{signal,priority='interactive',download=downloadPdf,extract=extractPdfText}={}) {
   signal?.throwIfAborted();
-  const result=await download(file.url,{signal,maxBytes:PDF_TEXT_LIMITS.bytes});signal?.throwIfAborted();
+  const result=await download(file.url,{signal,priority,maxBytes:PDF_TEXT_LIMITS.bytes});signal?.throwIfAborted();
   const body=result.body;
   if(!Buffer.isBuffer(body)||body.length>PDF_TEXT_LIMITS.bytes||body.toString('ascii',0,5)!=='%PDF-')throw new Error('Invalid or oversized PDF document.');
   const declaredSize=file.byteSize!=null&&Number.isSafeInteger(Number(file.byteSize))&&Number(file.byteSize)>=0?Number(file.byteSize):null;

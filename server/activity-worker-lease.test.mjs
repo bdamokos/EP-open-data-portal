@@ -68,3 +68,12 @@ test('explicit shutdown remains permanent and cannot be revived by an ordinary t
   assert.equal(worker.stopped,true);assert.equal(store.db.prepare('SELECT * FROM lease').get(),undefined);
   assert.deepEqual(store.db.prepare('SELECT * FROM tasks WHERE generation=? AND key=?').get(generation,key),before);
 });
+
+test('continuous bodies leave seven of eight one-request turns for core work',async t=>{
+ const {store,worker}=fixture(t);let bodies=0,core=0,projections=0;
+ worker.documentBodies={due:()=>true,step:async(w,options)=>{assert.equal(options.requestBudget,1);bodies++;w.requests++;}};
+ worker.fillProjectionBatch=async()=>{projections++;};
+ worker.task=async()=>{core++;worker.requests++;};
+ for(let n=0;n<16;n++)await worker.run();
+ assert.equal(bodies,2);assert.equal(core,14);assert(projections>=16);
+});
