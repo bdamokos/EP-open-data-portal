@@ -423,11 +423,11 @@ function draftingInsertion(selected,proposedText,language) {
 }
 // Restrict typo recovery to the label's resolved unit and complete source rows.
 function similarMatch(proposal,unit,original){
- if(unit.pathConflict)return null;
+ if(unit.pathConflict||!unit.instruction||unit.scope!=='proposal'||unit.path[0]?.kind!=='article')return null;
  const hit=similarPassage(proposal.paragraphs.slice(unit.extent.start,unit.extent.end),original);
  if(!hit)return null;
  const {start,end,similarity}=hit,rows=proposal.paragraphs.slice(start,end+1);
- if(rows.some(p=>!p.complete||p.source?.complete!==true)||proposal.gaps.some(g=>g.code==='unclosed-quotation'&&g.paragraph>=start&&g.paragraph<=end))return null;
+ if(rows.some(p=>!p.complete||p.source?.complete!==true||p.source.container!=='body')||proposal.gaps.some(g=>g.code==='unclosed-quotation'&&g.paragraph>=start&&g.paragraph<=end))return null;
  return {span:{start,end},splice:{start:{paragraph:start,offset:0},end:{paragraph:end,offset:rows.at(-1).text.length}},originalText:rows.map(p=>p.text).join('\n'),whole:start===unit.extent.start&&end===unit.extent.end-1,similarity};
 }
 
@@ -636,7 +636,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return originalText;
   };
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,adaptedOriginal(candidate))}));
-  for(const candidate of matches)if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
+  for(const candidate of candidates.length===1?matches:[])if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
   if(matching.length!==1&&candidates.length===1&&candidates[0].unit.instruction){
     const c=candidates[0],lead=originalText.split(/\r?\n/u)[0],row=c.proposal.paragraphs[c.unit.extent.start];

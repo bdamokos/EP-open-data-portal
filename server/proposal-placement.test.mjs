@@ -414,9 +414,18 @@ test('instruction anchor ignores quoted existing law only after exact instructio
 });
 test('similar wording records the score and refuses a nearby competing passage',()=>{
  const text='A provider shall document its assessment before the system is placed on the market.';
- const projection=source(['Article 1','1. '+text,'Article 2'],['Titrearticle','ManualNumPar1','Titrearticle']);
- const placed=resolve(projection,'Article 1 – paragraph 1','1. '+text.replace('system','systen'),'New text.');
+ const projection=source(['Article 1','The act is amended as follows:','(1) Paragraph 1 is replaced by the following:','‘'+text+'’','Article 2'],['Titrearticle','','Point0','','Titrearticle']);
+ const placed=resolve(projection,'Article 1 – paragraph 1 – point 1',text.replace('system','systen'),'New text.');
  assert.equal(placed.status,'placed');assert.equal(placed.evidence.at(-1).matchKind,'similar');assert(placed.evidence.at(-1).similarity>=.95);
  const ambiguous=source(['Article 1','1. '+text,'1. '+text,'Article 2'],['Titrearticle','ManualNumPar1','','Titrearticle']);
  assert.equal(resolve(ambiguous,'Article 1 – paragraph 1','1. '+text.replace('system','systen'),'New text.').status,'unresolved');
+});
+
+test('similarity recovery withholds table-cell passages without independent table boundaries',()=>{
+ const text='1. A provider shall document the assessment before placing the system on the market.';
+ const projection=source(['Article 1','The act is amended as follows:','(1) Paragraph 1 is replaced by the following:',text,'Article 2'],['Titrearticle','','Point0','','Titrearticle']);
+ const proposal=structuredClone(parseProposal(projection));
+ proposal.paragraphs[3].source={...proposal.paragraphs[3].source,container:'table-cell',containerPath:'body/table/row/cell'};
+ const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
+ assert.equal(placed.status,'unresolved');
 });
