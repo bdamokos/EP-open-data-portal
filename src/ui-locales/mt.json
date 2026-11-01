@@ -2361,5 +2361,9 @@
   "ui.speechStat.blueQuestions": "karta blu mqajma",
   "ui.speechStat.blueAnswers": "karta blu mwieġba",
   "ui.speechStat.blueReactions": "reazzjoni b’karta blu",
-  "ui.speechStat.chair": "kontribuzzjoni tal-presidenza"
+  "ui.speechStat.chair": "kontribuzzjoni tal-presidenza",
+  "questionanswerer.signatory": "Tweġiba minn: {person}, {institution}",
+  "questionanswerer.institution": "Tweġiba minn: {institution}",
+  "questionanswerer.institution.commission": "Il-Kummissjoni Ewropea",
+  "questionanswerer.institution.council": "Il-Kunsill"
 }

@@ -2361,5 +2361,9 @@
   "ui.speechStat.groupOrations": "På vegne af en gruppe",
   "ui.speechStat.total": "Bidrag i alt",
   "ui.speechStat.written": "Skriftlige erklæringer",
-  "ui.subjectUnit": "emner"
+  "ui.subjectUnit": "emner",
+  "questionanswerer.signatory": "Besvaret af: {person}, {institution}",
+  "questionanswerer.institution": "Besvaret af: {institution}",
+  "questionanswerer.institution.commission": "Europa-Kommissionen",
+  "questionanswerer.institution.council": "Rådet"
 }

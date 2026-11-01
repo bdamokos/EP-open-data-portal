@@ -2378,5 +2378,9 @@
   "ui.speechStat.blueAnswers": "de cartonașe albastre la care s-a răspuns",
   "ui.speechStat.blueReactions": "de reacții cu cartonaș albastru",
   "ui.speechStat.chair": "de intervenții în calitate de președinte",
-  "ui.speechStat.groupOrations": "În numele unui grup"
+  "ui.speechStat.groupOrations": "În numele unui grup",
+  "questionanswerer.signatory": "Răspuns dat de: {person}, {institution}",
+  "questionanswerer.institution": "Răspuns dat de: {institution}",
+  "questionanswerer.institution.commission": "Comisia Europeană",
+  "questionanswerer.institution.council": "Consiliul"
 }

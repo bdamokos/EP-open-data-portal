@@ -2361,5 +2361,9 @@
   "ui.speechStat.groupOrations": "Namens een fractie",
   "ui.speechStat.total": "Bijdragen in totaal",
   "ui.speechStat.written": "Schriftelijke verklaringen",
-  "ui.subjectUnit": "onderwerpen"
+  "ui.subjectUnit": "onderwerpen",
+  "questionanswerer.signatory": "Beantwoord door: {person}, {institution}",
+  "questionanswerer.institution": "Beantwoord door: {institution}",
+  "questionanswerer.institution.commission": "Europese Commissie",
+  "questionanswerer.institution.council": "Raad"
 }

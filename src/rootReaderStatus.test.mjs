@@ -11,8 +11,10 @@ const paragraphs=[
   'Distinctive copper heron reader fixture. This paragraph remains ordinary readable content while a delayed public document request completes. Every sentence must survive rendering without becoming part of a live announcement.',
   'Distinctive silver willow reader fixture. A second substantial paragraph checks that the reader preserves the complete supplied text. Result and error messages can change nearby without absorbing this document into their announcement boundary.',
 ];
-const files=['en','fr'].flatMap(language=>['PDF','DOCX'].map(format=>({format,language,url:`https://www.europarl.europa.eu/doceo/document/${questionId}_${language.toUpperCase()}.${format.toLowerCase()}`})));
+const files=['en','fr','de'].flatMap(language=>['PDF','DOCX'].map(format=>({format,language,url:`https://www.europarl.europa.eu/doceo/document/${questionId}_${language.toUpperCase()}.${format.toLowerCase()}`})));
 const documentResult=(language='en',available=true)=>({id:questionId,selectedDocumentId:questionId,date:'2026-10-01',titles:{en:'Written question fixture'},roles:['AUTHOR'],files,answers:[],selectedText:{status:available?'available':'unavailable',paragraphs:available?paragraphs:[],textLanguage:language,availableTextLanguages:['en','fr'],translationType:'original',sourceFormat:'DOCX',sourceUrl:files.find(file=>file.language===language&&file.format==='DOCX').url}});
+// The interface language is missing, so the reader serves another edition and offers the others.
+const fallbackResult=(language='de',available=true)=>{const result=documentResult(language,available);return {...result,selectedText:{...result.selectedText,availableTextLanguages:['de','fr']}};};
 const questionItem={id:'question:'+questionId,sourceId:questionId,date:'2026-10-01',title:'Written question fixture',recordKind:'document',category:'written-questions',categoryLabel:'Written questions',reference:questionId,files,provenance:{role:'QUESTION_AUTHOR'}};
 const speechItem={id:'speech:'+speechId,sourceId:speechId,date:'2026-03-25',title:'Plenary speech fixture',titles:{en:'Plenary speech fixture'},recordKind:'speech',category:'plenary-contributions',categoryLabel:'Plenary contributions',reference:speechId,files:[],speechKind:'PLENARY_DEBATE_SPEECH',start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z',websiteUrl:'https://www.europarl.europa.eu/doceo/document/CRE-10-2026-03-25-INT-2017069380111_EN.html',websiteLanguage:'en',provenance:{role:'SPEAKER'}};
 const page=items=>({categories:{'written-questions':'Written questions','plenary-contributions':'Plenary contributions'},categoryGroups:[],categoryCoverage:{},items,selectedItems:[],indexedTotal:items.length,nextOffset:null,cache:{complete:true}});
@@ -221,7 +223,7 @@ test('selected written question keeps full text without repeated source download
   const h=await harness(t),toggle=h.container.querySelector('.explorer-speech-toggle');toggle.focus();await h.click(toggle);
   const reader=h.container.querySelector('.explorer-document-text'),announcement=status(reader);
   assert.equal(announcement.textContent,'');
-  await h.finish(`document/${questionId}?member=${member.id}&lang=en`,documentResult());await h.wait();
+  await h.finish(`document/${questionId}?member=${member.id}&lang=en`,fallbackResult());await h.wait();
   assert.equal(status(reader),announcement);assert.equal(announcement.textContent,'Question: Text loaded.');
   assertOrdinaryText(reader);assertNoDownloads(reader);assert.equal(document.activeElement,toggle);
 
@@ -357,7 +359,7 @@ test('member transcript preserves editorial italics in place without importing s
 test('member question retries the selected source language locally and keeps saved text through repeated failure',async t=>{
   const h=await harness(t),toggle=h.container.querySelector('.explorer-speech-toggle');await h.click(toggle);
   const route=`document/${questionId}?member=${member.id}&lang=fr`;
-  await h.finish(`document/${questionId}?member=${member.id}&lang=en`,documentResult());
+  await h.finish(`document/${questionId}?member=${member.id}&lang=en`,fallbackResult());
   const reader=h.container.querySelector('.explorer-document-text'),select=reader.querySelector('select');
   await act(async()=>{select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   await h.finish(route,documentResult('fr'));

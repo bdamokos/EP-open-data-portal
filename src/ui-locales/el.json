@@ -2361,5 +2361,9 @@
   "ui.speechStat.blueAnswers": "Απαντημένες γαλάζιες κάρτες",
   "ui.speechStat.blueReactions": "Αντιδράσεις με γαλάζια κάρτα",
   "ui.speechStat.chair": "Παρεμβάσεις προεδρεύοντος",
-  "ui.speechStat.groupOrations": "Εξ ονόματος ομάδας"
+  "ui.speechStat.groupOrations": "Εξ ονόματος ομάδας",
+  "questionanswerer.signatory": "Απάντηση από: {person}, {institution}",
+  "questionanswerer.institution": "Απάντηση από: {institution}",
+  "questionanswerer.institution.commission": "Ευρωπαϊκή Επιτροπή",
+  "questionanswerer.institution.council": "Συμβούλιο"
 }

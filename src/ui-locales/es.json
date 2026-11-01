@@ -2361,5 +2361,9 @@
   "ui.speechStat.blueAnswers": "Tarjetas azules respondidas",
   "ui.speechStat.blueReactions": "Reacciones a tarjetas azules",
   "ui.speechStat.chair": "Intervenciones de la presidencia",
-  "ui.speechStat.groupOrations": "En nombre de un grupo"
+  "ui.speechStat.groupOrations": "En nombre de un grupo",
+  "questionanswerer.signatory": "Respondida por: {person}, {institution}",
+  "questionanswerer.institution": "Respondida por: {institution}",
+  "questionanswerer.institution.commission": "Comisión Europea",
+  "questionanswerer.institution.council": "Consejo"
 }

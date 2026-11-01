@@ -186,7 +186,12 @@ export interface DocumentObject {
   font?: string;
   code?: string;
 }
+export interface QuestionAnswerer {
+  institution: string | null;
+  signatory: { statement: string; title: string | null; name: string; onBehalfOf: string; language: 'en'; sourceUrl: string | null } | null;
+}
 export interface PublicationDocument {
+  answerer?: QuestionAnswerer | null;
   coAuthors?: CoAuthor[];
   coAuthorSource?: { documentApiUrl:string; documentFetchedAt:string; rosterApiUrl:string; rosterFetchedAt:string|null; order?:'published-byline'|'api-unordered'; orderSourceUrl?:string|null; orderFetchedAt?:string|null };
   id: string;

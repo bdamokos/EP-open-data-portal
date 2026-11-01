@@ -2361,5 +2361,9 @@
   "ui.speechStat.groupOrations": "príspevkov v mene skupiny",
   "ui.speechStat.total": "príspevkov spolu",
   "ui.speechStat.written": "písomných vyhlásení",
-  "ui.subjectUnit": "predmetov"
+  "ui.subjectUnit": "predmetov",
+  "questionanswerer.signatory": "Odpovedá: {person}, {institution}",
+  "questionanswerer.institution": "Odpovedá: {institution}",
+  "questionanswerer.institution.commission": "Európska komisia",
+  "questionanswerer.institution.council": "Rada"
 }

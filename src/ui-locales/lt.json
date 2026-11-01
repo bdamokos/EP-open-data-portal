@@ -2375,5 +2375,9 @@
   "ui.speechStat.blueQuestions": "pakeltų mėlynųjų kortelių",
   "ui.speechStat.blueAnswers": "atsakymų į mėlynosios kortelės klausimą",
   "ui.speechStat.blueReactions": "mėlynosios kortelės replikų",
-  "ui.speechStat.chair": "pirmininkavimo pasisakymų"
+  "ui.speechStat.chair": "pirmininkavimo pasisakymų",
+  "questionanswerer.signatory": "Atsakė: {person}, {institution}",
+  "questionanswerer.institution": "Atsakė: {institution}",
+  "questionanswerer.institution.commission": "Europos Komisija",
+  "questionanswerer.institution.council": "Taryba"
 }

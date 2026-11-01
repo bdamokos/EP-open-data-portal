@@ -2361,5 +2361,9 @@
   "ui.speechStat.blueQuestions": "paceltas zilās kartītes",
   "ui.speechStat.blueAnswers": "atbildētas zilās kartītes",
   "ui.speechStat.blueReactions": "zilās kartītes replikas",
-  "ui.speechStat.chair": "priekšsēdētāja uzstāšanās reizes"
+  "ui.speechStat.chair": "priekšsēdētāja uzstāšanās reizes",
+  "questionanswerer.signatory": "Atbildētājs: {person}, {institution}",
+  "questionanswerer.institution": "Atbildētājs: {institution}",
+  "questionanswerer.institution.commission": "Eiropas Komisija",
+  "questionanswerer.institution.council": "Padome"
 }

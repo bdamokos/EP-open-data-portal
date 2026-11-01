@@ -49,6 +49,16 @@ test('answer author order reads the linked question instead of using answer name
   assert(result.coAuthors.every(a=>a.role==='QUESTION_AUTHOR' && a.sourceDocumentId===f.work.identifier));
   assert.equal(result.coAuthorSource.order,'api-unordered','without a saved roster the order stays unverified');
 });
+test('answer signatory reads the saved English header without a new download',async()=>{
+  const f=orderFixture,calls=[],answerId=f.work.identifier+'-ASW',header='EN\nE-1/2026\nAnswer given by Commissioner Šefčovič\non behalf of the European Commission\n(7.3.2026)';
+  const work={...f.work,inverse_answers_to:[{identifier:answerId,creator:['org/EU_COMMISSION']}]};
+  const readText=async(selected,language,options={})=>{calls.push([language,Boolean(options.cacheOnly)]);return language==='en'?{status:'available',textLanguage:'en',paragraphs:[header],sourceUrl:'https://example.test/a_en.docx'}:{status:'available',textLanguage:'fi',availableTextLanguages:['en','fi'],paragraphs:['FI\nE-1/2026\nKomission puolesta']};};
+  const result=await activityDocument(answerId,202073,'fi',{request:async()=>({payload:{data:[work]},fetchedAt:Date.parse(f.fetchedAt)}),readText});
+  assert.deepEqual(calls,[['fi',false],['en',true]]);
+  assert.deepEqual(result.answerer,{institution:'org/EU_COMMISSION',signatory:{statement:'Commissioner Šefčovič',title:'Commissioner',name:'Šefčovič',onBehalfOf:'European Commission',language:'en',sourceUrl:'https://example.test/a_en.docx'}});
+  const question=await activityDocument(f.work.identifier,202073,'en',{request:async()=>({payload:{data:[work]},fetchedAt:Date.parse(f.fetchedAt)}),readText});
+  assert.equal(question.answerer,null,'questions carry no answerer of their own');
+});
 test('real question and resolution author IDs join the documented current roster without name inference',()=>{
   const [question,motion]=fixture.documents;
   const resolve=(doc,id)=>documentCoAuthors(doc.work,{members:fixture.roster.members,selectedDocumentId:id,documentApiUrl:doc.sourceUrl,documentFetchedAt:doc.fetchedAt,rosterFetchedAt:fixture.roster.fetchedAt});

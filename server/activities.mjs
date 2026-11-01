@@ -10,6 +10,7 @@ import { boundedUpstream, upstreamResponseError, odp, odpProfile } from "./odp.m
 import { languageCode } from "./ep-links.mjs";
 import { documentText } from './document-text.mjs';
 import { documentAuthorIdentities, documentCoAuthors } from './document-authors.mjs';
+import {questionAnswerer} from './question-answerer.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {browserCompatibleUserAgent} from './user-agent.mjs';
 
@@ -157,7 +158,17 @@ export async function activityDocument(id, person, language, {request=odp,readTe
     try { authorText=await readText(work,language,{cacheOnly:true}); }
     catch { requestSignal()?.throwIfAborted(); }
   }
+  // The signatory is read from the English header only; other editions are not parsed.
+  let answerer=null;
+  if(id.endsWith('-ASW')&&selected) {
+    let english=selectedText.textLanguage==='en'?selectedText:null;
+    if(!english&&selectedText.availableTextLanguages?.includes('en')) {
+      try { english=await readText(selected,'en',{cacheOnly:true}); }
+      catch { requestSignal()?.throwIfAborted(); }
+    }
+    answerer=questionAnswerer(selected,english?.status==='available'?english:null);
+  }
   const coAuthorData=documentCoAuthors(work,{members,selectedDocumentId:id,documentApiUrl:'https://data.europarl.europa.eu/api/v2'+endpoint,documentFetchedAt:new Date(record.fetchedAt).toISOString(),rosterFetchedAt:store?.get('rosterFetchedAt') || null,authorText});
   const summary=documentSummary(work,person);
-  return { ...summary, ...coAuthorData,relatedQuestion:id.endsWith('-ASW')?{id:summary.id,titles:summary.titles,date:summary.date}:null, selectedDocumentId:id,selectedDocumentDate:selected?.document_date||null,selectedText,requestedLanguage: language, fetchedAt: new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null} };
+  return { ...summary, ...coAuthorData,relatedQuestion:id.endsWith('-ASW')?{id:summary.id,titles:summary.titles,date:summary.date}:null,answerer, selectedDocumentId:id,selectedDocumentDate:selected?.document_date||null,selectedText,requestedLanguage: language, fetchedAt: new Date(record.fetchedAt).toISOString(),sourceCache:{stale:Boolean(record.stale),refreshInProgress:Boolean(record.refreshInProgress),refreshError:record.refreshError||null} };
 }

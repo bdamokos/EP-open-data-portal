@@ -2361,5 +2361,9 @@
   "ui.speechStat.groupOrations": "участия от името на група",
   "ui.speechStat.total": "участия общо",
   "ui.speechStat.written": "писмени изявления",
-  "ui.subjectUnit": "теми"
+  "ui.subjectUnit": "теми",
+  "questionanswerer.signatory": "Отговор от: {person}, {institution}",
+  "questionanswerer.institution": "Отговор от: {institution}",
+  "questionanswerer.institution.commission": "Европейска комисия",
+  "questionanswerer.institution.council": "Съвет"
 }
