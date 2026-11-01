@@ -1,3 +1,5 @@
+import path from 'node:path';
+import {retainBaseSelection} from './base-source-store.mjs';
 import {committeeDraftId,committeeDocumentEndpoint,committeeDocumentKind} from './committee-amendments.mjs';
 import {CellarDocuments,cellarGraph,CELLAR_WORK_PATTERN,CELLAR_LIMITS,cellarTransportUrl,councilCelex} from './cellar-documents.mjs';
 import {languageCode} from './ep-links.mjs';
@@ -73,7 +75,7 @@ export function createCouncilPositionBaseline({documents=new CellarDocuments(),r
       const gaps=[];if(report.stale||metadata.viewCache?.stale||candidates.viewCache?.stale)gaps.push('stale-metadata');if(items.some(item=>item.source.stale))gaps.push('stale-content');
       return {status:gaps.length?'partial':'available',celex,workId,language,items,gaps,evidence};
     }catch(error){if(isLocalRequestFailure(error))throw error;return unavailable(error.code||error.message||'council-source-unavailable');}
-  },60_000));
+  },60_000).then(result=>retainBaseSelection('council',options,result,{directory:documents.directory&&path.dirname(documents.directory)})));
 }
 let defaultBaseline;
 export function councilPositionBaseline(options){defaultBaseline??=createCouncilPositionBaseline();return defaultBaseline(options);}

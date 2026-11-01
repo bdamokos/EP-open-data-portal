@@ -19,7 +19,8 @@ async function warmAll(service) {
 async function harness(t) {
   const directory=await mkdtemp(path.join(os.tmpdir(),'plenary-details-'));
   const store=new ActivityStore(path.join(directory,'index'));
-  t.after(async()=>{store.close();await rm(directory,{recursive:true,force:true});});
+  // Stale source refreshes can finish publishing after the readable result returns.
+  t.after(async()=>{store.close();await rm(directory,{recursive:true,force:true,maxRetries:5,retryDelay:50});});
   const fixture=JSON.parse(await readFile(new URL('./fixtures/insights-live-20261014.json',import.meta.url),'utf8'));
   const progressHtml=await readFile(new URL('./fixtures/oeil-procedure-2026-2937-progress.html',import.meta.url),'utf8');
   let now=Date.parse('2026-10-29T12:00:00Z'),generation;

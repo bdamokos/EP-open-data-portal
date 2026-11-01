@@ -1,3 +1,5 @@
+import path from 'node:path';
+import {retainBaseSelection} from './base-source-store.mjs';
 import {committeeDraftId,committeeDocumentEndpoint} from './committee-amendments.mjs';
 import {CellarDocuments,proposalCelex,CELLAR_LIMITS} from './cellar-documents.mjs';
 import {commissionReferences,commissionProcedures,reportProposalReference,resolveProposalTree,resolveProposalCandidates} from './commission-proposal-identity.mjs';
@@ -97,7 +99,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         if(isLocalRequestFailure(error))throw error;
         return unavailable('unavailable',[{code:error.code||'proposal-source-unavailable'}]);
       }
-    },45_000));
+    },45_000).then(result=>retainBaseSelection('proposal',{reportId,celex,language,documentReferences,nativeReferencePair},result,{directory:documents.directory&&path.dirname(documents.directory)})));
   };
 }
 /** Internal, lazy source function. Buffers go directly to the existing DOCX pipeline. */

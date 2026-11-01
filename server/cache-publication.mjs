@@ -1,4 +1,4 @@
-import {mkdir,writeFile,rename,unlink} from 'node:fs/promises';
+import {mkdir,writeFile,rename,unlink,stat} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import path from 'node:path';
 import {requestSignal,waitForRequest} from './request-budget.mjs';
@@ -7,7 +7,7 @@ const publications=new Map();
 
 // Preparation may overlap. Final replacements of one file retain their order,
 // including when an already-started filesystem operation outlives its owner.
-export function writeCacheFile(file,data,{signal=requestSignal()}={}) {
+export function writeCacheFile(file,data,{signal=requestSignal(),onOrphan}={}) {
   if(signal?.aborted)return Promise.reject(signal.reason);
   let state=publications.get(file);
   if(!state){state={tail:Promise.resolve(),active:0,latest:0};publications.set(file,state);}
@@ -31,7 +31,7 @@ export function writeCacheFile(file,data,{signal=requestSignal()}={}) {
       signal?.throwIfAborted();
       return published&&ticket===state.latest;
     } finally {
-      await unlink(temporary).catch(()=>{});
+      await unlink(temporary).catch(async()=>{if(onOrphan){const remaining=await stat(temporary).catch(()=>null);if(remaining)onOrphan(remaining.size);}});
       if(--state.active===0&&publications.get(file)===state)publications.delete(file);
     }
   })();
