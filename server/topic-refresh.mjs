@@ -1,7 +1,7 @@
 import {parseProcedureProgressPage} from './official-context.mjs';
 const DAY=86400_000,values=v=>v==null?[]:Array.isArray(v)?v.flatMap(values):[typeof v==='object'?v.id||v.label||'':v];
-export function procedurePageHints(html,reference){
- try{const p=parseProcedureProgressPage(html,reference,'en');return {status:p.status,lastActivity:p.events.map(e=>e.date).filter(Boolean).sort().at(-1)||null};}catch{return {};}
+export function procedurePageHints(html,reference,now=Date.now()){
+ try{const p=parseProcedureProgressPage(html,reference,'en',{limit:Number.MAX_SAFE_INTEGER});return {status:p.status,lastActivity:p.events.map(e=>e.date).filter(d=>d&&Date.parse(d)<=now).sort().at(-1)||null};}catch{return {};}
 }
 export function procedureRefresh(metadata={},page={},now=Date.now()){
  const events=metadata.consists_of==null?[]:Array.isArray(metadata.consists_of)?metadata.consists_of:[metadata.consists_of];

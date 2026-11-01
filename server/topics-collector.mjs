@@ -27,11 +27,11 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
  if(saved&&saved.state!=='unavailable'&&(policy.completed||!policy.changed&&policy.next>now)){s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(policy.next,row.id);return false;}
  const held=sources.cache?.stored?await sources.cache.stored(sources.cache.key(['official-context-v1',url])):null;
  let page;
- if(held?.value?.html){const hints=procedurePageHints(held.value.html,row.reference);policy=procedureRefresh(metadata,{...hints,source:{fetchedAt:held.value.fetchedAt}},now);if(policy.completed||!policy.changed&&policy.next>now)page=held.value;}
+ if(held?.value?.html){const hints=procedurePageHints(held.value.html,row.reference,now);policy=procedureRefresh(metadata,{...hints,source:{fetchedAt:held.value.fetchedAt}},now);if(policy.completed||!policy.changed&&policy.next>now)page=held.value;}
  if(!page){worker.requests++;page=await sources.get(url,{priority:'background',freshMs:policy.changed?0:policy.freshMs,waitForFresh:true});}
  worker.controller.signal.throwIfAborted();s.assertWriter();if(page.viewCache?.stale)return true;
  let parsed;try{parsed=parseProcedurePage(page.html,row.reference,'en');}catch(error){if(error.code)throw error;throw Object.assign(new Error(error.message),{code:'official_document_invalid',cause:error});}
- const hints=procedurePageHints(page.html,row.reference),source={url:page.url,fetchedAt:page.fetchedAt};policy=procedureRefresh(metadata,{...hints,source},now);
+ const hints=procedurePageHints(page.html,row.reference,now),source={url:page.url,fetchedAt:page.fetchedAt};policy=procedureRefresh(metadata,{...hints,source},now);
  s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify({subjects:parsed.subjects,language:parsed.language,url:page.url,source,...hints}));s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(policy.next,row.id);s.db.prepare('DELETE FROM topic_procedure_attempts WHERE id=?').run(row.id);s.set('topicProjectionDirty',true);});
  }catch(error){
   if(worker.controller.signal.aborted)throw error;s.assertWriter();
