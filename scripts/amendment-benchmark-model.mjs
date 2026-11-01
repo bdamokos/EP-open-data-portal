@@ -1,4 +1,5 @@
 import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits} from './amendment-benchmark-resolution-oracle.mjs';
@@ -241,6 +242,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
   if(quoted.status!=='unverified')return quoted;
+  const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
+  if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
     let source, labels = [];
     if (proposal) {

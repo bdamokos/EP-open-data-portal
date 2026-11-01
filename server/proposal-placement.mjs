@@ -218,6 +218,40 @@ function insertionPlacement(items,target,candidatesFor,eligible) {
 
 const sameAddress=(left,right)=>!!left&&left.length===right.length&&left.every((segment,index)=>segment.kind===right[index].kind&&segment.value===right[index].value);
 
+// Some Word lists flatten a numbered paragraph and its lettered points to
+// peers. Recover only the printed, colon-introduced list bounded by the next
+// numeric paragraph, using both published target lines and the act instruction.
+function twoLinePointInsertion(selected,targetPath,proposedText,language) {
+  const {unit:owner,proposal,itemIndex}=selected,reference=targetPath?.underlying?.[0];
+  if(language!=='en'||targetPath?.language!==language||proposal.language!==language||targetPath.underlying?.length!==1||!reference?.document)return null;
+  const inner=parseTargetLabel(reference.raw,language),[article,paragraph,label]=inner.segments;
+  if(!inner.complete||inner.segments.length!==3||article.kind!=='article'||paragraph.kind!=='paragraph'||paragraph.isNew||paragraph.suffix||
+    label.kind!=='point'||!label.isNew||!/^([a-z])[ab]$/u.test(label.value))return null;
+  const printed=proposedText.trim().match(/^\(([a-z])\s*([ab])\)\s+\S/u);
+  if(!printed||printed[1]+printed[2]!==label.value||instructionOperation(proposedText,language))return {reason:'conflicting_target_evidence'};
+  let chain=[];
+  const visit=(units,parents=[])=>{for(const unit of units){if(unit===owner){chain=[...parents,unit];return true;}if(visit(unit.children,[...parents,unit]))return true;}return false;};
+  visit(proposal.units);
+  const named=chain.map(unit=>unit.instruction?.raw.replace(/\s+/gu,' ').trim()).filter(raw=>/^(?:Regulation|Directive|Decision) .+ is amended as follows:$/u.test(raw??'')).at(-1);
+  if(named!==reference.document.replace(/\s+/gu,' ').trim()+' is amended as follows:')return {reason:'conflicting_target_evidence'};
+  const quotes=owner.children.filter(unit=>unit.kind==='quotation'&&sameAddress(unit.instructionPath,owner.path));
+  if(quotes.length!==1)return null;
+  const articles=flat(quotes).filter(unit=>unit.kind==='article'&&sameAddress(unit.underlyingPath,[article]));
+  if(articles.length!==1)return {reason:'conflicting_target_evidence'};
+  const container=articles[0],lines=proposal.paragraphs.slice(container.extent.start,container.extent.end);
+  const starts=lines.filter(p=>new RegExp(`^${escape(paragraph.value)}\\.\\s+`).test(p.text));
+  if(starts.length!==1||!/:\s*$/u.test(starts[0].text))return {reason:'source_structure_unavailable'};
+  const start=starts[0].index,end=lines.find(p=>p.index>start&&/^\d+\.\s+/u.test(p.text))?.index;
+  if(end===undefined)return {reason:'source_structure_unavailable'};
+  const points=proposal.paragraphs.slice(start+1,end);
+  const labels=points.map(p=>/^\(([a-z])\)\s+\S/u.exec(p.text)?.[1]);
+  if(!labels.length||labels.some((value,index)=>!value||value!==String.fromCharCode(97+index)))return {reason:'source_structure_unavailable'};
+  const index=labels.indexOf(label.value[0]);
+  if(index<0||index+1>=points.length)return {reason:'insertion_reference_unavailable'};
+  if(!owner.complete||owner.pathConflict||!container.complete||proposal.paragraphs.slice(start,end+1).some(p=>!p.complete||!p.source||p.source.complete===false||p.source.container!=='body'))return {reason:'source_passage_incomplete'};
+  return {itemIndex,insertBefore:points[index+1].index,evidence:[{basis:'two-line-act-target',label:reference.document,target:reference.raw,anchor:owner.id},{basis:'printed-paragraph-point-boundary',paragraph:paragraph.value,preceding:labels[index],following:labels[index+1]}]};
+}
+
 // ISG 3.3.2: an English numeric subdivision inserted between Na and Nb
 // starts at Naa. This is a local, source-bounded family, not a suffix order.
 function quotedInteriorInsertion(selected,targetPath,proposedText,language) {
@@ -422,7 +456,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?quotedInteriorInsertion(candidates[0],targetPath,proposedText,language):null;
+    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);

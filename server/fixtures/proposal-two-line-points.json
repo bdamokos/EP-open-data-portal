@@ -1,0 +1,652 @@
+{
+  "proposal": {
+    "source": {
+      "itemId": "http://publications.europa.eu/resource/cellar/c8c51d1a-c572-11f0-8da2-01aa75ed71a1.0001.01/DOC_1",
+      "url": "https://publications.europa.eu/resource/cellar/c8c51d1a-c572-11f0-8da2-01aa75ed71a1.0001.01/DOC_1",
+      "sha256": "2fafd9ec8c9742b3135341689c6a0a13414c228d0614959b6515ba1be55d3aba",
+      "fetchedAt": "2026-10-27T16:48:59.535Z"
+    },
+    "coverage": {
+      "complete": false
+    },
+    "structureStatus": "extracted",
+    "paragraphs": [
+      "Article 1",
+      "Amendments to Regulation (EU) 2024/1689",
+      "Regulation (EU) 2024/1689 is amended as follows:",
+      "(1)\tin Article 1(2), point (g) is replaced by the following:",
+      "’(g) measures to support innovation, with a particular focus on small mid-cap enterprises (SMCs) and small and medium-sized enterprises (SMEs), including start-ups.’;",
+      "(2)\tin Article 2, paragraph 2 is replaced by the following:",
+      "‘2. For AI systems classified as high-risk AI systems in accordance with Article 6(1) related to products covered by the Union harmonisation legislation listed in Section B of Annex I, only Article 6(1), Article 60a, Articles 102 to 109 and Articles 111 and 112 shall apply. Article 57 shall apply only in so far as the requirements for high-risk AI systems under this Regulation have been integrated in that Union harmonisation legislation.;",
+      "(3)\tin Article 3, the following points (14a) and (14b) are inserted:",
+      "‘(14a) micro, small and medium-sized enterprise (‘SME’) means a micro, small or medium-sized enterprise as defined in Article 2 of the Annex to Commission Recommendation 2003/361/EC;",
+      "(14b) small mid-cap enterprise (‘SMC’) means a small mid-cap enterprise as defined in point (2) of the Annex to Commission Recommendation (EU) 2025/1099’;",
+      "(4)\tArticle 4 is replaced by the following:",
+      "‘\t\t\t\tArticle 4",
+      "AI literacy",
+      "‘The Commission and Member States shall encourage providers and deployers of AI systems to take measures to ensure a sufficient level of AI literacy of their staff and other persons dealing with the operation and use of AI systems on their behalf, taking into account their technical knowledge, experience, level of education and training and the context the AI systems are to be used in, and considering the persons or groups of persons on whom the AI systems are to be used.’;",
+      "(5)\tthe following Article 4a is inserted in Chapter I:",
+      "‘Article 4a",
+      "Processing of special categories of personal data for bias detection and mitigation",
+      "1. To the extent necessary to ensure bias detection and correction in relation to high-risk AI systems in accordance with Article 10 (2), points (f) and (g), of this Regulation, providers of such systems may exceptionally process special categories of personal data, subject to appropriate safeguards for the fundamental rights and freedoms of natural persons. In addition to the safeguards set out in Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680, as applicable, all the following conditions shall be met in order for such processing to occur:",
+      "(a) the bias detection and correction cannot be effectively fulfilled by processing other data, including synthetic or anonymised data;",
+      "(b) the special categories of personal data are subject to technical limitations on the re-use of the personal data, and state-of-the-art security and privacy-preserving measures, including pseudonymisation;",
+      "(c) the special categories of personal data are subject to measures to ensure that the personal data processed are secured, protected, subject to suitable safeguards, including strict controls and documentation of the access, to avoid misuse and ensure that only authorised persons have access to those personal data with appropriate confidentiality obligations;",
+      "(d) the special categories of personal data are not transmitted, transferred or otherwise accessed by other parties;",
+      "(e) the special categories of personal data are deleted once the bias has been corrected or the personal data has reached the end of its retention period, whichever comes first;",
+      "(f) the records of processing activities pursuant to Regulations (EU) 2016/679 and (EU) 2018/1725 and Directive (EU) 2016/680 include the reasons why the processing of special categories of personal data was necessary to detect and correct biases, and why that objective could not be achieved by processing other data.",
+      "2. Paragraph 1 may apply to providers and deployers of other AI systems and models and deployers of high-risk AI systems where necessary and proportionate if the processing occurs for the purposes set out therein and provided that the conditions set out under the safeguards set out in this paragraph.;"
+    ],
+    "paragraphSources": [
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[158]",
+        "ordinal": 157,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[159]",
+        "ordinal": 158,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[160]",
+        "ordinal": 159,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[161]",
+        "ordinal": 160,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[162]",
+        "ordinal": 161,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[163]",
+        "ordinal": 162,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[164]",
+        "ordinal": 163,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[165]",
+        "ordinal": 164,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[166]",
+        "ordinal": 165,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[167]",
+        "ordinal": 166,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[168]",
+        "ordinal": 167,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[169]",
+        "ordinal": 168,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[170]",
+        "ordinal": 169,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[171]",
+        "ordinal": 170,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[172]",
+        "ordinal": 171,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[173]",
+        "ordinal": 172,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[174]",
+        "ordinal": 173,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[175]",
+        "ordinal": 174,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[176]",
+        "ordinal": 175,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[177]",
+        "ordinal": 176,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[178]",
+        "ordinal": 177,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[179]",
+        "ordinal": 178,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[180]",
+        "ordinal": 179,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[181]",
+        "ordinal": 180,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      },
+      {
+        "path": "/w:document[1]/w:body[1]/w:p[182]",
+        "ordinal": 181,
+        "container": "body",
+        "containerPath": "/w:document[1]/w:body[1]",
+        "segment": 3,
+        "complete": true
+      }
+    ],
+    "paragraphProperties": [
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Titrearticle",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point0",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point1",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      },
+      {
+        "styleId": "Point2",
+        "numberingLabel": "",
+        "numberingComplete": true,
+        "notesComplete": true
+      }
+    ],
+    "paragraphFormats": [
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 9,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "center",
+        "marks": [
+          {
+            "start": 0,
+            "end": 39,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 3.54,
+        "hanging": 3.54
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36,
+        "marks": [
+          {
+            "start": 5,
+            "end": 14,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 14.13,
+        "firstLine": 0.88,
+        "marks": [
+          {
+            "start": 0,
+            "end": 11,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 5.9,
+        "hanging": 2.36
+      },
+      {
+        "align": "center",
+        "indent": 8.27,
+        "hanging": 2.36,
+        "marks": [
+          {
+            "start": 1,
+            "end": 11,
+            "kind": "italic"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 14.13,
+        "firstLine": 0.88,
+        "marks": [
+          {
+            "start": 0,
+            "end": 83,
+            "kind": "bold"
+          }
+        ]
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      },
+      {
+        "align": "justify",
+        "indent": 8.27,
+        "hanging": 2.36
+      }
+    ]
+  },
+  "amendments": [
+    {
+      "number": 113,
+      "originalText": "",
+      "proposedText": "(e a)\tno personal, including special categories of personal data, processed pursuant to this Article shall be incorporated into, retained in, or used to modify the general parameters, functioning or capabilities of an AI model beyond what is strictly necessary for the specific and isolated bias detection and correction procedure concerned, including, where relevant, its parametes, weights, embeddings or memory;",
+      "targetLabel": "Article 1 – paragraph 1 – point 5\nRegulation (EU) 2024/1689 — Article 4 a – paragraph 1 – point e a (new)",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 5",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 5"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 4 a – paragraph 1 – point e a (new)",
+            "labels": [
+              {
+                "raw": "Article 4 a"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point e a (new)"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": null,
+        "fetchedAt": null
+      },
+      "language": "en"
+    },
+    {
+      "number": 114,
+      "originalText": "",
+      "proposedText": "(e b)\tprior to the processing, the provider shall carry out and document a necessity and proportionality assesment demonstrating that the purpose cannot be effectively achieved by synthetic, anonymised, aggregated or otherwise non-personal data and that the processing of special categories of personal data is strictly necessary for that purpose;",
+      "targetLabel": "Article 1 – paragraph 1 – point 5\nRegulation (EU) 2024/1689 — Article 4 a – paragraph 1 – point e b (new)",
+      "targetPath": {
+        "proposal": [
+          {
+            "raw": "Article 1 – paragraph 1 – point 5",
+            "labels": [
+              {
+                "raw": "Article 1"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point 5"
+              }
+            ]
+          }
+        ],
+        "underlying": [
+          {
+            "document": "Regulation (EU) 2024/1689",
+            "raw": "Article 4 a – paragraph 1 – point e b (new)",
+            "labels": [
+              {
+                "raw": "Article 4 a"
+              },
+              {
+                "raw": "paragraph 1"
+              },
+              {
+                "raw": "point e b (new)"
+              }
+            ]
+          }
+        ],
+        "language": "en",
+        "sourceUrl": null,
+        "fetchedAt": null
+      },
+      "language": "en"
+    }
+  ]
+}
