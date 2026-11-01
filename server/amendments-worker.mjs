@@ -639,7 +639,7 @@ function rosterMembers(worker,generation,date,profiles) {
   if(!validAmendmentDate(date))return {members:[],source:[]};
   const saved=worker.store.source(generation,rosterKey(date));
   // These intervals describe one observed mandate day, not a whole mandate.
-  return {members:[...(saved?.work.members || []).map(member=>({...member,mandates:[{start:date,end:date}]})),...(profiles || worker.store.sources(generation,'amendment-member')).filter(source=>source.fetchedAt.slice(0,10)>=date).map(source=>source.work)],source:saved?.work.sources || []};
+  return {members:[...(saved?.work.members || []).map(member=>({...member,mandates:[{start:date,end:date}]})),...(profiles || worker.store.memberProfiles(generation)).filter(source=>source.fetchedAt.slice(0,10)>=date).map(source=>source.work)],source:saved?.work.sources || []};
 }
 function cachedDirectSittings(store,generation,targetId) {
   const reference='eli/dl/doc/'+targetId+'-AM-%';
@@ -675,7 +675,7 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   const aliases=sittingSources.flatMap(({sittingId})=>store.source(generation,'amendment:aliases:'+sittingId)?.work.aliases || []);
   // Reuse only this rebuild's immutable source context; never cache identities
   // across a roster, alias or profile refresh.
-  const profiles=store.sources(generation,'amendment-member'),authorContexts=new Map();
+  const profiles=store.memberProfiles(generation),authorContexts=new Map();
   const authorContext=date=>{
     if(!authorContexts.has(date)) {
       const roster=rosterMembers(worker,generation,date,profiles),activeIds=new Set(roster.members.map(member=>String(member.id)));
