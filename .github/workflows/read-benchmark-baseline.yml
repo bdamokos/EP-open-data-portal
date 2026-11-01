@@ -1,8 +1,9 @@
 name: Read benchmark baseline
 
-# Measures main once a week (Monday) if main had commits in the past seven days. When page
-# counts, plans or the toolchain differ from the committed baseline, it opens or updates one
-# refresh pull request; it never opens issues. Manual dispatch always measures.
+# Measures main once a week (Monday) if main had commits in the past seven days, and compares
+# it with the committed baseline. Any regression (page growth, a new full scan, a toolchain or
+# scenario change) fails the run without proposing a new baseline. Improvements alone open or
+# update one refresh pull request. It never opens issues. Manual dispatch always measures.
 on:
   schedule:
     - cron: '23 4 * * 1'
@@ -77,12 +78,17 @@ jobs:
             echo "The committed baseline matches main." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          node scripts/read-benchmark-report.mjs \
+          status=0
+          node scripts/read-benchmark-report.mjs --check-regressions \
             --title 'Read benchmark baseline refresh' \
             --before "$RUNNER_TEMP/main-baseline.json" --before-label committed \
             --after "$RUNNER_TEMP/read-benchmark-result.json" --after-label main \
-            --run-url "$RUN_URL" > "$RUNNER_TEMP/report.md"
+            --run-url "$RUN_URL" > "$RUNNER_TEMP/report.md" || status=$?
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Main regressed against the committed read benchmark baseline. No refresh pull request was proposed; see the run summary."
+            exit 1
+          fi
           delimiter="eof_$(openssl rand -hex 16)"
           {
             echo "changed=true"

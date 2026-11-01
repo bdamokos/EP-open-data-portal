@@ -41,10 +41,34 @@ function table(rows,{beforeLabel,afterLabel}) {
 }
 
 /**
- * Markdown report comparing a reference read benchmark (usually main's committed
- * baseline) with a fresh run. `gateBaseline` adds the CI gate verdict.
+ * Differences that a baseline refresh must not absorb: any page growth, a newly
+ * scanned table, a toolchain change, or a scenario added or removed. Only
+ * improvements and plan changes without growth may be refreshed automatically.
  */
-export function renderReadBenchmarkReport({before,after,gateBaseline,beforeLabel='Before',afterLabel='After',title='Read benchmark',runUrl}) {
+export function baselineRegressions(before,after) {
+  if(!before)return ['No committed baseline to compare with.'];
+  if(!after)return ['The benchmark did not produce results.'];
+  const regressions=[];
+  for(const key of ['sqliteVersion','nodeSqliteVersion'])
+    if(before[key]!==after[key])regressions.push(`Toolchain changed (${key}): ${before[key]??'missing'} → ${after[key]??'missing'}`);
+  for(const {name,before:old,after:current} of readBenchmarkRows(before,after)) {
+    if(!old)regressions.push(`${name}: scenario has no committed baseline`);
+    else if(!current)regressions.push(`${name}: scenario missing from main`);
+    else {
+      if(current.pageFetches>old.pageFetches)regressions.push(`${name}: page fetches ${old.pageFetches} → ${current.pageFetches}`);
+      const scans=current.fullScanTables.filter(table=>!old.fullScanTables.includes(table));
+      if(scans.length)regressions.push(`${name}: new full scan of ${scans.join(', ')}`);
+    }
+  }
+  return regressions;
+}
+
+/**
+ * Markdown report comparing a reference read benchmark (usually main's committed
+ * baseline) with a fresh run. `gateBaseline` adds the CI gate verdict;
+ * `regressions` adds a list from baselineRegressions.
+ */
+export function renderReadBenchmarkReport({before,after,gateBaseline,regressions,beforeLabel='Before',afterLabel='After',title='Read benchmark',runUrl}) {
   const out=[reportMarker,`### ${title}`,''];
   const footer=runUrl?['',`[Workflow run](${runUrl})`]:[];
   if(!after) return [...out,'The benchmark did not produce results.',...footer].join('\n')+'\n';
@@ -55,6 +79,7 @@ export function renderReadBenchmarkReport({before,after,gateBaseline,beforeLabel
   const totals=rows.reduce((sum,row)=>({before:sum.before+(row.before?.pageFetches??0),after:sum.after+(row.after?.pageFetches??0)}),{before:0,after:0});
   const facts=[
     gate?(gate.failures.length?`**Gate failed** (${gate.failures.length})`:'**Gate passed**'):undefined,
+    regressions?(regressions.length?`**Regressions** (${regressions.length})`:'**No regressions**'):undefined,
     `${rows.length} scenarios`,
     `${changed.length} changed`,
     before?`total pages ${totals.before} → ${totals.after}${totals.before&&totals.after!==totals.before?` (${signed(((totals.after-totals.before)/totals.before*100).toFixed(1))}%)`:''}`:undefined,
@@ -65,6 +90,7 @@ export function renderReadBenchmarkReport({before,after,gateBaseline,beforeLabel
   out.push(changed.length?table(changed,{beforeLabel,afterLabel}):'No page-count or query-plan changes.','');
   out.push(`<details><summary>All ${rows.length} scenarios</summary>`,'',table(rows,{beforeLabel,afterLabel}),'','</details>');
   if(gate?.failures.length)out.push('','**Gate failures**','',...gate.failures.map(message=>`- ${message}`));
+  if(regressions?.length)out.push('','**Regressions**','',...regressions.map(message=>`- ${message}`));
   out.push('','Pages are SQLite page fetches and are deterministic. Times are from this run only and vary between runners.');
   return [...out,...footer].join('\n')+'\n';
 }
@@ -76,22 +102,28 @@ function readJson(file) {
 }
 
 export function main(args=process.argv.slice(2)) {
-  const options={};
+  const options={},checkRegressions=args.includes('--check-regressions');
+  args=args.filter(arg=>arg!=='--check-regressions');
   const known=new Set(['before','after','gate-baseline','before-label','after-label','title','run-url']);
   for(let index=0;index<args.length;index+=2) {
     const key=args[index]?.replace(/^--/,'');
     if(!args[index]?.startsWith('--')||!known.has(key)||args[index+1]===undefined)
-      throw new Error('Usage: node scripts/read-benchmark-report.mjs --after RESULT.json [--before BASELINE.json] [--gate-baseline BASELINE.json] [--before-label TEXT] [--after-label TEXT] [--title TEXT] [--run-url URL]');
+      throw new Error('Usage: node scripts/read-benchmark-report.mjs --after RESULT.json [--before BASELINE.json] [--gate-baseline BASELINE.json] [--before-label TEXT] [--after-label TEXT] [--title TEXT] [--run-url URL] [--check-regressions]');
     options[key]=args[index+1];
   }
+  const before=readJson(options.before),after=readJson(options.after);
+  const regressions=checkRegressions?baselineRegressions(before,after):undefined;
   process.stdout.write(renderReadBenchmarkReport({
-    before:readJson(options.before),
-    after:readJson(options.after),
+    before,
+    after,
+    regressions,
     gateBaseline:readJson(options['gate-baseline']),
     beforeLabel:options['before-label'],
     afterLabel:options['after-label'],
     title:options.title,
     runUrl:options['run-url'],
   }));
+  // Exit 1 lets the weekly refresh fail instead of proposing a regressed baseline.
+  if(regressions?.length)process.exitCode=1;
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)main();

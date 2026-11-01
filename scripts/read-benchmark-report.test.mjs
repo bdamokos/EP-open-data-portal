@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderReadBenchmarkReport,readBenchmarkRows,reportMarker} from './read-benchmark-report.mjs';
+import {baselineRegressions,renderReadBenchmarkReport,readBenchmarkRows,reportMarker} from './read-benchmark-report.mjs';
 
 const profile={sqliteVersion:'pinned',nodeVersion:'v26.12.1',nodeSqliteVersion:'pinned'};
 const row=(name,overrides={})=>({name,pageFetches:100,plan:['SEARCH items USING INDEX lookup (mep=?)'],fullScanTables:[],...overrides});
@@ -57,4 +57,35 @@ test('missing inputs stay explicit',()=>{
 
 test('scenario names cannot break the table',()=>{
   assert.match(renderReadBenchmarkReport({before:baseline([row('a|b')]),after:result([row('a|b',{pageFetches:1})])}),/\| a\\\|b \|/);
+});
+
+test('baseline refresh accepts only improvements and plan changes without growth',()=>{
+  const committed=baseline([row('a'),row('b'),row('c',{fullScanTables:['items']})]);
+  assert.deepEqual(baselineRegressions(committed,result([
+    row('a',{pageFetches:60}),
+    row('b',{plan:['SEARCH items USING INDEX other (mep=?)']}),
+    row('c',{fullScanTables:['items']}),
+  ])),[]);
+  assert.deepEqual(baselineRegressions(committed,{...result([
+    row('a',{pageFetches:101}),
+    row('b',{fullScanTables:['sources']}),
+    row('new'),
+  ]),nodeSqliteVersion:'other'}),[
+    'Toolchain changed (nodeSqliteVersion): pinned → other',
+    'a: page fetches 100 → 101',
+    'b: new full scan of sources',
+    'new: scenario has no committed baseline',
+    'c: scenario missing from main',
+  ]);
+  assert.equal(baselineRegressions(undefined,result([row('a')])).length,1);
+  assert.equal(baselineRegressions(committed,undefined).length,1);
+});
+
+test('report shows the regression verdict and list when requested',()=>{
+  const committed=baseline([row('a')]),grown=result([row('a',{pageFetches:101})]);
+  const failed=renderReadBenchmarkReport({before:committed,after:grown,regressions:baselineRegressions(committed,grown)});
+  assert.match(failed,/\*\*Regressions\*\* \(1\)/);
+  assert.match(failed,/- a: page fetches 100 → 101/);
+  assert.match(renderReadBenchmarkReport({before:committed,after:result([row('a',{pageFetches:90})]),regressions:[]}),/\*\*No regressions\*\*/);
+  assert.doesNotMatch(renderReadBenchmarkReport({before:committed,after:grown}),/egressions/);
 });
