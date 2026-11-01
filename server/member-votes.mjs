@@ -9,8 +9,10 @@ import {requestSignal,runWithRequestSignal,sharedRequest,waitForRequest,isLocalR
 import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs';
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
+import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 
-export const MEMBER_VOTES_VERSION=10;
+export const MEMBER_VOTES_VERSION=11;
+export const VOTE_SNAPSHOT_VERSION=1;
 // Period reads include every observed decision; keep a separate finite transport budget.
 export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=32*1024*1024;
 export const MEMBER_VOTES_LIMITS=Object.freeze({pageSize:50,decisionPageSize:250,cataloguePages:10,decisionPages:4,resultsPages:4,agendaPages:4,maxRows:4000,maxSittings:5,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,cacheBytes:32*1024*1024,cacheEntries:8,cacheMs:60_000,snapshotMs:10*60_000,sourceMs:15*60_000,timeoutMs:50_000});
@@ -20,7 +22,9 @@ const monday=value=>dayOffset(value,-((new Date(value+'T12:00:00Z').getUTCDay()+
 const tail=value=>String(value?.id||value||'').split('/').at(-1);
 const relative=value=>String(value?.id||value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const refs=value=>(Array.isArray(value)?value:value==null?[]:[value]).map(relative);
-const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const digest=value=>createHash('sha256').update(JSON.stringify(value,(key,value)=>['fetchedAt','catalogue','stale','refreshInProgress','refreshError'].includes(key)?undefined:value)).digest('hex');
+// Compare the declared result set, preserving absent versus explicit empty lists.
+const sittingDeclarations=node=>digest(node?.consists_of==null?null:[...new Set(refs(node.consists_of))].sort());
 const errorInfo=error=>({code:error?.code||'vote_source_unavailable',message:error?.message||'Parliament source could not be read.'});
 
 export function memberVotesQuery(search,{now=Date.now()}={}) {
@@ -45,10 +49,13 @@ export function memberVotesQuery(search,{now=Date.now()}={}) {
 // Period snapshots are independent of the requested member, language, and page.
 // No activity store or writer is opened by this reader.
 export class MemberVotes extends VoteSourceReader {
-  constructor({request=odp,clock=Date.now,limits={},meetings,readChairs=collectVoteChairs}={}){super();this.readChairs=readChairs;this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
+  constructor({request=odp,clock=Date.now,limits={},meetings,readChairs=collectVoteChairs,snapshots=request===odp?sittingSnapshots:null}={}){super();this.diskSnapshots=snapshots;this.readChairs=readChairs;this.meetings=meetings||(request===odp&&clock===Date.now&&!Object.keys(limits).length?meetingsReader:new MeetingsReader({request,clock,limits}));this.request=request;this.clock=clock;this.limits={...MEMBER_VOTES_LIMITS,...limits};this.periods=new Map();this.snapshots=new Map();this.pending=new Map();this.cacheBytes=0;}
 
   async catalogue(query,budget) {
     if(query.sitting){
+      const saved=this.diskSnapshots?.read('votes',MEMBER_VOTES_VERSION,query.sitting);
+      if(saved){budget.savedSitting=saved;budget.bytes+=saved.catalogueBytes;return saved.catalogue;}
+      this.diskSnapshots?.enqueue('votes',MEMBER_VOTES_VERSION,query.sitting);
       const coverage=pageCoverage();
       try {
         const record=await this.request('/meetings/'+query.sitting,{}, {priority:'interactive',staleWhileRevalidate:true,ttl:this.limits.sourceMs});requestSignal()?.throwIfAborted();
@@ -63,7 +70,8 @@ export class MemberVotes extends VoteSourceReader {
     const years=(query.week==='latest'?calendarYears(today).reverse():[...new Set([year,Number(dayOffset(query.week,6).slice(0,4))])]).filter(value=>value<=Number(today.slice(0,4)));
     let nodes=[],coverage=pageCoverage();
     for(const selectedYear of years){
-      const result=await this.meetings.year(selectedYear);
+      let result=this.diskSnapshots?.read('calendar',SITTING_CALENDAR_VERSION,String(selectedYear));
+      if(!result){this.diskSnapshots?.enqueue('calendar',SITTING_CALENDAR_VERSION,String(selectedYear));result=await this.meetings.year(selectedYear);}
       if(budget.bytes+result.bytes>this.limits.periodBytes)throw new HttpError(502,'vote_period_budget','The selected period exceeds the bounded source budget.');
       budget.bytes+=result.bytes;
       nodes.push(...result.nodes);coverage={...result.coverage,pages:coverage.pages+result.coverage.pages,rows:nodes.length,sources:[...coverage.sources,...result.coverage.sources]};
@@ -77,6 +85,13 @@ export class MemberVotes extends VoteSourceReader {
 
   async sitting(node,budget){
     const sittingId=node.activity_id,date=node.activity_date;
+    const saved=budget.savedSitting?.node.activity_id===sittingId?budget.savedSitting:this.diskSnapshots?.read('votes',MEMBER_VOTES_VERSION,sittingId);
+    const changedDeclarations=saved&&sittingDeclarations(node)!==sittingDeclarations(saved.node);
+    if(saved&&!changedDeclarations){
+      if(budget.bytes+saved.bytes>this.limits.periodBytes)throw new HttpError(502,'vote_period_budget','The selected period exceeds the bounded source budget.');
+      budget.bytes+=saved.bytes;return saved.day;
+    }
+    this.diskSnapshots?.enqueue('votes',MEMBER_VOTES_VERSION,sittingId,{changedDeclarations:Boolean(changedDeclarations)});
     const failure=new AbortController(),signal=AbortSignal.any([requestSignal(),failure.signal].filter(Boolean));
     // A local failure ends this collection, so sibling reads must lose their
     // ownership too, before sharedRequest disposes the collection deadline.
@@ -185,20 +200,39 @@ export class MemberVotes extends VoteSourceReader {
 
   async snapshot(query){
     this.prune();
+    this.snapshotInputs??=new Map();
     if(query.snapshot){
+      const matches=value=>query.sitting
+        ? value.period.sittingId===query.sitting||value.period.kind==='week'&&value.days.some(day=>day.sittingId===query.sitting)
+        : value.period.kind==='week'&&(query.week==='latest'||value.period.week===query.week);
       const old=this.snapshots.get(query.snapshot);
-      if(!old||query.sitting&&old.value.period.sittingId!==query.sitting||!query.sitting&&(old.value.period.kind!=='week'||query.week!=='latest'&&old.value.period.week!==query.week))throw new HttpError(409,'vote_snapshot_unavailable','That period snapshot is unavailable or belongs to another period. Start the period again.');
-      return {...old.value,id:query.snapshot};
+      if(old&&matches(old.value))return {...old.value,id:query.snapshot};
+      // Reconstruct both possible originating selections for a decision link.
+      // The hash verifies selected-period content and coverage; eviction is not a conflict.
+      const remembered=this.snapshotInputs.get(query.snapshot);
+      const selections=remembered?[{...query,...remembered,snapshot:null}]:query.sitting
+        ? [{...query,snapshot:null},{...query,snapshot:null,sitting:null,week:monday(query.sitting.slice(7))}]
+        : [{...query,snapshot:null}];
+      let unavailable=false;
+      for(const selection of selections){
+        const value=await this.snapshot(selection);
+        if(value.id===query.snapshot&&matches(value))return value;
+        unavailable||=value.coverage.status==='unavailable'||value.days.some(day=>Object.values(day.coverage).some(part=>part&&typeof part==='object'&&part.error));
+      }
+      if(unavailable)throw new HttpError(503,'vote_snapshot_verification_unavailable','Voting records are temporarily unavailable.');
+      throw new HttpError(409,'vote_snapshot_unavailable','That period snapshot changed. Start the period again.');
     }
     const key=JSON.stringify([MEMBER_VOTES_VERSION,query.sitting||query.week,query.week==='latest'?brusselsDay(this.clock()):null]);
     const old=this.periods.get(key);if(old&&this.clock()-old.at<this.limits.cacheMs&&this.snapshots.has(old.id))return {...this.snapshots.get(old.id).value,id:old.id};
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const job=sharedRequest(async()=>{
       const value=await this.collect(query);requestSignal()?.throwIfAborted();
-      const id=digest({version:MEMBER_VOTES_VERSION,...value}),bytes=Buffer.byteLength(JSON.stringify(value));
+      const id=digest({version:VOTE_SNAPSHOT_VERSION,...value}),bytes=Buffer.byteLength(JSON.stringify(value));
       if(bytes>this.limits.cacheBytes)throw new HttpError(503,'vote_snapshot_size','The bounded period snapshot is too large to retain. Choose a single sitting.');
       requestSignal()?.throwIfAborted();
       if(!this.snapshots.has(id)){this.snapshots.set(id,{at:this.clock(),value,bytes});this.cacheBytes+=bytes;}
+      if(value.period.from)this.snapshotInputs.set(id,{sitting:value.period.sittingId,week:value.period.week});
+      while(this.snapshotInputs.size>512)this.snapshotInputs.delete(this.snapshotInputs.keys().next().value);
       this.periods.set(key,{at:this.clock(),id});this.prune();return {...value,id};
     },this.limits.timeoutMs).finally(()=>this.pending.delete(key));
     this.pending.set(key,job);return waitForRequest(job);

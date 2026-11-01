@@ -1,11 +1,12 @@
 // Offline page-read and plan benchmark; fresh 2 MiB SQLite caches, mmap disabled.
-import {execFileSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
+import {measureRead} from './read-benchmark-metrics.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from '../activity-index-store.mjs';
-import {QuestionInsights,insightQuery} from '../insights-store.mjs';
-import {savedProcedureEvents,TopicTrends} from '../topic-trends.mjs';
+export function runSlowReadBenchmark() {
+const scenarios=[];
 const directory=mkdtempSync(path.join(tmpdir(),'slow-read-benchmark-'));
 let store;
 try {
@@ -38,7 +39,7 @@ try {
     const put=store.db.prepare('INSERT INTO outside_contributions VALUES (1,?,?,?,?)');
     for(let i=0;i<outside;i++)put.run('speech-'+i,String(i),'2026-10-10',JSON.stringify({term:10,parentIds:[],header:{name:'Speaker'},padding:'x'.repeat(4096)}));
   });
-  const backfillStart=performance.now();let batches=0;while(store.backfillFastReads(1))batches++;console.log(JSON.stringify({backfillMs:performance.now()-backfillStart,batches}));
+  while(store.backfillFastReads(1)){}
   store.release();store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   const queries={
     oldSource:"SELECT body,fetched_at FROM sources WHERE generation=1 AND key='motion-outcomes:MTG-PL-2026-10-10'",
@@ -57,18 +58,13 @@ try {
     pruneEvent:"DELETE FROM source_observations WHERE identity IN (SELECT identity FROM source_observations WHERE event_date<'2026-10-01' LIMIT 64)",
     observationCount:'SELECT n FROM observation_count WHERE id=1',
   };
-  const results={};
   for(const [name,sql] of Object.entries(queries)) {
-    const output=execFileSync('sqlite3',[store.filename],{input:`PRAGMA cache_size=-2048; PRAGMA mmap_size=0;\n.timer on\n.output /dev/null\n${sql};\n.output stdout\n.stats\n`,encoding:'utf8',maxBuffer:2*1024*1024});
-    const at=performance.now();const rows=store.db.prepare(sql).all();const ms=performance.now()-at;
-    results[name]={rows:rows.length,ms:Math.round(ms*100)/100,pageReads:Number(/Page cache misses:\s+(\d+)/.exec(output)?.[1]),plan:store.db.prepare('EXPLAIN QUERY PLAN '+sql).all().map(row=>row.detail)};
+    const metrics=measureRead(store.filename,sql);
+    scenarios.push({name:'slow.'+name,...metrics});
   }
-  const questionStart=performance.now();const questionResult=await new QuestionInsights(store,{clock:()=>Date.parse('2026-10-22T12:00:00Z'),loadMetadata:async()=>new Map(),loadQuestionBodies:async()=>new Map()}).query(insightQuery(new URLSearchParams('from=2026-10-01&to=2026-10-22'),{now:Date.parse('2026-10-22T12:00:00Z')}));
-  const questionMs=performance.now()-questionStart;
-  const at=performance.now(),trend=savedProcedureEvents(store,{start:'2026-10-01',end:'2026-10-22'});
-  const savedProcedureMs=performance.now()-at;
-  const topicStart=performance.now();
-  const topicResult=await new TopicTrends(store,{known:async ids=>new Map(ids.map(id=>[id,{state:'mapped',reference:id,concepts:[{id:'http://eurovoc.europa.eu/1',label:'Synthetic topic',language:'en'}]}])),load:async()=>{throw new Error('Benchmark must read retained mappings only.');}}).query({start:'2026-10-01',end:'2026-10-22',days:22,language:'en',page:0});
-  const topicMs=performance.now()-topicStart;
-  console.log(JSON.stringify({scale:{questions,procedures,amendments,outside,questionPadding:12000,procedurePadding:16000,amendmentText:8192},results,questionInsights:{ms:questionMs,analyzed:questionResult.counts.analyzedQuestions},topicTrends:{ms:topicMs,savedProcedureMs,procedures:topicResult.coverage.procedures,truncated:trend.truncated,mappings:'retained synthetic catalogue'}},null,2));
+
+  return {scenarios};
 } finally {store?.close();rmSync(directory,{recursive:true,force:true});}
+
+}
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)console.log(JSON.stringify(runSlowReadBenchmark(),null,2));

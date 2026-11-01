@@ -45,3 +45,11 @@ test('worker failure cleans all pending entries and the next parse starts a heal
   controllers[1].abort();
   assert.deepEqual(await extractAmendmentsOffThread(buffer,{}),extractAmendments(buffer,{}));
 });
+
+
+test('parser rejections identify the exact bytes while worker failures remain transient',async()=>{
+  const {createHash}=await import('node:crypto');const buffer=Buffer.from('invalid archive');
+  await assert.rejects(extractAmendmentsOffThread(buffer,{}),error=>{
+    assert.equal(error.code,'source_parser_rejection');assert.equal(error.sourceHash,createHash('sha256').update(buffer).digest('hex'));return true;
+  });
+});

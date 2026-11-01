@@ -49,8 +49,8 @@ function rememberOrganizationBody(key,record) {
 let cacheBytes = 0;
 const pending = new Map();
 // The published 500/5min endpoint ceiling is conservatively shared across ALL
-// API v2 paths/IDs/queries. Reserve 50 starts for readers as a local fairness rule.
-export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:50});
+// API v2 paths/IDs/queries. Reserve 100 starts (20%) for readers and other foreground work.
+export const ODP_RATE_LIMIT=Object.freeze({maximum:500,windowMs:300_000,foregroundReserve:100});
 const pacing=odpPacing(process.env.ODP_REQUEST_MODE||'normal');
 const upstreamQueue = new UpstreamQueue({rateLimit:ODP_RATE_LIMIT,...pacing});
 const observations=new OdpObservations({queue:()=>({...upstreamQueue.quotaSnapshot(),mode:pacing.mode}),onResponse:status=>upstreamQueue.recordResponse(status)});
@@ -434,7 +434,7 @@ export async function odp(
           ),{upstreamStatus:response.status,source,responseBytes});
         }
         if (response.status === 204)
-          throw new HttpError(502, "odp_no_content", "Parliament supplied no content for this request.");
+          throw Object.assign(new HttpError(502, "odp_no_content", "Parliament supplied no content for this request."), {source:{url:key,fetchedAt:Date.now(),httpStatus:204}});
         if (!response.headers.get("content-type")?.includes("json")) {
           await response.body?.cancel();
           throw new HttpError(
@@ -1043,15 +1043,20 @@ export function orderedSpeeches(payload) {
       (a, b) => Date.parse(b.start || b.date) - Date.parse(a.start || a.date),
     );
 }
-export async function odpSpeeches(id, language, offset) {
-  const record = await odp("/speeches", {
+export const SPEECH_LIST_VERSION=1;
+export async function odpSpeeches(id, language, offset, {request=odp}={}) {
+  let record;
+  try {record = await request("/speeches", {
     "person-id": id,
     "parliamentary-term": 10,
     "activity-type": "PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT",
     "sort-by": "sitting-date:desc",
     limit: 50,
     offset,
-  });
+  });}catch(error){
+    if(error.code!=='odp_no_content')throw error;
+    return {items:[],total:null,offset,status:'unavailable',coverage:{status:'unavailable'},fetchedAt:error.source?new Date(error.source.fetchedAt).toISOString():null};
+  }
   return {
     items: orderedSpeeches(record.payload),
     total: record.payload.meta?.total ?? record.payload.data.length,

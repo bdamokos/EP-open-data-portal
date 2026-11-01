@@ -83,3 +83,14 @@ test('amendment pages preserve ordering and filters through background sort prep
   assert.deepEqual(amendmentsPage(store,{document:'A-10-2026-0001'}),before);
   assert.deepEqual(before.items.map(row=>row.number),[1,2,10]);
 });
+
+import {ActivityWorker} from './activity-index-worker.mjs';
+test('projection dispatch bounds both retained generations without draining either one',async()=>{
+  const calls=[],ready=new Set();
+  const worker=Object.create(ActivityWorker.prototype);
+  Object.assign(worker,{store:{get:key=>key==='active'?1:{generation:2},fastReadsReady:g=>ready.has(g),backfillFastReads:g=>calls.push(g)},controller:new AbortController(),monotonic:()=>0,runDeadline:10,stopped:false});
+  await worker.fillProjectionBatch();
+  assert.deepEqual(calls,[1,2]);
+  ready.add(1);await worker.fillProjectionBatch();assert.deepEqual(calls,[1,2,2]);
+  worker.monotonic=()=>10;await worker.fillProjectionBatch();assert.deepEqual(calls,[1,2,2]);
+});
