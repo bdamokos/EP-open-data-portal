@@ -104,6 +104,19 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal,snapshotObs
     return {payload,fetchedAt:new Date().toISOString()};
   },{priority:'background',signal});
 }
+// Amendment rebuilds can outrank due refresh tasks indefinitely, e.g. a
+// members rebuild that restarts after newly fetched profiles. When both are
+// due, alternate so the core generation still progresses and publishes.
+// The persisted turn survives restarts and small per-run budgets.
+export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendmentJob) {
+  if(!amendmentJob||!ordinaryTask)return amendmentJob||ordinaryTask;
+  if(amendmentJob.priority<=ordinaryTask.priority)return ordinaryTask;
+  store.assertWriter();
+  const saved=store.get('amendmentDispatch'),amendmentTurn=saved?.generation===generation?saved.amendmentTurn!==false:true;
+  store.set('amendmentDispatch',{generation,amendmentTurn:!amendmentTurn});
+  return amendmentTurn?amendmentJob:ordinaryTask;
+}
+
 export class ActivityWorker {
   constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null}={}) {
     this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
@@ -851,11 +864,13 @@ export class ActivityWorker {
             if(this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
           }
           const ordinaryTask=this.store.nextTask(generation),amendmentJob=nextAmendmentTask(this.store,generation);
-          const preferredTask=amendmentJob&&(!ordinaryTask||amendmentJob.priority>ordinaryTask.priority)?amendmentJob:ordinaryTask;
+          const preferredTask=alternateAmendmentDispatch(this.store,generation,ordinaryTask,amendmentJob);
+          // A deliberately skipped amendment turn must not win the recovery-lane recomparison.
+          const amendmentCandidate=preferredTask===amendmentJob||!ordinaryTask?amendmentJob:amendmentJob&&amendmentJob.priority>ordinaryTask.priority?null:amendmentJob;
           const voiceTask=nextGroupVoiceTask(this.store,generation,preferredTask);
           // Advance core shares only when a core task will actually dispatch.
-          const sharedTask=voiceTask?.groupVoiceJob?preferredTask:this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask,amendmentJob):preferredTask;
-          const coreTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask,amendmentJob);
+          const sharedTask=voiceTask?.groupVoiceJob?preferredTask:this.recoveryMode==='backfill'?nextBackfillTask(this.store,generation,preferredTask,amendmentCandidate):preferredTask;
+          const coreTask=voiceTask?.groupVoiceJob||this.recoveryMode==='backfill'?sharedTask:nextRefreshTask(this.store,generation,sharedTask,amendmentCandidate);
           // Future jobs need no request; keep scanning across the async disk
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!coreTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
