@@ -163,6 +163,12 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language&&
     (!amendmentRequest.listId||evidence.listId===amendmentRequest.listId)&&(!wordingPinned||evidence.wordingLanguage===amendmentRequest.wordingLanguage)&&
     typeof wording.language==='string'&&data?.baseline?.language===wording.language);
+  if(placement?.status==='report-quotation'&&amendmentMatches&&wording)return <div className="document-context-document">
+    {document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
+    <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
+    {amendmentBlock(false)}
+    {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.parliament.report"/></a></p>}
+  </div>;
   if(['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind"><UiMessage id="batch6.documentcontextreader.report.amendment.163"/></p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
     {!wording&&<AmendmentJustification record={selectedVariant}/>}

@@ -1,3 +1,5 @@
+import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
+import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
@@ -21,6 +23,7 @@ export const SOURCE_REASONS = Object.freeze({
 });
 
 export function classify(stages) {
+  if(stages.S5.status==='report-quotation')return {outcome:'withheld-pipeline',reason:'council-text-as-quoted-in-report'};
   if (stages.S6.status === 'failed') return {outcome:'false-placement', reason:stages.S6.reason};
   if(stages.S1.status==='passed'&&stages.S2.status==='passed'&&stages.S5.status==='not-applicable'&&stages.S6.status==='verified')return {outcome:'not-applicable',reason:stages.S6.reason};
   for (const key of ['S1','S2','S3','S4']) {
@@ -249,6 +252,11 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
+  const maintainer=assertMaintainerPrinciple({proposal:items?.[placement.itemIndex]?.proposal,wording,placement});
+  if(maintainer.status!=='unverified'){
+    const expected=maintainer.reason==='oracle-maintainer-P2'?'insert':expectedOperation(wording);
+    return expected&&placement.operation===expected?maintainer:fail('oracle-operation-mismatch');
+  }
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
@@ -287,6 +295,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
       const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
       if(proposal&&quotes(source)===quotes(wording.originalText))return locationOracle({proposal,text,target,wording,placement,labels});
       if(proposal&&placement.operation==='delete'&&/^\(\d+\)\s*\[\.\.\.\]$/u.test(wording.originalText.trim()))return assertElidedDeletion(proposal,wording,placement);
+      if(proposal&&oracleSimilarity(source,wording.originalText)>=.95)return assertSimilarPlacement({proposal,wording,placement,address:rawProposalAssertion({proposal,wording,placement})});
       return fail('oracle-original-span-mismatch');
     }
     return locationOracle({proposal,text,target,wording,placement,labels});

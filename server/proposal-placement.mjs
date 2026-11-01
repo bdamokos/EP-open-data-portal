@@ -1,3 +1,4 @@
+import {similarPassage} from './proposal-similarity.mjs';
 import {amendmentLanguageScope,amendmentMixedLanguageScope} from '../src/amendmentLanguageScope.mjs';
 import {parseTargetLabel,proposalCandidates,normaliseForMatching} from './proposal-structure.mjs';
 import {amendmentOperation} from './document-context-model.mjs';
@@ -166,7 +167,9 @@ function introductoryMatch(target,original,candidatesFor) {
   if(!['paragraph','point'].includes(unit.kind))return {reason:'source_structure_unavailable'};
   const bounds=unit.implicit?unit.children[0]?.kind==='subparagraph'?unit.children[0].extent:null:unit.content.length?{start:unit.content[0],end:unit.children[0]?.extent.start??unit.extent.end}:null;
   if(!bounds||bounds.end<=bounds.start)return {reason:'source_structure_unavailable'};
-  const match=matchUnit(selected.proposal,{...unit,extent:bounds},original);
+  const lead=original.split(/\r?\n/u)[0];
+  const addressed=unitText(selected.proposal,{...unit,extent:bounds}).text;
+  const match=matchUnit(selected.proposal,{...unit,extent:bounds},normal(lead)===normal(addressed)?lead:original);
   return match.span?{...selected,unit,match}:match;
 }
 
@@ -390,6 +393,44 @@ function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   return {itemIndex,insertBefore:before,evidence:[{basis:'whole-quoted-sibling',owner:owner.id,anchor:anchor.id,label:value}]};
 }
 
+// Explicit drafting conventions within the instruction selected by the label.
+function draftingInsertion(selected,proposedText,language) {
+  if(language!=='en')return null;
+  const {proposal,unit:owner,itemIndex}=selected;
+  if(!owner.instruction||owner.scope!=='proposal'||!completeBoundary(proposal,owner))return null;
+  const text=proposedText.trim(),rows=proposal.paragraphs.slice(owner.extent.start,owner.extent.end);
+  const result=(before,principle)=>({itemIndex,insertBefore:before,evidence:[{basis:'drafting-'+principle,anchor:owner.id}]});
+  if(/^[-−]1(?:a)?\.\s/u.test(text))return result(owner.extent.start+1,'negative-instruction');
+  const printed=/^[‘']?\(?(\d+)\s*([ab])\)?\.?(?:\s|\t)/u.exec(text);
+  if(printed){
+    const value=printed[1]+printed[2],units=flat(owner.children);
+    if(units.some(u=>u.label?.value===value))return null;
+    const anchors=units.filter(u=>['paragraph','point'].includes(u.kind)&&u.label?.value===printed[1]);
+    if(anchors.length===1&&completeBoundary(proposal,anchors[0]))return result(anchors[0].extent.end,'quoted-numbered-block');
+    if(!anchors.length&&printed[1]==='1'&&/Article \d+ is replaced by the following:/u.test(owner.instruction.raw.replace(/\s+/gu,' '))){
+      const articles=units.filter(u=>u.kind==='article');
+      const body=articles.length===1?proposal.paragraphs.slice(articles[0].extent.start+1,articles[0].extent.end):[];
+      // One title plus one unnumbered substantive paragraph.
+      if(body.length===2&&body[0].text.length<180&&!/[.;:!?]$/u.test(body[0].text)&&!/^\d+[.)]/u.test(body[1].text.trim()))return result(owner.extent.end,'implicit-paragraph-one');
+    }
+    if(!anchors.length&&/^[a-z]$/u.test(owner.label?.value??''))return result(owner.extent.end,'labelled-point-end');
+  }
+  if(/^The first subparagraph shall not apply\b/u.test(text)&&/Article \d+ is replaced by the following:/u.test(owner.instruction.raw.replace(/\s+/gu,' '))){
+    const anchors=flat(owner.children).filter(u=>u.kind==='paragraph'&&u.label?.value==='1');
+    if(anchors.length===1&&completeBoundary(proposal,anchors[0]))return result(anchors[0].extent.end,'first-subparagraph-exception');
+  }
+  return null;
+}
+// Restrict typo recovery to the label's resolved unit and complete source rows.
+function similarMatch(proposal,unit,original){
+ if(unit.pathConflict)return null;
+ const hit=similarPassage(proposal.paragraphs.slice(unit.extent.start,unit.extent.end),original);
+ if(!hit)return null;
+ const {start,end,similarity}=hit,rows=proposal.paragraphs.slice(start,end+1);
+ if(rows.some(p=>!p.complete||p.source?.complete!==true)||proposal.gaps.some(g=>g.code==='unclosed-quotation'&&g.paragraph>=start&&g.paragraph<=end))return null;
+ return {span:{start,end},splice:{start:{paragraph:start,offset:0},end:{paragraph:end,offset:rows.at(-1).text.length}},originalText:rows.map(p=>p.text).join('\n'),whole:start===unit.extent.start&&end===unit.extent.end-1,similarity};
+}
+
 // A parser can lose a target's final levels while preserving its containing
 // provision. Wording is sufficient only when it selects complete source lines
 // inside the deepest unique ancestor and occurs once in the entire document.
@@ -538,6 +579,11 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
   const eligible=item=>item.kind!=='annex'||target.segments.some(segment=>segment.kind==='annex');
   const candidatesFor=address=>items.flatMap((item,itemIndex)=>!eligible(item)?[]:proposalCandidates(item.proposal,address).map(unit=>({itemIndex,unit,proposal:item.proposal})));
   const candidates=candidatesFor(target);
+  const drafting=candidates.length===1?draftingInsertion(candidates[0],proposedText,language):null;
+  if(drafting&&(operation==='insert'||/^[-−]1(?:a)?\.\s/u.test(proposedText.trim()))){
+    evidence.push(...drafting.evidence);
+    return {operation:'insert',status:'placed',itemIndex:drafting.itemIndex,insertBefore:drafting.insertBefore,insertAfter:drafting.insertBefore-1,evidence};
+  }
   const placedMatch=(selected,basis)=>{
     if(subparagraphBounds&&(selected.itemIndex!==subparagraphBounds.itemIndex||selected.match.span.start<subparagraphBounds.start||selected.match.span.end>=subparagraphBounds.end))return unresolved('conflicting_target_evidence');
     evidence.push({basis,anchor:selected.unit.id});
@@ -590,12 +636,20 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return originalText;
   };
   const matches=candidates.map(candidate=>({...candidate,match:matchUnit(candidate.proposal,candidate.unit,adaptedOriginal(candidate))}));
+  for(const candidate of matches)if(!candidate.match.span){const tolerant=similarMatch(candidate.proposal,candidate.unit,originalText);if(tolerant)candidate.match=tolerant;}
   const matching=matches.filter(candidate=>candidate.match.span&&(candidates.length===1||candidate.match.whole||uniqueDocumentWording(candidate.proposal,originalText)));
+  if(matching.length!==1&&candidates.length===1&&candidates[0].unit.instruction){
+    const c=candidates[0],lead=originalText.split(/\r?\n/u)[0],row=c.proposal.paragraphs[c.unit.extent.start];
+    if(originalText.includes('\n')&&normal(lead)===normal(row.text)){
+      const match=matchUnit(c.proposal,{...c.unit,extent:{start:row.index,end:row.index+1}},lead);
+      if(match.span)return placedMatch({...c,match},'exact-instruction-line');
+    }
+  }
   // A resolved address with different wording is a conflict, even when a
   // unique passage occurs elsewhere in its ancestor. Repair numbering first.
   if(matching.length!==1)return unresolved(matches.find(c=>c.match.reason==='math_comparison_unavailable')?'math_comparison_unavailable':matches.find(c=>c.match.reason==='source_structure_unavailable')?'source_structure_unavailable':'conflicting_target_evidence');
   const selected=matching[0];
   if(candidates.length===1&&selected.unit.pathConflict&&!uniqueDocumentWording(selected.proposal,originalText))return unresolved('multiple_published_targets');
-  evidence.push({basis:candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id});
+  evidence.push({basis:selected.match.similarity!==undefined?'unique-similar-original':candidates.length>1?'unique-duplicate-wording-match':'normalised-original-match',anchor:selected.unit.id,...(selected.match.similarity!==undefined?{matchKind:'similar',similarity:selected.match.similarity}:{})});
   return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
 }
