@@ -409,5 +409,6 @@
     "other": "topics.story.tally.abstentions",
     "count": "count"
   },
-  {"one":"topics.mapDocument","other":"topics.mapDocuments","count":"count"}
+  {"one":"topics.mapDocument","other":"topics.mapDocuments","count":"count"},
+  {"one":"topics.speechCount","other":"topics.speechesCount","count":"count"}
 ]

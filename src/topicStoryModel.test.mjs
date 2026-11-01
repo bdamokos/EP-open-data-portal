@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildTopicStories,storyNumber,cleanStoryTitle,strongStoryPlace,primaryStoryPlace} from './topicStoryModel.mjs';
+import {buildTopicStories,storyNumber,cleanStoryTitle,strongStoryPlace,primaryStoryPlace,normalizeStoryFacts,storyFactsRoute} from './topicStoryModel.mjs';
 const periods=['2025-Q1','2025-Q2','2025-Q3','2025-Q4'];
 const selection={periods,partial:[],period:'2025-Q3',labels:{FRA:'France',IND:'India',ESP:'Spain'}};
 const debate=(id,p,meps=10,format=null)=>({id,date:'2025-07-09',q:'2025-Q3',title:'Exact title '+id,rawTitle:'Exact title '+id,meps,format,places:{[p]:['title']},docs:[]});
@@ -63,4 +63,11 @@ test('story debate selection requires at least three MEP speakers',()=>{
 test('bounded debate arrays cannot supply place debate totals or most-debated claims',()=>{
  const f=facts();f.debatesTruncated=true;assert(!lines(f).some(r=>r.id.includes('mostDebated')));assert(!lines(f,{place:'FRA',period:undefined}).some(r=>r.id.includes('plenary')||r.id.endsWith('.peak')));assert(lines(f).some(r=>r.id.includes('bigDebate')));
  f.debatesTruncated={'2025-Q1':false,'2025-Q3':true};assert(!lines(f).some(r=>r.id.includes('mostDebated')));f.debatesTruncated={'2025-Q3':false};assert(lines(f).some(r=>r.id.includes('mostDebated')));
+});
+
+test('published fact shapes retain place bases, truncation metadata and show-of-hands methods',()=>{
+ const f=facts(),j=doc('joint');j.outcome={...j.outcome,for:null,against:null,abst:null,decisionMethod:'VOTE_HAND'};const payload={ready:true,facts:{...f,debates:[{...f.debates[0],places:[{id:'FRA',bases:['title']}],placeBases:{FRA:['title']}}],docs:[j]},debatesTruncated:true,debatesTotal:123};const normalized=normalizeStoryFacts(payload);assert.deepEqual(normalized.debates[0].places,{FRA:['title']});assert.equal(normalized.debatesTruncated,true);assert.equal(normalized.debatesTotal,123);assert.deepEqual(normalizeStoryFacts({...payload,facts:{...payload.facts,blocks:[{period:'2025-Q3',debatesTruncated:false}]}}).debatesTruncated,{'2025-Q3':false});assert.equal(normalized.docs[0].outcome.method,'VOTE_HAND');assert.equal(normalizeStoryFacts({...payload,ready:false}),null);assert.equal(normalizeStoryFacts({...f,coverage:{truncated:true}}),null);
+});
+test('scoped fact requests retain history and all author origins for exact client selection',()=>{
+ const q=new URL(storyFactsRoute({...selection,place:'IRN',excludeOwn:true}),'http://localhost').searchParams;assert.equal(q.get('scope'),'place');assert.equal(q.get('key'),'place:IRN');assert.equal(q.get('askers'),'all');assert.equal(q.get('period'),null);assert.equal(q.get('lang'),'en');const map=new URL(storyFactsRoute({...selection,mode:'d',zoom:'eu'}),'http://localhost').searchParams;assert.equal(map.get('scope'),'map');assert.equal(map.get('mode'),'d');assert.equal(map.get('zoom'),'eu');
 });

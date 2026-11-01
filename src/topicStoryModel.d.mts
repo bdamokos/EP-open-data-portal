@@ -11,3 +11,6 @@ export function storyNumber(n:number,language?:string):string;
 export function buildTopicStories(facts:StoryFacts|null|undefined,selection:StorySelection):StoryLine[];
 export function primaryStoryPlace(debate:StoryFacts['debates'][number]):string|null;
 export function strongStoryPlace(debate:StoryFacts['debates'][number],place:string):boolean;
+
+export function storyFactsRoute(selection:Partial<StorySelection>):string;
+export function normalizeStoryFacts(payload:unknown):StoryFacts|null;

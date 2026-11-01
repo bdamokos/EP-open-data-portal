@@ -17,6 +17,21 @@ const link=(records,text,extra={})=>({records:unique(records),text,...extra});
 const byMeps=(a,b)=>b.meps-a.meps||a.id.localeCompare(b.id);
 const byDate=(a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id);
 function capped(lines){let left=4;return [...lines].sort((a,b)=>a.priority-b.priority||a.order-b.order).filter(line=>{if(line.cost>left)return false;left-=line.cost;return true;}).sort((a,b)=>a.order-b.order);}
+// Keep a full history for rise/streak baselines; exclusion of any home-country
+// author stays client-side so questions with unknown origins remain included.
+export function storyFactsRoute(selection={}){
+ const params=new URLSearchParams({scope:selection.place?'place':selection.topic?'topic':'map',mode:selection.mode||'q',zoom:selection.zoom||'world',askers:'all',lang:'en'});
+ if(selection.place||selection.topic)params.set('key',selection.place?'place:'+selection.place:selection.topic);
+ return 'topics/story-facts?'+params;
+}
+export function normalizeStoryFacts(payload){
+ const raw=payload?.facts||payload;
+ if(!raw||payload?.ready===false||raw.ready===false||raw.coverage?.truncated||!Array.isArray(raw.debates)||!Array.isArray(raw.docs)||!Array.isArray(raw.questions))return null;
+ return {...raw,debatesTruncated:Array.isArray(raw.blocks)&&raw.blocks.some(b=>typeof b.debatesTruncated==='boolean')?Object.fromEntries(raw.blocks.map(b=>[b.period,Boolean(b.debatesTruncated)])):raw.debatesTruncated??payload.debatesTruncated,debatesTotal:raw.debatesTotal??payload.debatesTotal,
+  debates:raw.debates.map(d=>({...d,places:Array.isArray(d.places)?d.placeBases||Object.fromEntries(d.places.map(p=>[p.id,p.bases||[p.basis]])):d.places||{},cre:d.cre||d.creId||null})),
+  docs:raw.docs.map(d=>({...d,outcome:d.outcome?{...d.outcome,abst:d.outcome.abst??d.outcome.abstentions,method:/VOTE_HAND|show.of.hands/i.test([d.outcome.method,d.outcome.decisionMethod,d.outcome.decision_method].join(' '))?'VOTE_HAND':d.outcome.method}:d.outcome})),
+  press:Object.fromEntries(Object.entries(raw.press||{}).map(([key,items])=>[key,items.map(r=>({...r,date:r.date||''}))])),topics:raw.topics||{}};
+}
 export function buildTopicStories(facts,selection={}){
  if(!facts||!Array.isArray(facts.debates)||!Array.isArray(facts.docs)||!Array.isArray(facts.questions))return [];
  facts={...facts,debates:facts.debates.filter(d=>d.meps>=3).map(d=>({...d,title:agendaTitle(d.title),rawTitle:agendaTitle(d.rawTitle||d.title)}))};
