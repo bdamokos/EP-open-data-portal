@@ -344,13 +344,15 @@ for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+'
 
 test('an evicted amendment context restores its scroll after the delayed source body loads',async t=>{
   let delayed=false,releaseBody;
+  const delayedBodies=new Set();
   const h=await harness(t,'member=1&module=votes&lang=en',{contextResponse:(url,payload)=>{
     if(url.searchParams.get('body')==='0')return;
     payload.document.selectedText.paragraphs=Array.from({length:207},(_,index)=>'Synthetic source paragraph '+index+'.');
-    if(delayed)return new Promise(resolve=>{releaseBody=()=>resolve(Response.json(payload));});
+    if(delayed)return new Promise(resolve=>{releaseBody=()=>resolve(Response.json(payload));delayedBodies.add(releaseBody);});
     return Response.json(payload);
   }});
-  t.after(()=>releaseBody?.());
+  // Release every delayed body so request deadlines do not keep the file alive.
+  t.after(()=>{for(const release of delayedBodies)release();});
   await h.click(h.container.querySelector('.member-votes-subject h3 button'));
   await h.click(h.container.querySelectorAll('.member-votes-row')[1]);
   await h.click(button(h.container,'Read in context'));

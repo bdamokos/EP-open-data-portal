@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process';
-import {readdirSync} from 'node:fs';
+import {mkdtempSync, readdirSync, rmSync, statfsSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -57,19 +57,38 @@ const concurrency = process.env.TEST_CONCURRENCY !== undefined
   ? positiveInteger(process.env.TEST_CONCURRENCY, 'TEST_CONCURRENCY')
   : process.env.CI ? undefined : Math.max(2, Math.floor(os.availableParallelism() / 2));
 const timeout = positiveInteger(process.env.TEST_TIMEOUT_MS ?? 120000, 'TEST_TIMEOUT_MS');
-console.log(`[tests] profile=${profile}${focused.length ? ' (focused)' : ''} files=${files.length} concurrency=${concurrency ?? 'Node default (CI)'} timeout=${timeout}ms excluded=${excluded.length ? excluded.join('; ') : 'none'}`);
 if (!files.length) throw new Error('No test files selected');
+// Tests create many short-lived SQLite databases and cache files. On VMs with
+// slow fsync, journal commits made most of the run I/O wait. Use a private
+// tmpfs directory when one has room; TEST_TMPDIR overrides the parent directory.
+function temporaryParent() {
+  if (process.env.TEST_TMPDIR) return process.env.TEST_TMPDIR;
+  if (process.platform !== 'linux') return null;
+  try {
+    const {bavail, bsize} = statfsSync('/dev/shm');
+    return bavail * bsize >= 1024 ** 3 ? '/dev/shm' : null;
+  } catch {
+    return null;
+  }
+}
+const parent = temporaryParent();
+const temporary = parent ? mkdtempSync(path.join(parent, 'parliament-tests-')) : null;
+console.log(`[tests] profile=${profile}${focused.length ? ' (focused)' : ''} files=${files.length} concurrency=${concurrency ?? 'Node default (CI)'} timeout=${timeout}ms tmpdir=${temporary ?? os.tmpdir()} excluded=${excluded.length ? excluded.join('; ') : 'none'}`);
 const guard = new URL('./test-network-guard.mjs', import.meta.url).href;
-const flags = ['--test', `--test-timeout=${timeout}`, '--import', guard, ...forwarded];
+const hookRelease = new URL('./test-hook-release.mjs', import.meta.url).href;
+const flags = ['--test', `--test-timeout=${timeout}`, '--import', guard, '--import', hookRelease, ...forwarded];
 // Environment selection wins over a forwarded concurrency flag, too.
 if (concurrency !== undefined) flags.push(`--test-concurrency=${concurrency}`);
 // execFile/spawn of fresh Node processes does not inherit execArgv. Keep the
 // preload in NODE_OPTIONS as well so isolated cache/restart scripts are guarded.
 const env = {...process.env, NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${guard}`].filter(Boolean).join(' ')};
+if (temporary) Object.assign(env, {TMPDIR: temporary, TMP: temporary, TEMP: temporary});
 const child = spawn(process.execPath, [...flags, ...files], {cwd: root, stdio: 'inherit', env});
+const cleanup = () => {if (temporary) rmSync(temporary, {recursive: true, force: true});};
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
-child.on('error', error => {console.error(error); process.exitCode = 1;});
+child.on('error', error => {cleanup(); console.error(error); process.exitCode = 1;});
 child.on('exit', (code, signal) => {
+  cleanup();
   if (signal) {
     process.removeAllListeners(signal);
     process.kill(process.pid, signal);

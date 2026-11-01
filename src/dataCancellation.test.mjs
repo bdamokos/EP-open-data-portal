@@ -11,7 +11,8 @@ async function harness(t) {
   }
   let root,loadModule;
   t.mock.method(globalThis,'fetch',(input,options)=>new Promise(resolve=>requests.push({url:new URL(input,location.href),signal:options.signal,resolve})));
-  t.after(async()=>{if(root)await act(async()=>root.unmount());if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
+  // Settle reads left pending so their request deadlines do not keep the file alive.
+  t.after(async()=>{if(root)await act(async()=>root.unmount());await act(async()=>{for(const request of requests)request.resolve(Response.json({}));});if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);root=createRoot(container);
   return {requests,container,load:path=>loadModule(path),render:element=>act(async()=>root.render(element)),finish:(request,data,status=200)=>act(async()=>request.resolve(Response.json(data,{status}))),unmount:()=>act(async()=>root.unmount())};

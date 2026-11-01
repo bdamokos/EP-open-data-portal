@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {mkdtemp, mkdir, copyFile, writeFile, rm} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {testDirectories} from '../scripts/test-manifest.mjs';
@@ -16,7 +17,7 @@ async function fixture(t) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'test runner-'));
   t.after(() => rm(directory, {recursive: true, force: true}));
   for (const name of ['scripts', 'server', 'src']) await mkdir(path.join(directory, name));
-  for (const name of ['run-tests.mjs', 'test-network-guard.mjs']) {
+  for (const name of ['run-tests.mjs', 'test-network-guard.mjs', 'test-hook-release.mjs']) {
     await copyFile(new URL(`scripts/${name}`, root), path.join(directory, 'scripts', name));
   }
   await writeFile(path.join(directory, 'scripts/test-manifest.mjs'), `export const testDirectories = ${JSON.stringify(testDirectories)};\nexport const slow = [{file: 'server/slow.test.mjs', reason: 'subprocess fixture'}];\n`);
@@ -63,6 +64,36 @@ test('runner preloads reach test children and fresh Node subprocesses while pres
   const {stdout} = await run(['server/slow.test.mjs'], {NODE_OPTIONS: '--no-warnings'});
   assert.match(stdout, /# pass 1\n/);
   assert.match(stdout, /# fail 0\n/);
+});
+
+test('runner releases finished after hooks and removes its private temporary directory', async t => {
+  const {directory, run} = await fixture(t);
+  const parent = path.join(directory, 'temporary parent');
+  await mkdir(parent);
+  await writeFile(path.join(directory, 'server/fast.test.mjs'), `
+    import {test} from 'node:test';
+    import assert from 'node:assert/strict';
+    import os from 'node:os';
+    let reference, callbackHook = false;
+    test('register', t => {
+      const retained = {payload: new Array(1000).fill(1)};
+      reference = new WeakRef(retained);
+      t.after(() => assert.ok(retained.payload));
+      t.after((context, done) => {callbackHook = true; done();});
+    });
+    test('released', async () => {
+      assert.ok(callbackHook);
+      await new Promise(resolve => setImmediate(resolve));
+      gc();
+      assert.equal(reference.deref(), undefined);
+      assert.ok(os.tmpdir().startsWith(${JSON.stringify(parent)}));
+    });
+  `);
+  const {stdout} = await run(['server/fast.test.mjs', '--expose-gc'], {TEST_TMPDIR: parent});
+  assert.match(stdout, /# pass 2\n/);
+  const temporary = stdout.match(/ tmpdir=(.+?) excluded=/)[1];
+  assert.equal(path.dirname(temporary), parent);
+  assert.equal(existsSync(temporary), false);
 });
 
 test('runner preserves failure exits and environment concurrency precedence', async t => {
