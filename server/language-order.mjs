@@ -10,10 +10,10 @@ export function languagePreference(available, requested) {
   return [...ordered, ...[...remaining].sort()];
 }
 
-// Wording must share a published document language before placement can run.
-export function amendmentLanguagePreference(available, requested, originals = []) {
-  const remaining = new Set(available), ordered = [];
-  for (const code of [requested, 'en', ...originals, ...languagePreference(available, requested)]) {
+// Pair only independently declared publication languages; never infer a translation.
+export function amendmentLanguagePreference(available, requested) {
+  const remaining = new Set(available.filter(code => typeof code === 'string' && /^[a-z]{2}$/.test(code))), ordered = [];
+  for (const code of [requested, 'en', ...[...remaining].sort()]) {
     if (remaining.delete(code)) ordered.push(code);
   }
   return ordered;

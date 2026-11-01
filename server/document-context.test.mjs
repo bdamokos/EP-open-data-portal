@@ -93,7 +93,7 @@ test('an explicit selector cannot hide a conflicting or unreadable same-list sam
 });
 
 test('missing document languages use one exact translated list and amendment number in preference order',async()=>{
-  for(const [requested,originals,expected] of [['hu',['de'],'de'],['en',['de'],'de'],['en',['it'],'fr']]) {
+  for(const [requested,originals,expected] of [['hu',['de'],'de'],['en',['de'],'de'],['en',['it'],'de']]) {
     const languages=['fr','de','es'],calls=[],bodyCalls=[];
     const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+id,is_realized_by:languages.map(language=>({language,is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:source.url.replace('_en','_'+language)}]}))};
     const publication={...work,originalLanguage:originals,inverse_foresees_change_of:['eli/dl/doc/'+listId]};
@@ -725,4 +725,36 @@ for(const status of ['error','unavailable','available'])test('a selected file la
 test('historical public reports remain readable on demand without expanding indexed amendment scope',()=>{
   for(const id of ['A-8-2017-0014','A-8-2016-0283','TA-8-2015-0263'])assert.equal(documentContextQuery(id,new URLSearchParams({lang:'en'})).id,id);
   assert.throws(()=>documentContextQuery('A-11-2027-0001',new URLSearchParams({lang:'en'})));
+});
+
+test('shared language pairing advances past an unavailable counterpart without translating or changing lists',async()=>{
+  for(const failure of ['missing-language','download','empty-base']) {
+    const languages=['de','fr'],selected=[],body=[];
+    const list={id:'eli/dl/doc/'+listId,identifier:listId,work_type:'def/ep-document-types/AMENDMENT_LIST',foresees_change_of:'eli/dl/doc/'+id,is_realized_by:languages.filter(language=>failure!=='missing-language'||language!=='de').map(language=>({language,is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:source.url.replace('_en','_'+language)}]}))};
+    const reader=service({findAmendment:()=>({...indexed,baseline:'motion-resolution'}),request:async path=>record(path==='/documents/'+listId?list:{...work,inverse_foresees_change_of:['eli/dl/doc/'+listId]}),readText:async(_work,language)=>{body.push(language);return {...summary,textLanguage:language==='en'?'fr':language,availableTextLanguages:languages,paragraphs:failure==='empty-base'&&language==='de'?[]:summary.paragraphs};}});
+    reader.readList=async(node,file)=>{
+      assert.equal(node.identifier,listId);selected.push(file.language);
+      if(failure==='download'&&file.language==='de')throw new Error('not available');
+      const provenance={...source,url:file.url,language:file.language,contentHash:(file.language==='de'?'d':'f').repeat(64)};
+      return {source:provenance,extraction:{amendments:[{number:40,originalText:summary.paragraphs[0],proposedText:'Published '+file.language,authors:[],baseline:'motion-resolution'}]}};
+    };
+    const result=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+    assert.deepEqual(result.wordingLanguageFallback,{listId,requestedLanguage:'en',language:'fr'});
+    assert.equal(result.document.selectedText.textLanguage,'fr');assert.equal(result.target.evidence.wordingSource.language,'fr');
+    assert.equal(result.target.evidence.wordingSource.contentHash,'f'.repeat(64));
+    assert.equal(result.amendment.variants.at(-1).proposedText,'Published fr');assert.ok(selected.includes('fr'));
+  }
+});
+
+for(const documentId of ['B-10-2026-0406','A-10-2026-0103','A-10-2026-0170','A-10-2026-0171'])test('indexed French wording pairs with its declared French base by exact ID: '+documentId,async()=>{
+  const exactList=documentId+'-AM-001-001',exactAmendment=documentId+'-AM-1';
+  const frenchSource={url:'https://data.europarl.europa.eu/distribution/mock/'+exactList+'/fr.docx',language:'fr',fetchedAt:source.fetchedAt,contentHash:'f'.repeat(64)};
+  const publication={...work,id:'eli/dl/doc/'+documentId,identifier:documentId,work_type:'def/ep-document-types/'+(documentId.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY'),is_realized_by:[{language:'fr',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:'https://data.europarl.europa.eu/distribution/mock/base-fr.docx'}]}]};
+  const reader=service({request:async()=>record(publication),findAmendment:()=>({...indexed,id:exactAmendment,targetDocumentId:documentId,listId:exactList,baseline:'motion-resolution',language:'fr',targetLabelLanguage:'fr',wordingSource:frenchSource,originalText:'Texte original.',proposedText:'Texte proposé.'}),readText:async()=>({...summary,textLanguage:'fr',availableTextLanguages:['fr'],paragraphs:['Texte original.']})});
+  reader.readList=async()=>{throw Error('An unrelated or guessed translation must not be read');};
+  const result=await reader.query({id:documentId,amendmentId:exactAmendment,listId:exactList,wordingLanguage:'fr',language:'en',includeBody:true},{store:{}});
+  assert.equal(result.requestedLanguage,'en');assert.equal(result.requestedWordingLanguage,'fr');
+  assert.equal(result.document.selectedText.textLanguage,'fr');assert.equal(result.target.evidence.wordingLanguage,'fr');
+  assert.equal(result.target.evidence.amendmentId,exactAmendment);assert.equal(result.target.evidence.listId,exactList);
+  assert.deepEqual(result.target.evidence.wordingSource,frenchSource);assert.equal(result.wordingLanguageFallback,null);
 });

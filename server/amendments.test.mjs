@@ -1,14 +1,15 @@
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
+import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION, documentFiles } from './activity-index-model.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, distributionEvidenceFor, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, distributionEvidenceFor, pairingDistributionEvidenceFor, currentDocxDescriptor, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
 import { amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
 import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments, scheduleSittingOutcomes } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs';
@@ -1276,7 +1277,7 @@ test('an oversized refresh retains only a known complete baseline and keeps its 
       assert.equal(item.originalText,'Accepted original');assert.equal(item.proposedText,'Accepted proposal');
       assert.equal(saved.work.extraction.lastRefreshFailure.sourceUrl,newUrl);
       assert.deepEqual(item.wordingSource,{url:oldUrl,fetchedAt:earlier,language:'en'});assert.equal(item.wordingRetained,true);
-      assert.deepEqual(item.metadataSource,{url:newUrl,fetchedAt,language:'en'});
+      assert.deepEqual(item.metadataSource,{url:newUrl,fetchedAt,language:'en',contentHash:createHash('sha256').update(comparisonDocx([['r'.repeat(60001),'Fresh proposal']])).digest('hex')});
       assert(item.sources.some(source=>source.url===oldUrl&&source.fetchedAt===earlier));
       assert(item.sources.some(source=>source.url===newUrl&&source.fetchedAt===fetchedAt));
     }
@@ -1397,7 +1398,7 @@ test('losing a comparison row within the same amendment retains its full accepte
   const [item]=amendmentsPage(store,{document:targetId}).items;
   assert.equal(item.originalText,'Before one\nBefore two');assert.equal(item.proposedText,'After one\nAfter two');
   assert.deepEqual(item.wordingSource,{url:oldUrl,fetchedAt:earlier,language:'en'});assert.equal(item.wordingRetained,true);
-  assert.deepEqual(item.metadataSource,{url:newUrl,fetchedAt,language:'en'});
+  assert.deepEqual(item.metadataSource,{url:newUrl,fetchedAt,language:'en',contentHash:createHash('sha256').update(degraded).digest('hex')});
   assert(item.sources.some(source=>source.url===oldUrl&&source.fetchedAt===earlier));
 });
 
@@ -1420,7 +1421,7 @@ test('damaged fresh wording cannot hide explicit proposer corrections or relabel
     enqueueAmendment(store,generation,'proposer-correction','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
     await worker.task(nextAmendmentTask(store,generation));
     const saved=store.source(generation,'amendment:list:'+singleListId),[item]=amendmentsPage(store,{document:targetId}).items;
-    const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},newSource={url:newUrl,fetchedAt,language:'en'};
+    const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},newSource={url:newUrl,fetchedAt,language:'en',contentHash:createHash('sha256').update(damaged).digest('hex')};
     assert.equal(saved.fetchedAt,fetchedAt);assert.equal(saved.work.extraction.sourceUrl,newUrl);
     assert.equal(item.originalText,'Accepted original one\nAccepted original two');assert.equal(item.proposedText,'Accepted proposal one\nAccepted proposal two');
     assert.deepEqual(item.wordingSource,oldSource);assert.equal(item.wordingRetained,true);assert.deepEqual(item.metadataSource,newSource);
@@ -1448,7 +1449,7 @@ test('a mixed damaged refresh retains each old component independently while acc
   enqueueAmendment(store,generation,'mixed-refresh','amendment-extract',{listId,targetDocumentId:targetId});
   await worker.task(nextAmendmentTask(store,generation));
   const page=amendmentsPage(store,{document:targetId}),items=new Map(page.items.map(item=>[item.number,item]));
-  const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},newSource={url:newUrl,fetchedAt,language:'en'};
+  const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},newSource={url:newUrl,fetchedAt,language:'en',contentHash:createHash('sha256').update(fresh).digest('hex')};
   assert.equal(page.total,4);assert.equal(page.coverage.complete,false);
   assert.equal(items.get(1).proposedText,'Old proposal one');assert.equal(items.get(1).wordingRetained,true);assert.deepEqual(items.get(1).wordingSource,oldSource);assert.deepEqual(items.get(1).metadataSource,newSource);
   assert.equal(items.get(2).proposedText,'Fresh proposal two');assert.equal(items.get(2).wordingRetained,false);assert.deepEqual(items.get(2).wordingSource,newSource);
@@ -1497,7 +1498,7 @@ test('a parser migration retains supported proposer provenance independently of 
     enqueueAmendment(store,generation,'migration-proposer','amendment-extract',{listId:singleListId,targetDocumentId:targetId});
     await worker.task(nextAmendmentTask(store,generation));
     const [item]=amendmentsPage(store,{document:targetId}).items;
-    const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},newSource={url:newUrl,fetchedAt,language:'en'};
+    const oldSource={url:oldUrl,fetchedAt:earlier,language:'en'},newSource={url:newUrl,fetchedAt,language:'en',contentHash:createHash('sha256').update(fresh).digest('hex')};
     assert.equal(item.originalText,'Fresh complete original');assert.equal(item.proposedText,'Fresh complete proposal');
     assert.deepEqual(item.wordingSource,newSource);assert.deepEqual(item.metadataSource,newSource);assert.equal(item.wordingRetained,false);
     assert.equal(item.documentDate,freshDate);assert.equal(item.dateBasis,'individual-amendment-document');
@@ -2300,4 +2301,65 @@ test('a fileless published list can read only its exact report comparison block 
   const pending=amendmentsPage(store,{document:targetId}).items;
   for(const item of pending){assert.equal(item.sourceFreshness.status,'pending');assert.equal(item.wordingRetained,true);}
   assert.equal(listDetailJobs(store,generation).filter(job=>!job.done).length,0);
+});
+
+test('normal list collection selects only an attested shared DOCX language and preserves competing editions',()=>{
+  const descriptor=language=>({url:'https://data.europarl.europa.eu/distribution/example/list_'+language+'.docx',language,byteSize:123});
+  const evidence=descriptors=>({version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors});
+  const list={distributionEvidence:evidence(['en','fr','de'].map(descriptor)),pairingDistributionEvidence:evidence(['fr','de'].map(descriptor))};
+  assert.equal(currentDocxDescriptor(list).language,'de');
+  assert.equal(currentDocxDescriptor({...list,pairingDistributionEvidence:evidence([descriptor('en')])}).language,'en');
+  assert.equal(currentDocxDescriptor({...list,distributionEvidence:evidence([...list.distributionEvidence.descriptors,{...descriptor('de'),url:descriptor('de').url.replace('.docx','-rev.docx')}])}),null);
+  assert.equal(currentDocxDescriptor({...list,pairingDistributionEvidence:{state:'unavailable'}}).language,'en');
+  assert.equal(currentDocxDescriptor({...list,scope:'committee'}).language,'en');
+});
+
+for(const documentId of ['B-10-2026-0406','A-10-2026-0103','A-10-2026-0170','A-10-2026-0171'])test('ordinary source writer matches the declared French base and exact list: '+documentId,async t=>{
+  const {store,worker,generation}=setup(t),id=documentId+'-AM-001-001';
+  const expression=(language,url)=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url}]});
+  // Explicit mocked distribution declarations; URL construction is fixture setup only.
+  const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
+  const declarations=languages.map(language=>expression(language,'https://data.europarl.europa.eu/distribution/mock/'+id+'/'+language+'.docx'));
+  const french=declarations.find(file=>file.language==='fr').is_embodied_by[0].is_exemplified_by;
+  const detail={id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:tabled,foresees_change_of:['eli/dl/doc/'+documentId],is_realized_by:declarations};
+  store.putSource(generation,'/plenary-documents/'+documentId,'document',{...target,id:'eli/dl/doc/'+documentId,identifier:documentId,work_type:'def/ep-document-types/'+(documentId.startsWith('B-')?'RESOLUTION_MOTION':'REPORT_PLENARY'),is_realized_by:[expression('de','https://data.europarl.europa.eu/distribution/mock/base-de.docx'),expression('fr','https://data.europarl.europa.eu/distribution/mock/base-fr.docx')],inverse_foresees_change_of:[detail]},fetchedAt);
+  store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[],sources:[]},fetchedAt);
+  // Existing English-only extraction must be scheduled for a declared French
+  // counterpart without relabelling the retained English bytes during refresh.
+  const english=declarations.find(file=>file.language==='en').is_embodied_by[0].is_exemplified_by;
+  const oldBuffer=comparisonDocx([['Old original','Old proposal']],{number:1});
+  const proof=distributionEvidenceFor(detail,{url:'https://data.europarl.europa.eu/api/v2/documents/'+id,fetchedAt:earlier,language:null});
+  const oldExtraction=extractAmendments(oldBuffer,{listId:id,targetDocumentId:documentId,language:'en',sourceUrl:english,fetchedAt:earlier});
+  store.putSource(generation,'amendment:list:'+id,'amendment-list',{...detail,targetDocumentId:documentId,distributionEvidence:proof,extraction:{...oldExtraction,parserVersion:AMENDMENT_EXTRACTION_VERSION,language:'en',sourceUrl:english,fetchedAt:earlier,sourceDescriptor:proof.descriptors.find(file=>file.language==='en'),sourceHash:createHash('sha256').update(oldBuffer).digest('hex')}},earlier);
+  worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+id);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt,payload:{data:[detail]}};};
+  rebuildAmendmentTarget(worker,generation,documentId);
+  assert.equal(store.source(generation,'amendment:list:'+id).work.extraction.language,'en');
+
+  let task=nextAmendmentTask(store,generation);
+  if(task.kind==='amendment-list-detail'){await worker.task(task);task=nextAmendmentTask(store,generation);}
+  const retained=amendmentsPage(store,{document:documentId}).items[0];
+  assert.equal(retained.language,'en');assert.equal(retained.wordingSource.language,'en');
+  assert.equal(retained.wordingRetained,true);
+  assert.equal(task.kind,'amendment-extract');
+  const downloads=[];worker.downloadAmendmentDocx=async url=>{downloads.push(url);return {buffer:comparisonDocx([['Texte original','Texte proposé']],{number:1})};};
+  await worker.task(task);
+  const saved=store.source(generation,'amendment:list:'+id).work;
+  assert.equal(downloads[0],french);assert.equal(saved.extraction.language,'fr');
+  assert.equal(saved.extraction.sourceDescriptor.url,french);assert.match(saved.extraction.sourceHash,/^[a-f0-9]{64}$/);
+  assert.equal(saved.pairingDistributionEvidence.preferredLanguage,'fr');
+  assert.equal(saved.pairingDistributionEvidence.descriptors.some(file=>file.language==='en'),false);
+  const items=amendmentsPage(store,{document:documentId}).items;
+  assert.equal(items[0].language,'fr');assert.equal(items[0].listId,id);
+  assert.equal(items[0].wordingSource.url,french);assert.equal(items[0].wordingSource.contentHash,saved.extraction.sourceHash);
+});
+
+const sharedLanguageCases=JSON.parse(readFileSync(new URL('./fixtures/amendment-shared-language-public.json',import.meta.url),'utf8')).cases;
+for(const example of sharedLanguageCases)test('cached public declarations select an attested base/list counterpart: '+example.documentId,()=>{
+  const base=pairingDistributionEvidenceFor(example.base,example.metadataSource);
+  const selected=currentDocxDescriptor({distributionEvidence:distributionEvidenceFor(example.list,example.metadataSource),pairingDistributionEvidence:base});
+  assert.equal(base.descriptors.some(file=>file.language==='en'),false);
+  assert.equal(selected.language,example.documentId==='A-10-2026-0170'?'de':'fr','frozen A-0170 differs from the later derived production observation');
+  assert.ok(documentFiles(example.list).some(file=>file.url===selected.url&&file.language===selected.language));
+  assert.equal(selected.language,base.preferredLanguage);
+  assert.match(base.source.sha256,/^[a-f0-9]{64}$/);
 });

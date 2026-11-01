@@ -28,7 +28,7 @@ import {amendmentLanguagePreference} from './language-order.mjs';
 import {retainedDocumentContext} from './document-context-index.mjs';
 import {validateAdoptedText} from './adopted-text-index.mjs';
 
-export const DOCUMENT_CONTEXT_VERSION=52;
+export const DOCUMENT_CONTEXT_VERSION=53;
 export const DOCUMENT_CONTEXT_LIMITS=Object.freeze({procedures:4,adoptedCandidates:8,lists:64,matchingLists:4,metadataBytes:16*1024*1024,entries:12,bytes:12*1024*1024,entryBytes:2*1024*1024,ttl:60_000,extractionEntries:4,extractionBytes:8*1024*1024,extractionTtl:300_000});
 const documentId=id=>typeof id==='string'&&(/^(?:A|B|RC|TA)-(?:[1-9]|10)-\d{4}-\d{4,6}$/.test(id)||committeeDraftId(id)||committeeListId(id));
 const ref=value=>canonicalEPReference(value);
@@ -218,13 +218,19 @@ export class DocumentContext {
     // Only a missing publication language permits a translation of this exact
     // list/number. An unreadable or competing same-language source stays a gap.
     if(document&&exactList&&requestedWording&&textLanguages.length&&!textLanguages.includes(requestedWording)&&!candidates.some(variant=>['commission-proposal','council-position','present-text'].includes(variant.baseline))) {
-      const fallback=await this.amendment({...query,listId:exactList,matchingTextLanguages:textLanguages},null,work,sources,read,rootSource);
-      const readable=fallback.variants.filter(variant=>variant.wordingStatus==='available');
-      if(readable.length===1) {
+      for(const language of amendmentLanguagePreference(textLanguages,query.language)) {
+        const fallback=await this.amendment({...query,listId:exactList,matchingTextLanguages:[language]},null,work,sources,read,rootSource);
+        const readable=fallback.variants.filter(variant=>variant.wordingStatus==='available');
+        // Competing editions are never a reason to select a different language.
+        if(fallback.gaps.includes('amendment-file-unavailable-or-ambiguous')||fallback.gaps.includes('conflicting-list-metadata'))break;
+        if(readable.length!==1)continue;
+        const pairedText=document.selectedText.textLanguage===language?document.selectedText:await this.readText(work,language);
+        if(pairedText?.textLanguage!==language||!pairedText.paragraphs?.length)continue;
         chosen=readable[0];
         amendment={...amendment,status:'available',variants:[...amendment.variants.filter(variant=>variant.listId!==chosen.listId||variant.language!==chosen.language),chosen]};
         wordingLanguageFallback={listId:exactList,requestedLanguage:requestedWording,language:chosen.language};
-        if(document.selectedText.textLanguage!==chosen.language)document={...document,selectedText:await this.readText(work,chosen.language)};
+        document={...document,selectedText:pairedText};
+        break;
       }
     }
     const differentLanguage=document?.selectedText?.paragraphs?.length&&chosen&&(wordingSelected&&chosen.language===null||chosen.language!==document.selectedText.textLanguage);
@@ -330,12 +336,13 @@ export class DocumentContext {
       if(workId(list)!==listId||canonicalType(list.work_type)!=='def/ep-document-types/AMENDMENT_LIST'||!committeeListId(query.id)&&!refs(list.foresees_change_of).includes('eli/dl/doc/'+query.id)){base.gaps.push('amendment-list-target-unverified');continue;}
       const wordingSelected=Object.hasOwn(query,'wordingLanguage')||Boolean(query.matchingTextLanguages);
       const files=wordingSelected?declaredDocxFiles(list):documentFiles(list).filter(file=>file.format==='DOCX'&&file.language&&allowedDownload(file.url));
-      const languages=[...new Set(files.map(file=>file.language))],language=query.matchingTextLanguages?amendmentLanguagePreference(languages.filter(language=>query.matchingTextLanguages.includes(language)),query.wordingLanguage||query.language,array(work.originalLanguage).map(languageCode))[0]:wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
+      const languages=[...new Set(files.map(file=>file.language))],language=query.matchingTextLanguages?amendmentLanguagePreference(languages.filter(language=>query.matchingTextLanguages.includes(language)),query.language)[0]:wordingSelected?query.wordingLanguage:languages.includes(query.language)?query.language:languages.includes('en')?'en':languages[0];
       const selected=files.filter(file=>file.language===language);
       // Preserve declared alternatives without downloading unrequested wording.
       // Every same-language file competes, including one we cannot parse.
       const alternatives=wordingSelected?files.map(file=>({listId,language:file.language,justification:null,targetLabel:null,targetLabelLanguage:null,wordingStatus:'unavailable',originalText:null,proposedText:null,authors:[],source:{...(file.url!==null?{url:file.url}:{}),language:file.language,sourceVersion:file.sourceVersion},metadataSource,gaps:[file.language===language?'amendment-wording-unavailable':'wording-not-requested']})):[];
       base.variants.push(...alternatives);
+      if(query.matchingTextLanguages&&selected.length===0)continue;
       if(selected.length!==1){base.gaps.push('amendment-file-unavailable-or-ambiguous');continue;}
       let file=selected[0];
       if(wordingSelected) {
