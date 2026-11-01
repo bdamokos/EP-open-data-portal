@@ -13,7 +13,7 @@ export function readGroupVoicesState(params,{now=Date.now()}={}){
   return {group:Object.hasOwn(GROUP_VOICE_GROUPS,value('group'))?value('group'):d.group,
     period,
     person:/^[1-9]\d{0,12}$/.test(value('person')||'')?value('person'):null,
-    subject:Object.hasOwn(GROUP_VOICE_SUBJECTS,value('subject'))?value('subject'):null,
+    subject:(Object.hasOwn(GROUP_VOICE_SUBJECTS,value('subject'))||/^oeil:\d(?:\.\d{2}){1,3}$/.test(value('subject')||''))?value('subject'):null,
     tab:['people','subjects'].includes(value('tab'))?value('tab'):d.tab,q:(value('q')||'').slice(0,200),
     peopleLimit:integer('people-limit',15,15,1000),offset:integer('offset',0,0,20000)};
 }

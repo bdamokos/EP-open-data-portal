@@ -10,3 +10,5 @@
 - Portrait resizing uses [sharp](https://sharp.pixelplumbing.com/) (Apache-2.0) and its platform-specific libvips distribution. Their licence and dependency notices ship with the installed `sharp` and `@img/sharp-libvips-*` packages in the server image.
 
 The interface font stack uses fonts already installed on the reader’s device. PDF.js page rendering also ships its published standard fonts, character maps and image decoders; their licence files accompany those assets and their notices are included in THIRD_PARTY_JAVASCRIPT_LICENSES.txt. SVG fallback artwork and interface labels are app-owned.
+
+- World map: Natural Earth public-domain [1:110m countries](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson) and [1:50m tiny countries](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_tiny_countries.geojson). `scripts/world-map.py` projects Equal Earth and rounds to 0.1 px without country simplification. Tiny-country points fill absent states. Kosovo joins authority ISO `1A0` to Natural Earth `KOS`; Northern Cyprus and Somaliland remain neutral.

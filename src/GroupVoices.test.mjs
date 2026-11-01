@@ -21,7 +21,7 @@ async function harness(t,query='?view=groups&gv-group=PPE&gv-tab=people',{websit
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.scrollTo=function(){};
  let loadModule,root,fail=false,deferPerson=false;const calls=[],delays=[],personResponses=[];
- t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});calls.push(url);
+ t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,location.href);if(url.pathname.startsWith('/api/portrait/'))return new Response(null,{status:404});if(url.pathname==='/api/insights/record-topics')return Response.json({ready:false});calls.push(url);
   const speechRoute=url.pathname.match(/^\/api\/(speech-transcript|speech|speech-context)\/(MTG-PL-2026-10-06-OTH-\d+)$/);
   if(speechRoute){
    const [,route,id]=speechRoute,language=url.searchParams.get('lang'),speech={id,date:'2026-10-06',start:null,end:null,kind:'PLENARY_DEBATE_SPEECH',titles:{en:'Exact contribution'},participants:[id.split('-').at(-1)],speakers:[],websiteUrl:websiteUrl?'https://www.europarl.europa.eu/doceo/document/'+id+'_EN.html':null,websiteLanguage:'en',xml:'<speech><p>Exact inline transcript for '+id+'</p></speech>',textLanguage:language,availableTextLanguages:[language],translationType:'original'};
@@ -79,7 +79,7 @@ test('search typing is one undo step; selected rows past 15 remain visible witho
  await h.click(h.container.querySelector('[data-gv-person="121"]'));assert.equal(h.container.querySelectorAll('.gv-person').length,15);
  const length=history.length;await h.input('É');await h.input('Éva');assert.equal(history.length,length+1);assert.equal(h.container.querySelectorAll('.gv-person').length,1);
  await act(async()=>{const popped=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));history.back();await popped;});assert.equal(h.container.querySelector('.gv-search input').value,'');assert.equal(h.container.querySelectorAll('.gv-person').length,15);
- await h.restore('/?view=groups&gv-tab=time&gv-person=42&gv-subject=climate');assert.equal(h.container.querySelector('.gv-tabs [aria-pressed=true]').textContent,'Subjects');assert.match(h.container.querySelector('.gv-subjects').textContent,/Climate & energy/);assert.equal(h.container.querySelector('.gv-person'),null);
+ await h.restore('/?view=groups&gv-tab=time&gv-person=42&gv-subject=climate');assert.equal(h.container.querySelector('.gv-tabs [aria-pressed=true]').textContent,'Topics');assert.match(h.container.querySelector('.gv-subjects').textContent,/Climate & energy/);assert.equal(h.container.querySelector('.gv-person'),null);
 });
 test('changing scope with delayed or failed data hides previous results and ignores late responses',async t=>{
  const h=await harness(t);const select=h.container.querySelector('.gv-controls select');
@@ -105,7 +105,7 @@ test('defaults to People and retains subject counts and filters without bar char
  assert.equal(params().get('gv-person'),'100');assert.equal(params().get('gv-subject'),'foreign');assert.equal(h.calls.at(-1).searchParams.get('person'),'100');assert.equal(h.calls.at(-1).searchParams.get('subject'),'foreign');
  const chip=h.container.querySelector('.gv-person.is-selected .gv-person-subjects button');assert.equal(chip.getAttribute('aria-pressed'),'true');
  await h.click(chip);assert.equal(params().get('gv-person'),'100');assert.equal(params().get('gv-subject'),null);
- await h.click([...h.container.querySelectorAll('.gv-tabs button')].find(b=>b.textContent==='Subjects'));
+ await h.click([...h.container.querySelectorAll('.gv-tabs button')].find(b=>b.textContent==='Topics'));
  assert.equal(h.container.querySelector('.gv-bar, .gv-compare, [data-gv-compare]'),null);
  assert.match(h.container.querySelector('.gv-subject-title').textContent,/Foreign affairs1/);
  assert.doesNotMatch(h.container.querySelector('.gv-section-heading').textContent,/columns|classified contributions/);
@@ -123,7 +123,7 @@ test('defaults to People and retains subject counts and filters without bar char
 for(const mode of ['gap','observed','partial'])test(`group summary and selected subject keep ${mode} counts distinct`,async t=>{
  const availability=sourceAvailability({sourceKey:'oral-speeches',start:'2026-09-01',end:'2026-09-30',latestObservedDate:'2026-10-16',gaps:mode==='gap'?[{start:'2026-09-01',end:'2026-09-30'}]:[],limited:mode==='partial',today:'2026-10-24'});
  const h=await harness(t,'?view=groups&gv-period=2026-09&gv-tab=subjects&gv-subject=foreign',{response:{availability,people:[],contributions:[],total:0,window:{from:'2026-09-01',to:'2026-09-30'}}});
- const values=[...h.container.querySelectorAll('.gv-summary strong,.gv-subject-title strong,.gv-contributions h2 > small')].map(el=>el.textContent.replace(/^·\s*/,''));
+ const values=[...h.container.querySelectorAll('.gv-summary strong,.gv-subject-title button:last-child,.gv-contributions h2 > small')].map(el=>el.textContent.replace(/^·\s*/,''));
  assert.equal(Boolean(h.container.querySelector('.gv-subjects .gv-empty')),mode!=='partial');
  assert.equal(values.length,5);assert(values.every(value=>value===(mode==='partial'?'Unavailable':'0')),JSON.stringify(values));
 });

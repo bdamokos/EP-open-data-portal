@@ -433,3 +433,7 @@ Exact-ID speech context, media lookup, legacy speech readers and legislation ass
 ## Test fixtures
 
 `server/fixtures` holds small public API responses and OEIL pages used by tests. JSON fixtures record their own source URLs and retrieval times. OEIL HTML fixtures are named after their exact procedure or summary reference. Fixtures are not runtime catalogues and their counts are not live figures.
+
+## World map geometry
+
+The Places map uses public-domain Natural Earth 1:110m Admin 0 countries and 1:50m tiny-country points. `scripts/world-map.py` generates Equal Earth paths without independent country simplification. Places join by authority ISO alpha-3, with the documented Kosovo `1A0` to `KOS` exception. See [third-party notices](../THIRD_PARTY_NOTICES.md) for source URLs.
