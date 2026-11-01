@@ -1,5 +1,6 @@
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import test from 'node:test';
+import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
 import os from 'node:os';
@@ -51,7 +52,7 @@ function fixture(t) {
     const key='provenance:'+id+':'+now;enqueueAmendment(store,generation,key,'amendment-extract',{listId:id,targetDocumentId:target},150);
     const raw=store.db.prepare('SELECT * FROM amendment_jobs WHERE generation=? AND key=?').get(generation,key),task={...raw,body:JSON.parse(raw.body),amendmentJob:true};
     worker.downloadAmendmentDocx=async actual=>{assert.equal(actual,url(id,options.language || 'en'));return {buffer:comparison(options)};};
-    await worker.task(task);return {task,source:{url:url(id,options.language || 'en'),fetchedAt:at(),language:options.language || 'en'}};
+    await worker.task(task);return {task,source:{url:url(id,options.language || 'en'),fetchedAt:at(),language:options.language || 'en',contentHash:createHash('sha256').update(comparison(options)).digest('hex')}};
   }
   return {store,worker,generation,at,metadata,refresh,decisionSource,vote};
 }

@@ -191,7 +191,7 @@ function retainedWording(context) {
   assert.equal(record.wordingRetained,true);
   assert.equal(record.sourceFreshness.version,AMENDMENT_DISTRIBUTION_PROOF_VERSION);
   assert.notEqual(record.sourceFreshness.status,'fresh');
-  assert.deepEqual(record.wordingSource,{url:oldUrl,language:'en',fetchedAt:oldRetrievedAt});
+  assert.deepEqual(record.wordingSource,{url:oldUrl,language:'en',fetchedAt:oldRetrievedAt,contentHash:createHash('sha256').update(amendmentDocx()).digest('hex')});
   assert.equal(record.documentDate,documentDate);assert.equal(record.proposerDate,documentDate);
   assert.equal(record.listDocumentDate,correctedListDate);assert.equal(record.authors[0].personId,'101');
   return page;
@@ -216,7 +216,7 @@ test('a changed published byte size at the same DOCX URL requires extraction aft
   assert.equal(record.sourceFreshness.status,'fresh');
   assert.deepEqual(record.sourceFreshness.descriptor,corrected);
   assert.deepEqual(record.sourceFreshness.sourceDescriptor,corrected);
-  assert.deepEqual(record.wordingSource,{url:oldUrl,language:'en',fetchedAt:context.at()});
+  assert.deepEqual(record.wordingSource,{url:oldUrl,language:'en',fetchedAt:context.at(),contentHash:createHash('sha256').update(buffer).digest('hex')});
 });
 
 test('three corrected-URL download failures retain coherent old wording and finish the job once without same-turn reopening',async t=>{
@@ -291,7 +291,7 @@ test('a successful retry stores the current descriptor proof and clears a previo
   assert.equal(page.coverage.complete,true);assert.equal(page.coverage.pending,false);assert.equal(page.items[0].wordingRetained,false);
   assert.equal(page.items[0].sourceFreshness.status,'fresh');
   assert.equal(page.items[0].proposedText,freshProposed);
-  assert.deepEqual(page.items[0].wordingSource,{url:newUrl,language:'en',fetchedAt:context.at()});
+  assert.deepEqual(page.items[0].wordingSource,{url:newUrl,language:'en',fetchedAt:context.at(),contentHash:createHash('sha256').update(buffer).digest('hex')});
 });
 
 test('legacy or mismatched descriptor proofs are never made fresh by pure API reads and leave retained JSON unchanged',async t=>{
@@ -319,7 +319,7 @@ test('legacy or mismatched descriptor proofs are never made fresh by pure API re
       assert.equal(page.items[0].sourceFreshness.version,AMENDMENT_DISTRIBUTION_PROOF_VERSION,mode);
       assert.notEqual(page.items[0].sourceFreshness.status,'fresh',mode);
       if(mode==='missing-proof'||mode==='incomplete-proof')assert.equal(page.items[0].sourceFreshness.status,'unverified',mode);
-      assert.deepEqual(page.items[0].wordingSource,{url:oldUrl,language:'en',fetchedAt:oldRetrievedAt},mode);
+      assert.deepEqual(page.items[0].wordingSource,{url:oldUrl,language:'en',fetchedAt:oldRetrievedAt,contentHash:createHash('sha256').update(amendmentDocx()).digest('hex')},mode);
       assert.equal(memberPage.total,1,mode);assert.equal(memberPage.coverage.complete,false,mode);
     }
     assert.deepEqual(persistedEvidence(store,generation),before,mode);
@@ -539,7 +539,7 @@ test('absence preserves an exhausted descriptor cooldown while a changed restore
   assert.deepEqual(saved.work.distributionEvidence.descriptors,[restored]);assert.deepEqual(saved.work.extraction.sourceDescriptor,restored);
   assert.equal(saved.work.wordingRefreshFailure,undefined);assert.equal(page.coverage.complete,true);assert.equal(page.coverage.pending,false);
   assert.equal(record.proposedText,freshProposed);assert.equal(record.wordingRetained,false);assert.equal(record.documentDate,documentDate);
-  assert.deepEqual(record.wordingSource,{url:restored.url,language:'en',fetchedAt:context.at()});
+  assert.deepEqual(record.wordingSource,{url:restored.url,language:'en',fetchedAt:context.at(),contentHash:createHash('sha256').update(buffer).digest('hex')});
 });
 
 test('generation adoption preserves current absence, a pending page cursor and retained descriptor cooldown',async t=>{
