@@ -535,12 +535,12 @@ test('ordinary document and speech discovery cannot reopen gaps or replace their
   assert.equal(store.enqueue(cycle.generation,recovery,'speeches',{recoveryId:speech,offset:0},103),false);
   assert.equal(enqueueAmendment(store,cycle.generation,recovery,'speeches',{recoveryId:speech,offset:0},103),false);
   assert.equal(store.db.prepare('SELECT 1 FROM tasks WHERE generation=? AND key=?').get(cycle.generation,recovery),undefined);
-  const gap=store.db.prepare('SELECT body FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery);
+  const gap=store.db.prepare('SELECT body,retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery);
   assert.deepEqual(JSON.parse(gap.body),savedRecovery);
   advance(6*DAY);scheduleMutable(worker,cycle.generation);
   const admitted=store.db.prepare('SELECT body FROM tasks WHERE generation=? AND key=?').get(cycle.generation,recovery);
   assert.deepEqual(JSON.parse(admitted.body),savedRecovery);
-  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery).retry_at,clock());
+  assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(cycle.generation,recovery).retry_at,gap.retry_at);
 });
 
 test('incomplete current sitting snapshots receive a new correction-period attempt six hours later',t=>{
@@ -720,9 +720,9 @@ test('legacy high-attempt 404s immediately use the days cap and honour a longer 
 });
 
 
-test('sustained source gaps retry daily while classified parser gaps recheck monthly',t=>{
+test('sustained source gaps and unconfirmed parser rejections retry daily',t=>{
   const {store,generation,worker,clock}=setup(t);
-  for(const [key,error,delay] of [['transient',{message:'EP API returned 500',status:500},DAY],['permanent',{message:'Invalid document archive',code:'invalid_docx'},30*DAY]]) {
+  for(const [key,error,delay] of [['transient',{message:'EP API returned 500',status:500},DAY],['permanent',{message:'Invalid document archive',code:'invalid_docx'},DAY]]) {
     store.enqueue(generation,key,'document',{endpoint:'/documents/'+key},100);
     const task={generation,key,kind:'document',body:{endpoint:'/documents/'+key},priority:100,attempts:370};
     assert(recordTaskGap(worker,task,error));

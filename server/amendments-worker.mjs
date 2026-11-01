@@ -941,6 +941,8 @@ export function failAmendmentTask(worker,task,error) {
   if(task.kind==='amendment-roster'){worker.store.set('amendmentMandateFallback',true);enqueueAmendment(worker.store,task.generation,'amendment:members:10','amendment-members',{offset:0,members:[]},108);}
   let evidence={rejection:null,confirmed:false};
   if(task.kind==='amendment-extract') {
+    const row=worker.store.db.prepare('SELECT body FROM amendment_jobs WHERE generation=? AND key=?').get(task.generation,task.key);
+    if(row)task.body=JSON.parse(row.body);
     const saved=worker.store.source(task.generation,sourceKey(task.body.listId));
     const previous=Object.hasOwn(task.body,'amendmentRejectedSource')?task.body.amendmentRejectedSource:saved?.work.wordingRefreshFailure?.rejectedSource;
     const descriptor=JSON.stringify(normalizedDocxDescriptor(currentDocxDescriptor(saved?.work)));
