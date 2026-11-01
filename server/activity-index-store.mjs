@@ -39,6 +39,7 @@ const relatedJointMotionsSql = `SELECT source.key,source.body,source.fetched_at
   FROM motion_links AS link JOIN sources AS source ON source.generation=link.generation AND source.key=link.joint_key
   WHERE link.generation=? AND link.original_ref=?
   ORDER BY json_extract(source.body,'$.document_date') DESC,source.key LIMIT 5`;
+const deepFreeze=value=>{if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const child of Object.values(value))deepFreeze(child);}return value;};
 export class ActivityStore {
   #generationLeaseOwner;
   constructor(directory, { clock = Date.now, initializeIndexes=false, prepareLog=()=>{}, preparedOnly=false } = {}) {
@@ -301,6 +302,15 @@ export class ActivityStore {
   }
   taskCounts(generation) { return this.db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN done=1 THEN 1 ELSE 0 END),0) AS completed,COALESCE(SUM(CASE WHEN (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL THEN 1 ELSE 0 END),0) AS retrying FROM tasks WHERE generation=?').get(generation); }
   source(generation,key) { const s=this.db.prepare('SELECT * FROM sources WHERE generation=? AND key=?').get(generation,key);return s && {work:parse(s.body),fetchedAt:s.fetched_at}; }
+  // Amendment rebuilds read every member profile per target. Profiles change only
+  // through putSource, so reuse one frozen parse per generation until the next write.
+  memberProfiles(generation) {
+    const cached=this.memberProfileCache;
+    if(cached?.generation===generation&&cached.revision===this.memberProfileRevision)return cached.value;
+    const value=deepFreeze(this.sources(generation,'amendment-member'));
+    if(!this.db.isTransaction)this.memberProfileCache={generation,revision:this.memberProfileRevision,value};
+    return value;
+  }
   sources(generation,kind,workType=null) {
     const rows=this.db.prepare('SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind=?'+(workType?" AND json_extract(body,'$.work_type') LIKE ?":'')).all(generation,kind,...(workType?['%/'+workType]:[]));
     return rows.map(s=>({key:s.key,work:parse(s.body),fetchedAt:s.fetched_at}));
@@ -351,6 +361,7 @@ export class ActivityStore {
   }
   markSeen(generation,key) { this.assertWriter();this.db.prepare('UPDATE sources SET seen=1 WHERE generation=? AND key=?').run(generation,key); }
   putSource(generation,key,kind,work,fetchedAt,rows=[],{acquisition='unknown',sourceUrl=null}={}) {
+    if(kind==='amendment-member'){this.memberProfileRevision=(this.memberProfileRevision||0)+1;this.memberProfileCache=null;}
     this.transaction(()=> {
       this.assertWriter();
       const existed=Boolean(this.db.prepare('SELECT 1 FROM sources WHERE generation=? AND key=?').get(generation,key));
