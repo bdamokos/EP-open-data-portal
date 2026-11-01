@@ -935,3 +935,13 @@ test('parsed same-language vote conflicts remain withheld as in A-10-2026-0042-A
   for(const targetLabel of ['Paragraph 19','Unsupported location'])assert.equal(placement(text,{originalText:'19. Exact wording;',proposedText:'Changed;',targetLabel,referenceText:'Paragraph 20'}).reason,'conflicting_target_evidence');
   assert.equal(placement(text,{originalText:'',proposedText:'New;',targetLabel:'Paragraph 19 a (new)',referenceText:'After § 20'}).reason,'conflicting_target_evidence');
 });
+
+test('Finnish published negative paragraph insertions require a unique first paragraph',()=>{
+ const fixture=JSON.parse(readFileSync(new URL('../scripts/fixtures/resolution-negative-insertions.json',import.meta.url)));
+ const text=document(['Euroopan parlamentti, joka','– ottaa huomioon mietinnön,','Pääluokka III – Komissio','1. First provision;','2. Next provision;'],{textLanguage:'fi'});
+ for(const row of fixture.amendments){
+ const options={...row,language:'fi',baseline:'motion-resolution',referenceText:'Before § 1'};
+ const result=resolveAmendmentPlacement(text,options);assert.equal(result.status,'placed',row.id);assert.equal(result.insertBefore,3);
+ assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
+ }
+});

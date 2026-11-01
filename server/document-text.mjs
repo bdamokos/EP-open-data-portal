@@ -213,28 +213,37 @@ function templateText(nodes) {
     key==='w:t' ? value.map(item=>item['#text'] || '').join('') : Array.isArray(value)&&!['w:del','w:moveFrom'].includes(key) ? templateText(value) : [])).join('');
 }
 function paragraphsOf(nodes,context) {
-  context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0;
+  context.sourceIndex??=sourceIndex(nodes);context.counterGaps??={lists:false,notes:false};const result=[];let segment=0,blankStart=null;
   function visit(nodes,boundary={container:'other',containerPath:'/'}) {
   for(const node of nodes || [])for(const [key,value] of Object.entries(node)) {
     if(key==='w:p'){
       const out={text:'',marks:[],spans:[],objects:[],...(context.formatting?{runs:[]}:{})},counterGaps={...context.counterGaps};
       context.paragraphStyle=property(children(value,'w:pPr'),'w:pStyle');
-      inline(value,context.style.styledHidden(property(children(value,'w:pPr'),'w:pStyle') || context.style.defaultParagraph,context.style.defaults),out,context);
+      const paragraphVisibility=context.style.styledHidden(context.paragraphStyle || context.style.defaultParagraph,context.style.defaults);
+      inline(value,paragraphVisibility,out,context);
       const properties=children(value,'w:pPr'),number=context.numberLabel?.(properties),unknownList=!!number?.label&&counterGaps.lists,
         label=unknownList?'?':number?.label,section=context.paragraphSections?.get(node);
       if(unknownList)context.warnings.add('Some automatic list labels are unknown after skipped document content.');
       if(label&&out.text.trim()){const prefix=label+'\t';out.text=prefix+out.text;for(const mark of out.marks)mark.offset+=prefix.length;for(const object of out.objects)object.offset+=prefix.length;for(const span of out.spans){span.start+=prefix.length;span.end+=prefix.length;}for(const run of out.runs||[]){run.start+=prefix.length;run.end+=prefix.length;}}
+      // Only physically empty paragraphs certify an omitted blank. Hidden text,
+      // numbering and unsupported blocks retain their ordinary source gaps.
+      const hiddenBlank=paragraphVisibility.vanish||paragraphVisibility.webHidden||hiddenValue(children(properties,'w:rPr'))===true||hiddenValue(children(properties,'w:rPr'),'webHidden')===true;
+      const empty=!hiddenBlank&&!child(properties,'w:sectPr')&&!number?.label&&!number?.incomplete&&(value||[]).every(item=>Object.keys(item).every(key=>key===':@'||key==='w:pPr'));
+      const previous=result.at(-1)?.source, location=context.sourceIndex.get(node);
+      const previousParagraph=previous&&previous.container===boundary.container&&previous.containerPath===boundary.containerPath
+        &&location.ordinal-previous.ordinal===segment-previous.segment+1&&segment>previous.segment&&blankStart===previous.path?previous.path:null;
       const text=out.text.trim(),lead=out.text.length-out.text.trimStart().length,at=offset=>Math.max(0,Math.min(text.length,offset-lead));
       if(text||out.marks.some(mark=>['w:footnoteReference','w:endnoteReference'].includes(mark.kind)))result.push({text,section,paragraphStyle:context.paragraphStyle,authorMarker:/<Depute>/.test(templateText(value)),
         properties:{styleId:property(properties,'w:pStyle')||context.style.defaultParagraph||null,numberingLabel:label||'',numberingComplete:!unknownList&&!number?.incomplete,notesComplete:!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
-        source:{...context.sourceIndex.get(node),...boundary,segment,complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
+        source:{...context.sourceIndex.get(node),...boundary,segment,...(previousParagraph?{previousParagraph}:{}),complete:!unknownList&&!number?.incomplete&&out.objects.every(object=>object.status==='mapped')&&!out.marks.some(mark=>mark.numberingUnknown&&!mark.label)},
         objects:out.objects.map(object=>({...object,offset:at(object.offset)})),
         marks:out.marks.map(mark=>({...mark,offset:at(mark.offset)})),spans:out.spans.map(span=>({start:at(span.start),end:at(span.end),url:span.url})).filter(span=>span.end>span.start),
         ...(context.formatting?{format:paragraphFormat(context.formatting.paragraph(properties),out.runs.map(run=>({...run,start:at(run.start),end:at(run.end)})),context.formatting.baseSize,text.length)}:{})});
-      else segment++;
+      else {if(!empty)blankStart=null;else if(segment===previous?.segment)blankStart=previous.path;segment++;}
+      if(text)blankStart=null;
     }
     else if(blockContainers.has(key)&&Array.isArray(value)) {
-      const separated=['w:tbl','w:tc'].includes(key);if(separated)segment++;
+      const separated=['w:tbl','w:tc'].includes(key);if(separated){segment++;blankStart=null;}
       const tables=context.tables,layout=tables?.layout;
       // Only the outermost table is laid out; nested tables stay inside their cell.
       if(tables&&key==='w:tbl'&&!layout){tables.layout={rows:[],bordered:context.formatting.tableBordered(children(value,'w:tblPr'))};}
@@ -244,15 +253,15 @@ function paragraphsOf(nodes,context) {
       const cell=tables&&key==='w:tc'&&tables.depth===1?tables.cell:null;
       if(tables&&key==='w:tbl')tables.depth++;
       visit(value,key==='w:body'?{container:'body',containerPath:context.sourceIndex.get(node).path}:key==='w:tc'?{container:'table-cell',containerPath:context.sourceIndex.get(node).path}:boundary);
-      if(separated)segment++;
+      if(separated){segment++;blankStart=null;}
       if(cell){cell.end=result.length;tables.layout.rows.at(-1).cells.push(cell);tables.cell=null;}
       if(tables&&key==='w:tbl'&&--tables.depth===0){const done=tables.layout;tables.layout=null;if(done.rows.some(row=>row.cells.some(cell=>cell.end>cell.start)))tables.found.push(tableLayout(done));}
     }
     else if(key!==':@'&&key!=='#text'&&!key.startsWith('?')&&!nonText.has(key)&&!blockProperties.has(key)) {
       counterGap(node,context);
-      segment++;context.warnings.add('Some document blocks could not be read; paragraph source boundaries retain the gap.');
+      segment++;blankStart=null;context.warnings.add('Some document blocks could not be read; paragraph source boundaries retain the gap.');
     }
-    else if(['w:del','w:moveFrom'].includes(key))segment++;
+    else if(['w:del','w:moveFrom'].includes(key)){segment++;blankStart=null;}
   }
   }
   visit(nodes);
