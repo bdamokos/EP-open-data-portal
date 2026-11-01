@@ -1,6 +1,7 @@
 import {odp} from './odp.mjs';
 import {OfficialContextWarmer} from './official-context-warmer.mjs';
 import {LegalReferences} from './legal-references.mjs';
+import {DocumentBodyCollector} from './document-body-collector.mjs';
 import {questionFileBackfillDue,backfillQuestionFiles} from './activity-read-projections.mjs';
 import {bootstrapAmendmentDependencies,amendmentDependenciesReady} from './amendments-store.mjs';
 import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
@@ -125,7 +126,7 @@ export function alternateAmendmentDispatch(store,generation,ordinaryTask,amendme
 
 export class ActivityWorker {
   constructor(store,{runUpstream=boundedUpstream,fetchRecord=apiFetch,clock=Date.now,monotonic=()=>performance.now(),budget=1000,maxDuration=90*60_000,diskLimit=8192*1024*1024,downloadAmendmentDocx=amendmentDownloads.downloadDocxBuffer,downloadVotingXml=amendmentDownloads.downloadVotingXml,extractAmendmentList=amendmentDownloads.extractAmendmentList,press=null,recoveryMode='normal',sittingSnapshots=null,officialContext=null}={}) {
-    this.officialContext=officialContext;this.store=store;this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
+    this.officialContext=officialContext;this.store=store;this.documentBodies=new DocumentBodyCollector(store);this.sittingSnapshots=sittingSnapshots;this.press=press;this.runUpstream=runUpstream;this.fetchRecord=fetchRecord;this.clock=clock;this.monotonic=monotonic;this.budget=budget;this.maxDuration=maxDuration;this.diskLimit=diskLimit;
     this.downloadAmendmentDocx=downloadAmendmentDocx;this.downloadVotingXml=downloadVotingXml;this.extractAmendmentList=extractAmendmentList;
     this.running=false;this.stopped=false;this.controller=new AbortController();this.requests=0;this.generationExecutor=null;
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
@@ -750,8 +751,9 @@ export class ActivityWorker {
     if(this.stopped)return;
     const pressDue=Boolean(this.press?.due()),due=this.due(),snapshotsDue=Boolean(this.sittingSnapshots?.due());
     const officialDue=Boolean(this.officialContext?.due());
+    const documentBodiesDue=this.documentBodies.due();
     const projectionDue=this.projectionGenerations().length>0||this.questionFileGenerations().length>0;
-    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue || !this.store.acquire())return;
+    if(!due&&!pressDue&&!snapshotsDue&&!projectionDue&&!officialDue&&!documentBodiesDue || !this.store.acquire())return;
     // Lease loss cancels one iteration. Only stop() shuts down the service;
     // a later tick must acquire ownership again before it can resume work.
     this.controller=new AbortController();
@@ -764,7 +766,12 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
-      if(officialDue)await this.officialContext.step(this);
+      // Persist the optional lane's share across one-request iterations.
+      const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
+      this.store.set('documentBodyTurn',bodyTurn);
+      if(documentBodiesDue&&(!due&&!snapshotsDue&&!pressDue||bodyTurn%8===0))
+        await this.documentBodies.step(this,{requestBudget:1});
+      if(officialDue&&this.requests<this.budget&&(!due||bodyTurn%8===1))await this.officialContext.step(this);
       if(pressDue)await this.followPress(due||snapshotsDue);
       // Reserve one dispatch before core work and one per eight core tasks, capped at one new request when core work is due.
       // When core work is idle, drain snapshots under the same run bounds.
@@ -898,7 +905,7 @@ export class ActivityWorker {
           if(cycle&&amendmentDocumentRouteRepairPending(this.store,generation))reconcileAmendmentDocumentGaps(this,generation);
           if(cycle&&this.store.get('working')){scheduleMutable(this,generation);scheduleDeclaredDebateRecovery(this,generation);}
           if(cycle&&this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation))scheduleAmendmentDocumentRouteVerification(this,generation);
-          if(++sittingSnapshotTurn%8===0)await this.fillProjectionBatch();
+          if(++sittingSnapshotTurn%8===0){await this.fillProjectionBatch();if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});if(this.requests>=this.budget)break;}
           if(sittingSnapshotTurn%8===0&&this.officialContext?.due()&&this.requests<this.budget&&this.monotonic()<this.runDeadline)await this.officialContext.step(this);
           if(sittingSnapshotTurn%8===0&&this.sittingSnapshots?.due()){
             await this.sittingSnapshots.step(this,{requestBudget:1});

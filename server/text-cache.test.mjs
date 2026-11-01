@@ -235,42 +235,23 @@ test('retained original fallback preserves a failed stale metadata refresh witho
     assert.deepEqual(JSON.parse(await readFile(filename,'utf8')),record);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
-test('document text coalesces cold reads, persists actual language and serves last-good text after refresh failure',async t=>{
-  const dir=await mkdtemp(path.join(os.tmpdir(),'document-text-test-'));
-  const url='https://data.europarl.europa.eu/distribution/test-'+Date.now()+'/answer_ga.docx';
-  const work={identifier:'E-10-2026-003031-ASW',originalLanguage:['http://publications.europa.eu/resource/authority/language/ENG'],is_realized_by:[{language:'http://publications.europa.eu/resource/authority/language/GLE',is_embodied_by:[{format:'file-type/DOCX',is_exemplified_by:url}]}]};
-  try {
-    let calls=0,start,finish;
-    const started=new Promise(resolve=>start=resolve),body=new Promise(resolve=>finish=resolve);
-    const download=()=>{calls++;start();return body;};
-    const first=documentText(work,'en',{directory:dir,download}),second=documentText(work,'ga',{directory:dir,download});
-    await started;assert.equal(calls,1,'concurrent languages share the pending download');
-    finish({paragraphs:['Actual answer text']});
-    const [a,b]=await Promise.all([first,second]);
-    assert.equal(calls,1);assert.equal(a.textLanguage,'ga');assert.equal(a.translationType,'unspecified');assert.equal(a.status,'available');assert.deepEqual(a.paragraphs,b.paragraphs);
-    const saved=JSON.parse(await readFile(path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json'),'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);assert.equal(saved.extractionVersion,DOCX_EXTRACTION_VERSION);
-    const clock=()=>Date.now()+8*86400000;
-    let refreshCalls=0,fail;
-    const failure=new Promise((_,reject)=>fail=()=>reject(new Error('upstream500')));
-    // Attach a handler immediately; the real source queue still owns admission.
-    failure.catch(()=>{});
-    const refresh=()=>{refreshCalls++;return failure;};
-    const stale=await documentText(work,'en',{directory:dir,clock,download:refresh});
-    assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);
-    assert.equal(stale.refreshInProgress,true);assert.equal(stale.textLanguage,'ga');
-    const during=await documentText(work,'ga',{directory:dir,clock,download:refresh});
-    assert.equal(during.refreshInProgress,true);fail();
-    let after;const deadline=performance.now()+110_000;
-    do {
-      after=await documentText(work,'en',{directory:dir,clock,download:refresh});
-      if(after.refreshError&&!after.refreshInProgress)break;
-      await new Promise(resolve=>setImmediate(resolve));
-    }while(performance.now()<deadline);
-    assert.equal(after.refreshInProgress,false);assert.equal(refreshCalls,1);
-    for(let i=0;i<5;i++)await documentText(work,'ga',{directory:dir,clock,download:refresh});
-    assert.equal(refreshCalls,1,'polling before the retry deadline must not redownload');
-    assert.equal(after.status,'available');assert.equal(after.refreshError,'upstream500');assert.deepEqual(after.paragraphs,a.paragraphs);
-  }finally{await rm(dir,{recursive:true,force:true});}
+test('document readers coalesce actual-language bodies and the worker alone persists and refreshes them',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'document-text-test-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const url='https://data.europarl.europa.eu/distribution/reader-writer-test/answer_ga.docx';
+ const work={identifier:'E-10-2026-003031-ASW',is_realized_by:[{language:'language/GLE',is_embodied_by:[{format:'DOCX',is_exemplified_by:url}]}]};
+ let calls=0,start,finish;const started=new Promise(resolve=>start=resolve),body=new Promise(resolve=>finish=resolve);
+ const download=()=>{calls++;start();return body;};
+ const first=documentText(work,'en',{directory:dir,download}),second=documentText(work,'ga',{directory:dir,download});
+ await started;assert.equal(calls,1);finish({paragraphs:['Actual answer text']});
+ const [a,b]=await Promise.all([first,second]);assert.equal(a.textLanguage,'ga');assert.deepEqual(a.paragraphs,b.paragraphs);
+ const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
+ await assert.rejects(readFile(file),{code:'ENOENT'});
+ await documentText(work,'ga',{directory:dir,download,collector:true});
+ const saved=JSON.parse(await readFile(file,'utf8'));assert.deepEqual(saved.paragraphs,a.paragraphs);
+ const clock=()=>Date.now()+8*86400000;
+ await assert.rejects(documentText(work,'ga',{directory:dir,clock,collector:true,download:async()=>{throw Error('upstream500');}}),/upstream500/);
+ const stale=await documentText(work,'en',{directory:dir,clock,download:()=>assert.fail('Reader must not refresh')});
+ assert(stale.stale);assert.deepEqual(stale.paragraphs,a.paragraphs);assert.equal(stale.refreshInProgress,false);
 });
 test('old extracted text is refreshed on demand and current extraction survives a process restart',async t=>{
   const dir=await mkdtemp(path.join(os.tmpdir(),'document-upgrade-test-'));
@@ -285,7 +266,7 @@ test('old extracted text is refreshed on demand and current extraction survives 
       const file=path.join(dir,'document-text-v1',createHash('sha256').update(url).digest('hex')+'.json');
       const old={schemaVersion:1,extractionVersion:version,sourceId:fixture.sourceId,sourceUrl:url,fetchedAt:new Date().toISOString(),paragraphs:['<Date>{01/10/2026}1.10.2026</Date>']};
       await writeFile(file,JSON.stringify(old));let calls=0;
-      const result=await documentText(work,'en',{directory:dir,download:async()=>{calls++;return content;}});
+      const result=await documentText(work,'en',{directory:dir,collector:true,download:async()=>{calls++;return content;}});
       assert.equal(result.status,'available');assert.deepEqual(result.paragraphs,paragraphs);assert.equal(calls,1);
       assert.equal(result.textLanguage,'en');assert.equal(result.extractionVersion,DOCX_EXTRACTION_VERSION);
       const saved=JSON.parse(await readFile(file,'utf8'));
