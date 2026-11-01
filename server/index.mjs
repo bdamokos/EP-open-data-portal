@@ -255,8 +255,8 @@ async function handleApi(request,response,url,apiPrefix){
       pressMentions??=new PressMentions(activityIndex().press,official().sources);
       result=await pressMentions.query(query);
     }
-    else if (segments.length===2 && ((segments[0]==='topics'&&['search','overview','detail'].includes(segments[1]))||(segments[0]==='insights'&&segments[1]==='record-topics'))) {
-      result=await readTopics(activityIndex().store.filename,segments[0]==='topics'?segments[1]:'records',url.searchParams);
+    else if (segments.length===2 && ((segments[0]==='topics'&&['search','overview','detail','story-facts'].includes(segments[1]))||(segments[0]==='insights'&&segments[1]==='record-topics'))) {
+      result=await readTopics(activityIndex().store.filename,segments[0]==='topics'?segments[1]:'records',url.searchParams,{pressFilename:activityIndex().press.filename});
     }
     else if (segments.length === 2 && segments[0] === 'insights' && segments[1] === 'group-voices') {
       result=await readTopics(activityIndex().store.filename,'group-voices',url.searchParams);

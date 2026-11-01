@@ -1,3 +1,5 @@
+import {storyTables,stageStoryInput,storyTopicObservations} from './story-facts-storage.mjs';
+import {buildStoryFacts} from './story-facts-project.mjs';
 import {topicWorkFields} from './topic-work-fields.mjs';
 import {topicCachedWorks} from './topic-cache-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
@@ -13,7 +15,7 @@ const normalizeSource=source=>source?{...source,fetchedAt:sourceDate(source.fetc
 const fields=['id','identifier','activity_id','activity_date','activity_label','had_activity_type','work_type','document_date','title_dcterms','is_realized_by','creator','workHadParticipation','is_about','isAboutSubjectMatter','inverse_created_a_realization_of','inverse_based_on_a_realization_of','inverse_decided_on_a_realization_of','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in','executed','consists_of','process_type','process_title','label','outside','date','titles','source'];
 const compact=w=>Object.fromEntries(fields.filter(k=>w[k]!==undefined).map(k=>[k,k==='is_realized_by'?(Array.isArray(w[k])?w[k]:[w[k]]).map(e=>({title:e.title})):k==='consists_of'?(Array.isArray(w[k])?w[k]:[w[k]]).map(e=>typeof e==='object'?compact(e):e):k==='outside'?Object.fromEntries(['identifier','date','titles','source','parentIds','participants'].filter(f=>w[k][f]!==undefined).map(f=>[f,w[k][f]])):w[k]]));
 export async function buildTopics(store,{generation=store.get('active'),cache=process.env.ODP_CACHE_DIR,onProgress=()=>{}}={}){
- store.assertWriter();topicTables(store.db);topicCollectorTables(store.db);
+ store.assertWriter();topicTables(store.db);topicCollectorTables(store.db);storyTables(store.db);
  const previousCacheSize=store.db.prepare('PRAGMA cache_size').get().cache_size;store.db.exec('PRAGMA cache_size=-1024;PRAGMA temp_store=FILE;PRAGMA temp.cache_size=-1024');
  const heartbeat=setInterval(()=>{try{store.renew();}catch{}},20_000);heartbeat.unref();
  try{
@@ -32,7 +34,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  };
 
 
- const add=input=>{const o={...input,source:normalizeSource(input.source)},w=compact(o.work);if(w.source)w.source=normalizeSource(w.source);if(w.outside?.source)w.outside.source=normalizeSource(w.outside.source);const id=w.identifier||w.activity_id||w.id;if(!id)return;const k=o.projection+'|'+id,old=observations.get(k);if(old&&o.source?.fetchedAt===old.source?.fetchedAt&&JSON.stringify(w)!==JSON.stringify(old.work)){if(!observations.has(k+'|conflict'))observations.set(k+'|conflict',{...o,work:w});}else if(!old||String(o.source?.fetchedAt)>String(old.source?.fetchedAt))observations.set(k,{...o,work:w});};
+ const add=input=>{const o={...input,source:normalizeSource(input.source)},w=compact(o.work);if(o.projection!=='embedded-event')stageStoryInput(store,o.work,o.source,{rank:o.projection==='raw'?3:2});if(w.source)w.source=normalizeSource(w.source);if(w.outside?.source)w.outside.source=normalizeSource(w.outside.source);const id=w.identifier||w.activity_id||w.id;if(!id)return;const k=o.projection+'|'+id,old=observations.get(k);if(old&&o.source?.fetchedAt===old.source?.fetchedAt&&JSON.stringify(w)!==JSON.stringify(old.work)){if(!observations.has(k+'|conflict'))observations.set(k+'|conflict',{...o,work:w});}else if(!old||String(o.source?.fetchedAt)>String(old.source?.fetchedAt))observations.set(k,{...o,work:w});};
  let seen=0;
  for(const row of store.db.prepare("SELECT key,kind,body,fetched_at FROM sources WHERE generation=? AND kind IN ('document','procedure','outside-agenda')").iterate(generation)){
  const w=readWork(row.body);add({work:w,source:w.source||{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:row.fetched_at},projection:row.kind});if(++seen%200===0){store.renew();await new Promise(setImmediate);}
@@ -49,6 +51,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  if(++seen%100===0)store.renew();
  }
  onProgress('cache');
+ for(const observation of storyTopicObservations(store))add(observation);
  for(const row of store.db.prepare('SELECT * FROM topic_procedure_metadata').iterate())add({work:JSON.parse(row.body),source:{url:row.url,fetchedAt:row.fetched_at},projection:'procedure'});
  if(!store.renew())throw Error('Activity-index writer lease was lost.');
  const byId=await topicBatches(store,topicObservationSteps(observations.values(),{map:disk,stream:true}));observations.clear();
@@ -80,24 +83,25 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  }
  // Persist collector's retained pages independently of its bounded HTTP cache.
  for(const row of store.db.prepare('SELECT id,reference,body FROM topic_procedure_pages').iterate()){
- const node=byId.get(row.id);if(!node||node.reference!==row.reference)continue;const p=JSON.parse(row.body),existing=procedureTopics.get(row.id)||{reference:row.reference,assignments:[]};existing.oeilRead=true;
+ const node=byId.get(row.id);if(!node||node.reference!==row.reference)continue;const p=JSON.parse(row.body),existing=procedureTopics.get(row.id)||{reference:row.reference,assignments:[]};if(p.state==='unavailable'){existing.oeilUnavailable=p.reason;procedureTopics.set(row.id,existing);continue;}existing.oeilRead=true;
  for(const s of p.subjects){const key='oeil:'+s.code,c={key,scheme:'oeil',role:'topic',uri:p.url+'#subject-'+s.code,labels:{[p.language]:s.label},source:p.source};concepts.set(key,c);if(!existing.assignments.some(a=>a.concept.key===key))existing.assignments.push({concept:c,basis:'direct',steps:[{from:row.id,field:'OEIL subject',to:s.code}],sources:[p.source]});}procedureTopics.set(row.id,existing);
  }
  const referenced=new Set();for(const n of nodes)if((!n.date||n.date>='2024-07-16')&&(n.kind!=='question'||n.id.startsWith('O-')))for(const id of [...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id)])referenced.add(id);
  if(!store.renew())throw Error('Activity-index writer lease was lost.');
  const projection=await topicBatches(store,projectTopicSteps(nodes,{concepts,procedureTopics,map:disk,stream:true}));
  onProgress('assignments');
- const pendingProcedures=new Set([...referenced].filter(id=>!procedureTopics.get(id)?.oeilRead));
+ const pendingProcedures=new Set([...referenced].filter(id=>!procedureTopics.get(id)?.oeilRead&&!procedureTopics.get(id)?.oeilUnavailable));
+ const unavailableProcedures=new Set([...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable));
  const projected=projection.records;
  await topicBatches(store,(function*(){
-  for(const r of projected.values()){yield;if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>pendingProcedures.has(id))){r.status='pending';projected.set(r.id,r);}}
+  for(const r of projected.values()){yield;if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>pendingProcedures.has(id))){r.status='pending';projected.set(r.id,r);}else if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>unavailableProcedures.has(id))){r.status='unavailable';projected.set(r.id,r);}}
   for(let pass=0;pass<4;pass++)for(const n of nodes){yield;const r=projected.get(n.id);if(!r||r.status==='ambiguous'||(n.kind==='question'&&!n.id.startsWith('O-')))continue;if([...(n.documentIds||[]),...(n.executed||[]),...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id),...(n.kind==='question'&&n.id.startsWith('O-')?r.eventIds||[]:[])].some(id=>projected.get(id)?.status==='pending')){r.status='pending';projected.set(r.id,r);}}
  })());
 
  if(!store.renew())throw Error('Activity-index writer lease was lost.');store.assertWriter();store.set('recordTopicProjection',null);
 
  for(const table of ['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups']){let changes;do{store.transaction(()=>{store.assertWriter();changes=store.db.prepare('DELETE FROM '+table+' WHERE rowid IN (SELECT rowid FROM '+table+' WHERE generation=? LIMIT 500)').run(generation).changes;});if(!store.renew())throw Error('Activity-index writer lease was lost.');await new Promise(setImmediate);}while(changes); }
- for(const eventPass of [true,false]){let batch=[];for(const r of projected.values()){if((r.kind==='event')!==eventPass)continue;batch.push(r);if(batch.length===25){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}}if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});}
+ for(const eventPass of [true,false]){let batch=[];for(const r of projected.values()){if((r.kind==='event')!==eventPass)continue;batch.push(r);if(batch.length===10){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}}if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});}
  onProgress('records');
  // Speeches dominate source volume. Stream them; never retain the whole speech catalogue.
 
@@ -105,7 +109,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  const speechRows=store.db.prepare("SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind IN ('speech','outside-speech') ORDER BY key");
  let pendingSpeeches=[];
  for(const row of speechRows.iterate(generation)){
-  const w=readWork(row.body);pendingSpeeches.push(...topicObservationNodes([{work:w,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)},projection:w.outside?'outside-speech':'speech'}]).filter(n=>n.kind==='speech'));
+  const w=readWork(row.body);stageStoryInput(store,w,w.outside?.source||{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)},{rank:2});pendingSpeeches.push(...topicObservationNodes([{work:w,source:{url:'https://data.europarl.europa.eu/api/v2'+row.key,fetchedAt:sourceDate(row.fetched_at)},projection:w.outside?'outside-speech':'speech'}]).filter(n=>n.kind==='speech'));
   if(pendingSpeeches.length>=25){store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});pendingSpeeches=[];store.renew();await new Promise(setImmediate);}
  }
  if(pendingSpeeches.length)store.transaction(()=>{store.assertWriter();for(const n of pendingSpeeches)stageSpeech(n);});
@@ -113,16 +117,17 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  for(const row of store.db.prepare('SELECT body FROM topic_speech_inputs ORDER BY id').iterate()){
   const n=JSON.parse(row.body),p=projectRecordTopics([n]).records[0];if(!p)continue;const parent=!n.conflicted&&n.parentIds?.length===1?parents.get(n.parentIds[0]):null;
   if(parent){p.assignments=parent.assignments.map(a=>({...a,paths:a.paths.map(path=>({...path,basis:'debate',steps:[{from:p.id,field:'inverse_consists_of',to:parent.id},...path.steps]}))}));p.status=parent.status;}
-  batch.push(p);if(batch.length>=25){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}
+  batch.push(p);if(batch.length>=10){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}
  }
  if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});
  store.db.exec('DROP TABLE temp.topic_speech_inputs');
 
  store.transaction(()=>{store.assertWriter();for(const row of store.db.prepare('SELECT id FROM topic_procedure_queue').iterate())if(!referenced.has(row.id))store.db.prepare('DELETE FROM topic_procedure_queue WHERE id=?').run(row.id);for(const id of referenced){const n=byId.get(id);store.db.prepare('INSERT INTO topic_procedure_queue(id,reference,next_read) VALUES (?,?,0) ON CONFLICT(id) DO UPDATE SET reference=COALESCE(excluded.reference,reference),next_read=CASE WHEN excluded.reference IS NOT NULL AND reference IS NOT excluded.reference THEN 0 ELSE next_read END').run(id,n?.reference||null);}});
 
- const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead).length};
+ const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead).length,unavailable:[...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable).length};
  store.set('recordTopicCoverage',{generation,...coverage});
  onProgress('speeches');
+ await buildStoryFacts(store,generation,{concepts});
  const questionCountries=await questionCountryMetadata(store,generation,cache);
  finishTopicProjection(store,generation,concepts.values(),{questionCountries});onProgress('totals');
  const previous=store.get('previous')||generation;

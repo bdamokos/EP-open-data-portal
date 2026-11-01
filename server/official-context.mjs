@@ -26,7 +26,7 @@ export class OfficialContextSources {
     Object.assign(this,{clock,fetchSource});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
     // Retain the latest week's linked pages without increasing the byte budget.
-    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024});
+    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:4096,maxBytes:4*1024*1024,maxDiskBytes:128*1024*1024,pruneEvery:32});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
@@ -131,7 +131,7 @@ export function parseProcedurePage(html,reference,language='en') {
   }
   const subjectIndex=all.findIndex(node=>node.tag==='p'&&/^(?:Subject|Sujet|Subject matter)$/i.test(text(node)));
   const subjectParagraph=subjectIndex>=0?all.slice(subjectIndex+1).find(node=>node.tag==='p'):null;
-  const subjects=subjectParagraph?rawText(subjectParagraph).split(/\n/).map(value=>value.trim()).map(value=>value.match(/^(\d(?:\.\d{2}){2,3})\s+(.+)$/)).filter(Boolean).map(match=>({code:match[1],label:match[2]})):[];
+  const subjects=subjectParagraph?rawText(subjectParagraph).split(/\n/).map(value=>value.trim()).map(value=>value.match(/^(\d(?:\.\d{2}){1,3})\s+(.+)$/)).filter(Boolean).map(match=>({code:match[1],label:match[2]})):[];
   // Single-subject Doceo documents the procedure file itself links.
   const documents=[...new Set(all.filter(node=>node.tag==='a').map(node=>doceoDocument(String(node.attrs?.['@_href']||''))).filter(Boolean))];
   return {reference,title,language,subjects,summaries:[...summaries.values()],documents};
