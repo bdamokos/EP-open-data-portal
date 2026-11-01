@@ -4,6 +4,19 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
+test('read-only HTTP connections register projection functions and observe writer backfill without writing',t=>{
+  const directory=mkdtempSync(path.join(tmpdir(),'readonly-projection-')),writer=new ActivityStore(directory);
+  t.after(()=>{writer.close();rmSync(directory,{recursive:true,force:true});});assert(writer.acquire());
+  const key='/parliamentary-questions/E-10-2026-000001',at='2026-10-22T12:00:00Z';
+  writer.putSource(1,key,'document',{identifier:'E-10-2026-000001',title_dcterms:{en:'Energy'},extraction:{text:'large'}},at);
+  const reader=new ActivityStore(directory,{readOnly:true});t.after(()=>reader.close());
+  assert.equal(reader.fastReadsReady(1),false);
+  const fallback=reader.sourceMetadata(1,key);assert.equal(fallback.work.extraction,undefined);
+  assert.throws(()=>reader.backfillFastReads(1),/writer|lease|readonly/i);
+  assert.throws(()=>reader.set('unexpected',true),/readonly|read.only/i);
+  while(writer.backfillFastReads(1)){}
+  assert.equal(reader.fastReadsReady(1),true);assert.deepEqual(reader.sourceMetadata(1,key),fallback);
+});
 test('source projections preserve provenance, nested metadata and question titles across replacements and pruning',t=>{
   const directory=mkdtempSync(path.join(tmpdir(),'fast-read-test-')),store=new ActivityStore(directory);
   t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});store.acquire();

@@ -35,15 +35,16 @@ import {documentContext,documentContextQuery} from './document-context.mjs';
 import amendmentFinalText from './amendment-final-text.mjs';
 import {commissionFollowups,commissionFollowupsQuery} from './commission-followups.mjs';
 import {sourceRecord} from './source-record.mjs';
-import {activityIndex,activityIndexStatus,latestActivities,startActivityIndex} from './activity-index-worker.mjs';
+import {activityIndex,activityIndexStatus,latestActivities,useActivityIndexReader} from './activity-index-worker.mjs';
 import {createInsights} from './insights.mjs';
+import {startSourceWriters} from './source-writers.mjs';
 import {startPlenaryWarmup} from './plenary-warmup.mjs';
 import { amendmentQuery } from './amendments.mjs';
 import { amendmentsPage, amendmentFailures } from './amendments-store.mjs';
 import {CATEGORIES} from './activity-index-model.mjs';
 import {speechMedia} from './mmc.mjs';
 import {outsideDirectory,outsideSpeaker,outsideQuery} from './outside-store.mjs';
-import {corpusSearch,corpusStatus,corpusText,corpusSearchOptions,startCorpus} from './corpus-worker.mjs';
+import {corpusSearch,corpusStatus,corpusText,corpusSearchOptions,useCorpusReader} from './corpus-worker.mjs';
 import {speechTranscript} from './speech-transcript.mjs';
 import {CORPUS_LIMITS,corpusQuery} from './corpus-store.mjs';
 import {createRequestBudget,runWithRequestSignal,waitForRequest,cancelledRequest,requestSignal} from './request-budget.mjs';
@@ -56,7 +57,7 @@ import {LegalReferences,referencesQuery} from './legal-references.mjs';
 import {ProcedureProgress,procedureProgressQuery} from './procedure-progress.mjs';
 import {PressMentions,pressMentionsQuery} from './press-releases.mjs';
 const interventions=new SpeechInterventions();
-let stopIndex=()=>{};let stopCorpus=()=>{};let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let stopPlenaryWarmup=()=>{};let insightService,pressMentions;
+let stopWriters=()=>Promise.resolve();let stopBodyWarmup=()=>{};let stopMonitoring=()=>{};let stopPlenaryWarmup=()=>{};let insightService,pressMentions;
 // One owner per official-source cache directory, shared by insights and reading-time references.
 let officialContext;
 function official() {
@@ -436,8 +437,7 @@ export function startServer() {
 }
 
 function shutDown(signal) {
-  stopIndex();
-  stopCorpus();
+  void stopWriters().catch(error=>console.error('[source-writers]',error.message));
   stopBodyWarmup();
   stopPlenaryWarmup();
   stopMonitoring();
@@ -455,6 +455,7 @@ function shutDown(signal) {
 
 const isEntryPoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isEntryPoint) {
+  useActivityIndexReader();useCorpusReader();
   try {prepareStartupIndexes();}
   catch(error){console.error('[index-prepare]',error.message);process.exit(1);}
   server.on("error", (error) => {
@@ -465,8 +466,15 @@ if (isEntryPoint) {
   process.on("SIGTERM", () => shutDown("SIGTERM"));
   server.once('listening',()=>{
     stopMonitoring=startOdpMonitoring();
-    stopIndex = startActivityIndex();
-    stopCorpus = startCorpus();
+    let publishedGeneration;
+    stopWriters = startSourceWriters({onPublication:message=>{
+      // Cache keys and Following/amendment readiness are read from committed
+      // WAL snapshots. A new generation also wakes the existing warm-up hook.
+      if(message.source==='activity'&&message.revision.active!==publishedGeneration){
+        publishedGeneration=message.revision.active;
+        if(publishedGeneration)stopPlenaryWarmup.wake?.();
+      }
+    }});
     stopBodyWarmup = startCorporateBodyWarmup();
     stopPlenaryWarmup = startPlenaryWarmup(async()=>{
       insightService ??= createInsights(activityIndex().store,{officialSources:official().sources,eurovocCatalog:official().catalog});
