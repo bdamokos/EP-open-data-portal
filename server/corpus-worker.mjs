@@ -1,3 +1,5 @@
+import {isDeepStrictEqual} from 'node:util';
+import {createHash} from 'node:crypto';
 import {cataloguePage,acquisitionMode} from './availability-history.mjs';
 import {discoverQuestionFiles} from './question-discovery.mjs';
 import {downloadQuestionPdf} from './question-pdf.mjs';
@@ -30,7 +32,17 @@ const day=t=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels',year:'n
 const SPEECH_ID=/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-\d+$/;
 const SPEECH_TYPES='PLENARY_DEBATE_SPEECH,PLENARY_DEBATE_WRITTEN_STATEMENT';
 // Verbatim translations are added for weeks after a sitting; recheck recent months.
-const RECHECK_WINDOW=120*DAY, RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
+const RECHECK_EVERY=7*DAY, DISCOVER_EVERY=6*60*60_000;
+export function speechRecheckCadence(end,today) {
+  const months=(Number(today.slice(0,4))-Number(end.slice(0,4)))*12+Number(today.slice(5,7))-Number(end.slice(5,7));
+  return months<4?null:months<12?{metadata:30*DAY,verification:90*DAY}:months<24?{metadata:90*DAY,verification:180*DAY}:{metadata:180*DAY,verification:365*DAY};
+}
+function speechDescriptor(activity) {
+  return {...activity,recorded_in_a_realization_of:array(activity.recorded_in_a_realization_of).map(doc=>{
+    if(!doc||typeof doc!=='object')return doc;
+    const {'api:xmlFragment':_fragments,...metadata}=doc;return metadata;
+  })};
+}
 const PRIORITY={speeches:60,speech:61,speechClassification:63};
 const FRAGMENT_LIMIT=2*1024*1024;
 
@@ -67,7 +79,7 @@ export function fragmentText(xml) {
 }
 // Every language fragment of one speech. The supplied fragment key is kept
 // exactly; `mul` resolves to the single language its XML declares, if any.
-function* speechTextSteps(activity,sourceUrl,fetchedAt) {
+function* speechTextSteps(activity,sourceUrl,fetchedAt,changedKeys) {
   const docs=array(activity.recorded_in_a_realization_of).filter(doc=>doc && typeof doc==='object');
   const fragments=Object.entries(Object.assign({},...docs.map(doc=>doc['api:xmlFragment']||{}))).filter(([,xml])=>typeof xml==='string' && xml);
   const declared=docs.flatMap(doc=>array(doc.originalLanguage||doc.originalLanguageURI)).map(languageCode).filter(Boolean);
@@ -79,6 +91,7 @@ function* speechTextSteps(activity,sourceUrl,fetchedAt) {
   const originals=declared.length?declared:[...new Set(infos.flatMap(([, ,info])=>info.tags.filter(tag=>tag.includes('-t-')).map(tag=>tag.split('-t-')[0].slice(0,2))))];
   const texts=[];
   for(const [key,xml,info] of infos) {
+    if(changedKeys&&!changedKeys.has(key))continue;
     const tags=[...new Set(info.tags.filter(tag=>!tag.includes('-t-')).map(tag=>tag.slice(0,2)))];
     const language=key==='mul'&&tags.length===1?tags[0]:key;
     const body=fragmentText(xml);
@@ -113,8 +126,8 @@ export class CorpusWorker {
     this.controller.signal.throwIfAborted();
     this.store.assertWriter();
   }
-  async extractSpeech(activity,sourceUrl,fetchedAt) {
-    const steps=speechTextSteps(activity,sourceUrl,fetchedAt);
+  async extractSpeech(activity,sourceUrl,fetchedAt,changedKeys) {
+    const steps=speechTextSteps(activity,sourceUrl,fetchedAt,changedKeys);
     for(;;){const step=steps.next();if(step.done)return step.value;await this.checkpoint();}
   }
   retainSpeechMetadata(activity,sourceUrl,fetchedAt,options={}) {
@@ -172,13 +185,22 @@ export class CorpusWorker {
       if(!this.store.db.prepare("SELECT 1 FROM tasks WHERE kind IN ('speech-metadata','speech-metadata-detail') AND done=0 LIMIT 1").get())this.store.set('speechMetadataBackfill',false);
     }
     if(widened){this.store.set('backfilledAt',null);this.store.set('phase','backfilling');}
+    let verificationAdmitted=Boolean(this.store.db.prepare("SELECT 1 FROM tasks WHERE kind='speeches' AND done=0 AND json_extract(body,'$.historicalRecheck')=1 LIMIT 1").get());
     for(const range of speechWindows(today)) {
       const key='speeches:'+range.start.slice(0,7), body={start:range.start,end:range.end,offset:0,limit:this.pageSize};
       if(this.store.enqueue(key,'speeches',body,PRIORITY.speeches))continue;
       if(widened){this.store.resetTask(key,body,PRIORITY.speeches);continue;}
-      const task=this.store.task(key);
-      const recent=now-Date.parse(range.end)<RECHECK_WINDOW || range.end===today;
-      if(task.done && recent && now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY))this.store.reopen(key,body,PRIORITY.speeches);
+      const task=this.store.task(key),cadence=speechRecheckCadence(range.end,today);
+      if(cadence) {
+        const metadataKey='speech-editions:'+range.start.slice(0,7);
+        this.store.enqueue(metadataKey,'speech-editions',body,PRIORITY.speeches-1);
+        const metadata=this.store.task(metadataKey);
+        if(metadata.done&&now-(metadata.done_at||0)>=cadence.metadata)this.store.reopen(metadataKey,body,PRIORITY.speeches-1);
+        // Complete the cheap listing before admitting its slower verification.
+        if(task.done&&metadata.done&&now-(metadata.done_at||0)<cadence.metadata&&!verificationAdmitted&&now-(task.done_at||0)>=cadence.verification) {
+          this.store.reopen(key,{...body,historicalRecheck:true},PRIORITY.speeches-2);verificationAdmitted=true;
+        }
+      } else if(task.done&&now-(task.done_at||0)>=(range.end>=day(now-7*DAY)?DAY:RECHECK_EVERY))this.store.reopen(key,body,PRIORITY.speeches);
     }
     this.store.set('speechLanguages',this.languages);
     const index=this.store.indexState();
@@ -191,13 +213,17 @@ export class CorpusWorker {
     this.store.set('discoveredGeneration',index.generation);this.store.set('discoveredPublished',index.published);
     this.store.set('discoveryCheckedAt',now);
   }
+  queueSpeechEdition(id) {
+    const key='speech:'+id,body={id,editionRecheck:true};
+    if(!this.store.enqueue(key,'speech',body,PRIORITY.speech))this.store.reopen(key,body,PRIORITY.speech);
+  }
   async task(task) {
     const {body}=task;
     if(task.kind==='speech-intervention-refresh') {
       this.store.refreshSpeechInterventions(task,{maxDuration:Math.min(1000,this.maxDuration)});
       await this.checkpoint();
-    } else if(task.kind==='speeches'||task.kind==='speech-metadata') {
-      const metadataOnly=task.kind==='speech-metadata';
+    } else if(task.kind==='speeches'||task.kind==='speech-metadata'||task.kind==='speech-editions') {
+      const editions=task.kind==='speech-editions',metadataOnly=editions||task.kind==='speech-metadata';
       const params={'parliamentary-term':10,'activity-type':SPEECH_TYPES,'sort-by':'sitting-date:desc,numbering:desc','sitting-date':body.start,'sitting-date-end':body.end,...(!metadataOnly?{'include-output':'xml_fragment'}:{}),limit:body.limit,offset:body.offset};
       let record;
       await this.pace();
@@ -216,28 +242,47 @@ export class CorpusWorker {
       const hits=record.payload.searchResults?.hits;
       const matched=hits?hits.map(hit=>({id:tail(hit.id),node:graph.get(hit.id)})):record.payload.data.filter(node=>node.activity_id).map(node=>({id:node.activity_id,node}));
       const availabilityCheck=cataloguePage(body,record,{sourceKey:metadataOnly?'speech-metadata':'speech-text',endpoint:'/speeches',params,start:body.start,end:body.end,acquisition:acquisitionMode(this.store,task,{corpus:true}),complete:!matched.length});
-      if(!matched.length){this.store.finishTask({...task,body:{...body,availabilityCheck}});return;}
+      if(!matched.length){
+        if(editions) {
+          const seen=new Set(body.seen||[]),prefix='MTG-PL-'+body.start.slice(0,7);
+          for(const {source_id:id} of this.store.db.prepare('SELECT source_id FROM speech_metadata WHERE source_id>=? AND source_id<?').all(prefix,prefix+'~'))
+            if(!seen.has(id))this.queueSpeechEdition(id);
+        }
+        this.store.finishTask({...task,body:{...body,availabilityCheck}});return;
+      }
+      if(editions&&(body.seen?.length||0)+matched.length>10000)throw new Error('Speech edition listing exceeds the search result limit.');
       const signature=matched.map(item=>item.id).sort().join('|');
       if(signature===body.lastPage)throw new Error('EP speech pagination repeated a page.');
       for(const {id,node} of matched) {
         if(!SPEECH_ID.test(id))throw new Error('EP speech identifier was invalid.');
         // A search reference without its graph node becomes a durable detail fetch.
         if(!node?.activity_id){
+          if(editions){this.queueSpeechEdition(id);continue;}
           const kind=metadataOnly?'speech-metadata-detail':'speech',key=kind+':'+id;
           if(!this.store.enqueue(key,kind,{id},PRIORITY.speech))this.store.reopen(key,{id},PRIORITY.speech);
           continue;
         }
         if(node.activity_id!==id)throw new Error('Speech metadata does not match its exact search identifier.');
+        if(editions) {
+          let saved;try{saved=this.store.speechMetadata(id)?.activity;}catch{/* Reacquire damaged metadata. */}
+          if(!saved||!isDeepStrictEqual(speechDescriptor(saved),speechDescriptor(node)))this.queueSpeechEdition(id);
+          await this.checkpoint();continue;
+        }
         if(metadataOnly) {
           this.retainSpeechMetadata(node,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
           await this.checkpoint();continue;
         }
-        const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt);
+        let changedKeys;
+        if(body.historicalRecheck) {
+          const hashes=new Map(this.store.db.prepare('SELECT t.source_key,t.sha256 FROM texts t JOIN documents d ON d.id=t.document_id WHERE d.source_id=?').all(id).map(row=>[row.source_key,row.sha256]));
+          changedKeys=new Set(array(node.recorded_in_a_realization_of).flatMap(doc=>Object.entries(doc?.['api:xmlFragment']||{})).filter(([key,xml])=>typeof xml==='string'&&hashes.get(key)!==createHash('sha256').update(xml).digest('hex')).map(([key])=>key));
+        }
+        const {document,texts}=await this.extractSpeech(node,url.href,record.fetchedAt,changedKeys);
         this.store.putDocument(document,this.keep(texts),{acquisition:acquisitionMode(this.store,task,{corpus:true})});
         this.retainSpeechMetadata(node,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
         await this.checkpoint();
       }
-      this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature,availabilityCheck});
+      this.store.taskProgress(task,{...body,offset:body.offset+matched.length,lastPage:signature,availabilityCheck,...(editions?{seen:[...(body.seen||[]),...matched.map(item=>item.id)]}:{})});
     } else if(task.kind==='speech'||task.kind==='speech-metadata-detail') {
       if(!SPEECH_ID.test(body.id))throw new Error('Invalid speech identifier.');
       if(body.declaredIndex) {
@@ -255,11 +300,21 @@ export class CorpusWorker {
       if(!activity)throw new Error(`Speech ${body.id} has no matching detail record.`);
       const url=new URL(ODP_BASE+'/speeches/'+body.id);for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,value);
       if(!metadataOnly) {
-        const {document,texts}=await this.extractSpeech(activity,url.href,record.fetchedAt);
+        const hashes=body.editionRecheck?new Map(this.store.db.prepare('SELECT source_key,sha256 FROM texts WHERE document_id IN (SELECT id FROM documents WHERE source_id=?)').all(body.id).map(row=>[row.source_key,row.sha256])):null;
+        const changedKeys=hashes?new Set(array(activity.recorded_in_a_realization_of).flatMap(doc=>Object.entries(doc?.['api:xmlFragment']||{})).filter(([key,xml])=>typeof xml==='string'&&hashes.get(key)!==createHash('sha256').update(xml).digest('hex')).map(([key])=>key)):undefined;
+        const {document,texts}=await this.extractSpeech(activity,url.href,record.fetchedAt,changedKeys);
         this.store.putDocument(document,this.keep(texts),{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       }
       if(metadataOnly)this.store.putSpeechMetadata(activity,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
       else this.retainSpeechMetadata(activity,url.href,record.fetchedAt,{acquisition:acquisitionMode(this.store,task,{corpus:true})});
+      this.store.finishTask(task);
+    } else if(task.kind==='pdf') {
+      const issued=Date.parse(body.edition?.issued);
+      if(issued>this.clock()) {
+        this.store.assertWriter();this.store.db.prepare('UPDATE tasks SET retry_at=MAX(retry_at,?) WHERE key=? AND done=0').run(issued,task.key);return;
+      }
+      const outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});
+      if(outcome!=='retained')throw new Error('Declared question PDF is unavailable.');
       this.store.finishTask(task);
     } else if(task.kind==='docx') {
       if(!allowedDownload(body.url))throw new Error('Unapproved official document download URL.');

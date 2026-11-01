@@ -50,8 +50,8 @@ class CatalogCache extends InsightViewCache {
   async pruneBatch(){return super.prune();}
 }
 export class EurovocCatalog {
-  constructor(sources,{clock=Date.now,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'eurovoc-catalog-v1')}={}) {
-    Object.assign(this,{sources,clock});this.cache=new CatalogCache({directory,clock,maxEntries:800,maxBytes:16*1024*1024,freshMs:7*86400_000});this.pending=new Map();
+  constructor(sources,{clock=Date.now,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'eurovoc-catalog-v1'),writable=sources?.writable===true}={}) {
+    Object.assign(this,{sources,clock});this.cache=new CatalogCache({directory,clock,writable,maxEntries:800,maxBytes:16*1024*1024,freshMs:7*86400_000});this.pending=new Map();
   }
   key(id,language){return this.cache.key(['eurovoc-v1',id,language]);}
   async known(ids,language) {

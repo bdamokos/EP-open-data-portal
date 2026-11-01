@@ -9,7 +9,7 @@ import {documentRefreshState,scheduleGapRecovery} from './refresh-policy.mjs';
 import {projectDocument} from './activity-index-model.mjs';
 import {distributionEvidenceFor} from './amendments.mjs';
 import {documentDetailEndpoint,validateAmendmentListMetadata,retainedAmendmentListObservation,sanitizeFreshDocument} from './document-detail-routing.mjs';
-import {nextAmendmentTask} from './amendments-store.mjs';
+import {bootstrapAmendmentDependencies,nextAmendmentTask} from './amendments-store.mjs';
 import {reconcileAmendmentDocumentGap,reconcileAmendmentDocumentGaps,amendmentDocumentRouteRepairPending} from './document-route-recovery.mjs';
 
 const now=Date.parse('2026-10-29T08:00:00Z'),stamp=new Date(now).toISOString(),failedAt='2026-10-29T04:00:00.000Z',observedAt='2026-10-29T05:39:00.000Z',older='2026-10-26T00:00:00.000Z';
@@ -281,6 +281,7 @@ test('an incomplete route scan stays due while every queued source owner waits i
   assert(store.acquire());
   for(const table of ['tasks','amendment_jobs','group_voice_jobs'])store.db.prepare(`UPDATE ${table} SET retry_at=? WHERE generation=? AND done<>1`).run(now+3600000,generation);
   store.set('amendmentDocumentRouteRepair',{...state,complete:true});
+  while(!bootstrapAmendmentDependencies(store,generation)) {}
   assert.equal(worker.due(),false,'control excludes other work triggers');
   store.set('amendmentDocumentRouteRepair',state);
   assert.equal(worker.due(),true,'local scan does not wait for a source retry');

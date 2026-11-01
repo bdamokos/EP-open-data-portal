@@ -107,7 +107,7 @@ test('lookups use exact candidates, verify term-boundary questions and do not ca
       if(id==='E-10-2024-001234')throw new Error('Parliament data is unavailable (404). Please try again.');
       if(id==='E-9-2023-000001')throw new Error('Parliament data is unavailable (503). Please try again.');
       return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:Date.parse('2026-10-15T00:00:00Z'),payload:{data:[{identifier:id,title_dcterms:{en:'Question '+id},document_date:'2024-04-24',inverse_answers_to:[{identifier:id+'-ASW'}]}]}};};
-    const references=new LegalReferences(sources,{request,directory,clock:()=>Date.parse('2026-10-15T00:00:00Z')});
+    const references=new LegalReferences(sources,{request,writable:true,directory,clock:()=>Date.parse('2026-10-15T00:00:00Z')});
     const result=await references.query({keys:['com:2025/773','question:E-2024-001234','question:E-2023-000001','procedure:2025/0407(COD)'],language:'en'});
     const [proposal,question,unavailable,procedure]=result.references;
     assert.equal(proposal.status,'found');assert.equal(proposal.celex,'52025PC0773');assert.equal(proposal.kind,'document');assert.equal(proposal.procedure,'2025/0407(COD)');
@@ -116,7 +116,7 @@ test('lookups use exact candidates, verify term-boundary questions and do not ca
     assert.deepEqual(procedure,{key:'procedure:2025/0407(COD)',kind:'procedure',status:'found',procedure:'2025/0407(COD)'});
     assert.deepEqual(requests.sort(),['/parliamentary-questions/E-10-2024-001234','/parliamentary-questions/E-9-2023-000001','/parliamentary-questions/E-9-2024-001234']);
     requests=[];
-    const again=await new LegalReferences({get:async()=>{throw new Error('must use saved lookups');}},{request,directory,clock:()=>Date.parse('2026-10-16T00:00:00Z')}).query({keys:['com:2025/773','question:E-2024-001234','question:E-2023-000001'],language:'en'});
+    const again=await new LegalReferences({get:async()=>{throw new Error('must use saved lookups');}},{request,writable:true,directory,clock:()=>Date.parse('2026-10-16T00:00:00Z')}).query({keys:['com:2025/773','question:E-2024-001234','question:E-2023-000001'],language:'en'});
     assert.equal(again.references[0].title,'Proposal for a decision');assert.equal(again.references[1].id,'E-9-2024-001234');assert.equal(again.references[2].status,'unavailable');
     assert.deepEqual(requests,['/parliamentary-questions/E-9-2023-000001']);assert.equal(sparql,1);
     // Two existing records for one printed number stay unresolved.
@@ -129,9 +129,9 @@ test('results built from a stale upstream copy are labelled and not saved as fre
   try {
     const answer=(stale)=>({get:async url=>({url,fetchedAt:'2026-10-01T00:00:00.000Z',viewCache:{stale},data:{results:{bindings:[row('32016R0679',{force:literal(stale?'1':'0')})]}}})});
     const clock=()=>Date.parse('2026-10-15T00:00:00Z');
-    const first=await new LegalReferences(answer(true),{directory,clock,request:async()=>{throw new Error('unused');}}).query({keys:['celex:32016R0679'],language:'en'});
+    const first=await new LegalReferences(answer(true),{writable:true,directory,clock,request:async()=>{throw new Error('unused');}}).query({keys:['celex:32016R0679'],language:'en'});
     assert.equal(first.references[0].stale,true);assert.equal(first.references[0].inForce,true);
-    const second=await new LegalReferences(answer(false),{directory,clock,request:async()=>{throw new Error('unused');}}).query({keys:['celex:32016R0679'],language:'en'});
+    const second=await new LegalReferences(answer(false),{writable:true,directory,clock,request:async()=>{throw new Error('unused');}}).query({keys:['celex:32016R0679'],language:'en'});
     assert.equal(second.references[0].stale,undefined);assert.equal(second.references[0].inForce,false);
   }finally{await rm(directory,{recursive:true,force:true});}
 });
@@ -155,14 +155,14 @@ test('question title cache invalidates prior display ordering across restarts',a
     const clock=()=>Date.parse('2026-10-23T10:00:00Z'),key='question:E-2026-000001',language='ga';
     let calls=0;
     const request=async endpoint=>{calls++;return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:clock(),payload:{data:[{identifier:'E-10-2026-000001',title_dcterms:{bg:'Bulgarian title',fr:'French title'}}]}};};
-    const previous=new LegalReferences({}, {directory,clock,request});
+    const previous=new LegalReferences({}, {writable:true,directory,clock,request});
     const oldKey=previous.cache.key(['question-reference-v2',key,language]);
     await previous.cache.save(oldKey,{key,kind:'question',status:'found',title:'Bulgarian title',titleLanguage:'bg'});
     assert(QUESTION_REFERENCE_VERSION>2);
-    const current=new LegalReferences({}, {directory,clock,request});
+    const current=new LegalReferences({}, {writable:true,directory,clock,request});
     const result=await current.query({keys:[key],language});
     assert.equal(calls,1);assert.equal(result.references[0].title,'French title');assert.equal(result.references[0].titleLanguage,'fr');
-    const restarted=await new LegalReferences({}, {directory,clock,request}).query({keys:[key],language});
+    const restarted=await new LegalReferences({}, {writable:true,directory,clock,request}).query({keys:[key],language});
     assert.equal(calls,1);assert.equal(restarted.references[0].title,'French title');
   }finally{await rm(directory,{recursive:true,force:true});}
 });

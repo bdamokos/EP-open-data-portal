@@ -240,7 +240,7 @@ for(const linkUpgrade of [false,true])test('a partial target fanout retains its 
   assert.equal(store.source(generation,'amendment:continuations').work.capacityGap,undefined);
 });
 
-for(const kind of ['roster','members','profile'])test(kind+' fan-out resumes beyond ten targets from saved evidence without refetching',async t=>{
+for(const kind of ['roster','members'])test(kind+' fan-out resumes beyond ten targets from saved evidence without refetching',async t=>{
   const {store,worker,generation}=setup(t),ids=Array.from({length:12},(_,index)=>id(index));
   for(const targetId of ids)seedTarget(store,generation,targetId,{listed:kind==='roster',sentinel:true});
   const key='synthetic:'+kind,type=kind==='profile'?'amendment-member':'amendment-'+kind;
@@ -416,4 +416,17 @@ test('daily link recovery rotates beyond the first hundred repeatedly invalidate
   const all=store.db.prepare("SELECT key FROM tasks WHERE kind='document' ORDER BY key").all().map(r=>r.key);
   assert.equal(all.length,109);assert(all.includes('/plenary-documents/B-10-2026-0244'));assert(all.includes('/plenary-documents/RC-10-2026-0285'));
   assert.equal(store.get('amendmentLinkUpgradeAfterKey'),'');assert.equal(worker.requests,0);
+});
+
+test('legacy per-profile rebuild cursors still finish without refetching profiles',async t=>{
+  const {store,worker,generation}=setup(t),ids=Array.from({length:12},(_,i)=>id(i));
+  for(const targetId of ids)seedTarget(store,generation,targetId,{sentinel:true});
+  const key='legacy-profile';
+  enqueueAmendment(store,generation,key,'amendment-member',{id:'1',targets:ids,rebuild:{kind:'profile',offset:0}},107);
+  await worker.task(task(store,generation,key));
+  assert.equal(task(store,generation,key).body.rebuild.offset,10);
+  await worker.task(task(store,generation,key));
+  assert.equal(task(store,generation,key).done,1);
+  assert(ids.every(id=>!target(store,generation,id).sentinel));
+  assert.equal(worker.requests,0);
 });

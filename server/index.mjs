@@ -165,7 +165,7 @@ async function handleApi(request,response,url,apiPrefix){
  requireMethod(request,allowsPost?['GET','HEAD','POST']:['GET','HEAD']);
  if(!endpoint||endpoint==='healthz'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,{ok:true,service:'parliament-explorer',apiVersion:API_VERSION,...(!endpoint?{endpoints:[...apiEndpoints]}:{}),time:new Date().toISOString()});return;}
  if(endpoint==='plenary-live'&&segments.length===1){requireQuery(url.searchParams,[]);sendJson(request,response,200,await plenaryLive.snapshot());return;}
-    const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
+    const queryKeys={directory:['lang','retry'],profile:['lang'],portrait:['lang'],speeches:['lang','offset','catalogue','revision'],activities:['lang'],document:['lang','member'],speech:['lang'],'speech-transcript':['lang'],'source-record':['lang','url'],'motion-comparison':['lang','joint','stage']};
     if(Object.hasOwn(queryKeys,segments[0]))requireQuery(url.searchParams,queryKeys[segments[0]]);
     const language = odpLanguage(url.searchParams.get("lang") || "en");
     if (segments.length === 2 && segments[0] === "portrait") {
@@ -365,7 +365,7 @@ async function handleApi(request,response,url,apiPrefix){
       const rawOffset=url.searchParams.get('offset') ?? '0';
       const offset = Number(rawOffset);
       if (!/^(0|[1-9][0-9]*)$/.test(rawOffset) || !Number.isInteger(offset) || offset < 0 || offset > 10000) throw new HttpError(400, "invalid_offset", "Invalid speech page.");
-      result = await odpSpeeches(positiveId(segments[1]), language, offset);
+      result = await odpSpeeches(positiveId(segments[1]), language, offset, {catalogue:url.searchParams.get('catalogue'),revision:url.searchParams.get('revision')});
     } else if (segments.length === 2 && segments[0] === "speech-transcript" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await speechTranscript(segments[1], language);
     else if (segments.length === 2 && segments[0] === "speech" && /^MTG-PL-\d{4}-\d{2}-\d{2}-[A-Z0-9-]+$/.test(segments[1])) result = await odpSpeech(segments[1], language);
     else throw new HttpError(404, "not_found", "Unknown explorer endpoint.");

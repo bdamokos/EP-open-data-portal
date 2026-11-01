@@ -1,4 +1,6 @@
 import {retainBaseObservation} from './base-source-store.mjs';
+import {boundedUpstream,backoffUpstream} from './odp.mjs';
+import {hintOfficialContext} from './official-context-hints.mjs';
 import {XMLParser} from 'fast-xml-parser';
 import path from 'node:path';
 import {UpstreamQueue,retryAfterSeconds} from './upstream-queue.mjs';
@@ -22,11 +24,11 @@ async function limitedText(response,maximum) {
   return Buffer.concat(parts).toString('utf8');
 }
 export class OfficialContextSources {
-  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
-    Object.assign(this,{clock,fetchSource,directory});this.queues=new Map();
+  constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run,writable=false,beforeFetch}={}) {
+    Object.assign(this,{clock,fetchSource,directory,writable,beforeFetch});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
-    // Retain the latest week's linked pages without increasing the byte budget.
-    this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024});
+    // Keep memory bounded separately from the retained historical source pages.
+    this.cache=new InsightViewCache({clock,directory,writable,freshMs:6*60*60_000,maxEntries:512,maxBytes:24*1024*1024,maxDiskEntries:100000,maxDiskBytes:512*1024*1024});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {
     let queue=this.queues.get(origin);
@@ -39,18 +41,23 @@ export class OfficialContextSources {
       if(error?.code==='upstream_busy')throw Object.assign(new HttpError(503,'upstream_busy','The official source is busy. Please try again after the pause.'),{retryAfter:error.retryAfter,retryAt:error.retryAt});
       throw error;
     }
-    try{signal?.throwIfAborted();return await waitForRequest(operation(),signal);}finally{release();}
+    try{signal?.throwIfAborted();return await boundedUpstream(()=>waitForRequest(operation(),signal),{source:origin,priority,signal});}finally{release();}
   }
   async get(input,{freshMs=this.cache.freshMs,validate,cacheScope,includeRetryAt=false,priority='interactive'}={}) {
     requestSignal()?.throwIfAborted();
     const source=officialSourceUrl(input),url=source.href;
     const key=['official-context-v1',url];if(cacheScope)key.push(cacheScope);
+    if(priority!=='background') {
+      const saved=await this.cache.stored(this.cache.key(key));
+      if(!saved||this.clock()-saved.at>(typeof freshMs==='function'?freshMs(saved.value):freshMs))hintOfficialContext(url);
+    }
     const record=await waitForRequest(this.cache.get(key,()=>runWithRequestSignal(undefined,()=>{
       // The cache owns one budget across admission, redirects and body reads.
       const signal=AbortSignal.timeout(20_000);
       return this.run(async()=>{
         let target=url,response;
         for(let attempt=0;attempt<3;attempt++) {
+          await this.beforeFetch?.(source.origin);
           response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
           if(![301,302,303,307,308].includes(response.status))break;
           const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
@@ -60,7 +67,7 @@ export class OfficialContextSources {
         }
         if([429,503].includes(response?.status)){
           const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
-          this.queues.get(source.origin)?.backoff(retryAfter);await response.body?.cancel();
+          this.queues.get(source.origin)?.backoff(retryAfter);backoffUpstream(retryAfter,{source:source.origin});await response.body?.cancel();
           throw Object.assign(new HttpError(503,'official_source_limited','The official source is temporarily limiting requests. Please try again after the pause.'),{retryAfter,retryAt:this.clock()+retryAfter*1000});
         }
         if(!response?.ok||response.status===202)throw new HttpError(502,'official_source_unavailable','The official source is temporarily unavailable.');
@@ -74,6 +81,10 @@ export class OfficialContextSources {
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);
     }}));
+    if(priority==='background') {
+      const pending=this.cache.pending.get(this.cache.key(key));
+      if(pending)return (await waitForRequest(pending)).value;
+    }
     return record;
   }
 }

@@ -268,3 +268,14 @@ test('cold decision reconstruction prefers verified persisted sitting and week o
     await assert.rejects(decisionVotes({...query,snapshot:'f'.repeat(64)},{reader:reader()}),error=>error.status===409);
   }
 });
+
+
+test('latest member votes resolve entirely from persisted calendar and sitting snapshots',async t=>{
+  const h=setup(t);await drain(h);
+  const votes=new MemberVotes({request:()=>assert.fail('saved latest week must not read upstream'),clock:h.clock,snapshots:h.reader,readChairs:()=>assert.fail('saved chairing must not be collected')});
+  const query=memberVotesQuery(new URLSearchParams('week=latest'),{now:h.clock()});
+  const result=await votes.query('23868',query);
+  assert.equal(result.period.week,'2026-10-05');
+  assert.equal(result.coverage.collectionComplete,true);
+  assert.deepEqual(result.coverage.scannedSittingIds,[SNAPSHOT_SITTING]);
+});

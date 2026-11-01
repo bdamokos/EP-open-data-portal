@@ -11,7 +11,7 @@ import {AMENDMENT_LINKS_VERSION,projectDocument,documentRows} from './activity-i
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION,AMENDMENT_DISTRIBUTION_PROOF_VERSION} from './amendments.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 import {SPLIT_PARSER_VERSION} from './amendment-splits.mjs';
-import {amendmentsPage,enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
+import {bootstrapAmendmentDependencies,amendmentsPage,enqueueAmendment,saveAmendmentRows} from './amendments-store.mjs';
 import {scheduleAmendments,prepareAmendments,scheduleSittingOutcomes} from './amendments-worker.mjs';
 
 const target='A-10-2026-0254',date='2026-10-16',stamp=date+'T16:00:00.000Z';
@@ -58,7 +58,7 @@ test('a delayed amendment retry remains pending after actual core publication an
   assert.deepEqual(calls,[['/plenary-documents',750]]);
   assert.equal(store.get('active'),generation);assert.equal(store.get('working'),null);assert.equal(store.get('sequence'),generation);
   const accepted=store.page('1').items,lastSuccess=store.get('lastSuccess');
-  assert.equal(pending(store),true);assert.equal(worker.due(),false);
+  assert.equal(pending(store),true);write(()=>{while(!bootstrapAmendmentDependencies(store,store.get('active')||generation)) {}});assert.equal(worker.due(),false);
   advance(29_999);await worker.run();assert.equal(calls.length,1);
   advance(1);assert.equal(worker.due(),true);await worker.run();
   assert.deepEqual(calls,[['/plenary-documents',750],['/meps/show-current',1000]]);
@@ -74,7 +74,7 @@ test('an active-only amendment failure keeps its delayed retry without fabricati
   await worker.run();
   const failed=job(store,'missing:source',generation);
   assert.equal(failed.attempts,1);assert.equal(failed.retry_at,clock()+30_000);assert.match(failed.error,/unavailable/);
-  assert.equal(store.get('working'),null);assert.equal(store.get('lastSuccess'),lastSuccess);assert.equal(pending(store),true);assert.equal(worker.due(),false);
+  assert.equal(store.get('working'),null);assert.equal(store.get('lastSuccess'),lastSuccess);assert.equal(pending(store),true);write(()=>{while(!bootstrapAmendmentDependencies(store,store.get('active')||generation)) {}});assert.equal(worker.due(),false);
   write(()=>store.putSource(generation,sourceKey,'motion-outcomes',{splitRequests:[],sources:[],decisions:[]},stamp));
   advance(30_000);await worker.run();
   assert.equal(job(store,'missing:source',generation).done,1);assert.equal(pending(store),false);
@@ -131,7 +131,7 @@ test('a retained extension retry adopts the current legacy core generation befor
     // This fixture predates accepted refresh snapshots; accepted mismatches fail closed.
     store.set('refreshPolicyGeneration',null);store.set('active',4);store.set('sequence',4);
   });
-  assert.equal(amendmentsPage(store,{document:target}).coverage.servingGeneration,generation);assert.equal(pending(store),true);assert.equal(worker.due(),false);
+  assert.equal(amendmentsPage(store,{document:target}).coverage.servingGeneration,generation);assert.equal(pending(store),true);write(()=>{while(!bootstrapAmendmentDependencies(store,store.get('active')||generation)) {}});assert.equal(worker.due(),false);
   const queued=job(store,'retained:source',generation),execute=worker.task.bind(worker);let adopted;
   worker.task=async task=>{
     if(task.key==='retained:source')adopted={generation:task.generation,attempts:task.attempts,error:task.error,retry_at:task.retry_at,offset:task.body.offset};
