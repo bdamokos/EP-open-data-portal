@@ -78,35 +78,65 @@ const plenaryDirectory=cacheDir&&path.join(cacheDir,'plenary-sources-v1');
 // Raw detail and speech pages share one budget across successive warm-up weeks.
 const plenaryBudget=plenaryDirectory&&new CacheDiskBudget(plenaryDirectory,{maxBytes:128*1024*1024,maxEntries:1800,pattern:/^[a-f0-9]{64}\.json$/});
 const isAgendaKey=key=>/^\/api\/v2\/meetings\/MTG-PL-\d{4}-\d{2}-\d{2}\/foreseen-activities$/.test(new URL(key).pathname);
-let agendaRevision='initial',agendaRevisionLoaded,agendaRevisionSaved=true,agendaPublications=Promise.resolve();
+let agendaRevision='initial',agendaRevisionLoaded,agendaRevisionDirty=false,agendaMarkerSaved=false,agendaPendingOverflow=false,agendaPublications=Promise.resolve();
+// Bound failed-publication bookkeeping; overflow keeps views memory-only until restart.
+const agendaPendingSources=new Set();
+async function saveAgendaRevision(value) {
+  if(!agendaDirectory)return true;
+  try {return await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify(value),{signal:null});}
+  catch(error){console.warn('[agenda-cache-revision]',error.code||error.name);return false;}
+}
+async function settleAgendaRevision() {
+  if(agendaPendingSources.size||agendaPendingOverflow)return;
+  // Never make a memory-only view key durable, even after recovery.
+  const revision=randomUUID();
+  if(await saveAgendaRevision({revision})) {
+    agendaRevision=revision;agendaRevisionDirty=false;agendaMarkerSaved=false;
+  }
+}
 async function loadAgendaRevision() {
   agendaRevisionLoaded??=(async()=>{
     if(!agendaDirectory)return;
-    try {const saved=JSON.parse(await readFile(path.join(agendaDirectory,'revision.json'),'utf8'));if(/^[a-f0-9-]{36}$/.test(saved.revision))agendaRevision=saved.revision;}catch{}
+    try {
+      const saved=JSON.parse(await readFile(path.join(agendaDirectory,'revision.json'),'utf8'));
+      if(/^[a-f0-9-]{36}$/.test(saved.revision)) {
+        if(saved.pending) {
+          // An interrupted publication may have changed only some raw files.
+          // Start a new view namespace for the bytes actually retained now.
+          agendaRevision=randomUUID();agendaRevisionDirty=true;agendaMarkerSaved=true;
+          await settleAgendaRevision();
+        }else agendaRevision=saved.revision;
+      }
+    }catch{}
   })();
   await agendaRevisionLoaded;
 }
 export async function agendaCacheRevision() {
   await loadAgendaRevision();await agendaPublications;return agendaRevision;
 }
+export async function agendaCacheRevisionIsDurable(revision) {
+  return await agendaCacheRevision()===revision&&!agendaRevisionDirty;
+}
 function publishAgenda(record,publish) {
   const job=agendaPublications.then(async()=>{
     await loadAgendaRevision();
     const previous=newestSource(record.url,await readDiskSource(record.url));
     if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(record.payload)) {
-      // Persist invalidation before replacing bytes. Derived readers wait for
-      // this whole publication, so a restart cannot reuse the previous view.
       agendaRevision=randomUUID();
-      agendaRevisionSaved=!agendaDirectory;
+      agendaRevisionDirty=true;
+      if(agendaPendingSources.size<MAX_CACHE_ENTRIES)agendaPendingSources.add(record.url);
+      else if(!agendaPendingSources.has(record.url))agendaPendingOverflow=true;
     }
-    if(!agendaRevisionSaved) {
-      try {agendaRevisionSaved=await writeCacheFile(path.join(agendaDirectory,'revision.json'),JSON.stringify({revision:agendaRevision}),{signal:null});}
-      catch(error){console.warn('[agenda-cache-revision]',error.code||error.name);}
+    if(agendaRevisionDirty&&!agendaMarkerSaved) {
+      // Invalidate old disk views before changing any raw bytes. The pending
+      // marker is never used as an in-memory view key or a committed revision.
+      agendaMarkerSaved=await saveAgendaRevision({revision:randomUUID(),pending:true});
     }
-    // A failed revision write keeps fresh data available in memory, but must
-    // leave retained source bytes paired with their old persisted revision.
-    // Retry persistence even when the next observation has identical content.
-    await publish(agendaRevisionSaved);
+    const published=await publish(!agendaRevisionDirty||agendaMarkerSaved);
+    if(published)agendaPendingSources.delete(record.url);
+    // Another agenda cannot make an earlier memory-only correction durable.
+    // Its own unchanged or changed retry must first publish that source.
+    if(agendaRevisionDirty&&published)await settleAgendaRevision();
   });
   agendaPublications=job.catch(()=>{});return job;
 }
@@ -210,13 +240,15 @@ const publishLocked = async (key, serialized,cacheGroup=null) => {
     const published=await writeCacheFile(file,serialized,{signal:null});
     if(published&&isAgendaKey(key))await agendaBudget.saved(path.basename(file),Buffer.byteLength(serialized));
     else if(published&&cacheGroup==='plenary')await plenaryBudget.saved(path.basename(file),Buffer.byteLength(serialized));
+    if(published&&(isAgendaKey(key)||cacheGroup==='plenary'))return (await stat(file)).isFile();
     return published;
   }catch{return false;/* Available source data survives a failed reproducible disk write. */}
 };
 function publishSourceFile(key, record, serialized, signal,cacheGroup=null) {
   return waitForRequest(withSourceLock(key, async () => {
     const disk = await readDiskSource(key, signal);
-    if (disk && disk.fetchedAt >= record.fetchedAt || signal?.aborted) return;
+    if(signal?.aborted)return false;
+    if(disk&&disk.fetchedAt>=record.fetchedAt)return JSON.stringify(disk.payload)===JSON.stringify(record.payload);
     if(isAgendaKey(key)||cacheGroup==='plenary') {
       const legacy=Buffer.from(key).toString('base64url')+'.json';
       const old=[path.join(cacheDir,createHash('sha256').update(key).digest('hex')+'.json'),...(legacy.length<=255?[path.join(cacheDir,legacy)]:[])];
@@ -224,13 +256,13 @@ function publishSourceFile(key, record, serialized, signal,cacheGroup=null) {
         // Migrate the retained observation before removing aliases. If cleanup
         // or the fresh write fails, it remains available across a restart.
         const exists=await stat(filename(key,cacheGroup)).then(info=>info.isFile(),error=>{if(error.code==='ENOENT')return false;throw error;});
-        if(disk&&!exists&&!await publishLocked(key,JSON.stringify(disk),cacheGroup))return;
+        if(disk&&!exists&&!await publishLocked(key,JSON.stringify(disk),cacheGroup))return false;
         for(const file of old)await unlink(file).catch(error=>{if(error.code!=='ENOENT')throw error;});
-      }catch(error){console.warn('[source-cache-migration]',error.code||error.name);return;}
+      }catch(error){console.warn('[source-cache-migration]',error.code||error.name);return false;}
     }
     // Publish new bytes only after retiring aliases, so eviction can never
     // uncover an older flat-file observation of a successfully saved update.
-    await publishLocked(key, serialized,cacheGroup);
+    return publishLocked(key, serialized,cacheGroup);
   }), signal ?? null);
 }
 async function readSourceRecord(file, signal) {
@@ -428,7 +460,9 @@ export async function odp(
             try {if((await stat(filename(key,'plenary'))).isFile())entry.cacheGroup='plenary';}catch{}
           }
           if (retain) rememberSource(key, record, serialized,entry.cacheGroup);
-          if (persist && retain && cacheDir && Buffer.byteLength(serialized) <= MAX_DISK_RECORD_BYTES)await publishSourceFile(key,record,serialized,budget.signal,entry.cacheGroup);
+          if(!persist)return false;
+          if(retain&&cacheDir)return Buffer.byteLength(serialized)<=MAX_DISK_RECORD_BYTES&&await publishSourceFile(key,record,serialized,budget.signal,entry.cacheGroup);
+          return true;
         };
         if(retain&&isAgendaKey(key))await publishAgenda(record,publish);else await publish();
         budget.signal?.throwIfAborted();
