@@ -48,7 +48,7 @@ import {topicPeriods,quarter} from './topics-store.mjs';
  * Browse: list=debates|documents|adoptedTexts|adoptedUndated|questions, optional
  * cursor. page={list,pageSize:20,total,items:[{id,kind,date}],nextCursor}. It is a
  * complete date-desc/id-desc keyset traversal (adopted lists sort by outcome
- * date), pinned to generation and qualification selectors; language/mode may change;
+ * date), pinned to generation, projection publication and qualification selectors; language/mode may change;
  * stale/cross-selection cursors return 409. Topic member groups use topics/detail.
  * No list is silently truncated; unknown outcomes remain null, never 'none'.
  */
@@ -96,12 +96,12 @@ export function storyFacts(store,params,{pressFilename}={}){
  for(const period of selectedPeriods){sets.urgencyDebates[period]=urgency.all(...dimension,period).map(r=>r.id);for(const id of sets.urgencyDebates[period])debateIds.add(id);
   if(q.scope==='place'||(cells.get(period)?.adoptedTexts||0)<=2){const ids=adopted.all(...dimension,period).map(r=>r.id);(sets.adoptedTexts||sets.adoptedTextsWhenAtMostTwo)[period]=ids;for(const id of ids)docIds.add(id);}
  }
- const signature=[generation,q.scope,key,q.askers,q.period,q.list];let after=null;
- if(q.cursor){try{after=JSON.parse(Buffer.from(q.cursor,'base64url').toString('utf8'));if(JSON.stringify(after.slice(0,6))!==JSON.stringify(signature)||after.length!==8||typeof after[6]!=='string'||typeof after[7]!=='string'||!/^[-A-Za-z0-9_]{1,150}$/.test(after[7])||!(q.list==='adoptedUndated'&&after[6]===''||/^\d{4}-\d{2}-\d{2}$/.test(after[6])))throw Error();}catch{throw new HttpError(409,'story_cursor','Reload this list.');}}
+ const signature=[generation,state.builtAt||null,q.scope,key,q.askers,q.period,q.list];let after=null;
+ if(q.cursor){try{after=JSON.parse(Buffer.from(q.cursor,'base64url').toString('utf8'));if(JSON.stringify(after.slice(0,7))!==JSON.stringify(signature)||after.length!==9||typeof after[7]!=='string'||typeof after[8]!=='string'||!/^[-A-Za-z0-9_]{1,150}$/.test(after[8])||!(q.list==='adoptedUndated'&&after[7]===''||/^\d{4}-\d{2}-\d{2}$/.test(after[7])))throw Error();}catch{throw new HttpError(409,'story_cursor','Reload this list.');}}
  let page=null;const questionIds=[];
  if(q.list){
   const kind=listKinds[q.list],conditions=['generation=?','scope=?','key=?','askers=?','kind=?','canonical=1'],args=[...dimension,kind];
-  if(q.period){conditions.push('period=?');args.push(q.period);}if(kind==='adopted-undated')conditions.push('date IS NULL');if(after){conditions.push(kind==='adopted-undated'?'id<?':'(date,id)<(?,?)');args.push(...(kind==='adopted-undated'?[after[7]]:[after[6],after[7]]));}
+  if(q.period){conditions.push('period=?');args.push(q.period);}if(kind==='adopted-undated')conditions.push('date IS NULL');if(after){conditions.push(kind==='adopted-undated'?'id<?':'(date,id)<(?,?)');args.push(...(kind==='adopted-undated'?[after[8]]:[after[7],after[8]]));}
   const found=db.prepare('SELECT id,kind,date FROM story_scope_records WHERE '+conditions.join(' AND ')+' ORDER BY date DESC,id DESC LIMIT 21').all(...args),more=found.length>20,items=found.slice(0,20),last=items.at(-1);
   for(const r of items)if(r.kind==='debate')debateIds.add(r.id);else if(r.kind==='question')questionIds.push(r.id);else docIds.add(r.id);
   const totalField={adoptedUndated:'adoptedTextsUndated'}[q.list]||q.list;

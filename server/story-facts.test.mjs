@@ -117,6 +117,7 @@ test('exact counters, all tied winners, complete urgencies and cursor pages repl
  let cursor=null,seen=[];do{const params=new URLSearchParams('scope=place&key=UKR&list=debates');if(cursor)params.set('cursor',cursor);const r=storyFacts(store,params);assert.equal(r.page.total,62);seen.push(...r.page.items.map(x=>x.id));cursor=r.page.nextCursor;}while(cursor);
  assert.equal(new Set(seen).size,62);assert.equal(seen.length,62);
  const first=storyFacts(store,new URLSearchParams('scope=place&key=UKR&list=debates'));assert(first.page.nextCursor);assert.throws(()=>storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',list:'debates',cursor:first.page.nextCursor})),/Reload this list/);
+ const published=store.get('storyProjection');store.set('storyProjection',{...published,builtAt:'2030-01-01T00:00:00Z'});assert.throws(()=>storyFacts(store,new URLSearchParams({scope:'place',key:'UKR',list:'debates',cursor:first.page.nextCursor})),/Reload this list/);store.set('storyProjection',published);
  const q2=storyFacts(store,new URLSearchParams('scope=place&key=UKR&period=2025-Q2'));assert.equal(q2.counts.debates,2);
 
 });
@@ -209,4 +210,11 @@ test('riser winners use complete earlier quarters, thresholds and all ties',asyn
  await finishStoryProjection(store,1);
  const q1=storyFacts(store,new URLSearchParams('scope=map&period=2025-Q1'));assert.equal(q1.winners.risingQuestionPlaces.length,2);for(const p of q1.winners.risingQuestionPlaces){assert.equal(p.count,8);assert.equal(p.baselineTotal,1);assert.equal(p.baselinePeriods,1);assert.equal(p.ratio,8);}
  assert.deepEqual(storyFacts(store,new URLSearchParams('scope=map&period=2025-Q2')).winners.risingQuestionPlaces,[]);assert.deepEqual(storyFacts(store,new URLSearchParams('scope=map&period=2026-Q4')).winners.risingQuestionPlaces,[]);
+});
+
+
+test('retaining an identical story observation performs no disk rewrite but keeps newer source dates',async t=>{
+ const {store}=await fixture(t),work={identifier:'B-10-2025-0001',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:'2025-03-12',title_dcterms:{en:'Motion'}};
+ stageStoryInput(store,work,source,{rank:2});const changes=()=>store.db.prepare('SELECT total_changes() n').get().n,before=changes();stageStoryInput(store,work,source,{rank:2});assert.equal(changes(),before);
+ const newer={...source,fetchedAt:'2026-11-01T12:00:01Z'};stageStoryInput(store,work,newer,{rank:2});assert.equal(changes(),before+1);assert.equal(JSON.parse(store.db.prepare("SELECT source FROM story_inputs WHERE kind='document'").get().source).fetchedAt,newer.fetchedAt);
 });
