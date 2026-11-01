@@ -1,17 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { speechEmbedUrl, speechFrameKey, replayNeedsMediaRefresh } from './media.mjs';
+import { speechEmbedUrl, speechFrameKey } from './media.mjs';
 const id='MTG-PL-2026-10-07-OTH-2017097993206';
 const example = () => ({ speechId:id,status:'matched',available:true,requestedAudio:'hu',initialAudio:'hu',requiresAudioCheck:false,availableAudioLanguages:['or','hu'],audioVerification:'official-content-map',selectionMethod:'official-embed-parameter',selectionVerifiedLanguages:[],audioMapping:{schemaVersion:1,channels:[{slot:0,language:'or',providerCode:'qbf'},{slot:16,language:'hu',providerCode:'qaw'}],source:{recordingId:'20261007-0900-PLENARY'}},recording:{id:'20261007-0900-PLENARY'},clip:{startUtc:'2026-10-07T09:19:15Z',endUtc:'2026-10-07T09:20:55Z'},embedUrl:'https://webstreaming.europarl.europa.eu/ep/embed/embed.html?event=20261007-0900-PLENARY&language=hu&audio=hu&analytics=false&autoplay=true&start=2026-10-07T09:19:15Z&end=2026-10-07T09:20:55Z' });
-test('replay remounts without refreshing matched media; timestamp-only refresh keeps the frame',()=>{
-  const media=example(), key=attempt=>speechFrameKey(id,'hu','hu',attempt,media.audioMapping);
-  const initial=key(0);assert.notEqual(key(1),initial);
-  assert.equal(replayNeedsMediaRefresh(media,null),false);
+test('timestamp-only refresh keeps the frame; a changed channel map replaces it',()=>{
+  const media=example(), key=()=>speechFrameKey(id,'hu','hu',media.audioMapping);
+  const initial=key();
   media.audioMapping.source.sourceFetchedAt='2026-10-14T10:00:00Z';media.audioMapping.source.stale=true;
-  assert.equal(key(0),initial);
+  assert.equal(key(),initial);
   media.audioMapping.channels=[...media.audioMapping.channels,{slot:1,language:'en',providerCode:'qbd'}];
-  assert.notEqual(key(0),initial);
-  assert(replayNeedsMediaRefresh(media,'failed'));assert(replayNeedsMediaRefresh({...media,available:false},null));
+  assert.notEqual(key(),initial);
 });
 test('accepts the matched official clip without deriving recording IDs',()=>assert(speechEmbedUrl(example(),id,'hu','hu')));
 test('rejects wrong language, unknown tracks and unrelated destinations',()=>{
