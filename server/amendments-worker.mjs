@@ -670,9 +670,9 @@ export function rebuildAmendmentTarget(worker,generation,id,{listLimit=false,obs
   target.emptyObservation=relationshipsKnown&&Array.isArray(saved.work.inverse_foresees_change_of)&&saved.work.inverse_foresees_change_of.length===0?
     {version:AMENDMENT_EMPTY_OBSERVATION_VERSION,documentId:id,relationship:'inverse_foresees_change_of',scope:'published-amendment-list-relationships',listCount:0,source:target.sources[0]}:null;
   const lists=store.db.prepare("SELECT body,fetched_at FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(generation,id).map(row=>{const work=JSON.parse(row.body);return {work,fetchedAt:row.fetched_at,current:currentLists.has(idOf(work))};}).sort((a,b)=>Number(b.current)-Number(a.current));
-  const sittingSources=[...new Set([...amendmentSittings(saved.work),...discovered])].map(sittingId=>{const record=store.source(generation,motionSourceKey(sittingId));return {sittingId,record:record?{...record,work:amendmentSitting(record.work)}:null};});
+  const sittingSources=[...new Set([...amendmentSittings(saved.work),...discovered])].map(sittingId=>{const record=store.cachedSource(generation,motionSourceKey(sittingId));return {sittingId,record:record?{...record,work:amendmentSitting(record.work)}:null};});
   target.sittingIds=sittingSources.map(source=>source.sittingId);
-  const aliases=sittingSources.flatMap(({sittingId})=>store.source(generation,'amendment:aliases:'+sittingId)?.work.aliases || []);
+  const aliases=sittingSources.flatMap(({sittingId})=>store.cachedSource(generation,'amendment:aliases:'+sittingId)?.work.aliases || []);
   // Reuse only this rebuild's immutable source context; never cache identities
   // across a roster, alias or profile refresh.
   const profiles=store.memberProfiles(generation),authorContexts=new Map();
