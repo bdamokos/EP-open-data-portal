@@ -598,10 +598,17 @@
           }
         ],
         "language": "en",
-        "sourceUrl": null,
-        "fetchedAt": null
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "fetchedAt": "2026-10-27T00:34:59.654Z"
       },
-      "language": "en"
+      "language": "en",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "fetchedAt": "2026-10-27T00:34:59.654Z",
+        "sha256": "d0638f2dd3bd894b17dc3738d3624dcbb4bb333f0387061a3f1593bc1374e26b",
+        "status": 200
+      }
     },
     {
       "number": 114,
@@ -643,10 +650,17 @@
           }
         ],
         "language": "en",
-        "sourceUrl": null,
-        "fetchedAt": null
+        "sourceUrl": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "fetchedAt": "2026-10-27T00:34:59.654Z"
       },
-      "language": "en"
+      "language": "en",
+      "source": {
+        "url": "https://data.europarl.europa.eu/distribution/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "resolvedSourceUrl": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0073-AM-109-117/A-10-2026-0073-AM-109-117_en.docx",
+        "fetchedAt": "2026-10-27T00:34:59.654Z",
+        "sha256": "d0638f2dd3bd894b17dc3738d3624dcbb4bb333f0387061a3f1593bc1374e26b",
+        "status": 200
+      }
     }
   ]
 }

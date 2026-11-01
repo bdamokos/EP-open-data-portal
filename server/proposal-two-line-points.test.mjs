@@ -28,3 +28,18 @@ test('the native list and source completeness are required',()=>{
     const p=structuredClone(fixture.proposal);mutate(p);assert.equal(resolve(fixture.amendments[0],p).status,'unresolved');
   }
 });
+
+test('native segment and ordinal gaps cannot be collapsed into an insertion boundary',()=>{
+  for(const field of ['segment','ordinal']){
+    const p=structuredClone(fixture.proposal),index=p.paragraphs.findIndex(text=>text.startsWith('(f)'));
+    p.paragraphSources[index][field]++;
+    assert.equal(resolve(fixture.amendments[0],p).reason,'source_passage_incomplete');
+  }
+});
+test('both amendment records retain the captured publication and retrieval time',()=>{
+  for(const a of fixture.amendments){
+    assert.equal(a.targetPath.sourceUrl,a.source.url);
+    assert.equal(a.targetPath.fetchedAt,a.source.fetchedAt);
+    assert.equal(a.source.sha256,'d0638f2dd3bd894b17dc3738d3624dcbb4bb333f0387061a3f1593bc1374e26b');
+  }
+});

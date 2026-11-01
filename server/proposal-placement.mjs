@@ -248,7 +248,9 @@ function twoLinePointInsertion(selected,targetPath,proposedText,language) {
   if(!labels.length||labels.some((value,index)=>!value||value!==String.fromCharCode(97+index)))return {reason:'source_structure_unavailable'};
   const index=labels.indexOf(label.value[0]);
   if(index<0||index+1>=points.length)return {reason:'insertion_reference_unavailable'};
-  if(!owner.complete||owner.pathConflict||!container.complete||proposal.paragraphs.slice(start,end+1).some(p=>!p.complete||!p.source||p.source.complete===false||p.source.container!=='body'))return {reason:'source_passage_incomplete'};
+  const boundary=proposal.paragraphs.slice(start,end+1);
+  if(!owner.complete||owner.pathConflict||!container.complete||boundary.some((p,index)=>!p.complete||!p.source||p.source.complete===false||p.source.container!=='body'||
+    index&&(p.source.segment!==boundary[index-1].source?.segment||p.source.ordinal!==boundary[index-1].source?.ordinal+1)))return {reason:'source_passage_incomplete'};
   return {itemIndex,insertBefore:points[index+1].index,evidence:[{basis:'two-line-act-target',label:reference.document,target:reference.raw,anchor:owner.id},{basis:'printed-paragraph-point-boundary',paragraph:paragraph.value,preceding:labels[index],following:labels[index+1]}]};
 }
 
