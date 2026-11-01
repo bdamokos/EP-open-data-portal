@@ -365,3 +365,37 @@ test('a sibling insertion follows the complete instruction despite repeated quot
   const incomplete=structuredClone(projection);incomplete.paragraphSources[8].complete=false;
   assert.equal(resolveProposalPlacement([item(incomplete)],target).status,'unresolved');
 });
+
+test('native footnotes require their payloads and anchor positions, including renumbering',()=>{
+ const proposal=structuredClone(item(source(['2026/0001 (COD)','(1) Public body.','(2) Next recital.','HAVE ADOPTED THIS REGULATION:','Article 1'])).proposal);
+ proposal.notes=[{id:'native',label:'40',text:'Public note.',complete:true}];
+ proposal.anchors=[{paragraph:1,offset:10,note:'native',label:'40'}];
+ const wording={language:'en',targetLabel:'Recital 1',originalText:'(1) Public6 body.\n______\n6 Public note.',originalFormatting:[{kind:'superscript',start:10,end:11}],proposedText:'Changed body.'};
+ const items=[{kind:'act',proposal}];
+ assert.equal(resolveProposalPlacement(items,wording).status,'placed');
+ assert.equal(resolveProposalPlacement(items,{...wording,originalText:wording.originalText.replace('Public note.','Different note.')}).status,'unresolved');
+ proposal.anchors[0].offset=12;
+ assert.equal(resolveProposalPlacement(items,wording).status,'unresolved');
+});
+
+test('quoted sibling insertion follows the complete paragraph and preserves the terminator',()=>{
+ const texts=['Article 1','Regulation (EU) 2024/123 is amended as follows:','(1) Article 9 is amended as follows:','(b) the following paragraph 4a is inserted:','‘4a. Public provision.','Continued text.’',';','(2) Next instruction.','Article 2'];
+ const styles=['Titrearticle','Normal','Point0','Point1','Normal','Normal','Normal','Point0','Titrearticle'];
+ const amendment={language:'en',targetLabel:'Article 1 – paragraph 1 – point 1 – point b',originalText:'',proposedText:'4aa. A new paragraph.'};
+ const result=resolveProposalPlacement([item(source(texts,styles))],amendment);
+ assert.equal(result.status,'placed',result.reason);assert.equal(result.insertBefore,6);
+ const conflicting={...amendment,targetPath:{proposal:[{raw:amendment.targetLabel}],underlying:[{raw:'Article 4aa (new)',document:'Regulation (EU) 2024/123'}]}};
+ assert.equal(resolveProposalPlacement([item(source(texts,styles))],conflicting).status,'unresolved');
+ const addressed={...amendment,targetPath:{proposal:[{raw:amendment.targetLabel}],underlying:[{raw:'Article 9 – paragraph 4a – second subparagraph (new)',document:'Regulation (EU) 2024/123'}]}};
+ assert.equal(resolveProposalPlacement([item(source(texts,styles))],addressed).status,'placed');
+ texts[3]='(b) the second subparagraph is replaced by the following:';
+ assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
+});
+
+test('detached footnotes cannot enable a whole-article deletion without extent verification',()=>{
+ const proposal=structuredClone(item(source(['Article 1','1. Public body.','Article 2'],['Titrearticle','Normal','Titrearticle'])).proposal);
+ proposal.notes=[{id:'native',label:'6',text:'Public note.',complete:true}];proposal.anchors=[{paragraph:1,offset:14,note:'native',label:'6'}];
+ const originalText='Article 1\n1. Public body6.\n______\n6 Public note.',at=originalText.indexOf('6');
+ const result=resolveProposalPlacement([{kind:'act',proposal}],{language:'en',targetLabel:'Article 1',originalText,originalFormatting:[{kind:'superscript',start:at,end:at+1}],proposedText:'deleted'});
+ assert.equal(result.status,'unresolved');
+});
