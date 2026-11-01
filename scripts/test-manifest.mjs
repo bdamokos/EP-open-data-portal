@@ -2,6 +2,7 @@ export const testDirectories = ['src', 'server', 'scripts'];
 
 // Subprocess startup and isolated cache/restart checks are kept in the slow profile.
 export const slow = [
+  {file: 'server/source-writers.test.mjs', reason: 'Spawns the production server to verify HTTP isolation during a blocking activity writer iteration.'},
   {file: 'scripts/runtime-shared-modules.test.mjs', reason: 'Spawns a clean Node process to import the runtime image shared-module file set.'},
   {file: 'scripts/amendment-council-language-benchmark.test.mjs', reason: 'Spawns Python for independent native Council character and XML checks.'},
   {file: 'scripts/amendment-oracle-localization.test.mjs', reason: 'Spawns Python for the independent Irish Word hyphen regression.'},
