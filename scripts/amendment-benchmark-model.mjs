@@ -1,3 +1,4 @@
+import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
@@ -249,6 +250,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   const scope=verifyLanguageScope(placement,expectedLanguageScope(wording));
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
+  const maintainer=assertMaintainerPrinciple({proposal:items?.[placement.itemIndex]?.proposal,wording,placement});
+  if(maintainer.status!=='unverified')return maintainer;
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
