@@ -37,7 +37,7 @@ export function buildExactTopicStories(payload,s={}){
  if(s.topic||s.place&&period){const ids=payload.sets?.adoptedTexts?.[period]||payload.sets?.adoptedTextsWhenAtMostTwo?.[period]||[],named=ids.map(id=>docs.get(id)).filter(Boolean),headline=(w.headlineAdoptedTexts3Plus||[]).map(x=>docs.get(x.id)).filter(Boolean);
   const vote=d=>d.outcome?.for!=null&&d.outcome?.against!=null?msg('textWithTally',{title:title(d),for:ref(num(d.outcome.for),[storyRecord(d,'document')]),against:ref(num(d.outcome.against),[storyRecord(d,'document')])}):title(d);
   if(c.adoptedTexts)add('exact.adopted',{count:browse(cm(c.adoptedTexts,'texts'),'adoptedTexts'),texts:named.length?msg('exact.named',{texts:named.map(vote)}):headline.length?msg('exact.including',{texts:headline.map(vote)}):null},3);
-  const closest=(w.closestAdoptedTexts||[]).map(x=>docs.get(x.id)).filter(Boolean);if(period&&closest.length)add('exact.closest',{texts:closest.map(vote)},4);
+  const closest=(w.closestAdoptedTexts||[]).filter(x=>x.margin<100).map(x=>docs.get(x.id)).filter(Boolean);if(period&&closest.length)add('exact.closest',{texts:closest.map(vote)},4);
  }
 
  if(!period&&s.place){const best=Math.max(0,...payload.periodCounts.map(p=>p.debateSpeakerAppearances)),peaks=payload.periodCounts.filter(p=>best>0&&p.debateSpeakerAppearances===best);if(peaks.length)add('place.summary.peak',{quarter:peaks.map(p=>ref(p.period.replace('-',' '),[],{period:p.period}))},4);}
