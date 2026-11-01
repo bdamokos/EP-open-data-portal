@@ -6,10 +6,10 @@ import path from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';
 import {buildTopics} from './topics-project.mjs';
-import {RecordTopics} from './topics-store.mjs';
+import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
 import {storyTables,stageStoryInput,queueStoryRead} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,STORY_FACTS_VERSION} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -124,4 +124,25 @@ test('full projection pruning retains only the serving and previous story genera
  }
  await buildTopics(store);
  for(const table of ['story_facts','story_links','story_places','story_topics','story_parents'])assert.deepEqual(store.db.prepare('SELECT DISTINCT generation FROM '+table+' ORDER BY generation').all().map(r=>r.generation),[1]);
+});
+
+
+test('topic stories retain placed oral questions from their exact policy memberships',async t=>{
+ const {store}=await fixture(t);store.setMembers([{id:'1',countryCode:'GR'}]);
+ const record={id:'O-10-2025-000001',kind:'question',date:'2025-03-12',titles:{en:'Cyprus'},members:['1'],status:'classified',assignments:[{key:'place:CYP',role:'place',paths:[{basis:'title',steps:[],sources:[]}]},{key:'oeil:8.20',role:'topic',paths:[{basis:'debate',steps:[],sources:[]}]}]};
+ writeTopicProjection(store,{records:[record],concepts:[{key:'place:CYP',role:'place',labels:{en:'Cyprus'}},{key:'oeil:8.20',role:'topic',labels:{en:'Enlargement'}}]});store.set('storyProjection',{generation:1,version:STORY_FACTS_VERSION});
+ const selected=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&askers=elsewhere'));assert.equal(selected.questions[0].id,record.id);assert.equal(selected.questions[0].askers.CYP,'elsewhere');
+ assert.equal(storyFacts(store,new URLSearchParams('scope=topic&key=oeil:4.40')).questions.length,0);
+});
+
+test('retained unavailable procedure reads propagate through exact document, debate and speech links',async t=>{
+ const {store}=await fixture(t),{topicCollectorTables}=await import('./topics-project.mjs');topicCollectorTables(store.db);
+ const day='2025-03-12',proc='2025-0001',doc='B-10-2025-0001',debate='MTG-PL-'+day+'-PVCRE-ITM-1',speech='MTG-PL-'+day+'-OTH-1';
+ store.putSource(1,'/procedures/'+proc,'procedure',{id:'eli/dl/proc/'+proc,label:'2025/0001(INI)'},stamp);
+ store.db.prepare('INSERT INTO topic_procedure_pages VALUES (?,?,?)').run(proc,'2025/0001(INI)',JSON.stringify({state:'unavailable',reason:'source-too-large',subjects:[]}));
+ store.putSource(1,'/plenary-documents/'+doc,'document',{id:'eli/dl/doc/'+doc,identifier:doc,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,inverse_created_a_realization_of:['eli/dl/proc/'+proc],inverse_based_on_a_realization_of:['eli/dl/event/'+debate]},stamp);
+ stageStoryInput(store,{activity_id:debate,activity_date:day,based_on_a_realization_of:['eli/dl/doc/'+doc]},source,{rank:4});
+ store.putSource(1,'/speeches/'+speech,'speech',{outside:{id:speech,date:day,titles:{en:'Debate'},parentIds:[debate],participants:['1'],source}},stamp);
+ await buildTopics(store);const reader=new RecordTopics(store);
+ assert.equal(reader.record(doc,'en').status,'unavailable');assert.equal(reader.record(debate,'en').status,'unavailable');assert.equal(reader.record(speech,'en').status,'unavailable');
 });

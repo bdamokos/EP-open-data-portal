@@ -25,7 +25,7 @@ export class OfficialContextSources {
   constructor({clock=Date.now,fetchSource=fetch,directory=process.env.ODP_CACHE_DIR&&path.join(process.env.ODP_CACHE_DIR,'official-context-v1'),run}={}) {
     Object.assign(this,{clock,fetchSource});this.queues=new Map();
     this.run=run||((operation,options)=>this.schedule(operation,options));
-    // Retain the latest week's linked pages without increasing the byte budget.
+    // Keep official pages on disk with a small recent set in memory.
     this.cache=new InsightViewCache({clock,directory,freshMs:6*60*60_000,maxEntries:4096,maxBytes:4*1024*1024,maxDiskBytes:128*1024*1024,pruneEvery:32});
   }
   async schedule(operation,{origin,priority='interactive',signal}) {

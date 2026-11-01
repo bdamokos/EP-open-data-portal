@@ -95,7 +95,7 @@ export async function buildTopics(store,{generation=store.get('active'),cache=pr
  const projected=projection.records;
  await topicBatches(store,(function*(){
   for(const r of projected.values()){yield;if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>pendingProcedures.has(id))){r.status='pending';projected.set(r.id,r);}else if(!(r.kind==='question'&&!r.id.startsWith('O-'))&&(r.procedureIds||[]).some(id=>unavailableProcedures.has(id))){r.status='unavailable';projected.set(r.id,r);}}
-  for(let pass=0;pass<4;pass++)for(const n of nodes){yield;const r=projected.get(n.id);if(!r||r.status==='ambiguous'||(n.kind==='question'&&!n.id.startsWith('O-')))continue;if([...(n.documentIds||[]),...(n.executed||[]),...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id),...(n.kind==='question'&&n.id.startsWith('O-')?r.eventIds||[]:[])].some(id=>projected.get(id)?.status==='pending')){r.status='pending';projected.set(r.id,r);}}
+  for(let pass=0;pass<4;pass++)for(const n of nodes){yield;const r=projected.get(n.id);if(!r||r.status==='ambiguous'||(n.kind==='question'&&!n.id.startsWith('O-')))continue;const states=[...(n.documentIds||[]),...(n.executed||[]),...(n.procedureIds||[]),...(n.procedureEdges||[]).map(e=>e.id),...(n.kind==='question'&&n.id.startsWith('O-')?r.eventIds||[]:[])].map(id=>projected.get(id)?.status),status=r.status==='pending'||states.includes('pending')?'pending':r.status==='unavailable'||states.includes('unavailable')?'unavailable':null;if(status&&r.status!==status){r.status=status;projected.set(r.id,r);}}
  })());
 
  if(!store.renew())throw Error('Activity-index writer lease was lost.');store.assertWriter();store.set('recordTopicProjection',null);
