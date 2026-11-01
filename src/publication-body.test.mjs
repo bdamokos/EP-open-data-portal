@@ -79,6 +79,17 @@ test('the closing submission line is dropped only when the card shows the same d
   const oral=['Question for oral answer O-000042/2026','to the Commission','Rule 142','Author (S&D)','Subject:\tScams','Body.','Submitted: 9.10.2026','Lapses: 10.1.2027'];
   const oralBody=publicationBody(oral,'O-10-2026-000042','en');
   assert.deepEqual(withoutSubmittedLine(oralBody,'O-10-2026-000042','en','2026-10-09'),{body:{...oralBody,paragraphs:['Body.']},trailer:['Lapses: 10.1.2027']});
-  const unmatched=publicationBody(written,'E-10-2026-003901','en');
-  assert.equal(withoutSubmittedLine(unmatched,'E-10-2026-003901','en','2026-10-07').body,unmatched);
+  assert.equal(withoutSubmittedLine(body,'A-10-2026-000001','en','2026-10-07').body,body);
+});
+test('the submission line is recognised in every official language',()=>{
+  // Closing lines as printed in the language versions of EP oral questions.
+  const closing=[["en", "Submitted: 9.10.2026", "Lapses: 10.1.2027"], ["bg", "Внесен: 30.9.2026", "Краен срок: 31.12.2026"], ["cs", "Předložení: 9.10.2026", "Platná do: 10.1.2027"], ["da", "Indgivet: 15.10.2026", "Svarfrist: 16.1.2027"], ["de", "Eingang: 30.9.2026", "Fristablauf: 31.12.2026"], ["el", "Κατάθεση: 9.10.2026", "Λήξη προθεσμίας: 10.1.2027"], ["es", "Presentación: 9.10.2026", "Plazo límite: 10.1.2027"], ["et", "Esitatud: 9.10.2026", "Tähtaeg: 10.1.2027"], ["fi", "Jätetty: 30.9.2026", "Määräaika: 31.12.2026"], ["fr", "Dépôt: 9.10.2026", "Échéance: 10.1.2027"], ["ga", "Curtha síos: 9.10.2026", "Spriocdháta i gcomhair freagra: 10.1.2027"], ["hr", "Podneseno: 9.10.2026", "Rok za odgovor: 10.1.2027"], ["hu", "Előterjesztve: 9.10.2026", "Határidő: 10.1.2027"], ["it", "Presentazione: 9.10.2026", "Scadenza: 10.1.2027"], ["lt", "Pateikta: 9.10.2026", "Atsakyti iki: 10.1.2027"], ["lv", "Iesniegšanas datums: 9.10.2026", "Termiņš: 10.1.2027"], ["mt", "Imressqa: 9.10.2026", "Skadenza: 10.1.2027"], ["nl", "Ingediend: 15.10.2026", "Vervalt: 16.1.2027"], ["pl", "Przedłożone: 15.10.2026", "Termin ważności: 16.1.2027"], ["pt", "Apresentação: 9.10.2026", "Prazo: 10.1.2027"], ["ro", "Depunere: 15.10.2026", "Dată-limită: 16.1.2027"], ["sk", "Predložené: 9.10.2026", "Termín na zodpovedanie: 10.1.2027"], ["sl", "Vloženo: 9.10.2026", "Rok za odgovor: 10.1.2027"], ["sv", "Ingiven: 30.9.2026", "Sista svarsdag: 31.12.2026"]];
+  assert.equal(closing.length,24);
+  for(const [language,submitted,lapses] of closing) {
+    const date=submitted.match(/(\d+)\.(\d+)\.(\d{4})$/),iso=`${date[3]}-${date[2].padStart(2,'0')}-${date[1].padStart(2,'0')}`;
+    const body={paragraphs:['Body.',submitted,lapses],header:[],start:0,exact:true};
+    assert.deepEqual(withoutSubmittedLine(body,'O-10-2026-000042',language,iso),{body:{...body,paragraphs:['Body.']},trailer:[lapses]},language);
+    const written={...body,paragraphs:['Body.',submitted]};
+    assert.deepEqual(withoutSubmittedLine(written,'E-10-2026-000042',language,iso).body.paragraphs,['Body.'],language);
+  }
 });

@@ -5,4 +5,4 @@ export function publicationHasMissingContent(text:unknown,body:{start:number;cov
 
 export function publicationCoverLogo(text:unknown,documentId:string,language:string|null|undefined):{paragraph:number;offset:number}|null;
 
-export function withoutSubmittedLine<T extends {paragraphs:string[];header:string[]}>(body:T,documentId:string,language:string|null|undefined,shownDate:string|null|undefined):{body:T;trailer:string[]};
+export function withoutSubmittedLine<T extends {paragraphs:string[]}>(body:T,documentId:string,language:string|null|undefined,shownDate:string|null|undefined):{body:T;trailer:string[]};

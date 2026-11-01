@@ -79,14 +79,25 @@ export function publicationHasMissingContent(text,body,decorative=null) {
   return warnings.some(warning=>warning!=='A drawing, equation or other document object is shown as a placeholder; the surrounding text is retained.');
 }
 
-// Drop the closing "Submitted:" line of an English question when the card
-// already shows that same date. A following "Lapses:" line stays visible.
+// Closing labels of EP question texts, as printed in each language version.
+const questionDateLabels={
+  bg:['Внесен','Краен срок'],cs:['Předložení','Platná do'],da:['Indgivet','Svarfrist'],de:['Eingang','Fristablauf'],
+  el:['Κατάθεση','Λήξη προθεσμίας'],en:['Submitted','Lapses'],es:['Presentación','Plazo límite'],et:['Esitatud','Tähtaeg'],
+  fi:['Jätetty','Määräaika'],fr:['Dépôt','Échéance'],ga:['Curtha síos','Spriocdháta i gcomhair freagra'],hr:['Podneseno','Rok za odgovor'],
+  hu:['Előterjesztve','Határidő'],it:['Presentazione','Scadenza'],lt:['Pateikta','Atsakyti iki'],lv:['Iesniegšanas datums','Termiņš'],
+  mt:['Imressqa','Skadenza'],nl:['Ingediend','Vervalt'],pl:['Przedłożone','Termin ważności'],pt:['Apresentação','Prazo'],
+  ro:['Depunere','Dată-limită'],sk:['Predložené','Termín na zodpovedanie'],sl:['Vloženo','Rok za odgovor'],sv:['Ingiven','Sista svarsdag'],
+};
+
+// Drop the closing submission line of a question when the card already shows
+// that same date. A following deadline ("Lapses:") line stays visible.
 export function withoutSubmittedLine(body,documentId,language,shownDate) {
-  const unchanged={body,trailer:[]};
-  if(language!=='en'||!shownDate||!/^[EPHO]-10-\d{4}-\d+$/.test(String(documentId))||body.header.length===0)return unchanged;
+  const unchanged={body,trailer:[]},labels=questionDateLabels[language];
+  if(!labels||!shownDate||!/^[EPHO]-10-\d{4}-\d+$/.test(String(documentId)))return unchanged;
+  const dated=label=>new RegExp(`^${label}\\s*:\\s*(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$`,'u');
   const paragraphs=body.paragraphs,last=paragraphs.length-1;
-  const lapses=last>0&&/^Lapses:\s*\d{1,2}\.\d{1,2}\.\d{4}$/.test(paragraphs[last].trim());
-  const index=lapses?last-1:last,line=paragraphs[index]?.trim().match(/^Submitted:\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const lapses=last>0&&dated(labels[1]).test(paragraphs[last].trim());
+  const index=lapses?last-1:last,line=paragraphs[index]?.trim().match(dated(labels[0]));
   if(!line||index<1)return unchanged;
   const submitted=`${line[3]}-${line[2].padStart(2,'0')}-${line[1].padStart(2,'0')}`;
   if(submitted!==String(shownDate).slice(0,10))return unchanged;
