@@ -809,3 +809,15 @@ test('published scope-note layouts preserve every comparison row, including blan
     assert.equal(amendmentOperation(amendment),null,example.language);
   }
 });
+
+test('Council quotation selects the exact main-report comparison and excludes the opinion',async()=>{
+ const {reportCouncilQuotation}=await import('./report-council-quotation.mjs');
+ const reportId='A-10-2026-0123',listId=reportId+'-AM-001-001';
+ const block=original=>p('<Amend>Amendment<NumAm>1</NumAm>')+p('<Article>Recital 1</Article>')+'<w:tbl>'+row(cell(p('Text proposed by the Council')),cell(p('Amendment')))+row(cell(p(original)),cell(p('New text.')))+'</w:tbl>'+p('</Amend>');
+ const buffer=archive(body(p('<NoDocSe>A10‑0123/2026</NoDocSe>')+p('<RepeatBlock-Amend>')+block('Council text.')+p('</RepeatBlock-Amend>')+p('<RepeatBlock-Amend>')+block('Opinion text.')+p('</RepeatBlock-Amend>')));
+ const chosen={listId,number:1,language:'en',targetLabel:'Recital 1',originalText:'Council text.',proposedText:'New text.',baselineSource:{conflicted:false,headings:[{left:{raw:'Text proposed by the Council'}}]}};
+ const result=reportCouncilQuotation(buffer,chosen,{reportId,sourceUrl:'https://data.europarl.europa.eu/report.docx',fetchedAt:'2026-11-01T19:00:00Z'});
+ assert.equal(result.status,'report-quotation');assert.equal(result.span,undefined);assert.equal(result.insertBefore,undefined);
+ assert.equal(reportCouncilQuotation(buffer,{...chosen,originalText:'Opinion text.'},{reportId}),null);
+ assert.equal(reportCouncilQuotation(buffer,{...chosen,targetLabel:'Recital 2'},{reportId}),null);
+});

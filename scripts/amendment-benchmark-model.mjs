@@ -1,3 +1,4 @@
+import {assertSimilarPlacement} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
@@ -22,6 +23,7 @@ export const SOURCE_REASONS = Object.freeze({
 });
 
 export function classify(stages) {
+  if(stages.S5.status==='report-quotation')return {outcome:'withheld-pipeline',reason:'council-text-as-quoted-in-report'};
   if (stages.S6.status === 'failed') return {outcome:'false-placement', reason:stages.S6.reason};
   if(stages.S1.status==='passed'&&stages.S2.status==='passed'&&stages.S5.status==='not-applicable'&&stages.S6.status==='verified')return {outcome:'not-applicable',reason:stages.S6.reason};
   for (const key of ['S1','S2','S3','S4']) {
@@ -251,11 +253,18 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(scope)return scope;
   if (placement.status !== 'placed') return {status:'not-applicable', reason:'not-placed'};
   const maintainer=assertMaintainerPrinciple({proposal:items?.[placement.itemIndex]?.proposal,wording,placement});
-  if(maintainer.status!=='unverified')return maintainer;
+  if(maintainer.status!=='unverified'){
+    const expected=maintainer.reason==='oracle-maintainer-P2'?'insert':expectedOperation(wording);
+    return expected&&placement.operation===expected?maintainer:fail('oracle-operation-mismatch');
+  }
   const expected = expectedOperation(wording);
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  if(proposal&&placement.evidence?.some(e=>e.matchKind==='similar')){
+    const address=rawProposalAssertion({proposal,wording,placement});
+    return assertSimilarPlacement({proposal,wording,placement,address});
+  }
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});

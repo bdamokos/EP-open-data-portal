@@ -399,3 +399,24 @@ test('detached footnotes cannot enable a whole-article deletion without extent v
  const result=resolveProposalPlacement([{kind:'act',proposal}],{language:'en',targetLabel:'Article 1',originalText,originalFormatting:[{kind:'superscript',start:at,end:at+1}],proposedText:'deleted'});
  assert.equal(result.status,'unresolved');
 });
+
+test('maintainer conventions place implicit paragraph one and negative instructions',()=>{
+ const projection=source(['Article 1','The act is amended as follows:','(4) Article 4 is replaced by the following:','‘Article 4','Literacy','‘Providers shall arrange training.’;','(5) The next paragraph is deleted:','Article 2'],['Titrearticle','','Point0','Titrearticle','Normal','Normal','Point0','Titrearticle']);
+ for(const label of ['(1a) New paragraph.','(1b) Another paragraph.'])assert.equal(resolve(projection,'Article 1 – paragraph 1 – point 4','',label).insertAfter,5);
+ for(const label of ['-1. New instruction.','-1a. Another instruction.'])assert.equal(resolve(projection,'Article 1 – paragraph 1 – point 4','Existing law outside the proposal.',label).insertAfter,2);
+});
+test('instruction anchor ignores quoted existing law only after exact instruction comparison',()=>{
+ const projection=source(['Article 1','The act is amended as follows:','(4) in Article 29, paragraph 2 is replaced by the following:','‘2. Published replacement.’','(5) The next paragraph is deleted:','Article 2'],['Titrearticle','','Point0','','Point0','Titrearticle']);
+ const original='(4) in Article 29, paragraph 2 is replaced by the following:\n1. Existing law outside the proposal.';
+ const placed=resolve(projection,'Article 1 – paragraph 1 – point 4 – introductory part',original,'(4) in Article 29, paragraphs 1 and 2 are replaced by the following:\nNew law.');
+ assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
+ assert.equal(resolve(projection,'Article 1 – paragraph 1 – point 4 – introductory part',original.replace('29','30'),'New law.').status,'unresolved');
+});
+test('similar wording records the score and refuses a nearby competing passage',()=>{
+ const text='A provider shall document its assessment before the system is placed on the market.';
+ const projection=source(['Article 1','1. '+text,'Article 2'],['Titrearticle','ManualNumPar1','Titrearticle']);
+ const placed=resolve(projection,'Article 1 – paragraph 1','1. '+text.replace('system','systen'),'New text.');
+ assert.equal(placed.status,'placed');assert.equal(placed.evidence.at(-1).matchKind,'similar');assert(placed.evidence.at(-1).similarity>=.95);
+ const ambiguous=source(['Article 1','1. '+text,'1. '+text,'Article 2'],['Titrearticle','ManualNumPar1','','Titrearticle']);
+ assert.equal(resolve(ambiguous,'Article 1 – paragraph 1','1. '+text.replace('system','systen'),'New text.').status,'unresolved');
+});

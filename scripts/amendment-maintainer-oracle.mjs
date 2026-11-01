@@ -35,8 +35,8 @@ export function assertMaintainerPrinciple({proposal,wording,placement}) {
  } else {
   const {splice,span}=placement;if(!splice||!span||span.start<start||span.end>=end)return unknown();
   const source=rows.slice(span.start,span.end+1).map((r,i,a)=>r.text.slice(i===0?splice.start.offset:0,i===a.length-1?splice.end.offset:r.text.length)).join('\n');
-  if(target[3]&&span.start===start&&span.end===start&&source.normalize('NFC').replace(/\s+/gu,' ').trim()===wording.originalText.split('\n')[0].normalize('NFC').replace(/\s+/gu,' ').trim())principle='P7';
-  else if(assertSimilarityRows(rows.slice(start,end),wording.originalText,span))principle='P6';
+  if(span.start===start&&span.end===start&&source.normalize('NFC').replace(/\s+/gu,' ').trim()===wording.originalText.split('\n')[0].normalize('NFC').replace(/\s+/gu,' ').trim())principle='P7';
+  else if(source.normalize('NFC').replace(/\s+/gu,' ').trim()!==wording.originalText.normalize('NFC').replace(/\s+/gu,' ').trim()&&splice.start.offset===0&&splice.end.offset===rows[span.end].text.length&&assertSimilarityRows(rows.slice(start,end),wording.originalText,span))principle='P6';
   if(principle)return {status:'verified',reason:'oracle-maintainer-'+principle};return unknown();
  }
  if(before===undefined)return unknown();
