@@ -3,7 +3,7 @@ import eurovocLabels from './topic-eurovoc-labels.json' with {type:'json'};
 import {assignmentRole,countryConcepts,eurovocCountries,countryLabels} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 
-export const RECORD_TOPICS_VERSION=6;
+export const RECORD_TOPICS_VERSION=7;
 const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 const canonical=v=>String(v?.id||v||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const tail=v=>canonical(v).split('/').at(-1);

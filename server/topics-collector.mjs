@@ -11,7 +11,7 @@ export async function collectTopicProcedure(worker,{sources=getSharedOfficialCon
  s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(now+86400_000,row.id);
  try{
  if(!row.reference){
-  const record=await worker.request('/procedures/'+row.id),identity=value=>String(value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''),expected='eli/dl/proc/'+row.id;
+  const record=await worker.request('/procedures/'+row.id,{}, {backgroundLow:true}),identity=value=>String(value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''),expected='eli/dl/proc/'+row.id;
   const matches=(record.payload?.data||[]).filter(w=>identity(w.id)===expected);if(matches.length!==1)throw Error('Procedure identity unavailable.');const work=matches[0];if(work['@id']&&identity(work['@id'])!==expected||work.process_id&&work.process_id!==row.id)throw Error('Conflicting procedure identity.');
   const code=classifyProcedure(work).code,reference=typeof work.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]+\)$/.test(work.label)?work.label:code?row.id.replace('-','/')+'('+code+')':null;if(!reference)throw Error('Procedure reference unavailable.');
   s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_metadata VALUES (?,?,?,?)').run(row.id,JSON.stringify(projectProcedure(work)),record.url,typeof record.fetchedAt==='number'?new Date(record.fetchedAt).toISOString():record.fetchedAt);s.db.prepare('UPDATE topic_procedure_queue SET reference=?,next_read=0 WHERE id=?').run(reference,row.id);s.set('topicProjectionDirty',true);});return true;
@@ -23,6 +23,7 @@ export async function collectTopicProcedure(worker,{sources=getSharedOfficialCon
  s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify({subjects:parsed.subjects,language:parsed.language,url:page.url,source:{url:page.url,fetchedAt:page.fetchedAt}}));s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(now+90*86400_000,row.id);s.set('topicProjectionDirty',true);});
  }catch(error){
   if(worker.controller.signal.aborted)throw error;s.assertWriter();
+  if(error.code==='official_source_size'){const url='https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference});s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify({state:'unavailable',reason:'source-too-large',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString()}));s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(worker.clock()+90*86400_000,row.id);s.set('topicProjectionDirty',true);});return true;}
   const retryAt=Math.max(worker.clock()+60_000,Number(error.retryAt)||0,worker.clock()+(Number(error.retryAfter)||0)*1000);
   s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(retryAt,row.id);
  }

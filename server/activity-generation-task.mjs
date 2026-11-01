@@ -5,7 +5,7 @@ import {loopTimer} from './sqlite-observability.mjs';
 // One logical writer delegates only its atomic generation work. Network reads,
 // request admission and their shared quotas remain in the API process.
 export async function activityGenerationTask(store,operation,{generation,signal,createWorker=(url,options)=>new Worker(url,options)}={}) {
-  if(!['begin','publish','topics'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
+  if(!['begin','publish','topics','stories'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
   signal?.throwIfAborted();
   if(store.db.isTransaction||store.generationTaskActive)throw new Error('An activity generation operation is already active.');
   store.assertWriter();store.generationTaskActive=true;
@@ -16,7 +16,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     signal?.throwIfAborted();
     value=await new Promise((resolve,reject)=>{
       let thread,result,failure,complete=false;
-      try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{...(step==='topics'?{resourceLimits:{maxOldGenerationSizeMb:32,maxYoungGenerationSizeMb:2}}:{}),workerData:{directory:path.dirname(store.filename),owner:store.owner,operation:step,generation}});}
+      try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{...(['topics','stories'].includes(step)?{resourceLimits:{maxOldGenerationSizeMb:32,maxYoungGenerationSizeMb:2}}:{}),workerData:{directory:path.dirname(store.filename),owner:store.owner,operation:step,generation}});}
       catch(error){reject(error);return;}
       const abort=()=>{failure=signal.reason||new Error('Activity generation operation aborted.');void thread.terminate();};
       thread.on('message',message=>{

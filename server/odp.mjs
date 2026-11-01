@@ -154,8 +154,10 @@ export function odpLanguage(value) {
     );
   return value;
 }
-export async function boundedUpstream(operation, {source='odp',priority='interactive',signal=priority==='background'?undefined:requestSignal()}={}) {
-  return sourceQueue(source).run(operation,{priority,signal});
+export async function boundedUpstream(operation, {source='odp',priority='interactive',signal=priority==='background'?undefined:requestSignal(),backgroundRank=0}={}) {
+  const queue=sourceQueue(source);
+  if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
+  return queue.run(operation,{priority,signal,backgroundRank});
 }
 export function backoffUpstream(seconds,{source='odp'}={}) {
   sourceQueue(source).backoff(seconds);

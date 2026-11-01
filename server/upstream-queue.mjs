@@ -32,8 +32,8 @@ export class UpstreamQueue {
     });
   }
   acquire(priority='interactive',options={}) {return this.enqueue(priority,options);}
-  run(operation,{priority='interactive',signal}={}) {
-    return this.enqueue(priority,{signal},(release,resolve,reject)=>{
+  run(operation,{priority='interactive',signal,backgroundRank=0}={}) {
+    return this.enqueue(priority,{signal,backgroundRank},(release,resolve,reject)=>{
       // Invoke synchronously on admission: queued/cancelled jobs never consume starts.
       try{Promise.resolve(operation(signal)).then(resolve,reject).finally(release);}
       catch(error){release();reject(error);}
@@ -61,11 +61,11 @@ export class UpstreamQueue {
     }
     this.drain();
   }
-  enqueue(priority,{signal,owner,backgroundOwner=priority==='background',yieldBackground}={},start=(release,resolve)=>resolve(release)) {
+  enqueue(priority,{signal,owner,backgroundOwner=priority==='background',yieldBackground,backgroundRank=0}={},start=(release,resolve)=>resolve(release)) {
     return new Promise((resolve,reject)=>{
       if(signal?.aborted){reject(signal.reason);return;}
       if(!backgroundOwner&&priority!=='background'&&this.cooldownUntil>Date.now()){reject(this.unavailable());return;}
-      const waiter={priority,owner,backgroundOwner,yieldBackground,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
+      const waiter={priority,owner,backgroundOwner,yieldBackground,backgroundRank,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
       const abort=()=>{
         const index=this.waiters.indexOf(waiter);if(index<0)return;
         this.waiters.splice(index,1);clearTimeout(waiter.timer);waiter.cleanup();reject(signal.reason);this.drain();
@@ -127,7 +127,7 @@ export class UpstreamQueue {
     // connection to a second durable background job.
     const eligible=w=>!w.backgroundOwner||this.background<this.backgroundMaximum;
     let i=this.waiters.findIndex(w=>w.priority!=='background'&&eligible(w));
-    if(i<0)i=this.waiters.findIndex(w=>w.priority==='background'&&eligible(w));
+    if(i<0){let rank=Infinity;for(let j=0;j<this.waiters.length;j++){const w=this.waiters[j];if(w.priority==='background'&&eligible(w)&&w.backgroundRank<rank){i=j;rank=w.backgroundRank;}}}
     if(i<0)return;
     const delay=this.readyAt(this.waiters[i].priority)-Date.now();
     if(delay>0){this.timer=setTimeout(()=>this.drain(),Math.min(delay,2**31-1));return;}
