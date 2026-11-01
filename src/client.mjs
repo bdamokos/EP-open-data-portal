@@ -123,7 +123,8 @@ export function createDataClient(load, { maxEntries = 60, maxAge = 30_000, maxAg
         if (entry.invalidated) return entry.replacement.promise;
         if (entry.abandoned) throw controller.signal.reason;
         const followups=route.startsWith('commission-followups/');
-        const clean=!followups||(!data.gaps?.length&&!data.sources?.some(source=>source.stale||source.refreshInProgress||source.refreshError));
+        const unavailableSpeech=/^(speeches|speech-statistics)\//.test(route)&&(data.status==='unavailable'||data.coverage?.issues?.includes('source-unavailable'));
+        const clean=!unavailableSpeech&&(!followups||(!data.gaps?.length&&!data.sources?.some(source=>source.stale||source.refreshInProgress||source.refreshError)));
         cache.delete(route);
         if(clean)cache.set(route, { data, at: Date.now() });
         while (cache.size > maxEntries) cache.delete(cache.keys().next().value);

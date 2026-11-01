@@ -60,7 +60,7 @@ test('member-votes HTTP contract retains actual positions, bounded snapshot pagi
   const firstResponse=await fetch(route+'?'+period+'&lang=hu&limit=1&decision='+sittingId+'-DEC-197457');
   assert.equal(firstResponse.status,200);
   const first=await firstResponse.json();
-  assert.equal(first.version,10);
+  assert.equal(first.version,11);
   assert.deepEqual(first.member,{id:'197591',uri:'https://data.europarl.europa.eu/person/197591',mandateStatus:'not-assessed',historicalGroupStatus:'not-collected'});
   assert.deepEqual(first.period,{kind:'sitting',week:null,sittingId,from:'2026-10-07',to:'2026-10-07'});
   assert.match(first.snapshotId,/^[a-f0-9]{64}$/);

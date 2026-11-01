@@ -92,14 +92,14 @@ test('status counts documents once and reflects variant, task and character chan
     const first=s.corpus.status();
     assert.deepEqual(first.documents.speech,{discovered:1,withText:1});
     assert.deepEqual(first.documents.question,{discovered:1,withText:0});
-    assert.deepEqual(first.tasks.docx,{total:2,done:1,retrying:1});
+    assert.deepEqual(first.tasks.docx,{total:2,done:1,retrying:1,sourceIssues:0,satisfiedByAlternative:0});
     assert.equal(first.texts.find(text=>text.language==='en').characters,'🌊 Ocean'.length);
     assert.equal(first.lastError.key,'retry');
     put('en','Longer ocean policy');s.corpus.finishTask(s.corpus.task('retry'));
     const updated=s.corpus.status();
     assert.equal(updated.texts.find(text=>text.language==='en').characters,'Longer ocean policy'.length);
     assert.equal(updated.lastError,null);
-    assert.deepEqual(updated.tasks.docx,{total:2,done:2,retrying:0});
+    assert.deepEqual(updated.tasks.docx,{total:2,done:2,retrying:0,sourceIssues:0,satisfiedByAlternative:0});
     s.corpus.db.prepare('DELETE FROM documents WHERE source_id=?').run(id);
     const deleted=s.corpus.status();
     assert.deepEqual(deleted.documents.speech,{discovered:0,withText:0});

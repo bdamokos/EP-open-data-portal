@@ -13,7 +13,7 @@ function selectedTitle(titles,language,fallback) {
 }
 export function savedItemPreview(store,generation,row,language) {
   const body=JSON.parse(row.body);
-  const question=body.recordKind==='answer'&&body.relatedQuestionId?store.source(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
+  const question=body.recordKind==='answer'&&body.relatedQuestionId?store.sourceMetadata(generation,'/parliamentary-questions/'+body.relatedQuestionId)?.work:null;
   const titles=sourceTitles(question?.title_dcterms||body.relatedQuestionTitles||body.titles);
   return {id:row.source_id,date:row.date,...selectedTitle(titles,language,body.reference||row.source_id),recordKind:body.recordKind,...(body.relatedQuestionId?{relatedQuestionId:body.relatedQuestionId}:{})};
 }
@@ -29,7 +29,7 @@ function savedSnapshot(store,query) {
   const status=store.status(),generation=status.servingGeneration;
   if(!generation)throw new HttpError(503,'insights_loading','Saved Parliament data is not ready.');
   const questions=query.questions.map(id=>{
-    const source=store.source(generation,'/parliamentary-questions/'+id);if(!source)return {id,status:'not-saved'};
+    const source=store.sourceMetadata(generation,'/parliamentary-questions/'+id);if(!source)return {id,status:'not-saved'};
     const q=questionFromSource({...source,key:'/parliamentary-questions/'+id});if(!q)return {id,status:'not-saved'};
     const answers=q.answers.map(a=>({id:a.id,date:a.date})).sort((a,b)=>a.id.localeCompare(b.id));
     const files=work=>documentFiles(work).map(file=>[file.language,file.format,file.url,file.byteSize??null]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));

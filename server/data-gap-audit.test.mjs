@@ -79,7 +79,7 @@ test('exact-URL audit distinguishes missing ownership, queued work, empty comple
     const before=await Promise.all([readFile(indexFile),readFile(corpusFile)]);
     const report=reconcileQuestionFiles(indexFile,corpusFile,{now:1000});
     assert.equal(report.state,'observed');
-    assert.deepEqual(report.counts,{retained:1,queued:1,retryingLater:1,unowned:1,completedWithoutText:1,excludedByPolicy:1});
+    assert.deepEqual(report.counts,{retained:1,queued:1,retryingLater:1,unowned:1,completedWithoutText:1,excludedByPolicy:1,permanentSourceIssue:0,satisfiedByAlternative:0});
     assert.deepEqual(report.examples.map(row=>row.state).sort(),['completedWithoutText','unowned']);
     assert.deepEqual(await Promise.all([readFile(indexFile),readFile(corpusFile)]),before);
     const missing=path.join(dir,'absent.sqlite');

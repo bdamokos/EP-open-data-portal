@@ -93,20 +93,20 @@ test('reader preserves working DOCX and does not bypass quota, transport or unch
 function corpusFixture(t){const directory=fixture(t),store=new CorpusStore(directory,{clock:now});assert.equal(store.acquire(),true);t.after(()=>{if(store.db.isOpen)store.close();});return {directory,store};}
 function job(store,item){const file=questionFiles(item)[0],key='docx:'+file.url;store.enqueue(key,'docx',file,50);return store.task(key);}
 
-test('ordinary DOCX owner retains independent PDF without completing or shortening the failed owner',async t=>{
+test('ordinary DOCX owner settles as satisfied by alternative and retains its failure',async t=>{
  const {store}=corpusFixture(t),item=work(),task=job(store,item);let pdfs=0;
  const worker=new CorpusWorker(store,{clock:now,runUpstream:fn=>fn(worker.controller.signal),download:async()=>{throw invalidDocx(Error('Invalid DOCX archive'));},downloadPdf:async()=>{pdfs++;return {paragraphs:['Searchable PDF answer'],sourceHash:'a'.repeat(64),observedByteSize:200};}});
- await assert.rejects(worker.task(task),/Invalid DOCX/);store.failTask(task,invalidDocx(Error('Invalid DOCX archive')));
+ await worker.task(task);
  const failed=store.task(task.key),record=store.text({sourceId:item.identifier,sourceKey:'en'});
- assert.equal(failed.done,0);assert.equal(failed.attempts,1);assert.equal(failed.retry_at,now()+60000);assert.equal(record.sourceFormat,'pdf');assert.equal(record.sourceUrl,task.body.pdf.url);assert.equal(record.sourceVersion.observedByteSize,200);assert.equal(store.search({query:'searchable'}).total,1);
- await assert.rejects(worker.task(failed),/Invalid DOCX/);assert.equal(pdfs,1,'the identical retained PDF is not downloaded again');
+ assert.equal(failed.done,1);assert.equal(failed.attempts,1);assert.equal(store.db.prepare('SELECT state FROM source_failures WHERE key=?').get(task.key).state,'satisfied-by-alternative');assert.equal(record.sourceFormat,'pdf');assert.equal(record.sourceUrl,task.body.pdf.url);assert.equal(record.sourceVersion.observedByteSize,200);assert.equal(store.search({query:'searchable'}).total,1);
+ await worker.task(failed);assert.equal(pdfs,1,'the identical retained PDF is not downloaded again');
 });
 
 test('failed PDF alternatives retain the DOCX failure and honor every observed Retry-After',async t=>{
  for(const [message,extra] of [['No readable PDF',{}],['PDF reference mismatch',{}],['PDF rate limit',{status:429,retryAfter:3600}],['PDF unavailable',{status:503,retryAfter:120}]]) {
   const {store}=corpusFixture(t),task=job(store,work()),pdfError=Object.assign(Error(message),extra);let failure;
   const worker=new CorpusWorker(store,{clock:now,runUpstream:fn=>fn(worker.controller.signal),download:async()=>{throw invalidDocx(Error('Invalid DOCX archive'));},downloadPdf:async()=>{throw pdfError;}});
-  await assert.rejects(worker.task(task),error=>{failure=error;assert.equal(error.code,'invalid_docx');assert.match(error.message,/Invalid DOCX archive/);assert.ok(error.message.includes(message));return true;});
+  await assert.rejects(worker.task(task),error=>{failure=error;assert.equal(error.code,extra.code);assert.match(error.message,/Invalid DOCX archive/);assert.ok(error.message.includes(message));return true;});
   store.failTask(task,failure);const failed=store.task(task.key);
   assert.equal(failed.done,0);assert.equal(failed.attempts,1);assert.equal(failed.retry_at,now()+Math.max(60,extra.retryAfter||0)*1000);assert.match(failed.error,/Invalid DOCX archive/);assert.ok(failed.error.includes(message));
  }
@@ -119,7 +119,7 @@ test('a failed deferred PDF step preserves its DOCX owner and the PDF cooldown',
  await assert.rejects(first.task(task),error=>{failure=error;return error.code==='invalid_docx';});store.failTask(task,failure);
  const retry=store.task(task.key);store.clock=()=>retry.retry_at;
  const second=new CorpusWorker(store,{...options,clock:store.clock,downloadPdf:async()=>{throw Object.assign(Error('PDF rate limited'),{status:429,retryAfter:3600});}});second.dispatches=1;
- await assert.rejects(second.task(retry),error=>{failure=error;assert.equal(error.code,'invalid_docx');assert.match(error.message,/Original DOCX invalid/);assert.match(error.message,/PDF rate limited/);return true;});
+ await assert.rejects(second.task(retry),error=>{failure=error;assert.equal(error.status,429);assert.match(error.message,/Original DOCX invalid/);assert.match(error.message,/PDF rate limited/);return true;});
  store.failTask(retry,failure);const failed=store.task(task.key);
  assert.equal(failed.done,0);assert.equal(failed.attempts,2);assert.equal(failed.retry_at,retry.retry_at+3600000);assert.equal(failed.body.pdfPending,undefined);assert.equal(words,1);
 });
@@ -146,7 +146,7 @@ test('PDF fallback respects the existing per-iteration request allowance and nev
  const worker=new CorpusWorker(store,{clock:now,runUpstream:fn=>fn(worker.controller.signal),download:async()=>{throw invalidDocx(Error('Invalid DOCX'));},downloadPdf:async()=>{pdfs++;return {paragraphs:['PDF']};}});
  worker.dispatches=worker.budget;await assert.rejects(worker.task(task),/Invalid DOCX/);assert.equal(pdfs,0);
  worker.dispatches=0;store.putDocument({sourceId:item.identifier,kind:'question'},[{sourceKey:'en',language:'en',translationType:'original',sourceFormat:'docx',sourceUrl:task.body.url,fetchedAt:new Date(now()).toISOString(),body:'Retained Word text',raw:null}]);
- await assert.rejects(worker.task(task),/Invalid DOCX/);assert.equal(pdfs,0);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).body,'Retained Word text');
+ await worker.task(task);assert.equal(pdfs,0);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).body,'Retained Word text');
 });
 
 test('stopped-app PDF migration preserves row IDs, raw bytes, FTS results and future task clocks',t=>{
@@ -203,8 +203,8 @@ test('a one-request worker resumes PDF fallback at its unchanged natural retry',
  await assert.rejects(first.task(task),/Invalid DOCX/);store.failTask(task,invalidDocx(Error('Invalid DOCX')));
  const retry=store.task(task.key);assert.ok(retry.body.pdfPending);assert.equal(retry.retry_at,now()+60000);assert.equal(pdfs,0);
  const second=new CorpusWorker(store,{...options,clock:()=>retry.retry_at});second.dispatches=1;
- await assert.rejects(second.task(retry),/Invalid DOCX/);assert.equal(pdfs,1);assert.equal(words,1,'the retry slot performs only its saved PDF step');
- assert.equal(store.task(task.key).retry_at,retry.retry_at);assert.equal(store.task(task.key).done,0);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).sourceFormat,'pdf');
+ await second.task(retry);assert.equal(pdfs,1);assert.equal(words,1,'the retry slot performs only its saved PDF step');
+ assert.equal(store.task(task.key).retry_at,retry.retry_at);assert.equal(store.task(task.key).done,1);assert.equal(store.text({sourceId:item.identifier,sourceKey:'en'}).sourceFormat,'pdf');
 });
 
 test('preparation refuses a live writer before changing PDF schema or task state',t=>{

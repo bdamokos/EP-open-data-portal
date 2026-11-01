@@ -329,7 +329,7 @@ export interface JoinedActivityPage {
   nextOffset: number | null;
   total: number | null;
   indexedTotal: number;
-  cache: { complete:boolean; stale:boolean; lastSuccessfulRefresh:string|null; lastError:string|null; phase:string; currentMeps:number };
+  cache: { complete:boolean; stale:boolean; lastSuccessfulRefresh:string|null; lastError:string|null; phase:string };
 }
 export interface ActivityIndexStatus {
   enabled: boolean;

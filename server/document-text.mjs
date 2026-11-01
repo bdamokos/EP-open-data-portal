@@ -378,18 +378,22 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
     if(limited){response.resume();throw limited;}
     if([301,302,303,307,308].includes(response.statusCode)){const target=response.headers.location;response.resume();if(!target)throw new Error('Invalid document redirect.');url=new URL(target,url).href;continue;}
     if(response.statusCode!==200){response.resume();const hint=response.headers['retry-after'];throw Object.assign(new Error(`Official document download unavailable (${response.statusCode}).`),{status:response.statusCode,retryAfter:hint?retryAfterSeconds(hint):0});}
-    if(!/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '')){response.destroy();throw Object.assign(new Error('Unexpected document download format.'),{code:'unexpected_document_format'});}
+    const expectedFormat=/(?:officedocument.wordprocessingml|octet-stream)/i.test(response.headers['content-type'] || '');
     const chunks=[];let size=0;
     for await(const chunk of response){size+=chunk.length;if(size>MAX_FILE){response.destroy();throw new Error('Official document exceeds 8 MiB.');}chunks.push(chunk);}
     if(Number.isSafeInteger(expectedByteSize)&&expectedByteSize>=0&&size!==expectedByteSize)throw new Error('Official document size does not match the selected edition.');
-    return {buffer:Buffer.concat(chunks),resolvedSourceUrl:url,fetchedAt:new Date().toISOString(),requests};
+    const buffer=Buffer.concat(chunks);
+    if(!expectedFormat)throw Object.assign(new Error('Unexpected document download format.'),{code:'unexpected_document_format',sourceHash:createHash('sha256').update(buffer).digest('hex')});
+    return {buffer,resolvedSourceUrl:url,fetchedAt:new Date().toISOString(),requests};
   }
   throw new Error('Too many document download redirects.');
 }
 export async function downloadDocx(sourceUrl,options={}) {
   const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
+  const sourceHash=createHash('sha256').update(buffer).digest('hex');
+  if(sourceHash===options?.rejectedHash)throw Object.assign(invalidDocx(Error('Unchanged rejected DOCX bytes.')),{sourceHash});
   try{return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};}
-  catch(error){throw invalidDocx(error);}
+  catch(error){throw Object.assign(invalidDocx(error),{sourceHash:createHash('sha256').update(buffer).digest('hex')});}
 }
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);

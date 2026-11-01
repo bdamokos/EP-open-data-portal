@@ -1,3 +1,6 @@
+import https from 'node:https';
+import {Readable} from 'node:stream';
+import {EventEmitter} from 'node:events';
 import {unthrottledUpstream} from './test-support/upstream.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -1492,4 +1495,40 @@ test('the occasional settled detail check detects a same-URL issue change after 
   assert.equal(nextAmendmentTask(other,generation).kind,'amendment-extract');
   await successor.task(nextAmendmentTask(other,generation));assert.equal(downloads,1);
   assert.equal(amendmentsPage(other,{document:targetId}).items[0].sourceFreshness.status,'fresh');
+});
+
+
+test('classified amendment rejections require three identical archives spanning a day',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.reverify({...descriptor,url:newUrl});
+  const task=nextAmendmentTask(store,generation);
+  for(let i=0;i<3;i++) {
+    const settled=failAmendmentTask(worker,Object.assign(task,{attempts:i}),Object.assign(Error('Invalid DOCX archive'),{code:'invalid_docx',sourceHash:'a'.repeat(64)}));
+    assert.equal(settled,i===2);
+    if(i<2)context.advance(12*3600000);
+  }
+  const failure=store.source(generation,listKey).work.wordingRefreshFailure;
+  assert.equal(failure.state,'permanent-source-issue');assert.equal(failure.contentHash,'a'.repeat(64));assert.equal(failure.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert.equal(Date.parse(failure.retryAfter),store.clock()+30*86400000);
+});
+
+for(const mode of ['two 503s then maintenance HTML','three different archives','three immediate identical archives'])test(mode+' remains retryable for amendments',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.reverify({...descriptor,url:newUrl,byteSize:null});
+  const task=nextAmendmentTask(store,generation);
+  for(let i=0;i<3;i++) {
+    let error;
+    if(mode==='two 503s then maintenance HTML'&&i<2)error=Object.assign(Error('unavailable'),{status:503});
+    else if(mode==='two 503s then maintenance HTML') {
+      const {downloadDocx}=await import('./document-text.mjs');
+      const mock=t.mock.method(https,'get',(_url,_options,callback)=>{queueMicrotask(()=>callback(Object.assign(Readable.from([Buffer.from('<html>Maintenance</html>')]),{statusCode:200,headers:{'content-type':'text/html'}})));return new EventEmitter();});
+      try {await downloadDocx(newUrl);assert.fail('Expected maintenance rejection');}catch(caught){error=caught;}finally{mock.mock.restore();}
+      assert.equal(error.code,'unexpected_document_format');
+    } else error=Object.assign(Error('bad archive'),{code:'invalid_docx',sourceHash:(mode==='three different archives'?['a','b','c'][i]:'a').repeat(64)});
+    failAmendmentTask(worker,Object.assign(task,{attempts:i}),error);
+    if(i<2)context.advance(mode==='three different archives'?86400000:10*60000);
+  }
+  const failure=store.source(generation,listKey).work.wordingRefreshFailure;
+  assert.equal(failure.state,'transient');assert.equal(Date.parse(failure.retryAfter),store.clock()+86400000);
+  assert.equal(failure.rejectedSource.count,mode==='three immediate identical archives'?3:1);
 });
