@@ -109,8 +109,16 @@ export function resolveProposalCandidates(data,{celex}={}) {
   proposalCelex(celex);const rows=data?.results?.bindings;
   const evidence=[{kind:'com-candidates',celex,rows:Array.isArray(rows)?rows.map(row=>({workId:row.work?.value??null,celex:row.celex?.value??null,version:row.version?.value??null})):[]}];
   if(!Array.isArray(rows)||rows.length>=65)return unresolved('unresolved',['proposal-candidates-incomplete'],evidence,{celex});
-  const works=unique(rows.map(row=>row.work?.value));
+  // COM-number discovery also returns corrigenda. An explicitly identified
+  // corrected edition is not a competing original proposal. Exclude only a
+  // separate work with this exact base CELEX's R(nn) and revised final version;
+  // unknown identities and conflicting rows still pass through the guard.
+  const originals=new Set(rows.filter(row=>row.celex?.value===celex).map(row=>row.work?.value));
+  const excluded=rows.filter(row=>!originals.has(row.work?.value)&&CELLAR_WORK_PATTERN.test(row.work?.value)&&new RegExp('^'+celex+'R\\([0-9]{2}\\)$').test(row.celex?.value)&&/^final\/(?:[2-9]|[1-9]\d+)$/u.test(row.version?.value));
+  const selected=rows.filter(row=>!excluded.includes(row));
+  if(excluded.length)evidence.push({kind:'com-corrigenda-excluded',celex,rows:excluded.map(row=>({workId:row.work.value,celex:row.celex.value,version:row.version.value}))});
+  const works=unique(selected.map(row=>row.work?.value));
   if(works.length!==1||!CELLAR_WORK_PATTERN.test(works[0]))return unresolved('unresolved',[works.length?'ambiguous-com-candidates':'proposal-work-missing'],evidence,{celex});
-  if(rows.some(row=>row.celex?.value!==celex||row.version?.value!=='final'))return unresolved('unresolved',['proposal-version-unresolved'],evidence,{celex});
+  if(selected.some(row=>row.celex?.value!==celex||row.version?.value!=='final'))return unresolved('unresolved',['proposal-version-unresolved'],evidence,{celex});
   return {status:'resolved',celex,workId:works[0],gaps:[],evidence};
 }

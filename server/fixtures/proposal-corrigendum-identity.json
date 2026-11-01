@@ -1,0 +1,139 @@
+{
+  "candidates": {
+    "source": {
+      "url": "https://publications.europa.eu/webapi/rdf/sparql?query=PREFIX+cdm%3A%3Chttp%3A%2F%2Fpublications.europa.eu%2Fontology%2Fcdm%23%3E%0APREFIX+xsd%3A%3Chttp%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%23%3E%0ASELECT+DISTINCT+%3Fwork+%3Fcelex+%3Fversion+WHERE+%7B%0A+%7B+%3Fwork+cdm%3Aresource_legal_id_celex+%2252025PC0990%22%5E%5Exsd%3Astring+%7D%0A+UNION+%7B+%3Fwork+cdm%3Aresource_legal_internal_number_prefix+%3Fprefix%3B+cdm%3Aresource_legal_internal_number_year+%3Fyear%3B+cdm%3Aresource_legal_internal_number_sequential_number+%3Fnumber.%0A+FILTER%28str%28%3Fprefix%29%3D%22COM%22+%26%26+str%28%3Fyear%29%3D%222025%22+%26%26+str%28%3Fnumber%29%3D%22990%22%29+%7D%0A+FILTER%28regex%28str%28%3Fwork%29%2C%22%5Ehttp%3A%2F%2Fpublications%5B.%5Deuropa%5B.%5Deu%2Fresource%2Fcellar%2F%5Ba-f0-9-%5D%7B36%7D%24%22%29%29%0A+OPTIONAL+%7B+%3Fwork+cdm%3Aresource_legal_id_celex+%3Fcelex+%7D%0A+OPTIONAL+%7B+%3Fwork+cdm%3Awork_version+%3Fversion+%7D%0A%7D+LIMIT+65&format=application%2Fsparql-results%2Bjson",
+      "fetchedAt": "2026-10-27T16:58:32.888Z",
+      "sha256": "0807eb7778686207e6af5b6663abc083797ed3b1e81d8af95a2252e67a97c4e2"
+    },
+    "data": {
+      "head": {
+        "link": [],
+        "vars": [
+          "work",
+          "celex",
+          "version"
+        ]
+      },
+      "results": {
+        "distinct": false,
+        "ordered": true,
+        "bindings": [
+          {
+            "work": {
+              "type": "uri",
+              "value": "http://publications.europa.eu/resource/cellar/95ee45d7-db37-11f0-8da2-01aa75ed71a1"
+            },
+            "celex": {
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#string",
+              "value": "52025PC0990"
+            },
+            "version": {
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#string",
+              "value": "final"
+            }
+          },
+          {
+            "work": {
+              "type": "uri",
+              "value": "http://publications.europa.eu/resource/cellar/bac726f5-2150-11f1-8c3a-01aa75ed71a1"
+            },
+            "celex": {
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#string",
+              "value": "52025PC0990R(01)"
+            },
+            "version": {
+              "type": "literal",
+              "datatype": "http://www.w3.org/2001/XMLSchema#string",
+              "value": "final/2"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "reports": [
+    {
+      "reportId": "A-10-2026-0202",
+      "metadata": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2026-0202?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-27T16:58:27.532Z",
+        "sha256": "90e6321a7f9f6ebb9fdc606b63052bd9f0fa973ffe2ad131a537f8b25adc2240"
+      },
+      "report": {
+        "id": "eli/dl/doc/A-10-2026-0202",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2025-0418"
+        ],
+        "is_realized_by": [
+          {
+            "title_alternative": {
+              "en": "REPORT - on the proposal for a regulation of the European Parliament and of the Council establishing the Temporary Decarbonisation Fund - (COM(2025)0990 - C10-0353/2025 - 2025/0418(COD)) - Committee on the Environment, Climate and Food Safety - Rapporteur: Pascal Canfin"
+            }
+          }
+        ]
+      },
+      "nativeSources": [
+        {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0202/A-10-2026-0202_en.docx",
+          "fetchedAt": "2026-10-27T16:58:32.136Z",
+          "sha256": "9e8e55c5c9e46797e6e4f48ec3dde0bf6d984d3d5127318487351a3031456589",
+          "nativeReferences": [
+            "<DocRef>(COM(2025)0990 – C100353/2025 – 2025/0418(COD))</DocRef>"
+          ]
+        },
+        {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0202-AM-001-082/A-10-2026-0202-AM-001-082_en.docx",
+          "fetchedAt": "2026-10-27T00:43:43.129Z",
+          "sha256": "face5e26b0d38f6c68d8fc8dd38ea711ccd521fc54370a38179830e5a67e83c1",
+          "nativeReferences": [
+            "<Procedure>Proposal for a regulation</Procedure> <ReferenceNo>(COM(2025)0990 – C10-0353/2025 – 2025/0418(COD))</ReferenceNo>"
+          ]
+        }
+      ]
+    },
+    {
+      "reportId": "A-10-2026-0260",
+      "metadata": {
+        "url": "https://data.europarl.europa.eu/api/v2/plenary-documents/A-10-2026-0260?format=application%2Fld%2Bjson",
+        "fetchedAt": "2026-10-27T17:02:11.094Z",
+        "sha256": "55ff2cd50f9b15014c1821a7153f3832ab518e2e88e0e07baa484760d0b939e0"
+      },
+      "report": {
+        "id": "eli/dl/doc/A-10-2026-0260",
+        "work_type": "def/ep-document-types/REPORT_PLENARY",
+        "inverse_created_a_realization_of": [
+          "eli/dl/proc/2026-0137"
+        ],
+        "is_realized_by": [
+          {
+            "title_alternative": {
+              "en": "REPORT - on the proposal for a Council decision on guidelines for the employment policies of the Member States - (COM(2026)0510 - C10-0153/2026 - 2026/0137(NLE)) - Committee on Employment and Social Affairs - Rapporteur: Li Andersson"
+            }
+          }
+        ]
+      },
+      "nativeSources": [
+        {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2026-0260-AM-001-033/A-10-2026-0260-AM-001-033_en.docx",
+          "fetchedAt": "2026-10-27T00:45:58.158Z",
+          "sha256": "ebc2832ad8733b6c2d08f4c34fb7a625b1c5b9347a64389bafd372a5b234bd69",
+          "nativeReferences": [
+            "<Procedure>Proposal for a decision</Procedure> <ReferenceNo>(COM(2026)0510 – C10-0153/2026 – 2026/0137(NLE))</ReferenceNo>"
+          ]
+        },
+        {
+          "url": "https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp/A-10-2026-0260/A-10-2026-0260_en.docx",
+          "fetchedAt": "2026-10-27T17:02:13.793Z",
+          "sha256": "042b0d903d996353d9db78826d088a309ed27ece29529bbcea246615c992ce15",
+          "nativeReferences": [
+            "<DocRef>(COM(2026)0510 – C100153/2026 – 2026/0137(NLE))</DocRef>"
+          ]
+        }
+      ]
+    }
+  ]
+}
