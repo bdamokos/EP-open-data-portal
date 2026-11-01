@@ -66,7 +66,7 @@ function mergeAmendmentEvidence(priorWork,fresh) {
   const {results:_results,resultsUrl:_resultsUrl,resultsFetchedAt:_resultsFetchedAt,...evidence}=fresh;
   return {...evidence,decisions:decisions.slice(-5000),splitRequests:keptRequests.map(([,node])=>node),parsedSplits:[...parsed].filter(([key])=>keptKeys.has(key)).map(([,node])=>node),retainedEvidence:retained||capped,splitProjectionTruncated:Boolean(fresh.splitProjectionTruncated||capped)};
 }
-const extractionSource=extraction=>extraction?.sourceUrl?{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language,...(extraction.reportId?{reportId:extraction.reportId}:{})}:null;
+const extractionSource=extraction=>extraction?.sourceUrl?{url:extraction.sourceUrl,fetchedAt:extraction.fetchedAt,language:extraction.language,...(/^[a-f0-9]{64}$/.test(extraction.sourceHash||'')?{contentHash:extraction.sourceHash}:{}),...(extraction.reportId?{reportId:extraction.reportId}:{})}:null;
 function publicationEvidence(descriptor,buffer) {
   return {sourceDescriptor:normalizedDocxDescriptor(descriptor),sourceHash:createHash('sha256').update(buffer).digest('hex')};
 }
@@ -110,7 +110,9 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
   const prior=worker.store.source(generation,sourceKey(candidate.id)),files=documentFiles(list);
   const distributionEvidence=distributionEvidenceFor(list,{url:evidence.url,fetchedAt:evidence.fetchedAt,language:null});
   const reportWording=reportWordingEvidence(worker,generation,target,list,distributionEvidence);
-  const descriptor=currentDocxDescriptor({distributionEvidence,targetDocumentId:target,reportWording});
+  const root=worker.store.source(generation,targetKey(target));
+  const pairingDistributionEvidence=root?distributionEvidenceFor(root.work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(target)+'?format=application%2Fld%2Bjson',fetchedAt:root.fetchedAt,language:null}):null;
+  const descriptor=currentDocxDescriptor({distributionEvidence,pairingDistributionEvidence,targetDocumentId:target,reportWording});
   const unchanged=descriptor&&samePublishedDescriptor(descriptor,currentDocxDescriptor(prior?.work));
   const confirmedAt=reportWording?reportWording.distributionEvidence.source?.fetchedAt:evidence.fetchedAt;
   const lastConfirmedAt=unchanged&&Date.parse(confirmedAt)>(Date.parse(prior?.work.lastConfirmedAt) || -Infinity)?confirmedAt:prior?.work.lastConfirmedAt ?? null;
@@ -118,7 +120,7 @@ function saveVerifiedList(worker,generation,target,candidate,list,evidence,{pars
   // Expanded parent metadata must not postpone the occasional exact check.
   const metadataCheckedAt=evidence.basis==='list-detail'?evidence.fetchedAt:prior?.work.metadataCheckedAt || prior?.work.relationshipEvidence?.fetchedAt || evidence.fetchedAt;
   const parserMetadataObservation=parserUpgrade&&distributionEvidence.state!=='available'?{parserVersion:AMENDMENT_EXTRACTION_VERSION,fingerprint:distributionFingerprint(distributionEvidence),retryAt:distributionEvidence.state==='unavailable'?worker.clock()+DAY:null}:null;
-  const projected={...projectDocument(list),targetDocumentId:target,files,distributionEvidence,...(reportWording?{reportWording}:{}),lastConfirmedAt,metadataCheckedAt,...(prior?.work.sourceRetentionRetryAt?{sourceRetentionRetryAt:prior.work.sourceRetentionRetryAt}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})};
+  const projected={...projectDocument(list),targetDocumentId:target,files,distributionEvidence,pairingDistributionEvidence,...(reportWording?{reportWording}:{}),lastConfirmedAt,metadataCheckedAt,...(prior?.work.sourceRetentionRetryAt?{sourceRetentionRetryAt:prior.work.sourceRetentionRetryAt}:{}),...(parserMetadataObservation?{parserMetadataObservation}:{}),relationshipEvidence:{...evidence,targetReference:'eli/dl/doc/'+target,listReference:candidate.reference,fingerprint:candidate.fingerprint},...(prior?.work.authorNames?{authorNames:prior.work.authorNames}:{}),...(prior?.work.extraction?{extraction:proposerDatedExtraction(worker.store,generation,prior.work)}:{}),...(prior?.work.wordingRefreshFailure?{wordingRefreshFailure:prior.work.wordingRefreshFailure}:{})};
   const retainedAt=prior?.fetchedAt || evidence.fetchedAt;
   worker.store.putSource(generation,sourceKey(candidate.id),'amendment-list',projected,retainedAt);
   reconcileAmendmentDocumentGap(worker,generation,candidate.id,{work:projected,fetchedAt:retainedAt});
@@ -144,8 +146,9 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sitt
       // The list's unchanged relationship proof does not freeze its parent
       // report's independently observed distribution metadata.
       const reportWording=reportWordingEvidence(worker,generation,id,prior.work,prior.work.distributionEvidence);
-      if(JSON.stringify(reportWording)!==JSON.stringify(prior.work.reportWording || null)) {
-        const next={...prior.work};delete next.reportWording;
+      const pairingDistributionEvidence=distributionEvidenceFor(work,{url:'https://data.europarl.europa.eu/api/v2'+targetKey(id)+'?format=application%2Fld%2Bjson',fetchedAt,language:null});
+      if(JSON.stringify(reportWording)!==JSON.stringify(prior.work.reportWording || null)||JSON.stringify(pairingDistributionEvidence)!==JSON.stringify(prior.work.pairingDistributionEvidence || null)) {
+        const next={...prior.work,pairingDistributionEvidence};delete next.reportWording;
         if(reportWording) {
           next.reportWording=reportWording;
           const confirmedAt=reportWording.distributionEvidence.source?.fetchedAt;

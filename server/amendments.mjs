@@ -1,9 +1,10 @@
+import {amendmentLanguagePreference} from './language-order.mjs';
 import {committeeListId,committeeDraftId,committeeCode} from './committee-amendments.mjs';
 import { array, tail, procedureIds, documentFiles } from './activity-index-model.mjs';
 import { odpLanguage } from './odp.mjs';
 import { HttpError } from './http-utils.mjs';
 
-export const AMENDMENTS_VERSION = 8;
+export const AMENDMENTS_VERSION = 9;
 export const AMENDMENT_SITTING_PROJECTION_VERSION = 4;
 export const AMENDMENT_OUTCOME_PROOF_VERSION = 3;
 export const AMENDMENT_DISTRIBUTION_PROOF_VERSION = 2;
@@ -60,6 +61,15 @@ export function currentDocxDescriptor(list) {
   if(list?.scope==='committee') {
     const language=descriptors.some(file=>file.language==='en')?'en':descriptors[0]?.language;
     const selected=descriptors.filter(file=>file.language===language);return selected.length===1?selected[0]:null;
+  }
+  const shared=list?.pairingDistributionEvidence;
+  if(shared?.version===AMENDMENT_DISTRIBUTION_PROOF_VERSION&&shared.state==='available') {
+    const languages=array(shared.descriptors).map(file=>file.language);
+    const language=amendmentLanguagePreference(descriptors.map(file=>file.language).filter(code=>languages.includes(code)),'en')[0];
+    if(language) {
+      const selected=descriptors.filter(file=>file.language===language);
+      return selected.length===1?selected[0]:null;
+    }
   }
   return descriptors.find(file=>file.language==='en') || descriptors[0] || null;
 }

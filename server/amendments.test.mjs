@@ -8,7 +8,7 @@ import { deflateRawSync } from 'node:zlib';
 import { ActivityStore } from './activity-index-store.mjs';
 import { ActivityWorker } from './activity-index-worker.mjs';
 import { AMENDMENT_LINKS_VERSION, documentFiles } from './activity-index-model.mjs';
-import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, distributionEvidenceFor, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
+import { AMENDMENTS_VERSION, AMENDMENT_SITTING_PROJECTION_VERSION, AMENDMENT_DISTRIBUTION_PROOF_VERSION, distributionEvidenceFor, currentDocxDescriptor, amendmentLists, amendmentOutcome, amendmentQuery, amendmentReference } from './amendments.mjs';
 import { amendmentFailures, amendmentsPage, enqueueAmendment, nextAmendmentTask, recordSplitResults, saveAmendmentRows } from './amendments-store.mjs';
 import { failAmendmentTask, parseSavedSplits, prepareAmendments, rebuildAmendmentTarget, refreshSittingTargets, scheduleAmendments, scheduleSittingOutcomes } from './amendments-worker.mjs';
 import { SPLIT_PARSER_VERSION, parseSplitRequest } from './amendment-splits.mjs';
@@ -2300,4 +2300,35 @@ test('a fileless published list can read only its exact report comparison block 
   const pending=amendmentsPage(store,{document:targetId}).items;
   for(const item of pending){assert.equal(item.sourceFreshness.status,'pending');assert.equal(item.wordingRetained,true);}
   assert.equal(listDetailJobs(store,generation).filter(job=>!job.done).length,0);
+});
+
+test('normal list collection selects only an attested shared DOCX language and preserves competing editions',()=>{
+  const descriptor=language=>({url:'https://data.europarl.europa.eu/distribution/example/list_'+language+'.docx',language,byteSize:123});
+  const evidence=descriptors=>({version:AMENDMENT_DISTRIBUTION_PROOF_VERSION,state:'available',descriptors});
+  const list={distributionEvidence:evidence(['en','fr','de'].map(descriptor)),pairingDistributionEvidence:evidence(['fr','de'].map(descriptor))};
+  assert.equal(currentDocxDescriptor(list).language,'de');
+  assert.equal(currentDocxDescriptor({...list,pairingDistributionEvidence:evidence([descriptor('en')])}).language,'en');
+  assert.equal(currentDocxDescriptor({...list,distributionEvidence:evidence([...list.distributionEvidence.descriptors,{...descriptor('de'),url:descriptor('de').url.replace('.docx','-rev.docx')}])}),null);
+  assert.equal(currentDocxDescriptor({...list,pairingDistributionEvidence:{state:'unavailable'}}).language,'en');
+  assert.equal(currentDocxDescriptor({...list,scope:'committee'}).language,'en');
+});
+
+test('the ordinary source writer downloads the exact shared-language list counterpart',async t=>{
+  const {store,worker,generation}=setup(t),id=targetId+'-AM-001-001';
+  const expression=(language,url)=>({language,is_embodied_by:[{format:'authority/DOCX',is_exemplified_by:url}]});
+  const english='https://data.europarl.europa.eu/distribution/example/list_en.docx',french=english.replace('_en','_fr');
+  const detail={id:'eli/dl/doc/'+id,identifier:id,work_type:'def/ep-document-types/AMENDMENT_LIST',document_date:tabled,foresees_change_of:[target.id],is_realized_by:[expression('en',english),expression('fr',french)]};
+  store.putSource(generation,'/plenary-documents/'+targetId,'document',{...target,is_realized_by:[expression('fr',french.replace('list_','report_'))],inverse_foresees_change_of:[detail]},fetchedAt);
+  store.putSource(generation,'amendment:roster:'+tabled,'amendment-roster',{members:[],sources:[]},fetchedAt);
+  worker.fetchRecord=async endpoint=>{assert.equal(endpoint,'/documents/'+id);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt,payload:{data:[detail]}};};
+  rebuildAmendmentTarget(worker,generation,targetId);
+  let task=nextAmendmentTask(store,generation);
+  if(task.kind==='amendment-list-detail'){await worker.task(task);task=nextAmendmentTask(store,generation);}
+  assert.equal(task.kind,'amendment-extract');
+  const downloads=[];worker.downloadAmendmentDocx=async url=>{downloads.push(url);return {buffer:comparisonDocx([['Texte original','Texte proposé']],{number:1})};};
+  await worker.task(task);
+  const saved=store.source(generation,'amendment:list:'+id).work;
+  assert.equal(downloads[0],french);assert.equal(saved.extraction.language,'fr');
+  assert.equal(saved.extraction.sourceDescriptor.url,french);assert.match(saved.extraction.sourceHash,/^[a-f0-9]{64}$/);
+  assert.equal(saved.pairingDistributionEvidence.descriptors[0].language,'fr');
 });
