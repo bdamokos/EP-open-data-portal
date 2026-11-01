@@ -19,6 +19,8 @@ test('durable recent-first discovery schedules every language and resumes after 
   const warmer=new OfficialContextWarmer(store,{clock:()=>now});warmer.initialize();warmer.discover();
   assert.equal(store.db.prepare('SELECT count(*) n FROM official_context_jobs').get().n,50*24*3);
   assert.equal(store.db.prepare("SELECT count(*) n FROM official_context_jobs WHERE date='2024-09-01'").get().n,0);
+  const plan=store.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM official_context_jobs INDEXED BY official_context_dispatch WHERE next_check<=? ORDER BY (next_check=0) DESC,date DESC,next_check,kind,value,language LIMIT 1').all(now);
+  assert(!plan.some(row=>/TEMP B-TREE/.test(row.detail)));
   const restarted=new OfficialContextWarmer(store,{clock:()=>now});restarted.initialize();restarted.discover();
   assert.equal(store.db.prepare('SELECT count(*) n FROM official_context_jobs').get().n,55*24*3);
   assert.equal(CONTEXT_LANGUAGES.length,24);

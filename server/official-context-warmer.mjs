@@ -45,6 +45,7 @@ export class OfficialContextWarmer {
     this.store.assertWriter();
     this.store.db.exec(`CREATE TABLE IF NOT EXISTS official_context_jobs(kind TEXT,value TEXT,language TEXT,date TEXT,next_check INTEGER DEFAULT 0,attempts INTEGER DEFAULT 0,PRIMARY KEY(kind,value,language));
       CREATE INDEX IF NOT EXISTS official_context_due ON official_context_jobs(next_check,date DESC);
+      CREATE INDEX IF NOT EXISTS official_context_dispatch ON official_context_jobs((next_check=0) DESC,date DESC,next_check,kind,value,language);
       CREATE INDEX IF NOT EXISTS official_context_source_date ON sources(generation,COALESCE(json_extract(body,'$.document_date'),json_extract(body,'$.activity_date'),'') DESC,key DESC)`);
     this.initialized=true;
   }
@@ -77,7 +78,7 @@ export class OfficialContextWarmer {
   async step(worker) {
     this.initialize();this.store.transaction(()=>this.discover());
     for(const url of drainOfficialHints())try{officialSourceUrl(url);this.enqueue('url',url,'','9999');}catch{/* Reject unsupported hints. */}
-    const job=this.store.db.prepare('SELECT * FROM official_context_jobs WHERE next_check<=? ORDER BY (next_check=0) DESC,date DESC,next_check,kind,value,language LIMIT 1').get(this.clock());
+    const job=this.store.db.prepare('SELECT * FROM official_context_jobs INDEXED BY official_context_dispatch WHERE next_check<=? ORDER BY (next_check=0) DESC,date DESC,next_check,kind,value,language LIMIT 1').get(this.clock());
     if(!job){this.nextAt=this.clock()+60_000;return false;}
     const {kind,value,language,date}=job,options={priority:'background'};
     try {
