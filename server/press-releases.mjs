@@ -1,3 +1,4 @@
+import {sourceMissing,transientSourceDelay,permanentSourceIssue,SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync,mkdirSync} from 'node:fs';
 import path from 'node:path';
@@ -11,7 +12,7 @@ import {PRESS_FEEDS,parsePressFeed,parsePressRelease} from './press-releases-mod
 
 export const PRESS_RELEASES_VERSION=2;
 const HOUR=60*60_000,DAY=24*HOUR;
-export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,maxAttempts:6,listed:5});
+export const PRESS_LIMITS=Object.freeze({pollInterval:DAY,pagesPerRun:6,listed:5});
 const parse=value=>value==null?null:JSON.parse(value);
 const message=error=>String(error?.message||error).slice(0,300);
 const SCHEMA=`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -55,6 +56,11 @@ export class PressStore {
         this.set('linkedMark',this.db.prepare('SELECT MAX(linked_at) AS mark FROM releases').get().mark||0);
       }
     });
+    for(const [name,type] of [['failure_state','TEXT'],['missing_since','INTEGER']])if(!this.db.prepare("PRAGMA table_info('releases')").all().some(column=>column.name===name))this.db.exec(`ALTER TABLE releases ADD COLUMN ${name} ${type}`);
+    if(this.get('retryPolicyVersion')!==1)this.transaction(()=>{
+      this.db.prepare('UPDATE releases SET next_check=? WHERE checked_at IS NULL AND next_check IS NULL AND error IS NOT NULL AND failure_state IS NULL').run(Date.now());
+      this.set('retryPolicyVersion',1);
+    });
     this.ready=true;this.initialized=true;
   }
   get(key){return this.tables()?parse(this.db.prepare('SELECT value FROM meta WHERE key=?').get(key)?.value):null;}
@@ -65,7 +71,7 @@ export class PressStore {
     catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   release(id){const row=this.tables()&&this.db.prepare('SELECT * FROM releases WHERE id=?').get(id);return row?{...row,body:parse(row.body)}:null;}
-  // A newly announced release is read once; a repeated announcement only adds its feed.
+  // A fresh feed observation reopens failed releases, including terminal ones.
   discover(item,{feed,now}) {
     const old=this.release(item.id);
     if(!old) {
@@ -74,21 +80,25 @@ export class PressStore {
       return true;
     }
     if(!old.body.feeds.includes(feed))this.db.prepare('UPDATE releases SET body=? WHERE id=?').run(JSON.stringify({...old.body,feeds:[...old.body.feeds,feed]}),item.id);
+    if(old.error){this.db.prepare('UPDATE releases SET next_check=?,attempts=0,failure_state=NULL,missing_since=NULL,discovered_at=? WHERE id=?').run(now,now,item.id);return true;}
     return false;
   }
   hasDue(now){return this.tables()&&Boolean(this.db.prepare('SELECT 1 FROM releases INDEXED BY release_due WHERE next_check IS NOT NULL AND next_check<=? LIMIT 1').get(now));}
   due(now,limit){return this.tables()?this.db.prepare('SELECT id FROM releases INDEXED BY release_due WHERE next_check IS NOT NULL AND next_check<=? ORDER BY next_check,id LIMIT ?').all(now,limit).map(row=>row.id):[];}
   record(id,body,{now,links}) {
     const linkedAt=links.length?Math.max(now,(this.get('linkedMark')||0)+1):null;
-    this.db.prepare('UPDATE releases SET body=?,checked_at=?,linked_at=COALESCE(linked_at,?),next_check=NULL,attempts=0,error=NULL WHERE id=?').run(JSON.stringify(body),now,linkedAt,id);
+    this.db.prepare('UPDATE releases SET body=?,checked_at=?,linked_at=COALESCE(linked_at,?),next_check=NULL,attempts=0,error=NULL,failure_state=NULL,missing_since=NULL WHERE id=?').run(JSON.stringify(body),now,linkedAt,id);
     if(linkedAt!==null)this.set('linkedMark',linkedAt);
     this.db.prepare('DELETE FROM links WHERE release=?').run(id);
     const insert=this.db.prepare('INSERT OR IGNORE INTO links VALUES (?,?,?,?)');
     for(const link of links)insert.run(link.kind,link.value,id,link.label??null);
   }
   fail(id,error,{now,retryAt}) {
-    const attempts=(this.release(id)?.attempts||0)+1,next=attempts>=PRESS_LIMITS.maxAttempts?null:Math.max(retryAt||0,now+Math.min(DAY,15*60_000*2**(attempts-1)));
-    this.db.prepare('UPDATE releases SET attempts=?,next_check=?,error=? WHERE id=?').run(attempts,next,message(error),id);
+    const old=this.release(id),attempts=(old?.attempts||0)+1;
+    const missingSince=sourceMissing(error)?(old.missing_since??now):null;
+    const permanent=permanentSourceIssue(error)||(sourceMissing(error)&&attempts>1&&now-missingSince>7*DAY);
+    const next=permanent?now+SOURCE_RECHECK_MS:Math.max(retryAt||0,now+Number(error.retryAfter||0)*1000,now+transientSourceDelay(attempts-1,{base:15*60_000,cap:DAY}));
+    this.db.prepare('UPDATE releases SET attempts=?,next_check=?,error=?,failure_state=?,missing_since=? WHERE id=?').run(attempts,next,message(error),permanent?'permanent-source-issue':'transient',missingSince,id);
   }
   // Releases whose own Further information list links this exact procedure, or
   // one of the OEIL summaries or documents its procedure file links.

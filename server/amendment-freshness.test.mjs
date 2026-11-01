@@ -1493,3 +1493,15 @@ test('the occasional settled detail check detects a same-URL issue change after 
   await successor.task(nextAmendmentTask(other,generation));assert.equal(downloads,1);
   assert.equal(amendmentsPage(other,{document:targetId}).items[0].sourceFreshness.status,'fresh');
 });
+
+
+test('classified permanent amendment extraction failures retain monthly descriptor and parser evidence',async t=>{
+  const context=await fixture(t),{store,worker,generation,descriptor}=context;
+  await context.reverify({...descriptor,url:newUrl});
+  const task={...nextAmendmentTask(store,generation),attempts:2};
+  assert(failAmendmentTask(worker,task,Object.assign(Error('Invalid DOCX archive'),{code:'invalid_docx',sourceHash:'abc'})));
+  const failure=store.source(generation,listKey).work.wordingRefreshFailure;
+  assert.equal(failure.state,'permanent-source-issue');assert.equal(failure.contentHash,'abc');assert.equal(failure.parserVersion,AMENDMENT_EXTRACTION_VERSION);
+  assert.equal(Date.parse(failure.retryAfter),store.clock()+30*86400000);
+  assert.equal(extractionJob(store,generation).done,1);
+});

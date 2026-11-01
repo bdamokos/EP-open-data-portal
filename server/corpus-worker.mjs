@@ -36,7 +36,7 @@ const FRAGMENT_LIMIT=2*1024*1024;
 
 function questionPdfFailure(docx,pdf) {
   const message=String(docx.message).slice(0,160)+' PDF alternative: '+String(pdf.message).slice(0,160);
-  return Object.assign(new Error(message,{cause:pdf}),{code:docx.code,status:docx.status,
+  return Object.assign(new Error(message,{cause:pdf}),{code:pdf.code,status:pdf.status,sourceHash:docx.sourceHash,
     retryAfter:Math.max(Number(docx.retryAfter)||0,Number(pdf.retryAfter)||0)});
 }
 
@@ -276,6 +276,7 @@ export class CorpusWorker {
           try {outcome=await this.retainQuestionPdf(task,this.controller.signal,{withinDispatch:true});}
           catch(error) {this.controller.signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(pending.error,error);}
           finally {if(!this.controller.signal.aborted){this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}}
+          if(outcome==='retained'){this.store.settleSourceFailure(task,pending.error,'satisfied-by-alternative');return;}
           if(outcome!=='unavailable')throw Object.assign(new Error(pending.error.message),pending.error);
         } else {this.store.assertWriter();delete body.pdfPending;this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);}
       }
@@ -284,22 +285,20 @@ export class CorpusWorker {
       const signal=this.controller.signal;
       let result;
       try {
-        result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize}),{source:'documents',priority:'background',signal});
-        if(!result.paragraphs?.some(text=>text.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document'});
+        result=await this.runUpstream(admittedSignal=>this.download(body.url,{signal:admittedSignal,expectedByteSize:body.edition?.byteSize,rejectedHash:this.store.db.prepare('SELECT content_hash FROM source_failures WHERE key=?').get(task.key)?.content_hash}),{source:'documents',priority:'background',signal});
+        if(!result.paragraphs?.some(text=>text.trim()))throw Object.assign(new Error('Official document contains no readable text.'),{code:'empty_document',sourceHash:result.sourceHash});
       } catch(error) {
         signal.throwIfAborted();
         if(pdfFallbackEligible(error)) {
           let outcome;
           try {outcome=await this.retainQuestionPdf(task,signal);}
           catch(pdfError) {signal.throwIfAborted();this.store.assertWriter();throw questionPdfFailure(error,pdfError);}
+          if(outcome==='retained'){this.store.settleSourceFailure(task,error,'satisfied-by-alternative');return;}
           if(outcome==='deferred') {
-            this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status}};
+            this.store.assertWriter();body.pdfPending={file:body.pdf,docx:{url:body.url,...documentFileEdition(body.edition)},error:{message:String(error.message).slice(0,250),code:error.code,status:error.status,sourceHash:error.sourceHash}};
             this.store.db.prepare('UPDATE tasks SET body=? WHERE key=? AND done=0').run(JSON.stringify(body),task.key);
           }
         }
-        // A retained PDF is independently useful, but never settles the failed
-        // DOCX owner. Failed alternatives keep that failure context and honor
-        // their own Retry-After through the owner's normal retry policy.
         throw error;
       }
       signal.throwIfAborted();
@@ -325,7 +324,7 @@ export class CorpusWorker {
     await this.pace();signal.throwIfAborted();if(!withinDispatch)this.fallbackRequests++;
     const result=await this.runUpstream(admittedSignal=>this.downloadPdf(file,{signal:admittedSignal}),{source:'documents',priority:'background',signal});
     signal.throwIfAborted();this.store.assertWriter();
-    const text=result.paragraphs.join('\n');if(!text.trim())throw new Error('Official PDF contains no readable text.');
+    const text=result.paragraphs.join('\n');if(!text.trim())throw Object.assign(new Error('Official PDF contains no readable text.'),{code:'empty_document'});
     this.store.putDocument({sourceId:body.sourceId,kind:body.kind,parentId:body.parentId,date:body.date,term:10,originalLanguages:body.originalLanguages},
       [{sourceKey:body.language,language:body.language,translationType:body.translationType,sourceFormat:'pdf',sourceUrl:file.url,
         sourceEdition:{...edition,observedByteSize:result.observedByteSize,byteSizeMatches:result.byteSizeMatches,sha256:result.sourceHash,resolvedSourceUrl:result.resolvedSourceUrl},

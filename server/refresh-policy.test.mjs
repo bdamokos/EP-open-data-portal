@@ -722,3 +722,15 @@ test('legacy high-attempt 404s immediately use the days cap and honour a longer 
   assert(recordTaskGap(worker,task,Object.assign(new Error('Missing'),{status:404,retryAfter:8*DAY/1000})));
   assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps').get().retry_at,clock()+8*DAY);
 });
+
+
+test('sustained source gaps retry daily while classified parser gaps recheck monthly',t=>{
+  const {store,generation,worker,clock}=setup(t);
+  for(const [key,error,delay] of [['transient',{message:'EP API returned 500',status:500},DAY],['permanent',{message:'Invalid document archive',code:'invalid_docx'},30*DAY]]) {
+    store.enqueue(generation,key,'document',{endpoint:'/documents/'+key},100);
+    const task={generation,key,kind:'document',body:{endpoint:'/documents/'+key},priority:100,attempts:370};
+    assert(recordTaskGap(worker,task,error));
+    assert.equal(store.db.prepare('SELECT retry_at FROM refresh_gaps WHERE generation=? AND key=?').get(generation,key).retry_at,clock()+delay);
+    assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,key).done,1);
+  }
+});

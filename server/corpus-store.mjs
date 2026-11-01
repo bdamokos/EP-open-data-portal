@@ -3,7 +3,8 @@ import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabil
 import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
-import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {DOCX_EXTRACTION_VERSION} from './docx-source-structure.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, SOURCE_RECHECK_MS, sourceDescriptor} from './source-retry.mjs';
 import {languagePreference} from './language-order.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
@@ -121,6 +122,7 @@ export class CorpusStore {
       CREATE INDEX IF NOT EXISTS task_status_error ON tasks(done,retry_at DESC,key,error,attempts) WHERE done=0 AND error IS NOT NULL;
       INSERT OR IGNORE INTO meta VALUES ('schema','1');`);
     if(!readOnly&&!this.initializeIndexes)this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;');
+    if(!readOnly)this.db.exec(`CREATE TABLE IF NOT EXISTS source_failures (key TEXT PRIMARY KEY, state TEXT NOT NULL, reason TEXT NOT NULL, descriptor TEXT NOT NULL, content_hash TEXT, parser_version INTEGER NOT NULL, next_check INTEGER); CREATE INDEX IF NOT EXISTS source_failure_due ON source_failures(next_check) WHERE next_check IS NOT NULL; CREATE INDEX IF NOT EXISTS source_failure_parser ON source_failures(parser_version);`);
     if(this.get('schema')!==1)throw new Error('Unsupported corpus schema.');
     if(!readOnly&&this.get('speechMetadataVersion')!==1) {
       this.set('speechMetadataBackfill',Boolean(this.db.prepare("SELECT 1 FROM documents WHERE kind='speech' LIMIT 1").get()));
@@ -219,20 +221,44 @@ export class CorpusStore {
   }
   reopen(key,body,priority) {
     this.assertWriter();
+    const failure=this.db.prepare('SELECT * FROM source_failures WHERE key=?').get(key);
+    if(failure&&failure.descriptor===sourceDescriptor(body)&&failure.parser_version===DOCX_EXTRACTION_VERSION)return;
+    this.db.prepare('DELETE FROM source_failures WHERE key=?').run(key);
     this.db.prepare('UPDATE tasks SET done=0,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=? AND done=1').run(JSON.stringify(body),priority,key);
   }
   resetTask(key,body,priority) {
     this.assertWriter();
+    this.db.prepare('DELETE FROM source_failures WHERE key=?').run(key);
     this.db.prepare('UPDATE tasks SET done=0,done_at=NULL,attempts=0,error=NULL,retry_at=0,body=?,priority=? WHERE key=?').run(JSON.stringify(body),priority,key);
   }
   task(key){const row=this.db.prepare('SELECT * FROM tasks WHERE key=?').get(key);return row && {...row,body:parse(row.body)};}
-  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
-  nextTask(){if(!this.hasDueTask())return;const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
+  recheckSourceFailures() {
+    this.assertWriter();
+    for(const row of this.db.prepare('SELECT key FROM source_failures WHERE parser_version<? LIMIT 10').all(DOCX_EXTRACTION_VERSION)) {
+      this.db.prepare('UPDATE tasks SET done=0,retry_at=0 WHERE key=?').run(row.key);
+      this.db.prepare('DELETE FROM source_failures WHERE key=?').run(row.key);
+    }
+    for(const row of this.db.prepare('SELECT key FROM source_failures INDEXED BY source_failure_due WHERE next_check IS NOT NULL AND next_check<=? ORDER BY next_check LIMIT 10').all(this.clock())) {
+      this.db.prepare('UPDATE tasks SET done=0,retry_at=0 WHERE key=?').run(row.key);
+      this.db.prepare('UPDATE source_failures SET next_check=NULL WHERE key=?').run(row.key);
+    }
+  }
+  settleSourceFailure(task,error,state='permanent-source-issue') {
+    const settle=()=>{
+      this.assertWriter();
+      this.db.prepare('INSERT OR REPLACE INTO source_failures VALUES (?,?,?,?,?,?,?)').run(task.key,state,String(error.message).slice(0,350),sourceDescriptor(task.body),error.sourceHash??null,DOCX_EXTRACTION_VERSION,state==='satisfied-by-alternative'?null:this.clock()+SOURCE_RECHECK_MS);
+      this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=?,attempts=attempts+1 WHERE key=?').run(this.clock(),String(error.message).slice(0,350),task.key);
+    };
+    return this.db.isTransaction?settle():this.transaction(settle);
+  }
+  hasDueTask(){return Boolean(this.db.prepare('SELECT 1 FROM source_failures WHERE parser_version<? LIMIT 1').get(DOCX_EXTRACTION_VERSION))||Boolean(this.db.prepare('SELECT 1 FROM source_failures INDEXED BY source_failure_due WHERE next_check IS NOT NULL AND next_check<=? LIMIT 1').get(this.clock()))||Boolean(this.db.prepare('SELECT 1 FROM tasks INDEXED BY task_pending_due WHERE done=0 AND retry_at<=? LIMIT 1').get(this.clock()));}
+  nextTask(){if(!this.hasDueTask())return;this.recheckSourceFailures();const row=this.db.prepare('SELECT * FROM tasks INDEXED BY task_pending_order WHERE done=0 AND retry_at<=? ORDER BY priority DESC,key DESC LIMIT 1').get(this.clock());return row && {...row,body:parse(row.body)};}
   taskProgress(task,body){this.assertWriter();this.db.prepare('UPDATE tasks SET body=?,attempts=0,error=NULL,retry_at=0 WHERE key=?').run(JSON.stringify(body),task.key);}
-  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
+  finishTask(task){const finish=()=>{this.assertWriter();this.db.prepare('DELETE FROM source_failures WHERE key=?').run(task.key);this.db.prepare('UPDATE tasks SET done=1,done_at=?,error=NULL WHERE key=?').run(this.clock(),task.key);observeCheck(this,task.body?.availabilityCheck);};return this.db.isTransaction?finish():this.transaction(finish);}
   failTask(task,error,retryAfter=0) {
     this.assertWriter();
-    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(6*60*60_000,60_000*2**Math.min(task.attempts,8)));
+    if(permanentSourceIssue(error)&&!this.task(task.key)?.body.pdfPending)return this.settleSourceFailure(task,error);
+    const delay=Math.max(retryAfter*1000,Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):transientSourceDelay(task.attempts));
     this.db.prepare('UPDATE tasks SET attempts=attempts+1,retry_at=?,error=? WHERE key=?').run(this.clock()+delay,String(error.message).slice(0,350),task.key);
   }
   hasText(sourceUrl){return Boolean(this.db.prepare('SELECT 1 FROM texts WHERE source_url=? LIMIT 1').get(sourceUrl));}

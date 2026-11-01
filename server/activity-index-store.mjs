@@ -6,7 +6,7 @@ import {groupHistorySchema,freezeGroupHistory} from './group-history.mjs';
 import {historyReadiness} from './history-readiness.mjs';
 import {membershipSchema,freezeMembership} from './following-membership.mjs';
 import {followMarksVersion,prepareFollowMarks,publishFollowMarks,followIndexComplete} from './follow-marks.mjs';
-import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {sourceTitle} from './source-titles.mjs';
 import {languagePreference} from './language-order.mjs';
 import {activityReadVersion,initializeActivityReads,prepareQuestionFiles,projectQuestionFiles,copyQuestionFiles,motionDocuments} from './activity-read-projections.mjs';
@@ -274,7 +274,7 @@ export class ActivityStore {
     return this.db.isTransaction?finish():this.transaction(finish);
   }
   failTask(task,error) {
-    this.assertWriter();const delay=Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?missingSourceDelay(task.attempts):Math.min(30*60_000,30_000*2**Math.min(task.attempts,6)));
+    this.assertWriter();const delay=Math.max(Number(error.retryAfter || 0)*1000,permanentSourceIssue(error)?SOURCE_RECHECK_MS:sourceMissing(error)?missingSourceDelay(task.attempts):transientSourceDelay(task.attempts,{base:30_000,cap:30*60_000}));
     this.db.prepare(`UPDATE ${task.groupVoiceJob?'group_voice_jobs':task.amendmentJob?'amendment_jobs':'tasks'} SET attempts=attempts+1,retry_at=?,error=? WHERE generation=? AND key=?`).run(this.clock()+delay,String(error.message).slice(0,350),task.generation,task.key);
     if(!task.groupVoiceJob&&this.get('working')?.generation===task.generation)this.updateCycle({phase:'retrying',error:String(error.message).slice(0,350)});
   }

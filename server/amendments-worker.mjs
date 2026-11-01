@@ -1,3 +1,4 @@
+import {permanentSourceIssue,SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {committeeDiscoveryTask,rebuildCommitteeList} from './committee-amendments-worker.mjs';
 import {sittingConfirmationDay,sittingOutcomesComplete,sittingSnapshotConfirmed} from './refresh-policy.mjs';
 import https from 'node:https';
@@ -162,7 +163,7 @@ function prepareLinkedLists(worker,generation,work,fetchedAt,{discover=true,sitt
     verified.add(candidate.id);
     const freshness=listWordingFreshness(prior?.work,{parserVersion:AMENDMENT_EXTRACTION_VERSION,now:worker.clock()});
     const failure=prior?.work.wordingRefreshFailure;
-    const failedDescriptorMatches=failure&&(failure.descriptor==null&&freshness.descriptor==null||sameDocxDescriptor(failure.descriptor,freshness.descriptor));
+    const failedDescriptorMatches=failure&&(failure.parserVersion==null||failure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&(failure.descriptor==null&&freshness.descriptor==null||sameDocxDescriptor(failure.descriptor,freshness.descriptor));
     const retryDeferred=failedDescriptorMatches&&Date.parse(failure.retryAfter)>worker.clock();
     const sources=settled?amendmentSourceStore(worker.store):null;
     const alternate=alternateAuthorDescriptor(prior?.work,prior?.work.extraction);
@@ -346,7 +347,7 @@ async function runParserUpgradeSlice(worker,task) {
       const list=JSON.parse(source.body),listId=idOf(list),targetDocumentId=list.scopeKey||list.targetDocumentId;
       if(!list.extraction||list.extraction.parserVersion===AMENDMENT_EXTRACTION_VERSION||!amendmentTarget(targetDocumentId)&&!targetDocumentId?.startsWith('committee:'))return;
       const freshness=listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
-      if(freshness.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()) {
+      if(freshness.status==='failed'&&(list.wordingRefreshFailure?.parserVersion==null||list.wordingRefreshFailure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&Date.parse(freshness.retryAfter)>worker.clock()) {
         store.taskProgress(task,{...body,retryAt:Math.min(body.retryAt || Infinity,Date.parse(freshness.retryAfter))});
         return;
       }
@@ -421,7 +422,7 @@ async function runPreparationSlice(worker,task) {
       } else if(stage==='gaps') {
         const list=work.taskKind==='amendment-extract'?store.source(generation,sourceKey(work.taskBody.listId))?.work:null;
         const freshness=list&&listWordingFreshness(list,{parserVersion:AMENDMENT_EXTRACTION_VERSION});
-        if(work.taskKind==='amendment-extract'&&(!currentDocxDescriptor(list)||freshness?.status==='failed'&&Date.parse(freshness.retryAfter)>worker.clock()))return;
+        if(work.taskKind==='amendment-extract'&&(!currentDocxDescriptor(list)||freshness?.status==='failed'&&(list.wordingRefreshFailure?.parserVersion==null||list.wordingRefreshFailure.parserVersion===AMENDMENT_EXTRACTION_VERSION)&&Date.parse(freshness.retryAfter)>worker.clock()))return;
         enqueueAmendment(store,generation,work.taskKey,work.taskKind,work.taskBody,work.priority || 105,true);
       } else {
         const evidence=amendmentSitting(work);
@@ -945,12 +946,12 @@ export function failAmendmentTask(worker,task,error) {
     const saved=worker.store.source(task.generation,sourceKey(task.body.listId));
     if(saved) {
       const file=currentDocxDescriptor(saved.work);
-      const wordingRefreshFailure={descriptor:normalizedDocxDescriptor(file),failedAt:at,retryAfter:new Date(worker.clock()+DAY).toISOString(),error:String(error.message).slice(0,350)};
+      const wordingRefreshFailure={descriptor:normalizedDocxDescriptor(file),failedAt:at,retryAfter:new Date(worker.clock()+Math.max(permanentSourceIssue(error)?SOURCE_RECHECK_MS:DAY,Number(error.retryAfter||0)*1000)).toISOString(),state:permanentSourceIssue(error)?'permanent-source-issue':'transient',parserVersion:AMENDMENT_EXTRACTION_VERSION,contentHash:error.sourceHash??null,error:String(error.message).slice(0,350)};
       worker.store.putSource(task.generation,sourceKey(task.body.listId),'amendment-list',{...saved.work,wordingRefreshFailure},saved.fetchedAt);
       failedList=task.body.targetDocumentId;
     }
   }
-  worker.store.putSource(task.generation,'amendment:gap:'+task.key,'amendment-gap',{taskKey:task.key,taskKind:task.kind,taskBody:task.body,priority:task.priority,error:String(error.message).slice(0,350),failedAt:at},at);
+  worker.store.putSource(task.generation,'amendment:gap:'+task.key,'amendment-gap',{taskKey:task.key,taskKind:task.kind,taskBody:task.body,priority:task.priority,state:permanentSourceIssue(error)?'permanent-source-issue':'transient',parserVersion:AMENDMENT_EXTRACTION_VERSION,contentHash:error.sourceHash??null,error:String(error.message).slice(0,350),failedAt:at},at);
   worker.store.finishTask(task);
   if(failedList) {
     const list=worker.store.source(task.generation,sourceKey(task.body.listId))?.work;

@@ -1,4 +1,4 @@
-import {sourceMissing, missingSourceDelay} from './source-retry.mjs';
+import {sourceMissing, missingSourceDelay, transientSourceDelay, permanentSourceIssue, SOURCE_RECHECK_MS} from './source-retry.mjs';
 import {array, tail, documentFiles} from './activity-index-model.mjs';
 import {AMENDMENTS_VERSION,AMENDMENT_SITTING_PROJECTION_VERSION} from './amendments.mjs';
 import {adoptedTextOwnedElsewhere,adoptedTextDeferredKeys} from './adopted-text-index.mjs';
@@ -174,13 +174,13 @@ export function recordTaskGap(worker,task,error) {
   if(task.groupVoiceJob || task.kind.startsWith('amendment-') || task.kind.startsWith('outside-') || worker.controller.signal.aborted || /lease/i.test(error.message))return false;
   // An empty roster cannot provide a usable first publication.
   if(task.kind==='roster' && !worker.store.db.prepare('SELECT 1 FROM members LIMIT 1').get())return false;
-  if(!sourceMissing(error) && task.attempts<4)return false;
+  if(!sourceMissing(error) && !permanentSourceIssue(error) && task.attempts<4)return false;
   const now=worker.clock();
   // Pre-policy pending feeds carry only their endpoint. Pin their interval
   // before an incomplete publication advances the global successful-run date.
   if(task.kind==='feed' && !task.body.start)task={...task,body:{...task.body,start:feedStart(worker.store,now)}};
   const correcting=task.kind==='motion-outcomes' && localDay(now)<sittingConfirmationDay(task.body.sittingId);
-  const retryAt=now+Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?Math.max(missingSourceDelay(task.attempts),correcting?6*60*60_000:0):(correcting?6*60*60_000:7*DAY));
+  const retryAt=now+Math.max(Number(error.retryAfter || 0)*1000,sourceMissing(error)?Math.max(missingSourceDelay(task.attempts),correcting?6*60*60_000:0):(permanentSourceIssue(error)?SOURCE_RECHECK_MS:Math.max(correcting?6*60*60_000:0,transientSourceDelay(task.attempts))));
   worker.store.transaction(()=>{
     worker.store.finishTask(task);
     worker.store.db.prepare('INSERT OR REPLACE INTO refresh_gaps VALUES (?,?,?,?,?,?,?,?,?,?)').run(task.generation,task.key,task.kind,JSON.stringify(task.body),task.priority,String(error.message).slice(0,350),task.attempts+1,new Date(now).toISOString(),retryAt,task.body.sittingId || null);

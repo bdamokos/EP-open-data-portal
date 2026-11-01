@@ -379,8 +379,10 @@ export async function downloadDocxBuffer(sourceUrl,{signal=requestSignal(),expec
 }
 export async function downloadDocx(sourceUrl,options={}) {
   const {buffer,resolvedSourceUrl}=await downloadDocxBuffer(sourceUrl,options);
+  const sourceHash=createHash('sha256').update(buffer).digest('hex');
+  if(sourceHash===options?.rejectedHash)throw Object.assign(invalidDocx(Error('Unchanged rejected DOCX bytes.')),{sourceHash});
   try{return {...docxContent(buffer,{includeNoteObjects:true}),resolvedSourceUrl};}
-  catch(error){throw invalidDocx(error);}
+  catch(error){throw Object.assign(invalidDocx(error),{sourceHash:createHash('sha256').update(buffer).digest('hex')});}
 }
 
 const validSpan=(span,text)=>Number.isInteger(span?.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&typeof span.url==='string'&&/^https?:\/\//i.test(span.url);
