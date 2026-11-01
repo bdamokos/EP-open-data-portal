@@ -2,7 +2,7 @@ import {agendaTitle,isEuPlace} from './topicPresentation.mjs';
 // Reference templates over the complete research fixture. Live templates await
 // the exact-counter contract; returned API lists must never supply totals.
 import {europeStoryIso3} from './storyEurope.mjs';
-export const cleanStoryTitle=title=>agendaTitle(String(title||'')).replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s+(?:on\s+)?/i,'').replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)(?=[A-Z][a-z])/,'');
+export const cleanStoryTitle=title=>agendaTitle(String(title||'')).replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)\s+(?:on\s+)?/i,'').replace(/^(?:(?:JOINT )?MOTION FOR A RESOLUTION|(?:INTERIM )?REPORT|RECOMMENDATION)(?=[A-Z][a-z]|[‘’“”"'])/,'');
 export function storyNumber(n,language='en'){const words=['zero','one','two','three','four','five','six','seven','eight','nine'];return language.split('-')[0]==='en'&&Number.isInteger(n)&&n>0&&n<10?words[n]:Number(n).toLocaleString(language==='en'?'en-GB':language);}
 export function primaryStoryPlace(d){const keys=Object.keys(d.places),t=keys.filter(p=>d.places[p].includes('title')),o=keys.filter(p=>d.places[p].includes('official'));if(t.length===1)return t[0];const both=t.filter(p=>o.includes(p));if(both.length===1)return both[0];return d.format==='urgency'&&!t.length&&o.length===1?o[0]:null;}
 export const strongStoryPlace=(d,p)=>Boolean(d.places[p]?.includes('title')||primaryStoryPlace(d)===p);

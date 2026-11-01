@@ -2594,5 +2594,9 @@
   "topics.story.exact.placePlenary": "Parliament held {debates} on it and adopted {texts}.",
   "topics.story.exact.mapAdopted": "Parliament adopted texts naming {places}{others}.",
   "topics.story.exact.including": ", including {texts}",
-  "topics.story.questionsUnavailable": "Question stories unavailable"
+  "topics.story.questionsUnavailable": "Question stories unavailable",
+  "topics.story.exact.periods": "Quarters",
+  "topics.story.pageEmpty": "No matching records on this page",
+  "topics.story.comparisonsUnavailable": "Question comparisons unavailable",
+  "topics.story.exact.placeDebates": "Parliament debated {debates}."
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildExactTopicStories,storyFactsRoute} from './exactTopicStories.mjs';
+import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
 const base=()=>({ready:true,counts:{questions:53,questionElsewhere:7,questionUnknown:2,debates:9,adoptedTexts:0,groups:73},periodCounts:[],periodWinners:{},winners:{},sets:{},questions:[{id:'one',d:'2026-01-01',t:'Only hydrated question',places:['IRN'],home:[]}],debates:[],docs:[],topic:{label:'Trade'}});
 const flatten=v=>v==null?'':typeof v==='string'?v:Array.isArray(v)?v.map(flatten).join('|'):v.text?flatten(v.text):v.message?JSON.stringify(v):'';
 test('live totals use exact counters even when evidence arrays have one record',()=>{const x=base(),lines=buildExactTopicStories(x,{place:'IRN',language:'en'});assert.match(flatten(lines[0].values.questions),/53/);assert.match(flatten(lines[1].values.debates),/nine/);assert.equal(lines[0].values.questions.browse.list,'questions');const topic=buildExactTopicStories(x,{topic:'oeil:1.10',language:'en'});assert.match(flatten(topic[0].values.groups),/73/);});
@@ -22,4 +22,8 @@ test('live story counters open keyset pages and More preserves every prior recor
 
 test('own-country exclusion retains unknown place questions and suppresses inexact map winners',()=>{const x=base();x.counts.questionHome=40;const line=buildExactTopicStories(x,{place:'IRN',excludeOwn:true})[0];assert.match(flatten(line.values.questions),/13/);assert.equal(x.counts.questions,53);x.periodCounts=[{period:'2026-Q1'}];x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'GRC',count:18}]};assert.deepEqual(buildExactTopicStories(x,{period:'2026-Q1',excludeOwn:true,unknownQuestions:true}),[]);});
 
-test('fused source prefixes are removed without changing the remaining title',async()=>{const {cleanStoryTitle}=await import('./topicStoryModel.mjs');assert.equal(cleanStoryTitle('MOTION FOR A RESOLUTIONSystematic repression'),'Systematic repression');assert.equal(cleanStoryTitle('REPORTChosen policy'),'Chosen policy');assert.equal(cleanStoryTitle('REPORTING on policy'),'REPORTING on policy');});
+test('fused source prefixes are removed without changing the remaining title',async()=>{const {cleanStoryTitle}=await import('./topicStoryModel.mjs');assert.equal(cleanStoryTitle('MOTION FOR A RESOLUTIONSystematic repression'),'Systematic repression');assert.equal(cleanStoryTitle('REPORTChosen policy'),'Chosen policy');assert.equal(cleanStoryTitle('REPORT‘Cohesion policy’'),'‘Cohesion policy’');assert.equal(cleanStoryTitle('REPORTING on policy'),'REPORTING on policy');});
+
+test('paged decision evidence retains show-of-hands outcomes',()=>{assert.equal(storyRecord({id:'RC-1',title:'Text',outcome:{outcome:'ADOPTED',decisionMethod:'show-of-hands'}},'document').outcome.method,'VOTE_HAND');assert.equal(storyRecord({id:'RC-2',title:'Unknown',outcome:null},'document').outcome,null);});
+
+test('featured place debates do not turn the primary-first selection into a busiest claim',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',questions:0}];x.periodWinners['2026-Q1']={leadingPlaceDebates3Plus:[{id:'D',meps:3}]};x.debates=[{id:'D',title:'Place debate',date:'2026-01-01',q:'2026-Q1',meps:3,docs:[],places:{IRN:['title']}}];const row=buildExactTopicStories(x,{place:'IRN',period:'2026-Q1'})[0];assert.equal(row.id,'topics.story.exact.placeDebates');});
