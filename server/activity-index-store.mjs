@@ -443,7 +443,26 @@ export class ActivityStore {
   activityPage(mep,{language='en',category=null,limit=10,offset=0,sourceId=null}={}) {
     const member=this.db.prepare('SELECT body FROM members WHERE id=?').get(String(mep));
     if (!member) return null;
-    const status=this.status(), generation=status.servingGeneration;
+    const active=this.get('active'),cycle=this.get('working'),generation=active||cycle?.generation||0;
+    const lastSuccessfulRefresh=this.get('lastSuccess'),refreshSnapshotReady=refreshSnapshotMatches(this);
+    // Profile reads need serving state, not the archive-wide diagnostic census.
+    // Indexed existence probes preserve global cache health without counting it.
+    const status={complete:Boolean(active)&&refreshSnapshotReady&&!this.db.prepare('SELECT 1 FROM refresh_gaps WHERE generation=? LIMIT 1').get(generation),
+      servingGeneration:generation,refreshSnapshotReady,lastSuccessfulRefresh,
+      stale:!lastSuccessfulRefresh||this.clock()-Date.parse(lastSuccessfulRefresh)>26*60*60_000,
+      phase:cycle?.phase||(active?'ready':'waiting'),
+      lastError:cycle?.phase==='paused'?cycle.error:cycle?this.db.prepare('SELECT error FROM tasks WHERE generation=? AND (done IN (-1,0) OR done IS NULL) AND error IS NOT NULL ORDER BY retry_at DESC LIMIT 1').get(cycle.generation)?.error||null:null};
+    const unresolvedCategories=new Set((this.get('unresolved')||[]).map(join=>join.category||'reports-shadow'));
+    // The worker's documentRows/speechRows projections are the source-to-role
+    // mapping and attribution evidence. Do not guess roles from endpoint names.
+    // Unknown authors/speakers and collection windows remain archive diagnostics,
+    // matching the identified-person coverage rule used by speech/people views.
+    const gapCategories=new Set(this.db.prepare(`SELECT DISTINCT item.category FROM items AS item
+      WHERE item.generation=? AND item.mep=? AND EXISTS (
+        SELECT 1 FROM refresh_gaps AS gap WHERE gap.generation=item.generation
+        AND gap.key IN (item.source_key,'recovery:'||item.source_key)
+        AND (gap.kind='document' OR gap.kind='speeches')
+      )`).all(generation,String(mep)).map(row=>row.category));
     const activityOnly=" AND COALESCE(json_extract(body,'$.recordKind'),'document')<>'answer'";
     // Keep counts and role-filtered pages on the member-leading partial index;
     // the global role frontier cannot narrow a read to this MEP.
@@ -492,11 +511,11 @@ export class ActivityStore {
     const selectedItems=sourceId?this.db.prepare('SELECT body FROM items WHERE generation=? AND mep=? AND source_id=? ORDER BY category').all(generation,String(mep),sourceId).map(r=>present(r.body)):[];
     const counts=Object.fromEntries(this.db.prepare('SELECT category,COUNT(*) AS count FROM '+memberItems+' WHERE generation=? AND mep=?'+activityOnly+' GROUP BY category').all(generation,String(mep)).map(r=>[r.category,r.count]));
     const categoryCoverage=Object.fromEntries(Object.keys(CATEGORIES).map(id=> {
-      const reason=CATEGORY_GAPS[id] || (!status.refreshSnapshotReady?'Refresh state requires offline reconciliation.':null) || (status.coverageGaps.count?'Some source records or refresh windows remain unavailable.':null) || (status.unresolvedCategories.includes(id)?id==='reports-shadow'?'Some report-stage joins are unresolved.':'Some source relationships or dates are incomplete.':null) || (['motions','individual-motions'].includes(id) && counts['unclassified-motions']?'Some motions lack a verified EP-rule classification.':null);
-      const state=CATEGORY_GAPS[id]?'source-not-verified':status.coverageGaps.count||!status.refreshSnapshotReady?'incomplete-joins':!status.complete?'backfilling':reason?'incomplete-joins':'available';
+      const reason=CATEGORY_GAPS[id] || (!status.refreshSnapshotReady?'Refresh state requires offline reconciliation.':null) || (gapCategories.has(id)?'Source records unavailable.':null) || (unresolvedCategories.has(id)?id==='reports-shadow'?'Some report-stage joins are unresolved.':'Some source relationships or dates are incomplete.':null) || (['motions','individual-motions'].includes(id) && counts['unclassified-motions']?'Some motions lack a verified EP-rule classification.':null);
+      const state=CATEGORY_GAPS[id]?'source-not-verified':gapCategories.has(id)||!status.refreshSnapshotReady?'incomplete-joins':!active?'backfilling':reason?'incomplete-joins':'available';
       return [id,{status:state,indexedCount:counts[id] || 0,total:state==='available'?counts[id] || 0:null,reason}];
     }));
-    const exactTotal=category?categoryCoverage[category]?.status==='available':status.complete;
+    const exactTotal=category?categoryCoverage[category]?.status==='available':Boolean(active)&&refreshSnapshotReady&&![...gapCategories].some(id=>id!=='plenary-contributions');
     const availability=activityAvailability(this,generation,{category,limited:!exactTotal}).filter(source=>category||source.sourceKey!=='plenary-contributions');
     return { mepId:Number(mep), member:memberData, term:10, requestedLanguage:language, category, total:exactTotal?total:null, indexedTotal:total, offset, limit, nextOffset:offset+items.length<total?offset+items.length:null,
       order:'MEP activity/question date descending; answers remain attached to their question; source ID and category break ties', availability,cache:status, categories:CATEGORIES, categoryGroups:CATEGORY_GROUPS, categoryCoverage, unclassifiedMotionCount:counts['unclassified-motions'] || 0, selectedItems, items };
