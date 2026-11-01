@@ -1,3 +1,5 @@
+export const DOCUMENT_BODY_STATUS_VERSION=1;
+import {prepareDocumentBodies} from './document-body-collector.mjs';
 import {prepareFastReads,registerFastReads,fastReadsReady,backfillFastReads} from './fast-read-projections.mjs';
 import {prepareSittingSnapshots,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 import {generationGroupOn} from './group-attribution.mjs';
@@ -110,9 +112,10 @@ export class ActivityStore {
       if (old && old.owner!==this.owner && old.expires>this.clock()) return false;
       assertRefreshSnapshot(this);
       const initialize=this.get('resourceIndexes')!==1,initializeProofs=this.get('amendmentReadVersion')!==amendmentReadVersion,initializeLinks=this.get('amendmentLinkIndexVersion')!==amendmentLinkIndexVersion;
-      if((this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion||this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if((this.get('committeeAmendmentIndexVersion')!==committeeAmendmentIndexVersion||initialize||initializeProofs||initializeLinks||this.get('activityReadVersion')!==activityReadVersion||this.get('followMarksVersion')!==followMarksVersion||this.get('activityAvailabilityIndexVersion')!==activityAvailabilityIndexVersion||this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.get('documentBodySchema')!==1)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
+      if(this.get('documentBodySchema')!==1){prepareDocumentBodies(this);initialized=true;}
       if(this.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA){prepareSittingSnapshots(this);initialized=true;}
       // BEGIN IMMEDIATE prevents takeover throughout synchronous initialization.
       // Refresh against the current clock before commit; elapsed build time must
@@ -495,7 +498,7 @@ export class ActivityStore {
     const refreshSnapshotReady=refreshSnapshotMatches(this);
     return { schemaVersion:2, enabled:true, term:10, complete:Boolean(active)&&gapCount===0&&refreshSnapshotReady, servingGeneration:generation,
       history:historyReadiness(this,generation),
-      refreshSnapshotReady,
+      refreshSnapshotReady,documentBodies:this.get('documentBodyCapacity')||null,
       availabilityRevision:this.get('availabilityRevision')||0,availabilityHistory:historyStatus(this),
       coverageGaps:{count:gapCount,examples:gapExamples},
       phase:cycle?.phase || (active?'ready':'waiting'), lastSuccessfulRefresh:this.get('lastSuccess'), refreshStartedAt:cycle?.startedAt || null,

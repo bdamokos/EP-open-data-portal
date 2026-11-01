@@ -333,6 +333,40 @@
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyDiscovery",
+      "pageFetches": 39,
+      "rowsReturned": 8,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX document_body_discovery (generation=? AND (date,source_id,mep,category)<(?,?,?,?))"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyUndated",
+      "pageFetches": 29,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX document_body_discovery (generation=? AND date=? AND (source_id,mep,category)<(?,?,?))"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyIdle",
+      "pageFetches": 27,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH document_body_jobs USING INDEX document_body_due (next_check<?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
     }
   ]
 }

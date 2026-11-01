@@ -66,7 +66,7 @@ export function startOdpMonitoring({log=console.warn,intervalMs=60_000}={}) {
 }
 const sourceQueues=new Map([['odp',upstreamQueue]]);
 function sourceQueue(source) {
-  if(!['odp','website','documents','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
+  if(!['odp','website','documents','document-files','multimedia','player'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
   if(!sourceQueues.has(source))sourceQueues.set(source,new UpstreamQueue());
   return sourceQueues.get(source);
@@ -167,6 +167,7 @@ export function backoffUpstream(seconds,{source='odp'}={}) {
 export function upstreamResponseError(response,{source='odp'}={}) {
   if(![429,503].includes(response.status??response.statusCode))return null;
   const seconds=retryAfterSeconds(response.headers?.get?response.headers.get('retry-after'):response.headers?.['retry-after']);
+  sourceQueue(source).recordResponse?.(response.status??response.statusCode);
   backoffUpstream(seconds,{source});
   return Object.assign(new HttpError(503,'upstream_busy','The public source is temporarily limiting requests. Please try again after the pause.'),{retryAfter:seconds,retryAt:Date.now()+seconds*1000});
 }
