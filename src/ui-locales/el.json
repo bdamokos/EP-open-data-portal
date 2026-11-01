@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Απορρίπτει την πρόταση",
+  "amendment.rejects_council_position": "Απορρίπτει τη θέση του Συμβουλίου",
   "MemberMotionReader.choose_a_motion_text": "Επιλέξτε κείμενο πρότασης ψηφίσματος",
   "MemberMotionReader.joint_motion_id": "Κοινή πρόταση ψηφίσματος · {id}",
   "MemberMotionReader.original_motion_id": "Αρχική πρόταση ψηφίσματος · {id}",

@@ -1,4 +1,6 @@
 {
+  "amendment.rejects_proposal": "Zamítá návrh",
+  "amendment.rejects_council_position": "Zamítá postoj Rady",
   "MemberMotionReader.choose_a_motion_text": "Vyberte text návrhu",
   "MemberMotionReader.joint_motion_id": "Společný návrh · {id}",
   "MemberMotionReader.original_motion_id": "Původní návrh · {id}",
