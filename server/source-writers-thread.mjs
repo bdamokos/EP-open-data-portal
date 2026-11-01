@@ -12,6 +12,10 @@ setUpstreamBridge(rpc);
 let stopActivity=()=>{},stopCorpus=()=>{},closing=false;
 const stores=[];
 const unobserve=[];
+function identifyLease(service,source) {
+  service.store.owner=workerData.leaseOwners[source];
+  parentPort.postMessage({type:'lease-owner',source,filename:service.store.filename});
+}
 parentPort.on('message',message=>{
   if(!closing&&acceptSittingSnapshotHints(message)){
     parentPort.postMessage({type:'sitting-hints-received'});return;
@@ -26,7 +30,7 @@ parentPort.on('message',message=>{
   })().catch(error=>{console.error('[source-writers]',error.message);process.exitCode=1;rpc.close();parentPort.close();});
 });
 if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')){
-  const service=activityIndex();stores.push(service);unobserve.push(observePublications(service.store,'activity',message=>parentPort.postMessage(message)));
+  const service=activityIndex();identifyLease(service,'activity');stores.push(service);unobserve.push(observePublications(service.store,'activity',message=>parentPort.postMessage(message)));
   // Generation preparation/publication already use a nested thread under this
   // same writer's lease. Notify after its committed result is visible here.
   const execute=service.worker.generationExecutor;
@@ -34,6 +38,6 @@ if(booleanFromEnvironment('ACTIVITY_INDEX_ENABLED')){
   stopActivity=startActivityIndex();
 }
 if(booleanFromEnvironment('CORPUS_ENABLED')){
-  const service=corpus();stores.push(service);unobserve.push(observePublications(service.store,'corpus',message=>parentPort.postMessage(message)));
+  const service=corpus();identifyLease(service,'corpus');stores.push(service);unobserve.push(observePublications(service.store,'corpus',message=>parentPort.postMessage(message)));
   stopCorpus=startCorpus();
 }

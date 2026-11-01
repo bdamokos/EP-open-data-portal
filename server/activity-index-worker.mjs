@@ -715,7 +715,7 @@ export class ActivityWorker {
     for(const generation of this.projectionGenerations()) {
       if(this.stopped||this.controller.signal.aborted||this.monotonic()>=this.runDeadline)break;
       this.store.backfillFastReads(generation);
-      await projectionYield();
+      await projectionYield(undefined,{signal:this.controller.signal});
     }
   }
   async runIteration() {

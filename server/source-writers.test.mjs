@@ -211,3 +211,56 @@ test('a cold HTTP sitting read reaches the production worker collector high-prio
   assert.equal(collected.isMainThread,false);assert.equal(collected.hintsLeft,0);
   assert.deepEqual(collected.jobs,[{kind:'votes',version:MEMBER_VOTES_VERSION,id:SNAPSHOT_SITTING,priority:100}]);
 });
+
+for(const takeover of [false,true])test(`forced worker exit cleans only its own leases (takeover=${takeover})`,async t=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'source-forced-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
+  const activity=path.join(directory,'activity'),corpus=path.join(directory,'corpus');
+  prepareIndexes({activityDirectory:activity,corpusDirectory:corpus,log:()=>{}});
+  const {stop}=await fixture(t,{workerUrl:new URL('./test-support/source-writer-stuck.mjs',import.meta.url),workerData:{activity,corpus},drainMs:100});
+  const stores=[new ActivityStore(activity),new CorpusStore(corpus)];
+  try{
+    if(takeover)for(const store of stores)store.db.prepare("UPDATE lease SET owner='replacement-owner'").run();
+    await stop();
+    for(const store of stores){
+      const lease=store.db.prepare('SELECT * FROM lease').get();
+      if(takeover)assert.equal(lease.owner,'replacement-owner');
+      else {assert.equal(lease,undefined);assert(store.acquire(),'immediate restart acquires');}
+    }
+  }finally{for(const store of stores)store.close();}
+});
+
+test('SIGTERM during real 60-second corpus pacing releases leases and permits immediate startup', {...loopback,timeout:30000},async t=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'source-pacing-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
+  const marker=path.join(directory,'pacing'),activity=path.join(directory,'activity'),corpus=path.join(directory,'corpus');
+  const probe=http.createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');
+  const port=probe.address().port;await new Promise(resolve=>probe.close(resolve));
+  const env={...process.env,HOST:'127.0.0.1',PORT:String(port),ACTIVITY_INDEX_ENABLED:'true',ACTIVITY_INDEX_DIR:activity,
+    CORPUS_ENABLED:'true',CORPUS_DIR:corpus,CORPUS_REQUEST_INTERVAL_MS:'60000',ODP_CACHE_DIR:path.join(directory,'cache'),
+    ERROR_LOG_DIR:path.join(directory,'logs'),TEST_SOURCE_WRITER_PACING_FILE:marker};
+  const launch=()=>{
+    const child=spawn(process.execPath,['--import',new URL('./test-support/source-writer-pacing.mjs',import.meta.url).href,'server/index.mjs'],
+      {cwd:new URL('..',import.meta.url),env,stdio:['ignore','pipe','pipe']});
+    let output='';for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>output+=chunk);
+    const exited=once(child,'exit');t.after(async()=>{if(child.exitCode===null)child.kill('SIGKILL');await exited;});
+    return {child,exited,output:()=>output};
+  };
+  const waitFor=async(run,predicate)=>{
+    const deadline=Date.now()+15000;
+    while(!predicate()){assert.equal(run.child.exitCode,null,run.output());assert(Date.now()<deadline,run.output());await delay(5);}
+  };
+  const first=launch();await waitFor(first,()=>existsSync(marker)&&first.output().includes('listening on'));
+  for(const [Store,dir] of [[ActivityStore,activity],[CorpusStore,corpus]]){
+    const store=new Store(dir,{readOnly:true});try{assert.equal(store.db.prepare('SELECT COUNT(*) n FROM lease').get().n,1);}finally{store.close();}
+  }
+  const started=performance.now();first.child.kill('SIGTERM');assert.deepEqual(await first.exited,[0,null]);
+  const elapsed=performance.now()-started;t.diagnostic(`SIGTERM drain during 60-second pacing: ${elapsed.toFixed(1)} ms`);
+  assert(elapsed<3000,'shutdown must finish well below the 8-second drain deadline');
+  assert(!first.output().includes('Drain deadline exceeded'),first.output());
+  for(const [Store,dir] of [[ActivityStore,activity],[CorpusStore,corpus]]){
+    const store=new Store(dir);try{assert.equal(store.db.prepare('SELECT COUNT(*) n FROM lease').get().n,0);assert(store.acquire());}finally{store.close();}
+  }
+  const second=launch();await waitFor(second,()=>second.output().includes('listening on'));
+  second.child.kill('SIGTERM');assert.deepEqual(await second.exited,[0,null]);
+});
