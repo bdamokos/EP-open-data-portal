@@ -90,7 +90,7 @@ test('public DOCX excerpts preserve exact author names, target hierarchy, dates 
 });
 
 test('public Czech committee headings and Danish columns retain actual language, proposer scope and document dates',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'20');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'21');
   const fixture=JSON.parse(readFileSync(new URL('./fixtures/amendment-docx-layouts-20261016.json',import.meta.url),'utf8'));
   for(const doc of fixture.documents) {
     const result=extractAmendments(archive(doc.documentXml,doc.stylesXml),{...options,...doc});
@@ -364,7 +364,7 @@ test('ordinary table properties and positional annotation markers do not invalid
 });
 
 test('unsupported comparison geometry withholds both columns with a numbered gap while another amendment remains intact',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'20');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'21');
   const grid=widths=>'<w:tblGrid>'+widths.map(width=>`<w:gridCol${width==null?'':` w:w="${width}"`}/>`).join('')+'</w:tblGrid>';
   const propsCell=(text,properties='')=>'<w:tc><w:tcPr>'+properties+'</w:tcPr>'+p(text)+'</w:tc>';
   const header=row(propsCell('Motion for a resolution'),propsCell('Amendment'));
@@ -470,7 +470,7 @@ test('historical property snapshots and ordinary hidden or deleted inline text d
 });
 
 test('current paragraph-mark revisions cannot turn ambiguous decimal boundaries into accepted wording',()=>{
-  assert.equal(AMENDMENT_EXTRACTION_VERSION,'20');
+  assert.equal(AMENDMENT_EXTRACTION_VERSION,'21');
   for(const marker of ['del','ins','moveFrom','moveTo']) {
     const first='<w:p><w:pPr><w:rPr><w:'+marker+' w:id="9" w:author="Editor" w:date="2026-10-01T00:00:00Z"/></w:rPr></w:pPr>'+run('Rate: 1')+'</w:p>';
     const xml=body(metadata()+table(row(cell(first,p('0%')),cell(p('A proposal'))))+p('</Amend>')+metadata(2)+table(row(cell(p('')),cell(p('Supported insertion.'))))+p('</Amend>'));
@@ -808,4 +808,16 @@ test('published scope-note layouts preserve every comparison row, including blan
     assert.equal(amendment.proposedText,example.proposedText,example.language);
     assert.equal(amendmentOperation(amendment),null,example.language);
   }
+});
+
+test('Council quotation selects the exact main-report comparison and excludes the opinion',async()=>{
+ const {reportCouncilQuotation}=await import('./report-council-quotation.mjs');
+ const reportId='A-10-2026-0123',listId=reportId+'-AM-001-001';
+ const block=original=>p('<Amend>Amendment<NumAm>1</NumAm>')+p('<Article>Recital 1</Article>')+'<w:tbl>'+row(cell(p('Text proposed by the Council')),cell(p('Amendment')))+row(cell(p(original)),cell(p('New text.')))+'</w:tbl>'+p('</Amend>');
+ const buffer=archive(body(p('<NoDocSe>A10‑0123/2026</NoDocSe>')+p('<RepeatBlock-Amend>')+block('Council text.')+p('</RepeatBlock-Amend>')+p('<RepeatBlock-Amend>')+block('Opinion text.')+p('</RepeatBlock-Amend>')));
+ const chosen={listId,number:1,language:'en',targetLabel:'Recital 1',originalText:'Council text.',proposedText:'New text.',baselineSource:{conflicted:false,headings:[{left:{raw:'Text proposed by the Council'}}]}};
+ const result=reportCouncilQuotation(buffer,chosen,{reportId,sourceUrl:'https://data.europarl.europa.eu/report.docx',fetchedAt:'2026-11-01T19:00:00Z'});
+ assert.equal(result.status,'report-quotation');assert.equal(result.span,undefined);assert.equal(result.insertBefore,undefined);
+ assert.equal(reportCouncilQuotation(buffer,{...chosen,originalText:'Opinion text.'},{reportId}),null);
+ assert.equal(reportCouncilQuotation(buffer,{...chosen,targetLabel:'Recital 2'},{reportId}),null);
 });

@@ -66,6 +66,12 @@ test('calibration binds every changed assertion to source evidence and cannot wa
  const evidence={snapshotId:'same',baselineOracleFingerprint:'before',candidateOracleFingerprint:'after',rows:[{key:row.key,beforeDigest:hash(assertion(row)),afterDigest:hash(assertion(next)),checkedBy:'gpt-6.1-sol',note:'Address and source span checked against the official document.',sources:[{url:'https://data.europarl.europa.eu/distribution/public.docx',sha256:'a'.repeat(64),retrievedAt:'2026-10-27T20:00:00Z',paths:['/w:document[1]/w:body[1]/w:p[1]']}]}]};
  assert.throws(()=>compareLanguages(candidate,report),/reviewed calibration/);
  assert.equal(compareLanguages(candidate,report,evidence).failed,false);
+ const redirected=structuredClone(evidence);
+ redirected.rows[0].sources[0].url='https://redmapl3.europarl.europa.eu/RedmapFront/media/reds_iPlRp_Amd/A-10-2025-0150-AM-001-129/A-10-2025-0150-AM-001-129_en.docx';
+ redirected.rows[0].sources[0].sha256='5397d69dfa655899c6d9b82303f686c10989ff8a5b164673d96ddfa1f2cf60d5';
+ assert.equal(compareLanguages(candidate,report,redirected).failed,false);
+ redirected.rows[0].sources[0].url='https://redmapl3.europarl.europa.eu.example.com/public.docx';
+ assert.throws(()=>compareLanguages(candidate,report,redirected),/source evidence incomplete/);
  for(const change of [e=>{e.snapshotId='wrong';},e=>{e.candidateOracleFingerprint='wrong';},e=>{e.rows=[];},e=>{e.rows[0].beforeDigest='wrong';},e=>{e.rows[0].sources=[];},e=>{e.rows.push({...e.rows[0]});}]){const invalid=structuredClone(evidence);change(invalid);assert.throws(()=>compareLanguages(candidate,report,invalid),/calibration/);}
  const bad={...next,outcome:'false-placement',verification:{status:'failed'}},badEvidence=structuredClone(evidence);badEvidence.rows[0].afterDigest=hash(assertion(bad));
  assert.equal(compareLanguages({...candidate,rows:[bad]},report,badEvidence).failed,true);

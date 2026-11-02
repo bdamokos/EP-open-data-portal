@@ -1,4 +1,5 @@
 {
+  "documentcontext.council.quotation": "Council text as quoted in the report.",
   "amendment.rejects_proposal": "Rejects the proposal",
   "amendment.rejects_council_position": "Rejects the Council position",
   "MemberMotionReader.choose_a_motion_text": "Choose a motion text",

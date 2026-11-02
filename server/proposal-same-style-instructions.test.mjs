@@ -43,18 +43,18 @@ for(const amendment of fixture.amendments)test(`native original and owning instr
   assert.deepEqual(proposal.paragraphs.slice(result.span.start,result.span.end+1).map(p=>p.source.path),amendment.expectedSourcePaths);
 });
 
-for(const amendment of fixture.negatives){
-  const elided=/^\(\d+\)\s*\[\.\.\.\]$/u.test(amendment.originalText.trim());
-  test(`published ${elided?'elided deletion retains the whole instruction':'wording conflict stays withheld'}: ${amendment.id}`,()=>{
-    const result=resolveProposalPlacement(items,amendment);
-    if(elided){
-      const owner=point('25');
-      assert.equal(result.status,'placed');assert.equal(result.operation,'delete');
-      assert.deepEqual(result.span,{start:owner.extent.start,end:owner.extent.end-1});
-      assert.equal(result.splice.start.offset,0);assert.equal(result.splice.end.offset,proposal.paragraphs[owner.extent.end-1].text.length);
-    }else{assert.equal(result.status,'unresolved');assert.equal(result.reason,'conflicting_target_evidence');}
-  });
-}
+for(const amendment of fixture.negatives)test(`published drafting instruction: ${amendment.id}`,()=>{
+  const result=resolveProposalPlacement(items,amendment);
+  const owner=proposalCandidates(proposal,amendment.targetLabel.split('\n')[0])[0];
+  assert.equal(result.status,'placed',result.reason);
+  if(/^[-−]1\./u.test(amendment.proposedText)){
+    assert.equal(result.operation,'insert');assert.equal(result.insertAfter,owner.extent.start);assert.equal(result.insertBefore,owner.extent.start+1);
+  }else{
+    assert.equal(result.operation,'delete');assert.deepEqual(result.span,{start:owner.extent.start,end:owner.extent.end-1});
+    assert.equal(result.splice.start.offset,0);assert.equal(result.splice.end.offset,proposal.paragraphs[owner.extent.end-1].text.length);
+    if(!amendment.originalText.includes('[...]'))assert.equal(result.evidence.at(-1).matchKind,'similar');
+  }
+});
 
 test('same-style recovery leaves explicit Word list levels authoritative',()=>{
   const input=structuredClone(fixture),index=input.paragraphSources.findIndex(p=>p.path==='/w:document[1]/w:body[1]/w:p[217]');
