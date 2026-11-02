@@ -261,6 +261,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
   };
   for(const row of selected) {
     const observed=await observeFrozenInputs(cache,()=>evaluateRow(row));
+    cache.assertHealthy?.();
     results.push(withFrozenInputGaps(observed.value,observed.gaps));
   }
   return results;
@@ -359,6 +360,7 @@ export async function main(args=process.argv.slice(2)) {
   resultRows.sort((a,b)=>a.key.localeCompare(b.key,'en'));
   liveRows.sort((a,b)=>a.key.localeCompare(b.key,'en'));
   if(!resultRows.length)throw new Error('No indexed amendment decisions in the requested sample.');
+  cache.assertHealthy?.();
   if(JSON.stringify(manifest)!==JSON.stringify(cache.manifest()))throw new Error('Evaluation read outside the fixed snapshot manifest.');
   if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(runtimeRoot,runtime))||JSON.stringify(harness)!==JSON.stringify(await harnessIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
   const compatibility={...projectionCompatibility(resultRows,code),projectionMode:'cached-source-replay'};

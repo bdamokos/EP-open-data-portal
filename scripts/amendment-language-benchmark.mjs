@@ -164,6 +164,7 @@ export async function evaluateLanguages(publications,cache,runtime) {
       };
       for(const number of publication.numbers) {
         const observed=await observeFrozenInputs(cache,()=>evaluateRow(number));
+        cache.assertHealthy?.();
         rows.push(withFrozenInputGaps(observed.value,observed.gaps));
       }
       process.stderr.write('Language edition: '+publication.documentId+' '+e.language+'\n');
