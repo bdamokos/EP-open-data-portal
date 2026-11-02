@@ -85,7 +85,7 @@ Disk budgets (MiB unless stated):
 | `SITTING_SNAPSHOT_MAX_DISK_MIB` | 256 | Compressed vote and attendance snapshots, inside the activity budget |
 | `BASE_SOURCE_MAX_DISK_MIB` | 128 | Native base documents; set 4096 (with `BASE_SOURCE_MAX_BINDINGS=65536`) for a one-time `BASE_SOURCE_BACKFILL=1` collection |
 
-When one of these budgets is full, collection pauses until it is raised; retained sources aren’t evicted. During a refresh, the base-document collection gets one bounded turn after every six core dispatches (`TOPICS_COLLECTOR_TURN_EVERY`) and also uses idle writer capacity. Portraits have their own 1.4 GB cap.
+When one of these budgets is full, collection pauses until it is raised; retained sources aren’t evicted. Portraits have their own 1.4 GB cap.
 
 ## Operations
 
