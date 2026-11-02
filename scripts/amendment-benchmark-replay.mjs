@@ -98,7 +98,12 @@ export function replaySourceClients(cache,runtime) {
       await Promise.allSettled([...view.pending.values()]);
     }
   };
-  return {sources,documents:new runtime.CellarDocuments({sources,directory:null,clock})};
+  const documents=new runtime.CellarDocuments({sources,directory:null,clock});
+  if(cache.retained?.baseScope)for(const name of ['candidates','metadata','metadataByWork','content']) {
+    const original=documents[name].bind(documents);
+    documents[name]=(...args)=>cache.retained.baseScope({type:'cellar',method:name,arguments:args},()=>original(...args));
+  }
+  return {sources,documents};
 }
 
 export function sourceReplay(cache,runtime) {
@@ -190,7 +195,7 @@ export function sourceReplay(cache,runtime) {
         const files=runtime.documentFiles(selected.work).filter(f=>f.format==='DOCX'&&runtime.allowedDownload(f.url));
         const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
-        if(chosen)await cache.get(chosen.url);
+        if(chosen){const read=()=>cache.get(chosen.url);await (cache.retained?.baseScope?cache.retained.baseScope({type:'ep-document',documentId:id,file:chosen},read):read());}
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
         if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
         if(readExisting&&!cache.sealed)for(const hint of lawHints.values()){await readExisting({...hint,language});cache.assertHealthy();}

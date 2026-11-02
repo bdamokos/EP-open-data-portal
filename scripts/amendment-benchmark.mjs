@@ -15,6 +15,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {DOCUMENT_CONTEXT_VERSION} from '../server/document-context.mjs';
 import {PROPOSAL_PARSER_VERSION} from '../server/proposal-structure.mjs';
 import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
+import {HybridInputs} from './amendment-benchmark-hybrid.mjs';
 import {RetainedInputs,retainedSummary} from './amendment-benchmark-retained.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
@@ -28,9 +29,11 @@ import {expectedLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 import {retainedSourceSelection,compareSelection} from './amendment-benchmark-selection.mjs';
 import {classify,parseBenchmarkTarget,verifyPlacement,targetPatterns,metrics,compareBaseline,projectionCompatibility,SOURCE_REASONS} from './amendment-benchmark-model.mjs';
 
+const stableSample=sample=>JSON.stringify({...sample,requestedWeeks:undefined});
+
 export function options(args) {
   const result={apiBase:process.env.AMENDMENT_BENCHMARK_API_BASE,weeks:8,decisionWeeks:[],excludeSnapshots:[],documents:[],fetchMissing:false,cap:1500,delay:750,cache:process.env.AMENDMENT_BENCHMARK_CACHE_DIR||path.join(process.env.XDG_CACHE_HOME||path.join(os.homedir(),'.cache'),'ep-explorer/amendment-benchmark')};
-  const values={'--production-data-dir':'productionDataDir','--source-selection':'sourceSelection','--oracle-calibration':'oracleCalibration','--source-negotiation-cache':'negotiationCache','--decision-week':'decisionWeeks','--exclude-snapshot':'excludeSnapshots','--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
+  const values={'--hybrid-snapshot':'hybridSnapshot','--base-snapshot':'baseSnapshot','--production-data-dir':'productionDataDir','--source-selection':'sourceSelection','--oracle-calibration':'oracleCalibration','--source-negotiation-cache':'negotiationCache','--decision-week':'decisionWeeks','--exclude-snapshot':'excludeSnapshots','--runtime-root':'runtimeRoot','--api-base':'apiBase','--retry-after-cap-ms':'maxRetryAfter','--weeks':'weeks','--from':'from','--to':'to','--as-of':'asOf','--document':'documents','--report':'documents','--cache-dir':'cache','--output-dir':'output','--request-cap':'cap','--delay-ms':'delay','--baseline':'baseline'};
   for(let i=0;i<args.length;i++) {
     const arg=args[i];
     if(arg==='--languages'){result.languages=true;continue;}
@@ -44,6 +47,8 @@ export function options(args) {
     const key=values[arg];if(!key||!args[i+1]||args[i+1].startsWith('--'))throw new Error('Unknown or missing option: '+arg);
     const value=args[++i];if(Array.isArray(result[key]))result[key].push(value);else result[key]=value;
   }
+  if(Boolean(result.hybridSnapshot)!==Boolean(result.baseSnapshot))throw new Error('Hybrid requires --hybrid-snapshot and --base-snapshot');
+  if(result.hybridSnapshot&&(result.cap!=0||!result.acquireOnly||result.fetchMissing||result.productionDataDir||result.sourceSelection||result.languages||result.languageVariants||result.negotiationCache||result.diagnoseSources))throw new Error('Hybrid requires offline --acquire-only --request-cap 0');
   if(result.productionDataDir){
     if(result.fetchMissing||result.languages||result.languageVariants||result.negotiationCache||result.sourceSelection)throw new Error('--production-data-dir cannot combine with --fetch, language modes, source selection or negotiation acquisition.');
     if(result.apiBase&&/(^|\.)europa\.eu$/.test(new URL(result.apiBase).hostname))throw new Error('Retained acquisition requires the explorer API origin.');
@@ -89,6 +94,7 @@ async function catalogue(cache,opts,spool) {
     if(generation!==null&&generation!==current)throw new Error('Index generation changed during paging; use a new cache snapshot.');generation=current;
     for(const row of value.items) {
       if(seen.has(row.id)||!/^(?:A|B|RC)-10-\d{4}-\d{4,6}$/.test(row.targetDocumentId)||document&&row.targetDocumentId!==document)throw new Error('Duplicate or inconsistent index identity');
+      cache.retained?.registerWording?.(row);
       seen.add(row.id);documents.add(row.targetDocumentId);
       for(const decision of allDecisions(row))if(decision.date<=opts.asOf)weeks.add(monday(decision.date));
       await appendFile(path.join(spool,row.targetDocumentId+'.jsonl'),JSON.stringify(row)+'\n');
@@ -245,7 +251,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
     const provisional=decisions.length>0&&decisions.every(d=>!placeableDecision(d));
     const classified=provisional?{outcome:'not-placeable',reason:'provisional-agreement'}:classify(stages);
     const baseline=wording?.baseline||variant?.baseline;
-    results.push({key:row.id,id:row.id,documentId:row.targetDocumentId,documentType:row.targetDocumentId.startsWith('A-')?(['commission-proposal','council-position','present-text'].includes(baseline)?'legislative-report':baseline==='motion-resolution'?'A-resolution':'A-unresolved'):'B/RC-resolution',number:row.number,listId:variant?.listId||null,language,targetLabel:wording?.targetLabel||variant?.targetLabel||null,acquisition:{contextVersions:[...new Set([...contexts.values()].flatMap(pair=>[pair.plain.value?.version,pair.proposal.value?.version]))],projectionVersions:[...contexts].map(([language,pair])=>({language,documentExtraction:pair.plain.value?.document?.selectedText?.extractionVersion??null,proposalParsers:[...new Set((pair.proposal.value?.proposal?.items||[]).map(item=>item.proposal.parserVersion))]})),status:stages.S4.reason?.startsWith('acquisition-')?'unavailable':'available'},wordingSource:fetched?{url:fetched.url,resolvedSourceUrl:fetched.resolvedSourceUrl||fetched.url,fetchedAt:fetched.fetchedAt,sha256:fetched.sha256,status:fetched.status}:null,variantAlternatives:[...variants(row).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url||null})),...(translated?[{listId:variant.listId,language,url:variant.wordingSource.url}]:[])],notPlaceableVoteIds:[...new Set(decisions.filter(d=>!placeableDecision(d)).map(d=>d.id))].sort(),voteIds:[...new Set(decisions.filter(placeableDecision).map(d=>d.id))].sort(),patterns:targetPatterns(wording||variant,gaps),...(nativeCitationEvidence?{nativeCitationEvidence}:{}),...(documentOperation?{documentOperation}:{}),stages,...classified});
+    results.push({...(cache.hybridRows?.[row.id]?{inputProvenance:cache.hybridRows[row.id]}:{}),key:row.id,id:row.id,documentId:row.targetDocumentId,documentType:row.targetDocumentId.startsWith('A-')?(['commission-proposal','council-position','present-text'].includes(baseline)?'legislative-report':baseline==='motion-resolution'?'A-resolution':'A-unresolved'):'B/RC-resolution',number:row.number,listId:variant?.listId||null,language,targetLabel:wording?.targetLabel||variant?.targetLabel||null,acquisition:{contextVersions:[...new Set([...contexts.values()].flatMap(pair=>[pair.plain.value?.version,pair.proposal.value?.version]))],projectionVersions:[...contexts].map(([language,pair])=>({language,documentExtraction:pair.plain.value?.document?.selectedText?.extractionVersion??null,proposalParsers:[...new Set((pair.proposal.value?.proposal?.items||[]).map(item=>item.proposal.parserVersion))]})),status:stages.S4.reason?.startsWith('acquisition-')?'unavailable':'available'},wordingSource:fetched?{url:fetched.url,resolvedSourceUrl:fetched.resolvedSourceUrl||fetched.url,fetchedAt:fetched.fetchedAt,sha256:fetched.sha256,status:fetched.status}:null,variantAlternatives:[...variants(row).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url||null})),...(translated?[{listId:variant.listId,language,url:variant.wordingSource.url}]:[])],notPlaceableVoteIds:[...new Set(decisions.filter(d=>!placeableDecision(d)).map(d=>d.id))].sort(),voteIds:[...new Set(decisions.filter(placeableDecision).map(d=>d.id))].sort(),patterns:targetPatterns(wording||variant,gaps),...(nativeCitationEvidence?{nativeCitationEvidence}:{}),...(documentOperation?{documentOperation}:{}),stages,...classified});
   }
   return results;
 }
@@ -262,19 +268,21 @@ async function checkoutIdentity(root,runtime) {
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs','scripts/amendment-benchmark-hybrid.mjs'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
-  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch | --production-data-dir PATH] [--decision-week YYYY-MM-DD (repeatable) | --weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--exclude-snapshot PATH/snapshot.json (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--source-selection PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT] [--languages] [--record-language-baseline] [--oracle-calibration PATH.json] [--diagnose-sources [--source-negotiation-cache NEW_PATH]]\nOracle calibration binds each changed language assertion to a before/after digest and checked official-source evidence; it never waives false placements or correct-row losses. Keep calibration JSON outside Git and obtain independent review before recording a new baseline.\nSource selection is offline-only with --request-cap 0. It records derived wording choices separately from immutable captured responses; compare only the identical selector and input set. It does not record a baseline.\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot. --diagnose-sources inspects frozen inputs; --source-negotiation-cache explicitly permits paced public representation checks in a separate cache, without changing scores.\n');return;}
+  if(opts.help) {process.stdout.write('Usage: npm run bench:amendments -- --api-base HTTPS_ORIGIN [--fetch | --production-data-dir PATH | --hybrid-snapshot SOURCE_A --base-snapshot SOURCE_B --acquire-only --request-cap 0] [--decision-week YYYY-MM-DD (repeatable) | --weeks 8 | --from YYYY-MM-DD --to YYYY-MM-DD | --document A-10-YYYY-NNNN (repeatable)] [--exclude-snapshot PATH/snapshot.json (repeatable)] [--as-of YYYY-MM-DD] [--cache-dir PATH] [--output-dir PATH] [--request-cap 1500] [--delay-ms 750] [--baseline PATH.json] [--source-selection PATH.json] [--placement-only] [--language-variants] [--acquire-only] [--runtime-root CLEAN_CHECKOUT] [--languages] [--record-language-baseline] [--oracle-calibration PATH.json] [--diagnose-sources [--source-negotiation-cache NEW_PATH]]\nOracle calibration binds each changed language assertion to a before/after digest and checked official-source evidence; it never waives false placements or correct-row losses. Keep calibration JSON outside Git and obtain independent review before recording a new baseline.\nSource selection is offline-only with --request-cap 0. It records derived wording choices separately from immutable captured responses; compare only the identical selector and input set. It does not record a baseline.\nOffline by default. --fetch fills missing URLs only; use a new cache directory for a new snapshot. --diagnose-sources inspects frozen inputs; --source-negotiation-cache explicitly permits paced public representation checks in a separate cache, without changing scores.\n');return;}
   if(opts.languages){const {languageMain}=await import('./amendment-language-benchmark.mjs');return languageMain(opts);}
   if(!opts.apiBase)throw new Error('Provide --api-base or AMENDMENT_BENCHMARK_API_BASE; no deployment host is built in.');
   const root=fileURLToPath(new URL('../',import.meta.url)),runtimeRoot=path.resolve(opts.runtimeRoot||root),runtime=await replayRuntime(runtimeRoot),code=await checkoutIdentity(runtimeRoot,runtime),harness=await harnessIdentity(root);
   if(opts.placementOnly)process.stderr.write('NOTE: --placement-only is a compatibility alias for full cached-source replay; producer changes are evaluated.\n');
-  const retained=opts.productionDataDir?await RetainedInputs.open(path.resolve(opts.productionDataDir)):null;
-  if(retained){
+  const hybrid=opts.hybridSnapshot?await HybridInputs.open(opts.hybridSnapshot,opts.baseSnapshot,opts.cache,opts.output):null;
+  if(hybrid)hybrid.runtime=runtime;
+  const retained=hybrid||(opts.productionDataDir?await RetainedInputs.open(path.resolve(opts.productionDataDir)):null);
+  if(retained&&!hybrid){
     await retained.assertSeparate(opts.cache);await retained.assertSeparate(opts.output||path.join(opts.cache,'output'));
     try{if((await readdir(opts.cache)).length)throw new Error('Retained acquisition requires a new empty benchmark cache');}catch(error){if(error.code!=='ENOENT')throw error;}
   }
@@ -284,14 +292,15 @@ export async function main(args=process.argv.slice(2)) {
   let spool,negotiationLock;
   try {
   const inputs=path.join(directory,'inputs');await mkdir(inputs,{recursive:true});
-  let cache=new InputCache(inputs,{...opts,...(retained?{retained,fetchMissing:true}: {})});
+  let cache=new InputCache(inputs,{...opts,...(retained?{retained,fetchMissing:!hybrid}: {})});
   cache.languageVariants=Boolean(opts.languageVariants);
   const snapshotPath=path.join(directory,'snapshot.json');let snapshot;
   try{snapshot=JSON.parse(await readFile(snapshotPath,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
-  if(!snapshot){snapshot={schemaVersion:3,apiBase:opts.apiBase,asOf:opts.asOf||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels'}).format(new Date())};await writeFile(snapshotPath,JSON.stringify(snapshot)+'\n');}
+  if(!snapshot){snapshot={schemaVersion:3,apiBase:opts.apiBase,asOf:opts.asOf||hybrid?.a.snapshot.asOf||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Brussels'}).format(new Date())};await writeFile(snapshotPath,JSON.stringify(snapshot)+'\n');}
   if(snapshot.schemaVersion!==3||snapshot.apiBase!==opts.apiBase)throw new Error('Snapshot origin/schema mismatch; legacy live-projection snapshots need upstream acquisition in a new cache directory.');
   if(opts.sourceSelection&&!snapshot.snapshotId)throw new Error('--source-selection requires an existing sealed snapshot.');
   if(snapshot.snapshotId)await cache.seal(snapshot.manifest);
+  cache.hybridRows=snapshot.hybrid?.rows;
   opts.asOf=opts.asOf||snapshot.asOf;
   spool=await mkdtemp(path.join(output,'spool-'));
   const index=await catalogue(cache,opts,spool);
@@ -302,13 +311,15 @@ export async function main(args=process.argv.slice(2)) {
   // placement. The evaluation phase cannot fill even a previously unseen URL.
   for(const filename of snapshot.snapshotId?[]:filenames) {
     const rows=await readRows(path.join(spool,filename));
+    hybrid?.trackRows(rows.filter(row=>decisionsInSample(row,sample).length));
     await acquireReport(rows,sample,cache,sourceReplay(cache,runtime));
     process.stderr.write(`Acquired ${filename.replace('.jsonl','')}; ${cache.requests} requests\n`);
   }
   const sourceManifest=cache.manifest(),snapshotId=digest(JSON.stringify({apiBase:opts.apiBase,sample,manifest:sourceManifest}));
   if(snapshot.snapshotId&&snapshot.snapshotId!==snapshotId)throw new Error('Frozen snapshot manifest changed; acquisition must be independent of checkout output.');
-  if(!snapshot.snapshotId){snapshot={...snapshot,sample,manifest:sourceManifest,snapshotId};await writeFile(snapshotPath,JSON.stringify(snapshot,null,2)+'\n');}
-  if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:sourceManifest.length,requests:cache.requests,...(retained?{retained:retainedSummary(sourceManifest,retained.inventoryGaps)}:{})},null,2)+'\n');return;}
+  if(hybrid&&stableSample(sample)!==stableSample(hybrid.a.snapshot.sample))throw new Error('Hybrid sample differs from Source A');
+  if(!snapshot.snapshotId){snapshot={...snapshot,sample,manifest:sourceManifest,snapshotId,...(hybrid?{hybrid:hybrid.receipt()}: {})};await writeFile(snapshotPath,JSON.stringify(snapshot,null,2)+'\n');}
+  if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:sourceManifest.length,requests:cache.requests,...(hybrid?{hybrid:{copy:sourceManifest.filter(m=>m.hybridSource?.snapshotId===hybrid.a.snapshot.snapshotId).length,fallback:sourceManifest.filter(m=>m.hybridSource?.snapshotId===hybrid.b.snapshot.snapshotId).length,gaps:sourceManifest.filter(m=>m.acquisitionUnavailable).length}}:retained?{retained:retainedSummary(sourceManifest,retained.inventoryGaps)}:{})},null,2)+'\n');return;}
   if(!cache.sealed)await cache.seal(sourceManifest);
   const selection=opts.sourceSelection?await retainedSourceSelection({file:opts.sourceSelection,snapshot,cache,runtime}):null;
   if(selection)cache=selection.cache;
@@ -339,13 +350,13 @@ export async function main(args=process.argv.slice(2)) {
   if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(runtimeRoot,runtime))||JSON.stringify(harness)!==JSON.stringify(await harnessIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
   const compatibility={...projectionCompatibility(resultRows,code),projectionMode:'cached-source-replay'};
   const scope=selection?'retained-source-selection-cached-sources':'full-pipeline-cached-sources';
-  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',verificationProtocols:[CITATION_NATIVE_PROTOCOL],liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId:resultSnapshotId,...(selection?{sourceSnapshotId:snapshotId,sourceSelection:selection.receipt()}:{}),sample,code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{...(manifest.some(input=>input.acquisitionUnavailable||input.retainedSource)?{retained:retainedSummary(manifest)}:{}),amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
+  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',verificationProtocols:[CITATION_NATIVE_PROTOCOL],liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId:resultSnapshotId,...(selection?{sourceSnapshotId:snapshotId,sourceSelection:selection.receipt()}:{}),sample,...(snapshot.hybrid?{hybrid:snapshot.hybrid}:{}),code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{...(manifest.some(input=>input.acquisitionUnavailable||input.retainedSource)?{retained:retainedSummary(manifest)}:{}),amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
   if(opts.baseline){const baseline=JSON.parse(await readFile(opts.baseline,'utf8'));result.comparison=(selection||baseline.sourceSelection?compareSelection:compareBaseline)(result,baseline,{placementOnly:opts.placementOnly});for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
 
   const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,harness,scope,diagnostics,...(selection?{selectionId:selection.id}:{})})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');
   await writeFile(jsonPath,JSON.stringify(result,null,2)+'\n');await writeFile(mdPath,markdown(result));
   process.stdout.write(JSON.stringify({jsonPath,mdPath,scope,snapshotId:resultSnapshotId,...(selection?{sourceSelectionId:selection.id}:{}) ,compatibility,sample,metrics:result.metrics,acquisition:result.acquisition,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),...(result.comparison?{comparison:result.comparison}:{})},null,2)+'\n');
   if(result.metrics.falsePlacements||result.comparison?.failed)process.exitCode=1;
-  } finally {retained?.close();if(negotiationLock)await rm(negotiationLock,{recursive:true,force:true});if(spool)await rm(spool,{recursive:true,force:true});await rm(lock,{recursive:true,force:true});}
+  } finally {retained?.close?.();if(negotiationLock)await rm(negotiationLock,{recursive:true,force:true});if(spool)await rm(spool,{recursive:true,force:true});await rm(lock,{recursive:true,force:true});}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{process.stderr.write(error.stack+'\n');process.exitCode=1;});
