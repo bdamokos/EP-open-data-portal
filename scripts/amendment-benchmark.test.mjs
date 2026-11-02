@@ -12,7 +12,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
 import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
-import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl} from './amendment-benchmark.mjs';
+import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl,placeWithInstructionFrame,nleReport} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 
 beforeEach(registerSubprocesses);
@@ -508,4 +508,32 @@ test('present-text instruction frames assert only new numbered proposal instruct
     {...wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:'),baseline:'commission-proposal'},
     wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:','en',[{raw:'Article 1 – paragraph 1 – point 5 b (new)'},{raw:'Article 2'}]),
   ])assert.equal(instructionFrameWording(value),null,value.targetLabel+' / '+value.proposedText);
+});
+
+test('replay reads the proposal frame only when the law does not place the instruction',async()=>{
+  const frame={baseline:{language:'en',status:'available'},items:[{kind:'act'}]};
+  const placed={status:'placed',operation:'replace'},unresolved={status:'unresolved',reason:'existing-law-target-unavailable'},framed={status:'placed',operation:'insert',frame:'commission-proposal'};
+  const run=async({law,matching,eligible=true,proposal=framed,available=frame})=>{const reads=[];const result=await placeWithInstructionFrame({eligible,matching,language:'en',
+    place:items=>items?proposal:law,readFrame:async()=>{reads.push(1);return available;}});return {...result,reads:reads.length};};
+  // A placed existing-law amendment needs no proposal read.
+  assert.deepEqual(await run({law:placed,matching:true}),{placement:placed,frame:null,reads:0});
+  // An available law that cannot place the instruction falls back, like the endpoint.
+  assert.deepEqual(await run({law:unresolved,matching:true}),{placement:framed,frame,reads:1});
+  // A partial law baseline with matching-language items: the frame still supplies verification inputs.
+  assert.deepEqual(await run({law:{status:'unresolved',reason:'existing-law-wording-conflict'},matching:true}),{placement:framed,frame,reads:1});
+  // No law at all: the frame or nothing.
+  assert.deepEqual(await run({law:unresolved,matching:false}),{placement:framed,frame,reads:1});
+  assert.deepEqual(await run({law:unresolved,matching:false,proposal:{status:'unresolved',reason:'relative_target_not_found'}}),{placement:{status:'unresolved',reason:'placement-not-evaluated'},frame:null,reads:1});
+  assert.deepEqual(await run({law:unresolved,matching:true,proposal:{status:'unresolved',reason:'relative_target_not_found'}}),{placement:unresolved,frame:null,reads:1},'the law result stands, as at the endpoint');
+  assert.deepEqual(await run({law:unresolved,matching:true,available:{baseline:{language:'fr'},items:[{}]}}),{placement:unresolved,frame:null,reads:1});
+  assert.equal((await run({law:unresolved,matching:true,eligible:false})).reads,0);
+});
+
+test('NLE reports never read the proposal frame, as at the endpoint',async()=>{
+  const {array}=await import('../server/activity-index-model.mjs'),{commissionProcedures}=await import('../server/commission-proposal-identity.mjs');
+  const runtime={array,commissionProcedures};
+  const work=title=>({is_realized_by:[{title_alternative:{en:[title]}}]});
+  assert.equal(nleReport(work('REPORT on the draft Council decision (2025/0123(NLE))'),[],runtime),true);
+  assert.equal(nleReport(work('REPORT on the proposal (2025/0359(COD))'),[{field:'DocRef',raw:'(COM(2025)0836 – C10-0304/2025 – 2025/0359(COD))'}],runtime),false);
+  assert.equal(nleReport(work('REPORT'),[{field:'DocRef',raw:'(2025/0123(NLE))'}],runtime),true);
 });
