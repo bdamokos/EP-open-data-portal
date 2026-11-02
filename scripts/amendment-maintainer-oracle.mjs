@@ -5,7 +5,7 @@ import {assertSimilarityRows} from './amendment-similarity-oracle.mjs';
 const unknown=()=>({status:'unverified',reason:'oracle-maintainer-grammar-unavailable'});
 const instruction=s=>{const m=oracleInstruction(s,'en');return m?[s,m.value]:null;};
 export function assertMaintainerPrinciple({proposal,wording,placement}) {
- if(!proposal||wording.language!=='en'||placement.status!=='placed')return unknown();
+ if(!proposal||wording.language!=='en'||placement.status!=='placed'||typeof wording.targetLabel!=='string')return unknown();
  const target=/^Article (\d+) [–-] paragraph 1((?: [–-] point (?:\d+|[a-z]+))+)( [–-] introductory part)?$/u.exec(wording.targetLabel.split('\n')[0]);
  if(!target)return unknown();
  const rows=proposal.paragraphs,roots=rows.filter(r=>r.text.trim().split('\n')[0].trim()===`Article ${target[1]}`&&/^(?:Titrearticle|ArticleTitle)$/iu.test(r.properties?.styleId??''));
