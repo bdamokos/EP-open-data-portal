@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {verifyPlacement} from './amendment-benchmark-model.mjs';
+
+const proposal=rows=>({sourceKind:'docx',units:[],paragraphs:rows.map((text,index)=>({index,text,source:{container:'body',complete:true},complete:true}))});
+const rows=['THE EUROPEAN PARLIAMENT AND THE COUNCIL OF THE EUROPEAN UNION,','Having regard to the Treaty,','Having regard to the proposal from the European Commission,','Acting in accordance with the ordinary legislative procedure,','Whereas:','(1) A recital.','HAVE ADOPTED THIS REGULATION:','Article 1','1. Text.'];
+const wording=(targetLabel,originalText,proposedText)=>({targetLabel,originalText,proposedText,language:'en',baseline:'commission-proposal'});
+const insert=before=>({status:'placed',operation:'insert',itemIndex:0,insertAfter:before-1,insertBefore:before});
+const replace=row=>({status:'placed',operation:'replace',itemIndex:0,span:{start:row,end:row},splice:{start:{paragraph:row,offset:0},end:{paragraph:row,offset:rows[row].length}}});
+const check=(w,placement,p=proposal(rows))=>verifyPlacement({placement,wording:w,items:[{proposal:p}]});
+
+test('preamble citations are counted from the enacting line to Whereas', () => {
+  assert.deepEqual(check(wording('Citation 2 a (new)','','Having regard to the opinion of the Court of Auditors,'),insert(3)),{status:'verified',reason:'oracle-preamble-citation-boundary'});
+  assert.equal(check(wording('Citation 2 a (new)','','Having regard to the opinion,'),insert(2)).status,'failed');
+  assert.deepEqual(check(wording('Citation 2','Having regard to the proposal from the European Commission,','Changed,'),replace(2)),{status:'verified',reason:'oracle-preamble-citation-span'});
+  assert.equal(check(wording('Citation 2','Having regard to the proposal from the European Commission,','Changed,'),replace(1)).status,'failed');
+  assert.notEqual(check(wording('Citation 2 a (new)','','The European Parliament rejects the Commission proposal.'),insert(3)).status,'verified');
+  const broken=proposal(rows);broken.paragraphs[2].source.complete=false;
+  assert.equal(check(wording('Citation 2 a (new)','','New citation,'),insert(3),broken).status,'unverified');
+});
+
+test('Article -1 goes immediately before Article 1 after the enacting formula', () => {
+  assert.deepEqual(check(wording('Article -1','','Article -1\nNew article.'),insert(7)),{status:'verified',reason:'oracle-negative-article-boundary'});
+  assert.equal(check(wording('Article -1','','Article -1\nNew article.'),insert(8)).status,'failed');
+  const gap=proposal(['HAVE ADOPTED THIS REGULATION:','Recital-like note.','Article 1','1. Text.']);
+  assert.equal(check(wording('Article -1','','Article -1\nNew article.'),insert(2),gap).status,'unverified');
+});
