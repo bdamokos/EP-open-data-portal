@@ -180,12 +180,13 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
     </div>;
 }
 // Files follow the interface language, falling back like the reader text.
+// Unlabelled files do not establish that the interface language is missing.
 function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string }) {
   const ui = useUiI18n();
   if (!files.length) return <p lang={ui.language}><UiMessage id="app.no_files_available"/></p>;
   const shown = languagePreference(files.map(f => f.language || "und"),lang)[0];
   return <div className="explorer-publication-files" lang={ui.language}>
-    {shown !== lang && <small><UiMessage id="speechcloud.not_available_in_this_language.37fcae"/></small>}
+    {shown !== lang && shown !== "und" && <small><UiMessage id="speechcloud.not_available_in_this_language.37fcae"/></small>}
     <p>{files.filter(f => (f.language || "und") === shown).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : ui.language}>{f.language?.toUpperCase() || ui.t("app.language_unavailable")}</span> ↗</a>)}</p>
   </div>;
 }

@@ -257,6 +257,16 @@ test('linked-source fallback skips empty titles while preserving source language
   const title=fallback.querySelector('h3');assert.equal(title.textContent,'Do not select a later entry');assert.equal(effectiveLanguage(title),'fr');
   assert(fallback.querySelector('#document-'+questionId));
   assert.equal(fallback.querySelector('.explorer-publication-files a').href,download);
+  assert(fallback.querySelector('.explorer-publication-files small'),'English files under a Hungarian interface say the interface language is unavailable');
+});
+
+test('unlabelled publication files do not claim the interface language is unavailable',async t=>{
+  const h=await harness(t,'hu',{items:[],query:{member:String(member.id),module:'activities',activity:questionId},linkedDocument:{titles:{fr:'Titre'},files:[{format:'DOCX',url:download}]}});
+  const fallback=h.container.querySelector('aside.explorer-notice');
+  await h.click(exactText(fallback,'button',copy.hu.lookup));
+  const files=fallback.querySelector('.explorer-publication-files');
+  assert.equal(files.querySelector('a').href,download);assert.equal(Boolean(files.querySelector('small')),false,'no unavailable-language notice');
+  assert.equal(files.querySelectorAll('select').length,0,'files follow the interface language without a selector');
 });
 
 test('oral-question deep links show the body first and retain header, note and link provenance',async t=>{
