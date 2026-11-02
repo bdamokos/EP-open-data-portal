@@ -33,7 +33,7 @@ test('absent frozen requests retain exact request/snapshot evidence without touc
   assert.deepEqual((await f.cache.get(url,request)).body,f.body);f.cache.assertHealthy();assert.equal(f.cache.requests,0);
   assert.deepEqual(f.cache.manifest(),f.snapshot.manifest);assert.equal(JSON.stringify(f.snapshot),snapshotBefore);assert.deepEqual(await tree(f.directory),before);assert.deepEqual(f.forbidden,{network:0,retained:0});
 });
-for(const phase of ['sealing','replay'])for(const failure of ['body hash','missing body','missing metadata','malformed metadata','unreadable metadata'])test(phase+' keeps '+failure+' fatal for a listed input',async t=>{
+for(const phase of ['sealing','replay'])for(const failure of ['body hash','missing body','missing metadata','malformed metadata','unreadable metadata','invalid observation time','invalid status','invalid headers'])test(phase+' keeps '+failure+' fatal for a listed input',async t=>{
   const f=await fixture(t);
   if(phase==='replay')await f.cache.seal(f.snapshot.manifest,{snapshotId:f.snapshot.snapshotId});
   if(failure==='body hash')await writeFile(f.bytes,'changed');
@@ -41,6 +41,7 @@ for(const phase of ['sealing','replay'])for(const failure of ['body hash','missi
   if(failure==='missing metadata')await rm(f.metadata);
   if(failure==='malformed metadata')await writeFile(f.metadata,'{broken');
   if(failure==='unreadable metadata'){await rm(f.metadata);await mkdir(f.metadata);}
+  if(failure.startsWith('invalid ')){const meta=JSON.parse(await readFile(f.metadata,'utf8'));if(failure==='invalid observation time')meta.fetchedAt='unknown';if(failure==='invalid status')meta.status='200';if(failure==='invalid headers')meta.headers=[];await writeFile(f.metadata,JSON.stringify(meta));}
   const before=await tree(f.directory);
   if(phase==='replay')await f.cache.get(url.replace('0001','0002'),request);
   await assert.rejects(()=>phase==='sealing'?f.cache.seal(f.snapshot.manifest,{snapshotId:f.snapshot.snapshotId}):f.cache.get(url,request));

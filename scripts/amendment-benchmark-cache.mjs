@@ -103,6 +103,9 @@ export class InputCache {
     try {meta=JSON.parse(await readFile(metaPath,'utf8'));} catch(error) {if(error.code!=='ENOENT')throw error;}
     if (meta) {
       if (meta.url!==url||JSON.stringify(meta.request??null)!==JSON.stringify(request)) throw new Error('Cache URL mismatch: '+url);
+      if(this.sealed&&(typeof meta.ok!=='boolean'||meta.status!==null&&(!Number.isInteger(meta.status)||meta.status<100||meta.status>599)||
+        meta.headers!==undefined&&(!meta.headers||typeof meta.headers!=='object'||Array.isArray(meta.headers))||
+        !meta.acquisitionUnavailable&&!meta.localProjection&&(typeof meta.fetchedAt!=='string'||!Number.isFinite(Date.parse(meta.fetchedAt)))))throw new Error('Invalid sealed input metadata: '+url);
       body=await readFile(bodyPath);
       if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
