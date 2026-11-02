@@ -590,7 +590,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
     const numberedCitation = unit.kind === 'citation'
       && /^([1-9]\d*)\.\s+/u.exec(whitespace(options.originalText))?.[1] === unit.label
       && complete(structure.start, unit.end);
-    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital'].includes(unit.kind)
+    const footnotes = sourceKey !== originalKey && ['paragraph', 'recital', 'point'].includes(unit.kind)
       && resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting);
     const wordingMatches = sourceKey === originalKey || footnotes
       || numberedCitation && sourceKey.replace(/^[–—−\-•]\s*/u, '') === originalKey;
