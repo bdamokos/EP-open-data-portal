@@ -1,7 +1,7 @@
 import {TopicBatch,RecordTopics,OfficialTitle} from './RecordTopics';
-const legacyTopicUrl=legacyTopics(new URLSearchParams(location.search));
-if(legacyTopicUrl)history.replaceState(history.state,'',legacyTopicUrl);
-import {legacyTopics,agendaTitle} from './topicPresentation.mjs';
+const emptyDossierUrl=emptyDossierRedirect(new URLSearchParams(location.search));
+if(emptyDossierUrl)history.replaceState(history.state,'',emptyDossierUrl+location.hash);
+import {emptyDossierRedirect,agendaTitle} from './topicPresentation.mjs';
 const Topics=lazyView(()=>import('./Topics').then(m=>({default:m.Topics})));
 import {usePlenaryUiLanguage} from './PlenaryLive';
 import {defaultUi} from './uiDefault.mjs';
@@ -14,7 +14,7 @@ import {QuestionAnswerer} from './QuestionAnswerer';
 import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
-import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
+import {navigateDossier,useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
 import {matchesCommittee,matchesOrganization,organizationId,organizationCoverageComplete} from './memberFilters.mjs';
 import {AvailabilityNote} from './AvailabilityNote';
 import {coverageStore} from './SavedControls';
@@ -521,7 +521,7 @@ export default function App() {
   const [activityLink, setActivityLink] = useState(initial.get("activity"));
   const [activityCategory, setActivityCategory] = useState(initial.get("activity-category") || "");
   const [activityOffset,setActivityOffset]=useState(()=>queryActivityOffset(initial));
-  const [view, setView] = useState<'legislation'|'questions'|'topics'|'outside'|'amendments'|'groups'|'saved'|null>(
+  const [view, setView] = useState<'legislation'|'questions'|'geopolitics'|'outside'|'amendments'|'groups'|'saved'|null>(
     publicExplorerView(initial.get('view')),
   );
   const [tab, setTab] = useState(
@@ -669,14 +669,20 @@ export default function App() {
   const selected = directory?.members.find((m) => m.id === member);
   const titleMember = (profile.data?.id === member) ? profile.data : selected;
   const memberName = [titleMember?.firstName,titleMember?.lastName].filter(Boolean).join(' ') || followed?.title || ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(member)});
-  const pageTitle = (view==='legislation') ? null : (view ? {topics:ui.t("topics.topics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
+  const pageTitle = (view==='legislation') ? null : (view ? {geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions"),outside:ui.t("outsidevoices.outside_voices.a027e6"),groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),saved:ui.t("batch4.dossiercontrols.tsx.64.2")}[view] : (member ? ui.t("app.activityResultsCount", {category: String(memberName), count: String(((tab==='profile') ? c.profile : ((tab==='activities') ? c.activities : ((tab==='amendments') ? ui.t("legislation.amendments.900866") : ((tab==='votes') ? ui.t("dossieractivity.votes") : c.speeches)))))}) : c.title));
   const pageTitleLanguage=ui.language;
   useEffect(()=>{if(pageTitle)document.title = ui.t("legislation.pagetitle_european_parliament_data_explorer.42a26b", {pageTitle: String(pageTitle)});document.querySelector('title')?.setAttribute('lang',pageTitleLanguage);},[pageTitle,pageTitleLanguage]);
   const roleName = (value: string) =>
     (value === "MEMBER_SUBSTITUTE") ? label("substitute", c.substitutes) : ((value === "MEMBER") ? label("member", c.members) : ((value === "CHAIR") ? ((lang === "en") ? ui.t("batch4.speechinterventions.tsx.chair") : label("chair", ui.t("batch4.speechinterventions.tsx.chair"))) : ((value === "CHAIR_VICE") ? ((lang === "en") ? ui.t("interfaceLabels.viceChair") : label("viceChair", ui.t("interfaceLabels.viceChair"))) : value.toLowerCase().replaceAll("_", " "))));
   function navigateView(next:typeof view) {
     next=publicExplorerView(next);
-    if(next===view)return;
+    if(next===view){
+      const url=new URL(location.href);
+      if(!['legislation','geopolitics'].includes(next||'')||!['topic','place','t-record','t-records'].some(key=>url.searchParams.has(key)))return;
+      for(const key of [...url.searchParams.keys()])if(key==='topic'||key==='place'||key.startsWith('t-'))url.searchParams.delete(key);
+      if(next==='legislation')url.searchParams.set('pl-mode','topics');
+      url.hash='';navigateDossier(url.pathname+url.search);return;
+    }
     votes.remember();
     motions.remember();
     const active=(document.activeElement instanceof HTMLElement) ? document.activeElement : null;
@@ -692,7 +698,7 @@ export default function App() {
   }
   useEffect(()=>{
     const restore=()=>{
-      const legacy=legacyTopics(new URLSearchParams(location.search));if(legacy)history.replaceState(history.state,'',legacy);
+      const redirect=emptyDossierRedirect(new URLSearchParams(location.search));if(redirect)history.replaceState(history.state,'',redirect+location.hash);
       pendingDestination.current=null;
       setRestoration(value=>value+1);
       const query=new URLSearchParams(location.search),next=query.get('view');
@@ -772,10 +778,10 @@ export default function App() {
     navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
-  if (view === 'topics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
+  if (view === 'geopolitics' || view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
-    const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),topics:ui.t("topics.topics"),questions:ui.t("textsearch.questions")}[view];
-    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='topics') ? <Topics {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
+    const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),geopolitics:ui.t("topics.geopolitics"),questions:ui.t("textsearch.questions")}[view];
+    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='geopolitics') ? <Topics {...props}/> : (view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
   return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
         <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>
