@@ -945,3 +945,17 @@ test('Finnish published negative paragraph insertions require a unique first par
  assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
  }
 });
+
+test('negative first provisions precede the first published sibling of their kind',()=>{
+  const text=document(['The European Parliament,','–\thaving regard to its earlier resolution,','A.\twhereas one;','B.\twhereas two;','General considerations','1.\tStresses one:','(a)\tfirst point;','(b)\tsecond point;','2.\tStresses two;'],{textLanguage:'en'});
+  const place=(targetLabel,proposedText,referenceText)=>resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText,targetLabel,referenceText});
+  for(const [label,printed] of [['Paragraph -1 (new)','-1.\tNew;'],['Paragraph −1 a (new)','−1a.\tNew;'],['Paragraph -1','–\t1. New;']]) {
+    const placed=place(label,printed,'Before § 1');
+    assert.equal(placed.status,'placed',label);assert.equal(placed.insertBefore,5,label);
+  }
+  assert.equal(place('Recital -A (new)','-A.\twhereas new;').insertBefore,2);
+  assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 1, before point a').insertBefore,6);
+  assert.equal(place('Paragraph -1 (new)','-1.\tNew;','After § 2').reason,'conflicting_target_evidence');
+  const opinion=document(['The European Parliament,','–\thaving regard to its rules,','1.\tRecalls one;','2.\tRecalls two;','A.\twhereas the opinion;'],{textLanguage:'en'});
+  assert.equal(resolveAmendmentPlacement(opinion,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-A.\twhereas new;',targetLabel:'Recital -A (new)'}).status,'unresolved');
+});
