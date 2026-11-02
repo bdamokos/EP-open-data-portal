@@ -102,10 +102,12 @@ export function GroupVoices({language='en',...props}:InsightProps){
   const monthLabel=(value:string)=>new Intl.DateTimeFormat(language,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'-15T12:00:00Z'));
   const months=[...new Set([...(data?.months||[]),...(/^\d{4}-\d{2}$/.test(s.period) ? ([s.period]) : ([]))])].sort().reverse();
   const shownPolicyLabels=data&&data.ready!==false?[...(s.tab==='subjects'?shownTopics.map(t=>policyLabels[t.id]||{key:t.id,label:t.label}):list.visible.flatMap(p=>subjectEntries(p).map(([id])=>policyLabels[id]||{key:id,label:labels[id]}))),...(s.subject?[policyLabels[s.subject]||{key:s.subject,label:labels[s.subject]}]:[])]:[];
-  // Strips share one scale so a darker cell means more contributions on every row.
-  const buckets=activityBuckets(data?.window,s.period,people),showActivity=Boolean(data&&!data.coverage.truncated&&buckets.keys.length&&people.some(p=>p.days));
-  const rowMax=showActivity?Math.max(1,...list.visible.flatMap(p=>activityCounts(p.days,buckets))):1;
-  const overviewDays=sumActivity(scope),overviewMax=showActivity?Math.max(1,...activityCounts(overviewDays,buckets)):1;
+  // Day counts cover all topics, so strips are hidden while a topic filter is
+  // active. Person rows share one scale; the group total has its own, except
+  // for a selected person, whose overview and row show the same counts.
+  const buckets=activityBuckets(data?.window,s.period,people),showActivity=Boolean(data&&!s.subject&&!data.coverage.truncated&&buckets.keys.length&&people.some(p=>p.days));
+  const rowMax=showActivity?Math.max(1,...list.visible.flatMap(p=>activityCounts(p.days,buckets)),...(selected?activityCounts(selected.days,buckets):[])):1;
+  const overviewDays=sumActivity(scope),overviewMax=showActivity?(s.person?rowMax:Math.max(1,...activityCounts(overviewDays,buckets))):1;
   const stripLabel=ui.t(buckets.unit==='day'?'groupvoices.contributions_by_sitting_day.77a719':'groupvoices.contributions_by_month.0ca3ec');
   const togglePersonTopics=(id:string)=>setOpenTopics(open=>open.includes(id)?open.filter(value=>value!==id):[...open,id]);
   return <InsightShell {...props} language={language} title={ui.t("groupvoices.group_voices.f21b8b")} view="groups"><PolicyAreaSourcesPage><PolicyAreaLabelUsage labels={shownPolicyLabels}/><div className="gv" ref={root} lang={ui.language}>

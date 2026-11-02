@@ -191,6 +191,14 @@ test('activity strips share one scale across rows',async t=>{
  assert.match(strips[0].getAttribute('aria-label'),/^Contributions by month: Sep 2026: 2, Oct 2026: 1$/);
  assert.deepEqual([...h.container.querySelectorAll('.gv-overview .gv-strip i')].map(c=>c.dataset.level),['4','4']);
 });
+test('a selected person shares the row scale and a topic filter hides day counts that cover all topics',async t=>{
+ const people=[{id:'42',name:'Éva Example',total:3,subjects:{foreign:1},days:{'2026-09-08':2,'2026-10-06':1}},{id:'43',name:'Other Example',total:6,subjects:{},days:{'2026-09-08':6}}];
+ const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=people&gv-person=42',{response:{people,window:{from:'2026-09-01',to:'2026-10-17'}}});
+ const levels=node=>[...node.querySelectorAll('i')].map(c=>c.dataset.level);
+ assert.deepEqual(levels(h.container.querySelector('.gv-overview .gv-strip')),levels(h.container.querySelector('.gv-person.is-selected .gv-strip')));
+ await h.restore('/?view=groups&gv-group=PPE&gv-tab=people&gv-subject=foreign');await viewReady(h.container);
+ assert(h.container.querySelector('.gv-person'));assert.equal(h.container.querySelector('.gv-strip'),null);
+});
 test('activity strips stay hidden on a capped selection',async t=>{
  const people=[{id:'42',name:'Éva Example',total:3,subjects:{},days:{'2026-09-08':2,'2026-10-06':1}}];
  const h=await harness(t,'?view=groups&gv-group=PPE&gv-tab=people',{response:{people,coverage:{...coverage,truncated:true}}});
