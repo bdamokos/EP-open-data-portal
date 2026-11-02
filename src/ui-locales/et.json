@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} registreeritud seisukoht",
   "membervotes.tsx.count.recorded.positions": "{count} registreeritud seisukohta",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Lõpphääletus kogu teksti üle",
   "membervotes.tsx.final.vote.outcome.position": "Lõpphääletus · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Leia vastuvõetud tekst",
   "membervotes.tsx.finding.latest.recorded.votes": "Viimaste registreeritud hääletuste otsimine…",

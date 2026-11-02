@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} užregistruota pozicija",
   "membervotes.tsx.count.recorded.positions": "{count} užregistruotų pozicijų",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Galutinis balsavimas dėl viso teksto",
   "membervotes.tsx.final.vote.outcome.position": "Galutinis balsavimas · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Rasti priimtą tekstą",
   "membervotes.tsx.finding.latest.recorded.votes": "Ieškoma naujausių užregistruotų balsavimų…",

@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} reģistrēta nostāja",
   "membervotes.tsx.count.recorded.positions": "{count} reģistrētas nostājas",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Galīgais balsojums par visu tekstu",
   "membervotes.tsx.final.vote.outcome.position": "Galīgais balsojums · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Atrast pieņemto tekstu",
   "membervotes.tsx.finding.latest.recorded.votes": "Meklē jaunākos reģistrētos balsojumus…",

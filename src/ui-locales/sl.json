@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} zabeleženo stališče",
   "membervotes.tsx.count.recorded.positions": "Število zabeleženih stališč: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Končno glasovanje o celotnem besedilu",
   "membervotes.tsx.final.vote.outcome.position": "Končno glasovanje · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Poišči sprejeto besedilo",
   "membervotes.tsx.finding.latest.recorded.votes": "Iskanje zadnjih zabeleženih glasovanj…",

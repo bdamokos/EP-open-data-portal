@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} καταγεγραμμένη θέση",
   "membervotes.tsx.count.recorded.positions": "{count} καταγεγραμμένες θέσεις",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Τελική ψηφοφορία επί του συνόλου του κειμένου",
   "membervotes.tsx.final.vote.outcome.position": "Τελική ψηφοφορία · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Εύρεση εγκριθέντος κειμένου",
   "membervotes.tsx.finding.latest.recorded.votes": "Εύρεση τελευταίων καταγεγραμμένων ψηφοφοριών…",
