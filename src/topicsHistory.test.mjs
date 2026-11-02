@@ -27,16 +27,21 @@ test('invalid quarter falls back, tied peaks stay visible and keyword chips reta
  const chip=node.querySelector('.topic-facets a');assert.equal(chip.getAttribute('aria-pressed'),'false');await act(async()=>chip.click());await wait(()=>node.querySelector('.topic-facets a').getAttribute('aria-pressed')==='true');assert.equal(new URL(location.href).searchParams.get('t-kw'),'eurovoc:0');
 });
 
-test('tour waits for loaded captions and stops at the final quarter',async t=>{
- const window=new Window({url:'http://localhost/?view=topics&t-tab=places'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+test('Places shows months in the title, steps with the stepper and slider, and has no Play control',async t=>{
+ const window=new Window({url:'http://localhost/?view=topics&t-tab=places&t-q=2025-Q2'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
-
- let resolveFacts;const facts=new Promise(r=>resolveFacts=r),timers=[],originalTimeout=globalThis.setTimeout;t.mock.method(globalThis,'setTimeout',(fn,ms,...args)=>{if(ms>=7000&&ms<=16000)timers.push({fn,ms});return originalTimeout(fn,ms,...args);});
- const data={ready:true,periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{first:null,last:'2025-07-01'},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label:'Iran',series:[{period:'2025-Q2',question:10},{period:'2025-Q3',question:12}]}]};t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);return u.pathname==='/api/topics/story-facts'?facts:Response.json(data);});
+ const timers=[],originalTimeout=globalThis.setTimeout;t.mock.method(globalThis,'setTimeout',(fn,ms,...args)=>{if(ms>=7000&&ms<=16000)timers.push(ms);return originalTimeout(fn,ms,...args);});
+ const data={ready:true,periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{first:null,last:'2025-08-01'},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label:'Iran',series:[{period:'2025-Q2',question:10},{period:'2025-Q3',question:12}]}]};t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);return Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:data);});
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
  const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>originalTimeout(r,20)));assert(predicate(),node.textContent);};
- t.after(()=>resolveFacts(Response.json({ready:false})));
- await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelector('.places-map'));const pendingTimers=timers.length;await act(async()=>node.querySelector('.topic-time button[aria-pressed]').click());assert.equal(timers.length,pendingTimers);await act(async()=>resolveFacts(Response.json({ready:false})));await wait(()=>timers.length===pendingTimers+1);assert(node.querySelector('.places-caption').textContent.includes('Iran'));await act(async()=>timers.at(-1).fn());await wait(()=>new URL(location.href).searchParams.get('t-q')==='2025-Q3');await wait(()=>node.querySelector('.topic-time button[aria-pressed]').getAttribute('aria-pressed')==='false');assert.equal(timers.length,pendingTimers+1);
+ await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelector('.places-map'));
+ const title=()=>node.querySelector('.places-quarter').textContent;
+ assert.match(title(),/^April\s*[–-]\s*June 2025$/,'the title names the months');assert.equal(node.querySelector('.places-scrubber input').getAttribute('aria-valuetext'),title());
+ assert.equal(node.querySelector('.places-play'),null,'no Play control');assert(![...node.querySelectorAll('button')].some(b=>/Play|Pause/.test(b.textContent)));
+ assert.deepEqual([...node.querySelectorAll('.places-ends span')].map(s=>s.textContent),['2025 Q1','2025 Q3 so far'],'compact labels at the slider ends');
+ await act(async()=>node.querySelector('.places-scrubber button:last-of-type').click());await wait(()=>/July/.test(title()));
+ assert.match(title(),/^July\s*[–-]\s*September 2025 so far$/,'a partial quarter reads "so far"');assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3','URLs keep the quarter');
+ assert(!(await import('node:fs/promises').then(fs=>fs.readFile(new URL('./Topics.tsx',import.meta.url),'utf8'))).includes('dwell'),'no dwell timer');
 });
 
 test('place uses one detail response, not-home records and all metric peak ties',async t=>{
@@ -106,10 +111,10 @@ test('places put the time control, map and story first and the ranked list and f
  assert.deepEqual(order,['topic-time','places-map','places-caption','places-ranking','topic-finder']);
  assert(node.querySelector('.places-stage .topic-time + .places-map'),'the map follows its time control directly');
  assert.equal(node.querySelectorAll('.topic-finder').length,1);assert(node.querySelector('.places-side .topic-finder'));
- assert.equal(node.querySelector('.places-quarter').textContent,'2025 Q2');assert.equal(node.querySelector('.places-quarter').getAttribute('aria-live'),'polite');
- const slider=node.querySelector('.places-scrubber input[type=range]');assert.equal(slider.getAttribute('aria-label'),'Quarter');assert.equal(slider.getAttribute('aria-valuetext'),'2025 Q2');
+ assert.match(node.querySelector('.places-quarter').textContent,/^April\s*[–-]\s*June 2025$/);assert.equal(node.querySelector('.places-quarter').getAttribute('aria-live'),'polite');
+ const slider=node.querySelector('.places-scrubber input[type=range]');assert.equal(slider.getAttribute('aria-label'),'Quarter');assert.equal(slider.getAttribute('aria-valuetext'),node.querySelector('.places-quarter').textContent);
  assert.deepEqual([...node.querySelectorAll('.places-ends span')].map(s=>s.textContent),['2025 Q1','2025 Q3 so far']);
- await act(async()=>node.querySelector('.places-scrubber button[aria-label="Next quarter"]').click());await wait(()=>node.querySelector('.places-quarter').textContent==='2025 Q3 so far');assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3');
+ await act(async()=>node.querySelector('.places-scrubber button[aria-label="Next quarter"]').click());await wait(()=>/^July\s*[–-]\s*September 2025 so far$/.test(node.querySelector('.places-quarter').textContent));assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3');
 });
 
 test('voting-time groups without exact targets stay unlinked and never captioned as debates',async t=>{
@@ -123,6 +128,7 @@ test('voting-time groups without exact targets stay unlinked and never captioned
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
  const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
  await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelectorAll('.topic-record-group').length===2);
+ assert.match(node.querySelector('#topic-records h2').textContent,/January\s*[–-]\s*March 2026/,'the records meta line names months');
  const links=[...node.querySelectorAll('.topic-record-group a')].map(a=>a.getAttribute('href'));
  const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(!voteLink,'an unresolved voting-time parent must not have an agenda link');assert(!links.includes('#topic-records'));
  const captions=[...node.querySelectorAll('.topic-peak')].map(b=>b.textContent);
