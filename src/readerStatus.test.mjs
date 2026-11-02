@@ -172,6 +172,17 @@ test('question readers show the answerer and omit the page viewer and a redundan
   assert(h.container.querySelector('select'),'French text under an English interface offers other editions');
 });
 
+test('a focused question language picker survives an uncached language request',async t=>{
+  const h=await harness(t);
+  await h.render(h.reader('question',{language:'hu'}));
+  await h.finish(`document/${questionId}?lang=hu`,question());await h.wait();
+  const select=h.container.querySelector('select');
+  await act(async()=>{select.focus();select.value='fr';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+  assert.equal(h.container.querySelector('select'),select,'the picker stays while the French edition loads');assert.equal(document.activeElement,select);
+  await h.finish(`document/${questionId}?lang=fr`,question(questionId,'fr'));await h.wait();
+  assert.equal(h.container.querySelector('select'),select);assert.equal(document.activeElement,select);assert.equal(select.value,'fr');
+});
+
 test('inline retries recover the same ID and chosen language once, retaining local keyboard focus',async t=>{
   for(const kind of ['question','speech'])await t.test(kind,async t=>{
     const h=await harness(t),id=kind==='question'?questionId:speechId,prefix=kind==='question'?'document':'speech';

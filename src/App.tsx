@@ -16,7 +16,7 @@ import {coverageStore} from './SavedControls';
 import {FormerMemberNotice} from './MembershipUpdates';
 import {PersonName,PersonNamesProvider} from './PersonName';
 import {languagePreference} from '../server/language-order.mjs';
-import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
+import {TextLanguagePicker,TextLanguageFallback,useRetainedText} from './TextLanguagePicker';
 import {ErrorBoundary,ViewContent,ViewLoading} from './ErrorBoundary';
 import {lazyView} from './lazyView';
 import {filterCountry,matchesCountry} from './countries.mjs';
@@ -211,6 +211,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, shownDa
   const state=useData<PublicationDocument>(`document/${encodeURIComponent(sourceId)}?member=${member}&lang=${requestedLanguage}`);
   const text=(state.data?.selectedDocumentId===sourceId) ? state.data.selectedText : null;
   const questionDocument=/^[EPHO]-\d+-\d{4}-\d+(?:-ASW)?$/.test(sourceId);
+  const pickerText=useRetainedText(sourceId,text);
   const files=sourceId.endsWith('-ASW') ? (state.data?.answers.find(answer=>answer.id===sourceId)?.files||[]) : (state.data?.files||[]);
   const body=publicationBody(text?.paragraphs||[],sourceId,text?.textLanguage),repeatedDate=repeatedSubmittedLine(body,sourceId,text?.textLanguage,shownDate),notePrefix='notes'+useId().replace(/[^A-Za-z0-9_-]/g,'');
   const logo=publicationCoverLogo(text,sourceId,text?.textLanguage);
@@ -218,7 +219,7 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, shownDa
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt ? Date.parse(text.nextRetryAt) : undefined);
   return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}>
     <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
-    <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}{text&&<TextLanguagePicker show={!questionDocument||text.textLanguage!==ui.language||text.textLanguage!==lang} available={text.availableTextLanguages} requested={lang} value={text.textLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={(text.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text.textLanguage} interfaceLanguage={lang}/>}/>}</div>
+    <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}{pickerText&&<TextLanguagePicker show={!questionDocument||pickerText.textLanguage!==ui.language||pickerText.textLanguage!==lang} available={pickerText.availableTextLanguages} requested={lang} value={text ? text.textLanguage : requestedLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={(text?.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text?.textLanguage??null} interfaceLanguage={lang}/>}/>}</div>
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
     {sourceId.endsWith('-ASW')&&<QuestionAnswerer answerer={state.data?.answerer}/>}
     {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&<ReaderRetry message={ui.t("app.text_temporarily_unavailable")} language={lang} retry={state.retry} retryAt={retryAt}/>}

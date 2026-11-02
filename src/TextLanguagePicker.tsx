@@ -1,5 +1,5 @@
 import {UiMessage, useUiI18n} from './UiI18nReact';
-import {useState,type ReactNode} from 'react';
+import {useRef,useState,type ReactNode} from 'react';
 import {languagePreference} from '../server/language-order.mjs';
 import {languageName} from './interfaceLabels.mjs';
 import './TextLanguagePicker.css';
@@ -22,4 +22,11 @@ const label = labelProp ?? ui.t("textsearch.text_language");
     {(!value||!ordered.includes(value))&&<option value="" disabled><UiMessage id="grouplabels.ts.unavailable"/></option>}
     {ordered.map(code=><option lang={code} key={code} value={code}>{languageName(code)}</option>)}
   </select></label>}{note}</>;
+}
+
+// Keeps the last loaded text for one document so its picker survives a pending language request.
+export function useRetainedText<T>(key:string,value:T|null|undefined):T|null {
+  const retained=useRef<{key:string;value:T}|null>(null);
+  if(value)retained.current={key,value};
+  return value??(retained.current?.key===key ? retained.current.value : null);
 }
