@@ -6,24 +6,25 @@ import {speechParentDocumentId} from './speech-agenda.mjs';
 import {countryLabels} from './topic-roles.mjs';
 import {quarter} from './topics-store.mjs';
 
+// Retain vote observations before resolving the shared timestamp-aware graph.
+export async function stageStoryOutcomes(store,sourceGeneration){
+ // Existing whole-motion projections and the full sitting fallback share exact
+ // result/decision identities. Stream each row, never the complete vote graph.
+ for(const source of store.db.prepare("SELECT rowid,key,fetched_at FROM sources WHERE generation=? AND kind='motion-outcomes'").iterate(sourceGeneration)){
+  const metadata=Object.fromEntries([...rootSourceValues(sourceByteChunks(store.db,source.rowid),{scalars:['resultsUrl','decisionsUrl','resultsFetchedAt','decisionsFetchedAt']})].map(x=>[x.field,x.value]));
+  await topicBatches(store,(function*(){for(const {field,value} of rootSourceValues(sourceByteChunks(store.db,source.rowid),{arrays:['results','decisions']})){
+   yield;stageStoryInput(store,value,{url:metadata[field+'Url']||'https://data.europarl.europa.eu/api/v2'+source.key,fetchedAt:metadata[field+'FetchedAt']||source.fetched_at},{rank:2});
+  }})(),50);
+ }
+}
 const tables=['story_facts','story_links','story_places','story_topics','story_parents'];
 export async function buildStoryFacts(store,generation,options={}){
  const previous=store.db.prepare('PRAGMA cache_size').get().cache_size;
  store.db.exec('PRAGMA cache_size=-1024;PRAGMA temp_store=FILE;PRAGMA temp.cache_size=-1024');
  try{return await projectStoryFacts(store,generation,options);}finally{store.db.exec('PRAGMA cache_size='+Number(previous));}
 }
-async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},sourceGeneration=generation}={}){
+async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},sourceGeneration=generation,nodes}={}){
  storyTables(store.db);store.assertWriter();store.set('storyProjection',null);
- // Existing whole-motion projections and the full sitting fallback share exact
- // result/decision identities. Stream each row, never the complete vote graph.
- for(const source of store.db.prepare("SELECT rowid,key,fetched_at FROM sources WHERE generation=? AND kind='motion-outcomes'").iterate(sourceGeneration)){
-  const metadata=Object.fromEntries([...rootSourceValues(sourceByteChunks(store.db,source.rowid),{scalars:['resultsUrl','decisionsUrl','resultsFetchedAt','decisionsFetchedAt']})].map(x=>[x.field,x.value]));
-  let n=0;
-  for(const {field,value} of rootSourceValues(sourceByteChunks(store.db,source.rowid),{arrays:['results','decisions']})){
-   stageStoryInput(store,value,{url:metadata[field+'Url']||'https://data.europarl.europa.eu/api/v2'+source.key,fetchedAt:metadata[field+'FetchedAt']||source.fetched_at},{rank:2});
-   if(++n%50===0){store.renew();await new Promise(setImmediate);}
-  }
- }
  onProgress('story-inputs');
  for(const table of tables){let changes;do{store.transaction(()=>{store.assertWriter();changes=store.db.prepare(`DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE generation=? LIMIT 500)`).run(generation).changes;});store.renew();await new Promise(setImmediate);}while(changes);}
  const put=store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?) ON CONFLICT(generation,kind,id) DO UPDATE SET date=excluded.date,body=excluded.body'),link=store.db.prepare('INSERT OR IGNORE INTO story_links VALUES (?,?,?,?)'),place=store.db.prepare('INSERT OR IGNORE INTO story_places VALUES (?,?,?,?,?,?)'),topic=store.db.prepare('INSERT OR IGNORE INTO story_topics VALUES (?,?,?,?,?)');
@@ -39,16 +40,17 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
  await topicBatches(store,(function*(){
   for(const row of inputs('document')){yield;const d={...JSON.parse(row.body),source:JSON.parse(row.source)};if(!inTerm(d.date))continue;
    if(d.conflicted){d.events=[];d.groups=[];d.groupsAvailable=false;d.places=[];d.keywords=[];}
-   put.run(generation,'document',d.id,d.date,JSON.stringify(d));addLinks('document-event',d.id,d.events);addLinks('document-original',d.id,d.derivedFrom);
+   put.run(generation,'document',d.id,d.date,JSON.stringify({...d,events:[]}));addLinks('document-original',d.id,d.derivedFrom);
   }
-  for(const row of inputs('result')){yield;const r=JSON.parse(row.body);if(r.conflicted)continue;addLinks('result-decision',r.id,r.decisions);addLinks('result-executed',r.id,r.executed);for(const doc of r.basedOn)addLinks('document-event',doc,[r.id]);}
+  for(const row of inputs('result')){yield;const r=JSON.parse(row.body);if(r.conflicted)continue;addLinks('result-decision',r.id,r.decisions);addLinks('result-executed',r.id,r.executed);}
+  for(const node of nodes.values()){yield;if(node.kind==='event'&&!node.conflicted)for(const id of node.documentIds||[])addLinks('document-event',id,[node.id]);}
   for(const row of inputs('decision')){yield;const d=JSON.parse(row.body);if(!d.conflicted)for(const result of d.results)addLinks('result-decision',result,[d.id]);}
  })());
  const docsFor=event=>fromIds('document-event',event).map(id=>fact('document',id)).filter(Boolean);
  // Match outcomes only inside explicitly linked vote results, including a joint
  // motion's originals. Originals never donate their tabling groups.
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,body FROM story_facts WHERE generation=? AND kind='document' ORDER BY id").iterate(generation)){
-  yield;const d=JSON.parse(row.body),events=unique([...d.events,...d.derivedFrom.flatMap(id=>fact('document',id)?.events||[])]),votes=new Set(events.filter(id=>id.includes('VOT-ITM-')));
+  yield;const d=JSON.parse(row.body);d.events=toIds('document-event',d.id);const events=unique([...d.events,...d.derivedFrom.flatMap(id=>fact('document',id)?.events||[])]),votes=new Set(events.filter(id=>id.includes('VOT-ITM-')));
   for(const oj of events.filter(id=>id.includes('OJ-ITM-V-')))for(const vote of fromIds('result-executed',oj))votes.add(vote);
   const candidates=unique([...votes].flatMap(id=>toIds('result-decision',id))).map(id=>storyInput(store,'decision',id)).filter(Boolean);
   Object.assign(d,wholeTextOutcome(d,candidates));d.supersededBy=fromIds('document-original',d.id);
@@ -78,7 +80,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
  onProgress('story-speakers');
  await topicBatches(store,(function*(){for(const d of seeds.values()){
   yield;const counts=speakerCounts.get(d.id);if(!counts.speeches)continue;
-  const event=storyInput(store,'event',d.id);let documents=docsFor(d.id);const agendaLink=debateAgenda(event,documents),agenda=agendaLink.agendaId?storyInput(store,'agenda',agendaLink.agendaId):null;
+  const event=nodes.get(d.id)||storyInput(store,'event',d.id);let documents=docsFor(d.id);const agendaLink=debateAgenda(event,documents),agenda=agendaLink.agendaId?storyInput(store,'agenda',agendaLink.agendaId):null;
   if(agendaLink.agendaId)documents=[...new Map([...documents,...docsFor(agendaLink.agendaId)].map(x=>[x.id,x])).values()];
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');

@@ -33,7 +33,7 @@ test('unlabelled whole motions and show-of-hands decisions preserve unknown tall
  assert.equal(o.decisionId,'hand');assert.equal(o.decisionMethod,'VOTE_HAND');assert.equal(o.for,null);assert.equal(o.against,null);assert.equal(o.abstentions,null);assert.equal(wholeTextOutcome(doc,[]).outcome,null);
 });
 test('agenda links and country claims withhold ambiguous and incidental associations',()=>{
- const docs=[{events:['MTG-PL-2025-03-12-OJ-ITM-D-1']}];assert.equal(debateAgenda(null,docs).agendaVia,'document');
+ const docs=[{events:['MTG-PL-2025-03-12-OJ-ITM-D-1']}];assert.equal(debateAgenda(null,docs).agendaVia,'document');assert.equal(debateAgenda({executed:[],executedKnown:false},docs).agendaVia,'document');assert.equal(debateAgenda({executed:[],executedKnown:true},docs).agendaId,null);
  assert.equal(debateAgenda({executed:['OJ-ITM-D-2']},docs).agendaId,'OJ-ITM-D-2');assert.equal(debateAgenda({executed:['OJ-ITM-D-2','OJ-ITM-D-3']},docs).agendaId,null);assert.equal(debateAgenda(null,[...docs,{events:['MTG-PL-2025-03-12-OJ-ITM-D-2']}]).agendaId,null);
  assert.deepEqual(debatePlaces('Support for Ukraine',['UKR','HUN'],null).places.map(p=>p.id),['UKR']);assert.equal(debatePlaces('The steel market',['UKR'],'report').places.length,0);assert.equal(debatePlaces('Human rights',['IRN'],'urgency').primaryPlace,'IRN');assert.equal(debatePlaces('Human rights',['IRN','UKR'],'urgency').places.length,0);
 });
@@ -242,4 +242,21 @@ test('not-home story questions combine elsewhere and unknown without changing th
  const {store}=await fixture(t);store.setMembers([{id:'1',countryCode:'GR'},{id:'2',countryCode:'CY'}]);
  for(const [n,mep] of [[1,'1'],[2,'2'],[3,'99']])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/E-10-2025-00000'+n,'E-10-2025-00000'+n,mep,'written-questions','2025-03-12',JSON.stringify({titles:{en:'Greece'}}));await buildTopics(store);
  const read=askers=>storyFacts(store,new URLSearchParams({scope:'place',key:'GRC',askers,list:'questions',period:'2025-Q1'}));const all=read('all'),away=read('not-home');assert.equal(away.counts.questions,all.counts.questions-all.counts.questionHome);assert.equal(away.counts.questions,2);assert.equal(away.counts.questionHome,0);assert.equal(away.counts.questionElsewhere,1);assert.equal(away.counts.questionUnknown,1);assert.equal(away.page.total,2);assert.deepEqual(new Set(away.questions.map(q=>q.askers.GRC)),new Set(['elsewhere','unknown']));assert.equal(read('elsewhere').counts.questions,1);
+});
+
+test('stories use reconciled document-event edges and preserve absent versus empty executed',async t=>{
+ const day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-1',doc='B-10-2025-0010',decision='MTG-PL-'+day+'-DEC-1';
+ for(const scenario of ['fallback','empty-executed','event-retracted','document-retracted'])await t.test(scenario,async t=>{
+  const {store}=await fixture(t),old={...source,fetchedAt:'2026-10-01T12:00:00Z'},newer={...source,fetchedAt:'2026-10-02T12:00:00Z'};
+  const work={identifier:doc,work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'Ukraine'},is_about:[geo('UKR')],inverse_based_on_a_realization_of:(scenario==='document-retracted'?[]:[debate,agenda,vote]).map(id=>'eli/dl/event/'+id)};
+  store.putSource(1,'/plenary-documents/'+doc,'document',work,scenario==='document-retracted'?newer.fetchedAt:old.fetchedAt);
+  const retracted=scenario==='event-retracted';for(const id of [debate,vote])stageStoryInput(store,{activity_id:id,activity_date:day,based_on_a_realization_of:retracted?[]:['eli/dl/doc/'+doc],...(scenario==='empty-executed'&&id===debate?{executed:[]}:{}),...(id===vote?{consists_of:['eli/dl/event/'+decision]}:{})},retracted?newer:old,{rank:4});
+  stageStoryInput(store,{activity_id:agenda,activity_date:day,structuredContent:{en:'<type>Commission statement</type>'}},old,{rank:4});
+  stageStoryInput(store,{activity_id:decision,inverse_consists_of:['eli/dl/event/'+vote],activity_label:{en:'B10-0010/2025 – Motion for a resolution (as a whole)'},decision_outcome:'def/ep-decision-outcomes/ADOPTED'},old,{rank:4});
+  const speech='MTG-PL-'+day+'-OTH-1';store.putSource(1,'/speeches/'+speech,'speech',{outside:{id:speech,date:day,titles:{en:'Ukraine'},participants:['1'],parentIds:[debate],headers:[],source:old}},old.fetchedAt);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+speech,speech,'1','plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));
+  await buildTopics(store,{cache:null});const result=storyFacts(store,new URLSearchParams('scope=place&key=UKR'));
+  const d=result.debates[0],body=JSON.parse(store.db.prepare("SELECT body FROM story_facts WHERE generation=1 AND kind='document' AND id=?").get(doc).body);
+  if(scenario==='fallback'){assert.equal(d.agendaId,agenda);assert.equal(d.agendaVia,'document');assert.equal(body.outcomeStatus,'known');}
+  else {assert.equal(d.agendaId,null);if(scenario==='empty-executed')assert(d.docs.includes(doc));else {assert(!d.docs.includes(doc));assert(!body.events.includes(debate));assert(!body.events.includes(vote));assert.equal(body.outcome,null);assert.equal(body.outcomeStatus,'unknown');}}
+ });
 });

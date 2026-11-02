@@ -3,7 +3,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=9;
+export const STORY_FACTS_VERSION=10;
 export const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 export const tail=v=>String(v?.id||v||'').split('/').at(-1);
 export const unique=v=>[...new Set(v)];
@@ -53,6 +53,7 @@ export function debateAgenda(event,documents){
  if(event?.conflicted)return {agendaId:null,agendaVia:null,agendaConflict:true};
  const executed=unique((event?.executed||[]).filter(id=>id.includes('OJ-ITM-D-')));
  if(executed.length)return executed.length===1?{agendaId:executed[0],agendaVia:'executed'}:{agendaId:null,agendaVia:null,agendaConflict:true};
+ if(event?.executedKnown)return {agendaId:null,agendaVia:null};
  const linked=unique(documents.flatMap(d=>d.events.filter(id=>id.includes('OJ-ITM-D-'))));
  return {agendaId:linked.length===1?linked[0]:null,agendaVia:linked.length===1?'document':null};
 }

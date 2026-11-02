@@ -1,6 +1,6 @@
 import {finishStoryProjection} from './story-facts-aggregate.mjs';
 import {storyTables,stageStoryInput,storyTopicObservations} from './story-facts-storage.mjs';
-import {buildStoryFacts} from './story-facts-project.mjs';
+import {buildStoryFacts,stageStoryOutcomes} from './story-facts-project.mjs';
 import {topicWorkFields} from './topic-work-fields.mjs';
 import {topicCachedWorks} from './topic-cache-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
@@ -52,6 +52,7 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  if(++seen%100===0)store.renew();
  }
  onProgress('cache');
+ await stageStoryOutcomes(store,sourceGeneration);
  for(const observation of storyTopicObservations(store))add(observation);
  for(const row of store.db.prepare('SELECT * FROM topic_procedure_metadata').iterate())add({work:JSON.parse(row.body),source:{url:row.url,fetchedAt:row.fetched_at},projection:'procedure'});
  if(!store.renew())throw Error('Activity-index writer lease was lost.');
@@ -123,7 +124,7 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});
  store.db.exec('DROP TABLE temp.topic_speech_inputs');
 
- store.transaction(()=>{store.assertWriter();for(const row of store.db.prepare('SELECT id FROM topic_procedure_queue').iterate())if(!referenced.has(row.id))store.db.prepare('DELETE FROM topic_procedure_queue WHERE id=?').run(row.id);for(const id of referenced){const n=byId.get(id);store.db.prepare('INSERT INTO topic_procedure_queue(id,reference,next_read) VALUES (?,?,0) ON CONFLICT(id) DO UPDATE SET reference=COALESCE(excluded.reference,reference),next_read=CASE WHEN excluded.reference IS NOT NULL AND reference IS NOT excluded.reference THEN 0 ELSE next_read END').run(id,n?.reference||null);}});
+ await topicBatches(store,(function*(){for(const row of store.db.prepare('SELECT id FROM topic_procedure_queue').iterate()){yield;if(!referenced.has(row.id))store.db.prepare('DELETE FROM topic_procedure_queue WHERE id=?').run(row.id);}for(const id of referenced){yield;const n=byId.get(id);store.db.prepare('INSERT INTO topic_procedure_queue(id,reference,next_read) VALUES (?,?,0) ON CONFLICT(id) DO UPDATE SET reference=COALESCE(excluded.reference,reference),next_read=CASE WHEN excluded.reference IS NOT NULL AND reference IS NOT excluded.reference THEN 0 ELSE next_read END').run(id,n?.reference||null);}})());
 
  const coverage={referenced:referenced.size,withSubjects:[...referenced].filter(id=>procedureTopics.get(id)?.assignments.some(a=>a.concept.key.startsWith('oeil:'))).length,read:[...referenced].filter(id=>procedureTopics.get(id)?.oeilRead&&!procedureTopics.get(id)?.oeilUnavailable).length,pending:pendingProcedures.size,unavailable:[...referenced].filter(id=>procedureTopics.get(id)?.oeilUnavailable).length};
  store.set('recordTopicCoverage',{generation,...coverage});
@@ -132,7 +133,7 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  // are built. Keep readers unavailable until both projections finish.
  const conceptPut=store.db.prepare('INSERT OR REPLACE INTO record_topic_concepts VALUES (?,?,?,?)');
  await topicBatches(store,(function*(){for(const c of concepts.values()){yield;conceptPut.run(generation,c.key,c.role,JSON.stringify(c));}})());
- await buildStoryFacts(store,generation,{concepts,onProgress,sourceGeneration});
+ await buildStoryFacts(store,generation,{concepts,onProgress,sourceGeneration,nodes:byId});
  const questionCountries=await questionCountryMetadata(store,generation,cache,sourceGeneration);
  await finishTopicProjectionBatched(store,generation,concepts.values(),{questionCountries});await finishStoryProjection(store,generation);onProgress('totals');
  const previous=store.get('previous')||generation;

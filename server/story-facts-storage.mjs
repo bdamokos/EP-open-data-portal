@@ -23,7 +23,7 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  else {const id=w.activity_id||tail(w.id);if(!id)return;
   if(id.includes('OJ-ITM-')){kind='agenda';value=storyAgenda(w,source);}
   else if(/-DEC-/.test(id)){kind='decision';value=storyDecision(w,source);}
-  else if(/-VOT-ITM-/.test(id)){kind='result';value={id,decisions:refs(w.consists_of),executed:refs(w.executed),basedOn:refs(w.based_on_a_realization_of),source};}
+  else if(/-VOT-ITM-/.test(id)){kind='result';value={id,decisions:refs(w.consists_of),executed:refs(w.executed),basedOn:refs(w.based_on_a_realization_of),relationships:Object.fromEntries(['executed','based_on_a_realization_of'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
   else if(/-PVCRE-ITM-/.test(id)){kind='event';value={id,executed:refs(w.executed),executedKnown:Object.hasOwn(w,'executed'),titles:w.activity_label||{},date:w.activity_date||null,relationships:Object.fromEntries(['executed','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
  }
  if(!value)return;source=value.source||source;const p=prepared(store.db),old=p.get.get(kind,value.id),at=sourceTime(source.fetchedAt)||'';
@@ -40,8 +40,8 @@ export function queueStoryRead(store,kind,id,{unavailable=false}={}){
  prepared(store.db).queue.run(key,kind,id,unavailable?'unavailable':'pending',unavailable?null:0,unavailable?'not-served-before-2024-12-16':null);
 }
 export function* storyTopicObservations(store){
- for(const row of store.db.prepare("SELECT kind,id,body,source FROM story_inputs WHERE kind IN ('agenda','event') ORDER BY kind,id").iterate()){
+ for(const row of store.db.prepare("SELECT kind,id,body,source FROM story_inputs WHERE kind IN ('agenda','event','result') ORDER BY kind,id").iterate()){
   const v=JSON.parse(row.body);if(v.conflicted)continue;
-  yield {work:{activity_id:v.id,activity_date:v.date||undefined,activity_label:v.titles||{},...(v.type?{had_activity_type:'def/ep-activities/'+v.type}:{}),...(v.relationships||{})},source:JSON.parse(row.source),projection:'embedded-event'};
+  yield {work:{activity_id:v.id,activity_date:v.date||undefined,activity_label:v.titles||{},...(v.type?{had_activity_type:'def/ep-activities/'+v.type}:{}),...(v.relationships||(row.kind==='result'?{executed:v.executed,based_on_a_realization_of:v.basedOn}:{}))},source:JSON.parse(row.source),projection:'embedded-event'};
  }
 }
