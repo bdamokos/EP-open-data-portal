@@ -192,7 +192,7 @@ test('full projection pruning retains only the serving and previous story genera
   store.db.prepare('INSERT INTO story_parents VALUES (?,?,?)').run(generation,'old','speech');
  }
  await buildTopics(store);
- for(const table of ['story_facts','story_links','story_places','story_topics','story_parents'])assert.deepEqual(store.db.prepare('SELECT DISTINCT generation FROM '+table+' ORDER BY generation').all().map(r=>r.generation),[1]);
+ for(const table of ['story_facts','story_links','story_places','story_topics','story_parents'])assert.deepEqual(store.db.prepare('SELECT DISTINCT generation FROM '+table+' ORDER BY generation').all().map(r=>r.generation),table==='story_facts'?[1,2]:[1]);
 });
 
 
@@ -637,4 +637,22 @@ test('an interrupted adoption leaves the projection dirty for the batches it com
  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_jobs WHERE kind='event' AND state='available'").get().n,200,'the first batch committed');
  assert.equal(store.get('topicProjectionDirty'),true,'its dirty marker committed with it');
  store.set('topicProjectionDirty',false);const retry=adoptHeldEventSnapshots(store);assert.equal(retry.adopted,50);assert.equal(store.get('topicProjectionDirty'),true);
+});
+
+
+test('outside addresses and coverage are copied into the published generation',async t=>{
+ const {store}=await fixture(t,{clock:()=>Date.parse(stamp)}),date='2026-01-21',debateId='MTG-PL-2026-01-21-PVCRE-ITM-5';
+ store.putSource(1,'outside:state','outside-state',{},stamp);
+ store.putSource(1,'outside:agenda:'+debateId,'outside-agenda',{id:debateId,date,titles:{en:'Formal sitting: Spain and Portugal'},procedureIds:[]},stamp);
+ const insert=store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)');
+ for(const [personId,name,role] of [['134834','Felipe VI','King of Spain'],['165141','Marcelo Rebelo de Sousa','Presidente da República de Portugal']])for(const n of [1,2]){
+  const id='MTG-PL-'+date+'-OTH-'+personId+n;
+  insert.run(1,id,personId,date,JSON.stringify({id,personId,date,term:10,header:{name,role},parentIds:[debateId],source,rosterSource:{date,sources:[source]}}));
+ }
+ store.set('active',2);await buildTopics(store,{generation:2,sourceGeneration:1});
+ const query=scope=>new URLSearchParams({scope,...(scope==='place'?{key:'place:ESP'}:{}),period:'2026-Q1'});
+ let result=storyFacts(store,query('map'));assert.equal(result.outsideSpeakers.length,2,'speeches in one address deduplicate by exact person and item');assert.deepEqual(result.outsideSpeakers.map(a=>a.country),['ESP','PRT']);assert.equal(storyFacts(store,query('place')).outsideSpeakers.length,1);
+ store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
+ assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
 });

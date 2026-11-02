@@ -160,3 +160,17 @@ test('retained story links browse their displayed mode, zoom and authors while r
  const request=h.calls.find(u=>u.searchParams.get('list')==='questions');assert(request);assert.equal(request.searchParams.get('askers'),'not-home');assert.equal(request.searchParams.get('mode'),'q');assert.equal(request.searchParams.get('zoom'),'world');
  await act(async()=>release());
 });
+
+test('outside names sharing an address each link',async t=>{
+ const debateId='MTG-PL-2026-01-21-PVCRE-ITM-5';
+ const outside=[{id:'1:'+debateId,personId:'1',name:'Felipe VI',date:'2026-01-21',country:'ESP',debateId},{id:'2:'+debateId,personId:'2',name:'Marcelo Rebelo de Sousa',date:'2026-01-21',country:'PRT',debateId}];
+ const h=await harness(t,{fresh:true,props:{selection:{...selection,period:'2026-Q1',labels:{ESP:'Spain',PRT:'Portugal'}}},respond:(_u,q)=>q?{...mapLinkFacts(q),counts:{},periodCounts:[],winners:{},periodWinners:{},sets:{},outsideSpeakers:outside,debates:outside.map(a=>({id:a.debateId,title:'Formal sitting',date:a.date,docs:[],places:[],meps:0}))}:undefined});
+ await h.wait('Also in plenary:');const links=[...h.node.querySelectorAll('.topic-story a')];assert.deepEqual(links.map(a=>a.textContent),['Felipe VI','Marcelo Rebelo de Sousa']);assert(links.every(a=>new URL(a.href).searchParams.get('agenda-topic')===debateId));assert.notEqual(links[0].id,links[1].id);assert(!links.some(a=>a.textContent==='Spain'||a.textContent==='Portugal'));
+});
+
+test('multiple outside addresses for one exact person remain reachable as a complete record set',async t=>{
+ const dates=['2026-01-21','2026-02-24'],ids=dates.map((d,i)=>'MTG-PL-'+d+'-PVCRE-ITM-'+(i+1));
+ const payload={...mapLinkFacts(),counts:{},periodCounts:[],winners:{},periodWinners:{},sets:{},outsideSpeakers:ids.map((debateId,i)=>({id:'230786:'+debateId,personId:'230786',name:'Volodymyr Zelenskyy',country:'UKR',date:dates[i],debateId})),debates:ids.map((id,i)=>({id,title:'Address '+i,date:dates[i],docs:[],places:[],meps:0}))};
+ const h=await harness(t,{fresh:true,props:{selection:{...selection,period:'2026-Q1'}},respond:(_u,q)=>q?payload:undefined});await h.wait('Volodymyr Zelenskyy');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Volodymyr Zelenskyy');assert(link);const key=new URL(link.href).searchParams.get('t-records');assert.equal(parseStorySetKey(key).ids.split(',').length,2);
+ await act(async()=>{history.pushState({},'',link.href);window.dispatchEvent(new window.PopStateEvent('popstate'));});await h.wait('Address 1');assert.equal(h.node.querySelectorAll('.topic-story-records article').length,2);assert(!h.node.textContent.includes('Records unavailable'));
+});

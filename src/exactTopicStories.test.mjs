@@ -175,3 +175,12 @@ test('months: the busiest-quarter reference names months in the interface langua
 test('record page month ranges cover complete baseline periods without changing quarter keys',async()=>{
  const {monthRangeLabel}=await import('./topicPresentation.mjs');assert.match(monthRangeLabel('2026-Q1,2026-Q2','en'),/January.*June 2026/);assert.match(monthRangeLabel('2024-Q4,2026-Q2','en'),/October 2024.*June 2026/);assert.equal(monthRangeLabel('bad','en'),'bad');
 });
+
+test('outside speakers enumerate all names, retain date ties and link only names to complete address sets',()=>{
+ const x=base();x.periodCounts=[{period:'2026-Q1'}];const a=(personId,name,country,date,debateId)=>({personId,name,country,date,debateId,id:personId+':'+debateId});
+ x.outsideSpeakers=[a('4','Nikol','ARM','2026-03-11','D4'),a('2','Marcelo','PRT','2026-01-21','D2'),a('1','Felipe','ESP','2026-01-21','D1'),a('3','Volodymyr','UKR','2026-02-24','D3'),a('3','Volodymyr','UKR','2026-02-25','D5'),a('5','Canadian','CAN','2026-03-12','D6')];
+ const map=zoom=>buildExactTopicStories(x,{period:'2026-Q1',zoom,labels:{ESP:'Spain',PRT:'Portugal',UKR:'Ukraine',ARM:'Armenia',CAN:'Canada'}}).find(l=>l.id.startsWith('topics.story.map.outside'));
+ const speakers=map('world').values.speakers;assert.deepEqual(speakers.map(s=>s.values.speaker.text),['Felipe','Marcelo','Volodymyr','Nikol','Canadian']);assert.equal(speakers[2].values.speaker.records.length,2);assert.equal(speakers[0].values.place,'Spain');assert.equal(speakers[0].values.speaker.records[0].id,'D1');assert.equal(map('eu').values.speakers.length,4);
+ const place=buildExactTopicStories(x,{period:'2026-Q1',place:'UKR',labels:{UKR:'Ukraine'}}).filter(l=>l.id==='topics.story.place.outside');assert.equal(place.length,2);assert.equal(place[0].values.date,'24 February 2026');assert.equal(place[0].values.place,'Ukraine');assert.equal(place[0].values.speaker.records[0].id,'D3');
+ delete x.outsideSpeakers;assert(!buildExactTopicStories(x,{period:'2026-Q1'}).some(l=>l.id.includes('outside')));
+});

@@ -2712,5 +2712,9 @@
   "topics.story.links.placesOne": "{count} place",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Contributions by month",
-  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day"
+  "groupvoices.contributions_by_sitting_day.77a719": "Contributions by sitting day",
+  "topics.story.map.outside.eu": "In Europe and its neighbours, plenary heard from {speakers}.",
+  "topics.story.map.outside": "Also in plenary: {speakers}.",
+  "topics.story.outside.speaker": "{speaker} ({place})",
+  "topics.story.place.outside": "{place}: {speaker} addressed plenary on {date}."
 }

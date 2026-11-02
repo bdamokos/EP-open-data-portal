@@ -80,6 +80,8 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Speeches and debates
 
+Outside-speaker stories use Parliament’s CRE header role text, with the country required to agree with the debate’s country tags.
+
 - Speech headers are in `recorded_in_a_realization_of[].api:xmlFragment.<lang>` under `oralStatements/*/from/process`; request them with `include-output=xml_fragment`. Without `include-output` the API returns metadata only. Fragments marked `mtec` are machine translations, and translations arrive later, so recent months are re-checked.
 - The metadata listing does not reliably expose correction editions or translation manifests; only a full fragment read shows them.
 - Blue-card questions, answers and reactions share the type `PLENARY_DEBATE_SPEECH`. Classify them from the header label, never the speech body; a `question` element alone does not identify a blue card. English fragments sometimes keep German labels (`Frage`, `Antwort`, `Reaktion`, `blaue Karte`), and machine translation produces labels such as `Blue Carton Response` (French) and `Blue Card issue` (Estonian). A translated Dutch `Blue Card Response` collapses answer and reaction: there, `speech` means reaction.

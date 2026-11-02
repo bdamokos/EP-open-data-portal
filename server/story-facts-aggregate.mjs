@@ -32,7 +32,7 @@ export async function finishStoryProjection(store,generation){
  const insert=db.prepare('INSERT OR IGNORE INTO story_scope_records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
  const topicKeys=db.prepare('SELECT key FROM story_topics WHERE generation=? AND kind=? AND id=?');
  const add=(scope,key,askers,kind,id,date,{meps=0,urgency=0,primary=0,home=0,elsewhere=0,unknown=0,known=0,tallies=0,votes=null,margin=null,period=date?quarter(date):''}={})=>insert.run(generation,scope,key,askers,kind,id,period,date,meps,urgency,primary,home,elsewhere,unknown,1,known,tallies,votes,margin);
- await topicBatches(store,(function*(){for(const row of db.prepare('SELECT kind,id,date,body FROM story_facts WHERE generation=? ORDER BY kind,id').iterate(generation)){
+ await topicBatches(store,(function*(){for(const row of db.prepare("SELECT kind,id,date,body FROM story_facts WHERE generation=? AND kind IN ('debate','document') ORDER BY kind,id").iterate(generation)){
   yield;const f=JSON.parse(row.body);if(row.kind==='debate'&&f.procedural)continue;
   const places=row.kind==='debate'?f.places.map(p=>p.id):f.places,topics=topicKeys.all(generation,row.kind,row.id).map(r=>r.key);
   for(const [scope,key] of lanes(places,topics))for(const askers of ['all','elsewhere','not-home']){
