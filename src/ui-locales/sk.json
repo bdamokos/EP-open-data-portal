@@ -2469,6 +2469,7 @@
   "votegroups.split": "Rozdelená skupina",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} z {total}",
+  "votegroups.whole_group": "Celá skupina",
   "votegroups.voted_differently.one": "{count} europoslanec hlasoval inak než väčšina jeho skupiny.",
   "votegroups.voted_differently": "{count} europoslancov hlasovalo inak než väčšina ich skupiny.",
   "votegroups.delegations.heading": "Delegácie, ktoré hlasovali inak než ich skupina",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} europoslancov",
   "topics.story.count.mepsOne": "{count} europoslanec",
   "topics.policyAreaSource": "Názvy oblastí politiky: {source}.",
-  "topics.explorerTranslation": "Názvy oblastí politiky preložené prieskumníkom."
+  "topics.explorerTranslation": "Názvy oblastí politiky preložené prieskumníkom.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Vystúpenia podľa mesiacov",
+  "groupvoices.contributions_by_sitting_day.77a719": "Vystúpenia podľa rokovacích dní"
 }

@@ -6,7 +6,7 @@ import {isProgressRoute,progressCacheMaxAge,readRefreshingInsight} from './insig
 const client=createDataClient(api,{maxEntries:24,maxAge:5*60_000,maxAgeFor:(data,route)=>/^insights\/dossier-(activity|references)(?:\?|$)/.test(route)?0:progressCacheMaxAge(data,route,calendarCacheMaxAge(data,5*60_000)),timeoutFor:dataTimeoutFor});
 export function prefetchInsightData(routes:string[]) { return client.prefetch(routes); }
 export function useInsightData<T>(route:string|null,equivalentRoute?:(loaded:string,requested:string,data:T)=>boolean) {
-  const [attempt,setAttempt]=useState(0),[state,setState]=useState<{route:string|null;data:T|null;loading:boolean;error:string|null;retryAt?:number}>({route,data:null,loading:true,error:null});
+  const [attempt,setAttempt]=useState(0),[state,setState]=useState<{route:string|null;data:T|null;loading:boolean;error:string|null;status?:number;retryAt?:number}>({route,data:null,loading:true,error:null});
   const lastRequest=useRef({route,attempt});
   const retry=useCallback(()=>setAttempt(x=>x+1),[]);
   const equivalent=Boolean(route&&state.route&&state.data&&!state.loading&&!state.error&&equivalentRoute?.(state.route,route,state.data));
@@ -22,7 +22,7 @@ export function useInsightData<T>(route:string|null,equivalentRoute?:(loaded:str
     setState({route,data:retained,loading:true,error:null});
     readRefreshingInsight(route,{get:client.get,force,signal:controller.signal,initialData:retained,onData:(data:T,loading:boolean)=>{retained=data;if(active)setState({route,data,loading,error:null});}})
       .then(data=>{if(active)setState({route,data,loading:false,error:null});})
-      .catch(e=>{if(active)setState({route,data:retained,loading:false,error:e.message,retryAt:e.retryAt});});
+      .catch(e=>{if(active)setState({route,data:retained,loading:false,error:e.message,status:e.status,retryAt:e.retryAt});});
     return()=>{active=false;controller.abort();};
   },[route,attempt]);
   return {...((state.route===route||equivalent)?{...state,route}:{route,data:null,loading:route!==null,error:null}),retry};

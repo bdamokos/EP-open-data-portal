@@ -47,7 +47,8 @@ export function navigateDossier(href:string) {
   const wasDossier=new URL(leaving.href).searchParams.get('pl-mode')==='dossier';
   if(!wasDossier&&url.searchParams.get('pl-mode')==='dossier')origin=leaving.href;
   pending=snapshots.get(routeKey(url.href))||null;destination=url.href;navigating=true;
-  history.pushState({...history.state,dossierOrigin:origin},'',url);
+  const {storyLinkId,storyScroll,storyReturn,...nextState}=history.state||{};
+  history.pushState({...nextState,dossierOrigin:origin},'',url);
   window.dispatchEvent(new Event('popstate'));window.dispatchEvent(new Event('explorer-query-change'));window.dispatchEvent(new Event(change));
   navigating=false;return true;
 }

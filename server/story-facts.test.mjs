@@ -8,7 +8,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';
 import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
-import {storyTables,stageStoryInput,queueStoryRead,storyInput,storyEventType} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,queueStoryRead,storyInput,storyEventType,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
 import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate,voteActivity} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
@@ -507,6 +507,15 @@ test('French story requests keep English document, question and joint debate tit
  assert.equal(result.docs[0].outcome.label,'English decision');
 });
 
+test('question list pages include retained answer references without upstream reads or count inflation',async t=>{
+ const {store}=await fixture(t),question='E-10-2025-000001',other='E-10-2025-000002',answer=question+'-ASW';
+ for(const id of [question,other])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/'+id,id,'1','written-questions','2025-03-12',JSON.stringify({titles:{en:'Greece'}}));
+ store.putSource(1,'/parliamentary-questions/'+question,'document',{id:'eli/dl/doc/'+question,identifier:question,work_type:'def/ep-document-types/QUESTION_WRITTEN',answersObserved:true,inverse_answers_to:[{id:'eli/dl/doc/'+answer,identifier:answer,document_date:'2025-04-01',title_dcterms:{en:'Published reply'}}]},stamp,[]);
+ await buildTopics(store);const result=storyFacts(store,new URLSearchParams('scope=place&key=GRC&list=questions&period=2025-Q1'));
+ assert.equal(result.page.total,2);assert.equal(result.page.items.length,2);assert.equal(result.questions.length,2);assert.deepEqual(result.questions.find(q=>q.id===question).answers,[{id:answer,date:'2025-04-01',title:'Published reply',titleLanguage:'en'}]);assert.equal(result.questions.find(q=>q.id===other).answers,null,'missing metadata is not an observed absence of answers');
+ store.db.prepare('UPDATE sources SET body=? WHERE generation=1 AND key=?').run(JSON.stringify({identifier:question,answersObserved:true,inverse_answers_to:[]}),'/parliamentary-questions/'+question);assert.deepEqual(storyFacts(store,new URLSearchParams('scope=place&key=GRC&list=questions')).questions.find(q=>q.id===question).answers,[]);
+});
+
 // Debate group titles come from held records by exact item ID, never the raw ID.
 async function titledFixture(t,id,day){
  const {store}=await fixture(t);store.putSource(1,'/plenary-documents/B-10-2026-0400','document',{id:'eli/dl/doc/B-10-2026-0400',identifier:'B-10-2026-0400',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Iran'},creator:['org/PPE'],is_about:[geo('IRN'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+id]},stamp);
@@ -543,4 +552,89 @@ test('untitled verbatim items are looked up in one snapshot query per write batc
  store.db.prepare=prepare;
  assert.equal(prepares,1,'prepared once');assert.equal(runs,2,'one query per batch');
  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM record_topic_records WHERE generation=1 AND id=?').get(ids[0]).body).titles.en,'Item 1');
+});
+
+// Held debate snapshots answer story event reads without a network request.
+async function snapshotFixture(t,rows){
+ const {gzipSync}=await import('node:zlib'),{prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs'),{store}=await fixture(t);prepareSittingSnapshots(store);
+ for(const {id,complete=1,error=null,label='Imminent death penalty threats in Iran (debate)',type='PLENARY_DEBATE',fetchedAt='2026-10-20T08:00:00.000Z'} of rows){
+  queueStoryRead(store,'event',id);
+  store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,error,next_check,body) VALUES (?,?,?,?,?,0,?)').run('debate',1,id,complete,error,gzipSync(JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+id+'?format=application%2Fld%2Bjson',fetchedAt,payload:{data:[{id:'eli/dl/event/'+id,activity_id:id,activity_date:id.slice(7,17),activity_label:{en:label,fr:'Menaces (débat)'},had_activity_type:'def/ep-activities/'+type,executed:['eli/dl/event/'+id.replace('PVCRE-ITM','OJ-ITM-D')]}]}})));
+ }
+ let calls=0;const worker={store,clock:Date.now,requests:0,budget:10,controller:new AbortController(),request:async endpoint=>{calls++;worker.requests++;const id=endpoint.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:stamp,payload:{data:[{activity_id:id,activity_label:{en:'Fetched'},had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:[]}]}};}};
+ return {store,worker,reads:()=>calls};
+}
+test('a pending event read adopts its held complete debate snapshot with no network read',async t=>{
+ const id='MTG-PL-2025-07-09-PVCRE-ITM-11',{store,worker,reads}=await snapshotFixture(t,[{id,type:'PLENARY_VOTE'}]);
+ assert(await collectStorySource(worker));assert.equal(reads(),0,'no network read');
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available','the job is settled');
+ const d=storyInput(store,'event',id);assert.equal(d.type,'PLENARY_VOTE');assert.deepEqual(d.titles,{en:'Imminent death penalty threats in Iran (debate)',fr:'Menaces (débat)'});assert.deepEqual(d.executed,[id.replace('PVCRE-ITM','OJ-ITM-D')]);assert.equal(d.executedKnown,true);
+ assert.equal(JSON.parse(store.db.prepare("SELECT source FROM story_inputs WHERE kind='event' AND id=?").get(id).source).fetchedAt,'2026-10-20T08:00:00.000Z','adopted at the snapshot\'s own fetch time');
+ assert.equal(storyEventType(store,id).type,'PLENARY_VOTE','type evidence is recorded through the same staging path');
+});
+test('incomplete or rejected debate snapshots are never adopted; the read still happens',async t=>{
+ const a='MTG-PL-2025-07-09-PVCRE-ITM-12',b='MTG-PL-2025-07-09-PVCRE-ITM-13',{store,worker,reads}=await snapshotFixture(t,[{id:a,complete:0},{id:b,error:'rejected'}]);
+ assert(await collectStorySource(worker));assert(await collectStorySource(worker));assert.equal(reads(),2);
+ for(const id of [a,b])assert.equal(storyInput(store,'event',id).titles.en,'Fetched');
+});
+test('bulk adoption at build time settles every held event job and is idempotent across rebuilds',async t=>{
+ const ids=['MTG-PL-2025-07-09-PVCRE-ITM-14','MTG-PL-2025-07-09-PVCRE-ITM-15'],{store,reads}=await snapshotFixture(t,ids.map(id=>({id})));
+ await buildTopics(store,{cache:null});
+ for(const id of ids)assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available');
+ const before=store.db.prepare("SELECT id,body,source,fetched_at,rank FROM story_inputs WHERE kind='event' ORDER BY id").all();
+ await buildTopics(store,{cache:null});
+ assert.deepEqual(store.db.prepare("SELECT id,body,source,fetched_at,rank FROM story_inputs WHERE kind='event' ORDER BY id").all(),before,'a rebuild changes nothing');assert.equal(reads(),0);
+ for(const id of ids)assert.equal(storyInput(store,'event',id).conflicted,undefined);
+});
+
+// Review follow-ups: adoption before classification, newer held snapshots, strict identity.
+async function heldSnapshot(store,id,{type='PLENARY_VOTE',label='Nigeria',fetchedAt='2026-10-20T08:00:00.000Z',extra=[]}={}){
+ const {gzipSync}=await import('node:zlib'),{prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs');prepareSittingSnapshots(store);
+ store.db.prepare('INSERT OR REPLACE INTO sitting_snapshots(kind,version,id,complete,next_check,body) VALUES (?,?,?,1,0,?)').run('debate',1,id,gzipSync(JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+id,fetchedAt,payload:{data:[{id:'eli/dl/event/'+id,activity_id:id,activity_date:id.slice(7,17),activity_label:{en:label},had_activity_type:'def/ep-activities/'+type,executed:[]},...extra]}})));
+}
+async function legacyEventFixture(t,id,day){
+ const {store}=await fixture(t);
+ store.putSource(1,'/plenary-documents/B-10-2026-0500','document',{id:'eli/dl/doc/B-10-2026-0500',identifier:'B-10-2026-0500',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Nigeria'},creator:['org/PPE'],is_about:[geo('NGA'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+id]},stamp);
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-4'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Nigeria'},participants:[person],parentIds:[id],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ return store;
+}
+test('a legacy settled event adopts its held snapshot before classification',async t=>{
+ const day='2026-07-09',id='MTG-PL-'+day+'-PVCRE-ITM-9-6',store=await legacyEventFixture(t,id,day);
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',id,JSON.stringify({id,executed:[],executedKnown:true,titles:{en:'Nigeria'},date:day,relationships:{}}),JSON.stringify(source),'2026-09-01T00:00:00.000Z',4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+id,'event',id);
+ await heldSnapshot(store,id);
+ await buildTopics(store,{cache:null});
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(id)?.p,1,'classified as a vote in the same build');
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get(id)?.kind,'vote');
+});
+test('settled jobs follow a newer held snapshot without a network read',async t=>{
+ const day='2026-07-09',id='MTG-PL-'+day+'-PVCRE-ITM-14',store=await legacyEventFixture(t,id,day);queueStoryRead(store,'event',id);
+ await heldSnapshot(store,id,{type:'PLENARY_DEBATE',label:'Old label',fetchedAt:'2026-10-20T08:00:00.000Z'});await buildTopics(store,{cache:null});
+ assert.equal(storyInput(store,'event',id).titles.en,'Old label');assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available');
+ await heldSnapshot(store,id,{type:'PLENARY_DEBATE',label:'Corrected label',fetchedAt:'2026-10-25T08:00:00.000Z'});await buildTopics(store,{cache:null});
+ assert.equal(storyInput(store,'event',id).titles.en,'Corrected label','the newer held snapshot propagates');assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available','no read is queued');
+});
+test('a snapshot with extra root records is not adopted',async t=>{
+ const {store}=await fixture(t),id='MTG-PL-2026-07-09-PVCRE-ITM-15';queueStoryRead(store,'event',id);
+ await heldSnapshot(store,id,{extra:[{id:'eli/dl/event/MTG-PL-2026-07-09-PVCRE-ITM-16',activity_id:'MTG-PL-2026-07-09-PVCRE-ITM-16',activity_label:{en:'Other'},had_activity_type:'def/ep-activities/PLENARY_DEBATE'}]});
+ await buildTopics(store,{cache:null});assert.equal(storyInput(store,'event',id),null);assert.equal(storyInput(store,'event','MTG-PL-2026-07-09-PVCRE-ITM-16'),null,'no extra record is staged');
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'pending','the read still happens');
+});
+test('inputs adopted after classification keep the publication dirty for a follow-up rebuild',async t=>{
+ const {rebuildTopicProjection}=await import('./topic-publication.mjs');const day='2026-07-09',id='MTG-PL-'+day+'-PVCRE-ITM-17',store=await legacyEventFixture(t,id,day);
+ await heldSnapshot(store,id);// no job yet: the projection queues it, then adopts after classification
+ await rebuildTopicProjection(store,{cache:null});
+ assert.equal(store.get('topicProjectionDirty'),true,'a follow-up rebuild is due');
+ await rebuildTopicProjection(store,{cache:null});
+ assert.equal(store.get('topicProjectionDirty'),false);assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE kind='debate' AND id=? ORDER BY generation DESC").get(id)?.p,1);
+});
+test('an interrupted adoption leaves the projection dirty for the batches it committed',async t=>{
+ const {store}=await fixture(t),ids=Array.from({length:250},(_,i)=>'MTG-PL-2026-07-09-PVCRE-ITM-'+(100+i));
+ for(const id of ids){queueStoryRead(store,'event',id);await heldSnapshot(store,id,{type:'PLENARY_DEBATE'});}
+ store.set('topicProjectionDirty',false);
+ const renew=store.renew;let calls=0;store.renew=function(...a){if(++calls===1)throw Error('lease lost');return renew.apply(this,a);};
+ assert.throws(()=>adoptHeldEventSnapshots(store),/lease lost/);store.renew=renew;
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_jobs WHERE kind='event' AND state='available'").get().n,200,'the first batch committed');
+ assert.equal(store.get('topicProjectionDirty'),true,'its dirty marker committed with it');
+ store.set('topicProjectionDirty',false);const retry=adoptHeldEventSnapshots(store);assert.equal(retry.adopted,50);assert.equal(store.get('topicProjectionDirty'),true);
 });

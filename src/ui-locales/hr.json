@@ -2469,6 +2469,7 @@
   "votegroups.split": "Podijeljeni",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} od {total}",
+  "votegroups.whole_group": "Cijela skupina",
   "votegroups.voted_differently.one": "{count} zastupnik u Europskom parlamentu glasovao je drukčije od većine svojeg kluba.",
   "votegroups.voted_differently": "{count} zastupnika u Europskom parlamentu glasovalo je drukčije od većine svojeg kluba.",
   "votegroups.delegations.heading": "Izaslanstva koja su glasovala drukčije od svojeg kluba",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} zastupnika u Europskom parlamentu",
   "topics.story.count.mepsOne": "{count} zastupnik u Europskom parlamentu",
   "topics.policyAreaSource": "Nazivi područja politike: {source}.",
-  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik."
+  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Izlaganja po mjesecima",
+  "groupvoices.contributions_by_sitting_day.77a719": "Izlaganja po danima zasjedanja"
 }

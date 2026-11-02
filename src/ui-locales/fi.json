@@ -2469,6 +2469,7 @@
   "votegroups.split": "Jakautunut",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count}/{total}",
+  "votegroups.whole_group": "Koko ryhmä",
   "votegroups.voted_differently.one": "{count} meppi äänesti eri tavalla kuin oman ryhmänsä enemmistö.",
   "votegroups.voted_differently": "{count} meppiä äänesti eri tavalla kuin oman ryhmänsä enemmistö.",
   "votegroups.delegations.heading": "Ryhmiensä enemmistöstä poikenneet valtuuskunnat",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} meppiä",
   "topics.story.count.mepsOne": "{count} meppi",
   "topics.policyAreaSource": "Politiikan alojen nimet: {source}.",
-  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt selailusovellus."
+  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt selailusovellus.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Puheenvuorot kuukausittain",
+  "groupvoices.contributions_by_sitting_day.77a719": "Puheenvuorot istuntopäivittäin"
 }

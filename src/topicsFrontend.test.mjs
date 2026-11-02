@@ -43,7 +43,7 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
 test('own-country exclusion retains unknown-origin questions rather than treating them as home',()=>{assert.equal(placeValue({question:12,questionHome:3,questionElsewhere:7,questionUnknown:2},'q',true),9);});
 test('finder selects the active result with arrows and Enter and closes with Escape',async t=>{
  const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
- const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+ const window=new Window({url:'http://localhost/?view=geopolitics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v] of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
  let root,load; t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d] of originals)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  t.mock.method(globalThis,'fetch',async()=>Response.json({ready:true,results:[{key:'oeil:1.10',role:'topic',label:'Trade',counts:{debate:2,question:1}},{key:'place:IRN',role:'place',label:'Iran',counts:{question:4}}]}));
@@ -65,7 +65,7 @@ test('ranked previews include every tie at their boundary',()=>{const rows=[9,8,
 
 test('record-topic batches cover every ID and full reader metadata expands completely',async t=>{
  const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
- const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+ const window=new Window({url:'http://localhost/?view=geopolitics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v] of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d] of originals)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  const ids=Array.from({length:75},(_,i)=>'E-10-2026-'+String(i).padStart(6,'0')),requests=[];
@@ -86,7 +86,7 @@ test('group speech links state the exact contribution count without implying a s
 
 test('finder Reload remains focusable after input blur and closes only when focus leaves',async t=>{
  const {Window}=await import('happy-dom'),{createElement:h,act}=await import('react'),{freshLoader}=await import('./test-support/viteRunner.mjs');
- const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
+ const window=new Window({url:'http://localhost/?view=geopolitics'}),globals={window,document:window.document,location:window.location,history:window.history,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true};
  const originals=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v] of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
  let root,load; t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d] of originals)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  let requests=0;t.mock.method(globalThis,'fetch',async()=>++requests===1?Response.json({error:{message:'Unavailable'}},{status:503}):Response.json({ready:true,results:[{key:'oeil:1.10',role:'topic',label:'Trade',counts:{debate:1,question:1}}]}));
@@ -130,8 +130,8 @@ test('legacy prose requires parent and quantity coverage while other panels stay
   // these Finnish fixtures; unrelated absent messages still use production EN.
   const fixture=createUiI18n({source,translations:{fi:messages}}).forLocale('fi'),ui={...defaultUi,...fixture},i18n={sourceLocale:'en',forLocale:()=>ui};
   const html=renderToStaticMarkup(h(UiI18nProvider,{i18n},h('div',null,h(TopicStory,{data,index:0,mode:'q',own:true}),h('aside',null,h(UiMessage,{id:'topics.story.count.questions',values:{count:2},counts:{count:2}})))));
-  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/a><\/span> ja /:/Türkiye<\/a><\/span> and /);
-  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/place=TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
+  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/span> ja /:/Türkiye<\/span> and /);
+  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/t-records=.*TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
   if(messages===child)assert.match(html,/<aside>2 kysymystä<\/aside>/);
  }
 });

@@ -2469,6 +2469,7 @@
   "votegroups.split": "Roinnte",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} as {total}",
+  "votegroups.whole_group": "An grúpa iomlán",
   "votegroups.voted_differently.one": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
   "votegroups.voted_differently": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
   "votegroups.delegations.heading": "Toscaireachtaí a vótáil ar bhealach éagsúil lena ngrúpa",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} d’Fheisirí",
   "topics.story.count.mepsOne": "{count} Fheisire",
   "topics.policyAreaSource": "Ainmneacha réimsí beartais: {source}.",
-  "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag an taiscéalaí."
+  "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag an taiscéalaí.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Ráitis de réir míosa",
+  "groupvoices.contributions_by_sitting_day.77a719": "Ráitis de réir lá suí"
 }

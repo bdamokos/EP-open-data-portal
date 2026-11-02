@@ -2469,6 +2469,7 @@
   "votegroups.split": "Χωρίς πλειοψηφία",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} από {total}",
+  "votegroups.whole_group": "Ολόκληρη η ομάδα",
   "votegroups.voted_differently.one": "{count} ευρωβουλευτής ψήφισε διαφορετικά από την πλειοψηφία της ομάδας του.",
   "votegroups.voted_differently": "{count} ευρωβουλευτές ψήφισαν διαφορετικά από την πλειοψηφία της ομάδας τους.",
   "votegroups.delegations.heading": "Αντιπροσωπείες που ψήφισαν αντίθετα από την ομάδα τους",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} ευρωβουλευτές",
   "topics.story.count.mepsOne": "{count} ευρωβουλευτής",
   "topics.policyAreaSource": "Ονομασίες τομέων πολιτικής: {source}.",
-  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης."
+  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Παρεμβάσεις ανά μήνα",
+  "groupvoices.contributions_by_sitting_day.77a719": "Παρεμβάσεις ανά ημέρα συνεδρίασης"
 }

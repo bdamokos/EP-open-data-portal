@@ -2486,6 +2486,7 @@
   "votegroups.split": "Fără majoritate",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} din {total}",
+  "votegroups.whole_group": "Întregul grup",
   "votegroups.voted_differently.one": "{count} eurodeputat a votat diferit față de majoritatea grupului său.",
   "votegroups.voted_differently": "{count} de eurodeputați au votat diferit față de majoritatea grupului lor.",
   "votegroups.delegations.heading": "Delegații care au votat în sens opus grupului lor",
@@ -2515,5 +2516,8 @@
   "topics.story.count.meps": "{count} de eurodeputați",
   "topics.story.count.mepsOne": "{count} eurodeputat",
   "topics.policyAreaSource": "Denumirile domeniilor de politică: {source}.",
-  "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator."
+  "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Intervenții pe luni",
+  "groupvoices.contributions_by_sitting_day.77a719": "Intervenții pe zile de ședință"
 }

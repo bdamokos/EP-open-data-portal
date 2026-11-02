@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import https from 'node:https';
 import {Readable} from 'node:stream';
+import {AsyncLocalStorage} from 'node:async_hooks';
 import {userAgent} from '../server/user-agent.mjs';
 import {cellarTransportUrl,CELLAR_DOCX_MIME,CELLAR_LIMITS} from '../server/cellar-documents.mjs';
 import {allowedDownload} from '../server/document-text.mjs';
@@ -15,6 +16,7 @@ export function apiOrigin(value) {
   return url.origin;
 }
 const responseIsTransient=meta=>meta.status===429||meta.status>=500;
+const gapOrder=(a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en');
 const repo = fileURLToPath(new URL('../',import.meta.url));
 export async function outsideRepository(directory) {
   await mkdir(directory,{recursive:true});
@@ -64,7 +66,22 @@ export class InputCache {
   constructor(directory,{fetchMissing=false,cap=1500,delay=750,apiBase,maxRetryAfter=60_000,fetcher=publicFetch,sleep=wait,retained}={}) {
     Object.assign(this,{directory,fetchMissing,cap,delay,apiBase,maxRetryAfter,fetcher,sleep,retained});
     this.requests=0;this.last=0;this.used=new Map();this.missing=new Map();
+    this.frozenInputGaps=new Map();this.gapScope=new AsyncLocalStorage();
   }
+  noteFrozenInputs(inputs) {
+    for(const input of inputs) {
+      const gap=input?.frozenInputGap??input;
+      if(gap?.reason==='frozen-input-absent')this.gapScope.getStore()?.set(JSON.stringify(gap),gap);
+    }
+  }
+  async observeFrozenInputs(read) {
+    const gaps=new Map();
+    let value;
+    try{value=await this.gapScope.run(gaps,read);}
+    finally{this.noteFrozenInputs([...gaps.values()]);}
+    return {value,gaps:[...gaps.values()].sort(gapOrder)};
+  }
+  frozenObservations(){return [...this.frozenInputGaps.values()].sort(gapOrder);}
   async get(url,options={}) {
     try{return await this.read(url,options);}catch(error){this.failure??=error;throw error;}
   }
@@ -73,16 +90,27 @@ export class InputCache {
     if (!(officialRedirect?allowedDownload(url):allowedInput(url,this.apiBase)||allowedSource(url))) throw new Error('Unsupported public input URL: '+url);
     const request=accept?{accept,...(language?{language}:{})}:null;
     const identity=request?JSON.stringify([url,request]):url;
+    const acceptHeader=accept||(url.endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':url.startsWith('https://data.europarl.europa.eu/api/v2/')?'application/ld+json':'application/json');
     const maximum=[CELLAR_DOCX_MIME,'application/zip;type=akn4eu'].includes(accept)||allowedDownload(url)?CELLAR_LIMITS.itemBytes:accept?.startsWith('application/rdf+xml')||accept==='application/sparql-results+json'?CELLAR_LIMITS.metadataBytes:16*1024*1024;
-    if(this.sealed&&!this.sealed.has(identity))throw new Error('input-not-in-snapshot: '+url);
+    if(this.sealed&&!this.sealed.has(identity)) {
+      // Derived evidence belongs to results, never to used inputs or disk.
+      const gap={reason:'frozen-input-absent',url,accept:acceptHeader,...(language?{language}:{}),snapshotId:this.snapshotId};
+      this.frozenInputGaps.set(JSON.stringify(gap),gap);this.noteFrozenInputs([gap]);
+      return {url,...(request?{request}:{}),status:null,ok:false,fetchedAt:null,bytes:0,sha256:null,error:'acquisition-unavailable',acquisitionUnavailable:true,acquisitionUnavailableReason:gap.reason,frozenInputGap:gap,body:Buffer.alloc(0)};
+    }
     const key=digest(identity), metaPath=path.join(this.directory,key+'.json'), bodyPath=path.join(this.directory,key+'.body');
     let meta,body;
     try {meta=JSON.parse(await readFile(metaPath,'utf8'));} catch(error) {if(error.code!=='ENOENT')throw error;}
     if (meta) {
       if (meta.url!==url||JSON.stringify(meta.request??null)!==JSON.stringify(request)) throw new Error('Cache URL mismatch: '+url);
+      if(this.sealed&&(typeof meta.ok!=='boolean'||meta.status!==null&&(!Number.isInteger(meta.status)||meta.status<100||meta.status>599)||
+        meta.headers!==undefined&&(!meta.headers||typeof meta.headers!=='object'||Array.isArray(meta.headers))||
+        !meta.acquisitionUnavailable&&!meta.localProjection&&(typeof meta.fetchedAt!=='string'||!Number.isFinite(Date.parse(meta.fetchedAt)))))throw new Error('Invalid sealed input metadata: '+url);
       body=await readFile(bodyPath);
       if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
+    } else if(this.sealed) {
+      throw new Error('Sealed input metadata missing: '+url);
     } else if(this.retained) {
       const input=await this.retained.get(url,request,{cache:this,maximum});
       ({body,...meta}=input);
@@ -99,7 +127,7 @@ export class InputCache {
         this.requests++;this.last=Date.now();
         const fetchedAt=new Date().toISOString();
         try {
-          const response=await this.fetcher(url,{headers:{'User-Agent':userAgent('amendment benchmark'),Accept:accept||(url.endsWith('.docx')?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':url.startsWith('https://data.europarl.europa.eu/api/v2/')?'application/ld+json':'application/json'),...(language?{'Accept-Language':language}:{})},redirect:'manual',credentials:'omit',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60_000)]):AbortSignal.timeout(60_000)});
+          const response=await this.fetcher(url,{headers:{'User-Agent':userAgent('amendment benchmark'),Accept:acceptHeader,...(language?{'Accept-Language':language}:{})},redirect:'manual',credentials:'omit',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60_000)]):AbortSignal.timeout(60_000)});
           const chunks=[];let bytes=0;
           for await (const chunk of response.body || []) {
             bytes+=chunk.length;
@@ -150,12 +178,13 @@ export class InputCache {
     if(!meta.ok&&!(raw&&[301,302,303,307,308].includes(meta.status)&&meta.headers?.location))this.missing.set(url,meta.error);
     return {...meta,body};
   }
-  async seal(manifest) {
+  async seal(manifest,{snapshotId=null}={}) {
     this.fetchMissing=false;
+    this.snapshotId=snapshotId;
+    this.sealed=new Set(manifest.map(meta=>meta.request?JSON.stringify([meta.url,meta.request]):meta.url));
     // Validate every frozen input, including files this producer no longer reads.
     for(const meta of manifest)await this.get(meta.url,{...meta.request,raw:true,officialRedirect:allowedDownload(meta.url)});
     if(JSON.stringify(this.manifest())!==JSON.stringify(manifest))throw new Error('Frozen snapshot manifest/cache metadata mismatch.');
-    this.sealed=new Set(manifest.map(meta=>meta.request?JSON.stringify([meta.url,meta.request]):meta.url));
   }
   manifest() {return [...this.used.values()].sort((a,b)=>a.url.localeCompare(b.url,'en')||JSON.stringify(a.request||{}).localeCompare(JSON.stringify(b.request||{}),'en'));}
   async json(url) {
@@ -163,4 +192,12 @@ export class InputCache {
     if(!input.ok)return {input,value:null};
     try {return {input,value:JSON.parse(input.body.toString('utf8'))};}catch {throw new Error('Invalid JSON input: '+url);}
   }
+}
+
+export const observeFrozenInputs=(cache,read)=>cache.observeFrozenInputs?cache.observeFrozenInputs(read):Promise.resolve().then(read).then(value=>({value,gaps:[]}));
+export function withFrozenInputGaps(row,gaps) {
+  if(!gaps.length)return row;
+  // Retain every oracle assertion and never hide an observed false placement.
+  return {...row,acquisition:{...row.acquisition,status:'unavailable',frozenInputGaps:gaps},
+    ...(['false-placement','not-placeable'].includes(row.outcome)?{}:{outcome:'acquisition-unavailable',reason:'frozen-input-absent'})};
 }

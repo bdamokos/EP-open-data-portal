@@ -105,11 +105,17 @@ test('source selection never replaces indexed wording or silently drops a bindin
   assert.throws(()=>selection.receipt(),/not every binding/);
 });
 
-test('an unrelated absent input stays fatal even if a downstream reader catches it',async t=>{
-  const f=await fixture(t),selection=await f.create();
-  await assert.rejects(selection.cache.get('https://publications.europa.eu/resource/celex/unknown'),/input not captured/);
-  assert.throws(()=>selection.cache.assertHealthy(),/input not captured/);
-  await assert.rejects(selection.comparison(f.plainUrl+'&other=1'),/input not captured/);
+test('selection reports absent frozen requests but keeps captured input corruption fatal',async t=>{
+  const f=await fixture(t),selection=await f.create(),before=selection.cache.manifest();
+  const url='https://publications.europa.eu/resource/celex/52026PC9999',request={accept:'application/rdf+xml;notice=tree'};
+  const observed=await selection.cache.observeFrozenInputs(()=>selection.cache.get(url,request));
+  assert.equal(observed.value.acquisitionUnavailableReason,'frozen-input-absent');
+  assert.deepEqual(observed.gaps,[{reason:'frozen-input-absent',url,...request,snapshotId:f.config.baseSnapshotId}]);
+  assert.equal((await selection.comparison(f.plainUrl+'&other=1')).input.acquisitionUnavailableReason,'frozen-input-absent');
+  selection.cache.assertHealthy();assert.deepEqual(selection.cache.manifest(),before);assert.equal(selection.cache.requests,0);
+  await writeFile(path.join(f.cache.directory,digest(f.plainUrl)+'.body'),'corrupt');
+  await assert.rejects(selection.cache.get(f.plainUrl),/Cache hash mismatch/);
+  assert.throws(()=>selection.cache.assertHealthy(),/Cache hash mismatch/);
 });
 
 test('source selection is explicit, offline and incompatible with acquisition or other sample modes',()=>{

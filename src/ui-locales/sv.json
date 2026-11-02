@@ -2469,6 +2469,7 @@
   "votegroups.split": "Splittrad",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} av {total}",
+  "votegroups.whole_group": "Hela gruppen",
   "votegroups.voted_differently.one": "{count} ledamot röstade annorlunda än den egna gruppens majoritet.",
   "votegroups.voted_differently": "{count} ledamöter röstade annorlunda än sina respektive gruppers majoritet.",
   "votegroups.delegations.heading": "Delegationer som avvek från sin grupp",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} Europaparlamentsledamöter",
   "topics.story.count.mepsOne": "{count} Europaparlamentsledamot",
   "topics.policyAreaSource": "Namn på politikområden: {source}.",
-  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren."
+  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Anföranden per månad",
+  "groupvoices.contributions_by_sitting_day.77a719": "Anföranden per sammanträdesdag"
 }

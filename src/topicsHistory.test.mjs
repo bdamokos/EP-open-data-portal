@@ -117,7 +117,7 @@ test('places put the time control, map and story first and the ranked list and f
  await act(async()=>node.querySelector('.places-scrubber button[aria-label="Next quarter"]').click());await wait(()=>/^July\s*[–-]\s*September 2025 so far$/.test(node.querySelector('.places-quarter').textContent));assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3');
 });
 
-test('voting-time groups keep their event link and are never captioned as a debate',async t=>{
+test('voting-time groups without exact targets stay unlinked and never captioned as debates',async t=>{
  const window=new Window({url:'http://localhost/?view=legislation&pl-mode=topics&topic=oeil%3A1.10&t-q=2026-Q1'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  const vote='MTG-PL-2026-01-20-PVCRE-ITM-7-2',debate='MTG-PL-2026-01-21-PVCRE-ITM-9';
@@ -131,7 +131,93 @@ test('voting-time groups keep their event link and are never captioned as a deba
  assert.match(node.querySelector('#topic-records h2').textContent,/January\s*[–-]\s*March 2026/,'the records meta line names months');
  const untitled=[...node.querySelectorAll('.topic-record-group')].find(g=>g.textContent.includes('Untitled item'));assert(untitled,'a group without a held title reads "Untitled item"');assert(!node.textContent.includes('MTG-PL-2026-01-22-PVCRE-ITM-3'),'the raw ID is never shown as a title');assert(untitled.querySelector('a').getAttribute('href').includes('MTG-PL-2026-01-22-PVCRE-ITM-3'),'the ID stays in the link');
  const links=[...node.querySelectorAll('.topic-record-group a')].map(a=>a.getAttribute('href'));
- const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(voteLink,'the vote group title opens its event: '+links.join(' '));assert(!links.includes('#topic-records'));
+ const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(!voteLink,'an unresolved voting-time parent must not have an agenda link');assert(!links.includes('#topic-records'));
  const captions=[...node.querySelectorAll('.topic-peak')].map(b=>b.textContent);
  assert(captions.some(c=>c.includes('Support for Ukraine')),'the real debate keeps its peak caption'); assert(!captions.some(c=>/Untitled|MTG-PL-2026-01-22/.test(c)),'an untitled peak group gets no caption');assert(!captions.some(c=>c.includes('(vote)')),'no caption names the voting-time item: '+captions.join(' | '));assert.equal(captions.length,1);
+});
+
+async function placesHarness(t,url,respond,{language='en'}={}){
+ const window=new Window({url}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ t.mock.method(globalThis,'fetch',async input=>respond(new URL(String(input),location.href)));
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<80&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ let view=createElement(Topics,{language});
+ if(language!=='en'){const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await import('./uiCatalogues.mjs'),locale=(await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default;view=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:locale}),language},view);}
+ await act(async()=>root.render(view));return {node,wait};
+}
+const placesData=(sittingQ4,label='Iran')=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':sittingQ4},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label,series:[{period:'2026-Q2',question:5},{period:'2026-Q3',question:6},{period:'2026-Q4',question:2}]}]});
+test('Geopolitics opens on the map',async t=>{
+ const overview=[];const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',u=>{if(u.pathname==='/api/topics/overview')overview.push(u.searchParams.get('role'));return Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:placesData(3));});
+ await wait(()=>node.querySelector('.places-map'));assert.equal(overview[0],'place');assert.equal(node.querySelector('.topic-tabs [aria-current=page]').textContent,'Places');
+});
+test('Plenary Topics mode opens the heat strip',async t=>{
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=legislation&pl-mode=topics',u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:{...placesData(3),items:[]}));
+ await wait(()=>node.querySelector('.topic-tabs [aria-current=page]'));assert.equal(node.querySelector('.topic-tabs [aria-current=page]').textContent,'Topics');assert.equal(node.querySelector('.places-map'),null);
+});
+for(const [name,sittings,url,expected] of [['the current quarter once its first plenary has happened',3,'',/^October\s*[–-]\s*December 2026 so far$/],['the last quarter with plenary data before the current quarter\'s first sitting',0,'',/^July\s*[–-]\s*September 2026$/],['an explicit t-q',3,'&t-q=2026-Q2',/^April\s*[–-]\s*June 2026$/]])test('the map defaults to '+name,async t=>{
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics'+url,u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:placesData(sittings)));
+ await wait(()=>node.querySelector('.places-quarter'));assert.match(node.querySelector('.places-quarter').textContent,expected);
+});
+test('leaving out own-country questions refreshes inline: content stays, no loading state, focus stays',async t=>{
+ let release;const pending=new Promise(r=>release=r);
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',async u=>{if(u.pathname==='/api/topics/story-facts')return Response.json({ready:false});if(u.searchParams.get('askers')==='all'){await pending;return Response.json(placesData(3,'Iran (all askers)'));}return Response.json(placesData(3));});
+ await wait(()=>node.querySelector('.places-ranking')?.textContent.includes('Iran'));
+ const box=node.querySelector('.topic-controls input[type=checkbox]');box.focus();await act(async()=>box.click());
+ await act(async()=>new Promise(r=>setTimeout(r,60)));
+ assert(node.querySelector('.places-map'),'the map stays');assert(node.querySelector('.places-ranking').textContent.includes('Iran'),'the list stays');assert(node.querySelector('.places-quarter'),'the time control stays');
+ assert(!/Loading/.test(node.textContent),'no loading state');assert.equal(node.querySelector('.topics-content').getAttribute('data-topics-pending'),null);
+ assert.equal(document.activeElement,node.querySelector('.topic-controls input[type=checkbox]'),'focus stays on the checkbox');
+ release();await wait(()=>node.querySelector('.places-ranking').textContent.includes('all askers'));
+});
+test('map, list, story and story links swap together once the requested story facts arrive',async t=>{
+ let release;const pending=new Promise(r=>release=r);const period='2026-Q3';
+ const overview={ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':3},items:[{key:'place:TUR',id:'TUR',iso3:'TUR',label:'Türkiye',series:[{period,question:13,document:1}]},{key:'place:IRN',id:'IRN',iso3:'IRN',label:'Iran',series:[{period,question:4,document:9}]}]};
+ const facts=(mode)=>({ready:true,periods:overview.periods,partial:{},counts:{},periodCounts:[{period,placesWithAdoptedTexts:2}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:mode==='d'?{topAdoptedPlaces:[{id:'IRN',count:9},{id:'TUR',count:1}]}:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}});
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'){await pending;return Response.json(facts('d'));}return Response.json(facts('q'));}return Response.json(overview);});
+ const story=()=>node.querySelector('.places-caption').textContent,first=()=>node.querySelector('.places-ranking li').textContent;
+ await wait(()=>/most asked-about place/.test(story()));const link=()=>[...node.querySelectorAll('.places-caption a')].find(a=>/13 questions/.test(a.textContent));assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q');
+ const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
+ await act(async()=>new Promise(r=>setTimeout(r,60)));
+ assert.equal(texts.getAttribute('aria-pressed'),'true','the control shows the requested choice');
+ assert.match(first(),/Türkiye\s*13/,'the list keeps the displayed questions');assert.match(story(),/Türkiye was the most asked-about place/,'the story keeps the displayed questions');
+ assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q','retained story links keep the displayed selection');
+ release();await wait(()=>/adopted texts naming/.test(story()));
+ assert.match(first(),/Iran\s*9/,'the list switches with the story');assert(!/most asked-about/.test(story()));
+});
+test('a standalone story keeps its links on the displayed selection while new facts load',async t=>{
+ const window=new Window({url:'http://localhost/?view=geopolitics&place=TUR&t-q=2026-Q3'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ let release;const pending=new Promise(r=>release=r),period='2026-Q3';
+ const facts={ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{},counts:{},periodCounts:[{period}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}};
+ t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);if(u.searchParams.get('askers')==='all'){await pending;}return Response.json(facts);});
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {TopicStories}=await load('/src/TopicStories.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<80&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ const selection=excludeOwn=>({periods:facts.periods,partial:[],period,zoom:'world',mode:'q',excludeOwn,labels:{TUR:'Türkiye'}});
+ await act(async()=>root.render(createElement(TopicStories,{selection:selection(true)})));
+ const own=()=>new URL([...node.querySelectorAll('a')].find(a=>/13 questions/.test(a.textContent)).getAttribute('href'),location.href).searchParams.get('t-own');
+ await wait(()=>/13 questions/.test(node.textContent));assert.equal(own(),'1');
+ await act(async()=>root.render(createElement(TopicStories,{selection:selection(false)})));await act(async()=>new Promise(r=>setTimeout(r,60)));
+ assert.equal(own(),'1','links keep the displayed selection until the new facts arrive');
+ release();await wait(()=>own()==='0');
+});
+
+const swapData=period=>({overview:{ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':3},items:[{key:'place:TUR',id:'TUR',iso3:'TUR',label:'Türkiye',series:[{period,question:13,document:1}]},{key:'place:FRA',id:'FRA',iso3:'FRA',label:'France',series:[{period,question:4,document:9}]}]},
+ facts:mode=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{},counts:{},periodCounts:[{period,placesWithAdoptedTexts:2}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:mode==='d'?{topAdoptedPlaces:[{id:'FRA',count:9},{id:'TUR',count:1}]}:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}})});
+test('in French the swap and the story share one story-facts request',async t=>{
+ const period='2026-Q3',{overview,facts}=swapData(period),seen=[];
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){seen.push(u.searchParams.get('mode')+':'+u.searchParams.get('lang'));return Response.json(facts(u.searchParams.get('mode')));}return Response.json(overview);},{language:'fr'});
+ await wait(()=>node.querySelector('.places-ranking'));
+ const texts=node.querySelectorAll('.insight-chart-switch button')[1];await act(async()=>texts.click());await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));
+ assert(seen.length&&seen.every(k=>k.endsWith(':fr')),'every story-facts request uses the interface language: '+seen.join(' '));assert.equal(seen.filter(k=>k.startsWith('d:')).length,1,'one request for the new selection');
+});
+test('a failed story-facts request keeps the displayed view and offers Retry',async t=>{
+ const period='2026-Q3',{overview,facts}=swapData(period);let fail=true;
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'&&fail)return Response.json({error:{message:'Story facts unavailable'}},{status:500});return Response.json(facts(u.searchParams.get('mode')));}return Response.json(overview);});
+ await wait(()=>/most asked-about place/.test(node.querySelector('.places-caption').textContent));
+ const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
+ await wait(()=>[...node.querySelectorAll('button')].some(b=>/Reload|Retry|Try again/i.test(b.textContent)));
+ assert.match(node.querySelector('.places-ranking li').textContent,/Türkiye\s*13/,'the map and list are not switched on failure');assert.match(node.querySelector('.places-caption').textContent,/most asked-about place/);
+ fail=false;await act(async()=>[...node.querySelectorAll('button')].find(b=>/Reload|Retry|Try again/i.test(b.textContent)).click());
+ await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));assert(/adopted texts naming/.test(node.querySelector('.places-caption').textContent));
 });

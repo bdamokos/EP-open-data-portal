@@ -2469,6 +2469,7 @@
   "votegroups.split": "Sem maioria",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} de {total}",
+  "votegroups.whole_group": "Todo o grupo",
   "votegroups.voted_differently.one": "{count} deputado votou de forma diferente da maioria do seu grupo.",
   "votegroups.voted_differently": "{count} deputados votaram de forma diferente da maioria do seu grupo.",
   "votegroups.delegations.heading": "Delegações que votaram em sentido contrário ao seu grupo",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} deputados",
   "topics.story.count.mepsOne": "{count} deputado",
   "topics.policyAreaSource": "Nomes dos domínios de intervenção: {source}.",
-  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador."
+  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Intervenções por mês",
+  "groupvoices.contributions_by_sitting_day.77a719": "Intervenções por dia de sessão"
 }

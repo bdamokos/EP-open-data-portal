@@ -2469,6 +2469,7 @@
   "votegroups.split": "Gespalten",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} von {total}",
+  "votegroups.whole_group": "Gesamte Fraktion",
   "votegroups.voted_differently.one": "{count} Parlamentsmitglied stimmte anders als die Mehrheit der eigenen Fraktion.",
   "votegroups.voted_differently": "{count} Abgeordnete stimmten anders als die Mehrheit ihrer jeweiligen Fraktion.",
   "votegroups.delegations.heading": "Delegationen mit abweichendem Votum zur Fraktionsmehrheit",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} Abgeordnete",
   "topics.story.count.mepsOne": "{count} Mitglied des Europäischen Parlaments",
   "topics.policyAreaSource": "Bezeichnungen der Politikbereiche: {source}.",
-  "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt."
+  "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Beiträge nach Monat",
+  "groupvoices.contributions_by_sitting_day.77a719": "Beiträge nach Sitzungstag"
 }

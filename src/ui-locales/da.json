@@ -2469,6 +2469,7 @@
   "votegroups.split": "Delt",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} af {total}",
+  "votegroups.whole_group": "Hele gruppen",
   "votegroups.voted_differently.one": "{count} medlem af Europa-Parlamentet stemte anderledes end flertallet i sin gruppe.",
   "votegroups.voted_differently": "{count} medlemmer af Europa-Parlamentet stemte anderledes end flertallet i deres respektive grupper.",
   "votegroups.delegations.heading": "Delegationer, der stemte imod deres gruppes flertal",
@@ -2498,5 +2499,8 @@
   "topics.story.count.meps": "{count} medlemmer af Europa-Parlamentet",
   "topics.story.count.mepsOne": "{count} medlem af Europa-Parlamentet",
   "topics.policyAreaSource": "Navne på politikområder: {source}.",
-  "topics.explorerTranslation": "Politikområdernes navne er oversat af udforskeren."
+  "topics.explorerTranslation": "Politikområdernes navne er oversat af udforskeren.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Indlæg pr. måned",
+  "groupvoices.contributions_by_sitting_day.77a719": "Indlæg pr. mødedag"
 }
