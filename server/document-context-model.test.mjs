@@ -956,6 +956,8 @@ test('negative first provisions precede the first published sibling of their kin
   assert.equal(place('Recital -A (new)','-A.\twhereas new;').insertBefore,2);
   assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 1, before point a').insertBefore,6);
   assert.equal(place('Paragraph -1 (new)','-1.\tNew;','After § 2').reason,'conflicting_target_evidence');
+  assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 2 – point -a').reason,'conflicting_target_evidence','a reference naming another parent conflicts');
+  assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 1 – point -a').insertBefore,6);
   const opinion=document(['The European Parliament,','–\thaving regard to its rules,','1.\tRecalls one;','2.\tRecalls two;','A.\twhereas the opinion;'],{textLanguage:'en'});
   assert.equal(resolveAmendmentPlacement(opinion,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-A.\twhereas new;',targetLabel:'Recital -A (new)'}).status,'unresolved');
 });

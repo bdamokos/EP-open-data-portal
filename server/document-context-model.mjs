@@ -536,7 +536,7 @@ export function resolveAmendmentPlacement(text, options = {}) {
       if(referenceText) {
         const relative=parseReference(referenceText),same=placementReference(referenceText,'en');
         const before=relative?.relation==='before'&&relative.kind===ref.kind&&(ref.kind==='paragraph'?relative.number==='1':ref.kind==='recital'?relative.letter==='A':relative.number===ref.paragraph&&relative.point==='a');
-        if(!before&&!(same?.kind===ref.kind&&same.label===ref.label&&same.negative))return unresolved('conflicting_target_evidence');
+        if(!before&&!(same?.kind===ref.kind&&same.label===ref.label&&same.negative&&JSON.stringify(same.parents)===JSON.stringify(ref.parents)))return unresolved('conflicting_target_evidence');
         evidence.push({basis:'relative-reference',reference:referenceText});
       }
       evidence.push({basis:'published-reference',label:ref.label,anchor:first.label});
