@@ -37,6 +37,14 @@ export function classify(stages) {
   return stages.S6.status === 'verified' ? {outcome:'correct', reason:'oracle-verified'} : {outcome:'placed-unverified', reason:stages.S6.reason};
 }
 
+// A source-attested whole-document rejection (#453) has no location by
+// definition, like a provisional agreement: not placeable, never credited.
+// Unverified rejection wording keeps its ordinary classification.
+export function classifyRow(stages, documentOperation) {
+  if(documentOperation?.status==='verified'&&documentOperation.reason==='source-attested-rejection'&&stages.S5.status==='document-operation')return {outcome:'not-placeable',reason:'whole-document-rejection'};
+  return classify(stages);
+}
+
 const flatten = units => units.flatMap(unit => [unit, ...flatten(unit.children || [])]);
 const parentKey = unit => JSON.stringify(unit.path.slice(0,-1));
 const pathKey = path => JSON.stringify(path.map(({kind,value}) => [kind,value]));
