@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} deputados",
   "topics.story.count.mepsOne": "{count} deputado",
   "topics.policyAreaSource": "Nomes dos domínios de intervenção: {source}.",
-  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador."
+  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Intervenções por mês",
+  "groupvoices.contributions_by_sitting_day.77a719": "Intervenções por dia de sessão"
 }

@@ -75,6 +75,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 - Addressees come only from explicit `ADDRESSEE` participations. `org/HRVP` is shown as “Vice-President / High Representative”, following Parliament’s [questions page](https://www.europarl.europa.eu/plenary/en/parliamentary-questions.html?tabType=wq).
 - API author arrays are unordered. Publication order comes from the DOCX byline, matched to the API authors by exact full name.
 - The answering institution comes from the answer’s `creator` or `AUTHOR` organisation. The API doesn’t name the office holder; the English answer header does (“Answer given by High Representative/Vice-President Kallas on behalf of the European Commission”). Council replies have no named signatory.
+- Story question lists include exact answer references from retained metadata in one bounded local read, without upstream requests. An unavailable answer observation is `null`; an observed empty list is `[]`.
 - Commission answers (`…-ASW`) are separate records linked by `inverse_answers_to`. A question or document with fewer than 24 language versions, or still unanswered, can still change.
 
 ### Speeches and debates

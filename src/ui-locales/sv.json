@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} Europaparlamentsledamöter",
   "topics.story.count.mepsOne": "{count} Europaparlamentsledamot",
   "topics.policyAreaSource": "Namn på politikområden: {source}.",
-  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren."
+  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Anföranden per månad",
+  "groupvoices.contributions_by_sitting_day.77a719": "Anföranden per sammanträdesdag"
 }

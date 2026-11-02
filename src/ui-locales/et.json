@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} Euroopa Parlamendi liiget",
   "topics.story.count.mepsOne": "{count} Euroopa Parlamendi liige",
   "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}.",
-  "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija."
+  "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Sõnavõtud kuude kaupa",
+  "groupvoices.contributions_by_sitting_day.77a719": "Sõnavõtud istungipäevade kaupa"
 }
