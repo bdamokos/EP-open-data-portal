@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
-import {SittingSnapshotCollector,sittingSnapshotNextCheck,sittingSourcesConfirmed} from './sitting-snapshot-collector.mjs';
+import {SittingSnapshotCollector,sittingSnapshotNextCheck,sittingSourcesConfirmed,pastSittingRecheckDelay} from './sitting-snapshot-collector.mjs';
 import {SittingSnapshotReader,SittingSnapshotHints} from './sitting-snapshot-store.mjs';
 import {decisionVotes} from './decision-votes.mjs';
 import {MemberVotes,memberVotesQuery,MEMBER_VOTES_VERSION} from './member-votes.mjs';
@@ -356,4 +356,63 @@ test('a failed later agenda page preserves earlier pages through retry backoff',
   const {MeetingsReader}=await import('./meetings-reader.mjs');
   const reader=new MeetingsReader({clock:h.clock,snapshots:h.reader,request:()=>assert.fail('retained calendar must not fetch')});
   assert.equal((await reader.year(2024)).coverage.state,'complete');
+});
+
+function isolateJob(h,kind,id){
+  h.collector.admit();h.store.db.prepare('UPDATE sitting_snapshots SET next_check=?').run(Number.MAX_SAFE_INTEGER);
+  h.collector.writer.enqueue(kind,1,id);h.store.db.prepare('UPDATE sitting_snapshots SET next_check=0 WHERE kind=? AND id=?').run(kind,id);
+}
+test('resuming an agenda after the week boundary refreshes preliminary staged pages',async t=>{
+  const h=setup(t);h.advance(Date.parse('2026-10-11T12:00Z')-h.clock());
+  isolateJob(h,'agenda',SNAPSHOT_SITTING);const offsets=[];
+  h.worker.fetchRecord=async(endpoint,params)=>{offsets.push(params.offset);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset===0?50:1},()=>({label:offsets.length===1?'preliminary':'final'}))}};};
+  assert.equal(await h.collector.step(h.worker,{requestBudget:1}),false);
+  h.advance(2*DAY);assert.equal(await h.collector.step(h.worker,{requestBudget:1}),false);
+  assert(await h.collector.step(h.worker,{requestBudget:1}));
+  assert.deepEqual(offsets,[0,0,50]);
+  assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages[0].payload.data[0].label,'final');
+});
+test('calendar negative staging cannot prevent a later healthy upstream retry',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;if(calls===1)throw Object.assign(Error('missing calendar'),{code:'odp_unavailable',upstreamStatus:404,source:{httpStatus:404}});return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  await h.collector.step(h.worker);h.advance(2*DAY);await h.collector.step(h.worker);
+  assert.equal(calls,2);assert.equal(h.reader.read('calendar',1,'2026').coverage.state,'complete');
+});
+test('singleton debate links are retained',async t=>{
+  const h=setup(t),id=SNAPSHOT_SITTING+'-PVCRE-ITM-99';isolateJob(h,'debate',id);let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[{id:'eli/dl/event/'+id,activity_date:SNAPSHOT_SITTING.slice(7),had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:'eli/dl/event/'+SNAPSHOT_SITTING+'-OTH-9'}]}};};
+  await h.collector.step(h.worker);assert(h.reader.read('debate',1,id));assert.equal(calls,1);
+});
+
+test('legacy staged calendar 404 and 204 observations expire before retry',async t=>{
+  for(const code of ['odp_unavailable','odp_no_content']){
+    const h=setup(t);isolateJob(h,'calendar','2026');const job={kind:'calendar',version:1,id:'2026'};
+    const key=JSON.stringify(['/meetings',{year:2026,limit:50,offset:0}]);
+    h.collector.writer.stage(job,key,{failure:{message:'old negative',code,upstreamStatus:404,source:{httpStatus:404}}},h.clock());
+    let calls=0;h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+    await h.collector.step(h.worker);assert.equal(calls,1);assert(h.reader.read('calendar',1,'2026'));
+  }
+});
+test('a rejected debate representation is not pinned as its retry source',async t=>{
+  const h=setup(t),id=SNAPSHOT_SITTING+'-PVCRE-ITM-99';isolateJob(h,'debate',id);let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[{id:'eli/dl/event/'+id,activity_date:SNAPSHOT_SITTING.slice(7),had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:calls===1?null:{id:'eli/dl/event/'+SNAPSHOT_SITTING+'-OTH-9'}}]}};};
+  await h.collector.step(h.worker);assert.equal(h.reader.read('debate',1,id),null);
+  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshot_staging WHERE kind='debate'").get().n,0);
+  h.advance(DAY);await h.collector.step(h.worker);assert.equal(calls,2);assert(h.reader.read('debate',1,id));
+});
+test('missing agenda and calendar retries use age decay without reopening held data',async t=>{
+  const now=Date.parse('2026-11-01T12:00Z');
+  for(const [date,days] of [['2026-07-02',0],['2026-07-01',30],['2025-11-02',30],['2025-11-01',90],['2024-11-02',90],['2024-11-01',180]])
+    assert.equal(pastSittingRecheckDelay(date,now,60000),days?days*DAY:60000,date);
+  for(const [kind,id,days] of [['agenda','MTG-PL-2026-04-01',30],['agenda','MTG-PL-2025-04-01',90],['agenda','MTG-PL-2024-08-01',180],['calendar','2024',90]]){
+    const h=setup(t);isolateJob(h,kind,id);let calls=0;
+    h.worker.fetchRecord=async()=>{calls++;throw Object.assign(Error('missing'),{status:404});};
+    await h.collector.step(h.worker);
+    const row=h.store.db.prepare('SELECT next_check FROM sitting_snapshots WHERE kind=? AND id=?').get(kind,id);
+    assert.equal(row.next_check,h.clock()+days*DAY);assert.equal(calls,1);
+    assert.equal(h.store.get('sittingSnapshotRejection:'+JSON.stringify([kind,1,id])),null);
+  }
+  const h=setup(t);await drain(h);const before=h.fixture.calls.length;
+  h.collector.discoverSittings([h.fixture.meeting]);await h.collector.step(h.worker);
+  assert.equal(h.fixture.calls.length,before,'unchanged complete held agendas do not fetch again');
 });

@@ -114,5 +114,6 @@ export class SittingSnapshotWriter {
     const row=this.db.prepare('SELECT body FROM sitting_snapshot_staging WHERE kind=? AND version=? AND id=? AND key=? AND saved_at>?').get(job.kind,job.version,job.id,key,now-60*60_000);
     return row?decode(row.body):null;
   }
+  unstage(job,key){this.store.assertWriter();this.db.prepare('DELETE FROM sitting_snapshot_staging WHERE kind=? AND version=? AND id=? AND key=?').run(job.kind,job.version,job.id,key);}
   clearStage(job){this.db.prepare('DELETE FROM sitting_snapshot_staging WHERE kind=? AND version=? AND id=?').run(job.kind,job.version,job.id);}
 }
