@@ -67,14 +67,14 @@ export function createMembershipStore(storage,notify=()=>{},clock=Date.now) {
           baseline.lists?.[list]??null])),
       }]));
       const observed=new Map(snapshot.events.map(event=>[event.mep+':'+event.id,event]));
-      const entries=state.entries.map(entry=>({...entry,...observed.get(entry.mep+':'+entry.id)})),known=new Set(entries.map(entry=>entry.mep+':'+entry.id));
+      const entries=state.entries.map(entry=>({...entry,...observed.get(entry.mep+':'+entry.id)})),known=new Set(entries.map(entry=>entry.mep+':'+entry.id)),discoveredAt=clock();
       if(available&&!reset)for(const event of snapshot.events) {
         const baseline=baselines[event.mep];
         // Older snapshots have no list provenance: use the most conservative baseline.
         const eligible=baseline&&(event.lists?event.lists.some(list=>availability[list]&&event.mark>baseline.lists[list]):
           event.mark>Math.max(...Object.keys(availability).filter(list=>availability[list]).map(list=>baseline.lists[list])));
         if(eligible&&!known.has(event.mep+':'+event.id)) {
-          entries.push({...event,kind:'membership',discoveredAt:clock(),readAt:null});known.add(event.mep+':'+event.id);
+          entries.push({...event,kind:'membership',discoveredAt,readAt:null});known.add(event.mep+':'+event.id);
         }
       }
       state={...state,epoch:snapshot.epoch,generation:snapshot.generation,availability,baselines,entries,members:available?snapshot.members:{}};publish();return true;
