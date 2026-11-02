@@ -23,6 +23,13 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
  const compact=renderToStaticMarkup(h(TopicLine,{record}));assert.match(compact,/\+1/);assert.match(compact,/place=IRN/);assert.match(compact,/topic=oeil%3A1.10/);assert(!compact.includes('Customs'));
  const full=renderToStaticMarkup(h(TopicLine,{record,full:true}));assert.match(full,/Customs/);assert.match(full,/topic=eurovoc%3A123/);
  assert.equal(renderToStaticMarkup(h(TopicLine,{record:{...record,topics:[],places:[],keywords:[]}})),'');
+ const translated={...record,topics:[{key:'oeil:1.10',label:'Magyar név',labelLanguage:'hu',labelSource:'explorer-translation'}]};
+ const translatedMarkup=renderToStaticMarkup(h(TopicLine,{record:translated,full:true,language:'fr'}));
+ assert.match(translatedMarkup,/lang="hu"[^>]*>Magyar név/);
+ assert.match(translatedMarkup,/<details[^>]*><summary>Sources<\/summary><p[^>]*>Policy-area names translated by the explorer/);
+ assert(!renderToStaticMarkup(h(TopicLine,{record:translated,language:'fr'})).includes('translated by'));
+ assert(!full.includes('translated by'));
+
  assert.match(renderToStaticMarkup(h(TopicLine,{record:{...record,status:'unavailable',topics:[],places:[],keywords:[]},full:true})),/Unavailable/);
  const {default:PlacesMap}=await load('/src/PlacesMap.tsx');const map=renderToStaticMarkup(h(PlacesMap,{data:{items:[{key:'place:IRN',iso3:'IRN',label:'Iran',series:[]}]},period:'2026-Q1',mode:'q',own:false,zoom:'world',pause:()=>{}}));assert.match(map,/<a tabindex="-1" aria-hidden="true"[^>]+href=/);assert.match(map,/place=IRN/);
  const {TopicStory}=await load('/src/TopicStory.tsx');

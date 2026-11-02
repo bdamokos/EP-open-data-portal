@@ -122,3 +122,6 @@
 :is(.explorer,.explorer-insights) .topic-meta-toggle {min-height:32px;min-width:44px;padding:4px 6px;margin-left:6px;border:0;background:none;color:var(--accent);font:inherit;font-size:13px;vertical-align:baseline}
 
 .topic-facets [aria-pressed=true] {background:var(--accent-soft);border-color:var(--accent)}
+
+.policy-area-sources {max-width:1240px;margin:16px auto 0;padding:0 28px;font-size:15px;color:var(--ink-muted)}
+.policy-area-sources summary {cursor:pointer}
