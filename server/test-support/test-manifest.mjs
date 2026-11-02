@@ -4,7 +4,7 @@ import {parseSync} from 'vite';
 const launchers = new Set(['spawn', 'spawnSync', 'fork', 'exec', 'execSync', 'execFile', 'execFileSync', 'execFileAsync', 'execProcessGroupAsync']);
 // A path argument, or a word in a shell command string. Paths held in variables
 // are not traced; pass the entry point as a literal.
-const entryPoint = /(?:^|[\/\s])index\.mjs(?:$|\s)/;
+const entryPoint = /(?:^|[\/\s'"])index\.mjs(?:$|[\s'";&|)])/;
 
 // Parse without running tests, so strings/comments and nested test callbacks
 // cannot hide an unguarded listener or produce false positives.
