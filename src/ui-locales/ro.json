@@ -2513,5 +2513,7 @@
   "topics.story.count.texts": "{count} de texte",
   "topics.story.count.textsOne": "{count} text",
   "topics.story.count.meps": "{count} de eurodeputați",
-  "topics.story.count.mepsOne": "{count} eurodeputat"
+  "topics.story.count.mepsOne": "{count} eurodeputat",
+  "topics.policyAreaSource": "Denumirile domeniilor de politică: {source}.",
+  "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator."
 }

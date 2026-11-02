@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} textes",
   "topics.story.count.textsOne": "{count} texte",
   "topics.story.count.meps": "{count} députés",
-  "topics.story.count.mepsOne": "{count} député"
+  "topics.story.count.mepsOne": "{count} député",
+  "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
+  "topics.explorerTranslation": "Noms des domaines politiques traduits par l’explorateur."
 }

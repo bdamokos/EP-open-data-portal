@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "Testi: {count}",
   "topics.story.count.textsOne": "{count} test",
   "topics.story.count.meps": "Membri tal-PE: {count}",
-  "topics.story.count.mepsOne": "{count} Membru tal-PE"
+  "topics.story.count.mepsOne": "{count} Membru tal-PE",
+  "topics.policyAreaSource": "Ismijiet tal-oqsma ta’ politika: {source}.",
+  "topics.explorerTranslation": "L-ismijiet tal-oqsma ta’ politika ġew tradotti mill-għodda tal-esplorazzjoni."
 }

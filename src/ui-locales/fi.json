@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} tekstiä",
   "topics.story.count.textsOne": "{count} teksti",
   "topics.story.count.meps": "{count} meppiä",
-  "topics.story.count.mepsOne": "{count} meppi"
+  "topics.story.count.mepsOne": "{count} meppi",
+  "topics.policyAreaSource": "Politiikanalojen nimet: {source}.",
+  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt Explorer."
 }

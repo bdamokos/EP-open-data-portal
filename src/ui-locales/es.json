@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} textos",
   "topics.story.count.textsOne": "{count} texto",
   "topics.story.count.meps": "{count} eurodiputados",
-  "topics.story.count.mepsOne": "{count} eurodiputado"
+  "topics.story.count.mepsOne": "{count} eurodiputado",
+  "topics.policyAreaSource": "Nombres de los ámbitos políticos: {source}.",
+  "topics.explorerTranslation": "Nombres de ámbitos políticos traducidos por el explorador."
 }

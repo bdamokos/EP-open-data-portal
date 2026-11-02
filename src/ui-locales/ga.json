@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "Téacsanna: {count}",
   "topics.story.count.textsOne": "{count} téacs",
   "topics.story.count.meps": "Feisirí: {count}",
-  "topics.story.count.mepsOne": "{count} Fheisire"
+  "topics.story.count.mepsOne": "{count} Fheisire",
+  "topics.policyAreaSource": "Ainmneacha réimsí beartais: {source}.",
+  "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag Parliament explorer."
 }

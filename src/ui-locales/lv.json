@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} teksti",
   "topics.story.count.textsOne": "{count} teksts",
   "topics.story.count.meps": "{count} EP deputāti",
-  "topics.story.count.mepsOne": "{count} EP deputāts"
+  "topics.story.count.mepsOne": "{count} EP deputāts",
+  "topics.policyAreaSource": "Politikas jomu nosaukumi: {source}.",
+  "topics.explorerTranslation": "Politikas jomu nosaukumus tulkojis izpētes rīks."
 }

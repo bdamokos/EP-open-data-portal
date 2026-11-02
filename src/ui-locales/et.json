@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} teksti",
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} Euroopa Parlamendi liiget",
-  "topics.story.count.mepsOne": "{count} Euroopa Parlamendi liige"
+  "topics.story.count.mepsOne": "{count} Euroopa Parlamendi liige",
+  "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}.",
+  "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija."
 }

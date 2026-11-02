@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} textů",
   "topics.story.count.textsOne": "{count} text",
   "topics.story.count.meps": "{count} europoslanců",
-  "topics.story.count.mepsOne": "{count} europoslanec"
+  "topics.story.count.mepsOne": "{count} europoslanec",
+  "topics.policyAreaSource": "Názvy oblastí politiky: {source}.",
+  "topics.explorerTranslation": "Názvy oblastí politik přeložené průzkumníkem."
 }

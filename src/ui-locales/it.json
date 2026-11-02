@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} testi",
   "topics.story.count.textsOne": "{count} testo",
   "topics.story.count.meps": "{count} deputati",
-  "topics.story.count.mepsOne": "{count} deputato"
+  "topics.story.count.mepsOne": "{count} deputato",
+  "topics.policyAreaSource": "Nomi dei settori d’intervento: {source}.",
+  "topics.explorerTranslation": "Nomi dei settori di intervento tradotti dall’esploratore."
 }

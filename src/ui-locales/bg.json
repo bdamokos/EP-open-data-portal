@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} текста",
   "topics.story.count.textsOne": "{count} текст",
   "topics.story.count.meps": "{count} евродепутати",
-  "topics.story.count.mepsOne": "{count} евродепутат"
+  "topics.story.count.mepsOne": "{count} евродепутат",
+  "topics.policyAreaSource": "Наименования на областите на политиката: {source}.",
+  "topics.explorerTranslation": "Наименованията на областите на политиката са преведени от инструмента за разглеждане."
 }

@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} tekstova",
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} zastupnika u Europskom parlamentu",
-  "topics.story.count.mepsOne": "{count} zastupnik u Europskom parlamentu"
+  "topics.story.count.mepsOne": "{count} zastupnik u Europskom parlamentu",
+  "topics.policyAreaSource": "Nazivi područja politike: {source}.",
+  "topics.explorerTranslation": "Nazive područja politika preveo je preglednik."
 }

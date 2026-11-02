@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} κείμενα",
   "topics.story.count.textsOne": "{count} κείμενο",
   "topics.story.count.meps": "{count} ευρωβουλευτές",
-  "topics.story.count.mepsOne": "{count} ευρωβουλευτής"
+  "topics.story.count.mepsOne": "{count} ευρωβουλευτής",
+  "topics.policyAreaSource": "Ονομασίες τομέων πολιτικής: {source}.",
+  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης."
 }

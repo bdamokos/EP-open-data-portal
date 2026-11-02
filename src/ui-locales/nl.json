@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} teksten",
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} Europarlementariërs",
-  "topics.story.count.mepsOne": "{count} Europarlementariër"
+  "topics.story.count.mepsOne": "{count} Europarlementariër",
+  "topics.policyAreaSource": "Namen van beleidsterreinen: {source}.",
+  "topics.explorerTranslation": "Namen van beleidsterreinen vertaald door de verkenner."
 }

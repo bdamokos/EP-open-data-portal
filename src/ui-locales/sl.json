@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} besedil",
   "topics.story.count.textsOne": "{count} besedilo",
   "topics.story.count.meps": "{count} poslancev Evropskega parlamenta",
-  "topics.story.count.mepsOne": "{count} poslanec Evropskega parlamenta"
+  "topics.story.count.mepsOne": "{count} poslanec Evropskega parlamenta",
+  "topics.policyAreaSource": "Imena področij politike: {source}.",
+  "topics.explorerTranslation": "Imena področij politik, ki jih je prevedel raziskovalnik."
 }

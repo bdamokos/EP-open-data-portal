@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} tekstu",
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} posła do PE",
-  "topics.story.count.mepsOne": "{count} poseł do PE"
+  "topics.story.count.mepsOne": "{count} poseł do PE",
+  "topics.policyAreaSource": "Nazwy obszarów polityki: {source}.",
+  "topics.explorerTranslation": "Nazwy obszarów polityki przetłumaczone przez eksplorator."
 }

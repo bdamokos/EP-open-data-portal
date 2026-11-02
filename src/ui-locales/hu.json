@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} szöveg",
   "topics.story.count.textsOne": "{count} szöveg",
   "topics.story.count.meps": "{count} EP-képviselő",
-  "topics.story.count.mepsOne": "{count} EP-képviselő"
+  "topics.story.count.mepsOne": "{count} EP-képviselő",
+  "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
+  "topics.explorerTranslation": "A szakpolitikai területek nevét a Parliament explorer fordította le."
 }

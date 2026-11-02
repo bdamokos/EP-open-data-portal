@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} texter",
   "topics.story.count.textsOne": "{count} text",
   "topics.story.count.meps": "{count} Europaparlamentsledamöter",
-  "topics.story.count.mepsOne": "{count} Europaparlamentsledamot"
+  "topics.story.count.mepsOne": "{count} Europaparlamentsledamot",
+  "topics.policyAreaSource": "Namn på politikområden: {source}.",
+  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren."
 }

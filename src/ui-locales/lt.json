@@ -2510,5 +2510,7 @@
   "topics.story.count.texts": "{count} tekstų",
   "topics.story.count.textsOne": "{count} tekstas",
   "topics.story.count.meps": "{count} EP narių",
-  "topics.story.count.mepsOne": "{count} EP narys"
+  "topics.story.count.mepsOne": "{count} EP narys",
+  "topics.policyAreaSource": "Politikos sričių pavadinimai: {source}.",
+  "topics.explorerTranslation": "Politikos sričių pavadinimus išvertė „Parliament explorer“."
 }

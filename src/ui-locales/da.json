@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} tekster",
   "topics.story.count.textsOne": "{count} tekst",
   "topics.story.count.meps": "{count} medlemmer af Europa-Parlamentet",
-  "topics.story.count.mepsOne": "{count} medlem af Europa-Parlamentet"
+  "topics.story.count.mepsOne": "{count} medlem af Europa-Parlamentet",
+  "topics.policyAreaSource": "Navne på politikområder: {source}.",
+  "topics.explorerTranslation": "Politikområdernes navne er oversat af Explorer."
 }

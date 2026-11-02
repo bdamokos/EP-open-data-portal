@@ -2496,5 +2496,7 @@
   "topics.story.count.texts": "{count} textos",
   "topics.story.count.textsOne": "{count} texto",
   "topics.story.count.meps": "{count} deputados",
-  "topics.story.count.mepsOne": "{count} deputado"
+  "topics.story.count.mepsOne": "{count} deputado",
+  "topics.policyAreaSource": "Nomes dos domínios de intervenção: {source}.",
+  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador."
 }
