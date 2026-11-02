@@ -252,12 +252,29 @@ test('alphabetic and Roman suffix insertions follow the full existing predecesso
   assert.equal(resolve(reversed,'Article 5 – paragraph 1 – point b b (new)').reason,'source_structure_unavailable');
 });
 
-test('unsuffixed points need a predecessor; only the first Roman point can start below a childless point',()=>{
+// A-10-2026-0069 AM40: Article 4ba (new) beside new Articles 4a-4d.
+test('a two-letter suffix follows its base only when that base has no suffixed siblings',()=>{
+  const projection=source(['Article 4','1. Committee.','Article 5','1. Origin.'],['Titrearticle','','Titrearticle','']);
+  const placed=resolve(projection,'Article 4 ba (new)');
+  assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,2);
+  const suffixed=source(['Article 4','1. Committee.','Article 4a','1. Added.','Article 5','1. Origin.'],['Titrearticle','','Titrearticle','','Titrearticle','']);
+  assert.equal(resolve(suffixed,'Article 4 ba (new)').reason,'insertion_reference_unavailable');
+});
+
+test('unsuffixed points need a predecessor; new Roman points start below a childless lettered point',()=>{
   const projection=source(['Article 4','4. Lead:','(a) First;','(b) Last.']);
   let placed=resolve(projection,'Article 4 – paragraph 4 – point c (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,4);
   assert.equal(resolve(projection,'Article 4 – paragraph 4 – point d (new)').reason,'relative_target_not_found');
   placed=resolve(projection,'Article 4 – paragraph 4 – point a – point i (new)');assert.equal(placed.status,'placed');assert.equal(placed.insertBefore,3);assert.equal(placed.evidence.at(-1).basis,'childless-parent-end');
-  assert.equal(resolve(projection,'Article 4 – paragraph 4 – point a – point ii (new)').status,'unresolved','AM115/116 cannot use an absent first Roman point as a baseline anchor');
+  // A-10-2026-0257 AM114-116: a childless point has one end boundary for every new Roman child.
+  placed=resolve(projection,'Article 4 – paragraph 4 – point a – point ii (new)');assert.equal(placed.insertBefore,3);assert.equal(placed.evidence.at(-1).basis,'childless-parent-end');
+  assert.equal(resolve(projection,'Article 4 – paragraph 4 – point a – point c (new)').status,'unresolved','a lettered child is no Roman list start');
+  const nested=source(['Article 4','4. Lead:','(a) First:','(i) Nested;','(b) Last.'],['Titrearticle','','Point1','Point2','Point1']);
+  assert.equal(resolve(nested,'Article 4 – paragraph 4 – point a – point iii (new)').status,'unresolved','an existing Roman list needs its predecessor');
+  const flattened=source(['Article 4','4. Lead:','(a) First:','(i) Existing child;','(b) Last.'],['Titrearticle','','Point1','Point1','Point1']);
+  assert.equal(resolve(flattened,'Article 4 – paragraph 4 – point a – point ii (new)').status,'unresolved','a flattened (i) breaks the a, b peer sequence');
+  const afterH=source(['Article 4','4. Lead:',...'abcdefg'.split('').map(l=>`(${l}) Point;`),'(h) Last parent:','(i) Existing child;'],['Titrearticle','',...Array(9).fill('Point1')]);
+  assert.equal(resolve(afterH,'Article 4 – paragraph 4 – point h – point ii (new)').status,'unresolved','a following (i) may be a flattened Roman child');
   assert.equal(resolve(projection,'Article 4 – paragraph 9 – point a – point i (new)').reason,'parent_target_not_found');
 });
 
@@ -389,6 +406,30 @@ test('quoted sibling insertion follows the complete paragraph and preserves the 
  const addressed={...amendment,targetPath:{proposal:[{raw:amendment.targetLabel}],underlying:[{raw:'Article 9 – paragraph 4a – second subparagraph (new)',document:'Regulation (EU) 2024/123'}]}};
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],addressed).status,'placed');
  texts[3]='(b) the second subparagraph is replaced by the following:';
+ assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
+});
+
+test('points inserted inside a quoted replacement subparagraph follow the printed nested labels',()=>{
+ const texts=['Article 1','Regulation (EU) 2023/956 is amended as follows:','(20)\tin Article 30(6), the second subparagraph is replaced by the following:','‘Before 2028 the Commission shall report on:','(a) an assessment of:','(i) leakage;','(ii) sectors;','(b) an assessment of:','(i) governance;','(ii) scope;','(iii) circumvention;','(iv) penalties;','(v) thresholds;','(c) results;','(d) information.;’','(21)\tAnnex I is amended.','Article 2'];
+ const styles=['Titrearticle','Normal','Point0',...texts.slice(3,15).map(()=>'Normal'),'Point0','Titrearticle'];
+ const place=(raw,proposedText)=>resolveProposalPlacement([item(source(texts,styles))],{language:'en',targetLabel:'Article 1 – paragraph 1 – point 20',originalText:'',proposedText,targetPath:{language:'en',proposal:[{raw:'Article 1 – paragraph 1 – point 20'}],underlying:[{document:'Regulation (EU) 2023/956',raw}]}});
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiia)\tNew.').insertBefore,11);
+ for(const raw of ['Article 30 – paragraph 6 – second subparagraph – point b – point va (new)','Article 30 – paragraph 6 – subparagraph 2 – point (b)(va)'])assert.equal(place(raw,'(va)\tNew.').insertBefore,13,raw);
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point (ba) new','(ba)\tNew.').insertBefore,13);
+ assert.equal(place('Article 30 – paragraph 6 – third subparagraph (new)','A new subparagraph.').insertBefore,15);
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiib)\tNew.').status,'unresolved','the printed label must match the address');
+ assert.equal(place('Article 31 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiia)\tNew.').status,'unresolved','another article');
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a (new)','(iia)\tNew.').insertBefore,10);
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii (new)','(iii)\tNew.').status,'unresolved','an existing printed label');
+});
+
+test('a sibling of paragraphs inserted into a named article follows the provision text, before its asterisk note',()=>{
+ const texts=['Article 1','Directive 2003/87/EC is amended as follows:','(1)\tin Article 10a, the following paragraphs 2a and 2b are inserted after paragraph 2:','‘2a. First provision.','2b. Second provision under Regulation (EC) No 1893/2006*.','______','* Regulation (EC) No 1893/2006 of the European Parliament.’','Article 2'];
+ const styles=['Titrearticle','Normal','Point0','Normal','Normal','Normal','Normal','Titrearticle'];
+ const amendment={language:'en',targetLabel:'Article 1 – paragraph 1 – point 1',originalText:'',proposedText:'2ba.\tA new paragraph.'};
+ const result=resolveProposalPlacement([item(source(texts,styles))],amendment);
+ assert.equal(result.status,'placed',result.reason);assert.equal(result.insertBefore,5);
+ texts[2]='(1)\tin Article 10a, the second subparagraph is replaced by the following:';
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
 });
 

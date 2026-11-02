@@ -8,9 +8,9 @@ import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';
 import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
-import {storyTables,stageStoryInput,queueStoryRead} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,queueStoryRead,storyInput,storyEventType} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate,voteActivity} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -39,6 +39,66 @@ test('agenda links and country claims withhold ambiguous and incidental associat
 });
 test('joint motions retain their own explicit author groups',()=>{
  const d=storyDocument({identifier:'RC-10-2025-0010',work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',creator:['org/RENEW','org/ENVI','person/1'],workHadParticipation:[{participation_role:'def/ep-participation-roles/RECIPIENT',participation_in_name_of:'org/PPE'},{participation_role:'def/ep-participation-roles/AUTHOR',participation_in_name_of:'org/S_D'}],is_derivative_of:['eli/dl/doc/B-10-2025-0010']},source);assert.deepEqual(d.groups,['RENEW','S_D']);assert.deepEqual(d.derivedFrom,['B-10-2025-0010']);
+});
+test('hyphenated ODP group codes resolve to the group vocabulary',()=>{
+ const d=storyDocument({identifier:'RC-10-2026-0110',work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',creator:['org/S-D','org/VERTS-ALE','org/THE-LEFT','org/PATRIOTS','org/AFET'],workHadParticipation:[{participation_role:'def/ep-roles/AUTHOR',participation_in_name_of:'org/S-D'}]},source);
+ assert.deepEqual(d.groups,['S_D','VERTS_ALE','THE_LEFT','PFE']);
+});
+test('verbatim items labelled as votes are voting-time items, not debates',()=>{
+ assert(votingItem('Ukraine Support Loan for 2026 and 2027 (vote)'));
+ assert.equal(votingItem('Situation in Venezuela (debate)'),false);
+ assert.equal(votingItem('Voting on the budget'),false);
+ assert.equal(votingItem(undefined),false);
+});
+test('a document re-parsed under a new parser revision replaces its staged input, while real conflicts remain',async t=>{
+ const {store}=await fixture(t),id='RC-10-2026-0110',w={identifier:id,work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',document_date:'2026-02-11',creator:['org/S-D','org/ECR','org/RENEW','org/THE-LEFT','org/PPE','org/VERTS-ALE']};
+ // Upgrade-shaped row: the previous parser's output from the same retained bytes (three groups, no parser revision).
+ const old={...storyDocument(w,source),groups:['ECR','RENEW','PPE']};delete old.parser;
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id,JSON.stringify({...old,source:undefined}),JSON.stringify(source),stamp,1);
+ stageStoryInput(store,w,source);let d=storyInput(store,'document',id);
+ assert.equal(d.conflicted,undefined);assert.deepEqual(d.groups,['S_D','ECR','RENEW','THE_LEFT','PPE','VERTS_ALE']);assert.equal(d.groupsAvailable,true);
+ stageStoryInput(store,{...w,creator:['org/PPE']},source);d=storyInput(store,'document',id);
+ assert.equal(d.conflicted,true,'different bytes at the same time and rank under the same parser still conflict');
+ // Migration only forgives parser-derived fields: a legacy row with another changed field, or an earlier conflict, stays conflicted.
+ const id2='RC-10-2026-0111',w2={...w,identifier:id2},legacy={...storyDocument(w2,source),groups:['ECR'],date:'2026-02-10'};delete legacy.parser;
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id2,JSON.stringify({...legacy,source:undefined}),JSON.stringify(source),stamp,1);
+ stageStoryInput(store,w2,source);assert.equal(storyInput(store,'document',id2).conflicted,true,'a changed date is not a parser-derived change');
+ const id3='RC-10-2026-0112',w3={...w,identifier:id3},flagged={...storyDocument(w3,source),groups:['ECR'],conflicted:true};delete flagged.parser;
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id3,JSON.stringify({...flagged,source:undefined}),JSON.stringify(source),stamp,1);
+ stageStoryInput(store,w3,source);assert.equal(storyInput(store,'document',id3).conflicted,true,'an earlier conflict survives a parser upgrade');
+});
+test('vote items are classified by the verbatim item own label, never a speech copy that disagrees',()=>{
+ assert.equal(votingDebate({titles:{en:'Iran (vote)'}},['Iran']),true);
+ assert.equal(votingDebate({titles:{en:'Iran'}},['Iran (vote)']),false);
+ assert.equal(votingDebate(null,['Iran (vote)','Iran (vote)']),true,'unread item: unanimous speech copies decide');
+ assert.equal(votingDebate(null,['Iran (vote)','Iran']),false);
+ assert.equal(votingDebate(null,['Iran (vote)',null]),false,'a speech without an English label keeps it a debate');
+ assert.equal(votingDebate({titles:{fr:'Iran (vote)'}},['Iran (vote)']),false,'a read item without an English label stays a debate');
+ assert.equal(votingDebate(null,[]),false);
+ assert.equal(votingDebate({titles:{}},['Iran (vote)','Iran (vote)']),false,'a read item with no labels stays a debate');
+ assert.equal(votingDebate({titles:{en:'Iran (vote)'},conflicted:true},['Iran (vote)']),false,'conflicted labels never establish a vote');
+});
+test('an excluded vote item leaves every topic, keyword and place counter',async t=>{
+ const {store}=await fixture(t),day='2025-03-12',proc='2025-2111';
+ const items=[['MTG-PL-'+day+'-PVCRE-ITM-7-2','Support for Ukraine (vote)','Support for Ukraine (debate)'],['MTG-PL-'+day+'-PVCRE-ITM-8','Support for Ukraine (debate)','Support for Ukraine (vote)']];
+ store.putSource(1,'/plenary-documents/B-10-2025-0020','document',{id:'eli/dl/doc/B-10-2025-0020',identifier:'B-10-2025-0020',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Ukraine'},creator:['org/PPE'],is_about:[geo('UKR'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:items.map(([id])=>'eli/dl/event/'+id),inverse_created_a_realization_of:['eli/dl/proc/'+proc]},stamp);
+ let n=0;for(const [debate,own,copy] of items){stageStoryInput(store,{activity_id:debate,activity_date:day,activity_label:{en:own},executed:[]},source,{rank:4});
+  for(const person of own.endsWith('(vote)')?['1','2','3','4','5']:['1','2','3']){const id='MTG-PL-'+day+'-OTH-9'+(++n);store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:copy},participants:[person],parentIds:[debate],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}}
+ await buildTopics(store);
+ const [vote,debate]=items.map(x=>x[0]);
+ const story=storyFacts(store,new URLSearchParams('scope=topic&key=eurovoc:245'));assert.deepEqual(story.debates.map(d=>d.id),[debate]);assert.equal(story.counts.debates,1);
+ const members=id=>store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?').get(id).n;
+ assert.equal(members(vote),0,'no topic, keyword or place membership remains for the vote item');
+ assert(members(debate)>0);
+ const debates=store.db.prepare("SELECT COALESCE(SUM(n),0) n FROM record_topic_totals WHERE generation=1 AND key='eurovoc:245' AND kind='debate'").get().n;assert.equal(debates,1,'detail series count the same debates as the story');
+ assert.equal(store.get('recordTopicCalendar').periodTotals['2025-Q1'].debate,1,'global period totals leave the vote item out too');
+ const detail=new RecordTopics(store).query(new URLSearchParams('key=eurovoc:245&lang=en'),'detail');
+ assert.equal(detail.groups.find(g=>g.key===vote)?.kind,'record','the vote item group is not presented as a debate');
+ assert.equal(detail.groups.find(g=>g.key===vote)?.agendaId,undefined);
+ assert.equal(detail.groups.find(g=>g.key===debate)?.kind,'debate');
+ const tops=detail.series.map(x=>x.top).filter(Boolean);assert(tops.length);for(const t of tops)assert.equal(t.kind,t.key===vote?'record':undefined,'series tops carry the voting-time kind');
+ for(const peak of Object.values(detail.peaks).flat())for(const g of peak.groups)assert(!(g.key===vote&&g.kind==='debate'),'peaks never label the vote item a debate');
+ assert(Object.values(detail.peaks).flat().some(p=>p.groups.some(g=>g.key===vote)),'the vote group still counts in all-kind groups');
 });
 test('story projection links exact records, excludes institutions and statements, and narrows debate places',async t=>{
  const {dir,store}=await fixture(t),day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-10',decision='MTG-PL-'+day+'-DEC-1',proc='2025-2110',joint='RC-10-2025-0010';
@@ -142,6 +202,7 @@ test('topic stories retain placed oral questions from their exact policy members
  writeTopicProjection(store,{records:[record],concepts:[{key:'place:CYP',role:'place',labels:{en:'Cyprus'}},{key:'oeil:8.20',role:'topic',labels:{en:'Enlargement'}}]});await finishStoryProjection(store,1);
  const selected=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&askers=elsewhere&list=questions'));assert.equal(selected.questions[0].id,record.id);assert.equal(selected.questions[0].askers.CYP,'elsewhere');
  assert.equal(storyFacts(store,new URLSearchParams('scope=topic&key=oeil:4.40')).questions.length,0);
+ const french=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&lang=fr')).topic;assert.equal(french.labelLanguage,'fr');assert(!('source' in french));assert(!french.labelSource);assert.equal(french.label,"Elargissement de l'Union");
 });
 
 test('retained unavailable procedure reads propagate through exact document, debate and speech links',async t=>{
@@ -292,4 +353,194 @@ test('the projection queues vote decisions only for sittings before today',async
  const queued=()=>store.db.prepare("SELECT COUNT(*) n FROM story_jobs WHERE kind='decisions'").get().n;
  await buildTopics(store);assert.equal(queued(),0,'no decision read is queued on the sitting day');
  now=Date.parse('2026-10-29T10:00:00Z');store.acquire();await buildTopics(store);assert.equal(queued(),1);
+});
+
+test('the event type decides before any label: PLENARY_VOTE excludes, PLENARY_DEBATE keeps',()=>{
+ assert.equal(votingDebate({titles:{en:'Motions for resolutions - Nigeria'},type:'PLENARY_VOTE'},[]),true);
+ assert.equal(votingDebate({titles:{en:'Something (vote)'},type:'PLENARY_DEBATE'},['Something (vote)']),false);
+ assert.equal(votingDebate(null,['Nigeria'],'def/ep-activities/PLENARY_VOTE'),true,'a retained topic-event type counts before the read');
+ assert.equal(votingDebate({titles:{en:'Nigeria'},type:'PLENARY_VOTE',conflicted:true},[],null),false,'conflicted evidence never establishes a vote');
+ assert.equal(votingDebate({titles:{en:'Nigeria (vote)'}},[]),true,'labels still decide without a type');
+});
+test('vote-typed items leave story and topic counters, events read before types are read once more, and proceeding markers are not debates',async t=>{
+ const {store}=await fixture(t),day='2026-07-09',proc='2026-2111',vote='MTG-PL-'+day+'-PVCRE-ITM-9-6',debate='MTG-PL-'+day+'-PVCRE-ITM-8',old='MTG-PL-'+day+'-PVCRE-ITM-10',marker='MTG-PL-'+day+'-OTH-2017087113155';
+ store.putSource(1,'/plenary-documents/B-10-2026-0300','document',{id:'eli/dl/doc/B-10-2026-0300',identifier:'B-10-2026-0300',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Nigeria'},creator:['org/PPE'],is_about:[geo('NGA'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:[vote,debate,old].map(id=>'eli/dl/event/'+id),inverse_created_a_realization_of:['eli/dl/proc/'+proc]},stamp);
+ stageStoryInput(store,{activity_id:vote,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:[]},source,{rank:4});
+ stageStoryInput(store,{activity_id:debate,activity_date:day,activity_label:{en:'Nigeria (debate)'},had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:[]},source,{rank:4});
+ // An event read before types were retained: its stored input has no type key.
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',old,JSON.stringify({id:old,executed:[],executedKnown:true,titles:{en:'Nigeria again (debate)'},date:day,relationships:{}}),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+old,'event',old);
+ store.db.exec('CREATE TABLE IF NOT EXISTS story_seen_pages(job TEXT,signature TEXT,PRIMARY KEY(job,signature))');store.db.prepare('INSERT INTO story_seen_pages VALUES (?,?)').run('event:'+old,'sig');
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+debate,'event',debate);
+ let n=0;for(const parent of [vote,debate,old])for(const person of ['1','2','3']){const id='MTG-PL-'+day+'-OTH-8'+(++n);store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:'Nigeria'},participants:[person],parentIds:[parent],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ await buildTopics(store);
+ const story=storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3'));
+ assert.deepEqual(story.debates.map(d=>d.id).sort(),[debate,old].sort(),'the PLENARY_VOTE item is not a debate although its label lacks "(vote)"');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='debate'").get(vote).n,0);
+ assert.equal(store.db.prepare("SELECT state FROM story_jobs WHERE key=?").get('event:'+old).state,'pending','a type-less read is queued once more');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_seen_pages WHERE job=?").get('event:'+old).n,0,'its page signature is cleared so the re-read is staged');
+ assert.equal(store.db.prepare("SELECT state FROM story_jobs WHERE key=?").get('event:'+debate).state,'available','a typed read is not repeated');
+ // Proceeding markers and chair announcements carry their own type from the speech feed; they are never debate records or groups.
+ const {putTopicRecords}=await import('./topics-store.mjs');const record=(id,type)=>({id,kind:'event',activityType:'def/ep-activities/'+type,date:day,titles:{en:'Catch-the-eye procedure'},assignments:[{key:'place:NGA',role:'place',paths:[]}],parentIds:[],procedureIds:[],agendaIds:[],members:[],status:'classified'});
+ putTopicRecords(store,1,[record(marker,'PROCEEDING_ACTIVITY'),record('MTG-PL-'+day+'-OTH-2017087113160','MEETING_NAME_CHAIR'),record('MTG-PL-'+day+'-PVCRE-ITM-11','PLENARY_DEBATE')]);
+ for(const id of [marker,'MTG-PL-'+day+'-OTH-2017087113160']){assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_records WHERE generation=1 AND id=?').get(id).n,0,'proceeding markers are not debate records');assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?').get(id).n,0);}
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get('MTG-PL-'+day+'-PVCRE-ITM-11').kind,'debate','real debates keep their kind');
+});
+
+test('a held legacy event takes its type from the retained raw observation with no network read',async t=>{
+ const {store}=await fixture(t),day='2026-03-26',id='MTG-PL-'+day+'-PVCRE-ITM-9-2';
+ // Legacy collector input (rank 4) without a type key, and its completed read job.
+ const legacy={id,executed:[],executedKnown:true,titles:{en:'Explanations of vote'},date:day,relationships:{executed:[]}};
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',id,JSON.stringify(legacy),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+id,'event',id);
+ // The same observation retained as raw bytes (rank 3) carries the type.
+ assert(stageStoryInput(store,{activity_id:id,activity_date:day,activity_label:{en:'Explanations of vote'},had_activity_type:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',executed:[]},source,{rank:3}));
+ const d=storyInput(store,'event',id);assert.equal(d.type,'PLENARY_VOTE_EXPLANATIONS');assert.equal(d.conflicted,undefined,'enrichment of the same observation is not a conflict');
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-7'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Explanations of vote'},participants:[person],parentIds:[id],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ await buildTopics(store);
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available','no network read is queued for a held event');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_facts WHERE generation=1 AND kind='debate' AND id=? AND json_extract(body,'$.procedural')=0").get(id).n,0,'explanations of vote are not a debate');
+ // A legacy input whose type is held only by an older retained observation keeps its body, yet is typed and not read again.
+ const other='MTG-PL-'+day+'-PVCRE-ITM-9-3';store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',other,JSON.stringify({...legacy,id:other}),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+other,'event',other);
+ stageStoryInput(store,{id:other,date:day,kind:'PLENARY_VOTE_EXPLANATIONS'},{...source,fetchedAt:'2026-01-01T00:00:00Z'},{rank:2});assert.equal(storyEventType(store,other).type,'PLENARY_VOTE_EXPLANATIONS');assert.equal(Object.hasOwn(storyInput(store,'event',other),'type'),false);
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-6'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Explanations of vote'},participants:[person],parentIds:[other],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ await buildTopics(store);
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+other).state,'available','retained type evidence prevents a re-download');
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(other)?.p,1,'the retained type excludes it');
+});
+test('every vote-related type in the retained vocabulary is excluded and non-vote types are not',async()=>{
+ const fs=await import('node:fs/promises'),dir=new URL('./fixtures/',import.meta.url),terms=new Set();
+ for(const f of await fs.readdir(dir))if(f.endsWith('.json'))for(const m of (await fs.readFile(new URL(f,dir),'utf8')).matchAll(/ep-activities\/([A-Z_]+)/g))terms.add(m[1]);
+ const vote=[...terms].filter(t=>/VOTE|OUTCOME|DECISION/.test(t));assert(vote.includes('PLENARY_VOTE_EXPLANATIONS'));
+ for(const t of vote)assert(voteActivity(t),t);
+ for(const t of ['PLENARY_DEBATE','PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT','PROCEEDING_ACTIVITY','MEETING_PART','MEETING_NAME_CHAIR','PLENARY_SITTING','PLENARY_ACTIVITY'])assert.equal(voteActivity(t),false,t);
+ assert.equal(votingDebate({titles:{en:'Explanations of vote'},type:'PLENARY_VOTE_EXPLANATIONS'}),true);
+});
+test('conflicting type evidence from any source never excludes',async t=>{
+ const {store}=await fixture(t),id='MTG-PL-2026-03-26-PVCRE-ITM-5';
+ stageStoryInput(store,{activity_id:id,activity_label:{en:'Item'},had_activity_type:'def/ep-activities/PLENARY_VOTE'},{...source,url:'a'},{rank:3});
+ stageStoryInput(store,{activity_id:id,activity_label:{en:'Item'},had_activity_type:'def/ep-activities/PLENARY_DEBATE'},{...source,url:'b'},{rank:3});
+ const evidence=storyEventType(store,id);assert.equal(evidence.conflicted,1,'same-time opposite types conflict whatever their order');
+ assert.equal(votingDebate(storyInput(store,'event',id),['Item (vote)'],evidence.type,Boolean(evidence.conflicted)),false);
+ assert.equal(votingDebate({titles:{en:'Item (vote)'},type:'PLENARY_VOTE',conflicted:true},['Item (vote)']),false,'without resolved evidence a conflicted story event never excludes');
+ assert.equal(votingDebate({titles:{en:'Item'},type:'PLENARY_DEBATE',conflicted:true},[],'PLENARY_VOTE',false),true,'the shared resolver decides, as for topic records');
+});
+
+// Integration: held types arrive through the real ingestion paths, never by a network read.
+async function heldEventFixture(t,{child,parent,day}){
+ const dir=await mkdtemp(path.join(tmpdir(),'story-held-')),cache=path.join(dir,'cache');await (await import('node:fs/promises')).mkdir(cache);const store=new ActivityStore(path.join(dir,'index'),{initializeIndexes:true});store.acquire();store.set('active',1);storyTables(store.db);t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ const legacy={id:child,executed:[],executedKnown:true,titles:{en:'Nigeria'},date:day,relationships:{executed:[]}};
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',child,JSON.stringify(legacy),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+child,'event',child);
+ store.putSource(1,'/plenary-documents/B-10-2026-0310','document',{id:'eli/dl/doc/B-10-2026-0310',identifier:'B-10-2026-0310',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Nigeria'},creator:['org/PPE'],is_about:[geo('NGA'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+child]},stamp);
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-5'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Nigeria'},participants:[person],parentIds:[child],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ return {store,cache};
+}
+const heldChecks=(store,child)=>{
+ assert.equal(storyEventType(store,child)?.type,'PLENARY_VOTE','the held type is recorded');
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+child).state,'available','no read is queued');
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,1,'the vote is not a debate');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='debate'").get(child).n,0);
+};
+test('an outside-agenda record supplies a held type through ingestion with no read',async t=>{
+ const day='2026-07-09',child='MTG-PL-'+day+'-PVCRE-ITM-9-6',{store}=await heldEventFixture(t,{child,day});
+ store.putSource(1,'outside:agenda:'+child,'outside-agenda',{id:child,date:day,titles:{en:'Nigeria'},kind:'PLENARY_VOTE',procedureIds:[],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+child,fetchedAt:'2026-10-20T11:10:24.838Z'}},stamp);
+ await buildTopics(store,{cache:null});heldChecks(store,child);
+});
+test('a retained raw parent supplies its embedded child type through ingestion with no read',async t=>{
+ const day='2026-07-09',parent='MTG-PL-'+day+'-PVCRE-ITM-9',child=parent+'-6',{store,cache}=await heldEventFixture(t,{child,day});
+ await (await import('node:fs/promises')).writeFile(path.join(cache,'b'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:Date.parse('2026-10-20T12:00Z'),payload:{data:[{id:'eli/dl/event/'+parent,activity_id:parent,activity_date:day,activity_label:{en:'Voting time'},had_activity_type:'def/ep-activities/PLENARY_VOTE',consists_of:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_VOTE',activity_label:{en:'Nigeria'},inverse_consists_of:['eli/dl/event/'+parent]}]}]}}));
+ await buildTopics(store,{cache});heldChecks(store,child);
+});
+for(const order of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','PLENARY_DEBATE']])test('stories and topic records agree when same-time types conflict: '+order.join(' then '),async t=>{
+ const day='2026-07-09',child='MTG-PL-'+day+'-PVCRE-ITM-12',{store,cache}=await heldEventFixture(t,{child,day});
+ const fs=await import('node:fs/promises'),at=Date.parse('2026-11-02T12:00Z');
+ for(const [n,type] of [['c',order[0]],['d',order[1]]])await fs.writeFile(path.join(cache,n.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+child+'?'+n,fetchedAt:at,payload:{data:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+type}]}}));
+ await buildTopics(store,{cache});
+assert.equal(storyEventType(store,child).conflicted,1);
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,0,'conflicting evidence keeps a story debate');
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get(child)?.kind,'debate','the topic record agrees');
+ const totals=store.get('recordTopicCalendar').periodTotals['2026-Q3'];assert.equal(totals.debate,1);assert.equal(totals.vote,0);
+});
+
+// One resolver: a standalone child observation and a newer retained parent embedding it.
+for(const [older,newer] of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','PLENARY_DEBATE']])test('stories and topics resolve the newest type the same way: '+older+' then '+newer,async t=>{
+ const day='2026-07-09',parent='MTG-PL-'+day+'-PVCRE-ITM-9',child=parent+'-6',{store,cache}=await heldEventFixture(t,{child,day}),fs=await import('node:fs/promises');
+ await fs.writeFile(path.join(cache,'e'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+child,fetchedAt:Date.parse('2026-11-02T12:00Z'),payload:{data:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+older}]}}));
+ await fs.writeFile(path.join(cache,'f'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:Date.parse('2026-11-03T12:00Z'),payload:{data:[{id:'eli/dl/event/'+parent,activity_id:parent,activity_date:day,activity_label:{en:'Voting time'},had_activity_type:'def/ep-activities/PLENARY_VOTE',consists_of:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+newer,inverse_consists_of:['eli/dl/event/'+parent]}]}]}}));
+ await buildTopics(store,{cache});
+ const vote=newer==='PLENARY_VOTE';assert.equal(storyEventType(store,child).type,newer,'the newest observation is the resolved type');
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,vote?1:0,'story');
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get(child)?.kind,vote?'vote':'debate','topic record');
+ const totals=store.get('recordTopicCalendar').periodTotals['2026-Q3'];assert.equal(totals.debate,vote?0:1);
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?").get(child).n>0,!vote||store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='vote'").get(child).n>0,'a resolved debate keeps its memberships');
+ const story=storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3'));assert.equal(story.debates.some(d=>d.id===child),!vote);
+});
+
+// A type conflict must not discard the record: ingestion, eviction of the raw cache, rebuild.
+for(const order of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','PLENARY_DEBATE']])test('a same-time type conflict keeps the record and its date after the raw cache is evicted: '+order.join(' then '),async t=>{
+ const day='2026-07-09',child='MTG-PL-'+day+'-PVCRE-ITM-12',{store,cache}=await heldEventFixture(t,{child,day}),fs=await import('node:fs/promises'),at=Date.parse('2026-11-02T12:00Z');
+ const files=[['c',order[0]],['d',order[1]]].map(([n,type])=>[path.join(cache,n.repeat(64)+'.json'),type]);
+ for(const [file,type] of files)await fs.writeFile(file,JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+child+'?'+type,fetchedAt:at,payload:{data:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+type}]}}));
+ await buildTopics(store,{cache});
+ const input=storyInput(store,'event',child);assert.equal(input.conflicted,undefined,'a type disagreement does not mark the input conflicted');assert.equal(input.date,day);assert.equal(input.type,null);assert.equal(storyEventType(store,child).conflicted,1);
+ for(const [file] of files)await fs.rm(file);
+ await buildTopics(store,{cache});
+ const record=store.db.prepare('SELECT kind,date FROM record_topic_records WHERE generation=1 AND id=?').get(child);assert.deepEqual({...record},{kind:'debate',date:day},'the rebuilt record keeps its kind and date');
+ assert(store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND date=?').get(child,day).n>0);
+ assert.equal(store.get('recordTopicCalendar').periodTotals['2026-Q3'].debate,1);
+ assert(storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3')).debates.some(d=>d.id===child));
+});
+test('French story requests keep English document, question and joint debate titles with French policy labels',async t=>{
+ const {store}=await fixture(t),key='oeil:8.20',date='2025-03-12',question='O-10-2025-000001',doc='RC-10-2025-0010',debate='MTG-PL-2025-03-12-PVCRE-ITM-1';
+ const assignments=[{key,role:'topic',paths:[]}];
+ writeTopicProjection(store,{concepts:[{key,role:'topic',labels:{en:'Enlargement'}}],records:[{id:question,kind:'question',date,titles:{en:'English question',fr:'Question française'},members:[],status:'classified',assignments},{id:doc,kind:'document',date,titles:{en:'English motion',fr:'Motion française'},status:'classified',assignments},{id:debate,kind:'debate',date,titles:{en:'English debate',fr:'Débat français'},status:'classified',assignments}]});
+ const facts=[['document',doc,{id:doc,date,reference:'RC-B10-0010/2025',type:'RESOLUTION_MOTION_JOINT',titles:{en:'JOINT MOTION FOR A RESOLUTION on English motion',fr:'Motion française'},rule:[],groups:['PPE','RENEW'],groupsAvailable:true,places:[],keywords:[],procedures:[],derivedFrom:[],outcomeStatus:'known',outcome:{decisionId:'decision',date,outcome:'ADOPTED',for:100,against:20,abstentions:0,labels:{en:'English decision',fr:'Décision française'},references:{en:'English reference',fr:'Référence française'}}}],['debate',debate,{id:debate,date,titles:{en:'19. English debate',fr:'19. Débat français'},jointHeadings:{en:'English joint heading',fr:'Intitulé français'},places:[],docs:[doc],procedures:[],meps:5,speeches:5,format:'council-commission',joint:true}]];
+ for(const [kind,id,body] of facts){store.db.prepare('INSERT INTO story_facts VALUES (?,?,?,?,?)').run(1,kind,id,date,JSON.stringify(body));store.db.prepare('INSERT INTO story_topics VALUES (?,?,?,?,?)').run(1,key,kind,id,date);}
+ await finishStoryProjection(store,1);
+ const result=storyFacts(store,new URLSearchParams({scope:'topic',key,lang:'fr',period:'2025-Q1',list:'questions'}));
+ assert.equal(result.topic.labelLanguage,'fr');assert.equal(result.topic.label,"Elargissement de l'Union");
+ assert.equal(result.questions[0].title,'English question');assert.equal(result.questions[0].titleLanguage,'en');
+ assert.equal(result.docs[0].title,'JOINT MOTION FOR A RESOLUTION on English motion');assert.equal(result.docs[0].titleLanguage,'en');
+ assert.equal(result.debates[0].title,'English debate');assert.equal(result.debates[0].titleLanguage,'en');assert.equal(result.debates[0].jointHeading,'English joint heading');
+ assert.equal(result.docs[0].outcome.label,'English decision');
+});
+
+// Debate group titles come from held records by exact item ID, never the raw ID.
+async function titledFixture(t,id,day){
+ const {store}=await fixture(t);store.putSource(1,'/plenary-documents/B-10-2026-0400','document',{id:'eli/dl/doc/B-10-2026-0400',identifier:'B-10-2026-0400',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Iran'},creator:['org/PPE'],is_about:[geo('IRN'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+id]},stamp);
+ // A later event observation without labels must not erase held titles.
+ stageStoryInput(store,{activity_id:id,activity_date:day,activity_label:{},had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:[]},{...source,fetchedAt:'2026-11-02T00:00:00Z'},{rank:4});
+ return store;
+}
+const groupTitle=(store,id,lang)=>new RecordTopics(store).query(new URLSearchParams({key:'eurovoc:245',lang}),'detail').groups.find(g=>g.key===id);
+test('debate groups take every held language from the outside-agenda record',async t=>{
+ const day='2026-03-25',id='MTG-PL-'+day+'-PVCRE-ITM-17',store=await titledFixture(t,id,day);
+ store.putSource(1,'outside:agenda:'+id,'outside-agenda',{id,date:day,titles:{en:'17. Imminent death penalty threats in Iran (debate)',fr:'17. Menaces imminentes de peine de mort en Iran (débat)'},kind:'PLENARY_DEBATE',procedureIds:[],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+id,fetchedAt:'2026-10-20T11:10:24.838Z'}},stamp);
+ await buildTopics(store,{cache:null});
+ const fr=groupTitle(store,id,'fr');assert.equal(fr.title,'17. Menaces imminentes de peine de mort en Iran (débat)');assert.equal(fr.titleLanguage,'fr');
+ const en=groupTitle(store,id,'en');assert.equal(en.title,'17. Imminent death penalty threats in Iran (debate)');assert.notEqual(en.title,id);
+});
+test('debate groups fall back to the retained debate snapshot, then to no title',async t=>{
+ const {gzipSync}=await import('node:zlib'),{prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs');
+ const day='2026-03-25',id='MTG-PL-'+day+'-PVCRE-ITM-17',other='MTG-PL-'+day+'-PVCRE-ITM-18',store=await titledFixture(t,id,day);
+ store.putSource(1,'/plenary-documents/B-10-2026-0401','document',{id:'eli/dl/doc/B-10-2026-0401',identifier:'B-10-2026-0401',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Iran too'},creator:['org/PPE'],is_about:[geo('IRN'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+other]},stamp);
+ prepareSittingSnapshots(store);
+ store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,next_check,body) VALUES (?,?,?,1,0,?)').run('debate',1,id,gzipSync(JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+id,fetchedAt:'2026-10-20T00:00:00Z',payload:{data:[{id:'eli/dl/event/'+id,activity_id:id,activity_label:{en:'17. Imminent death penalty threats in Iran in the light of the latest executions (debate)'}}]}})));
+ await buildTopics(store,{cache:null});
+ assert.equal(groupTitle(store,id,'en').title,'17. Imminent death penalty threats in Iran in the light of the latest executions (debate)');
+ const missing=groupTitle(store,other,'en');assert.equal(missing.title,null,'no held title gives null, not the raw ID');assert.equal(missing.key,other,'the ID stays in the key');
+});
+
+test('untitled verbatim items are looked up in one snapshot query per write batch',async t=>{
+ const {prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs'),{putTopicRecords,topicTables}=await import('./topics-store.mjs'),{gzipSync}=await import('node:zlib');
+ const {store}=await fixture(t);topicTables(store.db);prepareSittingSnapshots(store);const day='2026-03-25',ids=Array.from({length:300},(_,i)=>'MTG-PL-'+day+'-PVCRE-ITM-'+(i+1));
+ for(const id of ids.slice(0,3))store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,next_check,body) VALUES (?,?,?,1,0,?)').run('debate',1,id,gzipSync(JSON.stringify({payload:{data:[{activity_id:id,activity_label:{en:'Item '+id.split('-').at(-1)}}]}})));
+ let prepares=0,runs=0;const prepare=store.db.prepare.bind(store.db);store.db.prepare=sql=>{const st=prepare(sql);if(!/sitting_snapshots/.test(sql))return st;prepares++;return new Proxy(st,{get(target,key){const v=target[key];return typeof v==='function'?(...a)=>{runs++;return v.apply(target,a);}:v;}});};
+ putTopicRecords(store,1,ids.map(id=>({id,kind:'event',activityType:'def/ep-activities/PLENARY_DEBATE',date:day,titles:{},assignments:[],parentIds:[],procedureIds:[],agendaIds:[],members:[]})));
+ putTopicRecords(store,1,ids.slice(0,10).map(id=>({id,kind:'event',activityType:'def/ep-activities/PLENARY_DEBATE',date:day,titles:{},assignments:[],parentIds:[],procedureIds:[],agendaIds:[],members:[]})));
+ store.db.prepare=prepare;
+ assert.equal(prepares,1,'prepared once');assert.equal(runs,2,'one query per batch');
+ assert.equal(JSON.parse(store.db.prepare('SELECT body FROM record_topic_records WHERE generation=1 AND id=?').get(ids[0]).body).titles.en,'Item 1');
 });

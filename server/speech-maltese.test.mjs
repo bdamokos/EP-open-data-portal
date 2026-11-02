@@ -17,6 +17,9 @@ test('Maltese letters and apostrophes survive while articles and particles are f
   assert.deepEqual(speechWordTokens('Ċittadini Ġustizzja Ħarsien Żgħażagħ'.normalize('NFD'),'mt'),['ċittadini','ġustizzja','ħarsien','żgħażagħ']);
   assert.deepEqual(speechWordTokens("ta' ma’ taʼ min minn tiegħu tagħha tagħna tagħhom",'mt'),[]);
   assert.deepEqual(speechWordTokens("‘ambjent’ 'ambjent' ambjent ta’ ma’ x’jiġri",'mt'),['ambjent','ambjent','ambjent',"x'jiġri"]);
+  assert.deepEqual(speechWordTokens("Sema’ x’qal is-sema. Qata’ l-ħabel.",'mt'),["sema'","x'qal","sema","qata'","ħabel"],'a lexical final apostrophe keeps distinct words apart');
+  assert.deepEqual(speechWordTokens("‘Is-sema’ u ‘ix-xogħol tal-politika’ — imma sema’ biss.",'mt'),["sema","xogħol","politika","sema'"],'closing quotes, including after several words, are not lexical');
+  assert.deepEqual(speechWordTokens("‘Qata’ l-ħabel’ u ‘Il-politika’, 'il ġnien sema’.",'mt'),["qata'","ħabel","politika","ġnien","sema'"],'a lexical apostrophe inside a quotation and a quotation opening on an article');
   const words=analyzeSpeechCloud([{id:'one',text:'L-ambjent u l-ambjent.'},{id:'two',text:'Fl-ambjent.'}],'mt');
   assert.equal(words.find(w=>w.word==='ambjent').speechCount,2);
   assert.equal(words.find(w=>w.word==='ambjent').occurrences,3);

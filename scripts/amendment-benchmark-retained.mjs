@@ -1,3 +1,4 @@
+import {baseSourceKey} from '../server/base-source-descriptor.mjs';
 import {RetainedProjections} from './amendment-benchmark-projections.mjs';
 import {readFile,readdir,realpath,stat,lstat} from 'node:fs/promises';
 import path from 'node:path';
@@ -69,7 +70,7 @@ try:
 finally: c.close()
 `,await reader.file('index/activities-v1.sqlite')],{encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']}));
     reader.baseRecords=(await descriptors(reader,'cache/base-sources-v1',256*1024,(source,name)=>{
-      const key=digest(JSON.stringify([source.url,source.request?.accept??null,source.request?.language??null]));
+      const key=baseSourceKey(source.url,source.request);
       if(source.schemaVersion!==1||source.key!==key||name!==key+'.json'||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isSafeInteger(source.bytes)||source.bytes<0||source.bytes>12*1024*1024||![200,406].includes(source.status)||!Number.isFinite(Date.parse(source.fetchedAt)))throw new Error('Retained base attestation mismatch');
     })).map(row=>row.source);
     reader.records=await descriptors(reader,'cache/commission-proposals-v1',64*1024);
@@ -113,7 +114,7 @@ finally: c.close()
     if(body.length!==source.bytes||digest(body)!==source.sha256)throw new Error('Retained base hash mismatch');
     const d=source.descriptor;
     if(d&&(d.url!==source.url||d.issued!=null&&(!Number.isFinite(Date.parse(d.issued))||Date.parse(d.issued)>Date.parse(source.fetchedAt))))throw new Error('Retained base descriptor mismatch');
-    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,...(request?{request}:{}),headers:source.headers,retainedSource:{store:'base-sources-v1',observedRequest:source.request,descriptor:d??null,selection:source.selection??null,observations:sizeObservations(d?.byteSize,body.length)},body};
+    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,...(request?{request}:{}),headers:source.headers,retainedSource:{store:'base-sources-v1',observedRequest:source.request,descriptor:d??null,selection:source.selection??null,...(source.provenance?{provenance:source.provenance}:{}),observations:sizeObservations(d?.byteSize,body.length)},body};
   }
   async selections(type) {
     const records=[];

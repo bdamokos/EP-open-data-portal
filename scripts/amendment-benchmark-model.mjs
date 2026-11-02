@@ -1,9 +1,10 @@
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
+import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
-import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
-import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
+import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
+import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
@@ -176,8 +177,96 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
 }
 
+// Oracle-owned point ordinals. A sibling family is Roman when it starts at i
+// and every base is a Roman numeral; lettered when it starts at a and every
+// base is one letter. Anything else stays unverified.
+const romanValue = value => {
+  if (!/^[ivxlc]+$/u.test(value)) return null;
+  const digits = {i:1,v:5,x:10,l:50,c:100};
+  return [...value].reduce((sum,c,i) => sum+(digits[c] < (digits[value[i+1]] ?? 0) ? -digits[c] : digits[c]),0);
+};
+const pointBase = unit => {
+  const value = String(unit.label?.value ?? ''), suffix = unit.label?.suffix || '';
+  return suffix && value.endsWith(suffix) ? value.slice(0,-suffix.length) : value;
+};
+const canonicalRoman = value => /^[ivxlc]+$/u.test(value) && /^c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u.test(value);
+function pointFamilyPosition(bases, wanted) {
+  const all = [...bases, wanted];
+  if (bases[0] === 'a' && all.every(base => /^[a-z]$/u.test(base))) return base => base.charCodeAt(0)-96;
+  if (bases[0] === 'i' && all.every(canonicalRoman) && bases.every((base,index) => romanValue(base) === index+1)) return romanValue;
+  return null;
+}
+// Published addresses may omit an article's sole unnumbered paragraph 1
+// (maintainer P1). Accept only that omission, never another parent.
+function omittedSoleParagraph(all, anchor, parent) {
+  const path = anchor.path.slice(0,-1), at = path.findIndex((segment,index) => index > 0 && segment.kind === 'paragraph' && path[index-1].kind === 'article');
+  if (at < 0 || parent.some(segment => segment.kind === 'paragraph')) return false;
+  const shortened = [...path.slice(0,at), ...path.slice(at+1)];
+  if (shortened.length < parent.length || pathKey(shortened.slice(-parent.length)) !== pathKey(parent)) return false;
+  const article = pathKey(path.slice(0,at)), paragraphs = all.filter(u => u.kind === 'paragraph' && pathKey(u.path.slice(0,-1)) === article);
+  return paragraphs.length === 1 && paragraphs[0].implicit === true && paragraphs[0].label?.value === '1' && pathKey(paragraphs[0].path) === pathKey(path.slice(0,at+1));
+}
+
+// A negative first provision (-1, -1a, -A, point -a) goes immediately before
+// the first raw sibling of its kind: paragraph 1, recital A before the
+// operative paragraphs, or point (a) of the named paragraph. The printed
+// label in the proposed column must carry the same negative number.
+function verifyNegativeFirst(text,wording,target,placement) {
+  const label=target.segments.at(-1),first={paragraph:'1',recital:'A',point:'a'}[label.kind];
+  const negative=first&&new RegExp(`^-${first}([a-z]?)$`,'u').exec(label.value);
+  if(!negative||wording.originalText!==''||target.segments.slice(0,-1).some(segment=>segment.isNew||segment.negative))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const dash='[-−–‑]\\s*',suffix=negative[1];
+  const printed={paragraph:new RegExp(`^${dash}1${suffix}[.)]\\s`,'u'),recital:new RegExp(`^${dash}A${suffix}[.)]\\s`,'u'),point:new RegExp(`^\\(${dash}a${suffix}\\)\\s`,'u')}[label.kind];
+  if(!printed.test(oracleFold(wording.proposedText).replace(/^[-−–‑]\s+(?=\d)/u,'-')))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+  const raw=rawResolutionUnits(text,wording.language);
+  if(raw.reason)return {status:'unverified',reason:raw.reason};
+  const paragraphs=raw.units.filter(unit=>unit.kind==='paragraph');
+  let family;
+  if(label.kind==='point') {
+    const owners=paragraphs.filter(unit=>target.segments.length===2&&target.segments[0].kind==='paragraph'&&unit.label===target.segments[0].value);
+    if(owners.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    family=raw.units.filter(unit=>unit.kind==='point'&&unit.parent===owners[0].start);
+  } else family=raw.units.filter(unit=>unit.kind===label.kind);
+  if(target.segments.length!==1&&label.kind!=='point')return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  const anchor=family.sort((a,b)=>a.start-b.start)[0];
+  if(anchor?.label!==first||family.filter(unit=>unit.label===first).length!==1||anchor.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  if(label.kind==='recital'&&!(paragraphs.length&&anchor.start<Math.min(...paragraphs.map(unit=>unit.start))))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  // Incomplete or non-body rows before the anchor can hide another first label.
+  // Points also need the only printed owner paragraph from the resolution start.
+  const from=raw.start,owner=label.kind==='point'?anchor.parent:null;
+  const printedFirst={paragraph:/^1[.)]\s/u,recital:/^A[.)]\s/u,point:/^\(a\)\s|^a\)\s/u}[label.kind];
+  const printedOwner=owner===null?null:new RegExp(`^${target.segments[0].value}[.)]\\s`,'u');
+  if(!Number.isInteger(from)||owner!==null&&!(from<=owner))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  for(let row=from;row<anchor.start;row++) {
+    const source=text.paragraphSources?.[row],value=String(text.paragraphs[row]??'').trim();
+    if(source?.complete!==true||source.container!=='body'||(owner===null||row>owner)&&printedFirst.test(value)||printedOwner&&row!==owner&&printedOwner.test(value))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  }
+  const before=text.paragraphSources?.[anchor.start-1],at=text.paragraphSources?.[anchor.start];
+  if(!anchor.complete||before?.complete!==true||before.container!=='body'||at?.complete!==true)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+  if(placement.insertBefore!==anchor.start||placement.insertAfter!==anchor.start-1)return fail('oracle-insertion-boundary-mismatch');
+  return verified('oracle-negative-first-boundary');
+}
+
+
+// Single Latin or Cyrillic capitals and plain numbers only. Both neighbours
+// must be adjacent in source order, one ordinal either side, and the lower
+// neighbour's last row must print the missing label after a terminator.
+export function numberingGap(text,units,base){
+  const position=value=>/^\d+$/u.test(value)?Number(value):/^[A-Z\u0410-\u042f]$/u.test(value)?value.codePointAt(0):null;
+  const wanted=position(base);
+  if(wanted==null||units.some(unit=>unit.label.startsWith(base)))return null;
+  const ordered=[...units].sort((a,b)=>a.start-b.start),hits=[];
+  for(let i=1;i<ordered.length;i++){
+    const before=ordered[i-1],after=ordered[i];
+    if(before.group===after.group&&position(before.label)===wanted-1&&position(after.label)===wanted+1&&after.start===before.end+1)hits.push(before);
+  }
+  if(hits.length!==1||ordered.filter(unit=>unit.label===hits[0].label).length!==1)return null;
+  const row=text.paragraphs[hits[0].end]??'',at=row.lastIndexOf(base);
+  return at>0&&/[;.:]\s*$/u.test(row.slice(0,at))&&/^[.)]\s*\S/u.test(row.slice(at+base.length))?hits[0]:null;
+}
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
+  if(label.negative&&!(wording.language==='fi'&&label.kind==='paragraph'))return verifyNegativeFirst(text,wording,target,placement);
   if(label.negative) {
     // Literal Finnish published pre-first paragraph family. Derive the boundary
     // from raw resolution rows, never the returned anchor/evidence or server ref.
@@ -205,6 +294,17 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const kind=label.after?'paragraph':label.kind;
   if(!['paragraph','recital','citation','point'].includes(kind))return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   const bases=units.filter(unit=>unit.kind===kind&&unit.label===String(label.base)&&owns(unit));
+  // A new recital continuing the raw A, B, C… sequence before the operative
+  // paragraphs follows the last raw recital; its printed letter must match.
+  if(!bases.length&&kind==='recital'&&!label.suffix&&!label.after&&!parents.length&&/^[A-Z]$/u.test(label.value)) {
+    const recitals=units.filter(unit=>unit.kind==='recital').sort((a,b)=>a.start-b.start),paragraphs=units.filter(unit=>unit.kind==='paragraph');
+    const last=recitals.at(-1);
+    if(!last||!recitals.every((unit,index)=>unit.label===String.fromCharCode(65+index))||label.value!==String.fromCharCode(65+recitals.length)||!paragraphs.length||last.start>Math.min(...paragraphs.map(unit=>unit.start)))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    if(!new RegExp(`^${label.value}[.)]\\s`,'u').test(oracleFold(wording.proposedText)))return {status:'unverified',reason:'oracle-insertion-label-unverified'};
+    if(!last.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(placement.insertBefore!==last.end+1||placement.insertAfter!==last.end)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-sequence-append-boundary');
+  }
   if(!bases.length&&kind==='point'){
     const indented=rawResolutionPointUnits(text).units;
     const anchors=indented.filter(unit=>unit.label===label.base&&pathKey(unit.path.slice(0,-1))===pathKey(parents));
@@ -214,6 +314,14 @@ function verifyResolutionInsertion(text,wording,target,placement) {
     if(family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
     if(placement.insertAfter!==anchor.end||placement.insertBefore!==anchor.end+1)return fail('oracle-insertion-boundary-mismatch');
     return verified('oracle-indented-point-boundary');
+  }
+  // A provision printed inside its predecessor's row (lost paragraph mark)
+  // ends with that row, directly before the next ordinal neighbour.
+  const gap=!bases.length&&!label.after&&!parents.length&&['paragraph','recital'].includes(kind)?numberingGap(text,units.filter(unit=>unit.kind===kind),String(label.base)):null;
+  if(gap){
+    if(!gap.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    if(placement.insertBefore!==gap.end+1||placement.insertAfter!==gap.end)return fail('oracle-insertion-boundary-mismatch');
+    return verified('oracle-merged-provision-boundary');
   }
   if(bases.length!==1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   const base=bases[0],family=units.filter(unit=>unit.kind===kind&&unit.parent===base.parent&&unit.group===base.group);
@@ -267,6 +375,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(quoted.status!=='unverified')return quoted;
   const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
   if(sibling.status!=='unverified')return sibling;
+  const subparagraph=assertQuotedSubparagraph({proposal,wording,placement,nativeQuoted});
+  if(subparagraph.status!=='unverified')return subparagraph;
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
@@ -289,7 +399,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     if (source.includes('\uFFFC') || wording.originalText.includes('\uFFFC')) return {status:'unverified',reason:'oracle-object-comparison-unavailable'};
     const key = value => wording.baseline==='present-text'?existingLawOracleNormal(value,labels):oracleNormal(value,labels);
     const left = key(source), right = key(wording.originalText);
-    const footnotes=proposal&&assertFootnoteComparison(proposal,wording,placement);
+    const footnotes=proposal?assertFootnoteComparison(proposal,wording,placement):assertResolutionFootnotes(text,wording,placement);
     if(footnotes?.status==='failed')return footnotes;
     if(!footnotes&&(!left||!right||left!==right)){
       const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');
@@ -323,9 +433,17 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     if(!after?.complete||!last?.complete||after.source?.ordinal!==last.source?.ordinal+1||after.source?.containerPath!==last.source?.containerPath)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
     return verified('oracle-subparagraph-point-boundary');
   }
-  const label = target.segments.at(-1), rank = suffixOrder(label.suffix);
-  if (!label.isNew || !rank || label.number == null) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
-  let siblings, anchor, end;
+  let label = target.segments.at(-1);
+  // A new point printed without a space (aa, ba) is a base letter plus suffix.
+  // Strings that also read as Roman numerals (ii, vi, xi) stay unsplit.
+  const joined = proposal && label.kind === 'point' && label.isNew && !label.suffix && label.number == null && romanValue(String(label.value)) === null && /^([a-z])([a-z]{1,2})$/u.exec(String(label.value));
+  if (joined) label = {...label, base:joined[1], suffix:joined[2]};
+  const rank = suffixOrder(label.suffix);
+  // Lettered and Roman point bases carry no parsed number; their ordinal comes
+  // from the complete sibling family below, never from the placer's order.
+  const lettered = Boolean(proposal) && label.kind === 'point' && label.number == null && /^(?:[a-z]|[ivxlc]+)$/u.test(String(label.base ?? ''));
+  if (!label.isNew || !rank || label.number == null && !lettered) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+  let siblings, anchor, end, wanted = label.number;
   if (proposal) {
     const all = flatten(proposal.units).filter(u => u.scope === 'proposal');
     anchor = all.find(u => u.id === placement.evidence?.find(e => e.basis === 'preceding-sibling-subtree')?.anchor);
@@ -333,13 +451,30 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     const parent = target.segments.slice(0,-1);
     // Heading containers may precede the published address. Compare its exact
     // suffix, as proposalCandidates does; retain the actual source parent below.
-    if (parent.length && pathKey(anchor.path.slice(-parent.length-1,-1)) !== pathKey(parent)) return fail('oracle-parent-mismatch');
+    const omitted = parent.length && pathKey(anchor.path.slice(-parent.length-1,-1)) !== pathKey(parent);
+    if (omitted && !omittedSoleParagraph(all, anchor, parent)) return fail('oracle-parent-mismatch');
     siblings = all.filter(u => u.kind === label.kind && parentKey(u) === parentKey(anchor)).map(u => ({...u, number:u.label?.number, suffix:u.label?.suffix || '', start:u.extent.start}));
     anchor = {...anchor, number:anchor.label?.number, suffix:anchor.label?.suffix || '', start:anchor.extent.start};
     end = anchor.extent.end;
+    // Repeated sibling labels make the address ambiguous (parser pathConflict).
+    // Applies to every family reached through the new lettered or omission rules.
+    const identities = siblings.map(u => String(u.label?.value ?? ''));
+    if ((lettered || omitted) && (new Set(identities).size !== identities.length || siblings.some(u => u.pathConflict) || !anchor.complete)) return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    if (lettered) {
+      const bases = siblings.sort((a,b) => a.start-b.start).map(pointBase);
+      // An observed malformed Roman family is ambiguous, so a different raw
+      // grammar must not override this identity failure.
+      if (bases[0] === 'i' && bases.some(base => /^[ivxlc]+$/u.test(base) && !canonicalRoman(base))) return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+      const position = pointFamilyPosition(bases, label.base);
+      if (!position) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
+      // Ordinals alone conflate spellings (iiii, iv); the anchor's exact base must match.
+      if (pointBase(anchor) !== String(label.base)) return fail('oracle-anchor-label-mismatch');
+      siblings = siblings.map(u => ({...u, number:position(pointBase(u))}));
+      anchor = {...anchor, number:position(pointBase(anchor))};
+      wanted = position(label.base);
+    }
   }
   // Recital letters are carried as value rather than number by the parser.
-  const wanted = label.number;
   if (anchor.number !== wanted || suffixOrder(anchor.suffix) == null || suffixOrder(anchor.suffix) >= rank || anchor.kind !== label.kind) return fail('oracle-anchor-label-mismatch');
   // A parser-created implicit paragraph must not swallow the publication's
   // next explicitly styled paragraph. A-10-2026-0069's unstyled article subtitle

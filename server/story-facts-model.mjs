@@ -3,7 +3,10 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=11;
+export const STORY_FACTS_VERSION=13;
+// Parser revision of staged document inputs. A re-parse of retained bytes under a
+// newer revision replaces the staged input instead of reading as a source conflict.
+export const STORY_DOCUMENT_PARSER=2;
 export const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 export const tail=v=>String(v?.id||v||'').split('/').at(-1);
 export const unique=v=>[...new Set(v)];
@@ -11,12 +14,14 @@ export const titles=v=>typeof v==='string'?{en:v}:v&&typeof v==='object'?v:{};
 export const refs=v=>unique(array(v).map(tail).filter(Boolean));
 export const sourceTime=v=>typeof v==='number'||/^\d{13}$/.test(String(v))?new Date(Number(v)).toISOString():v;
 export const storyReference=id=>{const m=id.match(/^(A|B|RC)-(\d+)-(\d{4})-(\d{4})$/);return m?(m[1]==='RC'?'RC-B':m[1])+m[2]+'-'+m[4]+'/'+m[3]:null;};
+// ODP organisation codes use hyphens (org/S-D, org/VERTS-ALE, org/THE-LEFT); the group vocabulary uses underscores.
+export const groupCode=id=>{const c=String(id).toUpperCase().replace(/-/g,'_');return c==='PATRIOTS'?'PFE':c;};
 export function storyDocument(w,source){
  const type=tail(w.work_type),id=w.identifier;if(!['RESOLUTION_MOTION','RESOLUTION_MOTION_JOINT','REPORT_PLENARY','RECOMMENDATION_REPORT'].includes(type)||!id)return null;
- const groups=unique([...refs(w.creator),...array(w.workHadParticipation).filter(p=>tail(p.participation_role)==='AUTHOR').flatMap(p=>refs(p.participation_in_name_of))].filter(id=>Object.hasOwn(GROUP_VOICE_GROUPS,id)));
+ const groups=unique([...refs(w.creator),...array(w.workHadParticipation).filter(p=>tail(p.participation_role)==='AUTHOR').flatMap(p=>refs(p.participation_in_name_of))].map(groupCode).filter(id=>Object.hasOwn(GROUP_VOICE_GROUPS,id)));
  const places=[],keywords=[];for(const raw of array(w.is_about)){const uri=String(raw?.id||raw),p=eurovocCountries.get(uri);if(p){const id=countryIdentity(p)?.id;if(id)places.push(id);}else if(!countryConcepts.has(uri)&&/^http:\/\/eurovoc\.europa\.eu\//.test(uri))keywords.push(tail(uri));}
  const events=refs(w.inverse_based_on_a_realization_of);
- return {id,reference:storyReference(id),type,date:w.document_date||null,titles:suppliedTitles(w),rule:unique(refs(w.based_on).map(id=>id.match(/ITM-A(\d+)$/)?.[1]).filter(Boolean)),groups,groupsAvailable:Object.hasOwn(w,'creator')||Object.hasOwn(w,'workHadParticipation'),places:unique(places),keywords:unique(keywords),procedures:refs(w.inverse_created_a_realization_of),derivedFrom:refs(w.is_derivative_of),events,source};
+ return {id,reference:storyReference(id),type,date:w.document_date||null,titles:suppliedTitles(w),rule:unique(refs(w.based_on).map(id=>id.match(/ITM-A(\d+)$/)?.[1]).filter(Boolean)),groups,groupsAvailable:Object.hasOwn(w,'creator')||Object.hasOwn(w,'workHadParticipation'),places:unique(places),keywords:unique(keywords),procedures:refs(w.inverse_created_a_realization_of),derivedFrom:refs(w.is_derivative_of),events,parser:STORY_DOCUMENT_PARSER,source};
 }
 export function storyAgenda(w,source){
  const id=w.activity_id||tail(w.id);if(!/OJ-ITM-[DV]-/.test(id))return null;
@@ -87,6 +92,28 @@ export function speakerEligible(item,header){
 
 // Only published agenda classifications exclude procedural contributions.
 // A debate heading is never evidence for this decision.
+// A verbatim item whose own published English label ends in "(vote)" is a voting-time
+// item (its contributions are explanations of vote), not a debate. This reads the
+// item's own label; it never joins records by title.
+export const votingItem=title=>/\(vote\)\s*$/i.test(String(title||''));
+// The verbatim item's own English label decides (its /events activity_label). Before
+// that record is read, the speeches' copy of the item label is used only when every
+// speech carries the same English label. Without an English label the item stays a debate.
+// Vote-related ODP activity types (ep-activities vocabulary in retained fixtures): votes, vote results,
+// outcomes and decisions, vote requests, and explanations of vote.
+export const voteActivity=type=>/^(?:PLENARY_(?:VOTE(?:_[A-Z_]+)?|OUTCOME|DECISION)|REQUEST_VOTE_[A-Z_]+|VOTE_[A-Z_]+|[A-Z_]*EXPLANATIONS?_OF_VOTES?)$/.test(tail(type||''));
+// The event's own published type is exact evidence: a vote type excludes, PLENARY_DEBATE keeps it a debate.
+// Conflicting evidence from any source never excludes. Labels decide only when no type is retained.
+export function votingDebate(event,speechLabels=[],type=null,typeConflicted=false){
+ // One resolver for stories and topic records: the retained type evidence (newest observation,
+ // same-time disagreement is a conflict) decides. The stored input's own type is used only without it.
+ if(type||typeConflicted){if(typeConflicted)return false;const t=tail(type);if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;}
+ else{if(event?.conflicted)return false;const t=tail(event?.type||'');if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;}
+ // A read item decides by its own English label; conflicted or missing labels keep it a debate.
+ if(event){if(event.conflicted)return false;const own=event.titles?.en;return typeof own==='string'&&Boolean(own.trim())&&votingItem(own);}
+ if(!speechLabels.length||speechLabels.some(l=>typeof l!=='string'||!l.trim()))return false;
+ const labels=unique(speechLabels);return labels.length===1&&votingItem(labels[0]);
+}
 export function proceduralAgenda(agenda){
  if(!agenda||agenda.conflicted)return false;
  const type=tail(agenda.type);

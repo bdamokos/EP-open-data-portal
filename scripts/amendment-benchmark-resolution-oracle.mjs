@@ -191,5 +191,5 @@ export function rawResolutionUnits(text,language) {
     for(let i=unit.start;i<=end;i++)if(sources[i]?.complete!==true||sources[i].container!=='body'||i>unit.start&&!adjacent(sources[i-1],sources[i]))complete=false;
     units.push({...unit,end,complete});
   }
-  return {units};
+  return {units,start};
 }
