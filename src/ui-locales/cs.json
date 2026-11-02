@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Zobrazit úřední dokument",
   "questionStatus.1": "Zodpovězeno",
   "questionStatus.2": "Zatím bez odpovědi",
+  "questions.earlierInTerm": "Zobrazit starší otázky ze současného volebního období",
+  "questions.periodEnd": "Žádné další otázky z období {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minuta",
   "readerretry.minutes_minutes.24f934": "Počet minut: {minutes}",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Další pokusy byly po neúspěšném požadavku pozastaveny. Zbývající čas do dalšího pokusu: {wait}.",

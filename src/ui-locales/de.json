@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Offizielles Dokument ansehen",
   "questionStatus.1": "Beantwortet",
   "questionStatus.2": "Noch keine Antwort",
+  "questions.earlierInTerm": "Frühere Anfragen der aktuellen Wahlperiode anzeigen",
+  "questions.periodEnd": "Keine weiteren Anfragen im Zeitraum {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} Minute",
   "readerretry.minutes_minutes.24f934": "{minutes} Minuten",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Erneuter Versuch nach fehlgeschlagener Anfrage pausiert. In {wait} erneut versuchen.",

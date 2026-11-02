@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Ara d-dokument uffiċjali",
   "questionStatus.1": "Imwieġba",
   "questionStatus.2": "Għad m’hemmx tweġiba",
+  "questions.earlierInTerm": "Uri mistoqsijiet preċedenti mil-leġiżlatura attwali",
+  "questions.periodEnd": "M’hemmx aktar mistoqsijiet minn {dates}.",
   "readerretry.minutes_minute.15a750": "Għadd ta’ minuti: {minutes}",
   "readerretry.minutes_minutes.24f934": "Għadd ta’ minuti: {minutes}",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "It-tentattiv mill-ġdid twaqqaf wara talba li falliet. Ħin sal-prova li jmiss: {wait}.",

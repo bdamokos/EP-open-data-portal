@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Se officiellt dokument",
   "questionStatus.1": "Besvarad",
   "questionStatus.2": "Inget svar ännu",
+  "questions.earlierInTerm": "Visa tidigare frågor från nuvarande mandatperiod",
+  "questions.periodEnd": "Inga fler frågor från {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minut",
   "readerretry.minutes_minutes.24f934": "{minutes} minuter",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Nytt försök pausat efter en misslyckad begäran. Försök igen om {wait}.",

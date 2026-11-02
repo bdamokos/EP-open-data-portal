@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "View official document",
   "questionStatus.1": "Answered",
   "questionStatus.2": "No answer yet",
+  "questions.earlierInTerm": "Show earlier questions from the current term",
+  "questions.periodEnd": "No more questions from {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minute",
   "readerretry.minutes_minutes.24f934": "{minutes} minutes",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Retry paused after a failed request. Try again in {wait}.",

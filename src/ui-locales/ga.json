@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Féach an doiciméad oifigiúil",
   "questionStatus.1": "Freagartha",
   "questionStatus.2": "Níl freagra ann fós",
+  "questions.earlierInTerm": "Taispeáin ceisteanna níos luaithe ón téarma reatha",
+  "questions.periodEnd": "Níl a thuilleadh ceisteanna ó {dates}.",
   "readerretry.minutes_minute.15a750": "Líon nóiméad: {minutes}",
   "readerretry.minutes_minutes.24f934": "Líon nóiméad: {minutes}",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Athiarracht curtha ar sos tar éis iarratas teipthe. Am go dtí an chéad iarracht eile: {wait}.",

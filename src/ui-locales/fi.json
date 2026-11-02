@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Näytä virallinen asiakirja",
   "questionStatus.1": "Vastattu",
   "questionStatus.2": "Ei vielä vastausta",
+  "questions.earlierInTerm": "Näytä nykyisen vaalikauden aiemmat kysymykset",
+  "questions.periodEnd": "Ei enempää kysymyksiä ajalta {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} min",
   "readerretry.minutes_minutes.24f934": "{minutes} min",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Uusintayritys keskeytettiin epäonnistuneen pyynnön jälkeen. Odota {wait} ja yritä uudelleen.",

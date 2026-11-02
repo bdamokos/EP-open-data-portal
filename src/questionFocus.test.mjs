@@ -211,3 +211,24 @@ test('clear all subject and combined filters focuses the fully reset results in 
   for(const key of ['q-subject','q-addressee','q-country','q-word','q-topic','q-range','q-offset'])assert.equal(query.has(key),false);
   assert.equal(request.searchParams.get('offset'),'0');assert.equal(history.length,oldLength+1);assert.equal(document.activeElement===h.resultHeading(),true);
 });
+
+test('the end of a shorter period continues into the term after the questions already shown',async t=>{
+  const response=deferred();
+  const h=await harness(t,url=>url.searchParams.get('days')==='term'?response.promise:questions(25),{query:'?view=questions&q-subject=USA&q-country=IT&q-offset=25'});
+  assert.match(h.container.querySelector('.insight-question-results .insight-section-heading>span').textContent,/^27 questions · 3 MEP authors elected in Italy · Jul 1, 2026 — Sep 30, 2026$/);
+  assert.match(h.container.querySelector('.insight-period-more').textContent,/^No more questions from Jul 1, 2026 — Sep 30, 2026\. Show earlier questions from the current term$/);
+  const oldLength=history.length;await h.click('Show earlier questions from the current term');
+  const request=h.calls.at(-1),query=new URL(location.href).searchParams;
+  assert.equal(request.searchParams.get('days'),'term');assert.equal(request.searchParams.get('offset'),'27');
+  assert.equal(request.searchParams.get('subject'),'USA');assert.equal(request.searchParams.get('country'),'IT');
+  assert.equal(query.get('q-days'),'term');assert.equal(query.get('q-offset'),'27');assert.equal(history.length,oldLength+1);
+  await act(async()=>response.resolve({...questions(27),window:{start:'2024-07-16',end:'2026-09-30'},counts:{selectedQuestions:60},nextOffset:52}));
+  const first=h.container.querySelector('.insight-question-list article h3');assert.equal(first.textContent,'Exact question 28');
+  assert.equal(document.activeElement,first);assert.equal(h.reveals.at(-1).target,first);
+  assert.equal(h.container.querySelector('.insight-period-more'),null);
+});
+
+for(const query of ['?view=questions&q-offset=25&q-topic=topic-E-10-2026-000001','?view=questions&q-offset=25&q-word=water','?view=questions&q-offset=25&q-range=2026-08-01_2026-08-31','?view=questions&q-offset=25&q-days=term'])test('the term continuation is not offered for '+query,async t=>{
+  const h=await harness(t,()=>questions(25),{query});
+  assert(h.resultHeading());assert.equal(h.container.querySelector('.insight-period-more'),null);
+});
