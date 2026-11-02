@@ -91,3 +91,20 @@ for(const kind of ['council','existingLaw'])test('exact '+kind+' direct discover
   const a=path.join(root,'a'),b=path.join(root,'b'),out=path.join(root,'out'),metadata=record(publicDocumentUrl(reportId),{data:[report]},{accept:'application/ld+json'});await seal(a,[metadata]);await seal(b,[metadata,record(url.href,{results:{bindings:[]}},{accept:'application/sparql-results+json'})]);const h=await HybridInputs.open(a,b,out);h.runtime=runtime;await mkdir(out);const cache=new InputCache(out,{apiBase,retained:h,cap:0,fetcher:()=>{throw Error('fetch forbidden');}});await sourceReplay(cache,runtime)[kind](opts);const discovery=cache.manifest().find(m=>m.url===url.href);assert.equal(discovery.hybridSource.reason,'settled-base-fallback');assert.equal(discovery.hybridSource.identity.method,kind==='council'?'council-discovery':'existing-law-discovery');assert.equal(discovery.hybridSource.identity.arguments[0].language,'en');
   const other=url.href+'&unrelated=1',missing=await h.baseScope(discovery.hybridSource.identity,()=>cache.get(other,{accept:'application/sparql-results+json'}));assert.equal(missing.acquisitionUnavailable,true);assert.equal(missing.hybridSource.reason,'base-identity-mismatch');assert.equal(cache.requests,0);await cache.seal(cache.manifest());
 });
+
+test('EP base fallback follows only its recorded official redirect chain',async t=>{
+  const f=await fixture(t),redirectUrl='https://redmapl3.europarl.europa.eu/RedmapFront/media/test/base.docx',other=redirectUrl.replace('base','other');
+  const records=await Promise.all(f.sb.manifest.filter(m=>m.url!==url).map(m=>f.h.b.read(m.url,m.request)));
+  const redirect={...record(url,''),status:302,ok:false,error:'HTTP 302',headers:{location:redirectUrl},redirectUrl};
+  const b=await seal(f.b,[...records,redirect,record(redirectUrl,'OLD BASE'),record(other,'UNRELATED')]);
+  const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;
+  const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('no network')});
+  const input=await h.baseScope(f.identity,()=>cache.get(url));assert.equal(input.body.toString(),'OLD BASE');assert.equal(input.resolvedSourceUrl,redirectUrl);assert.equal(input.hybridSource.snapshotId,b.snapshotId);assert.equal(input.hybridSource.identity.proof.redirects[0].url,url);
+  const wrong=await h.baseScope(f.identity,()=>cache.get(other,{officialRedirect:true}));assert.equal(wrong.acquisitionUnavailable,true);assert.equal(wrong.hybridSource.reason,'base-identity-mismatch');
+  await cache.seal(cache.manifest());assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);assert.equal(cache.requests,0);
+});
+test('hybrid discovery preserves canonical unavailable results for invalid existing-act queries',async t=>{
+  const f=await fixture(t),opts={language:'en',documentDate:'2026-09-09',targetPath:{underlying:[{document:'Regulation No 1/58',raw:'Article 1'}]},documentReferences:[]};
+  assert.equal(f.h.runtime.existingLawReference(opts).status,'resolved');
+  const result=await sourceReplay(f.cache,f.h.runtime).existingLaw(opts);assert.equal(result.baseline.status,'unresolved');assert(result.baseline.gaps.includes('invalid_existing_law_celex'));assert.equal(f.cache.requests,0);assert.equal(f.cache.manifest().length,0);
+});

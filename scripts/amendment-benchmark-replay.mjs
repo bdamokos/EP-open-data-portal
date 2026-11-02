@@ -139,8 +139,9 @@ export function sourceReplay(cache,runtime) {
     if(!cache.retained?.baseScope)return reader(options);
     const identity=await identify(options);
     if(identity.status!=='resolved')return reader(options);
+    let queryText;try{queryText=query(identity,options);}catch{return reader(options);}
     const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');
-    url.searchParams.set('query',query(identity,options));url.searchParams.set('format','application/sparql-results+json');
+    url.searchParams.set('query',queryText);url.searchParams.set('format','application/sparql-results+json');
     return cache.retained.baseScope({type:'cellar',method,arguments:[{...identity,language:options.language}],discoveryRequest:{url:url.href,request:{accept:'application/sparql-results+json'}}},()=>reader(options));
   };
   const readCouncil=discoveryScope(runtime.createCouncilPositionBaseline?.({documents,request}),'council-discovery',async options=>{
@@ -298,7 +299,8 @@ export function sourceReplay(cache,runtime) {
       if(!readExisting)return {baseline:{status:'unresolved',gaps:['existing-law-baseline-unavailable']},items:[]};
       const identity=runtime.existingLawReference(options);
       if(identity.status!=='resolved')return {baseline:identity,items:[]};
-      const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.consolidationsSparql(identity.baseCelex,options.language));url.searchParams.set('format','application/sparql-results+json');
+      let queryText;try{queryText=runtime.consolidationsSparql(identity.baseCelex,options.language);}catch{const baseline=await readExisting(options);cache.assertHealthy();return {baseline,items:[]};}
+      const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',queryText);url.searchParams.set('format','application/sparql-results+json');
       if(cache.sealed&&!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',gaps:['existing-law-source-not-in-snapshot']},items:[]};
       const source=await readExisting(options);cache.assertHealthy();const items=[];
       try {for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,celex:source.celex}})});

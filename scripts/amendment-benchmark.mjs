@@ -307,6 +307,8 @@ export async function main(args=process.argv.slice(2)) {
   const exclusions=await sampleExclusions(opts.excludeSnapshots);
   const sample={term:10,asOf:opts.asOf,mode:opts.documents.length?'documents':opts.from?'date-window':'plenary-weeks',...(opts.documents.length?{documents:opts.documents}:opts.from?{from:opts.from,to:opts.to}:opts.decisionWeeks.length?{weeks:opts.decisionWeeks}:{requestedWeeks:opts.weeks,weeks:index.weeks}),...(exclusions?{exclusions}:{}),decisionBasis:'indexed-plenary-decision-date',variantPolicy:'one exact variant per amendment: English, then language code, then list ID',...(opts.languageVariants?{languageVariantInputs:'exact declared list translations and matching document DOCX'}:{}),indexGeneration:index.generation,indexedAmendments:index.indexed};
   const filenames=(await readdir(spool)).sort();
+  // Register every wording URL before any document can reuse an older base.
+  if(hybrid)for(const filename of filenames)for(const row of await readRows(path.join(spool,filename)))hybrid.registerWording(row);
   // Complete and seal acquisition before invoking any checkout extraction or
   // placement. The evaluation phase cannot fill even a previously unseen URL.
   for(const filename of snapshot.snapshotId?[]:filenames) {

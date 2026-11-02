@@ -3,6 +3,7 @@ import path from 'node:path';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
 import {publicDocumentUrl} from './amendment-benchmark-replay.mjs';
+import {allowedDownload} from '../server/document-text.mjs';
 
 const key=(url,request)=>request?JSON.stringify([url,request]):url;
 const actual=input=>input?.ok&&!input.acquisitionUnavailable&&input.bytes>0&&input.sha256!==digest(Buffer.alloc(0));
@@ -15,7 +16,7 @@ async function source(directory) {
   const manifest=new Map(snapshot.manifest.map(m=>[key(m.url,m.request),m]));
   return {directory,snapshot,async read(url,request){
     const meta=manifest.get(key(url,request));if(!meta)return null;
-    const input=await cache.get(url,{...request,raw:true});const {body,...found}=input;
+    const input=await cache.get(url,{...request,raw:true,officialRedirect:allowedDownload(url)});const {body,...found}=input;
     if(stable(found)!==stable(meta))throw new Error('Hybrid source differs from seal: '+url);
     return input;
   }};
@@ -48,17 +49,17 @@ export class HybridInputs {
     if(a&&!a.acquisitionUnavailable||!identity||this.wording.has(url))return this.wrap(a,url,request,this.a,identity,a?'copy-input':'missing-copy-input');
     let proven=true;
     let proof=null;
-    if(identity.type==='ep-document'){proof=await this.epProof(identity);proven=Boolean(proof);}
+    if(identity.type==='ep-document'){proof=await this.epProof(identity,url);proven=Boolean(proof);}
     else if(identity.type!=='cellar'||new URL(url).origin!=='https://publications.europa.eu')proven=false;
     if(identity.discoveryRequest&&key(url,request)!==key(identity.discoveryRequest.url,identity.discoveryRequest.request))proven=false;
     const b=proven?await this.b.read(url,request):null;
     // Empty gap hashes are not observations. An attested actual hash conflict
     // cannot be repaired by taking an older observation.
     const redirect=b&&[301,302,303,307,308].includes(b.status)&&typeof b.headers?.location==='string'&&Number.isFinite(Date.parse(b.fetchedAt));
-    if((actual(b)||identity.type==='cellar'&&redirect)&&(!actual(a)||a.sha256===b.sha256))return this.wrap(b,url,request,this.b,proof?{...identity,proof}:identity,'settled-base-fallback');
+    if((actual(b)||redirect&&(identity.type==='cellar'||identity.type==='ep-document'&&this.runtime.allowedDownload(b.redirectUrl||'')))&&(!actual(a)||a.sha256===b.sha256))return this.wrap(b,url,request,this.b,proof?{...identity,proof}:identity,'settled-base-fallback');
     return this.wrap(a?.acquisitionUnavailable?a:null,url,request,a?.acquisitionUnavailable?this.a:null,identity,proven?'base-missing-in-both':'base-identity-mismatch');
   }
-  async epProof(identity){
+  async epProof(identity,requestedUrl=identity.file.url){
     const url=publicDocumentUrl(identity.documentId),request={accept:'application/ld+json'};
     const inputs=await Promise.all([this.a.read(url,request),this.b.read(url,request)]);
     const descriptors=inputs.map(input=>{
@@ -73,7 +74,15 @@ export class HybridInputs {
       return files.flatMap(file=>this.runtime.array(work.is_realized_by).flatMap(e=>this.runtime.array(e.is_embodied_by).filter(m=>m.is_exemplified_by===file.url||new URL(m.is_exemplified_by,'https://data.europarl.europa.eu').href===file.url).map(m=>({file,descriptor:m,edition:Object.fromEntries(['epNumberVersion','isVersionOf','is_replaced_by','replaces'].filter(k=>work[k]!==undefined).map(k=>[k,work[k]]))}))));
     });
     if(!descriptors.every(d=>d.length===1)||stable(descriptors[0][0])!==stable(descriptors[1][0]))return null;
-    return {declaration:descriptors[0][0],observations:inputs.map((input,i)=>({snapshotId:[this.a,this.b][i].snapshot.snapshotId,url:input.url,request:input.request,sha256:input.sha256,fetchedAt:input.fetchedAt}))};
+    const redirects=[];let current=identity.file.url;
+    for(let hops=0;hops<=3;hops++) {
+      if(current===requestedUrl)return {declaration:descriptors[0][0],redirects,observations:inputs.map((input,i)=>({snapshotId:[this.a,this.b][i].snapshot.snapshotId,url:input.url,request:input.request,sha256:input.sha256,fetchedAt:input.fetchedAt}))};
+      const response=await this.b.read(current);
+      if(!response||![301,302,303,307,308].includes(response.status)||!Number.isFinite(Date.parse(response.fetchedAt))||!this.runtime.allowedDownload(response.redirectUrl||''))return null;
+      redirects.push({snapshotId:this.b.snapshot.snapshotId,url:current,redirectUrl:response.redirectUrl,status:response.status,sha256:response.sha256,fetchedAt:response.fetchedAt});
+      current=response.redirectUrl;
+    }
+    return null;
   }
   wrap(input,url,request,source,identity,reason){
     const gap={url,status:null,ok:false,fetchedAt:null,bytes:0,sha256:digest(Buffer.alloc(0)),error:'acquisition-unavailable',headers:{},acquisitionUnavailable:true,acquisitionUnavailableReason:reason,body:Buffer.alloc(0),...(request?{request}:{})};
