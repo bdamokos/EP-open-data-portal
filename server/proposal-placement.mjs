@@ -382,13 +382,17 @@ function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   const article=units.find(u=>u.kind==='article'&&u.extent.start<=anchor.extent.start&&u.extent.end>=anchor.extent.end);
   const raw=owner.instruction.raw.replace(/\s+/gu,' ');
   if(!article){
-    const lead=raw.replace(/^\([^)]*\)\s*/u,'');
+    const lead=raw.replace(/^\([^)]*\)\s*/u,'').replace(/^in Article \d+[a-z]*, /u,'');
     const named=/^(?:the following )?paragraphs? (.+?) (?:are|is)/u.exec(lead);
     const labels=named?.[1].split(/,\s*| and /u)??[];
     if(!labels.includes(anchor.label.value))return null;
   }
   let before=anchor.extent.end;
   while(before>anchor.extent.start&&proposal.paragraphs[before-1].text.trim()===';')before--;
+  // The quoted provision's own asterisk note (a rule, then '*' rows) stays
+  // after it: the new sibling follows the provision text (A-10-2026-0276).
+  const rows=proposal.paragraphs.slice(anchor.extent.start,before),rule=rows.findIndex((p,at)=>at&&/^_{3,}$/u.test(p.text.trim()));
+  if(rule>0&&rows.length>rule+1&&rows.slice(rule+1).every(p=>/^\*/u.test(p.text.trim())))before=anchor.extent.start+rule;
   if(before>quote.extent.end||before<=anchor.extent.start)return null;
   return {itemIndex,insertBefore:before,evidence:[{basis:'whole-quoted-sibling',owner:owner.id,anchor:anchor.id,label:value}]};
 }
