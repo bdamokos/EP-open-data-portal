@@ -104,3 +104,14 @@ test('risers require a real 1.5 ratio and retain the earlier average',()=>{
 });
 
 test("display agenda titles strip the debate suffix without changing source text",()=>{const source="19.2. Original title (debate)";assert.equal(agendaTitle(source),"Original title");assert.equal(source,"19.2. Original title (debate)");});
+
+test('riser ratios use the max(1, average) baseline shared with stories',()=>{
+ const item=(key,earlier,now)=>({key,series:[{period:'2025-Q1',question:earlier},{period:'2025-Q2',question:earlier},{period:'2025-Q3',question:now}]});
+ const data={periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{},items:[item('place:AAA',0,9),item('place:BBB',1,30)]};
+ assert.equal(riser(data,2,'q',false).item.key,'place:BBB');assert.equal(riser(data,2,'q',false).ratio,30);
+});
+
+test('legacy timeline redirects keep the interface language',()=>{
+ assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123&lang=fr')),'?view=topics&topic=eurovoc%3A123&lang=fr');
+ assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&lang=de');
+});

@@ -14,14 +14,14 @@ export const placeValue=(s,mode='q',own=true)=>mode==='d'?(s.document||0):own?Ma
 export function risers(data,index,mode,own){
  if(index<2||partialQuarter(data.periods[index],data.partial))return [];
  const earlier=data.periods.slice(0,index).filter(p=>!partialQuarter(p,data.partial));if(!earlier.length)return [];
- const ranked=data.items.map(item=>{const count=placeValue(point(item,data.periods[index]),mode,own),average=earlier.reduce((n,p)=>n+placeValue(point(item,p),mode,own),0)/earlier.length;return {item,count,average,ratio:average?count/average:Infinity};}).filter(r=>r.count>=(mode==='d'?3:8)&&r.ratio>=1.5).sort((a,b)=>b.ratio-a.ratio||b.count-a.count||a.item.key.localeCompare(b.item.key));
+ const ranked=data.items.map(item=>{const count=placeValue(point(item,data.periods[index]),mode,own),average=earlier.reduce((n,p)=>n+placeValue(point(item,p),mode,own),0)/earlier.length;return {item,count,average,ratio:count/Math.max(1,average)};}).filter(r=>r.count>=(mode==='d'?3:8)&&r.ratio>=1.5).sort((a,b)=>b.ratio-a.ratio||b.count-a.count||a.item.key.localeCompare(b.item.key));
  return ranked.length?ranked.filter(r=>r.ratio===ranked[0].ratio&&r.count===ranked[0].count):[];
 }
 export const riser=(...args)=>risers(...args)[0]||null;
 const PRE=/^((?:SECOND )?REPORT|(?:JOINT )?MOTION FOR A RESOLUTION|RECOMMENDATION|OPINION)\s+(?:on\s+)?(?:the\s+proposal\s+for\s+an?\s+(?:regulation|directive|decision)(?:\s+of\s+the\s+European\s+Parliament\s+and\s+of\s+the\s+Council|\s+of\s+the\s+Council)?\s*)?/i;
 export function titleParts(title,language){if(language!=='en')return ['',title];const m=title.match(PRE);let at=m?m[0].length:0;const ar=title.lastIndexOf(' as regards ');if(ar>at)at=ar+12;return [title.slice(0,at),title.slice(at)];}
 export function topicsHref(key,filters={}){const q=new URLSearchParams({view:'topics'});q.set(key.startsWith('place:')?'place':'topic',key.replace(/^place:/,''));for(const [k,v] of Object.entries(filters))if(v)q.set(k,String(v));return '?'+q;}
-export function legacyTopics(query){if(query.get('view')!=='legislation'||query.get('pl-mode')!=='trends')return null;const raw=query.get('trend-key')||query.get('trend-topic'),id=raw?.replace(/^https?:\/\/eurovoc\.europa\.eu\//,'').replace(/^eurovoc:/,'');return id&&/^(?:\d{1,8}|c_[A-Za-z0-9_]{1,40})$/.test(id)?topicsHref('eurovoc:'+id):'?view=topics';}
+export function legacyTopics(query){if(query.get('view')!=='legislation'||query.get('pl-mode')!=='trends')return null;const raw=query.get('trend-key')||query.get('trend-topic'),id=raw?.replace(/^https?:\/\/eurovoc\.europa\.eu\//,'').replace(/^eurovoc:/,'');const lang=query.get('lang');return id&&/^(?:\d{1,8}|c_[A-Za-z0-9_]{1,40})$/.test(id)?topicsHref('eurovoc:'+id,{lang}):'?view=topics'+(lang?'&lang='+encodeURIComponent(lang):'');}
 
 // Rows are already sorted by score; a preview includes every boundary tie.
 export function withBoundaryTies(rows,limit,score){if(rows.length<=limit)return rows;const cut=score(rows[limit-1]);let end=limit;while(end<rows.length&&score(rows[end])===cut)end++;return rows.slice(0,end);}

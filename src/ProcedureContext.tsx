@@ -1,4 +1,5 @@
 import {RecordTopics} from './RecordTopics';
+import {dossierLinkClick} from './dossierJourney';
 import {topicsHref} from './topicPresentation.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {FollowDossierButton} from './DossierControls';
@@ -41,7 +42,7 @@ export function ProcedureContext({reference,language='en',onTopic,showTitle=fals
     {showTitle&&!data.summary&&<p className="insight-secondary"><UiMessage id="procedurecontext.summary_unavailable.9f4198"/></p>}
     {press}
     {data.topics.length>0&&<div className="insight-official-topics"><h4><UiMessage id="batch4.questiontopics.tsx.topics"/> </h4><div>{data.topics.map(topic=>onTopic ? <button key={topic.id} lang={topic.language??''} onClick={()=>onTopic(topic)}>{topic.label} <span aria-hidden="true">↗</span></button> : <SourceLink key={topic.id} url={topic.id} language={language} contentLanguage={topic.language??''}>{topic.label}</SourceLink>)}</div></div>}
-    {data.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><a href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
+    {data.subjects.length>0&&<section className="insight-subject-classification" aria-label={ui.t("procedurecontext.subject_classification.eaa65a")}><h4><UiMessage id="procedurecontext.subject_classification.eaa65a"/></h4><ul>{data.subjects.map(subject=><li key={subject.code} lang={data.language??''}><a onClick={dossierLinkClick} href={topicsHref('oeil:'+subject.code)}>{subject.label}</a></li>)}</ul></section>}
     {!data.summary&&!data.topics.length&&!data.subjects.length&&<a href={data.source.url} target="_blank" rel="noreferrer"><UiMessage id="procedurecontext.open_procedure_file.41bcb5"/></a>}
   </section>;
 }
