@@ -92,6 +92,7 @@ export class BaseSourceBackfill {
   }
   async step(signal){
     this.store.assertWriter();
+    await (this.retention.ready??=this.retention.reconcile());
     if(!this.store.get('baseBackfillSeeded')){if(this.seed())return true;if(!this.store.get('baseBackfillSeeded'))return false;}
     const row=this.store.db.prepare("SELECT * FROM base_backfill_jobs WHERE state='pending' AND retry_at<=? ORDER BY retry_at,key LIMIT 1").get(this.clock());if(!row)return false;
     const context={held:query=>this.held(query),hit:()=>this.hits++,full:false};this.hits=0;let state='done',reason=null,retry=0;
