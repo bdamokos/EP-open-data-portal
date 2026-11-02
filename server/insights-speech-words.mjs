@@ -9,7 +9,7 @@ import {HttpError} from './http-utils.mjs';
 import {insightQuery} from './insights-store.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
 import {speechParagraphText} from './transcript-text.mjs';
-export const SPEECH_WORDS_VERSION=3;
+export const SPEECH_WORDS_VERSION=2;
 import {retainedSpeechData} from './corpus-speeches.mjs';
 export const speechWordLanguages=Object.freeze(Object.keys(stopwordLists));
 const filterKey=(word,language)=>{const key=word.normalize('NFKC').toLocaleLowerCase(language);return language==='mt'?key:key.normalize('NFD').replace(/\p{M}/gu,'');};

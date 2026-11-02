@@ -10,6 +10,7 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {amendmentLinkIndexVersion} from './amendments-store.mjs';
 import {activityAvailabilityIndexVersion} from './availability-evidence.mjs';
 import {prepareStartupIndexes} from './migrate-indexes.mjs';
+import {loopback} from './test-support/loopback.mjs';
 
 function fixture(t) {
   const directory=mkdtempSync(path.join(os.tmpdir(),'startup-indexes-'));
@@ -35,7 +36,7 @@ test('startup prepares enabled data before service construction and skips disabl
   assert.equal(prepareStartupIndexes()[0].noop,true);
   process.env.ACTIVITY_INDEX_ENABLED='false';assert.deepEqual(prepareStartupIndexes(),[]);
 });
-test('entry point prepares a mounted legacy index before opening HTTP',async t=>{
+test('entry point prepares a mounted legacy index before opening HTTP',loopback,async t=>{
   const {directory,store}=fixture(t);store.release();store.close();
   const child=spawn(process.execPath,['server/index.mjs'],{cwd:new URL('..',import.meta.url),env:{...process.env,PORT:String(32000+Math.floor(Math.random()*20000)),HOST:'127.0.0.1',ACTIVITY_INDEX_ENABLED:'true',ACTIVITY_INDEX_DIR:directory,CORPUS_ENABLED:'false'},stdio:['ignore','pipe','pipe']});
   const exited=once(child,'exit',{signal:AbortSignal.timeout(10000)});
@@ -51,7 +52,7 @@ test('entry point prepares a mounted legacy index before opening HTTP',async t=>
   assert(output.indexOf('amendment_link_invalidation')<output.indexOf('listening on'));
   const ready=new ActivityStore(directory);assert.equal(ready.get('amendmentLinkIndexVersion'),amendmentLinkIndexVersion);ready.close();
 });
-test('entry point exits before listening when another writer holds the mounted data',async t=>{
+test('entry point exits before listening when another writer holds the mounted data',loopback,async t=>{
   const {directory,store}=fixture(t);t.after(()=>store.close());
   const child=spawn(process.execPath,['server/index.mjs'],{cwd:new URL('..',import.meta.url),env:{...process.env,ACTIVITY_INDEX_ENABLED:'true',ACTIVITY_INDEX_DIR:directory,CORPUS_ENABLED:'false'},stdio:['ignore','pipe','pipe']});
   t.after(()=>child.kill('SIGKILL'));

@@ -140,3 +140,26 @@ test('loopback skips only permission errors and CI never accepts a denied probe'
   assert.match(simulated.stdout, /not permitted.*EPERM/);
   await assert.rejects(probe('EPERM', {CI: '1', TEST_SIMULATE_NO_LOOPBACK: '1'}), /CI requires loopback listen/);
 });
+
+test('process-table probe skips only permission errors and CI never accepts a denied probe', {skip: process.platform === 'win32'}, async () => {
+  const helper = new URL('server/test-support/process-table.mjs', root).href;
+  async function probe(code, env = {}) {
+    const script = `
+      import childProcess from 'node:child_process';
+      childProcess.execFileSync = () => {throw Object.assign(new Error('probe failure'), {code: ${JSON.stringify(code)}});};
+      try {console.log(JSON.stringify((await import(${JSON.stringify(helper)})).processTable));}
+      catch (error) {console.error(error.message + ' ' + error.code); process.exitCode = 1;}
+    `;
+    return exec(process.execPath, ['--input-type=module', '-e', script], {
+      env: {...environment, TEST_SIMULATE_NO_PROCESS_TABLE: '', ...env}, timeout: 10000,
+    });
+  }
+  for (const code of ['EPERM', 'EACCES']) {
+    assert.match((await probe(code)).stdout, new RegExp(`not permitted.*${code}.*CI runs this test`));
+    await assert.rejects(probe(code, {CI: '1'}), /CI requires reading process groups/);
+  }
+  await assert.rejects(probe('ENOENT'), /probe failure ENOENT/);
+  const simulated = await probe('ENOENT', {TEST_SIMULATE_NO_PROCESS_TABLE: '1'});
+  assert.match(simulated.stdout, /not permitted.*EPERM/);
+  await assert.rejects(probe('EPERM', {CI: '1', TEST_SIMULATE_NO_PROCESS_TABLE: '1'}), /CI requires reading process groups/);
+});
