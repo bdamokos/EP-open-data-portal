@@ -1,4 +1,4 @@
-import {agendaTitle,isEuPlace} from './topicPresentation.mjs';
+import {agendaTitle,isEuPlace,monthRangeLabel} from './topicPresentation.mjs';
 // Reference-only templates over the complete research fixture. Production uses
 // exactTopicStories counters; returned evidence lists never supply totals.
 import {europeStoryIso3} from './storyEurope.mjs';
@@ -74,7 +74,7 @@ export function buildReferenceTopicStories(facts,selection={}){
    if(allQ.length){const elsewhere=allQ.filter(q=>knownElsewhere(place,q)),unknownOrigin=allQ.some(q=>!q.home.includes(place)&&!knownElsewhere(place,q));lines.push(sentence(isEuPlace(place)&&!excludeOwn&&!unknownOrigin?'place.summary.questionsElsewhere':'place.summary.questions',{questions:count(allQ.map(qRecord),allQ.length,'questions'),place:name(place),elsewhere:link(elsewhere.map(qRecord),num(elsewhere.length))},1,1));}
    if(allDeb.length)lines.push(sentence(res.length?'place.summary.plenaryResolutions':'place.summary.plenary',{debates:count(allDeb.map(debateRecord),allDeb.length,'debates'),resolutions:count(res.map(docRecord),res.length,'resolutions')},2,2));
    const peak=periods.map(q=>({q,meps:strongDebates(place,q).reduce((n,d)=>n+d.meps,0),n:questions(place,q).length})).filter(x=>!partial.includes(x.q)||x.meps).sort((a,b)=>b.meps-a.meps||b.n-a.n)[0];
-   if(peak?.meps)lines.push(sentence('place.summary.peak',{quarter:link([...strongDebates(place,peak.q).map(debateRecord),...questions(place,peak.q).map(qRecord)],peak.q.replace('-',' '),{period:peak.q})},3,3));return capped(lines);
+   if(peak?.meps)lines.push(sentence('place.summary.peak',{quarter:link([...strongDebates(place,peak.q).map(debateRecord),...questions(place,peak.q).map(qRecord)],monthRangeLabel(peak.q,language),{period:peak.q})},3,3));return capped(lines);
   }
   const lines=[],debs=[...strongDebates(place,period)].sort((a,b)=>Number(primaryStoryPlace(b)===place)-Number(primaryStoryPlace(a)===place)||byMeps(a,b)).slice(0,2).sort(byDate);
   debs.forEach((d,i)=>{const fmt=format(d),outcome=outcomeClause(d,true);lines.push(sentence('place.quarter.debate',{kind:msg('debateKind.'+(d.format==='urgency'?'urgency':d.format==='topical'?'topical':'ordinary')),date:day(d.date),title:title(debSet(d),d.title),format:fmt&&!['urgency','topical'].includes(d.format)?msg('parenthetic',{value:fmt}):null,meps:count(debSet(d),d.meps,'meps'),outcome:outcome?msg('semicolon',{value:outcome}):null},1,i+1));const pr=press(d);if(pr){pr.order=i+1.1;lines.push(pr);}});

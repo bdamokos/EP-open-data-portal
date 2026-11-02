@@ -121,5 +121,5 @@ test('rise links use the destination heading as their accessible name',async t=>
 });
 
 test('peak quarter references include their period in the link identity',async t=>{
- const h=await harness(t,{props:{selection:{...selection,place:'GRC',period:undefined}},respond:(u,q)=>{if(q?.scope==='place'){const f=placeLinkFacts('GRC');f.periodCounts.forEach(r=>r.debateSpeakerAppearances=['2025-Q1','2025-Q2'].includes(r.period)?9:0);return f;}}});await h.wait('2025 Q1');const links=[...h.node.querySelectorAll('.topic-story a')].filter(a=>['2025 Q1','2025 Q2'].includes(a.textContent));assert.equal(links.length,2);assert.equal(new Set(links.map(a=>a.id)).size,2);
+ const h=await harness(t,{props:{selection:{...selection,place:'GRC',period:undefined}},respond:(u,q)=>{if(q?.scope==='place'){const f=placeLinkFacts('GRC');f.periodCounts.forEach(r=>r.debateSpeakerAppearances=['2025-Q1','2025-Q2'].includes(r.period)?9:0);return f;}}});await h.wait('January');const links=[...h.node.querySelectorAll('.topic-story a')].filter(a=>/January.*March 2025|April.*June 2025/.test(a.textContent));assert.equal(links.length,2);assert.equal(new Set(links.map(a=>a.id)).size,2);
 });

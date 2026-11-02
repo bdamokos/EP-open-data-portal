@@ -1,5 +1,5 @@
 import {storyLinkClaims} from './storyLinkModel.mjs';
-import {agendaTitle,isEuPlace,partialQuarter,topicsHref} from './topicPresentation.mjs';
+import {agendaTitle,isEuPlace,partialQuarter,topicsHref,monthRangeLabel} from './topicPresentation.mjs';
 import {cleanStoryTitle,storyNumber,storyPlaceName,normalizeReferenceStoryFacts,primaryStoryPlace} from './topicStoryModel.mjs';
 export function storyFactsRoute(s={},browse={}){const p=new URLSearchParams({scope:s.place?'place':s.topic?'topic':'map',mode:s.mode||'q',zoom:s.zoom||'world',askers:s.excludeOwn?'not-home':'all',lang:s.language||'en'});if(s.place||s.topic)p.set('key',s.place?'place:'+s.place:s.topic);if(s.period)p.set('period',s.period);for(const [k,v]of Object.entries(browse))if(v)p.set(k,v);return 'topics/story-facts?'+p;}
 export function storyRecord(r,kind){return {id:r.id,kind,titleLanguage:r.titleLanguage,title:kind==='debate'?agendaTitle(r.rawTitle||r.title):r.title||r.t,date:r.date||r.d,url:r.url||(r.cre?`https://www.europarl.europa.eu/doceo/document/${r.cre}_EN.html`:undefined),outcome:r.outcome?{...r.outcome,method:/VOTE_HAND|show.of.hands/i.test([r.outcome.method,r.outcome.decisionMethod,r.outcome.decision_method].join(' '))?'VOTE_HAND':r.outcome.method}:null,groups:r.groups};}
@@ -76,7 +76,7 @@ export function buildExactTopicStories(payload,s={}){
   const closest=(w.closestAdoptedTexts||[]).filter(x=>x.margin<100).map(x=>docs.get(x.id)).filter(Boolean);if(period&&closest.length)add(closest.length===1?'exact.closestOne':'exact.closest',{texts:closest.map(vote)},4);
  }
 
- if(!period&&s.place){const best=Math.max(0,...payload.periodCounts.map(p=>p.debateSpeakerAppearances)),peaks=payload.periodCounts.filter(p=>best>0&&p.debateSpeakerAppearances===best);if(peaks.length)add('place.summary.peak',{quarter:peaks.map(p=>ref(p.period.replace('-',' '),[],{period:p.period}))},4);}
+ if(!period&&s.place){const best=Math.max(0,...payload.periodCounts.map(p=>p.debateSpeakerAppearances)),peaks=payload.periodCounts.filter(p=>best>0&&p.debateSpeakerAppearances===best);if(peaks.length)add('place.summary.peak',{quarter:peaks.map(p=>ref(monthRangeLabel(p.period,s.language),[],{period:p.period}))},4);}
  if(period&&busy.length){const procedures=new Set(busy.flatMap(d=>d.procedures||[])),press=[...new Map([...procedures].flatMap(p=>f.press?.[p]||[]).map(p=>[p.id,p])).values()];if(press.length)add('press',{title:ref(press[0].title,[{...press[0],kind:'press'}],{italic:true,titleLanguage:'en'})},6);}
  const kept=lines.sort((a,b)=>a.priority-b.priority).slice(0,4).sort((a,b)=>a.order-b.order);
  return storyLinkClaims(kept.flatMap(l=>{if(!l.finalize)return [l];const r=l.finalize(kept.filter(x=>x!==l));return r?[{...l,...r,finalize:undefined}]:[];}).map(({finalize,narrates,...l})=>l),s);

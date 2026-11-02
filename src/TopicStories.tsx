@@ -15,13 +15,12 @@ function storyHref(s:StorySelection){const filters={'t-q':s.period||'','t-mode':
 function storyBackClick(e:MouseEvent<HTMLAnchorElement>){if(e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey&&history.state?.storyLinkId){e.preventDefault();history.back();}else dossierLinkClick(e);}
 function setHref(ref:StoryReference,s:StorySelection){const u=new URL(storyHref(s),location.href);u.searchParams.set('t-records',ref.setKey||storySetKey(ref,s));return u.pathname+u.search;}
 function recordTarget(r:StoryRecord){if(r.kind==='document'){const u=new URL(location.href);u.searchParams.delete('t-records');u.searchParams.set('t-record',r.id);return u.pathname+u.search;}return r.kind==='press'?sourcePageUrl(r.url)||'':recordHref(r.id,r.kind==='answer'?'question':r.kind);}
-export function TopicStories({selection,fallback,facts:provided,onRecords,onReady}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string,claim?:string,linkId?:string)=>void;onReady?:()=>void}){
+export function TopicStories({selection,fallback,facts:provided,onRecords}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string,claim?:string,linkId?:string)=>void}){
  const ui=useUiI18n(),[,setQuarter]=useExplorerParam<string>('t-q',''),[selected]=useExplorerParam<string>('t-records','');
  const response=useInsightData<any>(provided?null:storyFactsRoute({...selection,language:ui.language,period:undefined}));
  const facts=provided?normalizeReferenceStoryFacts(provided):null;
  const lines=provided?storyLinkClaims(buildReferenceTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}),selection):buildExactTopicStories(response.data,{...selection,language:ui.language});
  const heading=useRef<HTMLParagraphElement>(null);
- useEffect(()=>{if(provided||!response.loading)onReady?.();},[provided,response.loading,onReady]);
  useEffect(()=>{if(selected)return;const id=history.state?.storyLinkId;if(id){const link=document.getElementById(id);if(link){link.focus({preventScroll:true});window.scrollTo?.(0,history.state.storyScroll||0);}}},[selected,lines.length]);
  if(selected)return <TopicStoryRecords key={selected} selection={selection}/>;
  if(!lines.length)return <>{response.error||response.data?.ready===false||!response.data?fallback:null}</>;
