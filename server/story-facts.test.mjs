@@ -655,4 +655,7 @@ test('outside addresses and coverage are copied into the published generation',a
  store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
  assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,europe:['ESP']}));
+ const eu=query('map');eu.set('zoom','eu');assert.deepEqual(storyFacts(store,eu).outsideSpeakers.map(a=>a.country),['ESP'],'outside scope is pinned to its build-time set');
+
 });

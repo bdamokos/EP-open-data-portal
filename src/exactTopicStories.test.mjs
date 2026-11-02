@@ -184,3 +184,9 @@ test('outside speakers enumerate all names, retain date ties and link only names
  const place=buildExactTopicStories(x,{period:'2026-Q1',place:'UKR',labels:{UKR:'Ukraine'}}).filter(l=>l.id==='topics.story.place.outside');assert.equal(place.length,2);assert.equal(place[0].values.date,'24 February 2026');assert.equal(place[0].values.place,'Ukraine');assert.equal(place[0].values.speaker.records[0].id,'D3');
  delete x.outsideSpeakers;assert(!buildExactTopicStories(x,{period:'2026-Q1'}).some(l=>l.id.includes('outside')));
 });
+
+test('outside Europe scope follows the published generation rather than the current static set',()=>{
+ const x=base();x.periodCounts=[{period:'2026-Q1'}];x.outsideSpeakers=[{id:'1',personId:'1',name:'Example speaker',country:'UKR',date:'2026-02-24',debateId:'D'}];
+ x.europe=['ESP'];assert(!buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu'}).some(l=>l.id.includes('outside')));
+ x.europe=['UKR'];assert(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu'}).some(l=>l.id.includes('outside')));
+});

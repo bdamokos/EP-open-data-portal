@@ -11,7 +11,7 @@ import {topicBatches} from './topic-disk-map.mjs';
 // coverage so readers never mix a published topic generation with newer inputs.
 export async function projectOutsideSpeakers(store,generation,sourceGeneration){
  const put=store.db.prepare('INSERT OR REPLACE INTO story_facts VALUES (?,?,?,?,?)');
- const coverage=outsideCoverage(store,sourceGeneration,false,{term:'10'});
+ const coverage={...outsideCoverage(store,sourceGeneration,false,{term:'10'}),europe:europe.ids};
  put.run(generation,'outsideCoverage','outside','',JSON.stringify(coverage));
  const people=store.db.prepare('SELECT DISTINCT person FROM outside_contributions WHERE generation=? ORDER BY person');
  const rows=store.db.prepare('SELECT body FROM outside_contributions WHERE generation=? AND person=? ORDER BY date,speech');
@@ -45,5 +45,5 @@ export function readOutsideSpeakers(store,generation,q,key){
   return complete.get(period);
  };
  const window=q.period?quarterWindow(q.period):null;
- return db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='outsideSpeaker'"+(window?' AND date>=? AND date<=?':'')+' ORDER BY date,id').all(generation,...(window?[window.start,window.end]:[])).map(r=>JSON.parse(r.body)).filter(a=>quarterComplete(quarter(a.date))&&(q.scope==='place'?a.country===key:q.zoom==='world'||europe.ids.includes(a.country)));
+ return db.prepare("SELECT body FROM story_facts WHERE generation=? AND kind='outsideSpeaker'"+(window?' AND date>=? AND date<=?':'')+' ORDER BY date,id').all(generation,...(window?[window.start,window.end]:[])).map(r=>JSON.parse(r.body)).filter(a=>quarterComplete(quarter(a.date))&&(q.scope==='place'?a.country===key:q.zoom==='world'||(coverage.europe||europe.ids).includes(a.country)));
 }

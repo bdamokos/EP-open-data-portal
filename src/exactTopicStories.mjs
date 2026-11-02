@@ -1,5 +1,4 @@
-import storyEurope from '../server/story-europe-countries.json' with {type:'json'};
-const europeStoryIso3=storyEurope.ids;
+import {europeStoryIso3} from './storyEurope.mjs';
 import {storyLinkClaims} from './storyLinkModel.mjs';
 import {agendaTitle,isEuPlace,partialQuarter,topicsHref,monthRangeLabel} from './topicPresentation.mjs';
 import {cleanStoryTitle,storyNumber,storyPlaceName,normalizeReferenceStoryFacts,primaryStoryPlace} from './topicStoryModel.mjs';
@@ -82,7 +81,7 @@ export function buildExactTopicStories(payload,s={}){
  if(period&&busy.length){const procedures=new Set(busy.flatMap(d=>d.procedures||[])),press=[...new Map([...procedures].flatMap(p=>f.press?.[p]||[]).map(p=>[p.id,p])).values()];if(press.length)add('press',{title:ref(press[0].title,[{...press[0],kind:'press'}],{italic:true,titleLanguage:'en'})},6);}
  // Outside appearances are complete enumeration, independent of the four-line
  // statistical story budget. One name represents all of that person's addresses.
- const outside=(payload.outsideSpeakers||[]).filter(a=>(!period||a.date.slice(0,4)+'-Q'+Math.ceil(Number(a.date.slice(5,7))/3)===period)&&(!s.place||a.country===s.place)&&(s.place||s.zoom!=='eu'||europeStoryIso3.includes(a.country))).sort(byDate);
+ const outside=(payload.outsideSpeakers||[]).filter(a=>(!period||a.date.slice(0,4)+'-Q'+Math.ceil(Number(a.date.slice(5,7))/3)===period)&&(!s.place||a.country===s.place)&&(s.place||s.zoom!=='eu'||(payload.europe||europeStoryIso3).includes(a.country))).sort(byDate);
  const outsideLines=[];
  const address=a=>({id:a.debateId,kind:'debate',title:a.name,date:a.date});
  if(!s.topic&&outside.length){
