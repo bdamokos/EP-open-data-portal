@@ -10,9 +10,13 @@
 .insight-question-controls { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); max-width:1080px; gap:14px 20px; margin-bottom:12px; }
 .insight-question-controls label { min-width:0; }
 .insight-question-controls>span { grid-column:1/-1; padding:0; font-size:14px; }
-.insight-question-tools { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 20px; margin:12px 0 16px; }
+.insight-question-tools { display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; margin:16px 0; }
 .insight-question-tools .insight-question-search { margin:0; }
-.insight-question-tools .availability-note { margin:0; }
+.insight-question-tools .explorer-search-launcher { height:var(--control-height); }
+.insight-question-tools .topic-finder { flex:1 1 180px; max-width:440px; margin:0; }
+.insight-question-tools .topic-finder input { height:var(--control-height); padding:9px 12px; border:1px solid var(--line-strong); border-radius:var(--radius-sm); font-size:var(--control-font-size); line-height:var(--control-line-height); }
+.insight-question-tools .availability-note { flex-basis:100%; margin:0; }
+.explorer-insights .availability-note p { margin:0; }
 .insight-question-navigation { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 20px; margin:16px 0 0; border-bottom:1px solid var(--line); }
 .insight-question-grid>.insight-topic-picker { border-top:0; }
 .insight-question-dimensions { display:flex; gap:4px; min-width:0; }
