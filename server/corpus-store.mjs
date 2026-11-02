@@ -1,5 +1,5 @@
 import {corpusTextVersion,prepareCorpusTexts} from './corpus-text-schema.mjs';
-import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
+import {availabilityHistoryVersion,initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
 import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
@@ -28,6 +28,15 @@ import {questionAddressees} from './question-addressees.mjs';
 // the attached index's `items.source_id`.
 export const CORPUS_STATUS_VERSION=2;
 export const CORPUS_COVERAGE_VERSION=2;
+// All entries are required by preparation; history remains prepared on acquire.
+export const CORPUS_SCHEMA_GATES=Object.freeze([
+  {key:'resourceIndexes',value:1},
+  {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
+  {key:'speechMemberIndex',value:2},
+  {key:'questionDiscoveryVersion',value:1},
+  {key:'corpusTextVersion',value:corpusTextVersion},
+].map(Object.freeze));
+
 const KINDS=['speech','question','answer'];
 const parse=value=>value==null?null:JSON.parse(value);
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -89,7 +98,7 @@ export class CorpusStore {
     this.db.function('speech_order_ms',{deterministic:true},(start,date)=>{const value=Date.parse(start||date);return Number.isFinite(value)?value:null;});
     this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
-      try {if(this.get('speechMemberIndex')!==2||this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
+      try {if(CORPUS_SCHEMA_GATES.some(gate=>gate.constructorGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -160,7 +169,7 @@ export class CorpusStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
       const initialize=this.get('resourceIndexes')!==1;
-      if((initialize||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if(!this.initializeIndexes&&CORPUS_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
       if(this.get('corpusTextVersion')!==corpusTextVersion){prepareCorpusTexts(this.db);this.set('corpusTextVersion',corpusTextVersion);initialized=true;}
@@ -191,7 +200,6 @@ export class CorpusStore {
         this.set('resourceIndexes',1);initialized=true;
       }
       if(this.get('speechMemberIndex')!==2) {
-        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
         this.db.exec(`DROP TRIGGER IF EXISTS speech_member_insert; DROP TRIGGER IF EXISTS speech_member_update; DROP TRIGGER IF EXISTS speech_member_delete;
           DROP TABLE IF EXISTS speech_member_catalog;
           CREATE TABLE speech_member_catalog (
