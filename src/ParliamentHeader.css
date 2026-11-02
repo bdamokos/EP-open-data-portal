@@ -30,9 +30,12 @@
 .parliament-header .explorer-saved-count { margin-left:0; }
 /* Theme, language and search stay together when the header wraps. */
 .parliament-header-tools { display:flex; align-items:center; gap:2px; margin-left:auto; flex:none; }
-/* Narrow desktops: brand and tools share the first row; destinations get their own. */
+/* Narrow desktops, or labels too long for one row: brand and tools share the first row; destinations get their own. */
 @media(min-width:768px) and (max-width:1199px) {
   .parliament-header nav { order:3; flex-basis:100%; justify-content:flex-start; margin-left:0; }
+}
+@media(min-width:768px) {
+  .parliament-header[data-stacked] nav { order:3; flex-basis:100%; justify-content:flex-start; margin-left:0; }
 }
 @media(max-width:767px) {
   .parliament-header { gap:6px 8px; padding:10px 16px 0; font-size:13px; }

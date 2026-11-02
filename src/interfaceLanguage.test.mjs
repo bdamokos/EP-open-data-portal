@@ -90,7 +90,7 @@ test('the header control shows the translate mark and code and lists endonyms in
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{value,configurable:true,writable:true});
   const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
-  const {ParliamentHeader}=await load('/src/ParliamentHeader.tsx');
+  const {ParliamentHeader,headerRowFits}=await load('/src/ParliamentHeader.tsx');
   const {createRoot}=await import('react-dom/client'),container=document.createElement('div');document.body.append(container);const root=createRoot(container);
   t.after(async()=>{await act(async()=>root.unmount());await load.close();await window.happyDOM.close();for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];});
   const changes=[],render=props=>act(async()=>root.render(createElement(ParliamentHeader,{view:'legislation',onMembers(){},language:'hu',...props})));
@@ -106,4 +106,11 @@ test('the header control shows the translate mark and code and lists endonyms in
   assert.deepEqual(order.map(name=>name.split(' ')[0]),['explorer-scheme-toggle','explorer-language-control','explorer-text-search'],'theme, language and search stay together in that order');
   await act(async()=>{select.value='fr';select.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.deepEqual(changes,['fr']);
+  assert.equal(container.querySelector('.parliament-header').hasAttribute('data-stacked'),false,'one row until measured otherwise');
+  // Destinations take their own row only when brand, destinations and tools cannot share one.
+  const row={brand:380,destinations:[100,150,100,80,130,260,90],destinationGap:2,tools:140,gap:20};
+  assert.equal(headerRowFits({...row,available:1440-80}),false,'Hungarian labels at 1440px');
+  assert.equal(headerRowFits({...row,available:1600-80}),true);
+  assert.equal(headerRowFits({...row,destinations:[60,130,90,80,120,110,90],available:1440-80}),true,'English labels at 1440px');
 });
+

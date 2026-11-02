@@ -1,3 +1,4 @@
+import {useLayoutEffect, useRef, useState} from 'react';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {SavedNav} from './SavedControls';
 import {TextSearch} from './TextSearch';
@@ -12,6 +13,38 @@ export function SiteMark() {
   return <svg className="parliament-mark" viewBox="0 0 26 16" aria-hidden="true">{seats.map(([x,y])=><circle key={`${x}-${y}`} cx={x} cy={y} r="1.35"/>)}</svg>;
 }
 
+// Brand, destinations and tools share a row only when all of them fit at their natural width.
+export function headerRowFits({available,brand,destinations,destinationGap,tools,gap}:{available:number;brand:number;destinations:number[];destinationGap:number;tools:number;gap:number}) {
+  const nav=destinations.reduce((sum,width)=>sum+width,0)+destinationGap*Math.max(0,destinations.length-1);
+  return brand+nav+tools+gap*2<=available;
+}
+
+// Labels differ by language, so the header measures them: when they do not fit, the
+// destinations take their own row and the tools stay beside the brand.
+function useStackedDestinations(language:string,items:string) {
+  const header=useRef<HTMLElement>(null),[stacked,setStacked]=useState(false);
+  useLayoutEffect(()=>{
+    const node=header.current,brand=node?.querySelector<HTMLElement>('.parliament-brand'),nav=node?.querySelector('nav'),tools=node?.querySelector<HTMLElement>('.parliament-header-tools');
+    const view=node?.ownerDocument.defaultView;
+    if(!node||!brand||!nav||!tools||!view?.ResizeObserver)return;
+    const measure=()=>{
+      if(!node.clientWidth)return;
+      const style=view.getComputedStyle(node),buttons=[...nav.children] as HTMLElement[];
+      setStacked(!headerRowFits({
+        available:node.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight),
+        brand:brand.offsetWidth,destinations:buttons.map(button=>button.offsetWidth),
+        destinationGap:parseFloat(view.getComputedStyle(nav).columnGap)||0,tools:tools.offsetWidth,gap:parseFloat(style.columnGap)||0,
+      }));
+    };
+    measure();
+    const observer=new view.ResizeObserver(measure);
+    for(const target of [node,brand,tools,...nav.children])observer.observe(target);
+    node.ownerDocument.fonts?.ready.then(measure,()=>{});
+    return ()=>observer.disconnect();
+  },[language,items]);
+  return [header,stacked] as const;
+}
+
 type ExplorerView = 'legislation' | 'questions' | 'topics' | 'outside' | 'amendments' | 'groups';
 
 export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageChange,language='en'}: {
@@ -23,7 +56,8 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageCh
   language?:string;
 }) {
   const ui = useUiI18n();
-  return <header className="parliament-header">
+  const [header,stacked]=useStackedDestinations(ui.language,`${Boolean(onSaved)}${Boolean(onLanguageChange)}`);
+  return <header ref={header} className="parliament-header" data-stacked={stacked ? "true" : undefined}>
     <span className="parliament-brand" lang={ui.language}><SiteMark/><UiMessage id="batch4.parliamentheader.tsx.23.1"/></span>
     <nav aria-label={ui.t("batch4.parliamentheader.tsx.24.1")} lang={ui.language}>
       <button aria-current={(view==='members') ? 'page' : undefined} onClick={onMembers}><UiMessage id="batch4.parliamentheader.tsx.25.1"/></button>
