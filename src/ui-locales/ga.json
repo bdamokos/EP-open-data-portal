@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Coiste {committee} á sheiceáil…",
   "app.clear_category": "Glan catagóir",
   "app.clear_filter": "Glan scagaire",
+  "app.show_filters": "Scagairí",
   "app.close_categories": "Dún catagóirí",
   "app.committee_records": "Taifid coiste",
   "app.contributions_unavailable": "Níl rannchuidithe ar fáil.",

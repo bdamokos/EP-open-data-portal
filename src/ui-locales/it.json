@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Verifica della commissione {committee}…",
   "app.clear_category": "Rimuovi categoria",
   "app.clear_filter": "Rimuovi filtro",
+  "app.show_filters": "Filtri",
   "app.close_categories": "Chiudi categorie",
   "app.committee_records": "Dati delle commissioni",
   "app.contributions_unavailable": "Contributi non disponibili.",

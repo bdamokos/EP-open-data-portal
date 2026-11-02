@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Tikrinamas komitetas {committee}…",
   "app.clear_category": "Išvalyti kategoriją",
   "app.clear_filter": "Pašalinti filtrą",
+  "app.show_filters": "Filtrai",
   "app.close_categories": "Užverti kategorijas",
   "app.committee_records": "Komiteto įrašai",
   "app.contributions_unavailable": "Pasisakymai nepasiekiami.",

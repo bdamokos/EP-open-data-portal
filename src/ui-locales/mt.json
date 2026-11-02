@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Qed jiġi ċċekkjat il-kumitat {committee}…",
   "app.clear_category": "Neħħi l-kategorija",
   "app.clear_filter": "Neħħi l-filtru",
+  "app.show_filters": "Filtri",
   "app.close_categories": "Agħlaq il-kategoriji",
   "app.committee_records": "Rekords tal-kumitat",
   "app.contributions_unavailable": "Il-kontribuzzjonijiet mhumiex disponibbli.",

@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Έλεγχος επιτροπής {committee}…",
   "app.clear_category": "Απαλοιφή κατηγορίας",
   "app.clear_filter": "Απαλοιφή φίλτρου",
+  "app.show_filters": "Φίλτρα",
   "app.close_categories": "Κλείσιμο κατηγοριών",
   "app.committee_records": "Αρχεία επιτροπών",
   "app.contributions_unavailable": "Παρεμβάσεις μη διαθέσιμες.",

@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Pārbauda komiteju {committee}…",
   "app.clear_category": "Notīrīt kategoriju",
   "app.clear_filter": "Noņemt filtru",
+  "app.show_filters": "Filtri",
   "app.close_categories": "Aizvērt kategorijas",
   "app.committee_records": "Komitejas ieraksti",
   "app.contributions_unavailable": "Uzstāšanās nav pieejamas.",

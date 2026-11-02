@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Preverjanje odbora {committee}…",
   "app.clear_category": "Počisti kategorijo",
   "app.clear_filter": "Počisti filter",
+  "app.show_filters": "Filtri",
   "app.close_categories": "Zapri kategorije",
   "app.committee_records": "Zapisi odborov",
   "app.contributions_unavailable": "Prispevki niso na voljo.",

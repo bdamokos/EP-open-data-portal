@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Kontrollerer udvalg {committee}…",
   "app.clear_category": "Ryd kategori",
   "app.clear_filter": "Ryd filter",
+  "app.show_filters": "Filtre",
   "app.close_categories": "Luk kategorier",
   "app.committee_records": "Udvalgsregistreringer",
   "app.contributions_unavailable": "Bidrag er ikke tilgængelige.",

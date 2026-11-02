@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Kontrollerar utskott {committee}…",
   "app.clear_category": "Rensa kategori",
   "app.clear_filter": "Rensa filter",
+  "app.show_filters": "Filter",
   "app.close_categories": "Stäng kategorier",
   "app.committee_records": "Utskottsuppgifter",
   "app.contributions_unavailable": "Bidrag är inte tillgängliga.",

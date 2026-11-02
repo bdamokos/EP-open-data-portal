@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Ausschuss {committee} wird geprüft…",
   "app.clear_category": "Kategorie zurücksetzen",
   "app.clear_filter": "Filter zurücksetzen",
+  "app.show_filters": "Filter",
   "app.close_categories": "Kategorien schließen",
   "app.committee_records": "Ausschussaufzeichnungen",
   "app.contributions_unavailable": "Beiträge nicht verfügbar.",

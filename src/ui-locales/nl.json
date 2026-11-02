@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Commissie {committee} controleren…",
   "app.clear_category": "Categorie wissen",
   "app.clear_filter": "Filter wissen",
+  "app.show_filters": "Filters",
   "app.close_categories": "Categorieën sluiten",
   "app.committee_records": "Commissieregisters",
   "app.contributions_unavailable": "Bijdragen niet beschikbaar.",

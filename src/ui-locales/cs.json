@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Kontrola výboru {committee}…",
   "app.clear_category": "Zrušit kategorii",
   "app.clear_filter": "Zrušit filtr",
+  "app.show_filters": "Filtry",
   "app.close_categories": "Zavřít kategorie",
   "app.committee_records": "Záznamy výborů",
   "app.contributions_unavailable": "Příspěvky nejsou k dispozici.",

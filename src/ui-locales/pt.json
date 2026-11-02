@@ -323,6 +323,7 @@
   "app.checkingCommittee": "A verificar a comissão parlamentar {committee}…",
   "app.clear_category": "Limpar categoria",
   "app.clear_filter": "Limpar filtro",
+  "app.show_filters": "Filtros",
   "app.close_categories": "Fechar categorias",
   "app.committee_records": "Registos das comissões parlamentares",
   "app.contributions_unavailable": "Intervenções indisponíveis.",

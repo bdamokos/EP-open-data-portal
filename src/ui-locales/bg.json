@@ -323,6 +323,7 @@
   "app.checkingCommittee": "Проверка на комисия {committee}…",
   "app.clear_category": "Изчистване на категорията",
   "app.clear_filter": "Изчистване на филтъра",
+  "app.show_filters": "Филтри",
   "app.close_categories": "Затваряне на категориите",
   "app.committee_records": "Данни на комисиите",
   "app.contributions_unavailable": "Участията не са налични.",
