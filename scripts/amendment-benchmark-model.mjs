@@ -1,6 +1,7 @@
 import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-oracle.mjs';
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
+import {assertQuotedSubparagraph} from './amendment-quoted-subparagraph-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
 import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
@@ -267,6 +268,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if(quoted.status!=='unverified')return quoted;
   const sibling=assertQuotedSibling({proposal,wording,placement,nativeQuoted});
   if(sibling.status!=='unverified')return sibling;
+  const subparagraph=assertQuotedSubparagraph({proposal,wording,placement,nativeQuoted});
+  if(subparagraph.status!=='unverified')return subparagraph;
   const letterPoint=rawLetterPointAssertion({proposal,wording,placement,nativeQuoted});
   if(letterPoint.status!=='unverified')return letterPoint;
   if (placement.operation === 'replace' || placement.operation === 'delete') {
