@@ -200,6 +200,14 @@ function verifyNegativeFirst(text,wording,target,placement) {
   const anchor=family.sort((a,b)=>a.start-b.start)[0];
   if(anchor?.label!==first||family.filter(unit=>unit.label===first).length!==1||anchor.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   if(label.kind==='recital'&&!(paragraphs.length&&anchor.start<Math.min(...paragraphs.map(unit=>unit.start))))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  // Incomplete or non-body rows before the anchor can hide another first label.
+  const from=label.kind==='point'?paragraphs.find(unit=>unit.start===anchor.parent)?.start:Math.min(...raw.units.map(unit=>unit.start));
+  const printedFirst={paragraph:/^1[.)]\s/u,recital:/^A[.)]\s/u,point:/^\(a\)\s|^a\)\s/u}[label.kind];
+  if(!Number.isInteger(from))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  for(let row=from;row<anchor.start;row++) {
+    const source=text.paragraphSources?.[row];
+    if(source?.complete!==true||source.container!=='body'||printedFirst.test(String(text.paragraphs[row]??'').trim()))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  }
   const before=text.paragraphSources?.[anchor.start-1],at=text.paragraphSources?.[anchor.start];
   if(!anchor.complete||before?.complete!==true||before.container!=='body'||at?.complete!==true)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
   if(placement.insertBefore!==anchor.start||placement.insertAfter!==anchor.start-1)return fail('oracle-insertion-boundary-mismatch');

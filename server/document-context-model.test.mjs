@@ -958,6 +958,10 @@ test('negative first provisions precede the first published sibling of their kin
   assert.equal(place('Paragraph -1 (new)','-1.\tNew;','After § 2').reason,'conflicting_target_evidence');
   assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 2 – point -a').reason,'conflicting_target_evidence','a reference naming another parent conflicts');
   assert.equal(place('Paragraph 1 – point ‑a (new)','(-a)\tnew point;','§ 1 – point -a').insertBefore,6);
+  const hidden=document(['The European Parliament,','A.\twhereas one;','1.\tEarlier first \uFFFC;','Heading','1.\tComplete first;','2.\tSecond.'],{textLanguage:'en',sources:{2:{complete:false}}});
+  assert.equal(resolveAmendmentPlacement(hidden,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-1.\tNew;',targetLabel:'Paragraph -1 (new)',referenceText:'Before § 1'}).status,'unresolved','an incomplete earlier paragraph 1 makes the first anchor ambiguous');
+  const twoOnes=document(['The European Parliament,','A.\twhereas one;','1.\tFirst one;','2.\tTwo;','1.\tSecond one:','(a)\tpoint;','(b)\tpoint.'],{textLanguage:'en'});
+  assert.equal(resolveAmendmentPlacement(twoOnes,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'(-a)\tnew;',targetLabel:'Paragraph 1 – point ‑a (new)',referenceText:'§ 1, before point a'}).status,'unresolved','two paragraphs 1 leave the parent ambiguous');
   const opinion=document(['The European Parliament,','–\thaving regard to its rules,','1.\tRecalls one;','2.\tRecalls two;','A.\twhereas the opinion;'],{textLanguage:'en'});
   assert.equal(resolveAmendmentPlacement(opinion,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-A.\twhereas new;',targetLabel:'Recital -A (new)'}).status,'unresolved');
 });

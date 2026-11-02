@@ -27,3 +27,9 @@ test('a recital A after the operative paragraphs never anchors a negative recita
   const text=resolution(['The European Parliament,','–\thaving regard to its rules,','Section III – Commission','1.\tRecalls one;','2.\tRecalls two;','OPINION','A.\twhereas the opinion;']);
   assert.equal(verifyPlacement({text,wording:wording('Recital -A (new)','-A.\twhereas new;'),placement:insert(6)}).status,'unverified');
 });
+
+test('an incomplete earlier first label withholds verification', () => {
+  const text=resolution(['The European Parliament,','A.\twhereas one;','1.\tEarlier first \uFFFC;','Heading','1.\tComplete first;','2.\tSecond.']);
+  text.paragraphSources[2].complete=false;
+  assert.notEqual(verifyPlacement({text,wording:wording('Paragraph -1 (new)','-1.\tNew;'),placement:insert(4)}).status,'verified');
+});

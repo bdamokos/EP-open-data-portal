@@ -533,6 +533,12 @@ export function resolveAmendmentPlacement(text, options = {}) {
       // to an annexed opinion, not to this resolution.
       if(ref.kind==='recital'&&!(paragraphs[0]&&first.start<paragraphs[0].start))return unresolved('insertion_reference_unavailable');
       if(ref.kind==='point'&&ref.parents.length!==1)return unresolved('insertion_reference_unavailable');
+      // An incomplete row can hide another first label or parent paragraph.
+      if(structure.incompleteLabels.has(ref.kind==='point'?ref.paragraph:firstLabel))return unresolved('source_passage_incomplete');
+      if(ref.kind==='point') {
+        const owners=paragraphs.filter(unit=>unit.label===ref.paragraph);
+        if(owners.length!==1||!complete(owners[0].start,first.start))return unresolved('source_passage_incomplete');
+      }
       if(referenceText) {
         const relative=parseReference(referenceText),same=placementReference(referenceText,'en');
         const before=relative?.relation==='before'&&relative.kind===ref.kind&&(ref.kind==='paragraph'?relative.number==='1':ref.kind==='recital'?relative.letter==='A':relative.number===ref.paragraph&&relative.point==='a');
