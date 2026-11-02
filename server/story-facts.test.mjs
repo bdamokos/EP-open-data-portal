@@ -10,7 +10,7 @@ import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
 import {storyTables,stageStoryInput,queueStoryRead} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -39,6 +39,16 @@ test('agenda links and country claims withhold ambiguous and incidental associat
 });
 test('joint motions retain their own explicit author groups',()=>{
  const d=storyDocument({identifier:'RC-10-2025-0010',work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',creator:['org/RENEW','org/ENVI','person/1'],workHadParticipation:[{participation_role:'def/ep-participation-roles/RECIPIENT',participation_in_name_of:'org/PPE'},{participation_role:'def/ep-participation-roles/AUTHOR',participation_in_name_of:'org/S_D'}],is_derivative_of:['eli/dl/doc/B-10-2025-0010']},source);assert.deepEqual(d.groups,['RENEW','S_D']);assert.deepEqual(d.derivedFrom,['B-10-2025-0010']);
+});
+test('hyphenated ODP group codes resolve to the group vocabulary',()=>{
+ const d=storyDocument({identifier:'RC-10-2026-0110',work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',creator:['org/S-D','org/VERTS-ALE','org/THE-LEFT','org/PATRIOTS','org/AFET'],workHadParticipation:[{participation_role:'def/ep-roles/AUTHOR',participation_in_name_of:'org/S-D'}]},source);
+ assert.deepEqual(d.groups,['S_D','VERTS_ALE','THE_LEFT','PFE']);
+});
+test('verbatim items labelled as votes are voting-time items, not debates',()=>{
+ assert(votingItem('Ukraine Support Loan for 2026 and 2027 (vote)'));
+ assert.equal(votingItem('Situation in Venezuela (debate)'),false);
+ assert.equal(votingItem('Voting on the budget'),false);
+ assert.equal(votingItem(undefined),false);
 });
 test('story projection links exact records, excludes institutions and statements, and narrows debate places',async t=>{
  const {dir,store}=await fixture(t),day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-10',decision='MTG-PL-'+day+'-DEC-1',proc='2025-2110',joint='RC-10-2025-0010';
