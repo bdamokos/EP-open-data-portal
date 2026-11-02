@@ -9,6 +9,7 @@ import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mj
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
+import {assertSubparagraphOrdinal} from './amendment-subparagraph-ordinal-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
 
@@ -343,6 +344,10 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   }
   if (placement.operation !== 'insert' || !target.complete || !target.segments.length) return {status:'unverified',reason:'oracle-insertion-grammar-unavailable'};
   if (!proposal) return verifyResolutionInsertion(text,wording,target,placement);
+  if(target.segments.at(-1)?.kind==='subparagraph'){
+    const ordinal=assertSubparagraphOrdinal({proposal,target,placement});
+    if(ordinal.status!=='unverified')return ordinal;
+  }
   // COM(2025)531 puts an instruction's semicolon in a separate Word row
   // after its closing quotation. Even an otherwise unsupported point address
   // cannot insert a sibling between that quotation and its terminator.
