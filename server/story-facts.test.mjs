@@ -507,6 +507,15 @@ test('French story requests keep English document, question and joint debate tit
  assert.equal(result.docs[0].outcome.label,'English decision');
 });
 
+test('question list pages include retained answer references without upstream reads or count inflation',async t=>{
+ const {store}=await fixture(t),question='E-10-2025-000001',other='E-10-2025-000002',answer=question+'-ASW';
+ for(const id of [question,other])store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/questions/'+id,id,'1','written-questions','2025-03-12',JSON.stringify({titles:{en:'Greece'}}));
+ store.putSource(1,'/parliamentary-questions/'+question,'document',{id:'eli/dl/doc/'+question,identifier:question,work_type:'def/ep-document-types/QUESTION_WRITTEN',answersObserved:true,inverse_answers_to:[{id:'eli/dl/doc/'+answer,identifier:answer,document_date:'2025-04-01',title_dcterms:{en:'Published reply'}}]},stamp,[]);
+ await buildTopics(store);const result=storyFacts(store,new URLSearchParams('scope=place&key=GRC&list=questions&period=2025-Q1'));
+ assert.equal(result.page.total,2);assert.equal(result.page.items.length,2);assert.equal(result.questions.length,2);assert.deepEqual(result.questions.find(q=>q.id===question).answers,[{id:answer,date:'2025-04-01',title:'Published reply',titleLanguage:'en'}]);assert.equal(result.questions.find(q=>q.id===other).answers,null,'missing metadata is not an observed absence of answers');
+ store.db.prepare('UPDATE sources SET body=? WHERE generation=1 AND key=?').run(JSON.stringify({identifier:question,answersObserved:true,inverse_answers_to:[]}),'/parliamentary-questions/'+question);assert.deepEqual(storyFacts(store,new URLSearchParams('scope=place&key=GRC&list=questions')).questions.find(q=>q.id===question).answers,[]);
+});
+
 // Debate group titles come from held records by exact item ID, never the raw ID.
 async function titledFixture(t,id,day){
  const {store}=await fixture(t);store.putSource(1,'/plenary-documents/B-10-2026-0400','document',{id:'eli/dl/doc/B-10-2026-0400',identifier:'B-10-2026-0400',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Iran'},creator:['org/PPE'],is_about:[geo('IRN'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+id]},stamp);

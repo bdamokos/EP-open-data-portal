@@ -137,8 +137,8 @@ test('legacy prose requires parent and quantity coverage while other panels stay
   // these Finnish fixtures; unrelated absent messages still use production EN.
   const fixture=createUiI18n({source,translations:{fi:messages}}).forLocale('fi'),ui={...defaultUi,...fixture},i18n={sourceLocale:'en',forLocale:()=>ui};
   const html=renderToStaticMarkup(h(UiI18nProvider,{i18n},h('div',null,h(TopicStory,{data,index:0,mode:'q',own:true}),h('aside',null,h(UiMessage,{id:'topics.story.count.questions',values:{count:2},counts:{count:2}})))));
-  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/a><\/span> ja /:/Türkiye<\/a><\/span> and /);
-  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/place=TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
+  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/span> ja /:/Türkiye<\/span> and /);
+  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/t-records=.*TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
   if(messages===child)assert.match(html,/<aside>2 kysymystä<\/aside>/);
  }
 });
