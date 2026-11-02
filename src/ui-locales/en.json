@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "View official document",
   "questionStatus.1": "Answered",
   "questionStatus.2": "No answer yet",
+  "questions.earlierInTerm": "Show earlier questions from the current term",
+  "questions.periodEnd": "End of the list for {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minute",
   "readerretry.minutes_minutes.24f934": "{minutes} minutes",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Retry paused after a failed request. Try again in {wait}.",
@@ -2652,5 +2654,7 @@
   "votegroups.line.abstaining": "Abstained: {groups}",
   "votegroups.position.abstaining": "Abstained",
   "votegroups.all_agree.abstaining": "Every group's majority abstained.",
-  "votegroups.line.split": "Split: {groups}"
+  "votegroups.line.split": "Split: {groups}",
+  "topics.explorerTranslation": "Policy-area names translated by the explorer.",
+  "topics.policyAreaSource": "Policy-area names: {source}."
 }

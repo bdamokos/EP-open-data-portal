@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Zobacz oficjalny dokument",
   "questionStatus.1": "Udzielono odpowiedzi",
   "questionStatus.2": "Brak odpowiedzi",
+  "questions.earlierInTerm": "Pokaż wcześniejsze pytania z obecnej kadencji",
+  "questions.periodEnd": "Koniec listy za okres {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} min",
   "readerretry.minutes_minutes.24f934": "{minutes} min",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Ponawianie wstrzymano po nieudanym żądaniu. Spróbuj ponownie za {wait}.",
