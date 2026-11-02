@@ -955,6 +955,36 @@ test('a new recital continuing the published sequence follows the last recital',
   assert.equal(place('Recital D (new)').status,'unresolved');
 });
 
+test('a resolution paragraph original with detached source notes matches by body, note position and note text', () => {
+  const text={...motion(['1.\tFirst.','2.\tStresses the Crisis Regulation;','3.\tThird.']),notesStatus:'extracted',
+    noteAnchors:[{paragraph:4,offset:33,note:'25',label:'25'}],notes:[{id:'25',label:'25',text:'Regulation (EU) 2024/1359.'}]};
+  const originalText='2.\tStresses the Crisis Regulation25 ;\n_________________\n25 Regulation (EU) 2024/1359.';
+  const options={targetLabel:'Paragraph 2',originalText,originalFormatting:[{kind:'superscript',start:33,end:35}],proposedText:'deleted',baseline:'motion-resolution'};
+  const result=placement(text,options);
+  assert.equal(result.status,'placed',result.reason);
+  assert.deepEqual(result.span,{start:4,end:4});
+  assert.ok(result.evidence.some(item=>item.basis==='quoted-original-source-notes'));
+  assert.equal(placement(text,{...options,originalText:originalText.replace('\n25 Regulation','\n25 25 Regulation')}).status,'placed','a custom mark can repeat its label');
+  for(const [changed,why] of [
+    [{...options,originalText:originalText.replace('2024/1359.','2024/1360.')},'note text'],
+    [{...options,originalText:originalText.replace('Stresses','Notes')},'body text'],
+    [{...options,originalFormatting:[]},'unmarked number'],
+  ])assert.equal(placement(text,changed).reason,'conflicting_target_evidence',why);
+  assert.equal(placement({...text,noteAnchors:[{paragraph:4,offset:18,note:'25',label:'25'}]},options).reason,'conflicting_target_evidence','moved anchor');
+  assert.equal(placement({...text,notesStatus:'not-extracted'},options).reason,'conflicting_target_evidence','unextracted notes');
+});
+
+test('a flat resolution point quoted with detached source notes resolves by its published path', () => {
+  const text={...motion(['1.\tCalls on the Member States to:','(a)\tact on the Data Act;','(b)\treport;','2.\tNext.']),notesStatus:'extracted',
+    noteAnchors:[{paragraph:4,offset:23,note:'n1',label:'11'}],notes:[{id:'n1',label:'11',text:'Regulation (EU) 2023/2854.'}]};
+  const originalText='(a)\tact on the Data Act11;\n_________________\n11 Regulation (EU) 2023/2854.';
+  const options={targetLabel:'Paragraph 1 – point a',originalText,originalFormatting:[{kind:'superscript',start:23,end:25}],proposedText:'(a)\tact;',baseline:'motion-resolution'};
+  const result=placement(text,options);
+  assert.equal(result.status,'placed',result.reason);
+  assert.deepEqual(result.span,{start:4,end:4});
+  assert.equal(placement(text,{...options,originalText:originalText.replace('2023/2854.','2023/2855.')}).reason,'conflicting_target_evidence');
+});
+
 test('negative first provisions precede the first published sibling of their kind',()=>{
   const text=document(['The European Parliament,','–\thaving regard to its earlier resolution,','A.\twhereas one;','B.\twhereas two;','General considerations','1.\tStresses one:','(a)\tfirst point;','(b)\tsecond point;','2.\tStresses two;'],{textLanguage:'en'});
   const place=(targetLabel,proposedText,referenceText)=>resolveAmendmentPlacement(text,{language:'en',baseline:'motion-resolution',originalText:'',proposedText,targetLabel,referenceText});
@@ -973,4 +1003,21 @@ test('negative first provisions precede the first published sibling of their kin
   assert.equal(resolveAmendmentPlacement(twoOnes,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'(-a)\tnew;',targetLabel:'Paragraph 1 – point ‑a (new)',referenceText:'§ 1, before point a'}).status,'unresolved','two paragraphs 1 leave the parent ambiguous');
   const opinion=document(['The European Parliament,','–\thaving regard to its rules,','1.\tRecalls one;','2.\tRecalls two;','A.\twhereas the opinion;'],{textLanguage:'en'});
   assert.equal(resolveAmendmentPlacement(opinion,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-A.\twhereas new;',targetLabel:'Recital -A (new)'}).status,'unresolved');
+});
+
+test('a suffixed insertion after a provision merged into its predecessor row goes before the next neighbour', () => {
+  const recitals=motion(['K.\twhereas one;L.\twhereas merged;','M.\twhereas two;','N.\twhereas three;','1.\tCalls for action.']);
+  for(const targetLabel of ['Recital L a (new)','Recital L b (new)']){
+    const result=placement(recitals,{targetLabel,originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution',referenceText:'After recital L'});
+    assert.equal(result.status,'placed',result.reason);
+    assert.deepEqual([result.insertAfter,result.insertBefore],[3,4]);
+    assert.ok(result.evidence.some(item=>item.basis==='merged-provision'&&item.anchor==='K'));
+  }
+  const paragraphs=motion(['A.\twhereas one;','71.\tUrges;72.\tStresses;','73.\tCalls;','74.\tNotes.']);
+  assert.deepEqual(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution'}).insertAfter,4);
+  const absent=motion(['K.\twhereas one;','M.\twhereas two;','1.\tCalls for action.']);
+  assert.equal(placement(absent,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found','a label with no printed source stays withheld');
+  const twoMissing=motion(['K.\twhereas one;L.\twhereas merged;','N.\twhereas three;','1.\tCalls for action.']);
+  assert.equal(placement(twoMissing,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found');
+  assert.equal(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution',referenceText:'After § 73'}).reason,'conflicting_target_evidence');
 });
