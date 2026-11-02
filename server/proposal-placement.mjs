@@ -526,16 +526,28 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
     if(row.source?.container==='table-cell'){
       const key=tableRowKey(row.source.path);
       if(!key)return unresolved('source_structure_unavailable');
-      if(current?.key!==key[1]){current={key:key[1],cells:[],rows:[]};rows.push(current);}
+      if(current?.key!==key[1]){current={key:key[1],cells:[],rows:[],columns:[]};rows.push(current);}
+      if(key[2]==='1')current.columns.push(Number(/\/w:tc\[(\d+)\]\/w:p\[\d+\]$/u.exec(row.source.path)[1]));
       // A multi-paragraph cell cannot match one tab-separated cell exactly.
       if(key[2]!=='1')current.cells.push('\u0000');else current.cells.push(cell(row.text));
       current.rows.push(row);
     }else{current=null;rows.push({key:null,cells:[cell(row.text)],rows:[row]});}
   }
+  // Empty cells keep no paragraph: require columns 1..n at the table's widest
+  // row, and consecutive row numbers inside a matched run.
+  const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]),widths=new Map();
+  for(const row of rows)if(row.key)widths.set(tableOf(row.key),Math.max(widths.get(tableOf(row.key))??0,...row.columns));
+  rows.forEach((row,index)=>{
+    if(!row.key)return;
+    if(row.columns.some((column,at)=>column!==at+1)||row.columns.length!==widths.get(tableOf(row.key)))row.cells=['\u0000'];
+    const previous=rows[index-1];
+    row.gap=Boolean(previous?.key&&tableOf(previous.key)===tableOf(row.key)&&rowOf(row.key)!==rowOf(previous.key)+1);
+  });
   const lines=originalText.split(/\r?\n/u).map(line=>line.split('\t').map(cell));
   const starts=[];
   for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>rows[i+offset].cells.length===line.length&&rows[i+offset].cells.every((value,index)=>value===line[index])))starts.push(i);
   if(starts.length!==1)return unresolved(starts.length?'duplicate_target_label':'conflicting_target_evidence');
+  if(rows.slice(starts[0]+1,starts[0]+lines.length).some(row=>row.gap))return unresolved('source_passage_incomplete');
   const matched=rows.slice(starts[0],starts[0]+lines.length).flatMap(row=>row.rows);
   if(matched.some(row=>!row.complete||!row.source||row.source.complete===false))return unresolved('source_passage_incomplete');
   const first=matched[0],last=matched.at(-1);

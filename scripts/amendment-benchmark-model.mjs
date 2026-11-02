@@ -189,15 +189,27 @@ function rawLogicalRows(proposal) {
     if(source.container==='table-cell') {
       const cell=/^(.*\/w:tr\[\d+\])\/w:tc\[(\d+)\]\/w:p\[(\d+)\]$/u.exec(source.path??'');
       if(!cell)return null;
-      if(current?.key!==cell[1]){current={key:cell[1],cells:[],indexes:[]};rows.push(current);}
+      if(current?.key!==cell[1]){current={key:cell[1],cells:[],indexes:[],columns:[]};rows.push(current);}
       // Later paragraphs of one cell make that row unmatchable, not the whole item.
       current.cells.push(cell[3]==='1'?rawCell(row.text):'\u0000');current.indexes.push(row.index);
+      if(cell[3]==='1')current.columns.push(Number(cell[2]));
       if(row.complete===false||source.complete!==true)current.broken=true;
     } else {
       current=null;
       rows.push({key:null,cells:[rawCell(row.text)],indexes:[row.index],broken:row.complete===false||source.complete!==true||source.container!=='body'});
     }
   }
+  // Empty cells retain no paragraph: a row matches only with columns 1..n and
+  // n equal to the table's widest row; skipped row numbers break runs.
+  const table=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowNumber=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
+  const width=new Map();
+  for(const row of rows)if(row.key)width.set(table(row.key),Math.max(width.get(table(row.key))??0,...row.columns));
+  rows.forEach((row,index)=>{
+    if(!row.key)return;
+    if(row.columns.some((column,at)=>column!==at+1)||row.columns.length!==width.get(table(row.key)))row.broken=true;
+    const previous=rows[index-1];
+    if(previous?.key&&table(previous.key)===table(row.key)&&rowNumber(row.key)!==rowNumber(previous.key)+1)row.gapBefore=true;
+  });
   return rows;
 }
 function verifyAnnexTable({proposal,wording,placement}) {
@@ -211,7 +223,7 @@ function verifyAnnexTable({proposal,wording,placement}) {
   for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);
   if(starts.length!==1)return {status:'unverified',reason:'oracle-table-rows-not-unique'};
   const run=rows.slice(starts[0],starts[0]+lines.length);
-  if(run.some(row=>row.broken))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
+  if(run.some((row,index)=>row.broken||index&&row.gapBefore))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
   const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1);
   const before=rows.slice(0,starts[0]),headingAt=before.map(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0])).lastIndexOf(true);
   if(headingAt<0||before[headingAt].cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
@@ -227,6 +239,9 @@ function verifyAnnexTable({proposal,wording,placement}) {
     if(!paragraph&&!point)return {status:'unverified',reason:'oracle-table-address-unsupported'};
   }
   if(placement.span?.start!==first||placement.span?.end!==last)return fail('oracle-address-span-mismatch');
+  // The splice must cover those rows exactly, from offset 0 to the last row's end.
+  const splice=placement.splice,lastText=String(proposal.paragraphs.find(row=>row.index===last)?.text??'');
+  if(splice?.start?.paragraph!==first||splice?.end?.paragraph!==last||splice.start.offset!==0||splice.end.offset!==lastText.length)return fail('oracle-invalid-span');
   return verified('oracle-annex-table-rows');
 }
 
