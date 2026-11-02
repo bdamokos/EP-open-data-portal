@@ -15,7 +15,7 @@ import {documentContextPlacement} from '../server/document-context-placement.mjs
 import {DOCUMENT_CONTEXT_VERSION} from '../server/document-context.mjs';
 import {PROPOSAL_PARSER_VERSION} from '../server/proposal-structure.mjs';
 import {DOCX_EXTRACTION_VERSION} from '../server/docx-source-structure.mjs';
-import {RetainedInputs} from './amendment-benchmark-retained.mjs';
+import {RetainedInputs,retainedSummary} from './amendment-benchmark-retained.mjs';
 import {InputCache,apiOrigin,digest,outsideRepository,allowedInput} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
 import {monday,allDecisions,decisionsInSample,sampleExclusions} from './amendment-benchmark-sample.mjs';
@@ -168,7 +168,7 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
     else if(!allowedInput(url,cache.apiBase)&&!selection?.allowsSource(url))stages.S2=blocked('input-unsupported-public-url');
     else {
       const {input,extraction,error}=await extractionFor(variant);fetched=input;
-      if(!input.ok)stages.S2=blocked(input.acquisitionUnavailable?'acquisition-unavailable':[404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable'));
+      if(!input.ok)stages.S2={...blocked(input.acquisitionUnavailable?'acquisition-unavailable':[404,410].includes(input.status)?'source-document-unavailable':'input-'+(input.error||'unavailable')),...(input.acquisitionUnavailableReason?{acquisitionUnavailableReason:input.acquisitionUnavailableReason}:{})};
       else if(error)stages.S2=blocked('docx-parser-error');
       else {
         wording=extraction.amendments.find(a=>a.number===row.number);
@@ -308,7 +308,7 @@ export async function main(args=process.argv.slice(2)) {
   const sourceManifest=cache.manifest(),snapshotId=digest(JSON.stringify({apiBase:opts.apiBase,sample,manifest:sourceManifest}));
   if(snapshot.snapshotId&&snapshot.snapshotId!==snapshotId)throw new Error('Frozen snapshot manifest changed; acquisition must be independent of checkout output.');
   if(!snapshot.snapshotId){snapshot={...snapshot,sample,manifest:sourceManifest,snapshotId};await writeFile(snapshotPath,JSON.stringify(snapshot,null,2)+'\n');}
-  if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:sourceManifest.length,requests:cache.requests},null,2)+'\n');return;}
+  if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId,sample,inputs:sourceManifest.length,requests:cache.requests,...(retained?{retained:retainedSummary(sourceManifest,retained.inventoryGaps)}:{})},null,2)+'\n');return;}
   if(!cache.sealed)await cache.seal(sourceManifest);
   const selection=opts.sourceSelection?await retainedSourceSelection({file:opts.sourceSelection,snapshot,cache,runtime}):null;
   if(selection)cache=selection.cache;
@@ -339,7 +339,7 @@ export async function main(args=process.argv.slice(2)) {
   if(JSON.stringify(code)!==JSON.stringify(await checkoutIdentity(runtimeRoot,runtime))||JSON.stringify(harness)!==JSON.stringify(await harnessIdentity(root)))throw new Error('Checkout changed during the run; replay the cached inputs offline before reporting a score.');
   const compatibility={...projectionCompatibility(resultRows,code),projectionMode:'cached-source-replay'};
   const scope=selection?'retained-source-selection-cached-sources':'full-pipeline-cached-sources';
-  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',verificationProtocols:[CITATION_NATIVE_PROTOCOL],liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId:resultSnapshotId,...(selection?{sourceSnapshotId:snapshotId,sourceSelection:selection.receipt()}:{}),sample,code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
+  const result={schemaVersion:3,scope,projectionMode:'cached-source-replay',verificationProtocols:[CITATION_NATIVE_PROTOCOL],liveComparison:{metrics:metrics(liveRows),rows:liveRows},snapshotId:resultSnapshotId,...(selection?{sourceSnapshotId:snapshotId,sourceSelection:selection.receipt()}:{}),sample,code,harness,compatibility,inputs:manifest,sourceReasonPolicy:SOURCE_REASONS,...(diagnostics?{sourceDiagnostics:diagnostics}:{}),acquisition:{...(manifest.some(input=>input.acquisitionUnavailable||input.retainedSource)?{retained:retainedSummary(manifest)}:{}),amendmentsWithoutWordingSource:resultRows.filter(row=>row.stages.S2.reason==='wording-source-not-indexed').length,requests:cache.requests,requestCap:opts.cap,delayMs:opts.delay,failures:[...cache.missing].sort(([a],[b])=>a.localeCompare(b,'en')).map(([url,reason])=>({url,reason}))},metrics:metrics(resultRows),rows:resultRows};
   if(opts.baseline){const baseline=JSON.parse(await readFile(opts.baseline,'utf8'));result.comparison=(selection||baseline.sourceSelection?compareSelection:compareBaseline)(result,baseline,{placementOnly:opts.placementOnly});for(const warning of result.comparison.warnings||[])process.stderr.write('WARNING: '+warning+'\n');if(result.comparison.refused)process.stderr.write('BASELINE REFUSED: '+result.comparison.reason+'\n');}
 
   const stamp=digest(JSON.stringify({sample,inputs:result.inputs,code:result.code,harness,scope,diagnostics,...(selection?{selectionId:selection.id}:{})})).slice(0,16),jsonPath=path.join(output,'benchmark-'+stamp+'.json'),mdPath=path.join(output,'benchmark-'+stamp+'.md');

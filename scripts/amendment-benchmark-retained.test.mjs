@@ -7,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {amendmentsPage,amendmentReadVersion} from '../server/amendments-store.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from '../server/amendment-documents.mjs';
 import {AMENDMENT_LINKS_VERSION} from '../server/activity-index-model.mjs';
-import {RetainedInputs} from './amendment-benchmark-retained.mjs';
+import {RetainedInputs,retainedSummary} from './amendment-benchmark-retained.mjs';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
 import {options,evaluateReport,main} from './amendment-benchmark.mjs';
 const url='https://publications.europa.eu/resource/cellar/efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01/DOC_1';
@@ -73,9 +73,9 @@ test('attestation and byte mismatches fail closed',async t=>{
   const f=await fixture(t);mutate(f.source);await writeFile(f.file,JSON.stringify(f.source));
   const reader=await RetainedInputs.open(f.root);
   if(f.source.sha256==='0'.repeat(64))assert.equal((await reader.get(url,{accept,language:'eng'})).acquisitionUnavailable,true);
-  else await assert.rejects(()=>reader.get(url,{accept,language:'eng'}),/mismatch/);
+  else assert.equal((await reader.get(url,{accept,language:'eng'})).acquisitionUnavailableReason,'retained-source-attestation-invalid');
  }
- const f=await fixture(t);await writeFile(path.join(path.dirname(f.file),f.source.sha256+'.blob'),'changed');const reader=await RetainedInputs.open(f.root);await assert.rejects(()=>reader.get(url,{accept,language:'eng'}),/hash mismatch/);
+ const f=await fixture(t);await writeFile(path.join(path.dirname(f.file),f.source.sha256+'.blob'),'changed');const reader=await RetainedInputs.open(f.root);assert.equal((await reader.get(url,{accept,language:'eng'})).acquisitionUnavailableReason,'retained-source-hash-mismatch');
 });
 test('retained MIME checks accept application-supported parameters and preserve the original header',async t=>{
  for(const contentType of [accept+'; charset=utf-8',accept.toUpperCase()+'; Charset=UTF-8']) {
@@ -90,7 +90,7 @@ test('retained MIME checks accept application-supported parameters and preserve 
  }
  for(const contentType of ['application/pdf','application/zip; type=other','application/zip; type=akn4eu; type=other']) {
   const f=await fixture(t);f.source.accept='application/zip;type=akn4eu';f.source.contentType=contentType;await writeFile(f.file,JSON.stringify(f.source));
-  const reader=await RetainedInputs.open(f.root);await assert.rejects(()=>reader.get(url,{accept:f.source.accept,language:'eng'}),/attestation mismatch/);
+  const reader=await RetainedInputs.open(f.root);assert.equal((await reader.get(url,{accept:f.source.accept,language:'eng'})).acquisitionUnavailableReason,'retained-source-attestation-invalid');
  }
 });
 test('sidecars reject an uncheckpointed copy without opening SQLite',async t=>{
@@ -149,19 +149,19 @@ test('v2 missing table, attestation and blob are explicit gaps',async t=>{
  assert.equal((await reader.get(epUrl.replace('_en','_fr'))).acquisitionUnavailableReason,'amendment-source-attestation-missing');
 });
 test('v2 malformed descriptors, stale retrievals, wrong hash and sizes fail closed without repair',async t=>{
- for(const mutate of [r=>r.sha256='0'.repeat(64),r=>r.size++,r=>r.byte_size++,r=>r.language='',r=>r.issued='invalid',r=>r.retrieved_at='2026-01-01',r=>r.list_id='unrelated']) {
+ for(const mutate of [r=>r.sha256='0'.repeat(64),r=>r.size++,r=>r.language='',r=>r.issued='invalid',r=>r.retrieved_at='2026-01-01',r=>r.list_id='unrelated']) {
   const f=await v2Fixture(t,{mutate}),db=path.join(f.root,'index/activities-v1.sqlite'),before=await readFile(db),blob=await readFile(f.blob);
-  await assert.rejects(()=>(RetainedInputs.open(f.root)).then(reader=>reader.get(epUrl)),/mismatch/);
+  const input=await (await RetainedInputs.open(f.root)).get(epUrl);assert.equal(input.acquisitionUnavailable,true);assert.equal(input.status,null);assert.equal(input.fetchedAt,null);assert.equal(input.body.length,0);
   assert.deepEqual(await readFile(db),before);assert.deepEqual(await readFile(f.blob),blob);
  }
 });
 test('v2 URL ambiguity and symlink escapes never choose another source',async t=>{
  const f=await v2Fixture(t);
  execFileSync('python3',['-c',"import sqlite3,sys;c=sqlite3.connect(sys.argv[1]);c.execute(\"INSERT INTO amendment_sources SELECT url,'fr',byte_size,issued,sha256,size,retrieved_at,list_id FROM amendment_sources\");c.commit();c.close()",path.join(f.root,'index/activities-v1.sqlite')]);
- await assert.rejects(()=>(RetainedInputs.open(f.root)).then(reader=>reader.get(epUrl)),/Ambiguous/);
+ assert.equal((await (await RetainedInputs.open(f.root)).get(epUrl)).acquisitionUnavailableReason,'retained-source-attestation-ambiguous');
  const v=await v2Fixture(t),outside=await mkdtemp(path.join(os.tmpdir(),'retained-outside-'));t.after(()=>rm(outside,{recursive:true,force:true}));
  await writeFile(path.join(outside,'bytes'),v.native);await rm(v.blob);await symlink(path.join(outside,'bytes'),v.blob);
- await assert.rejects(()=>(RetainedInputs.open(v.root)).then(reader=>reader.get(epUrl)),/escapes/);
+ assert.equal((await (await RetainedInputs.open(v.root)).get(epUrl)).acquisitionUnavailableReason,'retained-source-path-invalid');
 });
 test('v2 acquisition seals bytes and unavailable Cellar metadata for offline replay without upstream transport',async t=>{
  const f=await v2Fixture(t);await rm(path.join(f.root,'cache'),{recursive:true});
@@ -224,7 +224,7 @@ test('base bytes and selection decisions are read without changing the retained 
  assert.deepEqual(await tree(f.root),before);
  const name=(await readdir(store.directory)).find(n=>n.endsWith('.blob')&&n.startsWith(digest(body)));
  await writeFile(path.join(store.directory,name),Buffer.alloc(body.length));
- await assert.rejects(()=>reader.get(baseUrl),/hash mismatch/);
+ assert.equal((await reader.get(baseUrl)).acquisitionUnavailableReason,'retained-source-hash-mismatch');
 });
 
 test('every page and plain/selected context projects published 21, never building or extension 22',async t=>{
@@ -284,4 +284,36 @@ c.commit();c.close()`,path.join(f.root,'index/activities-v1.sqlite'),document,St
  assert.throws(()=>reader.projections.db.prepare('PRAGMA query_only=OFF'),/SELECT-only/);
  assert.throws(()=>amendmentsPage({get:()=> 'stale'}),/preparing its local query indexes/);
  assert.deepEqual(await tree(f.root),before);
+});
+
+test('publisher declared size remains metadata when actual size and hash verify',async t=>{
+ const f=await v2Fixture(t,{mutate:r=>r.byte_size+=4479}),before=await tree(f.root),reader=await RetainedInputs.open(f.root),input=await reader.get(epUrl);
+ assert.deepEqual(input.body,f.native);assert.equal(input.sha256,digest(f.native));assert.equal(input.bytes,f.native.length);assert.equal(input.retainedSource.descriptor.byteSize,f.native.length+4479);
+ assert.deepEqual(input.retainedSource.observations,[{kind:'declared-byte-size-mismatch',declaredByteSize:f.native.length+4479,actualByteSize:f.native.length}]);
+ assert.equal(retainedSummary([input]).declaredSizeMismatches,1);assert.deepEqual(await tree(f.root),before);
+});
+test('bad sources remain named sealed gaps while another source succeeds',async t=>{
+ for(const kind of ['hash','missing','unreadable','malformed']) {
+  const f=await v2Fixture(t),blob=path.join(path.dirname(f.file),f.source.sha256+'.blob');
+  if(kind==='hash')await writeFile(blob,'different bytes');
+  if(kind==='missing')await rm(blob);
+  if(kind==='unreadable'){await rm(blob);await mkdir(blob);}
+  if(kind==='malformed')await writeFile(f.file,'{invalid json');
+  const before=await tree(f.root),reader=await RetainedInputs.open(f.root),directory=await mkdtemp(path.join(os.tmpdir(),'retained-gaps-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const cache=new InputCache(directory,{retained:reader,apiBase:'https://explorer.test',fetcher:()=>assert.fail('no upstream')});
+  const gap=await cache.get(url,{accept,language:'eng'});assert.equal(gap.acquisitionUnavailable,true);assert.equal(gap.status,null);assert.equal(gap.fetchedAt,null);assert.equal(gap.body.length,0);
+  assert.equal(gap.acquisitionUnavailableReason,{hash:'retained-source-hash-mismatch',missing:'retained-source-blob-missing',unreadable:'retained-source-unreadable',malformed:'retained-attestation-missing'}[kind]);
+  assert.deepEqual((await cache.get(epUrl)).body,f.native);const manifest=cache.manifest();await cache.seal(manifest);
+  const summary=retainedSummary(manifest,reader.inventoryGaps);assert.deepEqual(summary.unavailableInputsByReason,{[gap.acquisitionUnavailableReason]:1});if(kind==='malformed')assert.deepEqual(summary.inventoryGapsByReason,{'retained-source-attestation-invalid':1});
+  const replay=new InputCache(directory,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline network')});await replay.seal(manifest);assert.equal((await replay.get(url,{accept,language:'eng'})).acquisitionUnavailableReason,gap.acquisitionUnavailableReason);assert.deepEqual((await replay.get(epUrl)).body,f.native);
+  assert.deepEqual(await tree(f.root),before);
+ }
+});
+test('an oversized retained source becomes a gap before cache sealing',async t=>{
+ const f=await v2Fixture(t),directory=path.join(f.root,'cache/base-sources-v1');await mkdir(directory);
+ const largeUrl='https://data.europarl.europa.eu/distribution/large_en.docx',body=Buffer.alloc(9*1024*1024),request={accept:'*/*',language:'en'},key=digest(JSON.stringify([largeUrl,request.accept,request.language])),sha256=digest(body);
+ await writeFile(path.join(directory,sha256+'.blob'),body);await writeFile(path.join(directory,key+'.json'),JSON.stringify({schemaVersion:1,key,url:largeUrl,request,status:200,bytes:body.length,sha256,headers:{},fetchedAt:'2026-10-30T00:00:00Z'}));
+ const inputs=await mkdtemp(path.join(os.tmpdir(),'retained-size-gap-'));t.after(()=>rm(inputs,{recursive:true,force:true}));
+ const cache=new InputCache(inputs,{retained:await RetainedInputs.open(f.root),apiBase:'https://explorer.test',fetcher:()=>assert.fail('no upstream')});
+ const gap=await cache.get(largeUrl);assert.equal(gap.acquisitionUnavailableReason,'retained-source-size-limit');assert.equal(gap.body.length,0);assert.deepEqual((await cache.get(epUrl)).body,f.native);await cache.seal(cache.manifest());
 });
