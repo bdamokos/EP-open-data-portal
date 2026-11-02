@@ -40,6 +40,8 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now, ui = d
     const result=read(item,item.observations[source]);
     if(!result)return {...item,gaps:{...item.gaps,[source]:true}};
     if(result.ignore)return item;
+    // A valid reread of the stored observation clears its gap but adds nothing.
+    if(result.current)return {...item,gaps:{...item.gaps,[source]:false}};
     return {...add(item,result.entries||[]),...(result.title?{title:result.title,titleLanguage:result.titleLanguage}:{}),observations:{...item.observations,[source]:result.baseline},gaps:{...item.gaps,[source]:Boolean(result.partial)},checkedAt:clock()};
   });
   load();let serial=Math.max(clock(),...items.map(item=>item.savedAt));
@@ -64,7 +66,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now, ui = d
     },
     observeProgress(id,data,expected) {return observation(id,expected,'progress',(item,old)=>{
       if(data?.reference!==id||data.basis==='oeil'||data.state!=='mapped'||data.coverage?.limited||data.coverage?.invalidRows||!freshSource(data.source)||!Array.isArray(data.events)||data.events.some(event=>event.issues?.some(issue=>['date','status','type'].includes(issue))))return null;
-      const fetched=at(data.source.fetchedAt);if(old&&fetched<=old.at)return {ignore:true};
+      const fetched=at(data.source.fetchedAt);if(old&&fetched<old.at)return {ignore:true};if(old&&fetched===old.at)return {current:true};
       const known={...old?.known},entries=[];
       for(const event of data.events) {
         const fingerprint=JSON.stringify([event.status,event.date,event.statuses?.map(status=>status.code).sort()||[]]),previous=known[event.id];
@@ -76,7 +78,7 @@ export function createDossiersStore(storage,notify=()=>{},clock=Date.now, ui = d
     observePress(id,data,expected) {
       observation(id,expected,'oeil',(item,old)=>{
         const dossier=data?.dossier;if(data?.reference!==id||!dossier||!freshSource(dossier.source))return null;
-        const fetched=at(dossier.source.fetchedAt);if(old&&fetched<=old.at)return {ignore:true};
+        const fetched=at(dossier.source.fetchedAt);if(old&&fetched<old.at)return {ignore:true};if(old&&fetched===old.at)return {current:true};
         const known={...old?.known},entries=[];
         for(const summary of dossier.summaries||[]) {
           const key='summary:'+summary.id;if(old&&!known[key])entries.push({id:key,eventKind:'summary',title:ui.t("dossierCard.event.5"),titleLanguage:'en',date:summary.date||'',summaryId:summary.id,source:{url:summary.url,fetchedAt:dossier.source.fetchedAt}});known[key]=true;

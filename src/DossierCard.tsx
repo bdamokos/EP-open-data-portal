@@ -1,7 +1,7 @@
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useState} from 'react';
-import {FollowDossierButton,dossierStore} from './DossierControls';
+import {FollowDossierButton,checkDossiers,dossierStore,useDossierChecking} from './DossierControls';
 import {dossierHref,followEntries,itemHasNew,type FollowedDossier,type DossierEntry} from './followDossiers.mjs';
 import {LIST_LIMIT,NEW_WINDOW_MS,isNewEntry} from './followUpdates.mjs';
 import {humanDate} from './InsightCharts';
@@ -15,7 +15,7 @@ export const labelsUi = (ui: import('./uiI18n.mjs').UiFormatter = defaultUi) : t
 const publicEntry=(entry:DossierEntry)=>publicAmendmentsEnabled||entry.eventKind!=='amendment-list';
 const officialPress=(value:string|undefined)=>{try{const url=new URL(value||'');return (((url.protocol==='https:') && (url.hostname==='www.europarl.europa.eu')) && url.pathname.startsWith('/news/')) ? url.href : null;}catch{return null;}};
 export function DossierCard({item,language,now}:{item:FollowedDossier;language:string;now:number}) {
-  const ui = useUiI18n();
+  const ui = useUiI18n(),checking=useDossierChecking();
   const [open,setOpen]=useState(new Set<string>()),[retained,setRetained]=useState<DossierEntry[]>([]),[dossierOpen,setDossierOpen]=useState(false);
   const {fresh,history,historyOmitted}=followEntries(item,now),freshEntries=(fresh as DossierEntry[]).filter(publicEntry),hasNew=itemHasNew(item,now);
   const listed=[...freshEntries,...retained.filter(entry=>!fresh.some(value=>value.id===entry.id))],pinned=new Set(retained.map(entry=>entry.id));
@@ -36,7 +36,7 @@ export function DossierCard({item,language,now}:{item:FollowedDossier;language:s
     <h3 className="dossier-follow-title" data-expanded={dossierOpen||undefined} title={item.title} lang={item.titleLanguage||''}>{item.title}</h3>
     <div className="dossier-identity-row dossier-follow-meta"><p lang="">{item.id}</p><FollowDossierButton reference={item.id}/></div>
     <div className="explorer-saved-state">{hasNew ? <strong className="explorer-update-label"><UiMessage id="dossierCard.state.1" values={{count: (freshEntries.length+omitted)}}/></strong> : (pending ? <p><UiMessage id="dossierCard.state.2"/></p> : (!partial&&<p><UiMessage id="dossierCard.state.3"/></p>))}</div>
-    {partial&&<p className="dossier-follow-gap"><UiMessage id="dossierCard.partial"/></p>}
+    {partial&&<p className="dossier-follow-gap"><UiMessage id="dossierCard.partial"/> <button type="button" disabled={checking} onClick={()=>void checkDossiers({force:true,only:item.id}, ui)}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
     <div className="explorer-saved-actions"><a href={href}><UiMessage id="dossierCard.detail.3"/></a><button aria-expanded={dossierOpen} onClick={()=>setDossierOpen(value=>!value)}>{dossierOpen ? <UiMessage id="dossierCard.actions.2"/> : <UiMessage id="dossierCard.actions.3"/>}</button>{hasNew&&<button onClick={()=>dossierStore.markRead(item.id)}><UiMessage id="dossierCard.actions.4"/></button>}</div>
     {dossierOpen&&<ProcedureContext reference={item.id} language={language} showTitle showIdentity={false}/>}
     {(freshEntries.length>LIST_LIMIT||omitted) ? <p><a href={href}><UiMessage id="dossierCard.updateCount" values={{count:freshEntries.length+omitted}} counts={{count: freshEntries.length+omitted}}/></a></p> : listed.map(row)}
