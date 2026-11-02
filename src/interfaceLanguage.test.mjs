@@ -85,8 +85,8 @@ test('the header control shows the translate mark and code and lists endonyms in
   assert.deepEqual([...select.options].map(option=>option.value),[...INTERFACE_LANGUAGES]);
   for(const option of select.options)assert.equal(option.lang,option.value);
   assert.equal(select.options[1].textContent,'español');assert.equal(select.options[14].textContent,'magyar');
-  const order=[...container.querySelector('header').children].map(node=>node.className.baseVal??node.className);
-  assert(order.indexOf('explorer-scheme-toggle')<order.indexOf('explorer-language-control'),'the language control follows the theme toggle');
+  const order=[...container.querySelector('.parliament-header-tools').children].map(node=>node.className.baseVal??node.className);
+  assert.deepEqual(order.map(name=>name.split(' ')[0]),['explorer-scheme-toggle','explorer-language-control','explorer-text-search'],'theme, language and search stay together in that order');
   await act(async()=>{select.value='fr';select.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.deepEqual(changes,['fr']);
 });

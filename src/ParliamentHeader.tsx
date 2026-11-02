@@ -35,8 +35,10 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageCh
       >{destination==='legislation'?ui.t("plenarymodes.plenary_agenda"):destination==='questions'?ui.t("textsearch.questions"):destination==='amendments'?ui.t("legislation.amendments.900866"):destination==='groups'?ui.t("groupvoices.group_voices.f21b8b"):ui.t("outsidevoices.outside_voices.a027e6")}</button>)}
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
-    <ThemeToggle/>
-    {onLanguageChange&&<InterfaceLanguageControl language={language} onChange={onLanguageChange}/>}
-    <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>
+    <div className="parliament-header-tools">
+      <ThemeToggle/>
+      {onLanguageChange&&<InterfaceLanguageControl language={language} onChange={onLanguageChange}/>}
+      <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>
+    </div>
   </header>;
 }
