@@ -429,6 +429,29 @@ test('available Commission DOCX projection retains provenance and places only th
 });
 
 
+test('a present-text new instruction falls back to the report proposal only when the law cannot place it',async()=>{
+  // A-10-2026-0073 AM34 quotes Article 6(1) of the AI Act as present text; the
+  // amendment itself is a new point 5b of the proposal's amending article.
+  const row=(value,style)=>'<w:p>'+(style?'<w:pPr><w:pStyle w:val="'+style+'"/></w:pPr>':'')+'<w:r><w:t xml:space="preserve">'+value+'</w:t></w:r></w:p>';
+  const xml='<w:document xmlns:w="urn:word"><w:body>'+row('Article 1','Titrearticle')+row('Regulation (EU) 2024/1689 is amended as follows:')+row('(5) in Article 5, point (a) is replaced:','Point0')+row('‘(a) text;’;')+row('(6) in Article 6(4), paragraph 4 is replaced by the following:','Point0')+row('Article 2','Titrearticle')+row('Entry into force.')+'</w:body></w:document>';
+  const buffer=archive(xml,'<w:styles xmlns:w="urn:word"/>');
+  const variant={...indexed,baseline:'present-text',baselineSource:{category:'present-text',conflicted:false},language:'en',targetLabelLanguage:'en',targetLabel:'Article 1 – paragraph 1 – point 5 b (new)',
+    targetPath:{proposal:[],underlying:[{document:'Regulation (EU) 2024/1689',raw:'Article 6 – paragraph 1'}],language:'en'},documentReferences:[],
+    originalText:'1. Irrespective of whether an AI system is placed on the market;',proposedText:'(5b) Article 6(1) is amended as follows:\n"1. Irrespective of whether an AI system is placed on the market;"'};
+  const proposal=async request=>{reads.push(request);return {status:'available',celex:'52025PC0836',workId:'exact-work',language:'en',gaps:[],evidence:[],items:[{kind:'act',index:1,itemId:'exact-item',expressionId:'exact-expression',buffer,source:{url:'https://publications.europa.eu/resource/celex/52025PC0836',sha256:'b'.repeat(64),fetchedAt:new Date(at).toISOString(),stale:false,refreshError:null}}]};};
+  let reads=[];
+  const reader=service({findAmendment:()=>variant,readProposal:proposal,readExistingLaw:async()=>({status:'unresolved',items:[],gaps:['existing-law-consolidation-unavailable'],evidence:[]})});
+  const value=await reader.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}});
+  assert.equal(value.placement.status,'placed');assert.equal(value.placement.frame,'commission-proposal');assert.equal(value.placement.insertBefore,4);
+  assert.equal(value.baseline.kind,'commission-proposal');assert.equal(value.baseline.frame,'present-text-instruction');assert.deepEqual(value.baseline.existingLawGaps,['existing-law-consolidation-unavailable']);
+  assert.equal(value.baseline.items[0].source.sha256,'b'.repeat(64));assert.equal(value.proposal.items[0].proposal.paragraphs.length,7);
+  assert.deepEqual(reads.map(request=>request.reportId),[id]);
+  reads=[];
+  const unnumbered=service({findAmendment:()=>({...variant,proposedText:'Article 6(1) is amended as follows:'}),readProposal:proposal,readExistingLaw:async()=>({status:'unresolved',items:[],gaps:['existing-law-consolidation-unavailable'],evidence:[]})});
+  assert.notEqual((await unnumbered.query(query({amendmentId,listId,wordingLanguage:'en'}),{store:{}})).placement.status,'placed');
+  assert.equal(reads.length,0,'an unnumbered instruction needs no proposal read');
+});
+
 test('DOCX soft-break section labels exclude annex and explanatory prose in all 24 languages', () => {
   const samples=JSON.parse(readFileSync(new URL('./fixtures/resolution-end-headings.json',import.meta.url),'utf8'));
   const paragraph=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>';
