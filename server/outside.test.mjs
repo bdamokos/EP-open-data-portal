@@ -234,6 +234,8 @@ test('a short dated roster completes without requesting its repeated boundary me
   assert.equal(store.db.prepare('SELECT done FROM tasks WHERE key=?').get('outside:roster:'+speech.date).done,1);
 }));
 test('legacy short-page cursors restart with fresh roster evidence instead of accepting old membership',withStore(async(store,generation)=>{
+  const retained={...project(fixture.contributions[0]),id:'MTG-PL-2025-11-12-OTH-123',date:'2025-11-12',participants:['123'],headers:[]};
+  store.putSource(generation,'/speeches/'+retained.id,'speech',{id:retained.id,outside:retained},saved.fetchedAt);
   store.enqueue(generation,'roster-test','outside-roster',{date:'2025-11-12',offset:718,ids:['123'],sources:[saved]},102);
   const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>{
     assert.equal(params.offset,0);
@@ -243,6 +245,7 @@ test('legacy short-page cursors restart with fresh roster evidence instead of ac
   const roster=store.source(generation,'outside:roster:2025-11-12').work;
   assert.deepEqual(roster.ids,['456']);assert.equal(roster.sources.length,1);
   assert.match(roster.sources[0].url,/offset=0/);assert.equal(roster.sources[0].fetchedAt,'2026-11-02T18:00:00Z');
+  assert.deepEqual(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').all(generation,retained.id).map(row=>row.person),['123']);
 }));
 test('a full dated-roster page remains pending until a short final page',withStore(async(store,generation)=>{
   store.enqueue(generation,'roster-test','outside-roster',{date:'2025-03-11',offset:0,ids:[],sources:[]},102);
