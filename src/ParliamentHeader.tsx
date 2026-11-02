@@ -4,6 +4,7 @@ import {TextSearch} from './TextSearch';
 import './ParliamentHeader.css';
 import {publicAmendmentsEnabled} from './publicFeatures';
 import {ThemeToggle} from './ThemeToggle';
+import {InterfaceLanguageControl} from './InterfaceLanguageControl';
 
 // Three arcs of seats: the site's own mark, independent of Parliament branding.
 const seats=[[5,4],[8,6],[11,8]].flatMap(([radius,count])=>Array.from({length:count},(_,i)=>{const angle=Math.PI*i/(count-1);return [13-Math.cos(angle)*radius,14-Math.sin(angle)*radius];}));
@@ -13,11 +14,12 @@ export function SiteMark() {
 
 type ExplorerView = 'legislation' | 'questions' | 'outside' | 'amendments' | 'groups';
 
-export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en'}: {
+export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageChange,language='en'}: {
   view: 'members' | ExplorerView | 'saved';
   onMembers: () => void;
   onNavigate?: (view: ExplorerView) => void;
   onSaved?: () => void;
+  onLanguageChange?: (language: string) => void;
   language?:string;
 }) {
   const ui = useUiI18n();
@@ -34,6 +36,7 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,language='en
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
     <ThemeToggle/>
+    {onLanguageChange&&<InterfaceLanguageControl language={language} onChange={onLanguageChange}/>}
     <TextSearch global prefix="global-fts" label={ui.t("batch4.parliamentheader.tsx.35.1")} language={language} className="explorer-text-search-global"/>
   </header>;
 }

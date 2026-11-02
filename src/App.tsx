@@ -6,7 +6,7 @@ import {UiMessage, useUiI18n} from './UiI18nReact';
 import {DocumentObjectText} from './DocumentObjectText';
 import {DocumentPages} from './DocumentPages';
 import {QuestionAnswerer} from './QuestionAnswerer';
-import {useSpeechTranslation} from './SpeechTranslation';
+import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {MemberAffiliation} from './components/MemberAffiliation';
 import {ActivityDossierLinks} from './DossierActivity';
 import {useDossierJourney,dossierJourneyRestoring,useDossierReaderState} from './dossierJourney';
@@ -45,9 +45,10 @@ import { Portrait } from "./components/Portrait";
 import './focus.css';
 import { DataNotice } from "./components/DataNotice";
 import { API_ROOT } from "./api";
-import { interfaceLabel, countryName, compareCountries, languageName } from "./interfaceLabels.mjs";
+import { interfaceLabel, countryName, compareCountries } from "./interfaceLabels.mjs";
 import { publicUrl } from "./publicUrl";
 import { interfaceCopy, interfaceLanguages } from "./interfaceCopy";
+import {saveInterfaceLanguage} from "./interfaceLanguage.mjs";
 import type {
   Directory,
   MemberProfile,
@@ -146,7 +147,8 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
   const ui = useUiI18n();
   const c = interfaceCopy(lang);
   const transcriptText=useRef<HTMLDivElement>(null);
-  const translation=useSpeechTranslation(speech.id,transcriptLanguage);
+  const [requestedTranscript,setRequestedTranscript]=useState(transcriptLanguage);useEffect(()=>setRequestedTranscript(transcriptLanguage),[transcriptLanguage,speech.id]);
+  const translation=useSpeechTranslation(speech.id,requestedTranscript);
   const video=useSpeechVideo(speech,lang);
   const state = translation.state;
   const body=state.transcript;
@@ -161,12 +163,7 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
       <SpeechContextPanel key={speech.id} id={speech.id} language={lang} transcriptLanguage={transcriptLanguage} preload={Boolean(state.data)&&!state.loading}/>
       <div className="explorer-speech-transcript-heading" lang={ui.language}><h3 lang={lang}>{c.transcript}</h3><div className="explorer-reader-tools">{video.toggle}{text.paragraphs.length>0&&<FindInText key={speech.id+':'+transcriptLanguage} label={ui.t("app.find_in_speech")} target={transcriptText}/>}</div></div>
       {video.panel}
-      {(body||translation.control)&&<div className="explorer-text-meta" lang={ui.language}>
-        {body&&(body.textLanguage ? <span lang="">{body.textLanguage.toUpperCase()}</span> : (text.paragraphs.length ? null : ui.t("app.text_unavailable")))}
-        {((body && (body.textLanguage||!text.paragraphs.length)) && (translation.control||body.translationType==='original')) ? ' · ' : ''}
-        {translation.control|| ((body?.translationType==='original') ? ui.t("textsearch.original_text") : null)}
-        {(body?.textLanguage && (body.textLanguage!==translation.selected)) ? (' · '+ui.t('app.requestedTextUnavailable')) : ''}
-      </div>}
+      <TextLanguagePicker available={state.availableTextLanguages} requested={transcriptLanguage} value={body?.textLanguage||null} offer={!translation.showingOriginal} onChange={value=>{translation.reset();setRequestedTranscript(value);}} status={<SpeechTextStatus translation={translation}/>} note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={lang}/>}/>
       {translation.originalGap&&<p lang={ui.language}><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
       {state.loading && !body && <p role="status" lang={ui.language}><UiMessage id="app.loading_transcript"/></p>}
       {state.error && <ErrorView message={state.error} retry={state.retry} />}
@@ -182,17 +179,14 @@ function Detail({ speech, lang, transcriptLanguage=lang }: { speech: Speech; lan
         </>}
     </div>;
 }
+// Files follow the interface language, falling back like the reader text.
 function PublicationFiles({ files, lang }: { files: DocumentFile[]; lang: string }) {
   const ui = useUiI18n();
-  const languages = languagePreference(files.map(f => f.language || "und"),lang);
-  const [selected, setSelected] = useState(lang);
-  const fileKey=files.map(f => `${f.url}|${f.language}`).join(",");
-  useEffect(() => setSelected(languages.includes(lang) ? lang : (languages[0] || "und")), [lang, fileKey]);
   if (!files.length) return <p lang={ui.language}><UiMessage id="app.no_files_available"/></p>;
+  const shown = languagePreference(files.map(f => f.language || "und"),lang)[0];
   return <div className="explorer-publication-files" lang={ui.language}>
-    <label><UiMessage id="app.document_language"/> <select aria-label={ui.t("app.document_language")} value={selected} onChange={e => setSelected(e.target.value)}>{languages.map(l => <option lang={(l === "und") ? ui.language : ""} value={l} key={l}>{(l === "und") ? ui.t("app.language_unavailable") : l.toUpperCase()}</option>)}</select></label>
-    {!languages.includes(lang) && <small><UiMessage id="speechcloud.not_available_in_this_language.37fcae"/></small>}
-    <p>{files.filter(f => (f.language || "und") === selected).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : ui.language}>{f.language?.toUpperCase() || ui.t("app.language_unavailable")}</span> ↗</a>)}</p>
+    {shown !== lang && <small><UiMessage id="speechcloud.not_available_in_this_language.37fcae"/></small>}
+    <p>{files.filter(f => (f.language || "und") === shown).map((f,i) => <a key={f.url + i} href={f.url} target="_blank" rel="noreferrer"><span lang="">{f.format}</span> · <span lang={f.language ? "" : ui.language}>{f.language?.toUpperCase() || ui.t("app.language_unavailable")}</span> ↗</a>)}</p>
   </div>;
 }
 function AuthorMention({text,authors,lang,anchors,links,marks,notePrefix,offset=0,final=true}:{text:string;authors?:CoAuthor[];lang:string;anchors?:NoteAnchor[];links?:DocumentLink[];marks?:FormatMark[];notePrefix?:string;offset?:number;final?:boolean}) {
@@ -219,12 +213,13 @@ function PublicationText({ sourceId, member, lang, heading, headingDate, shownDa
   const failed=Boolean(state.error||text?.status==='error'||text?.refreshError||state.data&&!text),retryAt=state.retryAt??(text?.nextRetryAt ? Date.parse(text.nextRetryAt) : undefined);
   return <section className="explorer-document-text" lang={ui.language} id={'document-'+sourceId}>
     <Status scope={`document:${sourceId}:${member}:${requestedLanguage}`} pending={state.loading} message={failed ? ui.t("app.documentStatusUnavailable", {heading: String(heading)}) : (state.data ? ((text?.status==='available') ? ui.t("app.documentStatusLoaded", {heading: String(heading)}) : ui.t("app.documentStatusNoText", {heading: String(heading)})) : null)}/>
-    <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}{pickerText&&<TextLanguagePicker show={!questionDocument||pickerText.textLanguage!==ui.language||pickerText.textLanguage!==lang} available={pickerText.availableTextLanguages} requested={lang} value={text ? text.textLanguage : requestedLanguage} onChange={setRequestedLanguage} visibleLabel={false} title={(text?.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text?.textLanguage??null} interfaceLanguage={lang}/>}/>}</div>
+    <div className="explorer-reader-heading"><h3>{headingDate ? <><UiMessage id="batch4.questiontopics.tsx.answer.date" values={{date: <span lang={lang}>{date(headingDate,lang)}</span>}}/></> : heading}</h3>{question&&<a lang="" href={"#document-"+question.id} title={question.title}><span lang={ui.language}><UiMessage id="textsearch.read_question"/></span></a>}</div>
+    {pickerText&&<TextLanguagePicker available={pickerText.availableTextLanguages} requested={lang} value={text ? text.textLanguage : requestedLanguage} onChange={setRequestedLanguage} title={(text?.translationType==='original') ? ui.t("textsearch.original_text") : undefined} note={<TextLanguageFallback requested={requestedLanguage} actual={text?.textLanguage??null} interfaceLanguage={lang}/>}/>}
     {/^(?:A|B|RC)-/.test(sourceId)&&<AmendmentTrailLink document={sourceId} language={lang}><UiMessage id="app.amendments_to_this_document"/></AmendmentTrailLink>}
     {sourceId.endsWith('-ASW')&&<QuestionAnswerer answerer={state.data?.answerer}/>}
     {state.loading&&!text&&<p role="status"><UiMessage id="dossieractivity.loading_text"/></p>}{failed&&!state.loading&&<ReaderRetry message={ui.t("app.text_temporarily_unavailable")} language={lang} retry={state.retry} retryAt={retryAt}/>}
     {text&&!questionDocument&&<DocumentPages documentId={sourceId} language={text.textLanguage||requestedLanguage}/>}{(text?.status==='available') ? <ReferenceScope texts={readerTexts(body.paragraphs,notes,documentLinks)} notes={notes} notePrefix={notePrefix} language={lang} textLanguage={text.textLanguage} renderQuestion={question=><PublicationText sourceId={question} member={member} lang={lang} heading={ui.t("batch6.references.referenced.question.112")} includeAnswers showDownloads={showDownloads}/>}><div className="explorer-transcript" lang={text.textLanguage||""}><DocumentParagraphs texts={body.paragraphs} start={body.start} renderParagraph={(source,paragraph)=>(source===repeatedDate) ? null : paragraph} formatting={usableFormatting(text,text.paragraphs.length)} exactOffsets={body.exact} renderText={(source,paragraph,from,to,final,marks)=><DocumentObjectText logo={logo} text={paragraph} paragraph={source} from={from} to={to} final={final} marks={marks} objects={text.documentObjects||[]} assets={text.imageAssets} sourceUrl={text.sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),from,to)} notePrefix={notePrefix} renderText={(a,b,last)=><AuthorMention text={paragraph.slice(a,b)} offset={a} final={last} authors={state.data?.coAuthors} lang={lang} anchors={anchors.filter(anchor=>anchor.paragraph===source)} links={clipLinks(documentLinks.filter(link=>link.paragraph===source),a,b)} marks={marks} notePrefix={notePrefix}/>}/>}/><DocumentNotes assets={text.imageAssets} notes={notes} prefix={notePrefix}/></div></ReferenceScope> : (text&&!failed&&<p><UiMessage id="batch5.dossiervotetext.tsx.24.50"/></p>)}
-    {text&&<>{!sourceId.endsWith('-ASW')&&<CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>}{showDownloads&&!questionDocument&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={text.textLanguage||lang}/></details>}</>}
+    {text&&<>{!sourceId.endsWith('-ASW')&&<CoAuthors authors={state.data?.coAuthors} lang={lang} member={member}/>}{showDownloads&&!questionDocument&&<details className="explorer-reader-download"><summary><UiMessage id="app.document_download"/></summary>{body.header.map((paragraph,index)=><p lang={text.textLanguage||""} key={index}><AuthorMention text={paragraph} authors={state.data?.coAuthors} lang={lang}/></p>)}<PublicationFiles files={files} lang={lang}/></details>}</>}
     {includeAnswers&&state.data?.answers.map(answer=><PublicationText key={answer.id} sourceId={answer.id} member={member} lang={lang} heading={answer.date ? ui.t("batch4.questiontopics.tsx.answer.date", {date: String(date(answer.date,lang))}) : ui.t("textsearch.answer")} headingDate={answer.date} showDownloads={showDownloads}/>)}
     {includeAnswers&&state.data&&!failed&&!state.loading&&!state.data.answers.length&&<p><UiMessage id="app.no_answer_published"/></p>}
   </section>;
@@ -755,22 +750,27 @@ export default function App() {
     pendingDestination.current={view:null,member:null,portrait:memberOpener.current};
     memberStep.current=true;setMember(null);setSpeechLink(null);setActivityLink(null);
   };
+  const changeLanguage=(language:string)=>{
+    votes.remember();motions.remember();saveInterfaceLanguage(language);
+    const url=new URL(location.href);if(language==='en')url.searchParams.delete('lang');else url.searchParams.set('lang',language);
+    history.replaceState(history.state,'',url);startTransition(()=>setLang(language));
+  };
   const leaveSaved=()=>{
     const opener=viewOpener.current;
     navigateView(null);
     pendingDestination.current={view:null,member,opener};
   };
   return <UiI18nProvider i18n={appUiI18n} language={lang}><PersonNamesProvider members={directory?.members}><ErrorBoundary resetKey={`${view}:${member}:${tab}:${restoration}`} language={lang}
-    navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>}
+    navigation={<ParliamentHeader view={view||'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>}
     onRetry={()=>{pendingDestination.current={view,member};}}
   ><Suspense fallback={<ViewLoading language={lang}/>}><ViewContent onReady={focusDestination} render={()=>{
   if (view === 'legislation' || view === 'questions' || view === 'outside' || (publicAmendmentsEnabled && view === 'amendments') || view === 'groups') {
     const props={language:lang,onBack:showMembers,onNavigate:navigateView,onMember:openInsightMember,onSaved:()=>navigateView('saved')};
     const title={groups:ui.t("groupvoices.group_voices.f21b8b"),amendments:ui.t("legislation.amendments.900866"),legislation:plenaryModeTitlesUi(ui)[plenaryMode],outside:ui.t("outsidevoices.outside_voices.a027e6"),questions:ui.t("textsearch.questions")}[view];
-    return <InsightFrame {...props} view={view}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
+    return <InsightFrame {...props} view={view} onLanguageChange={changeLanguage}><Suspense fallback={<ViewLoading language={lang} title={title} embedded/>}><ViewContent onReady={focusDestination} render={()=>(view==='groups') ? <GroupVoices {...props}/> : ((view==='amendments') ? <AmendmentsPage {...props}/> : ((view==='legislation') ? <Legislation {...props} members={directory?.members}/> : ((view==='outside') ? <OutsideVoices {...props}/> : <QuestionTopics {...props}/>)))}/></Suspense></InsightFrame>;
   }
   return <main className="explorer" lang={lang} onScroll={event=>{if(wallVisible&&event.target===event.currentTarget)wallScroll.current.page=event.currentTarget.scrollTop;}}>
-        <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} language={lang}/>
+        <ParliamentHeader view={(view==='saved') ? 'saved' : 'members'} onMembers={showMembers} onNavigate={navigateView} onSaved={()=>navigateView('saved')} onLanguageChange={changeLanguage} language={lang}/>
         {(view === 'saved') ? <Suspense fallback={<ViewLoading language={lang} title={ui.t("batch4.dossiercontrols.tsx.64.2")} embedded/>}><ViewContent onReady={focusDestination} render={()=><Saved members={directory?.members} language={lang} onBack={leaveSaved} onMember={openInsightMember} renderActivity={props=><FollowingActivityDetail {...props} lang={lang}/>}/>}/></Suspense> : (member ? <section className="explorer-profile">
             <button
               lang={lang}
@@ -998,17 +998,6 @@ export default function App() {
               </>}
           </section>
         <footer className="explorer-footer" lang={ui.language}>
-          <label>
-             <UiMessage id="app.language"/> <select
-              aria-label={ui.t("app.interface_language")}
-              value={lang}
-              onChange={(e) => {votes.remember();motions.remember();const language=e.target.value,url=new URL(location.href);if(language==='en')url.searchParams.delete('lang');else url.searchParams.set('lang',language);history.replaceState(history.state,'',url);startTransition(()=>setLang(language));}}
-            >
-              {interfaceLanguages.map((code) => <option lang={code} key={code} value={code}>
-                  {languageName(code)}
-                </option>)}
-            </select>
-          </label>
           <DataNotice/>
         </footer>
     </main>;

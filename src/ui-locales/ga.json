@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Freagra ó: {person}, {institution}",
   "questionanswerer.institution": "Freagra ó: {institution}",
   "questionanswerer.institution.commission": "An Coimisiún Eorpach",
-  "questionanswerer.institution.council": "An Chomhairle"
+  "questionanswerer.institution.council": "An Chomhairle",
+  "textsearch.advanced_options": "Tuilleadh roghanna"
 }

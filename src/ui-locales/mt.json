@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Tweġiba minn: {person}, {institution}",
   "questionanswerer.institution": "Tweġiba minn: {institution}",
   "questionanswerer.institution.commission": "Il-Kummissjoni Ewropea",
-  "questionanswerer.institution.council": "Il-Kunsill"
+  "questionanswerer.institution.council": "Il-Kunsill",
+  "textsearch.advanced_options": "Aktar għażliet"
 }

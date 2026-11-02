@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Odpowiedzi udziela: {person}, {institution}",
   "questionanswerer.institution": "Odpowiedzi udziela: {institution}",
   "questionanswerer.institution.commission": "Komisja Europejska",
-  "questionanswerer.institution.council": "Rada"
+  "questionanswerer.institution.council": "Rada",
+  "textsearch.advanced_options": "Więcej opcji"
 }

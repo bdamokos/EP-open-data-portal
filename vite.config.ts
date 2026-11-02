@@ -4,7 +4,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 const thirdPartyNotices = readFileSync(new URL("./THIRD_PARTY_JAVASCRIPT_LICENSES.txt", import.meta.url), "utf8").trim().replaceAll("*/", "* /");
-const startupAssets = ['colour-scheme', 'initial-shell'].map(name => {
+const startupAssets = ['colour-scheme', 'interface-language', 'initial-shell'].map(name => {
   const source = readFileSync(new URL(`./public/assets/${name}.js`, import.meta.url), 'utf8');
   const hash = createHash('sha256').update(source).digest('hex').slice(0, 12);
   return {name, source, fileName: `assets/${name}-${hash}.js`};

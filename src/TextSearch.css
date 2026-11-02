@@ -68,3 +68,6 @@
 .explorer-text-search-inline .explorer-search-field input {font-size:16px;}
 .explorer-text-search-inline input[type="search"]::-webkit-search-cancel-button {-webkit-appearance:none;}
 .explorer-text-search-inline .explorer-search-summary {margin-left:auto;font-size:14px;color:var(--ink-muted);text-align:right;}
+.explorer-search-advanced {flex:1 0 100%;grid-column:1/-1;font-size:14px;}
+.explorer-search-advanced summary {width:max-content;max-width:100%;min-height:var(--control-height);display:flex;align-items:center;color:var(--accent);cursor:pointer;}
+.explorer-search-advanced label {max-width:20rem;margin-top:4px;}

@@ -255,10 +255,10 @@ test('member reader uses exact structured ECR instead of the conflicting Bulgari
   assert(reader.textContent.includes('Exact source body.'));
 });
 
-test('member cloud opens the chosen transcript while names and chair roles retain the interface language',async t=>{
-  for(const [language,transcript] of [['bg','en'],['en','el']])await t.test(language+'/'+transcript,async t=>{
-    const h=await harness(t,{module:'speeches',language,items:[speechItem]});
-    if(transcript!=='en')await act(async()=>{const select=h.container.querySelector('.explorer-cloud-controls select');select.value=transcript;select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
+test('member cloud follows the interface language into the transcript while names and chair roles keep it',async t=>{
+  for(const language of ['bg','en'])await t.test(language,async t=>{
+    const h=await harness(t,{module:'speeches',language,items:[speechItem]}),transcript=language;
+    assert(![...h.container.querySelectorAll('.explorer-cloud-controls option')].some(option=>option.value===language),'the cloud has no language selector');
     await h.click(h.container.querySelector('.explorer-cloud-words button'));
     await h.click(h.container.querySelector('.explorer-cloud-source'));
     const person={id:'34232',name:'Kristian Vigenin',sittingRole:'chair',office:{code:'vice-president-parliament'},nameVariants:[{value:'Kristian Vigenin',script:'Latn',language:null,source:'fixture'},{value:'Кристиан Вигенин',script:'Cyrl',language:null,source:'fixture'}]};
@@ -297,7 +297,7 @@ test('retained transcript renders before metadata and survives a failed metadata
   await h.wait();
   const text=reader.querySelector('.explorer-transcript');assert(text);
   assert.equal(text.lang,'en');assert.equal(text.querySelector('i').textContent,'editorial note');
-  assert.match(reader.querySelector('.explorer-text-meta').textContent,/Machine translation/);
+  assert.match(reader.querySelector('.text-language-line').textContent,/Machine translation/);
   assert.equal(status(reader).textContent,'Transcript loaded.');
   assert(reader.querySelector('[aria-label="Find in speech"]'));
   assert(h.pending.some(request=>request.route===`speech/${speechId}?lang=en`&&!request.finished),'metadata is still pending');

@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Vastaaja: {person}, {institution}",
   "questionanswerer.institution": "Vastaaja: {institution}",
   "questionanswerer.institution.commission": "Euroopan komissio",
-  "questionanswerer.institution.council": "Neuvosto"
+  "questionanswerer.institution.council": "Neuvosto",
+  "textsearch.advanced_options": "Lisää valintoja"
 }

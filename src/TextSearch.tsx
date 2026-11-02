@@ -1,4 +1,5 @@
 import {reportUiError} from './errorDiagnostics.mjs';
+import {EU_PROTOCOL_ORDER} from '../server/language-order.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {useEffect,useId,useImperativeHandle,useRef,useState,type RefObject,type ReactNode} from 'react';
@@ -22,7 +23,7 @@ export interface TextSearchProps {
   sourceIds?:string[];scopeIdentity?:string;group?:'document'|'question';dateBasis?:'document'|'question';scopeNote?:ReactNode;disabledReason?:string;
   className?:string;onActiveChange?:(active:boolean)=>void;global?:boolean;inline?:boolean;summary?:ReactNode;inputRef?:RefObject<HTMLInputElement|null>;resetRef?:RefObject<(()=>void)|null>;
 }
-const languages=['bg','cs','da','de','el','en','es','et','fi','fr','ga','hr','hu','it','lt','lv','mt','nl','pl','pt','ro','sk','sl','sv'];
+const languages=EU_PROTOCOL_ORDER;
 const kindLabel=(kind:Kind, ui: import('./uiI18n.mjs').UiFormatter = defaultUi)=>(kind==='speech') ? ui.t("dossieractivity.speech") : ((kind==='answer') ? ui.t("textsearch.institutional_answer") : ui.t("textsearch.question"));
 const languageName=(code:string,locale:string)=>{try{return new Intl.DisplayNames([locale],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
 const dateLabel=(value:string|null|undefined,language:string)=>(value && Number.isFinite(Date.parse(value))) ? new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'Europe/Brussels'}).format(new Date((value.length===10) ? (value+'T12:00:00Z') : value)) : '';
@@ -138,10 +139,10 @@ export function TextSearch({prefix,label,language,kinds,member,country,addressee
       {!inline&&<p id={panel+'-hint'} className="explorer-search-hint"><UiMessage id="textsearch.all_words_use_quotes_for_a_phrase"/></p>}
       {(!inline||active)&&<div className="explorer-search-facets">
       {global&&<label><UiMessage id="textsearch.result_type"/><select value={['mep','topic','question','speech','answer'].includes(field) ? field : ''} onChange={e=>{setField(e.target.value);reset();}}><option value=""><UiMessage id="textsearch.all_results"/></option><option value="mep"><UiMessage id="textsearch.meps"/></option><option value="topic"><UiMessage id="textsearch.plenary_topics"/></option><option value="question"><UiMessage id="textsearch.questions"/></option><option value="speech"><UiMessage id="dossieractivity.speeches"/></option><option value="answer"><UiMessage id="textsearch.institutional_answers"/></option></select></label>}
-      {showText&&<label><UiMessage id="textsearch.text_language"/><select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);reset();}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all"><UiMessage id="textsearch.all_available_languages"/></option></select></label>}
       {!global&&allowedKinds.length>1&&<label><UiMessage id="textsearch.search_in"/><select value={(actualKinds.length===1) ? actualKinds[0] : ''} onChange={e=>{setField(e.target.value);reset();}}><option value="">{(group==='question') ? <UiMessage id="textsearch.questions_answers"/> : <UiMessage id="textsearch.all_text_types"/>}</option>{allowedKinds.map(kind=><option key={kind} value={kind}>{(kind==='answer') ? ui.t("textsearch.answer_text") : ((kind==='question') ? ui.t("textsearch.question_text") : ui.t("textsearch.speech_text"))}</option>)}</select></label>}
       {showText&&<label>{global ? ui.t("textsearch.text_order") : ui.t("textsearch.order")}<select value={sort} onChange={e=>{setSort(e.target.value);reset();}}><option value="relevance"><UiMessage id="textsearch.best_match"/></option><option value="newest"><UiMessage id="textsearch.newest_first"/></option></select></label>}
       {global&&field!=='mep'&&<><label><UiMessage id="textsearch.from"/><input type="date" value={searchFrom} max={searchTo||undefined} onChange={e=>{setSearchFrom(e.target.value);reset();}}/></label><label><UiMessage id="textsearch.to"/><input type="date" value={searchTo} min={searchFrom||undefined} onChange={e=>{setSearchTo(e.target.value);reset();}}/></label></>}
+      {showText&&<details className="explorer-search-advanced" open={textLanguage!==''&&textLanguage!==(languages.includes(language) ? language : 'en')}><summary><UiMessage id="textsearch.advanced_options"/></summary><label><UiMessage id="textsearch.text_language"/><select value={searchedLanguage} onChange={e=>{setTextLanguage(e.target.value);reset();}}>{languages.map(code=><option value={code} key={code} lang={language}>{languageName(code,language)}</option>)}<option value="all"><UiMessage id="textsearch.all_available_languages"/></option></select></label></details>}
       </div>}</form>
       {showCatalog&&query&&<ParliamentSearchResults key={JSON.stringify([query,catalogType,language,dateFrom,dateTo,attempt])} query={query} type={catalogType} language={language} from={dateFrom} to={dateTo}/>}
       {global&&showText&&query&&<h4 className="explorer-search-text-heading"><UiMessage id="textsearch.matching_text"/></h4>}

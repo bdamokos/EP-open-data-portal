@@ -270,7 +270,7 @@ test('changing interface language preserves explicit search language and selecte
   await view.render({language:'hu'});
   assert.equal(view.searches().at(-1).body.uiLanguage,'hu');
   assert.equal(view.searches().at(-1).body.language,undefined);
-  assert.equal(view.find('.explorer-search-facets select').value,'all');
+  assert.equal(view.find('.explorer-search-advanced select').value,'all');
   assert.equal(view.find('.explorer-search-versions select').value,french.sourceKey);
   assert.equal(view.find('.explorer-search-body').lang,'fr');
   assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-read'),JSON.stringify([speech,french.sourceKey]));
@@ -286,7 +286,7 @@ test('history restoration of text language keeps the restored result page and ex
   assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-page'),'3');
   assert.equal(new URL(view.window.location.href).searchParams.get('fixture-fts-read'),read);
   assert.equal(view.find('.explorer-search-body').lang,'fr');
-  assert.equal(view.find('.explorer-search-facets select').value,'fr');
+  assert.equal(view.find('.explorer-search-advanced select').value,'fr');
 });
 
 test('a URL-selected language fragment opens independently of the interface-default version',async t=>{
@@ -334,7 +334,7 @@ test('closing global search removes its URL state and remembers its query across
   assert.equal(view.searches().length,2);
   assert.equal(new URL(view.window.location.href).searchParams.has('global-fts-closed'),false);
   assert.equal(new URL(view.window.location.href).searchParams.get('global-fts-search'),'energy');
-  assert.equal(view.find('select').value,'en');
+  assert.equal(view.find('.explorer-search-advanced select').value,'en');
 });
 
 test('legacy closed search links become clean speaker links without running a search',async t=>{
@@ -360,7 +360,7 @@ test('Back and Forward restore open and closed global search entries with their 
   await step('back');assert.equal(view.find('input').value,'first');
   await step('back');assert.equal(view.container.querySelector('input'),null);
   await view.click('Search text · fixture speeches');
-  assert.equal(view.find('input').value,'first');assert.equal(view.find('select').value,'fr');
+  assert.equal(view.find('input').value,'first');assert.equal(view.find('.explorer-search-advanced select').value,'fr');
   assert.equal(view.searches().at(-1).body.sort,'newest');
   await step('back');assert.equal(view.container.querySelector('input'),null);
   await step('forward');assert.equal(view.find('input').value,'first');
@@ -423,7 +423,7 @@ test('short grouped pages follow exact offsets, retain predecessors and restore 
   assert.equal(view.searches().at(-1).body.offset,7);
   await view.render({key:'remount'});assert.equal(view.searches().at(-1).body.offset,7);
   assert(view.button('First page'));await view.click('First page');assert.equal(view.searches().at(-1).body.offset,0);
-  await view.click('Next');await view.select('.explorer-search-facets select','fr');
+  await view.click('Next');await view.select('.explorer-search-advanced select','fr');
   assert.equal(view.searches().at(-1).body.offset,0);assert.equal(new URL(view.window.location.href).searchParams.has('fixture-fts-offset'),false);
 });
 

@@ -144,11 +144,8 @@ test('a large plenary cloud searches by exact period and country while delayed h
   assert.equal(new URL(location.href).searchParams.get('agenda-fts-read'),read,'hydrating dates must preserve the restored exact reader');
   assert.equal(container.querySelector('.explorer-search-body')?.lang,'fr');
   assert.doesNotMatch(container.textContent,/all indexed speech contributions/);
-  await act(async()=>{const select=container.querySelector('.explorer-cloud-controls select');select.value='de';select.dispatchEvent(new window.Event('change',{bubbles:true}));});
-  assert.equal(cloudCalls.length,2);
-  assert.deepEqual(searches.at(-1),searches[0],'changing the cloud analysis language must preserve the exact corpus search scope and page');
-  assert.equal(new URL(location.href).searchParams.get('agenda-fts-page'),'3');
-  assert.equal(new URL(location.href).searchParams.get('agenda-fts-read'),read);
+  assert(![...container.querySelectorAll('.explorer-cloud-controls option')].some(option=>option.value==='de'),'the cloud follows the interface language');
+  assert.equal(cloudCalls.length,1);
 });
 
 test('explicit plenary navigation clears contextual result positions before remounts while saved links and Back keep them',async t=>{

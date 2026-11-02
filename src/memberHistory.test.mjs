@@ -52,7 +52,7 @@ async function harness(t,query='lang=en&'+selection+'&role=member',sourceDirecto
     try{history.go(delta);await popped;}finally{clearTimeout(timer);window.removeEventListener('popstate',listener);}
   });
   const filters=()=>[...container.querySelectorAll('.explorer-filters select')];
-  const language=()=>container.querySelector('.explorer-footer select');
+  const language=()=>container.querySelector('.explorer-language-control select');
   function agree(role,lang='en') {
     const query=new URLSearchParams(location.search);
     assert.deepEqual(filters().map(node=>node.value),['6567',role,'HU','PfE'],'rendered filter controls');

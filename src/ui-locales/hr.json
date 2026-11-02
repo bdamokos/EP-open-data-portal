@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Odgovara: {person}, {institution}",
   "questionanswerer.institution": "Odgovara: {institution}",
   "questionanswerer.institution.commission": "Europska komisija",
-  "questionanswerer.institution.council": "Vijeće"
+  "questionanswerer.institution.council": "Vijeće",
+  "textsearch.advanced_options": "Više mogućnosti"
 }

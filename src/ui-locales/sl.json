@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Odgovarja: {person}, {institution}",
   "questionanswerer.institution": "Odgovarja: {institution}",
   "questionanswerer.institution.commission": "Evropska komisija",
-  "questionanswerer.institution.council": "Svet"
+  "questionanswerer.institution.council": "Svet",
+  "textsearch.advanced_options": "Več možnosti"
 }

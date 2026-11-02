@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Odpovídá: {person}, {institution}",
   "questionanswerer.institution": "Odpovídá: {institution}",
   "questionanswerer.institution.commission": "Evropská komise",
-  "questionanswerer.institution.council": "Rada"
+  "questionanswerer.institution.council": "Rada",
+  "textsearch.advanced_options": "Další možnosti"
 }

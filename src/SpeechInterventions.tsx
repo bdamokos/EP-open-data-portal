@@ -1,7 +1,8 @@
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
-import {useSpeechTranslation} from './SpeechTranslation';
+import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
+import {TextLanguagePicker,TextLanguageFallback} from './TextLanguagePicker';
 import {AvailabilityNote,PartialValue} from './AvailabilityNote';
 import {sourceAvailability} from '../server/source-availability.mjs';
 import {brusselsDay} from '../server/analysis-period.mjs';
@@ -100,12 +101,13 @@ export function InterventionStatistics({member,onItems,onStatus,filter}:{member:
 
 function ConnectedText({speech,language}:{speech:SpeechSequenceRow;language:string}) {
   const ui = useUiI18n();
-  const translation=useSpeechTranslation(speech.id,language),state=translation.state,body=state.transcript;
+  const [requested,setRequested]=useState(language);useEffect(()=>setRequested(language),[language,speech.id]);
+  const translation=useSpeechTranslation(speech.id,requested),state=translation.state,body=state.transcript;
   const video=useSpeechVideo((((speech.kind!=='PLENARY_DEBATE_WRITTEN_STATEMENT') && speech.start) && speech.end) ? speech : null,language);
   const paragraphs=transcriptParagraphs(body?.xml??null).paragraphs;
   return <div className="intervention-connected-text" lang={body?.textLanguage??''}>
-    {(body||video.toggle||translation.control)&&<div className="intervention-connected-tools">{body&&<p className="intervention-caption" lang={ui.language}>{body.textLanguage?.toUpperCase()}</p>}{translation.control}{video.toggle}</div>}
-    {video.panel}{translation.originalGap&&<p lang={ui.language}><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
+    {video.toggle&&<div className="intervention-connected-tools">{video.toggle}</div>}
+    {video.panel}<TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} offer={!translation.showingOriginal} onChange={value=>{translation.reset();setRequested(value);}} status={<SpeechTextStatus translation={translation}/>} note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.originalGap&&<p lang={ui.language}><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
     {state.loading&&!body&&<p lang={ui.language} role="status"><UiMessage id="batch4.speechinterventions.tsx.loading.contribution"/></p>}{state.error&&<p lang={ui.language}>{state.error} <button onClick={state.retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>}
     {body&&(paragraphs.length ? paragraphs.map((p,i)=><p key={i}><TranscriptText paragraph={p}/></p>) : <p lang={ui.language}><UiMessage id="batch4.speechinterventions.tsx.transcript.unavailable"/></p>)}
   </div>;

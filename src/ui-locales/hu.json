@@ -2362,5 +2362,6 @@
   "questionanswerer.signatory": "Válaszadó: {person}, {institution}",
   "questionanswerer.institution": "Válaszadó: {institution}",
   "questionanswerer.institution.commission": "Európai Bizottság",
-  "questionanswerer.institution.council": "Tanács"
+  "questionanswerer.institution.council": "Tanács",
+  "textsearch.advanced_options": "További beállítások"
 }

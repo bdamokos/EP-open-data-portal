@@ -37,7 +37,6 @@ type InlineObject={paragraph:number;offset:number;kind:string;status:string;imag
 type DocumentText=NonNullable<PublicationDocument['selectedText']>&{documentObjects?:InlineObject[]};
 type Title={text:string;language:string};
 const safeHref=(value:string|null|undefined)=>{try{const url=new URL(value||'');return ((['https:','http:'].includes(url.protocol) && (!url.username)) && (!url.password)) ? url.href : null;}catch{return null;}};
-const languageName=(code:string,locale:string)=>{try{return new Intl.DisplayNames([locale],{type:'language'}).of(code)||code.toUpperCase();}catch{return code.toUpperCase();}};
 const titleOf=(document:Pick<PublicationDocument,'titles'>,language:string, ui: import('./uiI18n.mjs').UiFormatter = defaultUi):Title=>{
   const title=selectLanguageText(document.titles,language,ui.t("batch6.documentcontextreader.document.text.37"), ui.messageLocale("batch6.documentcontextreader.document.text.37"));
   return {...title,text:displayVoteTitle(title.text)};
@@ -169,7 +168,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     <ProposalContextText data={(proposalEvidenceMatches||data.placement?.status==='unresolved') ? data : ({...data,placement:{...data.placement!,status:'unresolved',reason:'client_target_unconfirmed'}})} wording={wording} amendmentId={amendmentRequest?.amendmentId} language={interfaceLanguage} showOriginalLink={showOriginalLink}/>
   </div>;
   return <div className="document-context-document" data-context-pending={(state.loading && (!hasText)) ? 'true' : undefined}>
-    {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools"><TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange}/>{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
+    {document&&<header className="document-context-heading"><div><p className="document-context-kind">{documentKind(id, ui)}</p><h3 lang={title?.language}>{title?.text}</h3></div><div className="document-context-tools">{hasText&&<FindInText key={id+':'+language} target={reader} label={ui.t("batch6.documentcontextreader.find.in.document.168")}/>}</div></header>}
     {state.loading&&!data&&<p role="status"><UiMessage id="batch5.amendments.tsx.188.20"/></p>}
     {loadError&&<p className="document-context-notice" role="alert">{hasText ? ui.t("batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170") : (extractionError ? ui.t("batch6.documentcontextreader.document.text.could.not.be.loaded.170") : ui.t("batch6.documentcontextreader.document.could.not.be.loaded.170"))} <button type="button" onClick={state.retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
     {!state.loading&&!loadError&&!document&&<p><UiMessage id="batch6.documentcontextreader.document.unavailable.here.171"/></p>}
@@ -177,7 +176,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     {rejection&&!hasText&&<p className="document-context-notice" role="status">{placementReason}</p>}
     {wording&&!hasText&&<div className="document-context-text">{amendmentBlock(false)}</div>}
     {document&&<>
-      {actual&&<p className="document-context-language">{(actual!==language) ? <TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/> : <><UiMessage id="membervotes.tsx.text.language.language" values={{language: languageName(actual,ui.locale)}}/></>}</p>}
+      <TextLanguagePicker available={availableLanguages} requested={interfaceLanguage} value={actual} onChange={onLanguageChange} note={<TextLanguageFallback requested={language} actual={actual} interfaceLanguage={interfaceLanguage}/>}/>
       {id.startsWith('TA-')&&<CommissionFollowups id={id} language={language} interfaceLanguage={interfaceLanguage}/>}
       {hasText&&!loadError&&(text?.stale||text?.refreshError)&&<p className="document-context-notice">{text?.refreshError ? <UiMessage id="batch6.documentcontextreader.couldn.t.update.the.document.showing.saved.text.170"/> : <UiMessage id="batch6.documentcontextreader.showing.saved.text.177"/>}</p>}
       {hasText ? <>

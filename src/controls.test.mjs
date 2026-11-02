@@ -22,7 +22,7 @@ function fixture(url) {
   if(route==='insights/following-status')return {epoch:'test',generation:1,marksReady:false,indexComplete:false};
   if(route==='insights/saved')return {members:[],questions:[]};
   if(route==='insights/legislation')return legislation;
-  if(route?.startsWith('document/'))return {selectedDocumentId:decodeURIComponent(route.slice(9)),files:[],answers:[],selectedText:{status:'available',paragraphs:['Document fixture text'],textLanguage:url.searchParams.get('lang'),availableTextLanguages:['en','fr']}};
+  if(route?.startsWith('document/'))return {selectedDocumentId:decodeURIComponent(route.slice(9)),files:[],answers:[],selectedText:{status:'available',paragraphs:['Document fixture text'],textLanguage:['de','fr'].includes(url.searchParams.get('lang'))?url.searchParams.get('lang'):'de',availableTextLanguages:['de','fr']}};
   throw Error('Unexpected fixture request: '+url);
 }
 async function harness(t,query,respond=fixture,{clock=false}={}) {
@@ -242,6 +242,7 @@ test('document disclosures stay related and accurate when documents repeat acros
   }
   check(null);
   for(const index of [0,1,2,3,0]) {await h.click(buttons[index]);check(index);}
+  // The fixture has no English edition, so the reader shows German and offers French.
   const language=h.container.querySelector('select[aria-label="Text language"]');
   await act(async()=>{language.value='fr';language.dispatchEvent(new window.Event('change',{bubbles:true}));});
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
