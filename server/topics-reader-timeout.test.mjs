@@ -8,6 +8,7 @@ import {projectRecordTopics} from './record-topics.mjs';
 import {writeTopicProjection} from './topics-store.mjs';
 import {readTopics,topicReaderSettings} from './topics-reader.mjs';
 // Its own file, so no idle worker from another test can take the queued read.
+// Covers the timeout path; the late-reply race itself can't be forced here.
 test('a timed-out worker never takes the next queued read',async t=>{
  const dir=await mkdtemp(path.join(tmpdir(),'topics-reader-timeout-')),store=new ActivityStore(dir,{initializeIndexes:true}),defaults={...topicReaderSettings};
  t.after(async()=>{Object.assign(topicReaderSettings,defaults);store.close();await rm(dir,{recursive:true,force:true});});

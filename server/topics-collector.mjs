@@ -24,7 +24,8 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
  }
  const url='https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference});
  const raw=s.db.prepare('SELECT body,fetched_at FROM topic_procedure_metadata WHERE id=?').get(row.id),active=s.source(s.get('active'),'/procedures/'+row.id),metadata=active&&(!raw||Date.parse(active.fetchedAt)>Date.parse(raw.fetched_at))?active.work:raw?JSON.parse(raw.body):{};
- const prior=s.db.prepare('SELECT body FROM topic_procedure_pages WHERE id=?').get(row.id),saved=prior?JSON.parse(prior.body):null;
+ // A page saved under an older reference is not this dossier's page.
+ const prior=s.db.prepare('SELECT reference,body FROM topic_procedure_pages WHERE id=?').get(row.id),saved=prior&&(prior.reference??null)===(row.reference??null)?JSON.parse(prior.body):null;
  let policy=procedureRefresh(metadata,saved?.state==='unavailable'?{}:saved||{},now);
  if(saved&&saved.state!=='unavailable'&&(policy.completed||!policy.changed&&policy.next>now)){s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(policy.next,row.id);return false;}
  const held=sources.cache?.stored?await sources.cache.stored(sources.cache.key(['official-context-v1',url])):null;

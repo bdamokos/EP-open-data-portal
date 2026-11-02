@@ -1,6 +1,7 @@
 import {topicBuildMetrics} from './topic-build-metrics.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
+import {pruneUnpublishedTopicData} from './topic-publication.mjs';
 import {topicBuildAllowed,topicBuildStarted,topicBuildFailed,topicBuildSucceeded,topicBuildDiskCheck} from './topic-build-gate.mjs';
 import {integerFromEnvironment} from './config.mjs';
 import {Worker} from 'node:worker_threads';
@@ -17,8 +18,10 @@ export async function activityGenerationTask(store,operation,{generation,signal,
   if(!['begin','publish','topics','stories'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
   signal?.throwIfAborted();
   if(store.db.isTransaction||store.generationTaskActive)throw new Error('An activity generation operation is already active.');
-  store.assertWriter();const bootstrapNow=topicBootstrapRequired(store),buildNow=(bootstrapNow||topicBuildWindowOpen(store.clock(),rebuildWindow))&&topicBuildAllowed(store,store.clock(),{bootstrap:bootstrapNow,window:rebuildWindow});
-  if(graphOperation(operation)&&!buildNow){store.set('topicProjectionDirty',true);return {deferred:true,generation};}
+  store.assertWriter();
+  // Core operations never depend on the topic window setting.
+  if(graphOperation(operation)){const bootstrapNow=topicBootstrapRequired(store),buildNow=(bootstrapNow||topicBuildWindowOpen(store.clock(),rebuildWindow))&&topicBuildAllowed(store,store.clock(),{bootstrap:bootstrapNow,window:rebuildWindow});
+   if(!buildNow){store.set('topicProjectionDirty',true);return {deferred:true,generation};}}
   store.generationTaskActive=true;
   try {
     let value;
@@ -29,7 +32,9 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     if(graph){
       // A build adds a publication beside the readable one. Skip it, rather
       // than let it push the index over the limit that pauses core indexing.
-      const disk=topicBuildDiskCheck(store,diskLimit);
+      let disk=topicBuildDiskCheck(store,diskLimit);
+      // Rows left by a build that died count against the check; prune them and look again.
+      if(!disk.ok){await pruneUnpublishedTopicData(store);signal?.throwIfAborted();disk=topicBuildDiskCheck(store,diskLimit);}
       if(!disk.ok){const failed=topicBuildFailed(store,`Index ${mib(disk.size)} MiB plus estimated topic projection ${mib(disk.needed)} MiB exceeds the ${mib(disk.diskLimit)} MiB disk limit.`,store.clock(),{skipped:true});store.set('topicProjectionDirty',true);
         console.warn('[topics-build]',JSON.stringify({operation:step,generation,outcome:'skipped',reason:'disk-limit',indexMiB:mib(disk.size),estimatedProjectionMiB:mib(disk.estimate),diskLimitMiB:mib(disk.diskLimit),failures:failed.failures,retryAt:new Date(failed.retryAt).toISOString()}));
         if(operation!=='publish')value={skipped:true,generation};continue;}
