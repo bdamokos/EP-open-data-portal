@@ -19,3 +19,13 @@ test('runtime server modules have no top-level await',()=>{
   assert.ok(files.includes('server/corpus-reader.mjs'));
   assert.deepEqual(found,[]);
 });
+
+test('the corpus reader body ignores workers it did not start',async()=>{
+  // Activity generation workers carry an operation and import corpus-reader.mjs
+  // transitively; they must not run a corpus read alongside their own work.
+  const {Worker}=await import('node:worker_threads');
+  const worker=new Worker(`import(${JSON.stringify(new URL('./corpus-reader.mjs',import.meta.url).href)});`,{eval:true,workerData:{operation:'begin',directory:'/nonexistent'}});
+  const messages=[];worker.on('message',message=>messages.push(message));
+  await new Promise((resolve,reject)=>{worker.once('error',reject);worker.once('exit',resolve);setTimeout(()=>void worker.terminate(),1500).unref();});
+  assert.deepEqual(messages,[]);
+});

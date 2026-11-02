@@ -3,6 +3,8 @@ import { CorpusStore } from './corpus-store.mjs';
 import { HttpError } from './http-utils.mjs';
 import {cachedSpeakerIdentities} from './odp.mjs';
 
+const CORPUS_READER_WORKER='corpus-reader';
+
 // SQLite searches and status scans are synchronous. Run them on a read-only
 // connection off the API thread; allow one query at a time and terminate slow
 // readers so broad searches cannot queue unbounded work or delay writer leases.
@@ -17,7 +19,7 @@ export class CorpusReader {
     const timeoutMs=operation==='status'?this.statusTimeoutMs:this.timeoutMs;
     let worker,timer,timedOut=false;
     try {
-      worker=new Worker(new URL(import.meta.url),{workerData:{directory:this.directory,indexFile:this.indexFile,operation,params,deadlineMs:Date.now()+timeoutMs}});
+      worker=new Worker(new URL(import.meta.url),{workerData:{type:CORPUS_READER_WORKER,directory:this.directory,indexFile:this.indexFile,operation,params,deadlineMs:Date.now()+timeoutMs}});
       return await new Promise((resolve,reject)=>{
         timer=setTimeout(()=>{timedOut=true;reject(operation==='status'
           ?new HttpError(503,'corpus_status_timeout','Corpus status is temporarily unavailable. It may still be warming up. Coverage is unknown; please retry shortly.')
@@ -59,8 +61,9 @@ export async function retainedSpeechMetadata(result,{deadlineMs=Date.now()+1000,
 }
 
 // Worker bodies run inside a function so this module has no top-level await;
-// see activity-generation-worker.mjs.
-if(!isMainThread && workerData?.operation)void (async()=>{
+// see activity-generation-worker.mjs. Other workers import this module
+// transitively, so the body runs only for workers this reader started.
+if(!isMainThread && workerData?.type===CORPUS_READER_WORKER)void (async()=>{
   let store;
   try {
     store=new CorpusStore(workerData.directory,{indexFile:workerData.indexFile,readOnly:true});
