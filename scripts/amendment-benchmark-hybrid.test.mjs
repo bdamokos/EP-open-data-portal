@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,readdir,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {HybridInputs} from './amendment-benchmark-hybrid.mjs';
+import {HybridInputs,compactHybridReceipt} from './amendment-benchmark-hybrid.mjs';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,publicDocumentUrl,sourceReplay} from './amendment-benchmark-replay.mjs';
 import {execFileSync} from 'node:child_process';
@@ -31,7 +31,8 @@ test('normal CLI acquisition seals hybrid with copy catalogue, per-row inputs, a
   const destination=path.join(path.dirname(f.out),'cli'),args=['scripts/amendment-benchmark.mjs','--api-base',apiBase,'--cache-dir',destination,'--document',id,'--request-cap','0'];
   const result=JSON.parse(execFileSync(process.execPath,[...args,'--hybrid-snapshot',f.a,'--base-snapshot',f.b,'--acquire-only'],{encoding:'utf8'}));assert.equal(result.requests,0);assert.equal(result.hybrid.fallback,1);
   const snapshot=JSON.parse(await readFile(path.join(destination,'snapshot.json')));assert.equal(snapshot.sample.indexGeneration,21);assert.equal(snapshot.hybrid.rows[row.id].catalogue,saved.snapshotId);assert(snapshot.hybrid.rows[row.id].inputs.some(i=>i.snapshotId===f.sb.snapshotId));
-  const replay=JSON.parse(execFileSync(process.execPath,args,{encoding:'utf8'}));assert.equal(replay.acquisition.requests,0);const report=JSON.parse(await readFile(replay.jsonPath));assert(report.rows[0].inputProvenance);assert.equal(report.rows.length,1);
+  snapshot.hybrid.rows[row.id].inputs[0].identity={proof:'x'.repeat(100000)};await writeFile(path.join(destination,'snapshot.json'),JSON.stringify(snapshot));const frozen=await readFile(path.join(destination,'snapshot.json'));
+  const replay=JSON.parse(execFileSync(process.execPath,args,{encoding:'utf8'}));assert.equal(replay.acquisition.requests,0);const report=JSON.parse(await readFile(replay.jsonPath));assert(report.rows[0].inputProvenance);assert.equal(report.rows.length,1);assert.equal(report.rows[0].inputProvenance.inputs[0].identity,undefined);assert.equal(report.hybrid.rows[row.id].inputs[0].identity,undefined);assert(report.inputs.some(m=>m.hybridSource?.identity));assert.deepEqual(await readFile(path.join(destination,'snapshot.json')),frozen);
 });
 
 const p=text=>'<w:p><w:r><w:t>'+text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</w:t></w:r></w:p>';
@@ -160,4 +161,12 @@ for(const conflict of ['none','id','listId','language','url','hash'])test('missi
  const catalogue=apiBase+'/api/amendments?limit=50&offset=0';const records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(catalogue,{items:[old]})]);
  const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;h.trackRows([row]);const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('transport forbidden')});
  const input=await cache.get(url);assert.equal(Boolean(input.acquisitionUnavailable),conflict!=='none');if(conflict==='none'){assert.equal(input.body.toString(),'OLD BASE');assert.equal(input.hybridSource.reason,'settled-wording-fallback');}assert.equal(cache.requests,0);
+});
+
+test('row provenance references preserve source keys while full identity proofs remain once in the manifest',async t=>{
+ const f=await fixture(t);f.h.trackRows([{id:id+'-AM-1',targetDocumentId:id,listId:'list',language:'en',wordingSource:{url:wording}}]);
+ await f.h.baseScope(f.identity,()=>f.cache.get(url));const manifest=f.cache.manifest(),input=manifest.find(m=>m.url===url),reference=f.h.receipt().rows[id+'-AM-1'].inputs.find(m=>m.url===url);
+ assert(input.hybridSource.identity.proof);assert.equal(reference.identity,undefined);assert.equal(reference.url,input.url);assert.equal(reference.sha256,input.sha256);assert.equal(reference.snapshotId,input.hybridSource.snapshotId);
+ const legacy={...f.h.receipt(),rows:{example:{inputs:[{...reference,identity:{proof:'x'.repeat(100000)}}]}}},before=JSON.stringify(legacy),compact=compactHybridReceipt(legacy);
+ assert.equal(compact.rows.example.inputs[0].identity,undefined);assert.deepEqual(compact.rows.example.inputs[0],reference);assert.equal(JSON.stringify(legacy),before);assert.deepEqual(compactHybridReceipt(compact),compact);assert(JSON.stringify(compact).length<1000);
 });

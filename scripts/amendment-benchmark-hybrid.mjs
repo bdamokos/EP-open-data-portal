@@ -29,6 +29,15 @@ async function source(directory) {
   }};
 }
 
+// Full identity proofs stay in the sealed input manifest. Row provenance uses
+// its exact URL/request/hash key plus the supplying snapshot, avoiding one
+// copy of the proof for every amendment that reads the same document.
+const inputReference=({identity,...reference})=>reference;
+export function compactHybridReceipt(receipt) {
+  if(!receipt)return receipt;
+  return {...receipt,rows:Object.fromEntries(Object.entries(receipt.rows||{}).map(([id,row])=>[id,{...row,inputs:(row.inputs||[]).map(inputReference)}]))};
+}
+
 // Only canonical base readers enter these scopes. A shared wording/base URL
 // remains owned by A because URL-keyed replay cannot represent two bodies.
 export class HybridInputs {
@@ -86,7 +95,7 @@ export class HybridInputs {
     return {type:'ep-metadata',documentId,declarations,copyObservation:{snapshotId:this.a.snapshot.snapshotId,sha256:input.sha256,localProjection:input.localProjection}};
   }
   trackRows(rows){this.current=rows.map(r=>r.id);for(const row of rows){this.rows[row.id]??={catalogue:this.a.snapshot.snapshotId,wording:this.a.snapshot.snapshotId,bindings:(row.variants?.length?row.variants:[row]).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url??null})),inputs:[]};this.registerWording(row);}}
-  observe(meta){for(const id of this.current){const inputs=this.rows[id].inputs,k=key(meta.url,meta.request);if(!inputs.some(i=>key(i.url,i.request)===k))inputs.push({url:meta.url,...(meta.request?{request:meta.request}:{}),sha256:meta.sha256,...meta.hybridSource});}}
+  observe(meta){for(const id of this.current){const inputs=this.rows[id].inputs,k=key(meta.url,meta.request);if(!inputs.some(i=>key(i.url,i.request)===k))inputs.push(inputReference({url:meta.url,...(meta.request?{request:meta.request}:{}),sha256:meta.sha256,...meta.hybridSource}));}}
   receipt(){return {protocol:'settled-base-hybrid-v1',copySnapshotId:this.a.snapshot.snapshotId,baseSnapshotId:this.b.snapshot.snapshotId,rows:this.rows};}
   async get(url,request){
     const a=await this.a.read(url,request);const identity=this.scope.getStore();
