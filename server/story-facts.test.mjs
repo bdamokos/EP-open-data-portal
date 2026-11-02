@@ -8,9 +8,9 @@ import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';
 import {buildTopics} from './topics-project.mjs';
 import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
-import {storyTables,stageStoryInput,queueStoryRead} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,queueStoryRead,storyInput} from './story-facts-storage.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
-import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem} from './story-facts-model.mjs';
+import {storyDocument,wholeTextOutcome,debateAgenda,debatePlaces,proceduralAgenda,votingItem,votingDebate} from './story-facts-model.mjs';
 import {collectStorySource,STORY_PAGE_SIZE} from './story-facts-collector.mjs';
 import {eurovocCountries} from './topic-roles.mjs';
 const stamp='2026-11-01T12:00:00Z',source={url:'https://data.europarl.europa.eu/api/v2/events/example',fetchedAt:stamp};
@@ -49,6 +49,39 @@ test('verbatim items labelled as votes are voting-time items, not debates',()=>{
  assert.equal(votingItem('Situation in Venezuela (debate)'),false);
  assert.equal(votingItem('Voting on the budget'),false);
  assert.equal(votingItem(undefined),false);
+});
+test('a document re-parsed under a new parser revision replaces its staged input, while real conflicts remain',async t=>{
+ const {store}=await fixture(t),id='RC-10-2026-0110',w={identifier:id,work_type:'def/ep-document-types/RESOLUTION_MOTION_JOINT',document_date:'2026-02-11',creator:['org/S-D','org/ECR','org/RENEW','org/THE-LEFT','org/PPE','org/VERTS-ALE']};
+ // Upgrade-shaped row: the previous parser's output from the same retained bytes (three groups, no parser revision).
+ const old={...storyDocument(w,source),groups:['ECR','RENEW','PPE']};delete old.parser;
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id,JSON.stringify({...old,source:undefined}),JSON.stringify(source),stamp,1);
+ stageStoryInput(store,w,source);let d=storyInput(store,'document',id);
+ assert.equal(d.conflicted,undefined);assert.deepEqual(d.groups,['S_D','ECR','RENEW','THE_LEFT','PPE','VERTS_ALE']);assert.equal(d.groupsAvailable,true);
+ stageStoryInput(store,{...w,creator:['org/PPE']},source);d=storyInput(store,'document',id);
+ assert.equal(d.conflicted,true,'different bytes at the same time and rank under the same parser still conflict');
+});
+test('vote items are classified by the verbatim item own label, never a speech copy that disagrees',()=>{
+ assert.equal(votingDebate({titles:{en:'Iran (vote)'}},['Iran']),true);
+ assert.equal(votingDebate({titles:{en:'Iran'}},['Iran (vote)']),false);
+ assert.equal(votingDebate(null,['Iran (vote)','Iran (vote)']),true,'unread item: unanimous speech copies decide');
+ assert.equal(votingDebate(null,['Iran (vote)','Iran']),false);
+ assert.equal(votingDebate(null,['Iran (vote)',null]),false,'a speech without an English label keeps it a debate');
+ assert.equal(votingDebate({titles:{fr:'Iran (vote)'}},['Iran (vote)']),false,'a read item without an English label stays a debate');
+ assert.equal(votingDebate(null,[]),false);
+});
+test('an excluded vote item leaves every topic, keyword and place counter',async t=>{
+ const {store}=await fixture(t),day='2025-03-12',proc='2025-2111';
+ const items=[['MTG-PL-'+day+'-PVCRE-ITM-7-2','Support for Ukraine (vote)','Support for Ukraine (debate)'],['MTG-PL-'+day+'-PVCRE-ITM-8','Support for Ukraine (debate)','Support for Ukraine (vote)']];
+ store.putSource(1,'/plenary-documents/B-10-2025-0020','document',{id:'eli/dl/doc/B-10-2025-0020',identifier:'B-10-2025-0020',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Ukraine'},creator:['org/PPE'],is_about:[geo('UKR'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:items.map(([id])=>'eli/dl/event/'+id),inverse_created_a_realization_of:['eli/dl/proc/'+proc]},stamp);
+ let n=0;for(const [debate,own,copy] of items){stageStoryInput(store,{activity_id:debate,activity_date:day,activity_label:{en:own},executed:[]},source,{rank:4});
+  for(const person of ['1','2','3']){const id='MTG-PL-'+day+'-OTH-9'+(++n);store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:copy},participants:[person],parentIds:[debate],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}}
+ await buildTopics(store);
+ const [vote,debate]=items.map(x=>x[0]);
+ const story=storyFacts(store,new URLSearchParams('scope=topic&key=eurovoc:245'));assert.deepEqual(story.debates.map(d=>d.id),[debate]);assert.equal(story.counts.debates,1);
+ const members=id=>store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?').get(id).n;
+ assert.equal(members(vote),0,'no topic, keyword or place membership remains for the vote item');
+ assert(members(debate)>0);
+ const debates=store.db.prepare("SELECT COALESCE(SUM(n),0) n FROM record_topic_totals WHERE generation=1 AND key='eurovoc:245' AND kind='debate'").get().n;assert.equal(debates,1,'detail series count the same debates as the story');
 });
 test('story projection links exact records, excludes institutions and statements, and narrows debate places',async t=>{
  const {dir,store}=await fixture(t),day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-10',decision='MTG-PL-'+day+'-DEC-1',proc='2025-2110',joint='RC-10-2025-0010';

@@ -30,7 +30,8 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  if(old&&(old.fetched_at>at||old.fetched_at===at&&old.rank>rank))return;
  // New projection fields may enrich an older retained shape at the same
  // source timestamp. Compare its known fields; preserve actual conflicts.
- if(old&&old.fetched_at===at&&old.rank===rank){const prior=JSON.parse(old.body);if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
+ // A different parser revision re-parsed the retained bytes: replace, do not conflict.
+ if(old&&old.fetched_at===at&&old.rank===rank){const prior=JSON.parse(old.body);if((prior.parser??0)===(value.parser??0)&&(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&JSON.stringify(v)!==JSON.stringify(value[key]))))value={...value,conflicted:true};}
  const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;

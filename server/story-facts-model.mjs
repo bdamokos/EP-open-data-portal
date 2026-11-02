@@ -4,6 +4,9 @@ import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
 export const STORY_FACTS_VERSION=12;
+// Parser revision of staged document inputs. A re-parse of retained bytes under a
+// newer revision replaces the staged input instead of reading as a source conflict.
+export const STORY_DOCUMENT_PARSER=2;
 export const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 export const tail=v=>String(v?.id||v||'').split('/').at(-1);
 export const unique=v=>[...new Set(v)];
@@ -18,7 +21,7 @@ export function storyDocument(w,source){
  const groups=unique([...refs(w.creator),...array(w.workHadParticipation).filter(p=>tail(p.participation_role)==='AUTHOR').flatMap(p=>refs(p.participation_in_name_of))].map(groupCode).filter(id=>Object.hasOwn(GROUP_VOICE_GROUPS,id)));
  const places=[],keywords=[];for(const raw of array(w.is_about)){const uri=String(raw?.id||raw),p=eurovocCountries.get(uri);if(p){const id=countryIdentity(p)?.id;if(id)places.push(id);}else if(!countryConcepts.has(uri)&&/^http:\/\/eurovoc\.europa\.eu\//.test(uri))keywords.push(tail(uri));}
  const events=refs(w.inverse_based_on_a_realization_of);
- return {id,reference:storyReference(id),type,date:w.document_date||null,titles:suppliedTitles(w),rule:unique(refs(w.based_on).map(id=>id.match(/ITM-A(\d+)$/)?.[1]).filter(Boolean)),groups,groupsAvailable:Object.hasOwn(w,'creator')||Object.hasOwn(w,'workHadParticipation'),places:unique(places),keywords:unique(keywords),procedures:refs(w.inverse_created_a_realization_of),derivedFrom:refs(w.is_derivative_of),events,source};
+ return {id,reference:storyReference(id),type,date:w.document_date||null,titles:suppliedTitles(w),rule:unique(refs(w.based_on).map(id=>id.match(/ITM-A(\d+)$/)?.[1]).filter(Boolean)),groups,groupsAvailable:Object.hasOwn(w,'creator')||Object.hasOwn(w,'workHadParticipation'),places:unique(places),keywords:unique(keywords),procedures:refs(w.inverse_created_a_realization_of),derivedFrom:refs(w.is_derivative_of),events,parser:STORY_DOCUMENT_PARSER,source};
 }
 export function storyAgenda(w,source){
  const id=w.activity_id||tail(w.id);if(!/OJ-ITM-[DV]-/.test(id))return null;
@@ -93,6 +96,15 @@ export function speakerEligible(item,header){
 // item (its contributions are explanations of vote), not a debate. This reads the
 // item's own label; it never joins records by title.
 export const votingItem=title=>/\(vote\)\s*$/i.test(String(title||''));
+// The verbatim item's own English label decides (its /events activity_label). Before
+// that record is read, the speeches' copy of the item label is used only when every
+// speech carries the same English label. Without an English label the item stays a debate.
+export function votingDebate(event,speechLabels=[]){
+ const own=event?.titles?.en;if(typeof own==='string'&&own.trim())return votingItem(own);
+ if(event&&Object.keys(event.titles||{}).length)return false;
+ if(!speechLabels.length||speechLabels.some(l=>typeof l!=='string'||!l.trim()))return false;
+ const labels=unique(speechLabels);return labels.length===1&&votingItem(labels[0]);
+}
 export function proceduralAgenda(agenda){
  if(!agenda||agenda.conflicted)return false;
  const type=tail(agenda.type);
