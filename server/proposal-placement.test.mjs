@@ -149,7 +149,8 @@ test('numbered subparagraphs place only within their own paragraphs',()=>{
   assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:2,end:2});
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 1','Second subparagraph text.').reason,'conflicting_target_evidence');
   assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 3','Second subparagraph text.').reason,'target_not_found');
-  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved');
+  assert.equal(resolve(projection,'Article 1 – paragraph 1 – subparagraph 2 a (new)').status,'unresolved','no enacting formula');
+  assert.equal(resolve(source(['HAVE ADOPTED THIS REGULATION:','Article 1','1. Lead subparagraph text.','Second subparagraph text.','2. Next paragraph.']),'Article 1 – paragraph 1 – subparagraph 2 a (new)').insertBefore,4);
   const pointed=source(['Article 1','1. Intro:','(a) point;','Closing subparagraph.']);
   assert.equal(resolve(pointed,'Article 1 – paragraph 1 – subparagraph 2','Closing subparagraph.').reason,'source_structure_unavailable');
 });
@@ -390,6 +391,50 @@ test('quoted sibling insertion follows the complete paragraph and preserves the 
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],addressed).status,'placed');
  texts[3]='(b) the second subparagraph is replaced by the following:';
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
+});
+
+test('a new ordinal subparagraph follows the lead with its points or a later subparagraph',()=>{
+ const texts=['HAVE ADOPTED THIS REGULATION:',...Array.from({length:12},(_,i)=>'Article '+(i+1)),'Article 13','Third countries','1.\tThe Programme may be opened to:','(a)\tmembers of the EFTA;','(b)\tother third countries.','2.\tThe agreements shall:','(a)\tensure balance;','(b)\tnot confer powers.','For the purposes of point (b), access is granted.','Article 14','1.\tEligibility.'];
+ const styles=['Normal',...Array.from({length:12},()=>'Titrearticle'),'Titrearticle','Titrearticle','ManualNumPar1','Point1','Point1','ManualNumPar1','Point1','Point1','Text1','Titrearticle','ManualNumPar1'];
+ const place=targetLabel=>resolveProposalPlacement([item(source(texts,styles))],{language:'en',targetLabel,originalText:'',proposedText:'A new subparagraph.'});
+ assert.equal(place('Article 13 – paragraph 2 – subparagraph 1 a (new)').status,'unresolved','a closing row parsed inside the last point is ambiguous');
+ assert.equal(place('Article 13 – paragraph 1 – subparagraph 1 a (new)').insertBefore,18);
+ assert.equal(place('Article 13 – paragraph 2 – subparagraph 3 a (new)').status,'unresolved');
+});
+
+test('a new ordinal subparagraph is never placed in a quoted article',()=>{
+ const texts=['Article 1','1. The following Chapter is substituted:','‘Article 21\nReporting','1. Reports shall be submitted.','Article 22\nSanctions','1. Member States shall provide sanctions.','Sanctions shall be imposed by the authority.’','Article 2','1. Entry into force.'];
+ const result=resolveProposalPlacement([item(source(texts))],{language:'en',targetLabel:'Article 22 – paragraph 1 – subparagraph 1 a (new)',originalText:'',proposedText:'New.'});
+ assert.equal(result.status,'unresolved');
+ assert.equal(resolveProposalPlacement([item(source(texts))],{language:'en',targetLabel:'Article 2 – paragraph 1 – subparagraph 1 a (new)',originalText:'',proposedText:'New.'}).status,'unresolved','a quoted act breaks the article sequence, so the rule withholds the whole proposal');
+});
+
+test('a new ordinal subparagraph is never placed in an article quoted inline or with nested term quotes',()=>{
+ for(const texts of [
+  ['Article 1','1. The following Chapter is substituted: ‘Article 21\nReporting','1. Reports shall be submitted.','Article 22\nSanctions','1. Member States shall provide sanctions.','Sanctions shall be imposed.’','Article 2','1. Entry into force.'],
+  ['Article 1','1. The following Chapter is substituted:','‘Article 21\nReporting','1. The responsible entity is the ‘operator’.','Article 22\nSanctions','1. Member States shall provide sanctions.','Sanctions shall be imposed.’','Article 2','1. Entry into force.'],
+ ])assert.equal(resolveProposalPlacement([item(source(texts))],{language:'en',targetLabel:'Article 22 – paragraph 1 – subparagraph 1 a (new)',originalText:'',proposedText:'New.'}).status,'unresolved',texts[1]);
+});
+
+test('a consecutive quoted article opened inline is never treated as the proposal article',()=>{
+ const texts=['Article 1','1. Scope.','Article 2','1. The following Chapter is substituted: ‘Article 2\nReporting','1. Reports shall be submitted.','Article 3\nSanctions','1. Member States shall provide sanctions.','Sanctions shall be imposed.’'];
+ assert.equal(resolveProposalPlacement([item(source(texts))],{language:'en',targetLabel:'Article 3 – paragraph 1 – subparagraph 1 a (new)',originalText:'',proposedText:'New.'}).status,'unresolved');
+ const defined=['HAVE ADOPTED THIS REGULATION:','Article 1','1. ‘Programme’ means the Union programme.','Member States’ authorities shall apply it.','Article 2','1. Entry into force.'];
+ assert.equal(resolveProposalPlacement([item(source(defined))],{language:'en',targetLabel:'Article 1 – paragraph 1 – subparagraph 1 a (new)',originalText:'',proposedText:'New.'}).insertBefore,3,'balanced defined terms and possessives do not withhold');
+});
+
+test('possessives, double quotes and quotations opened before Article 1 never place in a quoted article',()=>{
+ const place=(texts,targetLabel)=>resolveProposalPlacement([item(source(texts))],{language:'en',targetLabel,originalText:'',proposedText:'New.'}).status;
+ for(const [open,close] of [['‘','’'],['“','”'],['"','"']])
+  assert.equal(place(['Article 1','1. Scope.','Article 2','1. The following Chapter on workers’ rights is substituted: '+open+'Article 2\nReporting','1. Reports shall be submitted.','Article 3\nSanctions','1. Member States shall provide sanctions.','Sanctions shall be imposed.'+close],'Article 3 – paragraph 1 – subparagraph 1 a (new)'),'unresolved',open);
+ assert.equal(place(['The Annex is replaced by the following: ‘REGULATION','Article 1\nScope','1. It applies.','Sanctions apply.’'],'Article 1 – paragraph 1 – subparagraph 1 a (new)'),'unresolved');
+});
+
+test('one closing mark cannot satisfy two openings, and a quoted heading is never a defined term',()=>{
+ for(const row of ['1. The following Chapter is substituted: ‘Article 2\nDefinition of ‘operator’','1. The following Chapter is substituted: ‘Article 2\nWorkers’ rights']){
+  const texts=['HAVE ADOPTED THIS REGULATION:','Article 1','1. Scope.','Article 2',row,'Article 3\nSanctions','1. Member States shall provide sanctions.','Sanctions shall be imposed.’'];
+  assert.equal(resolveProposalPlacement([item(source(texts))],{language:'en',targetLabel:'Article 3 – paragraph 1 – subparagraph 1 a (new)',originalText:'',proposedText:'New.'}).status,'unresolved',row);
+ }
 });
 
 test('detached footnotes cannot enable a whole-article deletion without extent verification',()=>{

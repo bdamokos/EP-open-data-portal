@@ -393,6 +393,70 @@ function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   return {itemIndex,insertBefore:before,evidence:[{basis:'whole-quoted-sibling',owner:owner.id,anchor:anchor.id,label:value}]};
 }
 
+// "Article 3 – paragraph 1 – subparagraph 2 a (new)": the paragraph's lead and
+// its points are the first subparagraph and each unlabelled subparagraph child
+// the next. The new subparagraph follows subparagraph N.
+function subparagraphOrdinalInsertion(target,candidatesFor) {
+  const label=target.segments.at(-1),parent=target.segments.at(-2);
+  if(label?.kind!=='subparagraph'||!label.isNew||!/^[a-z]$/u.test(label.suffix??'')||!(label.number>=1)||parent?.kind!=='paragraph'||parent.isNew||parent.suffix)return null;
+  const owners=candidatesFor({...target,segments:target.segments.slice(0,-1)});
+  if(owners.length!==1)return null;
+  const {unit,proposal,itemIndex}=owners[0];
+  if(unit.scope!=='proposal'||unit.pathConflict||!completeBoundary(proposal,unit))return {reason:'source_passage_incomplete'};
+  // A quoted act's article is never the proposal's own, even when the parser
+  // misses the quotation: track quotation marks up to the paragraph's end.
+  if(unit.path.some(segment=>segment.kind==='quotation'))return null;
+  // The proposal's own articles run 1, 2, 3, … in order; an article quoted from
+  // an amended act breaks that run however its quotation marks are printed.
+  const articles=flat(proposal.units).filter(u=>u.kind==='article').sort((a,b)=>a.extent.start-b.extent.start);
+  if(!articles.length||articles.some((u,i)=>u.label?.value!==String(i+1)))return null;
+  // From Article 1 to the paragraph's end, no row may open a quotation (more ‘
+  // than closing ’), even inline after an instruction; defined terms balance.
+  // From the enacting formula to the paragraph's end, every opening quotation mark
+  // must close on its own row within a short span (a defined term); straight
+  // double quotes must pair. An open quotation is amended text.
+  // Each opening mark needs its own closing on the row, around a defined term:
+  // short, one line, no nested opening, no article heading.
+  const definedTerm=span=>span.length<=120&&!/[\n\r]/u.test(span)&&!/Article\s+\d/u.test(span);
+  const unclosed=text=>[['‘','’'],['“','”'],['«','»']].some(([open,close])=>{
+    let at=-1;
+    while((at=text.indexOf(open,at+1))>=0){
+      const end=text.indexOf(close,at+1);
+      if(end<0||text.slice(at+1,end).includes(open)||!definedTerm(text.slice(at+1,end)))return true;
+    }
+    return false;
+  })||text.split('"').length%2===0||text.split('"').some((span,i)=>i%2===1&&!definedTerm(span));
+  // The earlier count is kept too: from Article 1, no row opens more ‘ than it closes.
+  const opensMore=text=>(text.match(/‘/gu)??[]).length>(text.match(/’(?!\p{L})/gu)??[]).length;
+  if(proposal.paragraphs.slice(articles[0].extent.start,unit.extent.end).some(row=>opensMore(row.text)))return null;
+  const formulas=proposal.paragraphs.filter(row=>/^HA(?:VE|S) ADOPTED THIS\b/u.test(row.text.trim()));
+  if(formulas.length!==1||formulas[0].index>=articles[0].extent.start
+    ||proposal.paragraphs.slice(formulas[0].index,unit.extent.end).some(row=>unclosed(row.text)))return null;
+  let quoted=false;
+  for(const row of proposal.paragraphs.slice(0,unit.extent.end)){
+    const text=row.text.trim();
+    if(/^‘/u.test(text))quoted=true;
+    if(quoted&&row.index>=unit.extent.start-1)return null;
+    if(/’[;.,]?$/u.test(text))quoted=false;
+  }
+  const subs=unit.children.filter(child=>child.kind==='subparagraph');
+  // A subparagraph nested in a point leaves the list's end ambiguous.
+  if(unit.children.some(child=>child.kind==='point'&&flat(child.children).some(u=>u.kind==='subparagraph')))return {reason:'source_structure_unavailable'};
+  // Points belong to the first subparagraph only; contiguous subparagraphs end the paragraph.
+  if(unit.children.some(child=>child.kind!=='subparagraph'&&subs.length&&child.extent.start>=subs[0].extent.start)
+    ||subs.some((sub,i)=>sub.extent.end!==(subs[i+1]?.extent.start??unit.extent.end)))return null;
+  if(label.number-1>subs.length)return {reason:'relative_target_not_found'};
+  // After a list, only a full stop and a capitalised sentence separate a new
+  // subparagraph from the list's closing words.
+  const points=unit.children.filter(child=>child.kind==='point');
+  if(points.length&&subs.length){
+    const last=proposal.paragraphs[subs[0].extent.start-1]?.text.trim()??'',next=proposal.paragraphs[subs[0].extent.start]?.text.trim()??'';
+    if(!/\.$/u.test(last)||!/^\p{Lu}/u.test(next))return {reason:'source_structure_unavailable'};
+  }
+  const insertBefore=label.number===1?(subs[0]?.extent.start??unit.extent.end):subs[label.number-2].extent.end;
+  return {itemIndex,insertBefore,evidence:[{basis:'subparagraph-ordinal',anchor:unit.id,ordinal:label.number}]};
+}
+
 // Explicit drafting conventions within the instruction selected by the label.
 function draftingInsertion(selected,proposedText,language) {
   if(language!=='en')return null;
@@ -597,6 +661,12 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
       return {operation,status:'placed',itemIndex:quoted.itemIndex,insertAfter:quoted.insertBefore-1,insertBefore:quoted.insertBefore,evidence};
     }
     if(candidates.length)return unresolved('duplicate_target_label');
+    const ordinal=subparagraphOrdinalInsertion(target,candidatesFor);
+    if(ordinal){
+      if(ordinal.reason)return unresolved(ordinal.reason);
+      evidence.push(...ordinal.evidence);
+      return {operation,status:'placed',itemIndex:ordinal.itemIndex,insertAfter:ordinal.insertBefore-1,insertBefore:ordinal.insertBefore,evidence};
+    }
     const insertion=insertionPlacement(items,target,candidatesFor,eligible);
     if(insertion.reason)return unresolved(insertion.reason);
     if(subparagraphBounds&&(insertion.itemIndex!==subparagraphBounds.itemIndex||insertion.insertBefore<=subparagraphBounds.start||insertion.insertBefore>subparagraphBounds.end))return unresolved('source_structure_unavailable');
