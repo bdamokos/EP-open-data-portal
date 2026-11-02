@@ -2,6 +2,12 @@ import {createHash} from 'node:crypto';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {proposalNumber,proposalLanguage} from './proposal-labels.mjs';
 
+// Adapts Publications Office OJ XHTML (Council positions, dated consolidations) to
+// the proposal unit contract, with its own parser version and sourceKind 'xhtml'.
+// It never selects source identity or legal versions. Consolidation markers stay
+// outside legal wording; unsupported grids, notes and objects make only their
+// affected passages incomplete.
+
 export const PUBLIC_LEGAL_XHTML_VERSION='7';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const uniqueLinks=links=>[...new Set(links.map(link=>link.url))];

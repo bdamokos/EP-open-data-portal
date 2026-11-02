@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Преглед на официалния документ",
   "questionStatus.1": "Получил отговор",
   "questionStatus.2": "Все още няма отговор",
+  "questions.earlierInTerm": "Покажи по-ранни въпроси от текущия мандат",
+  "questions.periodEnd": "Край на списъка за {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} минута",
   "readerretry.minutes_minutes.24f934": "{minutes} минути",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Повторните опити са временно спрени след неуспешна заявка. Опитайте отново след {wait}.",
