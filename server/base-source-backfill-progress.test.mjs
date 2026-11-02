@@ -7,6 +7,8 @@ import {ActivityStore} from './activity-index-store.mjs';
 import {ActivityWorker} from './activity-index-worker.mjs';
 import {BaseSourceBackfill} from './base-source-backfill.mjs';
 import {BaseSourceStore} from './base-source-store.mjs';
+import {topicCollectorTables} from './topics-project.mjs';
+import {storyTables} from './story-facts-storage.mjs';
 import {AMENDMENT_EXTRACTION_VERSION} from './amendment-documents.mjs';
 const now=()=>Date.parse('2026-11-02T16:30:00Z');
 async function fixture(t,{lists=2088,cold=true}={}){
@@ -89,4 +91,50 @@ test('native-input recovery requeues at most 100 jobs per turn',async t=>{
  assert.equal(pending(),100);assert.equal(f.store.get('baseBackfillNativeInputsVersion'),null);assert.equal(f.stats(),0);
  await f.backfill.step();assert.equal(pending(),200);assert.equal(f.store.get('baseBackfillNativeInputsVersion'),null);
  await f.backfill.step();assert.equal(f.store.get('baseBackfillNativeInputsVersion'),1);assert.equal(f.collected(),1);
+});
+
+for(const lane of ['core','snapshot','press','official'])test('idle drain yields when '+lane+' work becomes due during acquisition',async t=>{
+ const f=await fixture(t,{lists:105});let dueChecks=0;
+ const ready=()=>f.collected()>0;
+ f.worker.due=()=>{dueChecks++;return lane==='core'&&ready();};
+ const collector={due:ready,step:()=>assert.fail('newly due work must yield out of the idle drain'),run:()=>assert.fail('newly due work must yield out of the idle drain')};
+ if(lane==='snapshot')f.worker.sittingSnapshots=collector;
+ if(lane==='press')f.worker.press=collector;
+ if(lane==='official')f.worker.officialContext=collector;
+ await f.worker.run();
+ assert.equal(f.collected(),1,'finish the current whole acquisition, then yield');
+ assert(dueChecks>1,'readiness must be reconsidered inside the drain');
+ assert(f.backfill.due(),'remaining acquisition stays durable and due');
+});
+
+test('the real busy worker keeps five of six total turns for core with all three optional lanes ready',async t=>{
+ const f=await fixture(t,{lists:0,cold:false}),turns=[];
+ topicCollectorTables(f.store.db);storyTables(f.store.db);
+ f.store.db.prepare("INSERT INTO topic_procedure_queue(id,next_read) VALUES ('2026-0001',0)").run();
+ f.store.db.prepare("INSERT INTO story_jobs(key,kind,id) VALUES ('fixture-story','agenda','MTG-PL-2026-10-01')").run();
+ f.worker.budget=180;f.worker.officialContext={due:()=>false,sources:{}};
+ f.worker.baseBackfill={due:()=>true,step:async()=>{turns.push('backfill');f.worker.requests++;return true;}};
+ f.worker.request=async endpoint=>{
+  f.worker.requests++;
+  if(endpoint==='/procedures/2026-0001'){
+   turns.push('topic');return {url:'https://example.test/procedure',fetchedAt:new Date(now()).toISOString(),payload:{data:[{id:'eli/dl/proc/2026-0001',process_id:'2026-0001',label:'2026/0001(COD)'}]}};
+  }
+  assert.equal(endpoint,'/meetings/MTG-PL-2026-10-01/foreseen-activities');
+  turns.push('story');return {url:'https://example.test/agenda',fetchedAt:new Date(now()).toISOString(),payload:{data:[]}};
+ };
+ const core=f.worker.task;
+ f.worker.task=async task=>{
+  turns.push('core');await core(task);
+  // Keep both real collectors ready without acquiring any remote data.
+  f.store.db.prepare("UPDATE topic_procedure_queue SET reference=NULL,next_read=0 WHERE id='2026-0001'").run();
+  f.store.db.prepare("UPDATE story_jobs SET state='pending',next_read=0 WHERE key='fixture-story'").run();
+ };
+ await f.worker.run();
+ // Exclude the old startup-only grant when testing the reported combined-share defect.
+ const busy=turns[0]==='backfill'?turns.slice(1):turns;
+ const cores=busy.filter(lane=>lane==='core').length;
+ assert(cores*6>=busy.length*5,JSON.stringify({cores,total:busy.length}));
+ assert.equal(turns.length,180);assert.equal(cores,150);
+ for(const lane of ['backfill','topic','story'])assert.equal(busy.filter(turn=>turn===lane).length,10,lane);
+ for(let n=1;n<=busy.length;n++)assert(busy.slice(0,n).filter(lane=>lane==='core').length*6>=n*5,'optional turns cannot stack');
 });

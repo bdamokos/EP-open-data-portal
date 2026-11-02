@@ -1,4 +1,4 @@
-import {dispatchBaseBackfill,ordinaryBaseBackfillTurn} from './base-source-backfill-dispatch.mjs';
+import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
 import {topicRebuildDue} from './topic-publication.mjs';
@@ -812,7 +812,6 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
-      if(baseBackfillDue)await dispatchBaseBackfill(this,{force:true});
       // Persist the optional lane's share across one-request iterations.
       const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
       this.store.set('documentBodyTurn',bodyTurn);
@@ -829,15 +828,14 @@ export class ActivityWorker {
         }while(!due&&this.sittingSnapshots.due());
       }
       if(!due) {
-        // With core work idle, drain the finite backfill under the same lease
-        // and run deadline, offering other collectors a turn between its jobs.
+        // Re-evaluate after every whole step: a refresh boundary or another
+        // collector becoming ready must yield back to the normal scheduler.
+        const idle=()=>!this.due()&&!this.sittingSnapshots?.due()&&!this.press?.due()&&!this.officialContext?.due();
         while(!this.stopped&&!this.controller.signal.aborted&&this.requests<this.budget&&this.monotonic()<this.runDeadline&&this.baseBackfill?.due()){
+          if(!idle())return;
           if(!await dispatchBaseBackfill(this))break;
+          if(!idle())return;
           if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});
-          if(this.officialContext?.due())await this.officialContext.step(this);
-          if(this.sittingSnapshots?.due())await this.sittingSnapshots.step(this,{requestBudget:1});
-          if(this.press?.due())await this.followPress(false);
-          await dispatchCollector(this);
         }
         // Local migrations must progress even when no upstream job is due.
         // Yield between commits and keep each idle turn within one second.
@@ -985,13 +983,10 @@ export class ActivityWorker {
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
-          // Backfill keeps its own persisted share during a long refresh; it
-          // cannot consume the topic/story collector's reserved dispatch.
-          const backfillProgress=await dispatchBaseBackfill(this,{busy:Boolean(task)});
-          if(this.stopped||this.controller.signal.aborted||this.requests>=this.budget||this.monotonic()>=this.runDeadline)break;
+          // One optional slot covers backfill and the topic/story collectors.
           if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
-          if(!task){if(backfillProgress)continue;break;}
-          ordinaryCollectorTurn(this);ordinaryBaseBackfillTurn(this);
+          if(!task)break;
+          ordinaryCollectorTurn(this);
           try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}
           catch(error) {
             if(this.stopped||this.controller.signal.aborted)break;
