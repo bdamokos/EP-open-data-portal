@@ -29,14 +29,24 @@ export {speechParagraphText} from './transcript-text.mjs';
 export function speechWordTokens(text,language){
   const filter=filters.get(language);if(!filter)return [];
   let normalized=text.normalize('NFKC').toLocaleLowerCase(language);
-  if(language==='mt')normalized=normalized.replace(/[’ʼ]/gu,"'");
+  if(language==='mt')normalized=normalized.replace(/[‘’ʼ]/gu,"'");
   // Maltese hyphens delimit articles (including fused prepositions). Keep
   // apostrophes within words; remove only the documented one-letter proclitics.
   const pattern=language==='mt'?/\p{L}[\p{L}\p{M}]*(?:'[\p{L}\p{M}]+)*'?/gu:/(?:\bai\b|\p{L}[\p{L}\p{M}]{2,39})/gu;
-  return [...normalized.matchAll(pattern)]
-    .filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index)))
-    .map(match=>language==='mt'?match[0].replace(/^[bfmst]'/u,'').replace(/'$/u,''):match[0])
-    .filter(word=>(language!=='mt'||[...word].length>=3&&[...word].length<=40)&&!filter.has(filterKey(word,language)));
+  const matches=[...normalized.matchAll(pattern)]
+    .filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index)));
+  if(language!=='mt')return matches.map(match=>match[0]).filter(word=>!filter.has(filterKey(word,language)));
+  // A final apostrophe after a vowel is lexical (sema' "heard", not sema "sky")
+  // unless it closes a quotation opened earlier in the same sentence.
+  let quoted=false,previousEnd=0;
+  return matches.map(match=>{
+    if(/[.!?\n]/u.test(normalized.slice(previousEnd,match.index)))quoted=false;
+    previousEnd=match.index+match[0].length;
+    let word=match[0];
+    if(normalized[match.index-1]==="'"&&!/^(?:l|il)$/u.test(word))quoted=true;
+    if(word.endsWith("'")&&(quoted||!/[aeiou]'$/u.test(word))){word=word.slice(0,-1);quoted=false;}
+    return word.replace(/^[bfmst]'/u,'');
+  }).filter(word=>{const letters=[...word.replace(/'/gu,'')].length;return letters>=3&&letters<=40&&!filter.has(filterKey(word,language));});
 }
 export const speechWordStopwords=language=>new Set(filters.get(language)||[]);
 export class SpeechWordInsights {
