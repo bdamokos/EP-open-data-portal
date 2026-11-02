@@ -20,6 +20,7 @@ async function fixture(t){
 c=sqlite3.connect(sys.argv[1])
 for key,value in {'active':21,'working':{'generation':22},'refreshPolicyGeneration':21,'amendmentSnapshotGeneration':22,'amendmentReadVersion':sys.argv[2]}.items(): c.execute('INSERT INTO meta VALUES (?,?)',(key,json.dumps(value)))
 for sql in [
+ 'CREATE VIRTUAL TABLE question_title_search USING fts5(body)',
  'CREATE TABLE amendments(generation INTEGER,target TEXT,id TEXT,date TEXT,outcome TEXT,body TEXT)',
  'CREATE TABLE amendment_targets(generation INTEGER,id TEXT,body TEXT)',
  'CREATE TABLE amendment_read_flags(generation INTEGER,target TEXT,wording INTEGER,proposer INTEGER,splits INTEGER,freshness INTEGER)',
@@ -28,7 +29,8 @@ for sql in [
  'CREATE TABLE sources(generation INTEGER,key TEXT,kind TEXT,body TEXT,fetched_at TEXT)',
  'CREATE TABLE tasks(generation INTEGER,kind TEXT,done INTEGER)',
  'CREATE TABLE amendment_split_failures(body TEXT)']: c.execute(sql)
-c.commit();c.close()`,path.join(root,'index/activities-v1.sqlite'),'93a347b84b2a87bb3c9d3964bb35d892af0094c30be64db77d546d5fc47ca6e2']);
+# VACUUM copies place FTS shadow tables before their virtual-table entry.
+c.commit();c.execute('VACUUM');c.close()`,path.join(root,'index/activities-v1.sqlite'),'93a347b84b2a87bb3c9d3964bb35d892af0094c30be64db77d546d5fc47ca6e2']);
  const body=Buffer.from('exact retained bytes'),language='http://publications.europa.eu/resource/authority/language/ENG',celex='52026PC0001',itemId=url.replace('https:','http:'),identity=JSON.stringify([celex,language,itemId,'docx']),key=digest(identity);
  const source={schemaVersion:1,key,identity,celex,language,itemId,url,resolvedSourceUrl:url,format:'DOCX',accept,contentType:accept,sha256:digest(body),fetchedAt:'2026-10-30T12:00:00Z',checkedAt:'2026-10-30T12:00:00Z'};
  const file=path.join(root,'cache/commission-proposals-v1',key+'.json');

@@ -18,7 +18,9 @@ export class RetainedProjections {
       const active=meta.active;
       if(!Number.isSafeInteger(active)||active<=0)throw new Error('Published generation unavailable');
       db.exec('PRAGMA temp_store=MEMORY');
-      for(const {name} of db.prepare("SELECT name FROM retained.sqlite_master WHERE type='table'").all()) {
+      // FTS virtual tables and their reserved shadow tables are unrelated to
+      // these serving paths and cannot be exposed as ordinary TEMP views.
+      for(const {name} of db.prepare("PRAGMA retained.table_list").all().filter(table=>table.type==='table'&&!table.name.startsWith('sqlite_'))) {
         if(name==='amendment_read_flags')continue;
         const quoted='"'+name.replaceAll('"','""')+'"';
         const scoped=db.prepare('PRAGMA retained.table_info('+quoted+')').all().some(col=>col.name==='generation');
