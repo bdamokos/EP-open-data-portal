@@ -83,7 +83,7 @@ test('an excluded vote item leaves every topic, keyword and place counter',async
  const items=[['MTG-PL-'+day+'-PVCRE-ITM-7-2','Support for Ukraine (vote)','Support for Ukraine (debate)'],['MTG-PL-'+day+'-PVCRE-ITM-8','Support for Ukraine (debate)','Support for Ukraine (vote)']];
  store.putSource(1,'/plenary-documents/B-10-2025-0020','document',{id:'eli/dl/doc/B-10-2025-0020',identifier:'B-10-2025-0020',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Ukraine'},creator:['org/PPE'],is_about:[geo('UKR'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:items.map(([id])=>'eli/dl/event/'+id),inverse_created_a_realization_of:['eli/dl/proc/'+proc]},stamp);
  let n=0;for(const [debate,own,copy] of items){stageStoryInput(store,{activity_id:debate,activity_date:day,activity_label:{en:own},executed:[]},source,{rank:4});
-  for(const person of ['1','2','3']){const id='MTG-PL-'+day+'-OTH-9'+(++n);store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:copy},participants:[person],parentIds:[debate],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}}
+  for(const person of own.endsWith('(vote)')?['1','2','3','4','5']:['1','2','3']){const id='MTG-PL-'+day+'-OTH-9'+(++n);store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:copy},participants:[person],parentIds:[debate],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}}
  await buildTopics(store);
  const [vote,debate]=items.map(x=>x[0]);
  const story=storyFacts(store,new URLSearchParams('scope=topic&key=eurovoc:245'));assert.deepEqual(story.debates.map(d=>d.id),[debate]);assert.equal(story.counts.debates,1);
@@ -92,6 +92,12 @@ test('an excluded vote item leaves every topic, keyword and place counter',async
  assert(members(debate)>0);
  const debates=store.db.prepare("SELECT COALESCE(SUM(n),0) n FROM record_topic_totals WHERE generation=1 AND key='eurovoc:245' AND kind='debate'").get().n;assert.equal(debates,1,'detail series count the same debates as the story');
  assert.equal(store.get('recordTopicCalendar').periodTotals['2025-Q1'].debate,1,'global period totals leave the vote item out too');
+ const detail=new RecordTopics(store).query(new URLSearchParams('key=eurovoc:245&lang=en'),'detail');
+ assert.equal(detail.groups.find(g=>g.key===vote)?.kind,'record','the vote item group is not presented as a debate');
+ assert.equal(detail.groups.find(g=>g.key===vote)?.agendaId,undefined);
+ assert.equal(detail.groups.find(g=>g.key===debate)?.kind,'debate');
+ for(const peak of Object.values(detail.peaks).flat())for(const g of peak.groups)assert(!(g.key===vote&&g.kind==='debate'),'peaks never label the vote item a debate');
+ assert(Object.values(detail.peaks).flat().some(p=>p.groups.some(g=>g.key===vote)),'the vote group still counts in all-kind groups');
 });
 test('story projection links exact records, excludes institutions and statements, and narrows debate places',async t=>{
  const {dir,store}=await fixture(t),day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-10',decision='MTG-PL-'+day+'-DEC-1',proc='2025-2110',joint='RC-10-2025-0010';

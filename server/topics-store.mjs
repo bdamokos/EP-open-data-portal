@@ -173,7 +173,7 @@ export class RecordTopics{
    for(const row of this.db.prepare('SELECT group_key,MAX(date) date,COUNT(*) n '+scope+' GROUP BY group_key ORDER BY n DESC,date DESC,group_key').iterate(...values)){
     if(topCount===undefined)topCount=row.n;if(row.n!==topCount)break;
     let base=peakTitles.get(row.group_key);if(!base){const raw=this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND id=?').get(generation,row.group_key)||this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND group_key=? ORDER BY date DESC,id LIMIT 1').get(generation,row.group_key);base=raw?JSON.parse(raw.body):{id:row.group_key,titles:{}};peakTitles.set(row.group_key,base);}
-    const languageUsed=languagePreference(Object.keys(base.titles||{}),language)[0];groups.push({key:row.group_key,kind:base.kind==='procedure'?'procedure':base.kind==='debate'||base.kind==='event'?'debate':base.groupKind||'record',title:base.titles?.[languageUsed]||row.group_key,language:languageUsed||null,date:row.date,n:row.n});
+    const languageUsed=languagePreference(Object.keys(base.titles||{}),language)[0];groups.push({key:row.group_key,kind:base.procedural===true?'record':base.kind==='procedure'?'procedure':base.kind==='debate'||base.kind==='event'?'debate':base.groupKind||'record',title:base.titles?.[languageUsed]||row.group_key,language:languageUsed||null,date:row.date,n:row.n});
    }
    peaks[metric].push({period:point.period,n:maximum,groups});
   }
@@ -192,7 +192,9 @@ export class RecordTopics{
  const saved=this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND id=?').get(generation,g.group_key),parent=saved?JSON.parse(saved.body):null,base=parent||representative,speakers=new Map();
  for(const {id} of this.db.prepare('SELECT DISTINCT CAST(j.value AS TEXT) id'+recordScope+" JOIN json_each(r.body,'$.members') j WHERE r.kind='speech' ORDER BY r.date DESC,r.id,j.key LIMIT 5").all(...args,g.group_key)){const raw=this.db.prepare('SELECT body FROM members WHERE id=?').get(id);speakers.set(id,{id,name:raw?JSON.parse(raw.body).name||null:null});}
  const title=r=>r.titles?.[languagePreference(Object.keys(r.titles||{}),language)[0]]||r.id;
- return {key:g.group_key,kind:representative.groupKind,title:title(base),date:g.date,...(base.reference?{reference:base.reference}:{}),...(representative.groupKind==='procedure'?{procedureId:g.group_key}:{}),...(representative.groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
+ // An excluded (procedural) parent, such as a voting-time item, is never presented as a debate.
+ const groupKind=parent?.procedural===true?'record':representative.groupKind;
+ return {key:g.group_key,kind:groupKind,title:title(base),date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
  });
  return {ready:true,coverage,...extras,groupsTotal:groupTotal,concept,periods,series,peaks,chart,facets,groups,total,nextOffset:offset+20<groupTotal?offset+20:null};
  }
