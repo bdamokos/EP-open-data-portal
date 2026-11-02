@@ -15,8 +15,9 @@ async function fixture(t){
   await writeFile(metadata,JSON.stringify(meta));await writeFile(bytes,body);
   const sample={mode:'documents',documents:['A-10-2026-0001']},manifest=[meta],snapshotId=digest(JSON.stringify({apiBase,sample,manifest}));
   const snapshot={apiBase,sample,manifest,snapshotId};await writeFile(path.join(directory,'snapshot.json'),JSON.stringify(snapshot));
-  const cache=new InputCache(directory,{apiBase,cap:0,fetchMissing:true,fetcher:()=>assert.fail('network forbidden'),retained:{get:()=>assert.fail('sealed inputs cannot be reacquired')}});
-  return {directory,metadata,bytes,cache,snapshot,body};
+  const forbidden={network:0,retained:0};
+  const cache=new InputCache(directory,{apiBase,cap:0,fetchMissing:true,fetcher:()=>{forbidden.network++;assert.fail('network forbidden');},retained:{get:()=>{forbidden.retained++;assert.fail('sealed inputs cannot be reacquired');}}});
+  return {directory,metadata,bytes,cache,snapshot,body,forbidden};
 }
 test('absent frozen requests retain exact request/snapshot evidence without touching the seal or cache',async t=>{
   const f=await fixture(t),before=await tree(f.directory),snapshotBefore=JSON.stringify(f.snapshot);
@@ -30,7 +31,7 @@ test('absent frozen requests retain exact request/snapshot evidence without touc
   }
   assert.equal((await f.cache.get(missing)).frozenInputGap.accept,'application/json','implicit Accept matches the acquisition transport');
   assert.deepEqual((await f.cache.get(url,request)).body,f.body);f.cache.assertHealthy();assert.equal(f.cache.requests,0);
-  assert.deepEqual(f.cache.manifest(),f.snapshot.manifest);assert.equal(JSON.stringify(f.snapshot),snapshotBefore);assert.deepEqual(await tree(f.directory),before);
+  assert.deepEqual(f.cache.manifest(),f.snapshot.manifest);assert.equal(JSON.stringify(f.snapshot),snapshotBefore);assert.deepEqual(await tree(f.directory),before);assert.deepEqual(f.forbidden,{network:0,retained:0});
 });
 for(const phase of ['sealing','replay'])for(const failure of ['body hash','missing body','missing metadata','malformed metadata','unreadable metadata'])test(phase+' keeps '+failure+' fatal for a listed input',async t=>{
   const f=await fixture(t);
@@ -43,7 +44,7 @@ for(const phase of ['sealing','replay'])for(const failure of ['body hash','missi
   const before=await tree(f.directory);
   if(phase==='replay')await f.cache.get(url.replace('0001','0002'),request);
   await assert.rejects(()=>phase==='sealing'?f.cache.seal(f.snapshot.manifest,{snapshotId:f.snapshot.snapshotId}):f.cache.get(url,request));
-  assert.throws(()=>f.cache.assertHealthy());assert.equal(f.cache.requests,0);assert.deepEqual(await tree(f.directory),before);
+  assert.throws(()=>f.cache.assertHealthy());assert.equal(f.cache.requests,0);assert.deepEqual(await tree(f.directory),before);assert.deepEqual(f.forbidden,{network:0,retained:0});
 });
 test('nested and concurrent observation scopes preserve their own request dependencies',async t=>{
   const f=await fixture(t);await f.cache.seal(f.snapshot.manifest,{snapshotId:f.snapshot.snapshotId});
