@@ -1,9 +1,9 @@
 import {runWeekCloudReadBenchmark} from '../server/test-support/week-cloud-read-benchmark.mjs';
 import {execFileSync} from 'node:child_process';
-import {appendFileSync,writeFileSync,readFileSync} from 'node:fs';
+import {appendFileSync,writeFileSync,readFileSync,mkdtempSync,mkdirSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {runRemainingReadBenchmark} from '../server/test-support/remaining-read-benchmark.mjs';
 
 import {runMemberReadBenchmark} from '../server/test-support/member-read-benchmark.mjs';
@@ -17,17 +17,8 @@ const benchmarks=[
   runSlowReadBenchmark,
   runMemberReadBenchmark,
 ];
-const baselineFile=new URL('../server/test-support/read-benchmark-baseline.json',import.meta.url);
-
-export function baselineFrom(result) {
-  return {...result,scenarios:result.scenarios.map(({wallClockMs,...deterministic})=>deterministic)};
-}
-
 export function compareReads(baseline,current) {
   const failures=[],lines=['| Scenario | Baseline pages | Current pages | Delta | Current ms (informational) | Plan change |','| --- | ---: | ---: | ---: | ---: | --- |'];
-  for(const key of ['sqliteVersion','nodeSqliteVersion']) {
-    if(!baseline[key] || baseline[key]!==current[key])failures.push(`Toolchain mismatch (${key}): baseline ${baseline[key]??'missing'}, runtime ${current[key]??'missing'}. Run the CI read-benchmarks job, save its regenerated baseline JSON, then run npm run bench:reads -- --update-baseline /path/to/ci-baseline.json and commit the result.`);
-  }
   const previous=new Map(baseline.scenarios.map(row=>[row.name,row]));
   const seen=new Set();
   for(const row of current.scenarios) {
@@ -35,7 +26,7 @@ export function compareReads(baseline,current) {
     seen.add(row.name);
     if(!Number.isSafeInteger(row.pageFetches)||row.pageFetches<0)throw new Error(`Invalid page fetches: ${row.name}`);
     const old=previous.get(row.name);
-    if(!old){failures.push(`${row.name}: missing baseline; review and update it`);lines.push(`| ${row.name} | — | ${row.pageFetches} | — | ${row.wallClockMs} | missing baseline |`);continue;}
+    if(!old){lines.push(`| ${row.name} | — | ${row.pageFetches} | — | ${row.wallClockMs} | new scenario |`);continue;}
     if(!Number.isSafeInteger(old.pageFetches)||old.pageFetches<0)throw new Error(`Invalid baseline: ${row.name}`);
     const delta=row.pageFetches-old.pageFetches;
     const newScan=row.fullScanTables.some(table=>!old.fullScanTables.includes(table));
@@ -45,36 +36,71 @@ export function compareReads(baseline,current) {
     lines.push(`| ${row.name} | ${old.pageFetches} | ${row.pageFetches} | ${delta>0?'+':''}${delta} (${old.pageFetches?(delta/old.pageFetches*100).toFixed(1):'n/a'}%) | ${row.wallClockMs} | ${planChange} |`);
   }
   for(const [name,row] of previous)if(!seen.has(name)){
-    failures.push(`${name}: scenario missing from current run`);
-    lines.push(`| ${name} | ${row.pageFetches} | — | — | — | missing scenario |`);
+    lines.push(`| ${name} | ${row.pageFetches} | — | — | — | removed |`);
   }
   return {failures,markdown:lines.join('\n')+'\n'+failures.map(message=>`\n- ${message}`).join('')+'\n'};
 }
 
-export function main(args=process.argv.slice(2)) {
-  if(args.length>2 || (args.length && args[0]!=='--update-baseline'))throw new Error('Usage: npm run bench:reads -- [--update-baseline [ci-baseline.json]]');
-  if(args[0]==='--update-baseline' && args[1]) {
-    const result=JSON.parse(readFileSync(args[1],'utf8'));
-    const validation=compareReads(result,result);
-    if(validation.failures.length)throw new Error(validation.failures.join('\n'));
-    writeFileSync(baselineFile,JSON.stringify(baselineFrom(result),null,2)+'\n');
-    console.log('Imported CI read benchmark baseline; review the diff.');
-    return;
+// Run the reference's own suite registry, including older scripts that exit non-zero
+// against their committed baseline. A missing or malformed result still fails.
+export function measureReference(ref,{cwd=fileURLToPath(new URL('..',import.meta.url))}={}) {
+  const revision=execFileSync('git',['rev-parse','--verify',`${ref}^{commit}`],{cwd,encoding:'utf8'}).trim();
+  const directory=mkdtempSync(path.join(tmpdir(),'read-benchmark-'));
+  const worktree=path.join(directory,'base'),baseTmp=path.join(directory,'tmp');
+  let added=false;
+  try {
+    mkdirSync(baseTmp);
+    execFileSync('git',['worktree','add','--detach',worktree,revision],{cwd,stdio:'inherit'});
+    added=true;
+    const env={...process.env,TMPDIR:baseTmp,TMP:baseTmp,TEMP:baseTmp};
+    delete env.GITHUB_STEP_SUMMARY;
+    execFileSync('npm',['ci','--no-audit','--no-fund'],{cwd:worktree,env,stdio:'inherit'});
+    try {
+      execFileSync(process.execPath,['scripts/read-benchmark.mjs'],{cwd:worktree,env,stdio:'inherit'});
+    } catch(error) {
+      if(!Number.isInteger(error.status))throw error;
+    }
+    return {revision,result:JSON.parse(readFileSync(path.join(baseTmp,'read-benchmark-result.json'),'utf8'))};
+  } finally {
+    try {
+      if(added)execFileSync('git',['worktree','remove','--force',worktree],{cwd,stdio:'inherit'});
+    } finally {
+      rmSync(directory,{recursive:true,force:true});
+    }
   }
-  const result={version:1,sqliteVersion:execFileSync('sqlite3',['--version'],{encoding:'utf8'}).trim(),nodeVersion:process.version,nodeSqliteVersion:process.versions.sqlite,scenarios:benchmarks.flatMap(run=>run({ci:true}).scenarios)};
+}
+
+export async function main(args=process.argv.slice(2)) {
+  const options={};
+  for(let index=0;index<args.length;index+=2) {
+    if(!['--compare','--cached-base','--cached-head'].includes(args[index]) || !args[index+1])
+      throw new Error('Usage: npm run bench:reads -- [--compare REF [--cached-base PATH] [--cached-head PATH]]');
+    options[args[index]]=args[index+1];
+  }
+  if(!options['--compare'] && Object.keys(options).length)throw new Error('Cached inputs require --compare');
+  const cwd=fileURLToPath(new URL('..',import.meta.url));
+  const identity=ref=>Object.fromEntries([['commit',`${ref}^{commit}`],['tree',`${ref}^{tree}`]].map(([key,value])=>[key,execFileSync('git',['rev-parse','--verify',value],{cwd,encoding:'utf8'}).trim()]));
+  const stamp=(result,ref,cached)=>{
+    const id=identity(ref);
+    if(cached && result.tree!==id.tree)throw new Error('Cached benchmark tree does not match revision');
+    return {...result,...id,measuredCommit:result.measuredCommit??result.commit??id.commit};
+  };
+  const reference=options['--compare']?{
+    result:stamp(options['--cached-base']?JSON.parse(readFileSync(options['--cached-base'],'utf8')):measureReference(options['--compare']).result,options['--compare'],!!options['--cached-base']),
+  }:undefined;
+  if(reference)writeFileSync(path.join(tmpdir(),'read-benchmark-base-result.json'),JSON.stringify(reference.result,null,2)+'\n');
+  const result=stamp(options['--cached-head']?JSON.parse(readFileSync(options['--cached-head'],'utf8')):{version:1,sqliteVersion:execFileSync('sqlite3',['--version'],{encoding:'utf8'}).trim(),nodeVersion:process.version,nodeSqliteVersion:process.versions.sqlite,scenarios:benchmarks.flatMap(run=>run({ci:true}).scenarios)},'HEAD',!!options['--cached-head']);
   const output=path.join(tmpdir(),'read-benchmark-result.json');
   writeFileSync(output,JSON.stringify(result,null,2)+'\n');
   console.log(`Read benchmark result: ${output}`);
-  if(args.includes('--update-baseline')) {
-    const baseline=baselineFrom(result);
-    writeFileSync(baselineFile,JSON.stringify(baseline,null,2)+'\n');
-    console.log('Updated read benchmark baseline; review the diff.');
+  if(!reference) {
+    console.log(JSON.stringify(result,null,2));
     return;
   }
-  const comparison=compareReads(JSON.parse(readFileSync(baselineFile,'utf8')),result);
-  const refresh=`\n<details><summary>Regenerated baseline JSON (review before committing)</summary>\n\nSave this JSON and run \`npm run bench:reads -- --update-baseline /path/to/ci-baseline.json\`.\n\n\`\`\`json\n${JSON.stringify(baselineFrom(result),null,2)}\n\`\`\`\n</details>\n`;
-  console.log(comparison.markdown+refresh);
-  if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,comparison.markdown+refresh);
-  if(comparison.failures.length)process.exitCode=1;
+  const {renderReadBenchmarkReport}=await import('./read-benchmark-report.mjs');
+  const report=renderReadBenchmarkReport({before:reference.result,after:result,beforeLabel:'Base',afterLabel:'Head',beforeSource:options['--cached-base']?'restored from cache':'measured',afterSource:options['--cached-head']?'restored from cache':'measured'});
+  console.log(`Base revision: ${reference.result.commit}\n${report}`);
+  if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,`Base revision: ${reference.result.commit}\n\n${report}`);
+  if(compareReads(reference.result,result).failures.length)process.exitCode=1;
 }
-if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)main();
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)await main();

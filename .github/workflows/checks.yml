@@ -65,21 +65,98 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Build pinned SQLite CLI (3.45.1)
         uses: ./.github/actions/sqlite-cli
-      - run: npm run bench:reads
+      - name: Identify benchmark content and toolchains
+        id: identity
         env:
+          BASE_REF: ${{ github.event_name == 'push' && github.event.before || 'HEAD^1' }}
+        run: |
+          base=$(git rev-parse "$BASE_REF^{commit}")
+          base_tree=$(git rev-parse "$base^{tree}")
+          head_tree=$(git rev-parse 'HEAD^{tree}')
+          base_node=$(git show "$base:.nvmrc" | tr -d '[:space:]')
+          head_node=$(tr -d '[:space:]' < .nvmrc)
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "base_key=read-bench-v1-main-${RUNNER_OS}-sqlite3.45.1-node${base_node}-${base_tree}" >> "$GITHUB_OUTPUT"
+          echo "head_main_key=read-bench-v1-main-${RUNNER_OS}-sqlite3.45.1-node${head_node}-${head_tree}" >> "$GITHUB_OUTPUT"
+          echo "head_pr_key=read-bench-v1-pr-${{ github.event.pull_request.number }}-${RUNNER_OS}-sqlite3.45.1-node${head_node}-${head_tree}" >> "$GITHUB_OUTPUT"
+      # PR runs never save main keys, so a base can only come from main scope.
+      - name: Restore base result
+        id: base-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/read-benchmark-cache/result.json
+          key: ${{ steps.identity.outputs.base_key }}
+      # Use the identical cache path on both sides: actions/cache also hashes paths.
+      - name: Stage restored base
+        run: |
+          if [ -f "$RUNNER_TEMP/read-benchmark-cache/result.json" ]; then
+            cp "$RUNNER_TEMP/read-benchmark-cache/result.json" "$RUNNER_TEMP/read-benchmark-base-result.json"
+          fi
+          rm -rf "$RUNNER_TEMP/read-benchmark-cache"
+      - name: Restore head result from main
+        id: head-main-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/read-benchmark-cache/result.json
+          key: ${{ steps.identity.outputs.head_main_key }}
+      - name: Restore PR head result
+        id: head-pr-cache
+        if: github.event_name == 'pull_request' && steps.head-main-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/read-benchmark-cache/result.json
+          key: ${{ steps.identity.outputs.head_pr_key }}
+      - name: Stage restored head
+        run: |
+          if [ -f "$RUNNER_TEMP/read-benchmark-cache/result.json" ]; then
+            cp "$RUNNER_TEMP/read-benchmark-cache/result.json" "$RUNNER_TEMP/read-benchmark-result.json"
+          fi
+      - name: Compare base and head reads
+        id: compare
+        env:
+          BASE_REF: ${{ steps.identity.outputs.base }}
+          BASE_CACHED: ${{ steps.base-cache.outputs.cache-hit == 'true' }}
+          HEAD_CACHED: ${{ steps.head-main-cache.outputs.cache-hit == 'true' || steps.head-pr-cache.outputs.cache-hit == 'true' }}
           TMPDIR: ${{ runner.temp }}
+        run: |
+          args=(--compare "$BASE_REF")
+          if [ "$BASE_CACHED" = true ]; then args+=(--cached-base "$RUNNER_TEMP/read-benchmark-base-result.json"); fi
+          if [ "$HEAD_CACHED" = true ]; then args+=(--cached-head "$RUNNER_TEMP/read-benchmark-result.json"); fi
+          npm run bench:reads -- "${args[@]}"
+      - name: Stage base for cache
+        if: ${{ !cancelled() && steps.compare.outcome != 'skipped' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/read-benchmark-cache"
+          cp "$RUNNER_TEMP/read-benchmark-base-result.json" "$RUNNER_TEMP/read-benchmark-cache/result.json"
+      - name: Save measured base on main
+        if: ${{ !cancelled() && steps.compare.outcome != 'skipped' && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.base-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/read-benchmark-cache/result.json
+          key: ${{ steps.identity.outputs.base_key }}
+      - name: Stage head for cache
+        if: ${{ !cancelled() && steps.compare.outcome != 'skipped' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/read-benchmark-cache"
+          cp "$RUNNER_TEMP/read-benchmark-result.json" "$RUNNER_TEMP/read-benchmark-cache/result.json"
+      - name: Save measured head
+        if: ${{ !cancelled() && steps.compare.outcome != 'skipped' && steps.head-main-cache.outputs.cache-hit != 'true' && steps.head-pr-cache.outputs.cache-hit != 'true' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/read-benchmark-cache/result.json
+          key: ${{ github.event_name == 'pull_request' && steps.identity.outputs.head_pr_key || steps.identity.outputs.head_main_key }}
       - name: Render benchmark report
         id: report
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          baseline=server/test-support/read-benchmark-baseline.json
-          git show "HEAD^1:$baseline" > "$RUNNER_TEMP/main-baseline.json" 2>/dev/null || : > "$RUNNER_TEMP/main-baseline.json"
           node scripts/read-benchmark-report.mjs \
-            --before "$RUNNER_TEMP/main-baseline.json" --before-label main \
+            --before "$RUNNER_TEMP/read-benchmark-base-result.json" --before-label main \
             --after "$RUNNER_TEMP/read-benchmark-result.json" --after-label PR \
-            --gate-baseline "$baseline" --run-url "$RUN_URL" > "$RUNNER_TEMP/report.md"
+            --before-source "${{ steps.base-cache.outputs.cache-hit == 'true' && 'restored from cache' || 'measured' }}" \
+            --after-source "${{ (steps.head-main-cache.outputs.cache-hit == 'true' || steps.head-pr-cache.outputs.cache-hit == 'true') && 'restored from cache' || 'measured' }}" \
+            --run-url "$RUN_URL" > "$RUNNER_TEMP/report.md"
           delimiter="report_$(openssl rand -hex 16)"
           { echo "report<<$delimiter"; cat "$RUNNER_TEMP/report.md"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
 
