@@ -76,17 +76,18 @@ export class HybridInputs {
     });
     if(!descriptors.every(d=>d.length===1))return null;
     const [copy,base]=descriptors.map(d=>d[0]);
-    if(stable(copy.file)!==stable(base.file)||stable(copy.descriptor)!==stable(base.descriptor))return null;
-    // Retained projections omit raw manifestation IDs and some edition fields.
-    // Compare the canonical declaration; preserve one-sided edition evidence
-    // without treating an omitted projection field as an observed conflict.
+    for(const field of ['url','language','format'])if(!copy.descriptor[field]||copy.descriptor[field]!==base.descriptor[field])return null;
+    for(const field of ['byteSize','issued'])if(copy.descriptor[field]!=null&&base.descriptor[field]!=null&&stable(copy.descriptor[field])!==stable(base.descriptor[field]))return null;
+    // Compact projections omit raw manifestation IDs and some edition fields.
+    // Missing optional fields are unknown; identity still requires both exact
+    // document IDs, languages and URLs. Preserve all one-sided evidence.
     for(const field of new Set([...Object.keys(copy.edition),...Object.keys(base.edition)])) {
-      if(copy.edition[field]===undefined&&inputs[0].localProjection?.representation==='retained-index-projection')continue;
+      if(copy.edition[field]==null||base.edition[field]==null)continue;
       if(stable(copy.edition[field])!==stable(base.edition[field]))return null;
     }
     const sourceHashes=[copy.hash,base.hash].filter(hash=>hash!==null);
     if(sourceHashes.some(hash=>typeof hash!=='string'||!/^[a-f0-9]{64}$/i.test(hash))||new Set(sourceHashes.map(hash=>hash.toLowerCase())).size>1)return null;
-    const declaration={file:copy.file,descriptor:copy.descriptor,edition:{copy:copy.edition,base:base.edition}};
+    const declaration={file:copy.file,descriptor:{copy:copy.descriptor,base:base.descriptor},edition:{copy:copy.edition,base:base.edition}};
     const redirects=[];let current=identity.file.url;
     for(let hops=0;hops<=3;hops++) {
       if(current===requestedUrl)return {declaration,sourceHashes,redirects,observations:inputs.map((input,i)=>({snapshotId:[this.a,this.b][i].snapshot.snapshotId,url:input.url,request:input.request,sha256:input.sha256,fetchedAt:input.fetchedAt}))};
