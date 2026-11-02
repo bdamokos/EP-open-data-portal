@@ -66,7 +66,7 @@ export function ParliamentHeader({view,onMembers,onNavigate,onSaved,onLanguageCh
         aria-current={(view===destination) ? 'page' : undefined}
         disabled={!onNavigate&&view!==destination}
         onClick={()=>onNavigate?.(destination)}
-      >{destination==='legislation'?ui.t("plenarymodes.plenary_agenda"):destination==='geopolitics'?ui.t('geopolitics.title'):destination==='questions'?ui.t("textsearch.questions"):destination==='amendments'?ui.t("legislation.amendments.900866"):destination==='groups'?ui.t("groupvoices.group_voices.f21b8b"):ui.t("outsidevoices.outside_voices.a027e6")}</button>)}
+      >{destination==='legislation'?ui.t("plenarymodes.plenary_agenda"):destination==='geopolitics'?ui.t('topics.geopolitics'):destination==='questions'?ui.t("textsearch.questions"):destination==='amendments'?ui.t("legislation.amendments.900866"):destination==='groups'?ui.t("groupvoices.group_voices.f21b8b"):ui.t("outsidevoices.outside_voices.a027e6")}</button>)}
       {onSaved&&<SavedNav onClick={onSaved} current={view==='saved'}/>}
     </nav>
     <div className="parliament-header-tools">
