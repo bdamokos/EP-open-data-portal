@@ -511,7 +511,9 @@ export function resolveAmendmentPlacement(text, options = {}) {
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
   if (crossLanguage) {
-    if (!ref?.suffix || !ref.isNew || ref.after || ref.negative || !['paragraph', 'recital'].includes(ref.kind)) return unresolved('different_text_languages');
+    // The label alone never places in another edition: a parsed vote
+    // reference must name the same anchor (checked with the sibling below).
+    if (!referenceText || !ref?.suffix || !ref.isNew || ref.after || ref.negative || !['paragraph', 'recital'].includes(ref.kind)) return unresolved('different_text_languages');
     evidence.push({basis: 'cross-language-label', matchKind: 'label-cross-language', wordingLanguage: options.language, textLanguage: text.textLanguage});
   }
   const pointPlacement = crossLanguage ? null : resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);

@@ -949,11 +949,13 @@ test('Finnish published negative paragraph insertions require a unique first par
 test('a pure suffixed insertion is placed by label in another language edition of the same document',()=>{
   // B-10-2026-0411 AM1: English wording, Spanish edition only.
   const text=document(['El Parlamento Europeo,','A.\tConsiderando que…;','8.\tPide al Gobierno español…;','9.\tExpresa su profunda preocupación…;'],{textLanguage:'es'});
-  const insert={language:'en',baseline:'motion-resolution',originalText:'',proposedText:'8a. Calls on…;',targetLabel:'Paragraph 8 a (new)'};
+  const insert={language:'en',baseline:'motion-resolution',originalText:'',proposedText:'8a. Calls on…;',targetLabel:'Paragraph 8 a (new)',referenceText:'After § 8'};
   const placed=resolveAmendmentPlacement(text,insert);
   assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,2);assert.equal(placed.insertBefore,3);
   assert.deepEqual(placed.evidence.find(e=>e.basis==='cross-language-label'),{basis:'cross-language-label',matchKind:'label-cross-language',wordingLanguage:'en',textLanguage:'es'});
-  assert.equal(resolveAmendmentPlacement(text,{...insert,targetLabel:'Recital A a (new)',proposedText:'Aa. whereas…;'}).insertBefore,2);
+  assert.equal(resolveAmendmentPlacement(text,{...insert,targetLabel:'Recital A a (new)',proposedText:'Aa. whereas…;',referenceText:'After recital A'}).insertBefore,2);
+  // A-10-2026-0069 AM63: the label alone does not place in another edition.
+  assert.equal(resolveAmendmentPlacement(text,{...insert,referenceText:undefined}).reason,'different_text_languages','a vote reference is required');
   // Wording-dependent operations and other label shapes stay withheld.
   for(const changes of [
     {originalText:'8.\tCalls on the Spanish Government…;',proposedText:'8.\tCalls on…;',targetLabel:'Paragraph 8'},
@@ -977,6 +979,7 @@ test('another-edition placement compares every published vote reference in Engli
   const place=referenceTexts=>documentContextPlacement({chosen,text,referenceTexts,resolutionDocument:true});
   assert.equal(place(['After § 8']).status,'placed');
   assert.equal(place(['After § 9']).reason,'conflicting_target_evidence');
+  assert.equal(place([]).reason,'different_text_languages','no vote reference');
   assert.equal(place(['After § 8','After § 9']).reason,'conflicting_target_evidence','several references conflict');
 });
 
