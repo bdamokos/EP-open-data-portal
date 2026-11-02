@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Vedi documento ufficiale",
   "questionStatus.1": "Con risposta",
   "questionStatus.2": "Ancora nessuna risposta",
+  "questions.earlierInTerm": "Mostra le interrogazioni precedenti della legislatura attuale",
+  "questions.periodEnd": "Fine dell’elenco per il periodo {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minuto",
   "readerretry.minutes_minutes.24f934": "{minutes} minuti",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Nuovo tentativo sospeso dopo una richiesta non riuscita. Riprova tra {wait}.",
