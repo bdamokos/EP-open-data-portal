@@ -124,7 +124,7 @@ export function sourceReplay(cache,runtime) {
     const type=String(nodes[0].work_type?.id||nodes[0].work_type||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
     const expected='def/ep-document-types/'+(list?'AMENDMENT_LIST':id.startsWith('A-')?'REPORT_PLENARY':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION');
     if(type!==expected)throw new Error('Public document type mismatch: '+id);
-    return {payload,url:input.url,fetchedAt:Date.parse(input.fetchedAt),sourceHash:input.sha256};
+    return {payload,url:input.url,fetchedAt:Date.parse(input.localProjection?.sourceFetchedAt??input.fetchedAt),sourceHash:input.sha256,...(input.localProjection?{localProjection:input.localProjection}:{})};
   };
   // Keep the production metadata validation, negotiation and redirect rules.
   // InputCache owns the single writer, request spacing/cap and immutable bytes.
@@ -212,12 +212,17 @@ export function sourceReplay(cache,runtime) {
       const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
       const chosen=files.find(f=>f.language===preferred[0])||files[0];
       const source=chosen?await cache.get(chosen.url):null;
+      const provenance={sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok,...(source.acquisitionUnavailable?{acquisitionUnavailable:true,acquisitionUnavailableReason:source.acquisitionUnavailableReason}:{})}:null};
+      if(source?.acquisitionUnavailable) {
+        cache.assertHealthy();
+        return {...provenance,status:'unavailable',paragraphs:[],textLanguage:chosen.language||language,reason:'acquisition-unavailable',acquisitionUnavailableReason:source.acquisitionUnavailableReason};
+      }
       const text=await runtime.documentText(work,language,{directory:null,clock:()=>source?Date.parse(source.fetchedAt):0,download:async url=>{
         const input=await cache.get(url);
         if(!input.ok)throw new Error('document-source-http-'+input.status);
         return {...runtime.docxContent(input.body),resolvedSourceUrl:input.resolvedSourceUrl||url};
       }});
-      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
+      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,...provenance};
     },
     async proposal(options,selection) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};

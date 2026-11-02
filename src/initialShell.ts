@@ -6,7 +6,7 @@ export function localizeInitialShell(document: Document, query: URLSearchParams)
   if (!shell) return;
   const ui = uiForLocale(query.get('lang') || 'en');
   const titles: Record<string, string> = {
-    members: 'shell.heading.members', legislation: 'shell.navigation.plenaryAgenda',
+    topics: 'topics.topics', members: 'shell.heading.members', legislation: 'shell.navigation.plenaryAgenda',
     questions: 'shell.navigation.questions', outside: 'shell.navigation.outsideVoices',
     groups: 'shell.navigation.groupVoices', saved: 'shell.navigation.following',
   };

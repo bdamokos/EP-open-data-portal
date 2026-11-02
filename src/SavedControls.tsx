@@ -1,3 +1,4 @@
+import {StarControl} from './StarControl';
 import {UiMessageError,uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
@@ -262,7 +263,7 @@ export function SaveButton({item,compact=false,language='en'}:{item:SavedItem;co
   const label=(item.kind==='mep') ? ({text:saved ? ui.t("batch4.dossiercontrols.tsx.64.2") : ui.t("followsuggestions.follow"),language:ui.language}) : interfaceTerm(saved ? 'saved-question' : 'save-question',language);
   const name=(item.kind==='mep') ? ui.t(saved?'savedcontrols.following.mep':'savedcontrols.follow.mep') : label.text;
   const tooltip=(item.kind==='mep') ? (saved ? ui.t("batch4.dossiercontrols.tsx.64.1") : ui.t("terms.catalogue_save_in_browser")) : interfaceTerm(saved ? 'saved-in-browser' : 'save-in-browser',language).text;
-  return <><button className={'explorer-save-button'+(saved ? ' is-saved' : '')} lang={item.title ? compoundLanguage(label.language,item.titleLanguage) : label.language} aria-label={item.kind==='mep'&&item.title ? ui.t(saved?'savedcontrols.following.mep.title':'savedcontrols.follow.mep.title',{title:item.title}) : `${name}${item.title ? (' · '+item.title) : ''}`} aria-pressed={saved} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError(uiErrorText(e,ui));}}}><span aria-hidden="true">{saved ? '★' : '☆'}</span>{!compact&&<span lang={label.language}>{label.text}</span>}</button>{error&&<small role="alert" lang={ui.language}>{error}</small>}</>;
+  return <><StarControl saved={saved} compact={compact} label={label.text} labelLanguage={label.language} lang={item.title ? compoundLanguage(label.language,item.titleLanguage) : label.language} aria-label={item.kind==='mep'&&item.title ? ui.t(saved?'savedcontrols.following.mep.title':'savedcontrols.follow.mep.title',{title:item.title}) : `${name}${item.title ? (' · '+item.title) : ''}`} title={tooltip} onClick={()=>{try{savedStore.toggle(item);setError('');}catch(e){setError(uiErrorText(e,ui));}}}/>{error&&<small role="alert" lang={ui.language}>{error}</small>}</>;
 }
 export function SavedNav({onClick,current=false}:{onClick:()=>void;current?:boolean}) {
   const ui = useUiI18n();

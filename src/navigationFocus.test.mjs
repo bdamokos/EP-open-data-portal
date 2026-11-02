@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import {viewReady} from './test-support/viewReady.mjs';
 import test from 'node:test';
 import {freshLoader} from './test-support/viteRunner.mjs';
@@ -38,7 +39,7 @@ async function harness(t,query='',delay=false,delayedModule=false,brokenGroup=fa
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[]);
   });
-  t.mock.method(globalThis,'fetch',async input=>{
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];
     if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});
     if(route==='directory')return Response.json(unavailableMemberships?{...directory,members:[{...member,memberships:null}],index:{complete:false,loaded:0,total:1,failed:0,error:null}}:directory);
@@ -295,7 +296,7 @@ test('a cold deep link renders its destination shell before the view module reso
 });
 
 test('cold legislation links show the validated mode heading before and after the module loads',async t=>{
-  for(const [mode,title] of [['agenda','Plenary agenda'],['participation','What’s hot'],['cloud','Plenary word cloud'],['trends','Topic timeline'],['dossier','Dossiers'],['invalid','Plenary agenda']])await t.test(mode,async t=>{
+  for(const [mode,title] of [['agenda','Plenary agenda'],['participation','What’s hot'],['cloud','Plenary word cloud'],['dossier','Dossiers'],['invalid','Plenary agenda']])await t.test(mode,async t=>{
     const h=await harness(t,'?view=legislation&pl-mode='+mode,false,'legislation');
     assert.equal(h.container.querySelector('[data-view-loading] h1').textContent,title);
     await h.releaseView();

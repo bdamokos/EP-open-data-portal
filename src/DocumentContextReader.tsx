@@ -1,3 +1,4 @@
+import {RecordTopics} from './RecordTopics';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {DocumentObjectText} from './DocumentObjectText';
@@ -162,6 +163,12 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
     evidence?.amendmentId===amendmentRequest.amendmentId&&evidence?.listId===wording.listId&&evidence?.wordingLanguage===wording.language&&
     (!amendmentRequest.listId||evidence.listId===amendmentRequest.listId)&&(!wordingPinned||evidence.wordingLanguage===amendmentRequest.wordingLanguage)&&
     typeof wording.language==='string'&&data?.baseline?.language===wording.language);
+  if(placement?.status==='report-quotation'&&amendmentMatches&&wording)return <div className="document-context-document">
+    {document&&<header className="document-context-heading"><h3 lang={title?.language}>{title?.text}</h3></header>}
+    <p className="document-context-notice"><UiMessage id="documentcontext.council.quotation"/></p>
+    {amendmentBlock(false)}
+    {showOriginalLink&&sourceUrl&&<p className="document-context-source"><a href={sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="proposalcontexttext.parliament.report"/></a></p>}
+  </div>;
   if(['commission-proposal','council-position','existing-act'].includes(data?.baseline?.kind||'')&&data?.proposal?.items.length)return <div className="document-context-document">
     {document&&<header className="document-context-heading"><div><p className="document-context-kind"><UiMessage id="batch6.documentcontextreader.report.amendment.163"/></p><h3 lang={title?.language}>{title?.text}</h3></div></header>}
     {!wording&&<AmendmentJustification record={selectedVariant}/>}
@@ -207,7 +214,7 @@ function ContextSession({request,language,selectedDocumentId,onSelectedDocumentI
   const choices=data?.related.items.filter(item=>/^TA-10-\d{4}-\d{4,6}$/.test(item.id)&&item.relationship.field==='adopts'&&item.relationship.from===item.id&&item.relationship.to===request.documentId)||[];
   const selectedChoice=choices.find(item=>item.id===selected),partial=data?.related.status==='partial';
   const pendingRelated=request.view==='adopted'&&related.loading&&(selected ? (!selectedChoice) : (!data));
-  return <section className="document-context-reader" lang={ui.language} aria-label={ui.t("batch6.documentcontextreader.document.context.205")} data-context-pending={pendingRelated ? 'true' : undefined}>
+  return <section className="document-context-reader" lang={ui.language} aria-label={ui.t("batch6.documentcontextreader.document.context.205")} data-context-pending={pendingRelated ? 'true' : undefined}><RecordTopics id={request.documentId} full language={language}/>
     {showBackButton&&<button type="button" className="document-context-back" onClick={request.onBack}><>← {(request.backLabel??ui.t('interface.back'))}</></button>}
     {request.summary}
     {(request.view==='document') ? <DocumentBody key={request.documentId+':'+selectedLanguage} id={request.documentId} language={selectedLanguage} interfaceLanguage={language} showOriginalLink={showOriginalLink} onLanguageChange={setLanguage} amendmentRequest={request}/> : <>

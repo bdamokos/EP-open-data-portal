@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createElement,act} from 'react';
@@ -86,7 +87,7 @@ async function harness(t,language,{items=speeches,query={},linkedDocument,speech
     for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];
     assert.deepEqual(unexpected,[],'every fetch stays within the isolated app fixtures');
   });
-  t.mock.method(globalThis,'fetch',async input=>{
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href),route=url.pathname.split('/api/')[1];
     if(route?.startsWith('speech-transcript/'))return Response.json({id:route.split('/')[1],available:false});requests.push(route+url.search);
     if(route==='vote-periods'&&calendarResponse)return calendarResponse();

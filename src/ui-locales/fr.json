@@ -1,4 +1,5 @@
 {
+  "documentcontext.council.quotation": "Texte du Conseil tel que cité dans le rapport.",
   "amendment.rejects_proposal": "Rejette la proposition",
   "amendment.rejects_council_position": "Rejette la position du Conseil",
   "MemberMotionReader.choose_a_motion_text": "Choisir un texte de proposition de résolution",

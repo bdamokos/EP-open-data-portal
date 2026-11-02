@@ -5,7 +5,7 @@ import { comparisonHeading,isAmendmentHeading,baselineDescriptor,amendmentTarget
 import { numberingLabels } from './docx-numbering.mjs';
 import { styleFormatting } from './docx-formatting.mjs';
 
-export const AMENDMENT_EXTRACTION_VERSION='20';
+export const AMENDMENT_EXTRACTION_VERSION='21';
 
 const TEXT_LOSS_CODES=new Set(['comparison-header','comparison-columns','comparison-grid','comparison-structure','inline-content-loss','nested-table','non-text-content','structural-revision','symbol-text-loss','vertical-formatting-loss','text-unavailable','numbering-warning']);
 const alternateBranch=key=>/(?:^|:)(?:AlternateContent|Choice|Fallback)$/.test(key);
@@ -330,7 +330,7 @@ export function extractAmendments(buffer,{listId,targetDocumentId,language=null,
     const start=blocks.findIndex(block=>block.kind==='paragraph'&&/<RepeatBlock-Amend>/.test(block.raw));
     const end=blocks.findIndex((block,index)=>index>=start&&block.kind==='paragraph'&&/<\/RepeatBlock-Amend>/.test(block.raw));
     const cover=blocks.slice(0,start).filter(block=>block.kind==='paragraph').map(block=>block.raw).join('\n');
-    const coverIds=field(cover,'NoDocSe').map(value=>value.match(/^A(\d+)-(\d+)\/(\d{4})$/)).filter(Boolean).map(([,term,number,year])=>'A-'+term+'-'+year+'-'+number.padStart(4,'0'));
+    const coverIds=field(cover,'NoDocSe').map(value=>value.replace(/\u2011/gu,'-').match(/^A(\d+)-(\d+)\/(\d{4})$/)).filter(Boolean).map(([,term,number,year])=>'A-'+term+'-'+year+'-'+number.padStart(4,'0'));
     const main=blocks.slice(start,end+1),numbers=main.filter(block=>block.kind==='paragraph').flatMap(block=>[...block.raw.matchAll(/<NumAm>\s*([1-9]\d*)\s*<\/NumAm>/g)].map(match=>Number(match[1])));
     if(reportId!==targetDocumentId||range?.[1]!==reportId||coverIds.length!==1||coverIds[0]!==reportId||start<0||end<start||numbers.length!==Number(range[3])-Number(range[2])+1||numbers.some((number,index)=>number!==Number(range[2])+index)) {
       gap('report-amendment-identity',null,'The report cover and main amendment block do not establish the exact published list range.');return {amendments:[],gaps,reportId};

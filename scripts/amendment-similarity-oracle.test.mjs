@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {oracleSimilarity,assertSimilarityRows} from './amendment-similarity-oracle.mjs';
+test('character distance preserves words and digits after whitespace and quote normalization',()=>{assert.equal(oracleSimilarity('A  “word”','A "word"'),1);assert.equal(oracleSimilarity('1234567890','1234567891'),.9);});
+test('unique best passage and margin are required',()=>{const text='A provider shall document the assessment before placing the system on the market.';const rows=[{index:0,text}];assert.equal(assertSimilarityRows(rows,text.replace('system','systen'),{start:0,end:0}),true);assert.equal(assertSimilarityRows([...rows,{index:1,text}],text,{start:0,end:0}),false);});

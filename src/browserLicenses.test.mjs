@@ -62,7 +62,7 @@ test('production JavaScript retains full notices for every bundled dependency', 
   const manifest = JSON.parse(result.output.find(file => file.fileName === '.vite/manifest.json').source);
   const emitted = new Set(Object.values(manifest).map(entry => entry.file));
   for (const chunk of chunks) assert(emitted.has(chunk.fileName), `chunk missing from immutable-asset manifest: ${chunk.fileName}`);
-  const secondary = ['GroupVoices', 'Legislation', 'QuestionTopics', 'OutsideVoices', 'Saved', 'Amendments', 'MemberVotes', 'DocumentContextReader', 'MemberMotionReader', 'DossierVoteText'].map(name => `src/${name}.tsx`);
+  const secondary = ['Topics', 'GroupVoices', 'Legislation', 'QuestionTopics', 'OutsideVoices', 'Saved', 'Amendments', 'MemberVotes', 'DocumentContextReader', 'MemberMotionReader', 'DossierVoteText'].map(name => `src/${name}.tsx`);
   const dynamic = manifest['index.html'].dynamicImports;
   assert.deepEqual(dynamic.filter(key=>!key.startsWith('src/ui-locales/')).sort(), [...secondary,'node_modules/pdfjs-dist/build/pdf.mjs'].sort());
   const languages='bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
@@ -82,7 +82,7 @@ test('production JavaScript retains full notices for every bundled dependency', 
   for (const key of [...secondary,...languages.map(language=>`src/ui-locales/${language}.json`)]) assert(!initial.has(key), `${key} was pulled into the initial load`);
   const initialFiles = new Set([...initial].map(key => manifest[key].file));
   const initialSources = chunks.filter(chunk => initialFiles.has(chunk.fileName)).flatMap(chunk => chunk.map.sources);
-  for (const name of ['Saved.tsx', 'Amendments.tsx', 'MemberVotes.tsx', 'DocumentContextReader.tsx', 'MemberMotionReader.tsx', 'DossierVoteText.tsx', 'MotionAmendments.tsx', 'europeMap.ts', 'TopicTrends.tsx', 'pdf.mjs']) {
+  for (const name of ['Saved.tsx', 'Amendments.tsx', 'MemberVotes.tsx', 'DocumentContextReader.tsx', 'MemberMotionReader.tsx', 'DossierVoteText.tsx', 'MotionAmendments.tsx', 'europeMap.ts', 'worldMap.ts', 'PlacesMap.tsx', 'Topics.tsx', 'TopicTrends.tsx', 'pdf.mjs']) {
     assert(!initialSources.some(source => source.endsWith('/' + name)), `${name} remains eager through another export`);
   }
 });
