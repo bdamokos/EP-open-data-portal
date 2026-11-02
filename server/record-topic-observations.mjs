@@ -48,7 +48,7 @@ export function* topicObservationSteps(observations,{map=()=>new Map(),stream=fa
   }else if(w.activity_id){
    const speech=/\/(?:PLENARY_DEBATE_SPEECH|PLENARY_DEBATE_WRITTEN_STATEMENT)$/.test(w.had_activity_type||'');
    if(speech){const v=outsideSpeech(w,s.fetchedAt,s.url);if(v)nodes.set(id,{id,kind:'speech',date:v.date,titles:v.titles,members:v.participants,parentIds:conflicted?[]:v.parentIds,source:s,conflicted});}
-   else{const metadata=nodes.get(id);nodes.set(id,{...metadata,id,kind:'event',activityType:w.had_activity_type,date:w.activity_date||metadata?.date,titles:w.activity_label||metadata?.titles||{},source:s});}
+   else{const metadata=nodes.get(id);nodes.set(id,{...metadata,id,kind:'event',activityType:w.had_activity_type,date:w.activity_date||metadata?.date,titles:w.activity_label&&Object.keys(w.activity_label).length?w.activity_label:metadata?.titles||{},source:s});}
   }
  }
  function event(id,s){if(!nodes.has(id))nodes.set(id,{id,kind:'event',titles:{},source:s});return nodes.get(id);}
