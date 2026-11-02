@@ -21,7 +21,7 @@ export const riser=(...args)=>risers(...args)[0]||null;
 const PRE=/^((?:SECOND )?REPORT|(?:JOINT )?MOTION FOR A RESOLUTION|RECOMMENDATION|OPINION)\s+(?:on\s+)?(?:the\s+proposal\s+for\s+an?\s+(?:regulation|directive|decision)(?:\s+of\s+the\s+European\s+Parliament\s+and\s+of\s+the\s+Council|\s+of\s+the\s+Council)?\s*)?/i;
 export function titleParts(title,language){if(language!=='en')return ['',title];const m=title.match(PRE);let at=m?m[0].length:0;const ar=title.lastIndexOf(' as regards ');if(ar>at)at=ar+12;return [title.slice(0,at),title.slice(at)];}
 export function topicsHref(key,filters={}){const q=new URLSearchParams({view:'topics'});q.set(key.startsWith('place:')?'place':'topic',key.replace(/^place:/,''));for(const [k,v] of Object.entries(filters))if(v)q.set(k,String(v));return '?'+q;}
-export function legacyTopics(query){if(query.get('view')!=='legislation'||query.get('pl-mode')!=='trends')return null;const raw=query.get('trend-key')||query.get('trend-topic'),id=raw?.replace(/^https?:\/\/eurovoc\.europa\.eu\//,'').replace(/^eurovoc:/,'');const lang=query.get('lang');return id&&/^(?:\d{1,8}|c_[A-Za-z0-9_]{1,40})$/.test(id)?topicsHref('eurovoc:'+id,{lang}):'?view=topics'+(lang?'&lang='+encodeURIComponent(lang):'');}
+export function legacyTopics(query){if(query.get('view')!=='legislation'||query.get('pl-mode')!=='trends')return null;const raw=query.get('trend-key')||query.get('trend-topic'),id=raw?.replace(/^https?:\/\/eurovoc\.europa\.eu\//,'').replace(/^eurovoc:/,'');const lang=query.get('lang');return id&&/^(?:\d{1,8}|c_[A-Za-z0-9_]{1,40})$/.test(id)?topicsHref('eurovoc:'+id,{lang}):'?view=topics&t-tab=topics'+(lang?'&lang='+encodeURIComponent(lang):'');}
 
 // Rows are already sorted by score; a preview includes every boundary tie.
 export function withBoundaryTies(rows,limit,score){if(rows.length<=limit)return rows;const cut=score(rows[limit-1]);let end=limit;while(end<rows.length&&score(rows[end])===cut)end++;return rows.slice(0,end);}
@@ -32,3 +32,6 @@ export function monthRangeLabel(period,language='en'){
  const start=new Date(bounds[0].from+'T12:00:00Z'),end=new Date(bounds.at(-1).to+'T12:00:00Z');
  const format=new Intl.DateTimeFormat(language==='en'?'en-GB':language,{month:'long',year:'numeric',timeZone:'UTC'});
  return typeof format.formatRange==='function'?format.formatRange(start,end):format.format(start)+' – '+format.format(end);}
+
+// The map opens on the newest quarter that has had a plenary sitting (partial quarters included).
+export function defaultMapQuarter(data){const periods=data?.periods||[];for(let i=periods.length-1;i>=0;i--)if(Number(data.sittingDays?.[periods[i]])>0)return periods[i];return lastFullQuarter(data);}

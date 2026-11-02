@@ -1,3 +1,4 @@
+import {stageStoryInput,storyTables} from './story-facts-storage.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
@@ -86,4 +87,29 @@ test('overview and detail count records within the same projection date bound',t
 test('a country ID absent from the authority snapshot is unresolved, not a second place',async()=>{
  const {countryIdentity}=await import('./topic-country-identity.mjs');
  assert.equal(countryIdentity('XKX'),null);assert.equal(countryIdentity('1A0')?.id,'1A0');assert.equal(eurovocCountries.get('http://eurovoc.europa.eu/5695'),'XKX');
+});
+
+test('proceeding and chair events are dropped, including untyped OTH parents',t=>{
+ const store=fixture(t),key='place:NGA',assignment={key,role:'place',paths:[]},date='2026-07-08',oth='MTG-PL-'+date+'-OTH-2017087113155',chair='MTG-PL-'+date+'-PVCRE-ITM-1',records=[{id:oth,kind:'event',activityType:null},{id:chair,kind:'event',activityType:'def/ep-activities/MEETING_NAME_CHAIR'},{id:'MTG-PL-'+date+'-PVCRE-ITM-2',kind:'event',activityType:'def/ep-activities/PROCEEDING_ACTIVITY'},{id:'MTG-PL-'+date+'-OTH-100',kind:'speech',parentIds:[oth],members:[]}].map(r=>({...r,date,titles:{en:'Nigeria'},assignments:[assignment]}));
+ writeTopicProjection(store,{records,concepts:[{key,role:'place',labels:{en:'Nigeria'}}]});const detail=new RecordTopics(store).query(new URLSearchParams({key}),'detail');assert.equal(detail.total,1);assert(detail.groups.every(g=>g.kind!=='debate'));for(const r of records.filter(r=>r.kind==='event'))assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_records WHERE id=?').get(r.id).n,0);
+});
+test('vote-family groups expose only one retained exact scheduled vote target',t=>{
+ const store=fixture(t);storyTables(store.db);const date='2026-07-09',key='place:NGA',assignment={key,role:'place',paths:[]},scheduled=n=>'MTG-PL-'+date+'-OJ-ITM-V-'+n,event=n=>'MTG-PL-'+date+'-PVCRE-ITM-9-'+n;
+ for(const n of [94,95])stageStoryInput(store,{activity_id:scheduled(n),activity_date:date,had_activity_type:'def/ep-activities/PLENARY_VOTE'}, {url:'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-'+date+'/foreseen-activities',fetchedAt:'2026-07-10T00:00:00Z'});
+ const refs=[[scheduled(94)],[],[scheduled(94),scheduled(95)],['MTG-PL-'+date+'-OJ-ITM-D-1']];const records=refs.map((agendaIds,n)=>({id:event(n+1),kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_RESULTS',agendaIds,date,titles:{en:'Nigeria vote'},assignments:[assignment]}));writeTopicProjection(store,{records,concepts:[{key,role:'place',labels:{en:'Nigeria'}}]});const groups=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups;
+ assert.equal(groups.find(g=>g.key===event(1)).agendaId,scheduled(94));for(const n of [2,3,4])assert(!groups.find(g=>g.key===event(n)).agendaId);assert(groups.every(g=>g.kind==='record'));
+});
+
+test('a dossier group whose newest item is a vote stays a dossier when the procedure record is absent',t=>{
+ const store=fixture(t),key='place:NGA',assignment={key,role:'place',paths:[]};
+ writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:'A10-0001/2026',kind:'document',procedureIds:['2026-0001'],date:'2026-07-01',titles:{en:'Report'},assignments:[assignment]},{id:'MTG-PL-2026-07-09-PVCRE-ITM-9-1',kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_RESULTS',procedureIds:['2026-0001'],agendaIds:[],date:'2026-07-09',titles:{en:'Vote'},assignments:[assignment]}]});
+ const groups=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups,dossier=groups.find(g=>g.key==='2026-0001');
+ if(dossier){assert.equal(dossier.kind,'procedure');assert.equal(dossier.procedureId,'2026-0001');assert.equal(dossier.agendaId,undefined);}
+ assert(!groups.some(g=>g.kind==='record'&&g.key==='2026-0001'),'a dossier group never becomes a record because of its newest item');
+});
+
+test('speeches under vote-family parents are records without an inferred agenda target',t=>{
+ const store=fixture(t),date='2026-07-09',key='place:NGA',parent='MTG-PL-'+date+'-PVCRE-ITM-9-6',speech='MTG-PL-'+date+'-OTH-100';
+ writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:parent,kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',date,titles:{en:'Explanations of votes'},assignments:[]},{id:speech,kind:'speech',parentIds:[parent],members:[],date,titles:{en:'Speech'},assignments:[{key,role:'place',paths:[]}]}]});
+ const group=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups[0];assert.equal(group.key,parent);assert.equal(group.kind,'record');assert.equal(group.speechCount,1);assert.equal(group.agendaId,undefined);
 });

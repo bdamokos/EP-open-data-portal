@@ -2469,6 +2469,7 @@
   "votegroups.split": "Разделени",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} от {total}",
+  "votegroups.whole_group": "Цялата група",
   "votegroups.voted_differently.one": "{count} евродепутат гласува различно от мнозинството в своята група.",
   "votegroups.voted_differently": "{count} евродепутати гласуваха различно от мнозинството в своята група.",
   "votegroups.delegations.heading": "Делегации, гласували различно от своята група",

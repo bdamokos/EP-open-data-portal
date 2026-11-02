@@ -148,3 +148,15 @@ test('record dates use month ranges in metadata, baseline headings, rows and com
 test('story link accessible names use the same month ranges as their destination',async t=>{
  const h=await harness(t,{props:{selection}});await h.wait('Questions about Colombia');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Questions about Colombia');assert.match(link.getAttribute('aria-label'),/13 questions about Colombia, July.*September 2026/);assert(!link.getAttribute('aria-label').includes('Q3'));
 });
+
+test('retained story links browse their displayed mode, zoom and authors while replacement facts load',async t=>{
+ let release;const pending=new Promise(r=>release=r);
+ const h=await harness(t,{fresh:true,props:{selection},respond:async(u,q)=>{if(q?.mode==='d'&&!q.list){await pending;return mapLinkFacts(q);}}});
+ await h.wait('Questions about Colombia');
+ await h.render({selection:{...selection,mode:'d',zoom:'eu',excludeOwn:false}});
+ const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Questions about Colombia');assert(link);
+ const target=new URL(link.href);assert.equal(target.searchParams.get('t-mode'),'q');assert.equal(target.searchParams.get('t-zoom'),'world');assert.equal(target.searchParams.get('t-own'),'1');assert.equal(parseStorySetKey(target.searchParams.get('t-records')).askers,'not-home');assert(!h.node.textContent.includes('Joint texts counted once'));
+ await act(async()=>link.click());await h.wait('questions about Colombia');
+ const request=h.calls.find(u=>u.searchParams.get('list')==='questions');assert(request);assert.equal(request.searchParams.get('askers'),'not-home');assert.equal(request.searchParams.get('mode'),'q');assert.equal(request.searchParams.get('zoom'),'world');
+ await act(async()=>release());
+});

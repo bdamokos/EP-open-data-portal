@@ -2469,6 +2469,7 @@
   "votegroups.split": "Sans majorité",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} sur {total}",
+  "votegroups.whole_group": "Ensemble du groupe",
   "votegroups.voted_differently.one": "{count} député a voté différemment de la majorité de son groupe.",
   "votegroups.voted_differently": "{count} députés ont voté différemment de la majorité de leur groupe.",
   "votegroups.delegations.heading": "Délégations ayant voté à l’inverse de leur groupe",

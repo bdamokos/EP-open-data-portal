@@ -2469,6 +2469,7 @@
   "votegroups.split": "Roinnte",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} as {total}",
+  "votegroups.whole_group": "An grúpa iomlán",
   "votegroups.voted_differently.one": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
   "votegroups.voted_differently": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
   "votegroups.delegations.heading": "Toscaireachtaí a vótáil ar bhealach éagsúil lena ngrúpa",

@@ -21,13 +21,13 @@ export function InsightShell({title,description,view,children,onBack,onNavigate,
   const content=<>{!hideTitle&&<section className="insight-intro" lang={ui.language}><h1>{title}</h1>{description&&<p>{description}</p>}</section>}{children}<footer><DataNotice className="insight-data-notice"/></footer></>;
   return framed ? content : <main className="explorer-insights" lang={language}><ParliamentHeader view={view} onMembers={onBack} onNavigate={onNavigate} onSaved={onSaved} language={language}/>{content}</main>;
 }
-export function InsightStatus({loading,error,retry,loadingMessage: loadingMessageProp,errorMessage: errorMessageProp}:{loading:boolean;error:string|null;retry:()=>void;loadingMessage?:string;errorMessage?:string}) {
+export function InsightStatus({loading,error,retry,loadingMessage: loadingMessageProp,errorMessage: errorMessageProp}:{loading:boolean;error:string|null;retry?:()=>void;loadingMessage?:string;errorMessage?:string}) {
   const ui = useUiI18n();
 const loadingMessage = loadingMessageProp ?? ui.t("insightshared.loading");
 const errorMessage = errorMessageProp ?? ui.t("insightshared.could_not_load_this_item");
 
   const [visible,setVisible]=useState(false);useEffect(()=>{setVisible(false);if(!loading)return;const timer=setTimeout(()=>setVisible(true),300);return()=>clearTimeout(timer);},[loading]);
-  return <>{visible&&loading&&<p className="insight-secondary" role="status" lang={ui.language}>{loadingMessage}</p>}{error&&<div className="insight-error" role="alert" lang={ui.language}><span>{errorMessage}</span><button onClick={retry}><UiMessage id="insightshared.reload.cce715"/></button></div>}</>;
+  return <>{visible&&loading&&<p className="insight-secondary" role="status" lang={ui.language}>{loadingMessage}</p>}{error&&<div className="insight-error" role="alert" lang={ui.language}><span>{errorMessage}</span>{retry&&<button onClick={retry}><UiMessage id="insightshared.reload.cce715"/></button>}</div>}</>;
 }
 export const genderName=(label:string,ui:import('./uiI18n.mjs').UiFormatter)=>label==='Female'?ui.t('insightshared.genderFemale'):label==='Male'?ui.t('insightshared.genderMale'):label==='Unknown'?ui.t('insightshared.not_provided'):label;
 

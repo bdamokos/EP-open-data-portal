@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Window} from 'happy-dom';
 import {createElement as h,act} from 'react';
 import {freshLoader} from './test-support/viteRunner.mjs';
-async function harness(t,url='http://localhost/?view=topics'){
+async function harness(t,url='http://localhost/?view=topics&t-tab=topics'){// these tests cover the heat strip; Topics opens on Places by default
  const window=new Window({url}),globals={window,localStorage:window.localStorage,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
  for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'policy-area-sources'}),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);const root=createRoot(node);

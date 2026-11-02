@@ -34,3 +34,37 @@ export function assertFootnoteComparison(proposal,wording,placement) {
   }
   return {status:'verified',reason:'oracle-native-footnotes-and-positions'};
 }
+
+// The same assertion for a resolution body: compare the cleaned amendment body,
+// each superscript's position and its payload with the source text's own notes.
+// A custom mark can print its label twice in the amendment payload.
+export function assertResolutionFootnotes(text,wording,placement) {
+  const cut=/\n_{5,}\s*\n/u.exec(wording.originalText??'');
+  if(!cut||!placement.span||!Array.isArray(text?.paragraphs))return null;
+  const {start,end}=placement.span,rows=text.paragraphs.slice(start,end+1);
+  if(/\n_{5,}\s*\n/u.test(rows.join('\n')))return null;
+  const noSpace=s=>s.normalize('NFC').replace(/\s/gu,'');
+  const fail=()=>({status:'failed',reason:'oracle-footnote-comparison-mismatch'});
+  const body=wording.originalText.slice(0,cut.index),payload=wording.originalText.slice(cut.index+cut[0].length).split(/\n+/u).filter(line=>line.trim());
+  const marks=(wording.originalFormatting??[]).filter(f=>f.kind==='superscript'&&f.end<=body.length).sort((a,b)=>a.start-b.start);
+  if(text.notesStatus!=='extracted'||!marks.length||marks.length!==payload.length)return fail();
+  let clean='',cursor=0;const offsets=[];
+  for(const mark of marks){
+    if(mark.start<cursor||mark.end<=mark.start||!/^\d+$/u.test(body.slice(mark.start,mark.end)))return fail();
+    clean+=body.slice(cursor,mark.start);offsets.push(noSpace(clean).length);cursor=mark.end;
+  }
+  clean+=body.slice(cursor);
+  if(!rows.length||(text.paragraphSources??[]).slice(start,end+1).some(source=>source?.complete!==true))return fail();
+  if(noSpace(rows.join('\n'))!==noSpace(clean))return fail();
+  const anchors=(text.noteAnchors??[]).filter(a=>a.paragraph>=start&&a.paragraph<=end).sort((a,b)=>a.paragraph-b.paragraph||a.offset-b.offset);
+  if(anchors.length!==marks.length)return fail();
+  for(let i=0;i<marks.length;i++){
+    const a=anchors[i],note=text.notes?.find(n=>n.id===a.note),digits=body.slice(marks[i].start,marks[i].end);
+    const line=/^\s*(\d+)\s+([\s\S]+)$/u.exec(payload[i]);
+    const prefix=text.paragraphs.slice(start,a.paragraph).join('\n')+'\n'+text.paragraphs[a.paragraph].slice(0,a.offset);
+    const repeated=line&&line[2].startsWith(line[1])&&/^\s/u.test(line[2].slice(line[1].length))?line[2].slice(line[1].length):null;
+    if(!line||line[1]!==digits||typeof note?.text!=='string'||!note.text.trim()
+      ||![line[2],repeated].some(value=>value!==null&&noSpace(value)===noSpace(note.text))||noSpace(prefix).length!==offsets[i])return fail();
+  }
+  return {status:'verified',reason:'oracle-resolution-footnotes-and-positions'};
+}
