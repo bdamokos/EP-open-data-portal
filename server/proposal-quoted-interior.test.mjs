@@ -44,11 +44,14 @@ test('ETS AM18 inserts after both native paragraphs of 2a and before existing 2b
   assert.equal(proposalCandidates(item.proposal,'Article 10a – paragraph 2a').length,0);
 });
 
-test('ETS AM14 cannot borrow AM15 and AM15 retains its terminal quoted-boundary hold',()=>{
+test('ETS AM14 and AM15 follow the whole quoted 2b, before its asterisk note',()=>{
+  // The quote closes after 2b's own note (rule, then '*' row). A new sibling
+  // follows the provision text; AM14 (2bb) anchors on 2b, not on AM15's 2ba.
   for(const chosen of fixture.amendments.filter(value=>value.number!==18)){
     const placed=resolve(fixture.proposal,chosen);
-    assert.equal(placed.status,'unresolved','AM'+chosen.number);
-    assert.equal(placed.reason,'duplicate_target_label');assert.equal(placed.insertBefore,undefined);
+    assert.equal(placed.status,'placed','AM'+chosen.number);
+    assert.equal(placed.insertAfter,6);assert.equal(placed.insertBefore,7);
+    assert(placed.evidence.some(value=>value.basis==='whole-quoted-sibling'));
   }
   assert(fixture.amendments.find(value=>value.number===14).proposedText.startsWith('2bb.'));
   assert(fixture.amendments.find(value=>value.number===15).proposedText.startsWith('2ba.'));
@@ -68,9 +71,13 @@ test('the native 2a continuation and complete quote remain mandatory',()=>{
   assert.equal(resolve(projection).reason,'source_structure_unavailable');
 });
 
-test('an outer address alone supplies no quoted insertion or cross-language fallback',()=>{
-  const chosen=structuredClone(amendment);delete chosen.targetPath.underlying;
-  assert.equal(resolve(fixture.proposal,chosen).reason,'duplicate_target_label');
-  const differentLanguage=structuredClone(amendment);differentLanguage.targetPath.language='fr';
-  assert.equal(resolve(fixture.proposal,differentLanguage).reason,'duplicate_target_label');
+test('without the inner address only the printed whole-sibling rule applies, at the same boundary',()=>{
+  // The instruction names 2a and 2b; the printed 2aa follows the whole of 2a.
+  for(const change of [chosen=>{delete chosen.targetPath.underlying;},chosen=>{chosen.targetPath.language='fr';}]){
+    const chosen=structuredClone(amendment);change(chosen);
+    const placed=resolve(fixture.proposal,chosen);
+    assert.equal(placed.insertBefore,6);
+    assert(!placed.evidence.some(value=>value.basis==='quoted-interior-sibling-boundary'));
+    assert(placed.evidence.some(value=>value.basis==='whole-quoted-sibling'));
+  }
 });
