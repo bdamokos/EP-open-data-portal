@@ -2469,6 +2469,7 @@
   "votegroups.split": "Jagunenud",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count}/{total}",
+  "votegroups.whole_group": "Kogu fraktsioon",
   "votegroups.voted_differently.one": "{count} Euroopa Parlamendi liige hääletas oma fraktsiooni enamusest erinevalt.",
   "votegroups.voted_differently": "{count} Euroopa Parlamendi liiget hääletas oma fraktsiooni enamusest erinevalt.",
   "votegroups.delegations.heading": "Oma fraktsioonist erinevalt hääletanud delegatsioonid",

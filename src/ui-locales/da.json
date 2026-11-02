@@ -2469,6 +2469,7 @@
   "votegroups.split": "Delt",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} af {total}",
+  "votegroups.whole_group": "Hele gruppen",
   "votegroups.voted_differently.one": "{count} medlem af Europa-Parlamentet stemte anderledes end flertallet i sin gruppe.",
   "votegroups.voted_differently": "{count} medlemmer af Europa-Parlamentet stemte anderledes end flertallet i deres respektive grupper.",
   "votegroups.delegations.heading": "Delegationer, der stemte imod deres gruppes flertal",

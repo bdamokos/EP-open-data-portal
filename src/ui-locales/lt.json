@@ -2483,6 +2483,7 @@
   "votegroups.split": "Pasiskirstę",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} iš {total}",
+  "votegroups.whole_group": "Visa frakcija",
   "votegroups.voted_differently.one": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
   "votegroups.voted_differently": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
   "votegroups.delegations.heading": "Delegacijos, balsavusios kitaip nei jų frakcija",

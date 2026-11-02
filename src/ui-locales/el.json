@@ -2469,6 +2469,7 @@
   "votegroups.split": "Χωρίς πλειοψηφία",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} από {total}",
+  "votegroups.whole_group": "Ολόκληρη η ομάδα",
   "votegroups.voted_differently.one": "{count} ευρωβουλευτής ψήφισε διαφορετικά από την πλειοψηφία της ομάδας του.",
   "votegroups.voted_differently": "{count} ευρωβουλευτές ψήφισαν διαφορετικά από την πλειοψηφία της ομάδας τους.",
   "votegroups.delegations.heading": "Αντιπροσωπείες που ψήφισαν αντίθετα από την ομάδα τους",
