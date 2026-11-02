@@ -2,7 +2,8 @@ import {statSync} from 'node:fs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
 const MINUTE=60_000,DAY=1440*MINUTE;
 // Failed or skipped builds wait 15 minutes, doubling to one day. Refreshes
-// (not bootstraps) start at most once per Brussels window occurrence.
+// (not bootstraps) start at most once per Brussels window occurrence and
+// source generation, so a generation published later in the window still builds.
 export const topicBuildBackoff=failures=>Math.min(DAY,15*MINUTE*2**Math.min(Math.max(0,failures-1),20));
 export function topicBuildWindowKey(now,window=process.env.TOPICS_REBUILD_WINDOW||'03:00-05:00'){
  topicBuildWindowOpen(now,window);const start=Number(window.slice(0,2))*60+Number(window.slice(3,5));
@@ -10,12 +11,13 @@ export function topicBuildWindowKey(now,window=process.env.TOPICS_REBUILD_WINDOW
  return new Date(Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day),Number(p.hour),Number(p.minute))-start*MINUTE).toISOString().slice(0,10);
 }
 const state=store=>store.get('topicBuildState')||{};
+const attemptKey=(store,now,window)=>topicBuildWindowKey(now,window)+':'+(store.get('active')??'');
 export function topicBuildAllowed(store,now=store.clock(),{bootstrap=false,window}={}){
  const s=state(store);if(Number(s.retryAt)>now)return false;
- return bootstrap||s.windowAttempt!==topicBuildWindowKey(now,window);
+ return bootstrap||s.windowAttempt!==attemptKey(store,now,window);
 }
 export function topicBuildStarted(store,now=store.clock(),{bootstrap=false,window}={}){
- if(!bootstrap)store.set('topicBuildState',{...state(store),windowAttempt:topicBuildWindowKey(now,window)});
+ if(!bootstrap)store.set('topicBuildState',{...state(store),windowAttempt:attemptKey(store,now,window)});
 }
 export function topicBuildFailed(store,error,now=store.clock(),{skipped=false}={}){
  const s=state(store),failures=(s.failures||0)+1;
