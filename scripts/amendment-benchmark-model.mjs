@@ -176,6 +176,49 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
 }
 
+// Annex tables: rebuild logical rows from raw Word paths (a body paragraph,
+// or one table row whose cells join with tabs) and require the amendment's
+// original lines to match one unique contiguous run cell for cell, inside the
+// annex its label names. Never consult placer units or evidence.
+const tableAddress=raw=>/^Annex ([IVXLC]+)\b.*\s[–—-]\s+table(?:\s+on\s+[^–—-]+)?$/u.exec(String(raw??'').split('\n')[0].trim());
+const rawCell=value=>String(value).normalize('NFC').replace(/\s+/gu,' ').trim();
+function rawLogicalRows(proposal) {
+  const rows=[];let current=null;
+  for(const row of proposal?.paragraphs??[]) {
+    const source=row.source??{};
+    if(source.container==='table-cell') {
+      const cell=/^(.*\/w:tr\[\d+\])\/w:tc\[(\d+)\]\/w:p\[(\d+)\]$/u.exec(source.path??'');
+      if(!cell)return null;
+      if(current?.key!==cell[1]){current={key:cell[1],cells:[],indexes:[]};rows.push(current);}
+      // Later paragraphs of one cell make that row unmatchable, not the whole item.
+      current.cells.push(cell[3]==='1'?rawCell(row.text):'\u0000');current.indexes.push(row.index);
+      if(row.complete===false||source.complete!==true)current.broken=true;
+    } else {
+      current=null;
+      rows.push({key:null,cells:[rawCell(row.text)],indexes:[row.index],broken:row.complete===false||source.complete!==true||source.container!=='body'});
+    }
+  }
+  return rows;
+}
+function verifyAnnexTable({proposal,wording,placement}) {
+  const address=tableAddress(wording.targetPath?.proposal?.[0]?.raw??wording.targetLabel);
+  if(!address||wording.language!=='en'||!['replace','delete'].includes(placement.operation))return null;
+  const rows=rawLogicalRows(proposal);
+  if(!rows)return {status:'unverified',reason:'oracle-table-structure-unavailable'};
+  const lines=String(wording.originalText).split('\n').map(line=>line.split('\t').map(rawCell));
+  const same=(row,line)=>row.cells.length===line.length&&row.cells.every((cell,index)=>cell===line[index]);
+  const starts=[];
+  for(let i=0;i+lines.length<=rows.length;i++)if(lines.every((line,offset)=>same(rows[i+offset],line)))starts.push(i);
+  if(starts.length!==1)return {status:'unverified',reason:'oracle-table-rows-not-unique'};
+  const run=rows.slice(starts[0],starts[0]+lines.length);
+  if(run.some(row=>row.broken))return {status:'unverified',reason:'oracle-table-rows-incomplete'};
+  const first=run[0].indexes[0],last=run.at(-1).indexes.at(-1);
+  const heading=rows.slice(0,starts[0]).reverse().find(row=>!row.key&&/^ANNEX\s+[IVXLC]+$/u.test(row.cells[0]));
+  if(heading?.cells[0]!=='ANNEX '+address[1])return {status:'unverified',reason:'oracle-annex-identity-unverified'};
+  if(placement.span?.start!==first||placement.span?.end!==last)return fail('oracle-address-span-mismatch');
+  return verified('oracle-annex-table-rows');
+}
+
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
   if(label.negative) {
@@ -261,6 +304,8 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
   if (!expected) return {status:'unverified', reason:'oracle-operation-unavailable'};
   if (placement.operation !== expected) return {...fail('oracle-operation-mismatch'), expectedOperation:expected, actualOperation:placement.operation};
   const proposal = items?.[placement.itemIndex]?.proposal;
+  const table=proposal?verifyAnnexTable({proposal,wording,placement}):null;
+  if(table)return table;
   // Explicit inner labels must reach the independent native assertion before
   // the generic target grammar can decline an outer non-new instruction.
   const quoted=rawQuotedProposalAssertion({proposal,wording,placement,nativeQuoted});
