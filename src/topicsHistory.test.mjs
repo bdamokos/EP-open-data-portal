@@ -143,8 +143,7 @@ async function placesHarness(t,url,respond,{language='en'}={}){
  load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
  const wait=async predicate=>{for(let i=0;i<80&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
  let view=createElement(Topics,{language});
- if(language!=='en'){const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await import('./uiCatalogues.mjs'),locale=Object.fromEntries(Object.entries((await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default).filter(([k])=>!k.startsWith('votegroups.unity')));// unrelated catalogue entry under repair on main
-view=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:locale}),language},view);}
+ if(language!=='en'){const {UiI18nProvider}=await load('/src/UiI18nReact.tsx'),{createAppUiI18n}=await import('./uiCatalogues.mjs'),locale=(await import('./ui-locales/'+language+'.json',{with:{type:'json'}})).default;view=createElement(UiI18nProvider,{i18n:createAppUiI18n({[language]:locale}),language},view);}
  await act(async()=>root.render(view));return {node,wait};
 }
 const placesData=(sittingQ4,label='Iran')=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':sittingQ4},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label,series:[{period:'2026-Q2',question:5},{period:'2026-Q3',question:6},{period:'2026-Q4',question:2}]}]});
