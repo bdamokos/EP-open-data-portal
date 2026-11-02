@@ -1,7 +1,7 @@
 import {rootSourceValues,sourceByteChunks} from './topic-source-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
 import {storyTables,stageStoryInput,storyInput,queueStoryRead} from './story-facts-storage.mjs';
-import {array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,debateFormat,debatePlaces,speakerEligible,proceduralAgenda} from './story-facts-model.mjs';
+import {array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,debateFormat,debatePlaces,speakerEligible,proceduralAgenda,votingDebate} from './story-facts-model.mjs';
 import {speechParentDocumentId} from './speech-agenda.mjs';
 import {countryLabels} from './topic-roles.mjs';
 import {quarter} from './topics-store.mjs';
@@ -71,7 +71,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   for(const row of store.db.prepare("SELECT id,json_object('parentIds',json_extract(body,'$.parentIds'),'status',json_extract(body,'$.status'),'date',date) body FROM record_topic_records WHERE generation=? AND kind='speech' ORDER BY id").iterate(generation)){
    yield;const p=JSON.parse(row.body);if(p.status==='ambiguous'||p.parentIds?.length!==1){roleCoverage.unresolvedParents++;continue;}const id=p.parentIds[0];if(!/PVCRE-ITM-/.test(id)||!inTerm(p.date))continue;
    parent.run(generation,id,row.id);const o=storyInput(store,'speech',row.id);if(!o)continue;
-   let seed=seeds.get(id);if(!seed)seed={id,date:p.date,titles:o.titles||{},creIds:[],source:o.source};seed.creIds=unique([...seed.creIds,...(o.creIds||[]),...(o.creId?[o.creId]:[])]);seeds.set(id,seed);
+   let seed=seeds.get(id);if(!seed)seed={id,date:p.date,titles:o.titles||{},creIds:[],speechLabels:[],source:o.source};seed.speechLabels=[...seed.speechLabels,o.titles?.en??null];seed.creIds=unique([...seed.creIds,...(o.creIds||[]),...(o.creId?[o.creId]:[])]);seeds.set(id,seed);
    for(const member of items.iterate(sourceGeneration,row.id)){
     const item=JSON.parse(member.body);if(item.speechKind!=='PLENARY_DEBATE_SPEECH')continue;
     const header=o.headers.find(h=>String(h.personId)===String(member.mep)),eligible=speakerEligible(item,header);
@@ -88,7 +88,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');
   const roleCounts=speakerRoles.get(d.id);
-  const procedural=proceduralAgenda(agenda),body={...d,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
+  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id),d.speechLabels),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
   put.run(generation,'debate',d.id,d.date,JSON.stringify(body));addLinks('debate-document',d.id,body.docs);addLinks('debate-procedure',d.id,body.procedures);
   for(const p of procedural?[]:body.places)place.run(generation,p.id,'debate',d.id,d.date,p.basis);
   if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
@@ -111,7 +111,10 @@ async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){
  const remove=store.db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=? AND key LIKE \'place:%\''),member=store.db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)'),update=store.db.prepare('UPDATE record_topic_records SET body=? WHERE generation=? AND id=?'),parentGet=store.db.prepare('SELECT parent FROM story_parents WHERE generation=? AND speech=?');
  const conceptHas=store.db.prepare('SELECT 1 FROM record_topic_concepts WHERE generation=? AND key=?');
  const conceptPut=store.db.prepare('INSERT OR REPLACE INTO record_topic_concepts VALUES (?,?,?,?)');
+ const removeAll=store.db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?');
  const save=(row,r,geography,edge)=>{
+  // An excluded (procedural) debate leaves every counter: topic, keyword and place.
+  if(geography.procedural&&row.kind==='debate'){removeAll.run(generation,r.id);if(!r.procedural){r.procedural=true;update.run(JSON.stringify(r),generation,r.id);}return;}
   const old=r.assignments.filter(a=>a.role==='place'),next=r.assignments.filter(a=>a.role!=='place');
   for(const p of geography.places){let a=old.find(a=>a.key==='place:'+p.id);if(!a||p.basis==='title')a={key:'place:'+p.id,role:'place',paths:[{basis:p.basis==='title'?'title':edge?'debate':p.basis,steps:edge?[{from:r.id,field:'inverse_consists_of',to:edge}]:[],sources:r.source?[r.source]:[]}]};next.push(a);
    const c={key:a.key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+p.id,labels:{en:countryLabels.get(p.id)||p.id}};if(concepts&&!concepts.has(c.key))concepts.set(c.key,c);if(!conceptHas.get(generation,c.key))conceptPut.run(generation,c.key,'place',JSON.stringify(c));
@@ -119,8 +122,8 @@ async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){
   if(JSON.stringify(r.assignments)===JSON.stringify(next))return;r.placeKeywords=unique(old.map(a=>a.key));r.assignments=next;remove.run(generation,r.id);for(const a of next.filter(a=>a.role==='place'))member.run(generation,a.key,r.id,row.kind,row.date,row.group_key);update.run(JSON.stringify(r),generation,r.id);
  };
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,kind,date,group_key,body FROM record_topic_records WHERE generation=? AND kind='debate' ORDER BY id").iterate(generation)){
-  yield;const r=JSON.parse(row.body),known=fact('debate',row.id);if(known){save(row,r,known.procedural?{places:[]}:known);continue;}
-  const agenda=storyInput(store,'agenda',row.id),docs=docsFor(row.id),title=r.titles?.en||Object.values(r.titles||{})[0]||'';save(row,r,proceduralAgenda(agenda)?{places:[]}:debatePlaces(title,docs.flatMap(d=>d.places),debateFormat(agenda,docs)));
+  yield;const r=JSON.parse(row.body),known=fact('debate',row.id);if(known){save(row,r,known.procedural?{procedural:true,places:[]}:known);continue;}
+  const agenda=storyInput(store,'agenda',row.id),docs=docsFor(row.id),title=r.titles?.en||Object.values(r.titles||{})[0]||'';save(row,r,proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',row.id))?{procedural:true,places:[]}:debatePlaces(title,docs.flatMap(d=>d.places),debateFormat(agenda,docs)));
  }} )());
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,kind,date,group_key,body FROM record_topic_records WHERE generation=? AND kind='speech' ORDER BY id").iterate(generation)){
   yield;const r=JSON.parse(row.body),parent=parentGet.get(generation,row.id)?.parent,known=parent?fact('debate',parent):null;if(known)save(row,r,known.procedural?{places:[]}:known,parent);
