@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} posição registada",
   "membervotes.tsx.count.recorded.positions": "{count} posições registadas",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Votação final do texto na íntegra",
   "membervotes.tsx.final.vote.outcome.position": "Votação final · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Procurar texto aprovado",
   "membervotes.tsx.finding.latest.recorded.votes": "A procurar os votos registados mais recentes…",

@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} записана позиция",
   "membervotes.tsx.count.recorded.positions": "{count} записани позиции",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Окончателно гласуване по целия текст",
   "membervotes.tsx.final.vote.outcome.position": "Окончателно гласуване · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Намиране на приетия текст",
   "membervotes.tsx.finding.latest.recorded.votes": "Търсене на последните записани гласувания…",

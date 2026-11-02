@@ -1198,12 +1198,13 @@ test('split amendment and whole-text context restore published part descriptions
   });
 });
 
-test('detail subordinates whole-text decisions and removes final-vote self links',async t=>{
+test('final votes stay on the subject group and out of single-vote detail',async t=>{
  const item=vote(1),whole=vote(2,{scope:{kind:'whole-text'}}),items=[item,whole];
  const h=await mount(t,{state:{week:WEEK,decisionId:item.id},handler:url=>Response.json(responseFor(url,{items,subjects:[subject(items,{wholeTextDecisions:[whole]})]}))});
  const detail=h.container.querySelector('.member-votes-detail');
- assert.equal(detail.querySelector(':scope > .member-votes-whole'),null);
- assert.equal(detail.querySelector('details.member-votes-related summary').textContent,'Final vote on the whole text');
+ assert.equal(detail.querySelector('.member-votes-whole'),null);
+ assert.equal(detail.querySelector('details.member-votes-related'),null);
+ assert(h.container.querySelector('.member-votes-subject .member-votes-whole'));
  await h.update({decisionId:whole.id});assert.equal(h.container.querySelector('.member-votes-detail .member-votes-whole'),null);
 });
 

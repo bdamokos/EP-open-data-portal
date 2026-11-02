@@ -1,7 +1,7 @@
 import {RECORD_TOPICS_VERSION} from './record-topics.mjs';
 import {STORY_FACTS_VERSION} from './story-facts-model.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';
-import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import path from 'node:path';import {DatabaseSync} from 'node:sqlite';
+import {mkdtemp,rm,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import path from 'node:path';import {DatabaseSync} from 'node:sqlite';
 import {ActivityStore} from './activity-index-store.mjs';import {RecordTopics,writeTopicProjection} from './topics-store.mjs';
 import {storyFacts} from './story-facts-reader.mjs';
 import {rebuildTopicProjection,topicRebuildDue} from './topic-publication.mjs';import {topicCollectorTables} from './topics-project.mjs';
@@ -52,4 +52,16 @@ test('backoff and a used window stop builds waking or blocking the writer',async
  // Further recovery publications in the same window wait for the next night.
  store.set('active',3);store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:2,dataGeneration:2,askerSubsets:['all','home','elsewhere','not-home']});store.set('storyProjection',{version:STORY_FACTS_VERSION,generation:2,dataGeneration:2});assert.equal(topicRebuildDue(store,now+50*60_000),false,'at most two refreshes per window');
  now+=86400_000;assert(topicRebuildDue(store,now));
+});
+
+test('a story-version bump alone schedules the full rebuild that recomputes record topics',async t=>{
+ const {ActivityWorker}=await import('./activity-index-worker.mjs');
+ const dir=await mkdtemp(path.join(tmpdir(),'topics-story-version-'));const now=Date.parse('2026-11-02T03:10:00Z');const store=new ActivityStore(dir,{clock:()=>now,initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ store.set('active',1);const worker=new ActivityWorker(store,{clock:()=>now});worker.generationExecutor=async()=>assert.fail('not called');
+ store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:1,dataGeneration:1,askerSubsets:['all','home','elsewhere','not-home']});
+ store.set('storyProjection',{version:STORY_FACTS_VERSION-1,generation:1,dataGeneration:1});
+ // 'stories' runs rebuildTopicProjection, the same shadow build as 'topics', so title places reach topic and place pages.
+ assert.equal(worker.topicBuildStep(),'stories');
+ const source=await readFile(new URL('./activity-generation-worker.mjs',import.meta.url),'utf8');assert.match(source,/operation==='publish'\)value=store\.finalize\(generation\);else value=await rebuildTopicProjection\(/);
+ store.set('storyProjection',{version:STORY_FACTS_VERSION,generation:1,dataGeneration:1});assert.equal(worker.topicBuildStep({versionsOnly:true}),null);
 });

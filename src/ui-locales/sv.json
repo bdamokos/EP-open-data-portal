@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} registrerad röst",
   "membervotes.tsx.count.recorded.positions": "{count} registrerade röster",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Slutomröstning om hela texten",
   "membervotes.tsx.final.vote.outcome.position": "Slutomröstning · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Hitta antagen text",
   "membervotes.tsx.finding.latest.recorded.votes": "Hittar senaste registrerade omröstningar…",
