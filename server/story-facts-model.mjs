@@ -105,9 +105,10 @@ export const voteActivity=type=>/^(?:PLENARY_(?:VOTE(?:_[A-Z_]+)?|OUTCOME|DECISI
 // The event's own published type is exact evidence: a vote type excludes, PLENARY_DEBATE keeps it a debate.
 // Conflicting evidence from any source never excludes. Labels decide only when no type is retained.
 export function votingDebate(event,speechLabels=[],type=null,typeConflicted=false){
- if(event?.conflicted||typeConflicted)return false;
- const t=tail(event?.type||type||'');
- if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;
+ // One resolver for stories and topic records: the retained type evidence (newest observation,
+ // same-time disagreement is a conflict) decides. The stored input's own type is used only without it.
+ if(type||typeConflicted){if(typeConflicted)return false;const t=tail(type);if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;}
+ else{if(event?.conflicted)return false;const t=tail(event?.type||'');if(voteActivity(t))return true;if(t==='PLENARY_DEBATE')return false;}
  // A read item decides by its own English label; conflicted or missing labels keep it a debate.
  if(event){if(event.conflicted)return false;const own=event.titles?.en;return typeof own==='string'&&Boolean(own.trim())&&votingItem(own);}
  if(!speechLabels.length||speechLabels.some(l=>typeof l!=='string'||!l.trim()))return false;

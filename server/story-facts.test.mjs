@@ -422,7 +422,8 @@ test('conflicting type evidence from any source never excludes',async t=>{
  stageStoryInput(store,{activity_id:id,activity_label:{en:'Item'},had_activity_type:'def/ep-activities/PLENARY_DEBATE'},{...source,url:'b'},{rank:3});
  const evidence=storyEventType(store,id);assert.equal(evidence.conflicted,1,'same-time opposite types conflict whatever their order');
  assert.equal(votingDebate(storyInput(store,'event',id),['Item (vote)'],evidence.type,Boolean(evidence.conflicted)),false);
- assert.equal(votingDebate({titles:{en:'Item'},type:'PLENARY_DEBATE',conflicted:true},[],'PLENARY_VOTE',false),false,'a conflicted story event never excludes, even with a vote type elsewhere');
+ assert.equal(votingDebate({titles:{en:'Item (vote)'},type:'PLENARY_VOTE',conflicted:true},['Item (vote)']),false,'without resolved evidence a conflicted story event never excludes');
+ assert.equal(votingDebate({titles:{en:'Item'},type:'PLENARY_DEBATE',conflicted:true},[],'PLENARY_VOTE',false),true,'the shared resolver decides, as for topic records');
 });
 
 // Integration: held types arrive through the real ingestion paths, never by a network read.
@@ -460,4 +461,18 @@ assert.equal(storyEventType(store,child).conflicted,1);
  assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,0,'conflicting evidence keeps a story debate');
  assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get(child)?.kind,'debate','the topic record agrees');
  const totals=store.get('recordTopicCalendar').periodTotals['2026-Q3'];assert.equal(totals.debate,1);assert.equal(totals.vote,0);
+});
+
+// One resolver: a standalone child observation and a newer retained parent embedding it.
+for(const [older,newer] of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','PLENARY_DEBATE']])test('stories and topics resolve the newest type the same way: '+older+' then '+newer,async t=>{
+ const day='2026-07-09',parent='MTG-PL-'+day+'-PVCRE-ITM-9',child=parent+'-6',{store,cache}=await heldEventFixture(t,{child,day}),fs=await import('node:fs/promises');
+ await fs.writeFile(path.join(cache,'e'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+child,fetchedAt:Date.parse('2026-11-02T12:00Z'),payload:{data:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+older}]}}));
+ await fs.writeFile(path.join(cache,'f'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:Date.parse('2026-11-03T12:00Z'),payload:{data:[{id:'eli/dl/event/'+parent,activity_id:parent,activity_date:day,activity_label:{en:'Voting time'},had_activity_type:'def/ep-activities/PLENARY_VOTE',consists_of:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+newer,inverse_consists_of:['eli/dl/event/'+parent]}]}]}}));
+ await buildTopics(store,{cache});
+ const vote=newer==='PLENARY_VOTE';assert.equal(storyEventType(store,child).type,newer,'the newest observation is the resolved type');
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,vote?1:0,'story');
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get(child)?.kind,vote?'vote':'debate','topic record');
+ const totals=store.get('recordTopicCalendar').periodTotals['2026-Q3'];assert.equal(totals.debate,vote?0:1);
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?").get(child).n>0,!vote||store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='vote'").get(child).n>0,'a resolved debate keeps its memberships');
+ const story=storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3'));assert.equal(story.debates.some(d=>d.id===child),!vote);
 });
