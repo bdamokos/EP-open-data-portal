@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,readFile} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,readdir} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -212,13 +212,13 @@ test('transient 500 retries are capped and CELLAR metadata keeps the production 
   assert.equal(oversized.manifest().length,0);
 });
 
-test('a frozen manifest rejects even cached files outside its declared inputs',async t=>{
+test('a frozen manifest reports even cached undeclared files as derived acquisition gaps',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-seal-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const first=apiBase+'/api/amendments?offset=0',second=apiBase+'/api/amendments?offset=50';
   const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:2,delay:0,sleep:async()=>{},fetcher:async()=>new Response('{}')});
   await cache.get(first);const manifest=cache.manifest();await cache.get(second);
   const replay=new InputCache(directory,{apiBase});await replay.seal(manifest);
-  await assert.rejects(()=>replay.get(second),/input-not-in-snapshot/);assert.equal(replay.requests,0);
+  const gap=await replay.get(second);assert.equal(gap.acquisitionUnavailableReason,'frozen-input-absent');assert.equal(gap.status,null);assert.deepEqual(replay.manifest(),manifest);assert.equal(replay.requests,0);replay.assertHealthy();
 });
 
 test('motion extraction failures improve through checkout replay without new source requests',async t=>{
@@ -275,8 +275,8 @@ test('only the exact absent declared representation maps to a sealed acquisition
   assert.equal(error.code,'missing-declared-representation');assert.equal(error.source.status,406);assert.equal(error.source.sha256,recorded.advertisement.sha256);assert.deepEqual(error.request,{url,...declared});assert.equal(cache.requests,requests);assert.deepEqual(cache.manifest(),before);cache.assertHealthy();
   for(const [u,r] of [[url,{...declared,language:'fra'}],[url.replace('/DOC_1','/DOC_2'),declared],[url,{...declared,accept:'application/zip'}],[url,standard]])assert.equal(await missingDeclaredRepresentation(cache,u,r),null);
   const exact=JSON.stringify([url,declared]);cache.sealed.add(exact);assert.equal(await missingDeclaredRepresentation(cache,url,declared),null);cache.sealed.delete(exact);
-  // The narrow mapping does not swallow InputCache's unexpected-missing error.
-  await assert.rejects(cache.get(url,{...declared,language:'fra'}),/input-not-in-snapshot/);assert.throws(()=>cache.assertHealthy(),/input-not-in-snapshot/);
+  // The declared-advertisement evidence stays distinct from a generic frozen gap.
+  const absent=await cache.get(url,{...declared,language:'fra'});assert.equal(absent.acquisitionUnavailableReason,'frozen-input-absent');assert.deepEqual(absent.frozenInputGap,{reason:'frozen-input-absent',url,accept:declared.accept,language:'fra',snapshotId:null});cache.assertHealthy();assert.deepEqual(cache.manifest(),before);
 });
 test('a406 without the declared advertisement and a404 are not mapped to a representation gap',async()=>{
   const url='https://publications.europa.eu/resource/cellar/efd95e89-a29d-11ef-85f0-01aa75ed71a1.0001.01/DOC_1',standard={accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml',language:'eng'},declared={accept:'application/zip;type=akn4eu',language:'eng'};
@@ -342,4 +342,26 @@ test('ordinary Commission projections keep their first availability after an int
   assert.equal(proposalCalls,1);assert.equal(calls.length,2,'ordinary sharing must not re-read old metadata after the clock advances');
   for(const index of [0,2]){assert.equal(result[index].stages.S4.projection.status,'available');assert.deepEqual(result[index].stages.S4.gaps,[]);}
   const uncached=await clients.documents.metadata('52024PC0531');assert.equal(uncached.viewCache.stale,true,'the source freshness policy itself is unchanged');
+});
+
+
+test('absent sealed proposal metadata gaps shared rows while unrelated rows still evaluate',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'frozen-proposal-gap-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const runtime=await replayRuntime(root),proposal=fixture(),motion=fixture(false);
+  const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:30,delay:0,sleep:async()=>{},fetcher:(url,options)=>url.includes(motion.document)?motion.fetcher(url,options):proposal.fetcher(url,options)});
+  for(const f of [proposal,motion])await acquireReport([f.row],sample,cache,sourceReplay(cache,runtime));
+  const absent=cache.manifest().find(m=>m.url.endsWith('/celex/52026PC0001'));
+  assert(absent);const manifest=cache.manifest().filter(m=>m!==absent),snapshotId=digest(JSON.stringify({apiBase,sample,manifest}));
+  const before=await Promise.all((await readdir(directory)).sort().map(async file=>[file,digest(await readFile(path.join(directory,file)))]));
+  const offline=new InputCache(directory,{apiBase,cap:0,fetcher:()=>assert.fail('no source requests')});await offline.seal(manifest,{snapshotId});
+  const second={...proposal.row,id:proposal.document+'-AM-2',number:2,decisions:proposal.row.decisions.map(d=>({...d,id:'vote-2',amendmentIds:[proposal.document+'-AM-2']}))};
+  const measured={...runtime,extractAmendments:(body,options)=>{const result=runtime.extractAmendments(body,options);return {...result,amendments:[...result.amendments,...result.amendments.filter(a=>a.number===1).map(a=>({...a,number:2}))]};}};
+  const rows=await evaluateReport([proposal.row,second],sample,offline,{runtime:measured,replay:sourceReplay(offline,measured)});
+  const expected={reason:'frozen-input-absent',url:absent.url,...absent.request,snapshotId};
+  assert.equal(rows.length,2);
+  for(const row of rows){assert.equal(row.outcome,'acquisition-unavailable');assert.equal(row.reason,'frozen-input-absent');assert.deepEqual(row.acquisition.frozenInputGaps,[expected]);}
+  const [unaffected]=await evaluateReport([motion.row],sample,offline,{runtime,replay:sourceReplay(offline,runtime)});
+  assert.equal(unaffected.outcome,'correct');assert.equal(unaffected.acquisition.frozenInputGaps,undefined);
+  assert.deepEqual(offline.manifest(),manifest);assert.equal(offline.requests,0);offline.assertHealthy();
+  assert.deepEqual(await Promise.all((await readdir(directory)).sort().map(async file=>[file,digest(await readFile(path.join(directory,file)))])),before);
 });
