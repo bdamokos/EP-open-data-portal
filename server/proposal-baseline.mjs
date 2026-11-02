@@ -1,3 +1,4 @@
+import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
 import {retainBaseSelection} from './base-source-store.mjs';
 import {committeeDraftId,committeeDocumentEndpoint} from './committee-amendments.mjs';
@@ -71,6 +72,7 @@ export function createProposalBaseline({documents=new CellarDocuments(),request=
         if(identity.workId!==candidate.workId)return unavailable('unresolved',['proposal-work-conflict']);
         if(consultation&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DIR')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
         if(nle&&identity.evidence.find(e=>e.kind==='cellar-identity')?.types?.[0]!=='http://publications.europa.eu/resource/authority/resource-type/PROP_DEC')return unavailable('unresolved',['native-procedure-type-unavailable'],{workId:identity.workId});
+        if(!backfillSelectionMatches(identity))return unavailable('unresolved',['retained-selection-conflict'],{workId:identity.workId});
         const items=[],gaps=[];let bytes=0;
         for(const item of identity.items) {
           try {
