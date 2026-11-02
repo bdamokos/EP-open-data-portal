@@ -192,3 +192,15 @@ test('fallback display titles do not train English phrases in live or retained c
     assert.deepEqual(result.words.map(word=>word.word).sort(),english?['discussed','energy','nord-stream']:['discussed','energy','nord','stream']);
   }
 });
+
+test('Maltese clouds analyze exact Maltese fragments and preserve translation and missing-language states',async t=>{
+  const original=activity(1,{fragments:{mt:xml('mt','L-ambjent u ta’ dan.')}});
+  const translated=activity(2,{fragments:{mt:xml('en-t-mt-mtec','Fl-ambjent.')}});
+  const absent=activity(3,{fragments:{en:xml('en','Climate.')}});
+  const {service}=serviceFor(t,{data:[original,translated,absent]});
+  const result=await service.query(query(`member=${member}&days=term&lang=mt`));
+  assert.equal(result.language,'mt');
+  assert.deepEqual(result.speeches.map(s=>[s.id,s.machineTranslation]),[[original.activity_id,false],[translated.activity_id,true]]);
+  assert.equal(result.coverage.missingLanguage,1);
+  assert.deepEqual(result.words.map(w=>[w.word,w.speechCount,w.occurrences]),[['ambjent',2,2]]);
+});

@@ -36,7 +36,7 @@ test('comparison is lazy and stage/language changes never display stale wording,
   assert.equal(container.querySelectorAll('.explorer-diff-row').length,1);
   const selects=()=>container.querySelectorAll('.explorer-diff-controls select');
   const change=async(index,value)=>act(async()=>{const select=selects()[index];select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
-  await change(1,'fr');assert.equal(calls.at(-1).searchParams.get('lang'),'fr');assert.equal(container.querySelector('.explorer-diff-rows').lang,'fr');
+  assert.equal(selects().length,1,'the requested language needs no comparison language picker');
   await change(0,'joint-adopted');assert.equal(pending.length,1);assert.equal(container.querySelector('del'),null);assert.match(container.textContent,/Loading the linked texts/);
   await act(async()=>pending.shift().resolve(Response.json({error:{message:'Temporary source failure'}},{status:503})));
   assert.match(container.querySelector('.explorer-diff-error').textContent,/Temporary source failure/);
@@ -125,8 +125,8 @@ test('a common-language fallback does not claim both source documents lack the r
   await h.respond(result);
   assert.equal(h.container.querySelector('.text-language-note').textContent,'English unavailable in one or both texts · showing French');
   await h.click('Full text');assert.equal(h.container.querySelector('.explorer-diff-reader').lang,'fr');
-  const language=h.container.querySelectorAll('.explorer-diff-controls select')[1];await h.change('.explorer-diff-controls label:nth-child(2) select','fr');
+  const language=h.container.querySelector('.text-language-line select');assert.deepEqual([...language.options].map(option=>option.value),['de','fr']);await h.change('.text-language-line select','fr');
   assert.equal(h.container.querySelector('.explorer-diff-reader'),null);assert.equal(document.activeElement,language);
   await h.respond({...result,requestedLanguage:'fr'});
-  assert.equal(h.container.querySelector('.text-language-note'),null);assert.equal(h.container.querySelectorAll('.explorer-diff-controls select')[1],language);assert.equal(document.activeElement,language);
+  assert.equal(h.container.querySelector('.text-language-note'),null);assert.equal(h.container.querySelector('.text-language-line select'),language);assert.equal(document.activeElement,language);
 });

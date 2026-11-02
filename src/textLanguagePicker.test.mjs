@@ -24,49 +24,49 @@ async function harness(t){
   return {window,container,render,TextLanguageFallback};
 }
 
-test('native picker orders all options, uses endonyms with lang, selects actual text and emits changes',async t=>{
+test('a fallback edition offers a native picker in EU protocol order with endonyms, the actual text selected and changes emitted',async t=>{
   const h=await harness(t),changes=[];await h.render({onChange:code=>changes.push(code)});
-  const select=h.container.querySelector('select');
+  const line=h.container.querySelector('.text-language-line'),select=line.querySelector('select');
   assert.equal(select.getAttribute('aria-label'),'Text language');
-  assert.match(select.parentElement.textContent,/Text language/);
-  assert.deepEqual([...select.options].map(option=>option.value),['ga','en','fr','es','de','bg']);
-  assert.equal(select.options[0].textContent,'Gaeilge');assert.equal(select.options[4].textContent,'Deutsch');
+  assert.equal(line.textContent.includes('Text language'),false,'the picker has no visible label');
+  assert.deepEqual([...select.options].map(option=>option.value),['bg','es','de','en','fr','ga']);
+  assert.equal(select.options[0].textContent,'български');assert.equal(select.options[2].textContent,'Deutsch');
   for(const option of select.options)assert.equal(option.lang,option.value);
   assert.equal(select.value,'en');
   await act(async()=>{select.value='es';select.dispatchEvent(new h.window.Event('change',{bubbles:true}));});
   assert.deepEqual(changes,['es']);assert.equal(h.window.location.search,'');
 });
 
-test('one language hides the select and retains a plain interface-language fallback notice',async t=>{
+test('the requested edition, a single edition or a withheld offer shows no picker',async t=>{
+  const h=await harness(t);
+  await h.render({value:'ga'});assert.equal(h.container.querySelector('select'),null,'the requested language needs no picker');
+  await h.render({available:['en']});assert.equal(h.container.querySelector('select'),null,'one edition leaves nothing to choose');
+  await h.render({offer:false});assert.equal(h.container.querySelector('select'),null,'an original shown by choice is not a fallback');
+  await h.render({value:null});assert.equal(h.container.querySelector('select'),null,'an unloaded text has no fallback yet');
+});
+
+test('the line carries status and a plain fallback notice before the picker',async t=>{
   const h=await harness(t);
   await h.render({available:['en'],note:createElement(h.TextLanguageFallback,{requested:'ga',actual:'en',interfaceLanguage:'en'})});
   assert.equal(h.container.querySelector('select'),null);assert.equal(h.container.textContent,'Irish unavailable · showing English');
   assert.equal(h.container.querySelector('[role],[aria-live]'),null);
-  await h.render({available:['en'],note:createElement(h.TextLanguageFallback,{requested:'en',actual:'en',interfaceLanguage:'en'})});
+  await h.render({value:'ga',available:['ga'],note:createElement(h.TextLanguageFallback,{requested:'ga',actual:'ga',interfaceLanguage:'en'})});
   assert.equal(h.container.textContent,'');
+  await h.render({status:createElement('span',{className:'status'},'EN · Machine translation'),note:createElement(h.TextLanguageFallback,{requested:'ga',actual:'en',interfaceLanguage:'en'})});
+  const line=h.container.querySelector('.text-language-line');
+  assert.deepEqual([...line.children].map(node=>node.tagName),['SPAN','SMALL','SELECT']);
   await h.render({available:['fr'],value:'fr',note:createElement(h.TextLanguageFallback,{requested:'ga',actual:'fr',interfaceLanguage:'fr'})});
   assert.match(h.container.textContent,/irlandais unavailable · showing français/);
 });
 
-test('a picker that is no longer needed stays while focused and leaves on blur',async t=>{
+test('a focused picker stays until blur after the fallback ends',async t=>{
   const h=await harness(t);
-  await h.render({show:false});assert.equal(h.container.querySelector('select'),null);
   await h.render({});const select=h.container.querySelector('select');
   await act(async()=>select.focus());
-  await h.render({show:false,value:'ga'});
-  assert.equal(h.container.querySelector('select'),select);assert.equal(document.activeElement,select);
-  await act(async()=>select.blur());assert.equal(h.container.querySelector('select'),null);
-});
-
-test('opt-in focus preservation keeps a shrinking picker until blur for one or zero languages',async t=>{
-  const h=await harness(t);
-  for(const available of [['en'],[]]){
-    await h.render({preserveFocus:true});const select=h.container.querySelector('select');
-    await act(async()=>select.focus());
-    await h.render({available,preserveFocus:true,value:available[0]||null});
+  for(const props of [{value:'ga'},{available:['en']},{available:[],value:null}]) {
+    await h.render(props);
     assert.equal(h.container.querySelector('select'),select);assert.equal(document.activeElement,select);
-    assert.deepEqual([...select.options].map(option=>option.value),available.length?available:['']);
-    if(!available.length)assert.equal(select.options[0].disabled,true);
-    await act(async()=>select.blur());assert.equal(h.container.querySelector('select'),null);
   }
+  assert.deepEqual([...select.options].map(option=>option.value),['']);assert.equal(select.options[0].disabled,true);
+  await act(async()=>select.blur());assert.equal(h.container.querySelector('select'),null);
 });

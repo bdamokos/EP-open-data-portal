@@ -12,7 +12,7 @@ import {speechParagraphText} from './transcript-text.mjs';
 export const SPEECH_WORDS_VERSION=2;
 import {retainedSpeechData} from './corpus-speeches.mjs';
 export const speechWordLanguages=Object.freeze(Object.keys(stopwordLists));
-const filterKey=(word,language)=>word.normalize('NFKC').toLocaleLowerCase(language).normalize('NFD').replace(/\p{M}/gu,'');
+const filterKey=(word,language)=>{const key=word.normalize('NFKC').toLocaleLowerCase(language);return language==='mt'?key:key.normalize('NFD').replace(/\p{M}/gu,'');};
 const filters=new Map(Object.entries(stopwordLists).map(([lang,words])=>[lang,new Set(words.map(w=>filterKey(w,lang)))]));
 filters.get('en').delete('ai');
 for(const word of 'mr mrs ms madam mister president chairman chair thank thanks honourable honorable colleagues ladies gentlemen parliament european commission council speaker directive regulation policy act article day days today yesterday tomorrow week weeks year years commissioner commissioners minister ministers union fellow members europe people support country countries future live important need needs'.split(' '))filters.get('en').add(word);
@@ -26,7 +26,35 @@ export function speechWordsQuery(search,{now=Date.now()}={}) {
   return {...query,member};
 }
 export {speechParagraphText} from './transcript-text.mjs';
-export function speechWordTokens(text,language){const filter=filters.get(language);if(!filter)return [];const normalized=text.normalize('NFKC').toLocaleLowerCase(language);return [...normalized.matchAll(/(?:\bai\b|\p{L}[\p{L}\p{M}]{2,39})/gu)].filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index))).map(match=>match[0]).filter(word=>!filter.has(filterKey(word,language)));}
+export function speechWordTokens(text,language){
+  const filter=filters.get(language);if(!filter)return [];
+  let normalized=text.normalize('NFKC').toLocaleLowerCase(language);
+  if(language==='mt')normalized=normalized.replace(/[‘’ʼ]/gu,"'");
+  // Maltese hyphens delimit articles (including fused prepositions). Keep
+  // apostrophes within words; remove only the documented one-letter proclitics.
+  const pattern=language==='mt'?/\p{L}[\p{L}\p{M}]*(?:'[\p{L}\p{M}]+)*'?/gu:/(?:\bai\b|\p{L}[\p{L}\p{M}]{2,39})/gu;
+  const matches=[...normalized.matchAll(pattern)]
+    .filter(match=>!/[\d%][-‐‑–]?$/u.test(normalized.slice(Math.max(0,match.index-4),match.index)));
+  if(language!=='mt')return matches.map(match=>match[0]).filter(word=>!filter.has(filterKey(word,language)));
+  // A final apostrophe after a vowel is lexical (sema' "heard", not sema "sky")
+  // unless it closes a quotation: the last such apostrophe before punctuation
+  // or another quotation opens. 'l and 'il before a space are elisions.
+  const end=match=>match.index+match[0].length,boundary=(from,to)=>/[.!?\n]/u.test(normalized.slice(from,to));
+  const opens=match=>normalized[match.index-1]==="'"&&!(/^(?:l|il)$/u.test(match[0])&&normalized[end(match)]!=='-');
+  const closedLater=index=>{for(let next=index+1;next<matches.length;next++){if(/[^\s\-‐‑]/u.test(normalized.slice(end(matches[next-1]),matches[next].index))||opens(matches[next]))return false;if(matches[next][0].endsWith("'"))return true;}return false;};
+  let quoted=false;
+  return matches.map((match,index)=>{
+    if(index&&boundary(end(matches[index-1]),match.index))quoted=false;
+    if(opens(match))quoted=true;
+    let word=match[0];
+    if(word.endsWith("'")){
+      const lexical=/[aeiou]'$/u.test(word);
+      if(quoted&&!(lexical&&closedLater(index))){word=word.slice(0,-1);quoted=false;}
+      else if(!quoted&&!lexical)word=word.slice(0,-1);
+    }
+    return word.replace(/^[bfmst]'/u,'');
+  }).filter(word=>{const letters=[...word.replace(/'/gu,'')].length;return letters>=3&&letters<=40&&!filter.has(filterKey(word,language));});
+}
 export const speechWordStopwords=language=>new Set(filters.get(language)||[]);
 export class SpeechWordInsights {
   constructor(store,{clock=Date.now,directory=process.env.ODP_CACHE_DIR,readTranscript,readCorpusData=retainedSpeechData,readCorpusPage=retainedSpeechPage}={}){this.store=store;this.clock=clock;this.directory=directory;this.readTranscript=readTranscript;this.readCorpusData=readCorpusData;this.readCorpusPage=readCorpusPage;this.cache=new Map();this.pending=new Map();}

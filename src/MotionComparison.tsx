@@ -85,13 +85,12 @@ export function MotionComparison({originalId,jointId,language}:{originalId:strin
       <label><UiMessage id="MotionComparison.stages"/><select value={stage} onChange={e=>{setStage(e.target.value as Stage);setShowUnchanged(true);}}>
         <option value="original-joint"><UiMessage id="MotionComparison.original_joint_motion"/></option><option value="original-adopted"><UiMessage id="MotionComparison.original_adopted_text"/></option><option value="joint-adopted"><UiMessage id="MotionComparison.joint_motion_adopted_text"/></option>
       </select></label>
-      {showLanguage&&<TextLanguagePicker available={availableLanguages} requested={language} value={languageValue} onChange={setLanguage} preserveFocus/>}
     </div>
+    {showLanguage&&<TextLanguagePicker available={availableLanguages} requested={language} value={languageValue} onChange={setLanguage} note={data&&<TextLanguageFallback requested={selectedLanguage} actual={data.textLanguage} interfaceLanguage={language} comparison/>}/>}
     <div>
       {state.loading&&!data&&<p role="status"><UiMessage id="MotionComparison.loading_the_linked_texts"/></p>}
       {state.error&&<p className="explorer-diff-error">{state.error} <button type="button" onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p>}
       {data&&<>
-        <TextLanguageFallback requested={selectedLanguage} actual={data.textLanguage} interfaceLanguage={language} comparison/>
         {data.documents.length===2&&<div className="explorer-diff-documents">{data.documents.map((doc,i)=><div key={doc.id}><strong><>{labels[i]} · {doc.reference}</></strong>{doc.date&&<span lang={language}>{new Intl.DateTimeFormat(language,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(doc.date))}</span>}{doc.sourceUrl&&<a href={doc.sourceUrl} target="_blank" rel="noreferrer"><UiMessage id="MotionComparison.sourceDocx" values={{language: doc.language?.toUpperCase()}}/></a>}</div>)}</div>}
         {(data.status==='unavailable') ? <p className="explorer-diff-notice">{data.reason} <button type="button" onClick={retry}><UiMessage id="commissionfollowups.try_again"/></button></p> : <>
           <p className="explorer-diff-summary"><UiMessage id="MotionComparison.summary" values={{changed: (summary?.changed ?? '—'), removed: (summary?.removed ?? '—'), fromStage: contextLabels[0], added: (summary?.added ?? '—'), toStage: contextLabels[1]}}/></p>

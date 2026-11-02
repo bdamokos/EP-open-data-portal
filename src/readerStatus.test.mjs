@@ -166,10 +166,10 @@ test('question readers show the answerer and omit the page viewer and a redundan
   assert.equal(answerer.textContent,'Answered by: High Representative/Vice-President Kallas, European Commission');
   assert.equal(answerer.querySelector('span[lang="en"]').textContent,'High Representative/Vice-President Kallas');
   await h.render(null);
-  // A requested edition other than the interface language keeps the picker.
+  // A fallback edition offers the other editions.
   await h.render(h.reader('question',{id:answer,language:'fr'}));
-  await h.finish(`document/${answer}?lang=fr`,question(answer,'fr'));await h.wait();
-  assert(h.container.querySelector('select'),'French text under an English interface offers other editions');
+  await h.finish(`document/${answer}?lang=fr`,question(answer,'en'));await h.wait();
+  assert(h.container.querySelector('.text-language-line select'),'a French request answered in English offers other editions');
 });
 
 test('a focused question language picker survives an uncached language request',async t=>{
@@ -186,8 +186,8 @@ test('a focused question language picker survives an uncached language request',
 test('inline retries recover the same ID and chosen language once, retaining local keyboard focus',async t=>{
   for(const kind of ['question','speech'])await t.test(kind,async t=>{
     const h=await harness(t),id=kind==='question'?questionId:speechId,prefix=kind==='question'?'document':'speech';
-    // Questions offer other languages only when the requested language is unavailable.
-    const requested=kind==='question'?'hu':'en';
+    // Readers offer other languages only when the requested language is unavailable.
+    const requested='hu';
     await h.render(h.reader(kind,{language:requested}));
     await h.finish(`${prefix}/${id}?lang=${requested}`,kind==='question'?question():speech());
     const select=h.container.querySelector('select');

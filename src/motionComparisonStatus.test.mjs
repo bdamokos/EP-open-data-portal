@@ -31,7 +31,7 @@ async function harness(t) {
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=(props={})=>act(async()=>root.render(createElement(MotionComparison,{originalId:'B-10-2026-0441',jointId:'RC-10-2026-0441',language:'en',...props})));
   const respond=(index,overrides={},status=200)=>act(async()=>{const request=requests[index];assert(request&&!request.done,'request must still be pending');request.done=true;request.resolve(Response.json(status===200?comparison(request,overrides):{error:{message:overrides.error||'Temporary comparison source failure'}},{status}));});
-  const change=(label,value)=>act(async()=>{const control=[...container.querySelectorAll('.explorer-diff-controls label')].find(node=>node.textContent.startsWith(label))?.querySelector('select');assert(control);control.value=value;control.dispatchEvent(new window.Event('change',{bubbles:true}));});
+  const change=(label,value)=>act(async()=>{const control=label==='Text language' ? container.querySelector('.text-language-line select') : [...container.querySelectorAll('.explorer-diff-controls label')].find(node=>node.textContent.startsWith(label))?.querySelector('select');assert(control);control.value=value;control.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const status=()=>container.querySelector('[role="status"][aria-atomic="true"]');
   return {window,container,requests,render,respond,change,status,clear:()=>act(async()=>root.render(null))};
 }
@@ -63,8 +63,8 @@ test('only the current stage, language and exact document pair can settle or ann
   const h=await harness(t);await h.render();const messages=record(h,t),stage=h.container.querySelector('select');stage.focus();
   await h.change('Stages','original-adopted');await h.change('Stages','joint-adopted');
   await h.respond(1);await h.respond(0);await settle();assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('.explorer-diff-row'),null);
-  await h.respond(2);await settle();assert.match(h.status().textContent,/Joint to adopted comparison available/);assert.equal(messages.length,1);assert.equal(document.activeElement,stage);
-  await h.change('Text language','fr');assert.equal(h.status().textContent,'');
+  await h.respond(2,{textLanguage:'fr',availableLanguages:['en','fr','de']});await settle();assert.match(h.status().textContent,/Joint to adopted comparison available/);assert.equal(messages.length,1);assert.equal(document.activeElement,stage);
+  await h.change('Text language','de');assert.equal(h.status().textContent,'');
   await h.render({originalId:'B-10-2026-0999'});await h.render({originalId:'B-10-2026-0999',jointId:'RC-10-2026-0999'});
   await h.respond(3,{error:'Obsolete language failure'},503);await h.respond(4);await settle();
   assert.equal(h.status().textContent,'');assert.equal(h.container.querySelector('.explorer-diff-row'),null);assert.doesNotMatch(h.container.textContent,/Obsolete language failure/);
@@ -85,8 +85,8 @@ test('errors and unavailable results stay concise, retry repeats deliberate outc
   assert.equal(h.status().textContent,'Original to joint comparison unavailable.');assert.match(h.container.textContent,/No published adopted text explicitly links/);assert.equal(h.container.querySelector('.explorer-diff-row'),null);
   await act(async()=>h.container.querySelector('.explorer-diff-notice button').click());assert.equal(h.status().textContent,'');await h.respond(3,unavailable);await settle();
   assert.equal(messages.length,4,'the same unavailable outcome after an explicit retry is announced again');
-  await h.change('Text language','fr');await h.respond(4,{textLanguage:'en'});await settle();
-  assert.match(h.status().textContent,/available.*Text language: EN/);assert.match(h.container.querySelector('.text-language-note').textContent,/French unavailable.*showing English/);assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
+  await h.render({language:'fr'});assert.equal(h.requests[4].url.searchParams.get('lang'),'fr');await h.respond(4,{textLanguage:'en'});await settle();
+  assert.match(h.status().textContent,/available.*Text language: EN/);assert.match(h.container.querySelector('.text-language-note').textContent,/français unavailable.*showing anglais/);assert(h.container.querySelector('.text-language-line select'),'a fallback offers the other editions');assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
 });
 
 test('missing summaries preserve unknown counts and known passages without claiming no differences',async t=>{
