@@ -108,8 +108,15 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       return nestedParagraphs.has(index) ? ([]) : row(index);
     });
     type GridCell={column:number;colSpan:number;rowSpan:number;paragraphs:number[]};
+    // A splice over whole table rows replaces those rows: omit them instead of
+    // leaving empty cells, and show the amendment after any remaining rows.
+    const splice=active ? placement.splice : undefined;
+    const spliced=(index:number)=>!!splice&&index>=splice.start.paragraph&&index<=splice.end.paragraph;
+    const replacedRows=new Set(table.rows.flatMap((tr,ri)=>{const indices=tr.cells.flatMap(cell=>cell.paragraphs);return indices.length&&indices.every(spliced)&&tr.cells.every(cell=>cell.verticalMerge!=='continue'&&cell.verticalMerge!=='start') ? [ri] : [];}));
+    const startsHere=!!splice&&[...replacedRows].some(ri=>table.rows[ri].cells.some(cell=>cell.paragraphs.includes(splice.start.paragraph)));
     let previous=new Map<string,GridCell>();
-    const rows=table.rows.map(tr=>{
+    const rows=table.rows.map((tr,ri)=>{
+      if(replacedRows.has(ri))return [] as GridCell[];
       const rendered:GridCell[]=[],continuing=new Map<string,GridCell>();let column=0;
       for(let ci=0;ci<tr.cells.length;ci++){
         const cell=tr.cells[ci],members=[cell];
@@ -128,9 +135,11 @@ function ItemText({proposal,itemIndex,placement,block,prefix}:{proposal:Proposal
       }
       previous=continuing;return rendered;
     });
-    const content=<div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{rows.map((cells,ri)=><tr key={ri}>{cells.map(cell=>
+    const kept=rows.flatMap((cells,ri)=>replacedRows.has(ri) ? [] : [{cells,ri}]);
+    const content=kept.length ? <div className="proposal-table-scroll" key={table.sourcePath}><table className="proposal-table"><tbody>{kept.map(({cells,ri})=><tr key={ri}>{cells.map(cell=>
       <td key={cell.column} colSpan={cell.colSpan} rowSpan={cell.rowSpan}>{cellContent([...new Set(cell.paragraphs)].sort((a,b)=>a-b))}</td>
-    )}</tr>)}</tbody></table></div>;
+    )}</tr>)}</tbody></table></div> : null;
+    if(startsHere)return [content,block(true,proposal)];
     return (insertionTable?.sourcePath===table.sourcePath) ? ([content,block(true,proposal)]) : content;
   }
   const tableParagraphs=new Set(topTables.flatMap(t=>t.paragraphs));

@@ -1315,3 +1315,22 @@ test('report quotation labels the comparison base without a legal-text placement
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
 });
+
+test('an amendment replacing whole proposal table rows omits those rows instead of leaving empty cells',async t=>{
+  const {parseProposal}=await import('../server/proposal-structure.mjs'),{resolveProposalPlacement}=await import('../server/proposal-placement.mjs');
+  const paragraphs=['ANNEX III','The following Annex VIII is added:','Aluminium','CN code','Greenhouse gas','ex 7602 Aluminium waste','Carbon dioxide','’'];
+  const cell=(row,col)=>`/w:document[1]/w:body[1]/w:tbl[1]/w:tr[${row}]/w:tc[${col}]`;
+  const cells={3:[1,1],4:[1,2],5:[2,1],6:[2,2]};
+  const paragraphSources=paragraphs.map((_,ordinal)=>cells[ordinal]?{path:cell(...cells[ordinal])+'/w:p[1]',ordinal,container:'table-cell',containerPath:cell(...cells[ordinal]),segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true});
+  const tables=[{sourcePath:'/w:document[1]/w:body[1]/w:tbl[1]',paragraphs:[3,4,5,6],rows:[{cells:[{paragraphs:[3],colSpan:1},{paragraphs:[4],colSpan:1}]},{cells:[{paragraphs:[5],colSpan:1},{paragraphs:[6],colSpan:1}]}],complete:true}];
+  const proposal=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources,tables,paragraphProperties:paragraphs.map((_,i)=>({styleId:i===0?'Annexetitre':'Normal',numberingComplete:true,notesComplete:true}))},{item:'annex'});
+  const value=proposalContextResponse(report,amendment,list,4),items=[{kind:'annex',index:1,proposal}];
+  const variant={...value.amendment.variants[0],targetLabel:'Annex III – paragraph 1 – table',targetPath:{proposal:[],underlying:[],language:'en'},originalText:'Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide',proposedText:'Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide'};
+  Object.assign(value,{proposal:{items},amendment:{...value.amendment,variants:[variant]},placement:resolveProposalPlacement(items,variant)});
+  assert.equal(value.placement.status,'placed');
+  const h=await harness(t,()=>value);
+  await h.render({request:{documentId:report,amendmentId:amendment,listId:list,wordingLanguage:'en',view:'document',onBack:()=>{}},language:'en'});
+  assert(h.container.querySelector('[data-amendment-block]'));
+  const item=h.container.querySelector('[data-proposal-item="annex-1"]');
+  assert.equal(item.querySelectorAll('.proposal-table td').length,0,'no empty replaced cells remain');
+});
