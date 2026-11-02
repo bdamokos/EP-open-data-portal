@@ -80,8 +80,8 @@ export class UpstreamRpcClient {
         try {signal?.throwIfAborted();return await client.context.run(id,()=>operation(signal));}
         finally {client.release(id);}
       },
-      async runHeld(operation,{priority,signal}={}) {
-        const id=await client.acquire(priority,'/other',{source,signal});
+      async runHeld(operation,{priority,signal,backgroundRank=0}={}) {
+        const id=await client.acquire(priority,'/other',{source,signal,backgroundRank});
         const release=()=>client.release(id);
         try {signal?.throwIfAborted();return await client.context.run(id,()=>operation(release,signal));}
         catch(error){release();throw error;}
