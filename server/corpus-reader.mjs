@@ -58,7 +58,9 @@ export async function retainedSpeechMetadata(result,{deadlineMs=Date.now()+1000,
     metadataSource:{url:sourceUrl,fetchedAt,headerSources}};
 }
 
-if(!isMainThread && workerData?.operation) {
+// Worker bodies run inside a function so this module has no top-level await;
+// see activity-generation-worker.mjs.
+if(!isMainThread && workerData?.operation)void (async()=>{
   let store;
   try {
     store=new CorpusStore(workerData.directory,{indexFile:workerData.indexFile,readOnly:true});
@@ -72,4 +74,4 @@ if(!isMainThread && workerData?.operation) {
     parentPort.postMessage({result:workerData.operation==='search' && result?{...result,coverage:store.coverage()}:result});
   } catch(error) {parentPort.postMessage({error:error.message});}
   finally {store?.close();}
-}
+})();
