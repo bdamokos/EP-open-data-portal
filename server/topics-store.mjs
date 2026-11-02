@@ -100,7 +100,7 @@ function* finishTopicSteps(store,generation,concepts,{questionCountries}={}){
  db.exec('DROP TABLE temp.topic_filtered_group_counts');
  const periods=topicPeriods(store.clock()),periodTotals=Object.fromEntries(periods.map(p=>[p,counts()])),sittingDays=Object.fromEntries(periods.map(p=>[p,null]));
  for(const period of periods){const [year,q]=period.split('-Q'),start=`${year}-${String((Number(q)-1)*3+1).padStart(2,'0')}-01`,next=new Date(Date.UTC(Number(year),Number(q)*3,1)).toISOString().slice(0,10);
-  for(const kind of topicKinds){yield;periodTotals[period][kind]=db.prepare("SELECT COUNT(*) n FROM record_topic_records WHERE generation=? AND kind=? AND date>=? AND date<? AND date>='2024-07-16' AND date<=?").get(generation,kind,start,next,end).n;}
+  for(const kind of topicKinds){yield;periodTotals[period][kind]=db.prepare("SELECT COUNT(*) n FROM record_topic_records WHERE generation=? AND kind=? AND date>=? AND date<? AND date>='2024-07-16' AND date<=? AND json_extract(body,'$.procedural') IS NOT 1").get(generation,kind,start,next,end).n;}
   yield;const n=db.prepare("SELECT COUNT(DISTINCT substr(id,8,10)) n FROM record_topic_records WHERE generation=? AND kind IN ('debate','vote') AND date>=? AND date<? AND date>='2024-07-16' AND date<=? AND id LIKE 'MTG-PL-%'").get(generation,start,next,end).n;if(n)sittingDays[period]=n;
  }
  let last=null;for(const kind of topicKinds){yield;const date=db.prepare('SELECT MAX(date) date FROM record_topic_records WHERE generation=? AND kind=? AND date<=?').get(generation,kind,end).date;if(date&&(!last||date>last))last=date;}

@@ -59,6 +59,13 @@ test('a document re-parsed under a new parser revision replaces its staged input
  assert.equal(d.conflicted,undefined);assert.deepEqual(d.groups,['S_D','ECR','RENEW','THE_LEFT','PPE','VERTS_ALE']);assert.equal(d.groupsAvailable,true);
  stageStoryInput(store,{...w,creator:['org/PPE']},source);d=storyInput(store,'document',id);
  assert.equal(d.conflicted,true,'different bytes at the same time and rank under the same parser still conflict');
+ // Migration only forgives parser-derived fields: a legacy row with another changed field, or an earlier conflict, stays conflicted.
+ const id2='RC-10-2026-0111',w2={...w,identifier:id2},legacy={...storyDocument(w2,source),groups:['ECR'],date:'2026-02-10'};delete legacy.parser;
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id2,JSON.stringify({...legacy,source:undefined}),JSON.stringify(source),stamp,1);
+ stageStoryInput(store,w2,source);assert.equal(storyInput(store,'document',id2).conflicted,true,'a changed date is not a parser-derived change');
+ const id3='RC-10-2026-0112',w3={...w,identifier:id3},flagged={...storyDocument(w3,source),groups:['ECR'],conflicted:true};delete flagged.parser;
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('document',id3,JSON.stringify({...flagged,source:undefined}),JSON.stringify(source),stamp,1);
+ stageStoryInput(store,w3,source);assert.equal(storyInput(store,'document',id3).conflicted,true,'an earlier conflict survives a parser upgrade');
 });
 test('vote items are classified by the verbatim item own label, never a speech copy that disagrees',()=>{
  assert.equal(votingDebate({titles:{en:'Iran (vote)'}},['Iran']),true);
@@ -68,6 +75,8 @@ test('vote items are classified by the verbatim item own label, never a speech c
  assert.equal(votingDebate(null,['Iran (vote)',null]),false,'a speech without an English label keeps it a debate');
  assert.equal(votingDebate({titles:{fr:'Iran (vote)'}},['Iran (vote)']),false,'a read item without an English label stays a debate');
  assert.equal(votingDebate(null,[]),false);
+ assert.equal(votingDebate({titles:{}},['Iran (vote)','Iran (vote)']),false,'a read item with no labels stays a debate');
+ assert.equal(votingDebate({titles:{en:'Iran (vote)'},conflicted:true},['Iran (vote)']),false,'conflicted labels never establish a vote');
 });
 test('an excluded vote item leaves every topic, keyword and place counter',async t=>{
  const {store}=await fixture(t),day='2025-03-12',proc='2025-2111';
@@ -82,6 +91,7 @@ test('an excluded vote item leaves every topic, keyword and place counter',async
  assert.equal(members(vote),0,'no topic, keyword or place membership remains for the vote item');
  assert(members(debate)>0);
  const debates=store.db.prepare("SELECT COALESCE(SUM(n),0) n FROM record_topic_totals WHERE generation=1 AND key='eurovoc:245' AND kind='debate'").get().n;assert.equal(debates,1,'detail series count the same debates as the story');
+ assert.equal(store.get('recordTopicCalendar').periodTotals['2025-Q1'].debate,1,'global period totals leave the vote item out too');
 });
 test('story projection links exact records, excludes institutions and statements, and narrows debate places',async t=>{
  const {dir,store}=await fixture(t),day='2025-03-12',debate='MTG-PL-'+day+'-PVCRE-ITM-1',agenda='MTG-PL-'+day+'-OJ-ITM-D-1',vote='MTG-PL-'+day+'-VOT-ITM-10',decision='MTG-PL-'+day+'-DEC-1',proc='2025-2110',joint='RC-10-2025-0010';

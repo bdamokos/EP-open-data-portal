@@ -88,7 +88,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');
   const roleCounts=speakerRoles.get(d.id);
-  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id)||event,d.speechLabels),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
+  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id),d.speechLabels),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
   put.run(generation,'debate',d.id,d.date,JSON.stringify(body));addLinks('debate-document',d.id,body.docs);addLinks('debate-procedure',d.id,body.procedures);
   for(const p of procedural?[]:body.places)place.run(generation,p.id,'debate',d.id,d.date,p.basis);
   if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
@@ -114,7 +114,7 @@ async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){
  const removeAll=store.db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?');
  const save=(row,r,geography,edge)=>{
   // An excluded (procedural) debate leaves every counter: topic, keyword and place.
-  if(geography.procedural&&row.kind==='debate'){removeAll.run(generation,r.id);return;}
+  if(geography.procedural&&row.kind==='debate'){removeAll.run(generation,r.id);if(!r.procedural){r.procedural=true;update.run(JSON.stringify(r),generation,r.id);}return;}
   const old=r.assignments.filter(a=>a.role==='place'),next=r.assignments.filter(a=>a.role!=='place');
   for(const p of geography.places){let a=old.find(a=>a.key==='place:'+p.id);if(!a||p.basis==='title')a={key:'place:'+p.id,role:'place',paths:[{basis:p.basis==='title'?'title':edge?'debate':p.basis,steps:edge?[{from:r.id,field:'inverse_consists_of',to:edge}]:[],sources:r.source?[r.source]:[]}]};next.push(a);
    const c={key:a.key,role:'place',uri:'http://publications.europa.eu/resource/authority/country/'+p.id,labels:{en:countryLabels.get(p.id)||p.id}};if(concepts&&!concepts.has(c.key))concepts.set(c.key,c);if(!conceptHas.get(generation,c.key))conceptPut.run(generation,c.key,'place',JSON.stringify(c));

@@ -100,8 +100,8 @@ export const votingItem=title=>/\(vote\)\s*$/i.test(String(title||''));
 // that record is read, the speeches' copy of the item label is used only when every
 // speech carries the same English label. Without an English label the item stays a debate.
 export function votingDebate(event,speechLabels=[]){
- const own=event?.titles?.en;if(typeof own==='string'&&own.trim())return votingItem(own);
- if(event&&Object.keys(event.titles||{}).length)return false;
+ // A read item decides by its own English label; conflicted or missing labels keep it a debate.
+ if(event){if(event.conflicted)return false;const own=event.titles?.en;return typeof own==='string'&&Boolean(own.trim())&&votingItem(own);}
  if(!speechLabels.length||speechLabels.some(l=>typeof l!=='string'||!l.trim()))return false;
  const labels=unique(speechLabels);return labels.length===1&&votingItem(labels[0]);
 }
