@@ -1,6 +1,6 @@
 import {collectorRetry} from './collector-retry.mjs';
 import {createHash} from 'node:crypto';
-import {storyTables,stageStoryInput} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {array,tail} from './story-facts-model.mjs';
 export const STORY_PAGE_SIZE=250;
 const DAY=86400_000;
@@ -24,6 +24,8 @@ export async function collectStorySource(worker){
  const day=row.id.slice(7,17);
  if(row.kind==='decisions'&&day>=brusselsDay(worker.clock())){store.db.prepare('UPDATE story_jobs SET next_read=? WHERE key=?').run(Math.max(Date.parse(day+'T00:00:00Z')+DAY,worker.clock()+60_000),row.key);return true;}
  const recheck=error=>{const next=row.kind==='decisions'?decisionRecheck(row.id,worker.clock()):null;if(!next)return false;store.db.prepare('UPDATE story_jobs SET attempts=0,state=?,next_read=?,error=? WHERE key=?').run('unavailable',next,error,row.key);if(row.state!=='unavailable'||row.error!==error)store.set('storyProjectionDirty',true);return true;};
+ // A held complete debate snapshot is the same response: adopt it instead of reading again.
+ if(row.kind==='event'&&store.transaction(()=>adoptHeldEventSnapshots(store,[row.id]).adopted))return true;
  if(row.kind==='agenda'&&row.id.slice(7,17)<'2024-12-16'){update('unavailable','not-served-before-2024-12-16');store.set('storyProjectionDirty',true);return true;}
  const endpoint=row.kind==='event'?'/events/'+row.id:'/meetings/'+row.id+(row.kind==='agenda'?'/foreseen-activities':'/decisions');
  const params=row.kind==='decisions'?{'filter-output':'voters'}:row.kind==='agenda'?{limit:STORY_PAGE_SIZE,offset:row.offset}:{};

@@ -1,3 +1,5 @@
+import {gunzipSync} from 'node:zlib';
+import {SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
 import {storyDocument,storyAgenda,storyDecision,array,tail,refs,sourceTime} from './story-facts-model.mjs';
 export function storyTables(db){db.exec(`
  CREATE TABLE IF NOT EXISTS story_inputs(kind TEXT,id TEXT,body TEXT,source TEXT,fetched_at TEXT,rank INTEGER,PRIMARY KEY(kind,id));
@@ -71,4 +73,23 @@ export function* storyTopicObservations(store){
   const v=JSON.parse(row.body);if(v.conflicted)continue;
   yield {work:{activity_id:v.id,activity_date:v.date||undefined,activity_label:v.titles||{},...(v.type||row.kind==='result'?{had_activity_type:'def/ep-activities/'+(v.type||'PLENARY_VOTE_RESULTS')}:{}),...(v.relationships||(row.kind==='result'?{executed:v.executed,based_on_a_realization_of:v.basedOn}:{}))},source:JSON.parse(row.source),projection:'embedded-event'};
  }
+}
+
+// A held debate snapshot is the exact /events/{id} response. Pending story event jobs adopt
+// complete, error-free snapshots for the same ID at the snapshot's own fetch time and the
+// collector's rank, through the normal staging path, and settle without a network read.
+export function adoptHeldEventSnapshots(store,ids=null){
+ const db=store.db;if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='sitting_snapshots'").get())return {adopted:0};
+ const wanted=ids??db.prepare("SELECT id FROM story_jobs WHERE kind='event' AND state IN ('pending','unavailable')").all().map(r=>r.id);
+ const select=db.prepare("SELECT id,body FROM sitting_snapshots WHERE kind='debate' AND version=1 AND complete=1 AND error IS NULL AND id IN (SELECT value FROM json_each(?))");
+ const settle=db.prepare("UPDATE story_jobs SET attempts=0,state='available',next_read=NULL,error=NULL WHERE key=? AND state IN ('pending','unavailable')");
+ let adopted=0,changed=false;
+ for(let i=0;i<wanted.length;i+=200){const batch=wanted.slice(i,i+200);
+  for(const row of select.all(JSON.stringify(batch))){let saved;try{saved=JSON.parse(gunzipSync(row.body,{maxOutputLength:SNAPSHOT_MAX_BYTES}).toString('utf8'));}catch{continue;}
+   const works=array(saved?.payload?.data),own=works.filter(w=>(w.activity_id||tail(w.id))===row.id);
+   if(own.length!==1||!saved.url||!saved.fetchedAt)continue;// only the exact item's own record
+   for(const w of works)changed=Boolean(stageStoryInput(store,w,{url:saved.url,fetchedAt:saved.fetchedAt},{rank:4}))||changed;
+   if(settle.run('event:'+row.id).changes)adopted++;}}
+ if(changed||adopted)store.set('topicProjectionDirty',true);
+ return {adopted};
 }

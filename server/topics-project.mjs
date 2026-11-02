@@ -1,5 +1,5 @@
 import {finishStoryProjection} from './story-facts-aggregate.mjs';
-import {storyTables,stageStoryInput,storyTopicObservations} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,storyTopicObservations,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {buildStoryFacts,stageStoryOutcomes} from './story-facts-project.mjs';
 import {topicWorkFields} from './topic-work-fields.mjs';
 import {topicCachedWorks} from './topic-cache-stream.mjs';
@@ -53,6 +53,8 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  }
  onProgress('cache');
  await stageStoryOutcomes(store,sourceGeneration);
+ // Held debate snapshots settle pending story event reads before their observations are used.
+ store.transaction(()=>adoptHeldEventSnapshots(store));
  for(const observation of storyTopicObservations(store))add(observation);
  for(const row of store.db.prepare('SELECT * FROM topic_procedure_metadata').iterate())add({work:JSON.parse(row.body),source:{url:row.url,fetchedAt:row.fetched_at},projection:'procedure'});
  if(!store.renew())throw Error('Activity-index writer lease was lost.');

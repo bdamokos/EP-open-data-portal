@@ -544,3 +544,36 @@ test('untitled verbatim items are looked up in one snapshot query per write batc
  assert.equal(prepares,1,'prepared once');assert.equal(runs,2,'one query per batch');
  assert.equal(JSON.parse(store.db.prepare('SELECT body FROM record_topic_records WHERE generation=1 AND id=?').get(ids[0]).body).titles.en,'Item 1');
 });
+
+// Held debate snapshots answer story event reads without a network request.
+async function snapshotFixture(t,rows){
+ const {gzipSync}=await import('node:zlib'),{prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs'),{store}=await fixture(t);prepareSittingSnapshots(store);
+ for(const {id,complete=1,error=null,label='Imminent death penalty threats in Iran (debate)',type='PLENARY_DEBATE',fetchedAt='2026-10-20T08:00:00.000Z'} of rows){
+  queueStoryRead(store,'event',id);
+  store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,error,next_check,body) VALUES (?,?,?,?,?,0,?)').run('debate',1,id,complete,error,gzipSync(JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+id+'?format=application%2Fld%2Bjson',fetchedAt,payload:{data:[{id:'eli/dl/event/'+id,activity_id:id,activity_date:id.slice(7,17),activity_label:{en:label,fr:'Menaces (débat)'},had_activity_type:'def/ep-activities/'+type,executed:['eli/dl/event/'+id.replace('PVCRE-ITM','OJ-ITM-D')]}]}})));
+ }
+ let calls=0;const worker={store,clock:Date.now,requests:0,budget:10,controller:new AbortController(),request:async endpoint=>{calls++;worker.requests++;const id=endpoint.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:stamp,payload:{data:[{activity_id:id,activity_label:{en:'Fetched'},had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:[]}]}};}};
+ return {store,worker,reads:()=>calls};
+}
+test('a pending event read adopts its held complete debate snapshot with no network read',async t=>{
+ const id='MTG-PL-2025-07-09-PVCRE-ITM-11',{store,worker,reads}=await snapshotFixture(t,[{id,type:'PLENARY_VOTE'}]);
+ assert(await collectStorySource(worker));assert.equal(reads(),0,'no network read');
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available','the job is settled');
+ const d=storyInput(store,'event',id);assert.equal(d.type,'PLENARY_VOTE');assert.deepEqual(d.titles,{en:'Imminent death penalty threats in Iran (debate)',fr:'Menaces (débat)'});assert.deepEqual(d.executed,[id.replace('PVCRE-ITM','OJ-ITM-D')]);assert.equal(d.executedKnown,true);
+ assert.equal(JSON.parse(store.db.prepare("SELECT source FROM story_inputs WHERE kind='event' AND id=?").get(id).source).fetchedAt,'2026-10-20T08:00:00.000Z','adopted at the snapshot\'s own fetch time');
+ assert.equal(storyEventType(store,id).type,'PLENARY_VOTE','type evidence is recorded through the same staging path');
+});
+test('incomplete or rejected debate snapshots are never adopted; the read still happens',async t=>{
+ const a='MTG-PL-2025-07-09-PVCRE-ITM-12',b='MTG-PL-2025-07-09-PVCRE-ITM-13',{store,worker,reads}=await snapshotFixture(t,[{id:a,complete:0},{id:b,error:'rejected'}]);
+ assert(await collectStorySource(worker));assert(await collectStorySource(worker));assert.equal(reads(),2);
+ for(const id of [a,b])assert.equal(storyInput(store,'event',id).titles.en,'Fetched');
+});
+test('bulk adoption at build time settles every held event job and is idempotent across rebuilds',async t=>{
+ const ids=['MTG-PL-2025-07-09-PVCRE-ITM-14','MTG-PL-2025-07-09-PVCRE-ITM-15'],{store,reads}=await snapshotFixture(t,ids.map(id=>({id})));
+ await buildTopics(store,{cache:null});
+ for(const id of ids)assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+id).state,'available');
+ const before=store.db.prepare("SELECT id,body,source,fetched_at,rank FROM story_inputs WHERE kind='event' ORDER BY id").all();
+ await buildTopics(store,{cache:null});
+ assert.deepEqual(store.db.prepare("SELECT id,body,source,fetched_at,rank FROM story_inputs WHERE kind='event' ORDER BY id").all(),before,'a rebuild changes nothing');assert.equal(reads(),0);
+ for(const id of ids)assert.equal(storyInput(store,'event',id).conflicted,undefined);
+});
