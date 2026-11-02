@@ -2486,6 +2486,7 @@
   "votegroups.split": "Fără majoritate",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} din {total}",
+  "votegroups.whole_group": "Întregul grup",
   "votegroups.voted_differently.one": "{count} eurodeputat a votat diferit față de majoritatea grupului său.",
   "votegroups.voted_differently": "{count} de eurodeputați au votat diferit față de majoritatea grupului lor.",
   "votegroups.delegations.heading": "Delegații care au votat în sens opus grupului lor",

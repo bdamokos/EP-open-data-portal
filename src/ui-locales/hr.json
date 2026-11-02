@@ -2469,6 +2469,7 @@
   "votegroups.split": "Podijeljeni",
   "votegroups.unity": "{percent} · {voters}",
   "votegroups.unity.count": "{count} od {total}",
+  "votegroups.whole_group": "Cijela skupina",
   "votegroups.voted_differently.one": "{count} zastupnik u Europskom parlamentu glasovao je drukčije od većine svojeg kluba.",
   "votegroups.voted_differently": "{count} zastupnika u Europskom parlamentu glasovalo je drukčije od većine svojeg kluba.",
   "votegroups.delegations.heading": "Izaslanstva koja su glasovala drukčije od svojeg kluba",
