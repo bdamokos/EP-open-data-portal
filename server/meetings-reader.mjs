@@ -1,3 +1,4 @@
+import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 import {odp} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
@@ -5,7 +6,8 @@ import {calendarYears,currentTermSittings,isPlenarySitting,identifiedPlenarySitt
 import {VoteSourceReader} from './vote-source-reader.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 
-const LIMITS=Object.freeze({pageSize:50,cataloguePages:10,maxRows:4000,sourceBytes:8*1024*1024,periodBytes:24*1024*1024,sourceMs:15*60_000,cacheMs:60_000,cacheEntries:8,cacheBytes:32*1024*1024,timeoutMs:50_000});
+export const MEETINGS_SOURCE_MAX_BYTES=8*1024*1024;
+const LIMITS=Object.freeze({pageSize:50,cataloguePages:10,maxRows:4000,sourceBytes:MEETINGS_SOURCE_MAX_BYTES,periodBytes:24*1024*1024,sourceMs:15*60_000,cacheMs:60_000,cacheEntries:8,cacheBytes:32*1024*1024,timeoutMs:50_000});
 export const calendarNeedsRefresh=coverage=>coverage?.status!=='complete'||coverage.years.some(year=>year.sources.some(source=>source.stale||source.refreshInProgress||source.refreshError));
 export const catalogueCoverage=years=>({status:years.every(y=>y.state==='complete')?'complete':years.some(y=>y.pages>0)?'partial':'unavailable',years});
 export const missingSitting=catalogue=>{if(catalogue.complete===false)throw new HttpError(503,'sitting_calendar_unavailable','Sitting dates unavailable. Try again.');throw new HttpError(404,'sitting_not_found','Choose a listed plenary week or sitting.');};
@@ -13,10 +15,12 @@ export const missingSitting=catalogue=>{if(catalogue.complete===false)throw new 
 // One metadata observation per year. Exact meeting details and their participants
 // remain separate ODP records; this reader never replaces those payloads.
 export class MeetingsReader extends VoteSourceReader {
-  constructor({request=odp,clock=Date.now,limits={}}={}){super();this.request=request;this.clock=clock;this.limits={...LIMITS,...limits};this.saved=new Map();this.pending=new Map();this.cacheBytes=0;}
+  constructor({request=odp,clock=Date.now,limits={},snapshots=request===odp?sittingSnapshots:null}={}){super();this.snapshots=snapshots;this.request=request;this.clock=clock;this.limits={...LIMITS,...limits};this.saved=new Map();this.pending=new Map();this.cacheBytes=0;}
   year(year) {
     requestSignal()?.throwIfAborted();
     if(!Number.isInteger(year)||year<Number(CURRENT_TERM_START.slice(0,4))||year>Number(brusselsDay(this.clock()).slice(0,4)))throw new HttpError(400,'invalid_year','Choose a current-term year.');
+    const retained=this.snapshots?.read('calendar',SITTING_CALENDAR_VERSION,String(year));
+    if(retained)return Promise.resolve(retained);
     const old=this.saved.get(year);
     if(old&&this.clock()-old.at<this.limits.cacheMs)return waitForRequest(Promise.resolve(old.value));
     if(old){this.saved.delete(year);this.cacheBytes-=old.size;}
