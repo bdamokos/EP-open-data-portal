@@ -149,11 +149,11 @@ async function placesHarness(t,url,respond,{language='en'}={}){
 const placesData=(sittingQ4,label='Iran')=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':sittingQ4},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label,series:[{period:'2026-Q2',question:5},{period:'2026-Q3',question:6},{period:'2026-Q4',question:2}]}]});
 test('Geopolitics opens on the map',async t=>{
  const overview=[];const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics',u=>{if(u.pathname==='/api/topics/overview')overview.push(u.searchParams.get('role'));return Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:placesData(3));});
- await wait(()=>node.querySelector('.places-map'));assert.equal(overview[0],'place');assert.equal(node.querySelector('.topic-tabs [aria-current=page]').textContent,'Places');
+ await wait(()=>node.querySelector('.places-map'));assert.equal(overview[0],'place');assert.equal(node.querySelector('.parliament-header [aria-current=page]').textContent,'Geopolitics');assert.equal(node.querySelector('.topic-tabs'),null);
 });
 test('Plenary Topics mode opens the heat strip',async t=>{
  const {node,wait}=await placesHarness(t,'http://localhost/?view=legislation&pl-mode=topics',u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:{...placesData(3),items:[]}));
- await wait(()=>node.querySelector('.topic-tabs [aria-current=page]'));assert.equal(node.querySelector('.topic-tabs [aria-current=page]').textContent,'Topics');assert.equal(node.querySelector('.places-map'),null);
+ await wait(()=>node.querySelector('.topic-heat'));assert.equal(node.querySelector('.parliament-header [aria-current=page]').textContent,'Plenary agenda');assert.equal(node.querySelector('h1').textContent,'Topics');assert.equal(node.querySelector('.places-map'),null);
 });
 for(const [name,sittings,url,expected] of [['the current quarter once its first plenary has happened',3,'',/^October\s*[–-]\s*December 2026 so far$/],['the last quarter with plenary data before the current quarter\'s first sitting',0,'',/^July\s*[–-]\s*September 2026$/],['an explicit t-q',3,'&t-q=2026-Q2',/^April\s*[–-]\s*June 2026$/]])test('the map defaults to '+name,async t=>{
  const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics'+url,u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:placesData(sittings)));
