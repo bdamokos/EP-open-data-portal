@@ -1,12 +1,15 @@
 import {storyLinkClaims} from './storyLinkModel.mjs';
 import {agendaTitle,isEuPlace,partialQuarter,topicsHref,monthRangeLabel} from './topicPresentation.mjs';
 import {cleanStoryTitle,storyNumber,storyPlaceName,normalizeReferenceStoryFacts,primaryStoryPlace} from './topicStoryModel.mjs';
-import europe from '../server/story-europe-countries.json' with {type:'json'};
-const EUROPE=new Set(europe.ids);
+import {europeStoryIso3} from './storyEurope.mjs';
+const EUROPE=new Set(europeStoryIso3);
 // Recurring sentences have alternative wordings with the same slots, picked by quarter, scope and sentence.
 const VARIANTS={'exact.busiestPlace':1,'exact.busiestPlain':1,'exact.busiestOne':1,'exact.busiestMany':1,'exact.mostDebatedOne':1,'exact.mostDebatedMany':1,'exact.questionRiseFew':1,'exact.questionJumpedFew':1,'map.urgency.many':1,'map.lead.first':1,'map.lead.again':1,'map.lead.streak':1,'map.lead.tied':1,'place.quarter.questions':1};
 const hash=text=>{let h=2166136261;for(const c of text){h^=c.codePointAt(0);h=Math.imul(h,16777619)>>>0;}h^=h>>>16;h=Math.imul(h,0x85ebca6b)>>>0;h^=h>>>13;h=Math.imul(h,0xc2b2ae35)>>>0;return (h^h>>>16)>>>0;};
-export function storyVariant(id,key,has=()=>true){const base=id.replace(/^topics\.story\./,''),n=VARIANTS[base];if(!n)return id;const k=hash(key+'|'+base)%(n+1);return k&&has(id+'.v'+(k+1))?id+'.v'+(k+1):id;}
+// Consecutive quarters alternate: the quarter's position plus a per-scope, per-sentence offset. Whole-term stories use position 0.
+export function storyVariant(id,period,scope,has=()=>true){const base=id.replace(/^topics\.story\./,''),n=VARIANTS[base];if(!n)return id;const m=/^(\d{4})-Q([1-4])$/.exec(period||''),position=m?Number(m[1])*4+Number(m[2])-1:0,k=(position+hash(scope+'|'+base))%(n+1);return k&&has(id+'.v'+(k+1))?id+'.v'+(k+1):id;}
+// The slot that starts each sentence that can open the Europe story; other openers start with fixed words.
+const LEADS={'exact.busiestPlace':'place','map.urgency.many':'urgencyDebates','exact.urgencyPartial':'urgencyDebates','exact.urgencyCount':'urgencyDebates','exact.mostDebatedOne':'places','exact.mostDebatedMany':'places','exact.rises':'changes','map.lead.first':'place','map.lead.again':'place','map.lead.streak':'place','map.lead.tied':'places','count.urgencyDebates':'count','links.urgency':'count','exact.questionRiseFew':'about','exact.questionJumpedFew':'about','exact.questionRiseEach':'about','exact.questionJumpedEach':'about','exact.documentRiseFew':'about','exact.documentRiseEach':'about','exact.questionRare':'place','exact.questionRareEach':'places'};
 export function storyFactsRoute(s={},browse={}){const p=new URLSearchParams({scope:s.place?'place':s.topic?'topic':'map',mode:s.mode||'q',zoom:s.zoom||'world',askers:s.excludeOwn?'not-home':'all',lang:s.language||'en'});if(s.place||s.topic)p.set('key',s.place?'place:'+s.place:s.topic);if(s.period)p.set('period',s.period);for(const [k,v]of Object.entries(browse))if(v)p.set(k,v);return 'topics/story-facts?'+p;}
 export function storyRecord(r,kind){return {id:r.id,kind,titleLanguage:r.titleLanguage,title:kind==='debate'?agendaTitle(r.rawTitle||r.title):r.title||r.t,date:r.date||r.d,url:r.url||(r.cre?`https://www.europarl.europa.eu/doceo/document/${r.cre}_EN.html`:undefined),outcome:r.outcome?{...r.outcome,method:/VOTE_HAND|show.of.hands/i.test([r.outcome.method,r.outcome.decisionMethod,r.outcome.decision_method].join(' '))?'VOTE_HAND':r.outcome.method}:null,groups:r.groups};}
 export function buildExactTopicStories(payload,s={}){
@@ -89,11 +92,13 @@ export function buildExactTopicStories(payload,s={}){
  if(period&&busy.length){const procedures=new Set(busy.flatMap(d=>d.procedures||[])),press=[...new Map([...procedures].flatMap(p=>f.press?.[p]||[]).map(p=>[p.id,p])).values()];if(press.length)add('press',{title:ref(press[0].title,[{...press[0],kind:'press'}],{italic:true,titleLanguage:'en'})},6);}
  const kept=lines.sort((a,b)=>a.priority-b.priority).slice(0,4).sort((a,b)=>a.order-b.order);
  const claimed=storyLinkClaims(kept.flatMap(l=>{if(!l.finalize)return [l];const r=l.finalize(kept.filter(x=>x!==l));return r?[{...l,...r,finalize:undefined}]:[];}).map(({finalize,narrates,...l})=>l),s);
- const key=(period||'term')+'|'+(s.place?'place:'+s.place:s.topic?'topic:'+s.topic:'map');
- const vary=v=>v==null||typeof v!=='object'?v:Array.isArray(v)?v.map(vary):'text'in v?{...v,text:vary(v.text)}:!v.message?v:{...v,message:storyVariant(v.message,key,has),values:Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,vary(x)]))};
+ const scope=s.place?'place:'+s.place:s.topic?'topic:'+s.topic:'map';
+ const vary=v=>v==null||typeof v!=='object'?v:Array.isArray(v)?v.map(vary):'text'in v?{...v,text:vary(v.text)}:!v.message?v:{...v,message:storyVariant(v.message,period,scope,has),values:Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,vary(x)]))};
  // On the Europe map, the first sentence names the scope; its leading words then continue a sentence.
- const mid=v=>v==null?v:typeof v==='string'?startForms.get(v)??v:Array.isArray(v)?v.map(mid):'text'in v?{...v,text:mid(v.text)}:!v.message?v:{...v,message:v.message.replace(/links\.(questions|texts)About$/,'links.$1AboutMid'),values:Object.fromEntries(Object.entries(v.values).map(([k,x])=>[k,mid(x)]))};
+ // On the Europe map the first sentence continues the scope phrase: only its leading word or slot changes case, never titles.
+ const lead=v=>{if(v==null)return v;if(typeof v==='string')return startForms.get(v)??v;if(Array.isArray(v))return v.length?[lead(v[0]),...v.slice(1)]:v;if('text'in v)return v.italic?v:{...v,text:lead(v.text)};if(!v.message)return v;
+  if(/links\.(questions|texts)About$/.test(v.message))return {...v,message:v.message+'Mid'};const slot=LEADS[v.message.replace(/^topics\.story\./,'').replace(/\.v\d+$/,'')];return slot&&Object.hasOwn(v.values,slot)?{...v,values:{...v.values,[slot]:lead(v.values[slot])}}:v;};
  return claimed.map((l,i)=>{const values=Object.fromEntries(Object.entries(l.values).map(([k,x])=>[k,vary(x)]));
-  if(i===0&&s.zoom==='eu'&&!s.place&&!s.topic&&has(l.id+'.eu'))return {...l,id:l.id+'.eu',values:Object.fromEntries(Object.entries(values).map(([k,x])=>[k,mid(x)]))};
-  return {...l,id:storyVariant(l.id,key,has),values};});
+  if(i===0&&s.zoom==='eu'&&!s.place&&!s.topic&&has(l.id+'.eu')){const slot=LEADS[l.id.replace(/^topics\.story\./,'')];return {...l,id:l.id+'.eu',values:slot&&Object.hasOwn(values,slot)?{...values,[slot]:lead(values[slot])}:values};}
+  return {...l,id:storyVariant(l.id,period,scope,has),values};});
 }

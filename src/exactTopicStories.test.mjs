@@ -182,10 +182,14 @@ test('variants: every alternative keeps its base sentence’s slots and the choi
  const slots=t=>[...t.matchAll(/\{(\w+)\}/g)].map(m=>m[1]).sort().join(',');
  const alternatives=Object.keys(en).filter(k=>/^topics\.story\..+\.(?:v\d+|eu)$/.test(k));assert(alternatives.length>=20);
  for(const k of alternatives)assert.equal(slots(en[k]),slots(en[k.replace(/\.(?:v\d+|eu)$/,'')]),k);
- const picks=['2025-Q1','2025-Q2','2025-Q3','2025-Q4','2026-Q1','2026-Q2'].map(p=>storyVariant('topics.story.map.lead.first',p+'|map',id=>Object.hasOwn(en,id)));
- assert.deepEqual(picks,['2025-Q1','2025-Q2','2025-Q3','2025-Q4','2026-Q1','2026-Q2'].map(p=>storyVariant('topics.story.map.lead.first',p+'|map',id=>Object.hasOwn(en,id))));
- assert.deepEqual(new Set(picks),new Set(['topics.story.map.lead.first','topics.story.map.lead.first.v2']));
- assert.equal(storyVariant('topics.story.map.lead.first','2025-Q2|map',()=>false),'topics.story.map.lead.first');
+ const quarters=['2024-Q3','2024-Q4','2025-Q1','2025-Q2','2025-Q3','2025-Q4','2026-Q1','2026-Q2','2026-Q3','2026-Q4'],has=id=>Object.hasOwn(en,id);
+ const bases=[...new Set(alternatives.filter(k=>/\.v\d+$/.test(k)).map(k=>k.replace(/\.v\d+$/,'')))];
+ for(const id of bases)for(const scope of ['map','place:UKR','topic:oeil:1.10']){
+  const picks=quarters.map(p=>storyVariant(id,p,scope,has));
+  assert.deepEqual(picks,quarters.map(p=>storyVariant(id,p,scope,has)),'stable '+id);
+  for(let i=1;i<picks.length;i++)assert.notEqual(picks[i],picks[i-1],`${id} ${scope} ${quarters[i-1]}→${quarters[i]}`);
+ }
+ assert.equal(storyVariant('topics.story.map.lead.first','2025-Q2','map',()=>false),'topics.story.map.lead.first');
  // Without its own variants a language keeps the base sentence.
  const x=quarter(base());x.periodWinners['2026-Q1']={mostQuestionedPlaces:[{id:'USA',count:43}]};
  for(const period of ['2025-Q3','2025-Q4','2026-Q1','2026-Q2']){x.periodCounts=[{period}];x.periodWinners[period]=x.periodWinners['2026-Q1'];assert.doesNotMatch(buildExactTopicStories(x,{period,language:'fr'})[0].id,/\.v\d+$/);}
@@ -227,4 +231,16 @@ test('zoom: the same quarter reads with a Europe scope and names only places in 
  x.periodCounts[0].urgencyDebates=2;x.debates=[{id:'U1',title:'Case in Venezuela',date:'2026-01-21',meps:9,format:'urgency',places:{VEN:['title']},primaryPlace:'VEN',docs:[]},{id:'U2',title:'Case in Georgia',date:'2026-02-11',meps:9,format:'urgency',places:{GEO:['title']},primaryPlace:'GEO',docs:[]}];x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};x.periodWinners['2026-Q1']={};
  assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{...labels,GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Georgia, among other cases\.$/);
  assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'world',labels:{...labels,GEO:'Georgia'},...baseWording})),/^Two urgency debates on human rights took up Venezuela and Georgia\.$/);
+});
+
+test('zoom: the Europe opener changes only the leading slot, never titles',()=>{
+ const x=quarter(base());x.debates=[{id:'D',title:'The Netherlands',date:'2026-01-20',meps:40,places:{},primaryPlace:null,docs:[]}];x.periodWinners['2026-Q1']={busiestNonUrgencyDebates:[{id:'D',meps:40}]};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{NLD:'Netherlands'},...baseWording})),/^In Europe and its neighbours, the busiest debate was The Netherlands \(20 January\), with 40 MEPs speaking\.$/);
+ x.debates[0].places={NLD:['title']};x.debates[0].primaryPlace='NLD';
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{NLD:'Netherlands'},...baseWording})),/^In Europe and its neighbours, the Netherlands drew the busiest debate: 40 MEPs spoke on The Netherlands \(20 January\)\.$/);
+});
+
+test('zoom: Russia is in the Europe view and named in its urgency debates',()=>{
+ const x=quarter(base());x.periodCounts[0].urgencyDebates=2;x.debates=[['U1','2026-01-21','Case in Russia','RUS'],['U2','2026-02-11','Case in Georgia','GEO']].map(([id,date,title,p])=>({id,date,title,meps:9,format:'urgency',places:{[p]:['title']},primaryPlace:p,docs:[]}));x.sets={urgencyDebates:{'2026-Q1':['U1','U2']}};
+ assert.match(lineText(buildExactTopicStories(x,{period:'2026-Q1',zoom:'eu',labels:{RUS:'Russia',GEO:'Georgia'},...baseWording})),/^In Europe and its neighbours, two urgency debates on human rights took up Russia and Georgia\.$/);
 });
