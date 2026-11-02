@@ -45,7 +45,11 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  // A newer parser revision may change only its own derived fields when it re-parses the
  // same retained source; any other difference, or an earlier conflict, still conflicts.
  if(old&&old.fetched_at===at&&old.rank===rank){const prior=JSON.parse(old.body),derived=(prior.parser??0)!==(value.parser??0)?PARSER_DERIVED[kind]||[]:[];
-  if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&key!=='parser'&&!derived.includes(key)&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
+  // An event's type disagreement is recorded only in story_event_types: the input keeps its undisputed
+  // date, title and relationships, and holds no type of its own.
+  const ignored=kind==='event'?['type']:[];
+  if(kind==='event'&&Object.hasOwn(prior,'type')&&prior.type!==value.type)value={...value,type:null};
+  if(prior.conflicted||Object.entries(prior).some(([key,v])=>key!=='conflicted'&&key!=='parser'&&!derived.includes(key)&&!ignored.includes(key)&&JSON.stringify(v)!==JSON.stringify(value[key])))value={...value,conflicted:true};}
  const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;

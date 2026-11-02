@@ -476,3 +476,18 @@ for(const [older,newer] of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','P
  assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?").get(child).n>0,!vote||store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='vote'").get(child).n>0,'a resolved debate keeps its memberships');
  const story=storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3'));assert.equal(story.debates.some(d=>d.id===child),!vote);
 });
+
+// A type conflict must not discard the record: ingestion, eviction of the raw cache, rebuild.
+for(const order of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','PLENARY_DEBATE']])test('a same-time type conflict keeps the record and its date after the raw cache is evicted: '+order.join(' then '),async t=>{
+ const day='2026-07-09',child='MTG-PL-'+day+'-PVCRE-ITM-12',{store,cache}=await heldEventFixture(t,{child,day}),fs=await import('node:fs/promises'),at=Date.parse('2026-11-02T12:00Z');
+ const files=[['c',order[0]],['d',order[1]]].map(([n,type])=>[path.join(cache,n.repeat(64)+'.json'),type]);
+ for(const [file,type] of files)await fs.writeFile(file,JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+child+'?'+type,fetchedAt:at,payload:{data:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+type}]}}));
+ await buildTopics(store,{cache});
+ const input=storyInput(store,'event',child);assert.equal(input.conflicted,undefined,'a type disagreement does not mark the input conflicted');assert.equal(input.date,day);assert.equal(input.type,null);assert.equal(storyEventType(store,child).conflicted,1);
+ for(const [file] of files)await fs.rm(file);
+ await buildTopics(store,{cache});
+ const record=store.db.prepare('SELECT kind,date FROM record_topic_records WHERE generation=1 AND id=?').get(child);assert.deepEqual({...record},{kind:'debate',date:day},'the rebuilt record keeps its kind and date');
+ assert(store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND date=?').get(child,day).n>0);
+ assert.equal(store.get('recordTopicCalendar').periodTotals['2026-Q3'].debate,1);
+ assert(storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3')).debates.some(d=>d.id===child));
+});
