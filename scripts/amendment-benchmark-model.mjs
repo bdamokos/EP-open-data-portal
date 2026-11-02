@@ -7,7 +7,7 @@ import {oracleAddress,oracleRelative} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
 import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
-import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
+import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst,nativeTableGap} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
 
@@ -176,6 +176,21 @@ function locationOracle({proposal,text,target,wording,placement,labels}) {
   return count===1?{...verified('oracle-unique-original-source-span'),originalOccurrences:count}:{status:'unverified',reason:'oracle-original-not-unique',occurrences:count};
 }
 
+// A colon-ended numbered paragraph followed only by complete table cells and
+// then the next consecutive raw number: the insertion follows the table.
+function tableIntroducedBoundary(text,anchor,label,units) {
+  const sources=text.paragraphSources,paragraphs=text.paragraphs;
+  if(anchor.kind!=='paragraph'||label.suffix===''||label.after||!/^\d+$/u.test(anchor.label)||String(label.base)!==anchor.label)return null;
+  for(let i=anchor.start;i<=anchor.end;i++)if(sources[i]?.complete!==true||sources[i].container!=='body'||i>anchor.start&&!(sources[i].containerPath===sources[i-1].containerPath&&sources[i].segment===sources[i-1].segment&&sources[i].ordinal===sources[i-1].ordinal+1))return null;
+  if(!/:\s*$/u.test(paragraphs[anchor.end]))return null;
+  let next=anchor.end+1;
+  while(sources[next]?.container==='table-cell'&&sources[next].complete===true)next++;
+  if(next===anchor.end+1||sources[next]?.container!=='body'||sources[next].complete!==true)return null;
+  const number=/^\s*(\d+)[.)]\s/u.exec(paragraphs[next]??'')?.[1];
+  if(number!==String(Number(anchor.label)+1)||units.filter(unit=>unit.kind==='paragraph'&&unit.label===number).length!==1||units.filter(unit=>unit.kind==='paragraph'&&unit.label===anchor.label).length!==1)return null;
+  return nativeTableGap(text,anchor.end,next)?next:null;
+}
+
 function verifyResolutionInsertion(text,wording,target,placement) {
   const label=target.segments.at(-1);
   if(label.negative) {
@@ -220,6 +235,15 @@ function verifyResolutionInsertion(text,wording,target,placement) {
   const before=suffix=>wording.language==='fr'?suffixOrder(suffix)<suffixOrder(label.suffix):suffix<label.suffix;
   const preceding=family.filter(unit=>unit.label===String(label.base)||!label.after&&unit.label.startsWith(String(label.base))&&/^[a-zα-ωа-я]+$/u.test(unit.label.slice(String(label.base).length))&&before(unit.label.slice(String(label.base).length)));
   const anchor=preceding.sort((a,b)=>a.start-b.start).at(-1);
+  if(anchor&&!anchor.complete){
+    const table=tableIntroducedBoundary(text,anchor,label,units);
+    if(table===null)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
+    // The ordinary duplicate and sibling-order assertions still apply.
+    if(!label.after&&units.some(unit=>unit.kind===kind&&unit.label===label.value))return fail('oracle-duplicate-insertion-label');
+    const later=family.filter(unit=>unit.start>anchor.start&&unit.start<table);
+    if(later.length)return fail('oracle-next-sibling-order');
+    return placement.insertBefore===table&&placement.insertAfter===table-1?verified('oracle-table-introduction-boundary'):fail('oracle-insertion-boundary-mismatch');
+  }
   if(!anchor?.complete)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
   if(!label.after&&family.some(unit=>unit.label===label.value))return fail('oracle-duplicate-insertion-label');
   // Independently reject a predecessor that appears after a later-numbered

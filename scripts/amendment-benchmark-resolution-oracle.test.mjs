@@ -77,3 +77,26 @@ test('cached automatic recital and paragraph numbers independently certify blank
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
  const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
+test('an insertion after a colon-introduced table follows the table up to the next raw number',()=>{
+ // A-10-2026-0081 paragraph 149 introduces its budget table; 150 follows it.
+ const p=value=>'<w:p><w:r><w:t xml:space="preserve">'+value+'</w:t></w:r></w:p>',blank='<w:p><w:pPr><w:ind w:left="567"/></w:pPr></w:p>';
+ const cell=value=>'<w:tc><w:tcPr/>'+(value?p(value):'<w:p/>')+'</w:tc>';
+ const build=({intro='149. Notes the following appropriations:',before=['148. Earlier;'],between=blank,cells=['Party','Total',''],next='150. Notes the next item;'}={})=>{
+  const body=['The European Parliament,',...before,intro];
+  const xml=body.map(p).join('')+'<w:tbl><w:tblPr/><w:tr>'+cells.map(cell).join('')+'</w:tr></w:tbl>'+between+p(next);
+  const visible=cells.filter(Boolean),paragraphs=[...body,...visible,next];
+  const paragraphSources=paragraphs.map((_,i)=>{const cellRow=i>=body.length&&i<body.length+visible.length;
+   return {path:cellRow?'cell'+i:'/w:document[1]/w:body[1]/w:p['+(i<body.length?i+1:body.length+1+(between===blank?1:0))+']',container:cellRow?'table-cell':'body',containerPath:cellRow?'cell'+i:'/w:document[1]/w:body[1]',ordinal:i,segment:i,complete:true};});
+  return {nativeBuffer:zip(wrap(xml)),paragraphs,paragraphFormats:paragraphs.map(()=>({})),paragraphSources};
+ };
+ const wording={language:'en',baseline:'motion-resolution',targetLabel:'Paragraph 149 a (new)',originalText:'',proposedText:'149a. New text;'};
+ const at=before=>({status:'placed',operation:'insert',insertBefore:before,insertAfter:before-1});
+ assert.deepEqual(verifyPlacement({text:build(),wording,placement:at(5)}),{status:'verified',reason:'oracle-table-introduction-boundary'});
+ assert.equal(verifyPlacement({text:build(),wording,placement:at(3)}).status,'failed','directly after the introduction splits the table from it');
+ for(const changes of [{intro:'149. Notes the appropriations.'},{next:'151. Notes the next item;'},{between:blank+'<w:altChunk r:id="x"/>'},{between:p('Hidden continuation').replace('<w:r>','<w:r><w:rPr><w:vanish/></w:rPr>')}])
+  assert.equal(verifyPlacement({text:build(changes),wording,placement:at(5)}).status,'unverified',JSON.stringify(changes).slice(0,60));
+ const nested=build({cells:['Party','Total','']});nested.nativeBuffer=zip(wrap(nested.paragraphs.slice(0,3).map(p).join('')+'<w:tbl><w:tr><w:tc>'+p('Party')+'<w:tbl><w:tr><w:tc>'+p('Inner')+'</w:tc></w:tr></w:tbl></w:tc><w:tc>'+p('Total')+'</w:tc></w:tr></w:tbl>'+blank+p('150. Notes the next item;')));
+ assert.equal(verifyPlacement({text:nested,wording,placement:at(5)}).status,'unverified','a nested table is not proven');
+ // An existing 149a before 149 makes another 149a a duplicate (runtime rejects it too).
+ assert.equal(verifyPlacement({text:build({before:['148. Earlier;','149a. Existing;']}),wording,placement:at(6)}).status,'failed');
+});

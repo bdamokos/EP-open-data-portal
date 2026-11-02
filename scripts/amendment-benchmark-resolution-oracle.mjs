@@ -179,3 +179,28 @@ export function rawResolutionUnits(text,language) {
   }
   return {units};
 }
+
+// Native proof for a table between two body paragraphs: in the Word body only
+// one table and empty paragraphs separate them, the table holds only rows,
+// cells and paragraphs, and its non-empty paragraphs are exactly the recorded
+// rows in order. Any other block (nested table, altChunk, content control)
+// leaves the gap unproven.
+export function nativeTableGap(text,before,after) {
+  const body=nativeBody(text);if(!body)return false;
+  const at=index=>body.findIndex(row=>row.kind==='paragraph'&&row.path===text.paragraphSources?.[index]?.path&&!row.hidden&&nativeValue(row)===text.paragraphs[index]);
+  const a=at(before),b=at(after);
+  if(a<0||b<=a+1)return false;
+  const between=body.slice(a+1,b),tables=between.filter(row=>row.kind==='other'&&row.nodes['w:tbl']);
+  if(tables.length!==1||between.some(row=>row.kind==='other'?!row.nodes['w:tbl']:row.hidden||row.unsafe||row.numbered||row.nodes.some(node=>Object.keys(node).some(key=>key!==':@'&&key!=='w:pPr'))||row.nodes.some(node=>node['w:pPr']?.some(prop=>prop['w:numPr']||prop['w:sectPr']))))return false;
+  const allowed=new Set(['w:tblPr','w:tblGrid','w:tr','w:trPr','w:tblPrEx','w:tc','w:tcPr','w:p',':@']);
+  const words=nodes=>nodes.flatMap(node=>Object.entries(node).flatMap(([key,value])=>key==='w:t'?value.filter(v=>'#text' in v).map(v=>String(v['#text'])):key==='w:tab'?['\t']:Array.isArray(value)?words(value):[])).join('');
+  const found=[];let safe=true;
+  const walk=nodes=>{for(const node of nodes)for(const [key,value] of Object.entries(node)){
+    if(!allowed.has(key)){safe=false;return;}
+    if(key==='w:p'){if(JSON.stringify(value).includes('w:vanish'))safe=false;const value2=words(value).trim();if(value2)found.push(value2);}
+    else if(['w:tr','w:tc'].includes(key)&&Array.isArray(value))walk(value);
+  }};
+  walk(tables[0].nodes['w:tbl']);
+  const recorded=text.paragraphs.slice(before+1,after).map(value=>value.trim());
+  return safe&&found.length===recorded.length&&found.every((value,i)=>value.replace(/\s+/gu,' ')===recorded[i].replace(/\s+/gu,' '));
+}
