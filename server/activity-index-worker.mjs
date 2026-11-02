@@ -50,9 +50,8 @@ import { array, tail, projectDocument, projectProcedure, documentRows, procedure
 import { HttpError } from './http-utils.mjs';
 import {outsideSpeech,outsideAgenda} from './outside-model.mjs';
 import {procedureClassification} from './procedure-types.mjs';
-import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade} from './outside-store.mjs';
+import {recordOutside,outsideAgendaUpgradeDue,initializeOutsideAgendaUpgrade,TERM_FIRST_DAYS,mandateRosterBody,rebuildFirstDayRoster} from './outside-store.mjs';
 import {parliamentaryService} from './parliamentary-service.mjs';
-import {CURRENT_TERM_START} from './analysis-period.mjs';
 
 import { isMotion, motionSittings, motionSourceKey, projectMotionResults, projectMotionDecisions, motionVoteCoverage } from './motion-outcomes.mjs';
 import { userAgent } from './user-agent.mjs';
@@ -62,8 +61,6 @@ import {ruleVersionRecoveryDue,reopenRuleVersions,observeRuleGap,scheduleMutable
 import {adoptedTextDiscoveryDue,scheduleAdoptedTexts,adoptedTextRecord,adoptedTextProjectionVersion,adoptedTextRepairDue,scheduleAdoptedTextRepairs,adoptedTextDeferredKeys,adoptedTextOwnedElsewhere,scheduleAdoptedFollowups,followupAdmissionRepairDue,scheduleFollowupAdmissionRepairs,markFollowupAdmissionRepair} from './adopted-text-index.mjs';
 
 const DAY = 24*60*60_000;
-// First sitting days of the terms Outside voices covers. Add the next term's day when it is known.
-const TERM_FIRST_DAYS=new Set(['2019-07-02',CURRENT_TERM_START]);
 const PUBLICATION_RECOVERY_BATCHES=4;
 const pendingTasks='(task.done IN (-1,0) OR task.done IS NULL)';
 const CONTINUATIONS_KEY='amendment:continuations',CONTINUATION_LIMIT=200;
@@ -535,6 +532,7 @@ export class ActivityWorker {
       const gap=source.work;
       this.store.enqueue(generation,gap.taskKey,gap.taskKind,gap.taskBody,gap.priority || 50);
     }
+    for(const date of TERM_FIRST_DAYS)rebuildFirstDayRoster(this.store,generation,date);
     if(this.store.source(generation,'outside:state'))return;
     const upgrade=Boolean(this.store.db.prepare("SELECT 1 FROM sources WHERE generation=? AND kind='speech' AND json_extract(body,'$.outside') IS NULL LIMIT 1").get(generation));
     // Re-read compact speech metadata once when upgrading an older index. The
@@ -632,7 +630,7 @@ export class ActivityWorker {
   async mandateRoster(task) {
     const {generation,body}=task;
     // A body from the dated-roster reader (a recovered gap) holds no mandate evidence; start over.
-    const prior=body.basis==='member-mandates'?body:{date:body.date,basis:'member-mandates',ids:[],checked:[],sources:[]};
+    const prior=body.basis==='member-mandates'?body:mandateRosterBody(body.date);
     const {date,checked,ids,sources}=prior;
     const speakers=[...new Set(this.retainedOutsideSpeeches(generation,date).flatMap(source=>JSON.parse(source.body).outside.participants||[]))].sort();
     const next=speakers.find(id=>!checked.includes(id));

@@ -1,6 +1,6 @@
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {indexAvailability,savedGaps,availabilityGap} from './availability-evidence.mjs';
-import {brusselsDay} from './analysis-period.mjs';
+import {brusselsDay,CURRENT_TERM_START} from './analysis-period.mjs';
 import { outsidePerson, outsideCapacity } from './outside-model.mjs';
 import {speechAgendaMembership} from './speech-agenda.mjs';
 import { HttpError } from './http-utils.mjs';
@@ -8,6 +8,17 @@ import {languagePreference} from './language-order.mjs';
 import {copyGenerationRows} from './generation-copy.mjs';
 
 export const OUTSIDE_COVERAGE_VERSION=3;
+// First sitting days of the terms Outside voices covers. The dated roster omits
+// newly elected members on these days. Add the next term's day when it is known.
+export const TERM_FIRST_DAYS=new Set(['2019-07-02',CURRENT_TERM_START]);
+export const mandateRosterBody=date=>({date,basis:'member-mandates',ids:[],checked:[],sources:[]});
+// A first-day roster saved by the dated-roster reader is rebuilt from mandates.
+export function rebuildFirstDayRoster(store,generation,date) {
+  const roster=store.source(generation,'outside:roster:'+date);
+  if(!roster||roster.work.basis==='member-mandates')return false;
+  store.enqueue(generation,'outside:roster:'+date,'outside-roster',mandateRosterBody(date),102,true);
+  return true;
+}
 const parse = value => JSON.parse(value);
 const boundedIntervals = rows => rows.length>500?[{reason:'source-gap'}]:rows.map(({body,sourceId})=>{
   const gap=availabilityGap(body,sourceId);
@@ -58,6 +69,7 @@ export function recordOutside(store, generation, speech) {
     store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, basis:'member-mandates', ids:roster.work.ids, checked:roster.work.checked, sources:roster.work.sources}, 102, true);
     return false;
   }
+  if (TERM_FIRST_DAYS.has(speech.date) && rebuildFirstDayRoster(store,generation,speech.date)) return false;
   const members = new Set(roster.work.ids);
   // Reclassification removes any row previously accepted against older evidence.
   store.db.prepare('DELETE FROM outside_contributions WHERE generation=? AND speech=?').run(generation,speech.id);
