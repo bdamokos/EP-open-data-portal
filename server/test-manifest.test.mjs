@@ -49,6 +49,7 @@ test('listener checks treat server entry point subprocesses as listeners', () =>
     "spawn(process.execPath, ['server/index.mjs'])",
     "execFileAsync(t, process.execPath, [new URL('./index.mjs', import.meta.url).pathname])",
     'childProcess.fork(`${root}/index.mjs`)',
+    "exec('node server/index.mjs --port 12345')",
   ]) {
     assert.ok(listenerIssues(imported + `test('unguarded', t => {${launch};});`).length, launch);
     assert.deepEqual(listenerIssues(imported + `test('guarded', loopback, t => {${launch};});`), [], launch);
