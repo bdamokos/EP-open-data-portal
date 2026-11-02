@@ -535,11 +535,16 @@ function annexTablePlacement(items,address,originalText,language,operation,evide
   }
   // Empty cells keep no paragraph: require columns 1..n at the table's widest
   // row, and consecutive row numbers inside a matched run.
-  const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]),widths=new Map();
-  for(const row of rows)if(row.key)widths.set(tableOf(row.key),Math.max(widths.get(tableOf(row.key))??0,...row.columns));
+  // The extracted table records every cell, empty ones included.
+  const cellCounts=new Map();
+  for(const source of flat(proposal.units).filter(u=>u.table).flatMap(u=>[u.table,...(u.table.nestedTables??[])]))for(const tr of source.rows??[]){
+    const plain=tr.cells.every(c=>(c.colSpan??1)===1&&!c.horizontalMerge&&!c.verticalMerge);
+    for(const c of tr.cells)for(const index of c.paragraphs??[])cellCounts.set(index,plain?tr.cells.length:-1);
+  }
+  const tableOf=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowOf=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
   rows.forEach((row,index)=>{
     if(!row.key)return;
-    if(row.columns.some((column,at)=>column!==at+1)||row.columns.length!==widths.get(tableOf(row.key)))row.cells=['\u0000'];
+    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.rows[0].index)!==row.columns.length)row.cells=['\u0000'];
     const previous=rows[index-1];
     row.gap=Boolean(previous?.key&&tableOf(previous.key)===tableOf(row.key)&&rowOf(row.key)!==rowOf(previous.key)+1);
   });

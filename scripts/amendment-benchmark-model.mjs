@@ -199,14 +199,20 @@ function rawLogicalRows(proposal) {
       rows.push({key:null,cells:[rawCell(row.text)],indexes:[row.index],broken:row.complete===false||source.complete!==true||source.container!=='body'});
     }
   }
-  // Empty cells retain no paragraph: a row matches only with columns 1..n and
-  // n equal to the table's widest row; skipped row numbers break runs.
+  // Empty cells retain no paragraph. The extracted source table records every
+  // cell: a row matches only when it has exactly the retained columns 1..n,
+  // without spans or merges; skipped row numbers break runs.
+  const cellCounts=new Map(),tables=[];
+  const collect=units=>{for(const unit of units??[]){if(unit.table)tables.push(unit.table,...(unit.table.nestedTables??[]));collect(unit.children);}};
+  collect(proposal?.units);
+  for(const source of tables)for(const tr of source.rows??[]){
+    const plain=tr.cells.every(cell=>(cell.colSpan??1)===1&&!cell.horizontalMerge&&!cell.verticalMerge);
+    for(const cell of tr.cells)for(const index of cell.paragraphs??[])cellCounts.set(index,plain?tr.cells.length:-1);
+  }
   const table=key=>key.replace(/\/w:tr\[\d+\]$/u,''),rowNumber=key=>Number(/\/w:tr\[(\d+)\]$/u.exec(key)[1]);
-  const width=new Map();
-  for(const row of rows)if(row.key)width.set(table(row.key),Math.max(width.get(table(row.key))??0,...row.columns));
   rows.forEach((row,index)=>{
     if(!row.key)return;
-    if(row.columns.some((column,at)=>column!==at+1)||row.columns.length!==width.get(table(row.key)))row.broken=true;
+    if(row.columns.some((column,at)=>column!==at+1)||cellCounts.get(row.indexes[0])!==row.columns.length)row.broken=true;
     const previous=rows[index-1];
     if(previous?.key&&table(previous.key)===table(row.key)&&rowNumber(row.key)!==rowNumber(previous.key)+1)row.gapBefore=true;
   });

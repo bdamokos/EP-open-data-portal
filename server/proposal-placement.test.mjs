@@ -430,12 +430,20 @@ test('similarity recovery withholds table-cell passages without independent tabl
  assert.equal(placed.status,'unresolved');
 });
 
+// Extracted source tables: every cell, empty ones included (`widths` adds blank columns).
+function sourceTables(rows,widths={}) {
+  const tables=new Map();
+  rows.forEach((r,index)=>{if(r[2]!=='cell')return;const t=tables.get(r[3])??new Map();tables.set(r[3],t);const row=t.get(r[4])??new Map();t.set(r[4],row);row.set(r[5],[...(row.get(r[5])??[]),index]);});
+  return [...tables].map(([tbl,t])=>({sourcePath:`/w:document[1]/w:body[1]/w:tbl[${tbl}]`,paragraphs:[...t.values()].flatMap(r=>[...r.values()].flat()),complete:true,
+    rows:[...t.values()].map(r=>{const width=Math.max(...r.keys(),widths[tbl]??0);return {cells:Array.from({length:width},(_,i)=>({paragraphs:r.get(i+1)??[],colSpan:1}))};})}));
+}
+
 // A-10-2026-0201 AM107/AM112: cell-exact table rows inside the addressed annex provision.
 test('annex table addresses replace a unique cell-exact run of rows',()=>{
   const rows=[['ANNEX III','Annexetitre','body'],['The following Annex VIII is added:','Normal','body'],['Iron and steel','Normal','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['ex 7204 Ferrous waste','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['Aluminium','Normal','body'],['CN code','Normal','cell',2,1,1],['Greenhouse gas','Normal','cell',2,1,2],['ex 7602 Aluminium waste','Normal','cell',2,2,1],['Carbon dioxide','Normal','cell',2,2,2],['’','Normal','body']];
   const projection={paragraphs:rows.map(r=>r[0]),structureStatus:'extracted',
     paragraphSources:rows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),
-    paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true}))};
+    paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(rows)};
   const items=[{kind:'annex',index:1,proposal:parseProposal(projection,{item:'annex'})}];
   const place=(targetLabel,originalText)=>resolveProposalPlacement(items,{targetLabel,originalText,proposedText:'Changed',language:'en'});
   const placed=place('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide');
@@ -443,6 +451,9 @@ test('annex table addresses replace a unique cell-exact run of rows',()=>{
   assert.equal(place('Annex III – paragraph 1 – table on aluminium','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide').status,'unresolved','A-10-2026-0201 AM136 differs in one cell');
   assert.equal(place('Annex III – paragraph 1 – table','CN code\tGreenhouse gas').status,'unresolved','repeated header rows are ambiguous');
   const gappedRows=[['ANNEX III','Annexetitre','body'],['Lead.','Normal','body'],['A','Normal','cell',1,1,1],['B','Normal','cell',1,1,3],['C','Normal','cell',1,2,1],['D','Normal','cell',1,2,2],['E','Normal','cell',1,2,3]];
-  const gapped={paragraphs:gappedRows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:gappedRows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:gappedRows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true}))};
+  const trailingRows=[['ANNEX III','Annexetitre','body'],['Lead.','Normal','body'],['A','Normal','cell',1,1,1],['B','Normal','cell',1,1,2],['C','Normal','cell',1,2,1],['D','Normal','cell',1,2,2]];
+  const trailing={paragraphs:trailingRows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:trailingRows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:trailingRows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(trailingRows,{1:3})};
+  assert.equal(resolveProposalPlacement([{kind:'annex',index:1,proposal:parseProposal(trailing,{item:'annex'})}],{targetLabel:'Annex III – table',originalText:'A\tB',proposedText:'Changed',language:'en'}).status,'unresolved','a blank trailing column keeps rows from matching fewer cells');
+  const gapped={paragraphs:gappedRows.map(r=>r[0]),structureStatus:'extracted',paragraphSources:gappedRows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),paragraphProperties:gappedRows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true})),tables:sourceTables(gappedRows,{1:3})};
   assert.equal(resolveProposalPlacement([{kind:'annex',index:1,proposal:parseProposal(gapped,{item:'annex'})}],{targetLabel:'Annex III – table',originalText:'A\tB',proposedText:'Changed',language:'en'}).status,'unresolved','an empty middle cell must not collapse the columns');
 });
