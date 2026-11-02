@@ -93,6 +93,7 @@ Every page footer shows `src/components/DataNotice.tsx`: the attribution “© E
 
 ### Votes, attendance and outcomes
 
+- Actual plenary event links resolve exact `executed` relationships to scheduled items. Joint debates merge their agenda context and retain each contributor’s scheduled-item provenance. Retained vote types use the same vocabulary and conflict handling as story counts; vote links require one exact scheduled vote target.
 - Votes come from `/meetings/{sitting}/decisions`, `/vote-results` and `/foreseen-activities`. Named roll calls use `vote-method=ROLL_CALL_EV`; add `filter-output=voters` when named voters aren’t needed.
 - Actual positions (`had_voter_favor`, `had_voter_against`, `had_voter_abstention`) are separate from declared intentions (`had_voter_intended_*`), which never change the result.
 - Show-of-hands (`VOTE_HAND`), electronic non-roll-call (`VOTE_ELECTRONIC`) and secret ballots (`VOTE_ELECTRONIC_SECRET`, `VOTE_SECRET`, `VOTE_SECRET_BALLOT`) have no individual positions and can have no published tally. A missing position is not an absence.
