@@ -17,6 +17,7 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     let value;
     for(const step of operation==='publish'?['publish',...(buildNow?['topics']:[])]:[operation]){
     signal?.throwIfAborted();
+    if(['topics','stories'].includes(step)&&!topicBuildWindowOpen(store.clock(),rebuildWindow)){store.set('topicProjectionDirty',true);continue;}
     value=await new Promise((resolve,reject)=>{
       let thread,result,failure,windowTimer,complete=false;
       try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{...(['topics','stories'].includes(step)?{resourceLimits:{maxOldGenerationSizeMb:26,maxYoungGenerationSizeMb:2}}:{}),workerData:{directory:path.dirname(store.filename),owner:store.owner,operation:step,generation}});}
