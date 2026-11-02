@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {verifyPlacement} from './amendment-benchmark-model.mjs';
+import {parseProposal} from '../server/proposal-structure.mjs';
 
 // Minimal parsed proposal: each unit owns its listed rows; children nest.
 const segment=(kind,value)=>({kind,value});
@@ -60,4 +61,14 @@ test('an address may omit only an article\'s sole implicit paragraph 1', () => {
   assert.equal(check(tree(false),8,'Article 2 – point 2 – point b a (new)',insert(8,b)).reason,'oracle-parent-mismatch');
   const twoParagraphs=[unit('article','2',[],0,10,[child('paragraph','1',1,8,[child('point','2',1,8,[child('point','a',2,5),child('point','b',5,8)])],{implicit:true}),child('paragraph','2',8,10)])];
   assert.equal(check(twoParagraphs,10,'Article 2 – point 2 – point b a (new)',insert(8,b)).reason,'oracle-parent-mismatch');
+});
+
+test('a numeric family reached through the omitted paragraph rejects repeated labels', () => {
+  const paragraphs=['Article 2','Lead:','(1) First;','(2) Second;','(3) Third;','(2) Repeated.','Article 3'],styles=['Titrearticle','Normal','Point0','Point0','Point0','Point0','Titrearticle'];
+  const p=parseProposal({paragraphs,structureStatus:'extracted',paragraphSources:paragraphs.map((_,ordinal)=>({path:'body/p'+ordinal,ordinal,container:'body',containerPath:'body',segment:0,complete:true})),paragraphProperties:paragraphs.map((_,i)=>({styleId:styles[i],numberingComplete:true,notesComplete:true}))});
+  const flat=units=>units.flatMap(unit=>[unit,...flat(unit.children||[])]);
+  const twos=flat(p.units).filter(unit=>unit.kind==='point'&&unit.label?.value==='2');
+  assert.equal(twos.length,2);
+  const placement=insert(twos[0].extent.end,twos[0].id);
+  assert.notEqual(verifyPlacement({placement,wording:wording('Article 2 – point 2 a (new)'),items:[{proposal:p}]}).status,'verified');
 });
