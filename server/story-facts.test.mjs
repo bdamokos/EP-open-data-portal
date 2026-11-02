@@ -506,3 +506,29 @@ test('French story requests keep English document, question and joint debate tit
  assert.equal(result.debates[0].title,'English debate');assert.equal(result.debates[0].titleLanguage,'en');assert.equal(result.debates[0].jointHeading,'English joint heading');
  assert.equal(result.docs[0].outcome.label,'English decision');
 });
+
+// Debate group titles come from held records by exact item ID, never the raw ID.
+async function titledFixture(t,id,day){
+ const {store}=await fixture(t);store.putSource(1,'/plenary-documents/B-10-2026-0400','document',{id:'eli/dl/doc/B-10-2026-0400',identifier:'B-10-2026-0400',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Iran'},creator:['org/PPE'],is_about:[geo('IRN'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+id]},stamp);
+ // A later event observation without labels must not erase held titles.
+ stageStoryInput(store,{activity_id:id,activity_date:day,activity_label:{},had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:[]},{...source,fetchedAt:'2026-11-02T00:00:00Z'},{rank:4});
+ return store;
+}
+const groupTitle=(store,id,lang)=>new RecordTopics(store).query(new URLSearchParams({key:'eurovoc:245',lang}),'detail').groups.find(g=>g.key===id);
+test('debate groups take every held language from the outside-agenda record',async t=>{
+ const day='2026-03-25',id='MTG-PL-'+day+'-PVCRE-ITM-17',store=await titledFixture(t,id,day);
+ store.putSource(1,'outside:agenda:'+id,'outside-agenda',{id,date:day,titles:{en:'17. Imminent death penalty threats in Iran (debate)',fr:'17. Menaces imminentes de peine de mort en Iran (débat)'},kind:'PLENARY_DEBATE',procedureIds:[],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+id,fetchedAt:'2026-10-20T11:10:24.838Z'}},stamp);
+ await buildTopics(store,{cache:null});
+ const fr=groupTitle(store,id,'fr');assert.equal(fr.title,'17. Menaces imminentes de peine de mort en Iran (débat)');assert.equal(fr.titleLanguage,'fr');
+ const en=groupTitle(store,id,'en');assert.equal(en.title,'17. Imminent death penalty threats in Iran (debate)');assert.notEqual(en.title,id);
+});
+test('debate groups fall back to the retained debate snapshot, then to no title',async t=>{
+ const {gzipSync}=await import('node:zlib'),{prepareSittingSnapshots}=await import('./sitting-snapshot-store.mjs');
+ const day='2026-03-25',id='MTG-PL-'+day+'-PVCRE-ITM-17',other='MTG-PL-'+day+'-PVCRE-ITM-18',store=await titledFixture(t,id,day);
+ store.putSource(1,'/plenary-documents/B-10-2026-0401','document',{id:'eli/dl/doc/B-10-2026-0401',identifier:'B-10-2026-0401',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Iran too'},creator:['org/PPE'],is_about:[geo('IRN'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+other]},stamp);
+ prepareSittingSnapshots(store);
+ store.db.prepare('INSERT INTO sitting_snapshots(kind,version,id,complete,next_check,body) VALUES (?,?,?,1,0,?)').run('debate',1,id,gzipSync(JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+id,fetchedAt:'2026-10-20T00:00:00Z',payload:{data:[{id:'eli/dl/event/'+id,activity_id:id,activity_label:{en:'17. Imminent death penalty threats in Iran in the light of the latest executions (debate)'}}]}})));
+ await buildTopics(store,{cache:null});
+ assert.equal(groupTitle(store,id,'en').title,'17. Imminent death penalty threats in Iran in the light of the latest executions (debate)');
+ const missing=groupTitle(store,other,'en');assert.equal(missing.title,null,'no held title gives null, not the raw ID');assert.equal(missing.key,other,'the ID stays in the key');
+});
