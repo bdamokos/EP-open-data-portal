@@ -1,10 +1,10 @@
+import {readableStoryState} from './topic-projection-state.mjs';
 import {existsSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {languagePreference} from './language-order.mjs';
 import {countryLabels} from './topic-roles.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
-import {validTopicKey,RECORD_TOPICS_VERSION} from './record-topics.mjs';
-import {STORY_FACTS_VERSION} from './story-facts-model.mjs';
+import {validTopicKey} from './record-topics.mjs';
 import {emptyStoryCounts} from './story-facts-aggregate.mjs';
 import europe from './story-europe-countries.json' with {type:'json'};
 import {HttpError} from './http-utils.mjs';
@@ -75,8 +75,8 @@ export function storyQuery(params){
 }
 const cleanTitle=title=>String(title||'').replace(/^\d+(?:\.\d+)*\.\s*/,'').replace(/\s*\((?:debate|topical debate|joint debate|continuation of debate)\)\s*$/i,'');
 export function storyFacts(store,params,{pressFilename}={}){
- const q=storyQuery(params),state=store.get('storyProjection'),base=store.get('recordTopicProjection'),active=store.get('active'),generation=state?.dataGeneration||state?.generation;
- if(!state||(state.version<8||state.version>STORY_FACTS_VERSION||q.askers==='not-home'&&state.version<9)||state.generation>active||!state.dataGeneration&&![active,store.get('previous')].includes(state.generation)||base?.generation!==state.generation||(base.dataGeneration||base.generation)!==generation||base.version!==RECORD_TOPICS_VERSION)return {ready:false};
+ const q=storyQuery(params),state=readableStoryState(store,{askers:q.askers}),generation=state?.dataGeneration||state?.generation;
+ if(!state)return {ready:false};
  const db=store.db,periods=topicPeriods(),selectedPeriods=q.period?[q.period]:periods,key=q.scope==='map'?q.zoom:q.scope==='place'?q.key.slice(6):q.key,dimension=[generation,q.scope,key,q.askers];
  const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),q.language)[0];return {value:values?.[lang]||fallback,language:lang||null};};
  const zeroCounts=()=>({...emptyStoryCounts(),...(q.scope==='map'?{placesWithQuestions:0,placesWithDebates:0,placesWithAdoptedTexts:0}:{})});

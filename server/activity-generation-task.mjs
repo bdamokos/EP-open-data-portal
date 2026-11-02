@@ -1,3 +1,4 @@
+import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen,topicBuildWindowRemaining} from './topic-build-window.mjs';
 import {Worker} from 'node:worker_threads';
 import path from 'node:path';
@@ -9,20 +10,21 @@ export async function activityGenerationTask(store,operation,{generation,signal,
   if(!['begin','publish','topics','stories'].includes(operation)||operation!=='begin'&&(!Number.isSafeInteger(generation)||generation<1))throw new Error('Invalid activity generation operation.');
   signal?.throwIfAborted();
   if(store.db.isTransaction||store.generationTaskActive)throw new Error('An activity generation operation is already active.');
-  store.assertWriter();const buildNow=topicBuildWindowOpen(store.clock(),rebuildWindow);
+  store.assertWriter();const buildNow=topicBootstrapRequired(store)||topicBuildWindowOpen(store.clock(),rebuildWindow);
   if(['topics','stories'].includes(operation)&&!buildNow){store.set('topicProjectionDirty',true);return {deferred:true,generation};}
   store.generationTaskActive=true;
   const elapsed=loopTimer('activity-generation');
   try {
     let value;
-    for(const step of operation==='publish'?['publish',...(buildNow?['topics']:[])]:[operation]){
+    for(const step of operation==='publish'?['publish','topics']:[operation]){
     signal?.throwIfAborted();
-    if(['topics','stories'].includes(step)&&!topicBuildWindowOpen(store.clock(),rebuildWindow)){store.set('topicProjectionDirty',true);continue;}
+    const bootstrap=['topics','stories'].includes(step)&&topicBootstrapRequired(store);
+    if(['topics','stories'].includes(step)&&!bootstrap&&!topicBuildWindowOpen(store.clock(),rebuildWindow)){store.set('topicProjectionDirty',true);continue;}
     value=await new Promise((resolve,reject)=>{
       let thread,result,failure,windowTimer,complete=false;
       try {thread=createWorker(new URL('./activity-generation-worker.mjs',import.meta.url),{...(['topics','stories'].includes(step)?{resourceLimits:{maxOldGenerationSizeMb:26,maxYoungGenerationSizeMb:2}}:{}),workerData:{directory:path.dirname(store.filename),owner:store.owner,operation:step,generation}});}
       catch(error){reject(error);return;}
-      if(['topics','stories'].includes(step)){const remaining=topicBuildWindowRemaining(store.clock(),rebuildWindow);if(Number.isFinite(remaining)){windowTimer=setTimeout(()=>{failure=new Error('Topic rebuild window closed.');void thread.terminate();},remaining);windowTimer.unref();}}
+      if(['topics','stories'].includes(step)&&!bootstrap){const remaining=topicBuildWindowRemaining(store.clock(),rebuildWindow);if(Number.isFinite(remaining)){windowTimer=setTimeout(()=>{failure=new Error('Topic rebuild window closed.');void thread.terminate();},remaining);windowTimer.unref();}}
       const abort=()=>{failure=signal.reason||new Error('Activity generation operation aborted.');void thread.terminate();};
       thread.on('message',message=>{
         if(message?.type==='complete'){result=message.value;complete=true;}
@@ -45,7 +47,6 @@ export async function activityGenerationTask(store,operation,{generation,signal,
     // an expired or replaced owner must reacquire on a later ordinary tick.
     if(!store.renew())throw new Error('Activity-index writer lease was lost.');
     }
-    if(operation==='publish'&&!buildNow)store.set('topicProjectionDirty',true);
     return value;
   } finally {store.generationTaskActive=false;store.invalidateMemberProfiles?.();elapsed({operation});}
 }
