@@ -165,6 +165,11 @@ test('question readers show the answerer and omit the page viewer and a redundan
   const answerer=h.container.querySelector('.question-answerer');
   assert.equal(answerer.textContent,'Answered by: High Representative/Vice-President Kallas, European Commission');
   assert.equal(answerer.querySelector('span[lang="en"]').textContent,'High Representative/Vice-President Kallas');
+  await h.render(null);
+  // A requested edition other than the interface language keeps the picker.
+  await h.render(h.reader('question',{id:answer,language:'fr'}));
+  await h.finish(`document/${answer}?lang=fr`,question(answer,'fr'));await h.wait();
+  assert(h.container.querySelector('select'),'French text under an English interface offers other editions');
 });
 
 test('inline retries recover the same ID and chosen language once, retaining local keyboard focus',async t=>{

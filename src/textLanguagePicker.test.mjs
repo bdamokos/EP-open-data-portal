@@ -48,6 +48,16 @@ test('one language hides the select and retains a plain interface-language fallb
   assert.match(h.container.textContent,/irlandais unavailable · showing français/);
 });
 
+test('a picker that is no longer needed stays while focused and leaves on blur',async t=>{
+  const h=await harness(t);
+  await h.render({show:false});assert.equal(h.container.querySelector('select'),null);
+  await h.render({});const select=h.container.querySelector('select');
+  await act(async()=>select.focus());
+  await h.render({show:false,value:'ga'});
+  assert.equal(h.container.querySelector('select'),select);assert.equal(document.activeElement,select);
+  await act(async()=>select.blur());assert.equal(h.container.querySelector('select'),null);
+});
+
 test('opt-in focus preservation keeps a shrinking picker until blur for one or zero languages',async t=>{
   const h=await harness(t);
   for(const available of [['en'],[]]){
