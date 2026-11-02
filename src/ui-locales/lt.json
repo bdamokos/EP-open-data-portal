@@ -2515,5 +2515,7 @@
   "topics.explorerTranslation": "Politikos sričių pavadinimus išvertė duomenų naršymo priemonė.",
   "groupvoices.date_count.692412": "{date}: {count}",
   "groupvoices.contributions_by_month.0ca3ec": "Pasisakymai pagal mėnesius",
-  "groupvoices.contributions_by_sitting_day.77a719": "Pasisakymai pagal posėdžių dienas"
+  "groupvoices.contributions_by_sitting_day.77a719": "Pasisakymai pagal posėdžių dienas",
+  "membervotespresentation.votes_not_yet_published": "Balsavimai dar nepaskelbti",
+  "membervotespresentation.votes_start_at": "Balsavimai prasideda {time}"
 }

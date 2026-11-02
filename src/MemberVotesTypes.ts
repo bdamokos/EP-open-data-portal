@@ -95,10 +95,11 @@ export type MemberVoteSittingCoverage = {
     complete:boolean;
   };
   observedDecisionCount:number;
+  pendingVotes?:{scheduledVoteCount:number;startsAt:string|null}|null;
 };
 
 export type MemberVotesResponse = {
-  version:11;
+  version:12;
   member:{id:string;uri:string;mandateStatus:'not-assessed';historicalGroupStatus:'not-collected'};
   period:{kind:'week'|'sitting';week:string|null;sittingId:string|null;from:string|null;to:string|null};
   snapshotId:string;

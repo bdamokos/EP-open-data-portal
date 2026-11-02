@@ -10,8 +10,11 @@ import {projectMemberSitting,memberVoteAlignment} from './member-votes-model.mjs
 import {mergeSourceNodes,sourceNodeKey,decisionSourceConflicts} from './vote-evidence.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
 import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
+import {sittingConfirmationDay} from './refresh-policy.mjs';
 
-export const MEMBER_VOTES_VERSION=11;
+export const MEMBER_VOTES_VERSION=12;
+// Saved sitting days stay readable across additive response changes.
+export const MEMBER_VOTE_SNAPSHOT_VERSION=11;
 export const VOTE_SNAPSHOT_VERSION=1;
 // Period reads include every observed decision; keep a separate finite transport budget.
 export const MEMBER_VOTES_PERIOD_RESPONSE_BYTES=32*1024*1024;
@@ -53,9 +56,9 @@ export class MemberVotes extends VoteSourceReader {
 
   async catalogue(query,budget) {
     if(query.sitting){
-      const saved=this.diskSnapshots?.read('votes',MEMBER_VOTES_VERSION,query.sitting);
+      const saved=this.diskSnapshots?.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,query.sitting);
       if(saved){budget.savedSitting=saved;budget.bytes+=saved.catalogueBytes;return saved.catalogue;}
-      this.diskSnapshots?.enqueue('votes',MEMBER_VOTES_VERSION,query.sitting);
+      this.diskSnapshots?.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION,query.sitting);
       const coverage=pageCoverage();
       try {
         const record=await this.request('/meetings/'+query.sitting,{}, {priority:'interactive',staleWhileRevalidate:true,ttl:this.limits.sourceMs});requestSignal()?.throwIfAborted();
@@ -85,13 +88,13 @@ export class MemberVotes extends VoteSourceReader {
 
   async sitting(node,budget){
     const sittingId=node.activity_id,date=node.activity_date;
-    const saved=budget.savedSitting?.node.activity_id===sittingId?budget.savedSitting:this.diskSnapshots?.read('votes',MEMBER_VOTES_VERSION,sittingId);
+    const saved=budget.savedSitting?.node.activity_id===sittingId?budget.savedSitting:this.diskSnapshots?.read('votes',MEMBER_VOTE_SNAPSHOT_VERSION,sittingId);
     const changedDeclarations=saved&&sittingDeclarations(node)!==sittingDeclarations(saved.node);
     if(saved&&!changedDeclarations){
       if(budget.bytes+saved.bytes>this.limits.periodBytes)throw new HttpError(502,'vote_period_budget','The selected period exceeds the bounded source budget.');
       budget.bytes+=saved.bytes;return saved.day;
     }
-    this.diskSnapshots?.enqueue('votes',MEMBER_VOTES_VERSION,sittingId,{changedDeclarations:Boolean(changedDeclarations)});
+    this.diskSnapshots?.enqueue('votes',MEMBER_VOTE_SNAPSHOT_VERSION,sittingId,{changedDeclarations:Boolean(changedDeclarations)});
     const failure=new AbortController(),signal=AbortSignal.any([requestSignal(),failure.signal].filter(Boolean));
     // A local failure ends this collection, so sibling reads must lose their
     // ownership too, before sharedRequest disposes the collection deadline.
@@ -160,11 +163,17 @@ export class MemberVotes extends VoteSourceReader {
       const expectedNamed=allNodes.filter(n=>requiresNamed(n)||tail(n.decision_method)==='VOTE_ELECTRONIC_ROLLCALL'&&namedIds.has(relative(n.id)));
       if(all.coverage.state==='complete')confirmRepeated(named,namedNodes,expectedNamed.map(n=>relative(n.id)));
     }
-    const votingRecordsComplete=[all,named,results].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,conflictingDecisionIds,undeclaredChildResultIds,voteErrors].some(a=>a.length);
+    // Agenda votes with no decision or result yet, before the sitting's records
+    // settle, are unpublished, not absent. Keep the day open for re-reading.
+    const scheduledVoteIds=agendaNodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').map(n=>relative(n.id));
+    const voteSlotStarts=agenda.nodes.filter(n=>tail(n.had_activity_type)==='MEETING_PART'&&new RegExp('^eli/dl/event/'+sittingId+'-TF-\\d{4}$').test(relative(n.id))&&refs(n.consists_of).some(id=>scheduledVoteIds.includes(id))).flatMap(n=>[n.activity_start_date].flat()).filter(value=>typeof value==='string'&&Number.isFinite(Date.parse(value)));
+    const votesPending=agenda.coverage.state==='complete'&&scheduledVoteIds.length>0&&!decisions.length&&!parents.length&&brusselsDay(this.clock())<sittingConfirmationDay(sittingId);
+    const pendingVotes=votesPending?{scheduledVoteCount:scheduledVoteIds.length,startsAt:voteSlotStarts.sort((a,b)=>Date.parse(a)-Date.parse(b))[0]??null}:null;
+    const votingRecordsComplete=!votesPending&&[all,named,results].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,conflictingDecisionIds,undeclaredChildResultIds,voteErrors].some(a=>a.length);
     const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:Array.isArray(node.consists_of)?declaredResults.length:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,votingRecordsComplete,complete:false};
-    completeness.complete=[all,named,results,agenda].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,errors].some(a=>a.length);
+    completeness.complete=!votesPending&&[all,named,results,agenda].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,errors].some(a=>a.length);
     const anySource=[all,named,results].some(c=>c.coverage.pages>0);
-    const coverage={sittingId,date,state:votingRecordsComplete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length};
+    const coverage={sittingId,date,state:votingRecordsComplete?'complete':anySource?'partial':'unavailable',decisions:all.coverage,namedDecisions:named.coverage,results:results.coverage,agenda:agenda.coverage,completeness,observedDecisionCount:decisions.length,pendingVotes};
     const chairing=decisions.length?await this.readChairs(this.request,sittingId,{clock:this.clock,maxBytes:Math.max(0,this.limits.periodBytes-budget.bytes)}):null;
     budget.bytes+=chairing?.bytes||0;
     coverage.chairing=chairing?{status:chairing.status,sources:chairing.sources}:null;
