@@ -78,7 +78,7 @@ Benchmark caches, snapshots and results stay outside Git and out of CI artifacts
 
 **Amendment benchmark** (`npm run bench:amendments`) scores amendment placement against a frozen public snapshot:
 
-- Acquire into a new, empty directory: `--fetch --cache-dir DIR --request-cap N` (`--delay-ms` sets pacing; `--api-base` or `AMENDMENT_BENCHMARK_API_BASE` names the public explorer). Alternatively, `--production-data-dir PATH` reads a consistent copy of the explorer’s data read-only, with no upstream fallback.
+- Acquire into a new, empty directory: `--fetch --cache-dir DIR --request-cap N` (`--delay-ms` sets pacing; `--api-base` or `AMENDMENT_BENCHMARK_API_BASE` names the public explorer). Alternatively, `--production-data-dir PATH` reads a copy of the explorer’s data read-only, with no upstream fallback. Never point it at live databases. Use a consistent copy with no SQLite sidecars; the copy’s owner must establish consistency across the databases and caches.
 - Replay offline: `--cache-dir DIR [--output-dir DIR]`.
 - Compare: `--baseline FILE` (`--placement-only` is the same gate). Keep an append-only `ratchet.md` and `baseline-current.json` in the snapshot’s output directory.
 - Gates: a PR may not turn a previously correct row into anything else, and false placements must stay at zero. The hold-out snapshot is measure-only: never tune against it. The language snapshot (`--languages`) is a separate gate with its own ledger.

@@ -179,8 +179,6 @@ With `CORPUS_ENABLED=true`, a worker stores current-term speech fragments and qu
 
 The `mt` entry in `server/insights-speech-stopwords.json` is an app-authored list of function words (pronouns, demonstratives, possessives, conjunctions, prepositions, auxiliaries, particles and article/preposition forms at hyphen boundaries), enumerated by grammatical category rather than by frequency or from a third-party dataset. References consulted on 2 November 2026: [Universal Dependencies Maltese segmentation](https://universaldependencies.org/mt/index.html) and [Camilleri’s Maltese grammar notes](https://github.com/johnjcamilleri/Maltese-GF-Resource-Grammar/blob/master/doc/grammar.org).
 
-Tokenisation separates hyphenated articles and fused prepositions and removes the apostrophe proclitics b’, f’, m’, s’, t’. A word-final apostrophe after a vowel stays part of the word (sema’ “heard” is distinct from sema “sky”) unless it closes a quotation.
-
 ## World map geometry
 
 The Places map uses Natural Earth 1:110m Admin 0 countries and 1:50m tiny-country points, projected by `scripts/world-map.py` (Equal Earth). Places join by authority ISO alpha-3, except Kosovo (`1A0` → `KOS`). See [Third-party notices](../THIRD_PARTY_NOTICES.md) for source URLs.

@@ -43,7 +43,7 @@ The Open Data API allows 500 requests per five minutes. The server enforces this
 
 `ACTIVITY_INDEX_RECOVERY_MODE=backfill` lets the writer work through recorded source gaps and overdue document refreshes between daily refreshes, within the same limits.
 
-Other origins (website files, OEIL, Publications Office, Multimedia Centre) have their own small pools. `OFFICIAL_CONTEXT_DAILY_ORIGIN_LIMIT` (default 2,000 requests per origin per Brussels day) caps background OEIL and Publications Office warming. A cold procedure needs about 72 Publications Office requests across 24 languages, so warming a full term takes weeks.
+Other origins (website files, OEIL, Publications Office, Multimedia Centre) have their own small pools. `OFFICIAL_CONTEXT_DAILY_ORIGIN_LIMIT` limits context warming to 2,000 requests per origin per Brussels day by default. Topic collection uses the writer’s request budget instead. A cold procedure needs about 72 Publications Office requests across 24 languages, so warming a full term takes weeks.
 
 Older speech months are re-checked less often: metadata every 30 days at 4–12 months old, 90 days at 1–2 years and 180 days after that, with a full text verification at 90, 180 and 365 days. A correction to an old speech can therefore take up to a year to appear.
 
@@ -67,7 +67,7 @@ docker run --rm -p 127.0.0.1:8790:8790 parliament-explorer
 node scripts/check-runtime-image.mjs parliament-explorer "$(git rev-parse HEAD)"
 ```
 
-The image runs as UID 1000 with production dependencies and built assets only. Mount persistent directories at `/data/cache`, `/data/index` and `/data/diagnostics`, owned by UID 1000, and set `ACTIVITY_INDEX_ENABLED=true` and the corpus settings as needed. `NODE_IMAGE` pins the base image; keep it aligned with `.nvmrc`.
+The image runs as UID 1000 with production dependencies and built assets only. Mount persistent directories at `/data/cache`, `/data/index` and `/data/diagnostics`, owned by UID 1000, and set `ACTIVITY_INDEX_ENABLED=true`. To enable the corpus, also mount a persistent directory owned by UID 1000 at `/data/corpus` and set `CORPUS_ENABLED=true CORPUS_DIR=/data/corpus`. `NODE_IMAGE` pins the base image; keep it aligned with `.nvmrc`.
 
 - **Stop the old container before starting the new one.** Two writers on the same directories are not allowed.
 - **Startup preparation:** before listening, the server prepares SQLite indexes and projections for the enabled services. It makes no upstream requests and skips completed work, but after schema changes it can take 20–30 minutes or more on a slow disk. The image allows a 60-minute health-check start period; deployment readiness deadlines must allow for it. `node server/migrate-indexes.mjs` runs the same preparation for maintenance.
