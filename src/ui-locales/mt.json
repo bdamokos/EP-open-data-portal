@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "Għadd ta’ pożizzjonijiet irreġistrati: {count}",
   "membervotes.tsx.count.recorded.positions": "Għadd ta’ pożizzjonijiet irreġistrati: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Votazzjoni finali fuq it-test kollu",
   "membervotes.tsx.final.vote.outcome.position": "Votazzjoni finali · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Sib it-test adottat",
   "membervotes.tsx.finding.latest.recorded.votes": "Qed jinstabu l-aħħar votazzjonijiet irreġistrati…",
