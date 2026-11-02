@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Pogledaj službeni dokument",
   "questionStatus.1": "Odgovoreno",
   "questionStatus.2": "Još nema odgovora",
+  "questions.earlierInTerm": "Prikaži ranija pitanja iz trenutačnog saziva",
+  "questions.periodEnd": "Kraj popisa za razdoblje {dates}.",
   "readerretry.minutes_minute.15a750": "Broj minuta: {minutes}",
   "readerretry.minutes_minutes.24f934": "Broj minuta: {minutes}",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Ponovni pokušaj pauziran je nakon neuspjelog zahtjeva. Vrijeme do ponovnog pokušaja: {wait}.",

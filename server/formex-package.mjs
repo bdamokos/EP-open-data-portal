@@ -3,6 +3,14 @@ import {inflateRawSync,crc32} from 'node:zlib';
 import path from 'node:path';
 import {XMLParser,XMLValidator} from 'fast-xml-parser';
 
+// Offline reader for one native Formex package. Caller-supplied Cellar bindings stay
+// separate from parsed native metadata. It rejects traversal, duplicate or overlapping
+// entries, bad CRCs, encryption, DTDs and external entities, and never loads schemas.
+// packageComplete covers the declared part graph; complete also requires supported
+// content. Consolidation markers are kept, but the applicable text is not computed.
+// Formex preference is held: nothing wires this reader to source selection,
+// rendering or placement.
+
 export const FORMEX_PARSER_REVISION=2;
 export const FORMEX_PACKAGE_LIMITS=Object.freeze({archive:8*1024*1024,entries:256,entry:8*1024*1024,inflated:24*1024*1024,elements:100000,depth:64,parts:64,blocks:30000});
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');

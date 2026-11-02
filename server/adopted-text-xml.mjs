@@ -3,6 +3,11 @@ import {XMLParser,XMLValidator} from 'fast-xml-parser';
 import {array,tail} from './activity-index-model.mjs';
 import {languageCode} from './ep-links.mjs';
 
+// Native EP adopted-text (SDOCTA) XML reader. nativeComplete covers supported XML
+// extraction only. The reader is not passed to proposal placement or amendment-list
+// ingestion; enabling it needs independent DOCX-equivalence and rendering checks,
+// and issue dates never prove equivalence.
+
 export const ADOPTED_TEXT_XML_VERSION=1;
 export const ADOPTED_TEXT_XML_LIMITS=Object.freeze({bytes:2*1024*1024,elements:50000,depth:64,blocks:20000,text:2*1024*1024});
 const XSI='http://www.w3.org/2001/XMLSchema-instance';
