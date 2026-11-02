@@ -10,7 +10,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=23;
+export const TOPICS_VERSION=24;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -203,7 +203,7 @@ export class RecordTopics{
  for(const {id} of this.db.prepare('SELECT DISTINCT CAST(j.value AS TEXT) id'+recordScope+" JOIN json_each(r.body,'$.members') j WHERE r.kind='speech' ORDER BY r.date DESC,r.id,j.key LIMIT 5").all(...args,g.group_key)){const raw=this.db.prepare('SELECT body FROM members WHERE id=?').get(id);speakers.set(id,{id,name:raw?JSON.parse(raw.body).name||null:null});}
  const title=r=>r.titles?.[languagePreference(Object.keys(r.titles||{}),language)[0]]||r.id;
  // An excluded (procedural) parent, such as a voting-time item, is never presented as a debate.
- const groupKind=parent?.procedural===true?'record':representative.groupKind;
+ const groupKind=parent?.procedural===true||base.kind==='vote'?'record':representative.groupKind;
  const voteTargets=base.kind==='vote'?[...new Set(base.agendaIds||[])].filter(id=>{let row;try{row=this.db.prepare("SELECT body FROM story_inputs WHERE kind='agenda' AND id=?").get(id);}catch(error){if(/no such table/.test(error.message))return false;throw error;}const agenda=row?JSON.parse(row.body):null;return agenda&&!agenda.conflicted&&agenda.type==='PLENARY_VOTE'&&agenda.date===base.date&&id.startsWith('MTG-PL-'+base.date+'-OJ-ITM-V-');}):[];
  return {key:g.group_key,kind:groupKind,title:title(base),date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(base.kind==='vote'?(voteTargets.length===1?{agendaId:voteTargets[0]}:{}):groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
  });

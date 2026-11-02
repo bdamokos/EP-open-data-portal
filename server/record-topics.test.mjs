@@ -99,3 +99,9 @@ test('vote-family groups expose only one retained exact scheduled vote target',t
  const refs=[[scheduled(94)],[],[scheduled(94),scheduled(95)],['MTG-PL-'+date+'-OJ-ITM-D-1']];const records=refs.map((agendaIds,n)=>({id:event(n+1),kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_RESULTS',agendaIds,date,titles:{en:'Nigeria vote'},assignments:[assignment]}));writeTopicProjection(store,{records,concepts:[{key,role:'place',labels:{en:'Nigeria'}}]});const groups=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups;
  assert.equal(groups.find(g=>g.key===event(1)).agendaId,scheduled(94));for(const n of [2,3,4])assert(!groups.find(g=>g.key===event(n)).agendaId);assert(groups.every(g=>g.kind==='record'));
 });
+
+test('speeches under vote-family parents are records without an inferred agenda target',t=>{
+ const store=fixture(t),date='2026-07-09',key='place:NGA',parent='MTG-PL-'+date+'-PVCRE-ITM-9-6',speech='MTG-PL-'+date+'-OTH-100';
+ writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:parent,kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',date,titles:{en:'Explanations of votes'},assignments:[]},{id:speech,kind:'speech',parentIds:[parent],members:[],date,titles:{en:'Speech'},assignments:[{key,role:'place',paths:[]}]}]});
+ const group=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups[0];assert.equal(group.key,parent);assert.equal(group.kind,'record');assert.equal(group.speechCount,1);assert.equal(group.agendaId,undefined);
+});
