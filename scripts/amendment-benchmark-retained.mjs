@@ -8,6 +8,28 @@ import {digest} from './amendment-benchmark-cache.mjs';
 import {cellarTransportUrl,CELLAR_DOCX_MIME,CELLAR_DECLARED_DOCX_MIME,CELLAR_LIMITS} from '../server/cellar-documents.mjs';
 
 const inside=(root,file)=>file===root||file.startsWith(root+path.sep);
+const sourceReason=error=>error.code==='ENOENT'?'retained-source-blob-missing':/hash mismatch/i.test(error.message)?'retained-source-hash-mismatch':/size mismatch|size limit/i.test(error.message)?'retained-source-size-mismatch':/ambiguous/i.test(error.message)?'retained-source-attestation-ambiguous':/escapes/i.test(error.message)?'retained-source-path-invalid':error.code?.startsWith('E')?'retained-source-unreadable':'retained-source-attestation-invalid';
+const sizeObservations=(declared,actual)=>Number.isSafeInteger(declared)&&declared>=0&&declared!==actual?[{kind:'declared-byte-size-mismatch',declaredByteSize:declared,actualByteSize:actual}]:[];
+export function retainedSummary(inputs,inventory=[]) {
+  const counts=values=>Object.fromEntries([...values.reduce((m,key)=>m.set(key,(m.get(key)||0)+1),new Map())].sort(([a],[b])=>a.localeCompare(b,'en')));
+  return {unavailableInputsByReason:counts(inputs.filter(x=>x.acquisitionUnavailable).map(x=>x.acquisitionUnavailableReason||'retained-acquisition-unavailable')),inventoryGapsByReason:counts(inventory.map(x=>x.reason)),declaredSizeMismatches:inputs.filter(x=>x.retainedSource?.observations?.some(o=>o.kind==='declared-byte-size-mismatch')).length};
+}
+async function descriptors(reader,directory,limit,validate=()=>{}) {
+  let names;
+  try {names=await readdir(await reader.file(directory));}catch(error){if(error.code!=='ENOENT')reader.inventoryGap(directory,error);return [];}
+  const records=[];
+  for(const name of names.filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).sort()) {
+    let source;
+    try {
+      const file=await reader.file(directory+'/'+name);
+      if((await stat(file)).size>limit)throw new Error('Oversized retained attestation');
+      source=JSON.parse(await readFile(file,'utf8'));
+      if(!source||typeof source!=='object'||Array.isArray(source))throw new Error('Invalid retained attestation');
+      validate(source,name);records.push({name,source});
+    }catch(error){reader.inventoryGap(directory+'/'+name,error,source?.url);}
+  }
+  return records;
+}
 // Mirror CellarDocuments' representation checks without normalizing the saved
 // header itself. Parameters on ordinary media types do not change the format.
 function matchesRepresentation(value,accept) {
@@ -17,7 +39,7 @@ function matchesRepresentation(value,accept) {
 }
 export class RetainedInputs {
   static async open(directory) {
-    const reader=new RetainedInputs();reader.root=await realpath(directory);
+    const reader=new RetainedInputs();reader.root=await realpath(directory);reader.inventoryGaps=[];reader.invalidSources=new Map();
     for(const name of ['index','corpus','cache']) {
       if(name==='cache')try{await stat(path.join(reader.root,name));}catch(error){if(error.code==='ENOENT'){reader.cacheMissing=true;continue;}throw error;}
       const folder=await realpath(path.join(reader.root,name));
@@ -46,26 +68,15 @@ try:
  print(json.dumps([dict(r) for r in c.execute('SELECT url,language,byte_size,issued,sha256,size,retrieved_at,list_id FROM amendment_sources')] if exists else None))
 finally: c.close()
 `,await reader.file('index/activities-v1.sqlite')],{encoding:'utf8',maxBuffer:64*1024*1024,stdio:['ignore','pipe','pipe']}));
-    reader.baseRecords=[];
-    let baseNames=[];try{baseNames=await readdir(await reader.file('cache/base-sources-v1'));}catch(error){if(error.code!=='ENOENT')throw error;}
-    for(const name of baseNames.filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).sort()) {
-      const file=await reader.file('cache/base-sources-v1/'+name);
-      if((await stat(file)).size>256*1024)throw new Error('Oversized retained base descriptor');
-      const source=JSON.parse(await readFile(file,'utf8'));
+    reader.baseRecords=(await descriptors(reader,'cache/base-sources-v1',256*1024,(source,name)=>{
       const key=digest(JSON.stringify([source.url,source.request?.accept??null,source.request?.language??null]));
       if(source.schemaVersion!==1||source.key!==key||name!==key+'.json'||!/^[a-f0-9]{64}$/.test(source.sha256)||!Number.isSafeInteger(source.bytes)||source.bytes<0||source.bytes>12*1024*1024||![200,406].includes(source.status)||!Number.isFinite(Date.parse(source.fetchedAt)))throw new Error('Retained base attestation mismatch');
-      reader.baseRecords.push(source);
-    }
-    reader.records=[];
-    let names=[];try{names=await readdir(await reader.file('cache/commission-proposals-v1'));}catch(error){if(error.code!=='ENOENT')throw error;}
-    for(const name of names.filter(name=>/^[a-f0-9]{64}\.json$/.test(name)).sort()) {
-      const file=await reader.file('cache/commission-proposals-v1/'+name);
-      if((await stat(file)).size>64*1024)throw new Error('Oversized retained source attestation');
-      const source=JSON.parse(await readFile(file,'utf8'));
-      reader.records.push({name,source});
-    }
+    })).map(row=>row.source);
+    reader.records=await descriptors(reader,'cache/commission-proposals-v1',64*1024);
     return reader;
   }
+  close(){this.projections?.close();this.projections=null;}
+  inventoryGap(file,error,url) {const reason=sourceReason(error);this.inventoryGaps.push({file,reason});if(typeof url==='string')this.invalidSources.set(url,reason);}
   async file(relative) {
     const file=await realpath(path.join(this.root,relative));
     if(!inside(this.root,file))throw new Error('Retained source escapes supplied directory');
@@ -90,10 +101,10 @@ finally: c.close()
     let file;
     try{file=await this.file('index/amendment-docx-v2/'+row.sha256+'.docx');}catch(error){if(error.code==='ENOENT')return unavailable('amendment-source-blob-missing');throw error;}
     const info=await stat(file);
-    if(!info.isFile()||info.size!==row.size||row.byte_size>=0&&row.byte_size!==row.size)throw new Error('Retained amendment size mismatch: '+url);
+    if(!info.isFile()||info.size!==row.size)throw new Error('Retained amendment size mismatch: '+url);
     const body=await readFile(file);
     if(body.length!==row.size||digest(body)!==row.sha256)throw new Error('Retained amendment hash mismatch: '+url);
-    return {url,status:200,ok:true,fetchedAt:row.retrieved_at,bytes:body.length,sha256:row.sha256,error:null,...(request?{request}:{}),headers:{'content-type':mime},retainedSource:{store:'amendment-docx-v2',descriptor:{url:row.url,language:row.language,byteSize:row.byte_size<0?null:row.byte_size,issued:row.issued||null},listId:row.list_id},body};
+    return {url,status:200,ok:true,fetchedAt:row.retrieved_at,bytes:body.length,sha256:row.sha256,error:null,...(request?{request}:{}),headers:{'content-type':mime},retainedSource:{store:'amendment-docx-v2',descriptor:{url:row.url,language:row.language,byteSize:row.byte_size<0?null:row.byte_size,issued:row.issued||null},listId:row.list_id,observations:sizeObservations(row.byte_size,body.length)},body};
   }
   async baseObservation(source,request) {
     let file;try{file=await this.file('cache/base-sources-v1/'+source.sha256+'.blob');}catch(error){if(error.code==='ENOENT')return null;throw error;}
@@ -101,24 +112,31 @@ finally: c.close()
     const body=await readFile(file);
     if(body.length!==source.bytes||digest(body)!==source.sha256)throw new Error('Retained base hash mismatch');
     const d=source.descriptor;
-    if(d&&(d.url!==source.url||d.byteSize!=null&&d.byteSize!==body.length||d.issued!=null&&(!Number.isFinite(Date.parse(d.issued))||Date.parse(d.issued)>Date.parse(source.fetchedAt))))throw new Error('Retained base descriptor mismatch');
-    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,...(request?{request}:{}),headers:source.headers,retainedSource:{store:'base-sources-v1',observedRequest:source.request,descriptor:d??null,selection:source.selection??null},body};
+    if(d&&(d.url!==source.url||d.issued!=null&&(!Number.isFinite(Date.parse(d.issued))||Date.parse(d.issued)>Date.parse(source.fetchedAt))))throw new Error('Retained base descriptor mismatch');
+    return {url:source.url,status:source.status,ok:source.status===200,fetchedAt:source.fetchedAt,bytes:body.length,sha256:source.sha256,error:source.status===200?null:'HTTP '+source.status,...(request?{request}:{}),headers:source.headers,retainedSource:{store:'base-sources-v1',observedRequest:source.request,descriptor:d??null,selection:source.selection??null,observations:sizeObservations(d?.byteSize,body.length)},body};
   }
   async selections(type) {
     const records=[];
     for(const source of this.baseRecords.filter(s=>s.selection&&(!type||s.selection.type===type))) {
+      try {
       const observation=await this.baseObservation(source);
       if(observation)records.push({input:source.selection.input,type:source.selection.type,fetchedAt:source.fetchedAt,decision:JSON.parse(observation.body.toString('utf8'))});
+      }catch(error){this.inventoryGap('cache/base-sources-v1/'+source.key+'.json',error,source.url);}
     }
     return records;
   }
-  async get(url,request,{cache}={}) {
+  async get(url,request,{cache,maximum=Infinity}={}) {
+    const unavailable=(reason='retained-attestation-missing')=>({url,status:null,ok:false,fetchedAt:null,bytes:0,sha256:digest(''),error:'acquisition-unavailable',acquisitionUnavailable:true,acquisitionUnavailableReason:reason,...(request?{request}:{}),headers:{},body:Buffer.alloc(0)});
+    const bounded=input=>input.body.length>maximum?unavailable('retained-source-size-limit'):input;
     if(cache&&(new URL(url).origin===cache.apiBase||/^https:\/\/data\.europarl\.europa\.eu\/api\/v2\//.test(url))) {
       this.projections??=new RetainedProjections(await this.file('index/activities-v1.sqlite'));
-      try {const projection=await this.projections.getProjection(url,cache);if(projection)return {...projection,...(request?{request}:{})};}
-      catch(error){if(error.code!=='acquisition-unavailable')throw error;}
+      try {const projection=await this.projections.getProjection(url,cache);if(projection){if(projection.body.length>maximum&&new URL(url).pathname==='/api/amendments')throw new Error('Retained catalogue exceeds source size limit');return bounded({...projection,...(request?{request}:{})});}}
+      catch(error){if(new URL(url).pathname==='/api/amendments')throw error;if(error.code!=='acquisition-unavailable')return unavailable(sourceReason(error));}
     }
-    const unavailable=(reason='retained-attestation-missing')=>({url,status:null,ok:false,fetchedAt:null,bytes:0,sha256:digest(''),error:'acquisition-unavailable',acquisitionUnavailable:true,acquisitionUnavailableReason:reason,...(request?{request}:{}),headers:{},body:Buffer.alloc(0)});
+    try {return bounded(await this.source(url,request,unavailable));}catch(error){return unavailable(sourceReason(error));}
+  }
+  async source(url,request,unavailable) {
+    if(this.invalidSources.has(url))return unavailable(this.invalidSources.get(url));
     const bases=this.baseRecords.filter(s=>s.url===url&&(!request||(s.request?.accept===request.accept||s.request?.accept==='*/*'&&s.descriptor?.format==='DOCX'&&request.accept==='application/vnd.openxmlformats-officedocument.wordprocessingml.document')&&(!request.language||s.request?.language===request.language)));
     if(bases.length>1)throw new Error('Ambiguous retained base observations: '+url);
     if(bases.length) {
@@ -138,7 +156,7 @@ finally: c.close()
       // The negotiation advertisement body is not retained by the application.
       // Never synthesize its406 or silently substitute the negotiated bytes.
       if(s.accept===CELLAR_DECLARED_DOCX_MIME)return unavailable();
-      let file;try{file=await this.file('cache/commission-proposals-v1/'+s.sha256+'.blob');}catch(error){if(error.code==='ENOENT')return unavailable();throw error;}
+      let file;try{file=await this.file('cache/commission-proposals-v1/'+s.sha256+'.blob');}catch(error){if(error.code==='ENOENT')return unavailable('retained-source-blob-missing');throw error;}
       if((await stat(file)).size>CELLAR_LIMITS.itemBytes)throw new Error('Retained source size limit');
       const body=await readFile(file);
       if(digest(body)!==s.sha256)throw new Error('Retained source hash mismatch: '+url);

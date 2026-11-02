@@ -84,7 +84,7 @@ export class InputCache {
       if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
     } else if(this.retained) {
-      const input=await this.retained.get(url,request,{cache:this});
+      const input=await this.retained.get(url,request,{cache:this,maximum});
       ({body,...meta}=input);
       await writeFile(bodyPath,body);await writeFile(metaPath,JSON.stringify(meta,null,2)+'\n');
     } else {
@@ -139,6 +139,7 @@ export class InputCache {
     if(meta.acquisitionUnavailable&&(meta.status!==null||meta.ok||meta.error!=='acquisition-unavailable'||meta.fetchedAt!==null||meta.bytes!==0))throw new Error('Invalid acquisition gap: '+url);
     if(responseIsTransient(meta)||meta.status===null&&!meta.acquisitionUnavailable&&!meta.localProjection)throw new Error('Transient cached input; use a new snapshot: '+url);
     this.used.set(identity,meta);
+    this.retained?.observe?.(meta);
     if(meta.redirectUrl&&!raw) {
       if(hops>=3||!allowedDownload(meta.redirectUrl)) {
         throw new Error(hops>=3?'document-redirect-limit':'unapproved-document-redirect');

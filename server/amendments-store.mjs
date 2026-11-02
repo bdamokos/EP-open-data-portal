@@ -169,6 +169,8 @@ const amendmentReadFlagsSql=body=>`
     CASE WHEN (json_array_length(json_extract(${body},'$.authors'))>0 AND NOT ${supportedProposerDateSql(body)}) OR EXISTS(SELECT 1 FROM json_each(${body},'$.variants') AS variant WHERE json_array_length(json_extract(variant.value,'$.authors'))>0 AND NOT ${supportedProposerDateSql('variant.value')}) THEN 1 ELSE 0 END AS proposer,
     CASE WHEN ${splitUnverifiedSql(body)} THEN 1 ELSE 0 END AS splits,
     CASE WHEN ${unverifiedSourceSql(body)} OR EXISTS(SELECT 1 FROM json_each(${body},'$.variants') AS variant WHERE ${unverifiedSourceSql('variant.value')}) THEN 1 ELSE 0 END AS freshness`;
+// Shared by the writer backfill and immutable retained-copy readers.
+export const amendmentReadProjectionSql=`SELECT generation,id,target,${amendmentReadFlagsSql('body')} FROM amendments`;
 export const amendmentReadVersion=createHash('sha256').update(amendmentReadFlagsSql('body')).digest('hex');
 
 // Compact proof flags are derived by the leased writer, once per changed row.
@@ -181,7 +183,7 @@ export function amendmentReadIndexes(db) {
   for(const event of ['INSERT','UPDATE OF body,target'])db.exec(`CREATE TRIGGER IF NOT EXISTS amendment_read_${event.split(' ')[0].toLowerCase()} AFTER ${event} ON amendments BEGIN
     INSERT OR REPLACE INTO amendment_read_flags SELECT NEW.generation,NEW.id,NEW.target,${amendmentReadFlagsSql('NEW.body')}; END`);
   db.exec('CREATE TRIGGER IF NOT EXISTS amendment_read_delete AFTER DELETE ON amendments BEGIN DELETE FROM amendment_read_flags WHERE generation=OLD.generation AND id=OLD.id; END');
-  db.exec(`INSERT OR REPLACE INTO amendment_read_flags SELECT generation,id,target,${amendmentReadFlagsSql('body')} FROM amendments`);
+  db.exec('INSERT OR REPLACE INTO amendment_read_flags '+amendmentReadProjectionSql);
 }
 
 function extensionGeneration(db) {

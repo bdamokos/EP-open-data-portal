@@ -18,7 +18,7 @@ parentPort.on('message',async message=>{
       const until=performance.now()+2000;while(performance.now()<until){};
     } else if(type==='acquire') {
       const controller=new AbortController();controllers.set(id,controller);
-      const grant=await client.acquire('background','/speeches',{signal:controller.signal});
+      const grant=await client.acquire('background','/speeches',{signal:controller.signal,source:message.source||'odp',backgroundRank:message.backgroundRank||0});
       parentPort.postMessage({type:'grant',id,grant});return;
     } else if(type==='cancel')controllers.get(message.target)?.abort();
     else if(type==='release')client.release(message.grant,message.result);

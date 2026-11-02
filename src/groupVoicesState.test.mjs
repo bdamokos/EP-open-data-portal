@@ -19,7 +19,7 @@ test('People remains an independent selector, with exact active counts and selec
  const greek={id:'99',name:'Geadis Geadi',nameVariants:[{value:'Γεάδης Γεάδη'}],total:1,subjects:{foreign:1}};assert.equal(visibleGroupPeople([greek],{...defaults,q:'Γεάδης'}).rows[0].id,'99');
 });
 test('malformed limits and identifiers never become filter state',()=>{
- const result=readGroupVoicesState(new URLSearchParams('gv-person=abc&gv-group=NI&gv-subject=unknown&gv-people-limit=1001&gv-offset=-1'));
+ const result=readGroupVoicesState(new URLSearchParams('gv-person=abc&gv-group=NI&gv-subject=unknown&gv-people-limit=9007199254740992&gv-offset=-1'));
  assert.deepEqual(result,{...defaults,group:'S_D',tab:'subjects'},'Any gv- parameter marks a legacy link with S&D/Subjects fallbacks.');
 });
 
@@ -29,10 +29,11 @@ test('months outside the current term normalise without losing the other filters
  assert.equal(readGroupVoicesState(new URLSearchParams('gv-period=2024-07'),{now}).period,'2024-07');
  assert.equal(readGroupVoicesState(new URLSearchParams('gv-period=2026-11'),{now:Date.parse('2026-10-31T23:30Z')}).period,'2026-11');
 });
-test('the 1000-person cap has no inert Show all action',()=>{
- const people=Array.from({length:1002},(_,i)=>({id:String(i+1),name:'Speaker '+i,total:1,subjects:{foreign:1}})),state={...defaults,peopleLimit:1000};
- const list=visibleGroupPeople(people,state);assert.equal(list.visible.length,1000);assert.equal(list.hasMore,false);
- const selected=visibleGroupPeople(people,{...state,person:list.rows.at(-1).id});assert.equal(selected.visible.length,1002);assert.equal(selected.hasMore,false);
+test('People previews retain boundary ties and Show all reaches every speaker',()=>{
+ const people=Array.from({length:1002},(_,i)=>({id:String(i+1),name:'Speaker '+i,total:2000-i,subjects:{foreign:1}})),state={...defaults,peopleLimit:1000};
+ const list=visibleGroupPeople(people,state);assert.equal(list.visible.length,1000);assert.equal(list.hasMore,true);
+ const all=readGroupVoicesState(new URLSearchParams('gv-people-limit=1002'));assert.equal(visibleGroupPeople(people,all).visible.length,1002);
+ const tied=visibleGroupPeople(people.map(p=>({...p,total:1})),defaults);assert.equal(tied.visible.length,1002);assert.equal(tied.hasMore,false);
 });
 
 test('bare links use PPE/People; legacy filtered links keep S&D/Subjects; changed state always writes group and tab',()=>{

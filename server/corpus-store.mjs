@@ -36,7 +36,7 @@ export const CORPUS_SCHEMA_GATES=Object.freeze([
   {key:'speechMemberIndex',value:2},
   {key:'questionDiscoveryVersion',value:1},
   {key:'corpusTextVersion',value:corpusTextVersion},
-  {key:'weekCloudSchema',value:2,constructorGate:false},
+  {key:'weekCloudSchema',value:3,constructorGate:false},
 ].map(Object.freeze));
 
 const KINDS=['speech','question','answer'];
@@ -226,7 +226,7 @@ export class CorpusStore {
         this.db.exec('CREATE TABLE IF NOT EXISTS question_discovery (source_key TEXT PRIMARY KEY,signature TEXT NOT NULL,policy TEXT NOT NULL)');
         this.set('questionDiscoveryVersion',1);initialized=true;
       }
-      if(this.get('weekCloudSchema')!==2){prepareWeekClouds(this.db);this.set('weekCloudSchema',2);initialized=true;}
+      if(this.get('weekCloudSchema')!==3){prepareWeekClouds(this.db);this.set('weekCloudSchema',3);initialized=true;}
       // The writer reservation prevents takeover even if initialization exceeds
       // its original TTL. Renew ownership before publishing the transaction.
       if(this.db.prepare('UPDATE lease SET expires=? WHERE id=1 AND owner=?').run(this.clock()+ttl,this.owner).changes!==1)throw new Error('Corpus writer lease was lost.');

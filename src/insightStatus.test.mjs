@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import {LegislationInsights} from '../server/insights-legislation.mjs';
 import {insightQuery} from '../server/insights-store.mjs';
 import {participation,participationQuery} from '../server/insights-participation.mjs';
@@ -21,7 +22,7 @@ async function harness(t,path,component,query,respond,props={},withJourney=false
   let loadModule,root;
   t.after(async()=>{if(root)await act(async()=>root.unmount());t.mock.timers.reset();if(loadModule)await loadModule.close();await window.happyDOM.close();for(const [key,descriptor] of originals)descriptor?Object.defineProperty(globalThis,key,descriptor):delete globalThis[key];});
   const calls=[];
-  t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input,window.location.href);calls.push(url);const result=await respond(url);return result instanceof Response?result:Response.json(result);});
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;const url=new URL(input,window.location.href);calls.push(url);const result=await respond(url);return result instanceof Response?result:Response.json(result);});
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const Component=(await loadModule(path))[component],{createRoot}=await import('react-dom/client');
   const journey=withJourney?await loadModule('/src/dossierJourney.ts'):null,origin=location.href;
