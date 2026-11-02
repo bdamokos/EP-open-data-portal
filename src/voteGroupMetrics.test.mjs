@@ -6,7 +6,7 @@ test('plurality, abstentions, ties and exclusions',()=>{
  for(const [counts,majority] of [[[2,1,0],'for'],[[1,2,0],'against'],[[1,2,3],'abstaining'],[[2,2,1],null],[[12,13,13],null]])assert.equal(groupMajorities(rows('PPE','FR',...counts))[0].majority,majority);
  const voters=[...rows('PPE','FR',171,0,2),...rows('NI','PL',2,3),...rows('unavailable',null,2,3),...rows(null,null,2,3)];
  assert.equal(groupMajorities(voters).length,1);assert.equal(groupMajorities(voters)[0].unity,171/173);assert.equal(differentFromMajority(voters),2);
- assert(allGroupsAgree(groupMajorities(voters)));assert(!allGroupsAgree([]));assert(!allGroupsAgree(groupMajorities([...voters,...rows('S&D','FR',2,2)])));assert(!allGroupsAgree(groupMajorities([...voters,...rows('S&D','FR',0,2)])));
+ assert(!allGroupsAgree(groupMajorities(voters)));assert(allGroupsAgree(groupMajorities([...voters,...rows('S&D','FR',3,1)])));assert(!allGroupsAgree([]));assert(!allGroupsAgree(groupMajorities([...voters,...rows('S&D','FR',2,2)])));assert(!allGroupsAgree(groupMajorities([...voters,...rows('S&D','FR',0,2)])));
 });
 test('exact two-sided Fisher values and row/column symmetries',()=>{
  for(const [a,b,c,d,expected] of [[1,9,11,3,.00275945618522],[4,0,4,117,7.2235619306e-6],[3,0,0,10,.0034965034965],[23,0,0,151,3.471066092408436e-29]]) {

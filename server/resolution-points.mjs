@@ -1,5 +1,6 @@
 import {parseTargetLabel} from './proposal-labels.mjs';
 import {resolutionSubheading, resolutionSeparator} from './resolution-body.mjs';
+import {resolutionFootnoteMatch} from './resolution-footnotes.mjs';
 
 const pointLabel = value => /^(?:\(([a-z]{1,4})\)|([a-z]{1,4})\)|([ivxlcdm]+)\.)\s+/u.exec(value);
 const pointValue = match => match[1] || match[2] || match[3];
@@ -122,11 +123,12 @@ export function resolutionPointPlacement(text, rows, structure, options, operati
     const match = pointLabel(line.trim());
     return match && labels.includes(pointValue(match)) ? line.trim().slice(match[0].length) : line;
   }).join(' ').normalize('NFC').replace(/\u00ad/g, '').replace(/[‘’‚‛ʻʼ]/g, "'").replace(/[“”„‟«»]/g, '"').replace(/[‐‑‒–—]/g, '-').replace(/\s+/gu, ' ').trim();
-  if (normalize(text.paragraphs.slice(unit.start, unit.end + 1).join('\n')) !== normalize(options.originalText)) return unresolved('conflicting_target_evidence');
+  const footnotes = normalize(text.paragraphs.slice(unit.start, unit.end + 1).join('\n')) !== normalize(options.originalText);
+  if (footnotes && !resolutionFootnoteMatch(text, unit.start, unit.end, options.originalText, options.originalFormatting)) return unresolved('conflicting_target_evidence');
   if (options.referenceText) {
     let decision; try { decision = parseTargetLabel(options.referenceText, 'en'); } catch { /* Unparsed references cannot verify a path. */ }
     if (!decision?.complete || !samePath(decision.segments, segments)) return unresolved('conflicting_target_evidence');
   }
-  evidence.push({basis: 'quoted-original'});
+  evidence.push({basis: footnotes ? 'quoted-original-source-notes' : 'quoted-original'});
   return {operation, status: 'placed', span: {start: unit.start, end: unit.end}, evidence};
 }

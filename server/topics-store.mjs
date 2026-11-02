@@ -12,7 +12,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=22;
+export const TOPICS_VERSION=24;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -46,15 +46,15 @@ const snapshotTitles=(store,records)=>{const ids=records.filter(r=>itemId.test(r
  return found;};
 const topicWriteStatements=new WeakMap();
 export function putTopicRecords(store,generation,records){
- const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {remove,group,put,member}=statements;
+ const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={removeRecord:db.prepare('DELETE FROM record_topic_records WHERE generation=? AND id=?'),remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {removeRecord,remove,group,put,member}=statements;
  // Proceeding markers (catch-the-eye starts/ends, notes) and chair announcements are not records anyone reads as debates.
  const heldSnapshots=snapshotTitles(store,records);
- for(const record of records){if(record.kind==='event'&&/\/(?:PROCEEDING_ACTIVITY|MEETING_NAME_CHAIR)$/.test(record.activityType||'')){remove.run(generation,record.id);continue;}
+ for(const record of records){if(record.kind==='event'&&(/\/(?:PROCEEDING_ACTIVITY|MEETING_NAME_CHAIR)$/.test(record.activityType||'')||/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-/.test(record.id))){remove.run(generation,record.id);removeRecord.run(generation,record.id);continue;}
  // Same evidence as story debates: retained type observations first; conflicting evidence keeps a debate.
  const evidence=record.kind==='event'?eventTypeEvidence(store,record.id):null;
  const held=record.titles&&Object.keys(record.titles).length?record.titles:heldSnapshots.get(record.id)||null;
  const r={...record,titles:held||record.titles||{},kind:record.kind==='event'?!evidence?.conflicted&&voteActivity(evidence?evidence.type:record.activityType)?'vote':'debate':record.kind};
- const parents=r.kind==='speech'?r.parentIds:r.kind==='debate'?r.agendaIds:r.eventIds||[];
+ const parents=r.kind==='speech'?r.parentIds?.filter(id=>!/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-/.test(id)):r.kind==='debate'?r.agendaIds:r.eventIds||[];
  const resolvedParents=[...new Set((parents||[]).map(id=>group.get(generation,id)?.group_key||id))];
  const parent=resolvedParents.length===1?resolvedParents[0]:null,procedure=r.procedureIds?.length===1?r.procedureIds[0]:null;
  const parentGroup=parent?group.get(generation,parent)?.group_key:null;
@@ -218,8 +218,12 @@ export class RecordTopics{
  // No held title gives null (the interface shows a short label); IDs stay in keys and links.
  const titleLanguage=r=>languagePreference(Object.keys(r.titles||{}),language)[0]||null,title=r=>r.titles?.[titleLanguage(r)]||null;
  // An excluded (procedural) parent, such as a voting-time item, is never presented as a debate.
- const groupKind=parent?.procedural===true?'record':representative.groupKind;
- return {key:g.group_key,kind:groupKind,title:title(base),titleLanguage:title(base)?titleLanguage(base):null,date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),titleLanguage:title(r)?titleLanguage(r):null,date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
+ // Only a stored vote parent makes a group a vote record; a dossier group whose
+ // newest item happens to be a vote stays a dossier.
+ const parentVote=parent?.kind==='vote';
+ const groupKind=parent?.procedural===true||parentVote?'record':representative.groupKind;
+ const voteTargets=parentVote?[...new Set(base.agendaIds||[])].filter(id=>{let row;try{row=this.db.prepare("SELECT body FROM story_inputs WHERE kind='agenda' AND id=?").get(id);}catch(error){if(/no such table/.test(error.message))return false;throw error;}const agenda=row?JSON.parse(row.body):null;return agenda&&!agenda.conflicted&&agenda.type==='PLENARY_VOTE'&&agenda.date===base.date&&id.startsWith('MTG-PL-'+base.date+'-OJ-ITM-V-');}):[];
+ return {key:g.group_key,kind:groupKind,title:title(base),titleLanguage:title(base)?titleLanguage(base):null,date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(parentVote?(voteTargets.length===1?{agendaId:voteTargets[0]}:{}):groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),titleLanguage:title(r)?titleLanguage(r):null,date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
  });
  return {ready:true,coverage,...extras,groupsTotal:groupTotal,concept,periods,series,peaks,chart,facets,groups,total,nextOffset:offset+20<groupTotal?offset+20:null};
  }

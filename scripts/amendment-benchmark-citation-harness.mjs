@@ -12,7 +12,7 @@ export function citationHarnessSource(canonical) {
   // The probe compares against ordinary verification, before native promotion.
   const promotion="        if(replay) {\n          const native=await sourceBoundCitationVerification({canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});\n          stages.S6=native.verification;nativeCitationEvidence=native.evidence;\n        }\n";
   source=replaceOnce(source,promotion,"        if(replay&&process.env.EP_CITATION_CALIBRATION_MODE===CITATION_CALIBRATION_MODE)\n          citationCalibration=await pairedCitationVerification({mode:CITATION_CALIBRATION_MODE,canonical:stages.S6,cache,row,variant,fetched,text,wording,placement:stages.S5,target});\n");
-  source=replaceOnce(source,'results.push({key:row.id,','results.push({...(citationCalibration?{citationCalibration}:{}),key:row.id,');
+  source=replaceOnce(source,'return {key:row.id,','return {...(citationCalibration?{citationCalibration}:{}),key:row.id,');
   source=replaceOnce(source,"const files=['scripts/amendment-benchmark.mjs'","const files=['scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','scripts/amendment-benchmark-citation-harness.mjs','scripts/amendment-benchmark.mjs'");
   return source;
 }

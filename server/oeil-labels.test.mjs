@@ -10,6 +10,28 @@ test('official bilingual snapshot and all other interface locales are complete s
  for(const [code,s] of Object.entries(official.subjects)){assert(s.labels.en&&s.labels.fr,code);if(s.parent)assert(official.subjects[s.parent]);}
  assert.deepEqual(Object.keys(translations.locales).sort(),EU_PROTOCOL_ORDER.filter(l=>!['en','fr'].includes(l)).sort());
 });
+test('reviewed explorer labels cover every official code and annual year in all 22 target locales',()=>{
+ const fixed=Object.keys(official.subjects).filter(code=>!official.subjects[code].template).sort();
+ assert.equal(fixed.length,424);
+ for(const [language,locale] of Object.entries(translations.locales)){
+  assert.deepEqual(Object.keys(locale.labels).sort(),fixed,language+' exact nonannual codes');
+  assert.deepEqual(Object.keys(locale.templates).sort(),['budget','discharge'],language+' annual families');
+  for(const [id,entry] of Object.entries({...locale.labels,...locale.templates})){
+   assert.equal(entry.source,'explorer-translation',language+'/'+id+' provenance');
+   assert.equal(typeof entry.label,'string');assert(entry.label.trim(),language+'/'+id+' nonempty');
+  }
+  for(const [code,subject] of Object.entries(official.subjects)){
+   const result=conceptLabel({key:'oeil:'+code},language);
+   assert.equal(result.labelLanguage,language,language+'/'+code+' native label');
+   assert.equal(result.labelSource,'explorer-translation',language+'/'+code+' disclosure');
+   if(subject.template){
+    assert.deepEqual(locale.templates[subject.template.kind].label.match(/\{[^}]+\}/g),['{year}'],language+'/'+code+' year slot');
+    assert(result.label.includes(String(subject.template.year)),language+'/'+code+' published year');
+   }
+   assert(!/\{[^}]+\}/.test(result.label),language+'/'+code+' resolved slots');
+  }
+ }
+});
 test('official English and French cannot be overwritten by translations or stale projected labels',()=>{
  const c={key:'oeil:3.70.03',labels:{en:'old',fr:'old'}};
  const t={locales:{en:{labels:{'3.70.03':entry('wrong')}},fr:{labels:{'3.70.03':entry('wrong')}},hu:{labels:{'3.70.03':entry('Magyar')}}}};
