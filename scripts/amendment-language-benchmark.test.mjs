@@ -4,9 +4,12 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {languageMetrics,compareLanguages,parityLocation,appendLanguageBaseline,LANGUAGES,LANGUAGE_SAMPLE} from './amendment-language-benchmark.mjs';
+import {languageMetrics,compareLanguages,parityLocation,appendLanguageBaseline,LANGUAGES,LANGUAGE_SAMPLE,evaluateLanguages} from './amendment-language-benchmark.mjs';
 import {rawDocument,rawExpected,verifyLanguagePlacement,simpleAddress} from './amendment-language-oracle.mjs';
 import {options} from './amendment-benchmark.mjs';
+import {InputCache,digest} from './amendment-benchmark-cache.mjs';
+import {replayRuntime,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
+import {fileURLToPath} from 'node:url';
 
 const row=(language,outcome='correct',more={})=>({key:'list:5:'+language,identity:'list:5',language,outcome,reason:outcome,location:{section:1,kind:'recital',value:'13',scope:'body'},...more});
 const report=rows=>({snapshotId:'fixed',sample:['sample'],inputs:['bytes'],oracleVersion:1,rows});
@@ -134,4 +137,29 @@ test('published AM5 deletion verifies the actual splice and fails a one-characte
   ]) {const invalid=structuredClone(fixture.placement);mutate(invalid);assert.equal(verifyLanguagePlacement({...args,placement:invalid}).reason,'raw-invalid-splice');}
   const prefix=structuredClone(fixture.placement);prefix.splice.start.offset=1;
   assert.equal(verifyLanguagePlacement({...args,placement:prefix}).reason,'raw-proposal-recital-splice-mismatch');
+});
+
+
+test('a missing frozen edition is explicit on each language row without contaminating another edition',async t=>{
+  const directory=await mkdtemp(path.join(os.tmpdir(),'frozen-language-gap-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const apiBase='https://explorer.example',documentId='B-10-2026-0001',listId=documentId+'-AM-001-002';
+  const bodyUrl='https://data.europarl.europa.eu/distribution/test/body.docx',missingUrl=bodyUrl.replace('body','missing'),wordingUrl=bodyUrl.replace('body','wording');
+  const body=docx(p('MOTION FOR A EUROPEAN PARLIAMENT RESOLUTION')+p('The European Parliament,')+p('1. First paragraph.'));
+  const amendment=number=>p('&lt;Amend&gt;&lt;NumAm&gt;'+number+'&lt;/NumAm&gt;')+p('&lt;Article&gt;Paragraph 1&lt;/Article&gt;')+'<w:tbl><w:tr>'+cell('Motion for a resolution')+cell('Amendment')+'</w:tr><w:tr>'+cell('First paragraph.')+cell('Changed paragraph.')+'</w:tr></w:tbl>'+p('&lt;/Amend&gt;');
+  const wording=docx(amendment(1)+amendment(2));
+  const cache=new InputCache(directory,{apiBase,fetchMissing:true,cap:3,delay:0,sleep:async()=>{},fetcher:async url=>{
+    if(url===publicDocumentUrl(documentId))return Response.json({data:[]});
+    assert([bodyUrl,wordingUrl].includes(url));return new Response(url===bodyUrl?body:wording);
+  }});
+  for(const url of [publicDocumentUrl(documentId),bodyUrl,wordingUrl])await cache.get(url);
+  const sample=[{documentId,listId,type:'motion',numbers:[1,2],editions:[{language:'en',body:{url:missingUrl},wording:{url:wordingUrl}},{language:'fr',body:{url:bodyUrl},wording:{url:wordingUrl}}]}],manifest=cache.manifest(),snapshotId=digest(JSON.stringify({sample,inputs:manifest}));
+  const before=await Promise.all((await readdir(directory)).sort().map(async file=>[file,digest(await readFile(path.join(directory,file)))]));
+  const offline=new InputCache(directory,{apiBase,cap:0,fetcher:()=>assert.fail('network forbidden')});await offline.seal(manifest,{snapshotId});
+  const runtime=await replayRuntime(fileURLToPath(new URL('../',import.meta.url))),rows=await evaluateLanguages(sample,offline,runtime);
+  assert.equal(rows.length,4);
+  for(const row of rows.filter(r=>r.language==='en')){assert.equal(row.outcome,'acquisition-unavailable');assert.equal(row.reason,'frozen-input-absent');assert.deepEqual(row.acquisition.frozenInputGaps,[{reason:'frozen-input-absent',url:missingUrl,accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',snapshotId}]);}
+  for(const row of rows.filter(r=>r.language==='fr')){assert.notEqual(row.outcome,'acquisition-unavailable');assert.equal(row.acquisition,undefined);}
+  assert.equal(languageMetrics(rows).find(m=>m.language==='en').withheldByReason['frozen-input-absent'],2);
+  assert.deepEqual(offline.manifest(),manifest);assert.equal(offline.requests,0);assert.equal(digest(JSON.stringify({sample,inputs:offline.manifest()})),snapshotId);
+  assert.deepEqual(await Promise.all((await readdir(directory)).sort().map(async file=>[file,digest(await readFile(path.join(directory,file)))])),before);
 });
