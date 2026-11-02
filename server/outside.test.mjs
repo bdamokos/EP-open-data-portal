@@ -282,6 +282,36 @@ test('a term first-day roster checks each speaker mandate instead of the dated r
   assert.deepEqual(store.source(generation,'outside:roster:2024-07-16').work.ids,['245770','200']);
   assert.equal(store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=?').get(generation,later.id),undefined);
 }));
+test('a recovered dated-roster body cannot keep members whose mandate does not cover the term first day',withStore(async(store,generation)=>{
+  const speech={...project(fixture.contributions[0]),id:'MTG-PL-2024-07-16-OTH-1',date:'2024-07-16',term:10,participants:['100'],headers:[]};
+  store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},saved.fetchedAt);
+  // The pre-fix reader's body after a partial dated-roster read.
+  store.enqueue(generation,'outside:roster:2024-07-16','outside-roster',{date:'2024-07-16',offset:0,ids:['100'],sources:[saved]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint)=>{
+    assert.equal(endpoint,'/meps/100');
+    return {payload:{data:[{identifier:'100',hasMembership:[{role:'def/ep-roles/MEMBER_PARLIAMENT',organization:'org/ep-9',memberDuring:{startDate:'2019-07-02',endDate:'2024-07-15'}}]}]},fetchedAt:saved.fetchedAt};
+  }});
+  await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2024-07-16').work;
+  assert.deepEqual(roster.ids,[]);assert.deepEqual(roster.checked,['100']);
+  assert(roster.sources.every(source=>source.url.includes('/meps/100')));
+  assert.equal(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').get(generation,speech.id).person,'100');
+}));
+test('a later historical speech is retained until its unchecked speaker is classified',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:roster:2019-07-02','outside-roster',{date:'2019-07-02',basis:'member-mandates',ids:[],checked:['200'],sources:[]},saved.fetchedAt);
+  const activity=JSON.parse(JSON.stringify(fixture.contributions[0].activity).replaceAll('MTG-PL-2024-12-17-OTH-2017008850467','MTG-PL-2019-07-02-OTH-1').replaceAll('2024-12-17','2019-07-02'));
+  const calls=[];
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint)=>{
+    calls.push(endpoint);
+    throw Object.assign(new Error('Parliament data is unavailable (404).'),{code:'odp_unavailable',upstreamStatus:404,source:{url:endpoint,fetchedAt:1,httpStatus:404}});
+  }});
+  worker.saveSpeech(generation,activity,saved.fetchedAt,true,fixture.contributions[0].sourceUrl);
+  assert(store.source(generation,'/speeches/MTG-PL-2019-07-02-OTH-1'));
+  await worker.task(store.nextTask(generation));await worker.task(store.nextTask(generation));
+  assert.deepEqual(calls,['/meps/124726']);
+  assert.deepEqual(store.source(generation,'outside:roster:2019-07-02').work.checked,['200','124726']);
+  assert.equal(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').get(generation,'MTG-PL-2019-07-02-OTH-1').person,'124726');
+}));
 test('a term first-day roster keeps the gap when a speaker record fails',withStore(async(store,generation)=>{
   const speech={...project(fixture.contributions[0]),id:'MTG-PL-2024-07-16-OTH-1',date:'2024-07-16',term:10,participants:['245770'],headers:[]};
   store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},saved.fetchedAt);

@@ -526,8 +526,8 @@ export class ActivityWorker {
       finishAvailabilityWrite(this.store);
     });return;}
     this.store.putSource(generation,key,outsideOnly?'outside-speech':'speech',{id:activity.activity_id,date:activity.activity_date,kind:tail(activity.had_activity_type),...(declaredParent?{declaredParent}:{}),...(activity.inverse_consists_of!==undefined?{inverse_consists_of:activity.inverse_consists_of}:{}),...(outside?{outside}:{}),groupVoices:groupVoiceProjection(activity,{fetchedAt,url:queryUrl})},fetchedAt,outsideOnly?[]:speechRows(activity,fetchedAt),{acquisition,sourceUrl:queryUrl});
-    recordOutside(this.store,generation,outside);
-    if(outsideOnly && outside && this.store.source(generation,'outside:roster:'+outside.date) && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
+    const classified=recordOutside(this.store,generation,outside);
+    if(outsideOnly && classified && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,outside.id))this.store.db.prepare("DELETE FROM sources WHERE generation=? AND key=? AND kind='outside-speech'").run(generation,key);
   }
   initializeOutside(cycle) {
     const {generation}=cycle;
@@ -622,15 +622,18 @@ export class ActivityWorker {
   }
   classifyRetainedOutside(generation,date) {
     for(const source of this.retainedOutsideSpeeches(generation,date)) {
-      const speech=JSON.parse(source.body).outside;recordOutside(this.store,generation,speech);
-      if(source.kind==='outside-speech' && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,speech.id))this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,source.key);
+      const speech=JSON.parse(source.body).outside;
+      if(recordOutside(this.store,generation,speech) && source.kind==='outside-speech' && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,speech.id))this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,source.key);
     }
   }
   // On a term's first sitting day the dated roster omits newly elected members:
   // HTTP 500 at 1,000 per page, short HTTP 200 pages at smaller limits. Each
   // retained speaker's own mandate periods establish membership on that day.
   async mandateRoster(task) {
-    const {generation,body}=task,date=body.date,checked=body.checked||[],ids=body.ids||[],sources=body.sources||[];
+    const {generation,body}=task;
+    // A body from the dated-roster reader (a recovered gap) holds no mandate evidence; start over.
+    const prior=body.basis==='member-mandates'?body:{date:body.date,basis:'member-mandates',ids:[],checked:[],sources:[]};
+    const {date,checked,ids,sources}=prior;
     const speakers=[...new Set(this.retainedOutsideSpeeches(generation,date).flatMap(source=>JSON.parse(source.body).outside.participants||[]))].sort();
     const next=speakers.find(id=>!checked.includes(id));
     if(next) {
@@ -649,7 +652,7 @@ export class ActivityWorker {
         if(error.upstreamStatus!==404||error.source?.httpStatus!==404)throw error;
         fetchedAt=error.source.fetchedAt;
       }
-      this.store.taskProgress(task,{...body,checked:[...checked,next],ids:member?[...ids,next]:ids,sources:[...sources,{url,fetchedAt:new Date(fetchedAt).toISOString()}]});
+      this.store.taskProgress(task,{...prior,checked:[...checked,next],ids:member?[...ids,next]:ids,sources:[...sources,{url,fetchedAt:new Date(fetchedAt).toISOString()}]});
       return;
     }
     this.store.putSource(generation,'outside:roster:'+date,'outside-roster',{date,basis:'member-mandates',ids,checked,sources},new Date(this.clock()).toISOString());

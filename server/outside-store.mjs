@@ -44,18 +44,19 @@ export function outsideCopy(db, generation, active) {
 export function outsidePrune(db, generation, old) {
   db.prepare('DELETE FROM outside_contributions WHERE generation NOT IN (?,?)').run(generation,old || generation);
 }
+// Returns true once the speech is classified against roster evidence covering every participant.
 export function recordOutside(store, generation, speech) {
-  if (!speech) return;
+  if (!speech) return false;
   store.assertWriter();
   const roster = store.source(generation, 'outside:roster:' + speech.date);
   if (!roster) {
     store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, offset:0, ids:[], sources:[]}, 102);
-    return;
+    return false;
   }
   // A mandate-based roster covers only the speakers it checked; resume it for new ones.
   if (roster.work.basis === 'member-mandates' && speech.participants.some(id => !roster.work.checked.includes(id))) {
-    store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, ids:roster.work.ids, checked:roster.work.checked, sources:roster.work.sources}, 102, true);
-    return;
+    store.enqueue(generation, 'outside:roster:' + speech.date, 'outside-roster', {date:speech.date, basis:'member-mandates', ids:roster.work.ids, checked:roster.work.checked, sources:roster.work.sources}, 102, true);
+    return false;
   }
   const members = new Set(roster.work.ids);
   // Reclassification removes any row previously accepted against older evidence.
@@ -66,6 +67,7 @@ export function recordOutside(store, generation, speech) {
   if (candidates.some(id=>!speech.headers.find(header=>header.personId===id)?.name)) store.enqueue(generation,'outside:detail:' + speech.id,'outside-detail',{id:speech.id},102);
   if (candidates.length && needsAgendaUpgrade(speech)) enqueueAgendaUpgrade(store,generation,speech.id);
   if (candidates.length) for (const id of speech.parentIds) if (!store.source(generation,'outside:agenda:' + id)) store.enqueue(generation,'outside:agenda:' + id,'outside-agenda',{id},101);
+  return true;
 }
 
 export function outsideQuery(params) {
