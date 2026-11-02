@@ -14,6 +14,8 @@ test('the private harness keeps canonical verification/classification and requir
   assert.ok(source.includes('canonical:stages.S6'));
   assert.ok(source.includes('provisional?{outcome:\'not-placeable\',reason:\'provisional-agreement\'}:classify(stages)'));
   assert.ok(source.includes('metrics:metrics(resultRows),rows:resultRows'));
+  assert.ok(source.includes('return {...(citationCalibration?{citationCalibration}:{}),key:row.id,'));
+  assert.ok(source.includes('results.push(withFrozenInputGaps(observed.value,observed.gaps))'));
   assert.equal((source.match(/await pairedCitationVerification\(/gu)??[]).length,1);
   assert.ok(!source.includes('stages.S6=citationCalibration'));
   assert.ok(!source.includes('process.exitCode=0'));
@@ -22,6 +24,7 @@ test('the private harness keeps canonical verification/classification and requir
 test('upstream hook changes or duplicate hooks stop the private build rather than skipping verification',()=>{
   assert.throws(()=>citationHarnessSource(canonical.replace('let target=null;','let target;')),/exactly one canonical hook/);
   assert.throws(()=>citationHarnessSource(canonical+'\nlet target=null;'),/exactly one canonical hook/);
+  assert.throws(()=>citationHarnessSource(canonical.replace('return {key:row.id,','return {id:row.id,')),/exactly one canonical hook/);
   assert.throws(()=>citationHarnessSource(canonical.replace('if(replay) {\n          const native=','if(replay&&false) {\n          const native=')),/exactly one canonical hook/);
 });
 test('executing the generated probe retains the original failure while recording the proposed native success',async()=>{
