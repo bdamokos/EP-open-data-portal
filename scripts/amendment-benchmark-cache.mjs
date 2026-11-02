@@ -83,8 +83,8 @@ export class InputCache {
       body=await readFile(bodyPath);
       if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
-    } else if(this.retained&&new URL(url).origin!==this.apiBase) {
-      const input=await this.retained.get(url,request);
+    } else if(this.retained) {
+      const input=await this.retained.get(url,request,{cache:this});
       ({body,...meta}=input);
       await writeFile(bodyPath,body);await writeFile(metaPath,JSON.stringify(meta,null,2)+'\n');
     } else {
@@ -137,7 +137,7 @@ export class InputCache {
       await writeFile(metaPath+'.tmp',JSON.stringify(meta,null,2)+'\n');await rename(metaPath+'.tmp',metaPath);
     }
     if(meta.acquisitionUnavailable&&(meta.status!==null||meta.ok||meta.error!=='acquisition-unavailable'||meta.fetchedAt!==null||meta.bytes!==0))throw new Error('Invalid acquisition gap: '+url);
-    if(responseIsTransient(meta)||meta.status===null&&!meta.acquisitionUnavailable)throw new Error('Transient cached input; use a new snapshot: '+url);
+    if(responseIsTransient(meta)||meta.status===null&&!meta.acquisitionUnavailable&&!meta.localProjection)throw new Error('Transient cached input; use a new snapshot: '+url);
     this.used.set(identity,meta);
     if(meta.redirectUrl&&!raw) {
       if(hops>=3||!allowedDownload(meta.redirectUrl)) {

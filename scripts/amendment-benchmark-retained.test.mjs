@@ -4,6 +4,7 @@ import {mkdtemp,mkdir,writeFile,readFile,rm,readdir,symlink} from 'node:fs/promi
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {amendmentReadVersion} from '../server/amendments-store.mjs';
 import {RetainedInputs} from './amendment-benchmark-retained.mjs';
 import {InputCache,digest} from './amendment-benchmark-cache.mjs';
 import {options,evaluateReport,main} from './amendment-benchmark.mjs';
@@ -13,25 +14,48 @@ async function fixture(t){
  const root=await mkdtemp(path.join(os.tmpdir(),'retained-test-'));t.after(()=>rm(root,{recursive:true,force:true}));
  for(const name of ['index','corpus','cache/commission-proposals-v1'])await mkdir(path.join(root,name),{recursive:true});
  for(const name of ['index/activities-v1.sqlite','corpus/corpus-v1.sqlite'])execFileSync('python3',['-c',"import sqlite3,sys;c=sqlite3.connect(sys.argv[1]);c.execute('CREATE TABLE meta (key TEXT, value TEXT)');c.commit();c.close()",path.join(root,name)]);
+ execFileSync('python3',['-c',`import sqlite3,sys,json
+c=sqlite3.connect(sys.argv[1])
+for key,value in {'active':21,'working':{'generation':22},'refreshPolicyGeneration':21,'amendmentSnapshotGeneration':22,'amendmentReadVersion':sys.argv[2]}.items(): c.execute('INSERT INTO meta VALUES (?,?)',(key,json.dumps(value)))
+for sql in [
+ 'CREATE TABLE amendments(generation INTEGER,target TEXT,id TEXT,date TEXT,outcome TEXT,body TEXT)',
+ 'CREATE TABLE amendment_targets(generation INTEGER,id TEXT,body TEXT)',
+ 'CREATE TABLE amendment_read_flags(generation INTEGER,target TEXT,wording INTEGER,proposer INTEGER,splits INTEGER,freshness INTEGER)',
+ 'CREATE TABLE refresh_gaps(generation INTEGER,key TEXT,kind TEXT,error TEXT)',
+ 'CREATE TABLE amendment_jobs(generation INTEGER,done INTEGER)',
+ 'CREATE TABLE sources(generation INTEGER,key TEXT,kind TEXT,body TEXT,fetched_at TEXT)',
+ 'CREATE TABLE tasks(generation INTEGER,kind TEXT,done INTEGER)',
+ 'CREATE TABLE amendment_split_failures(body TEXT)']: c.execute(sql)
+c.commit();c.close()`,path.join(root,'index/activities-v1.sqlite'),String(amendmentReadVersion)]);
  const body=Buffer.from('exact retained bytes'),language='http://publications.europa.eu/resource/authority/language/ENG',celex='52026PC0001',itemId=url.replace('https:','http:'),identity=JSON.stringify([celex,language,itemId,'docx']),key=digest(identity);
  const source={schemaVersion:1,key,identity,celex,language,itemId,url,resolvedSourceUrl:url,format:'DOCX',accept,contentType:accept,sha256:digest(body),fetchedAt:'2026-10-30T12:00:00Z',checkedAt:'2026-10-30T12:00:00Z'};
  const file=path.join(root,'cache/commission-proposals-v1',key+'.json');
  await writeFile(file,JSON.stringify(source));await writeFile(path.join(path.dirname(file),source.sha256+'.blob'),body);
  return {root,body,source,file};
 }
+async function seed(f,rows){
+ execFileSync('python3',['-c',`import sqlite3,sys,json
+c=sqlite3.connect(sys.argv[1])
+for generation in [21,22]:
+ for row in json.loads(sys.argv[2]):
+  row={**row,'titles':{'en':'Generation '+str(generation)}}
+  c.execute('INSERT INTO amendments VALUES (?,?,?,?,?,?)',(generation,row['targetDocumentId'],row['id'],'2026-10-30','unavailable',json.dumps(row)))
+  c.execute('INSERT INTO amendment_targets VALUES (?,?,?)',(generation,row['targetDocumentId'],json.dumps({'id':row['targetDocumentId'],'complete':False})))
+c.commit();c.close()`,path.join(f.root,'index/activities-v1.sqlite'),JSON.stringify(rows)]);
+}
 test('explicit mode preserves defaults and rejects acquisition combinations',()=>{
  assert.equal(options([]).productionDataDir,undefined);
  assert.equal(options(['--production-data-dir','/explicit/path']).productionDataDir,'/explicit/path');
  for(const flags of [['--fetch'],['--languages'],['--source-negotiation-cache','/tmp/other'],['--api-base','https://data.europarl.europa.eu']])assert.throws(()=>options(['--production-data-dir','/explicit/path',...flags]));
 });
-test('copies exact attested bytes and gaps into an independently sealed offline cache; transport only sees explorer API',async t=>{
+test('copies exact attested bytes and gaps into an independently sealed offline cache; retained mode denies all transport',async t=>{
  const f=await fixture(t),reader=await RetainedInputs.open(f.root),before=await readFile(f.file);
  const directory=await mkdtemp(path.join(os.tmpdir(),'retained-inputs-'));t.after(()=>rm(directory,{recursive:true,force:true}));
  let calls=0;
  const cache=new InputCache(directory,{retained:reader,apiBase:'https://explorer.test',fetchMissing:true,delay:0,fetcher:async input=>{calls++;assert.equal(new URL(input).origin,'https://explorer.test');return new Response('{}');}});
  const input=await cache.get(url,{accept,language:'eng'});assert.deepEqual(input.body,f.body);assert.equal(input.fetchedAt,f.source.fetchedAt);assert.equal(calls,0);
  const missing=await cache.get('https://data.europarl.europa.eu/distribution/missing.docx');assert.equal(missing.status,null);assert.equal(missing.error,'acquisition-unavailable');assert.equal(missing.fetchedAt,null);
- await cache.get('https://explorer.test/api/amendments');assert.equal(calls,1);
+ await cache.get('https://explorer.test/api/amendments');assert.equal(calls,0);
  const manifest=cache.manifest();await cache.seal(manifest);
  const offline=new InputCache(directory,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline network')});await offline.seal(manifest);
  assert.deepEqual((await offline.get(url,{accept,language:'eng'})).body,f.body);assert.equal((await offline.get(missing.url)).status,null);
@@ -78,10 +102,11 @@ test('CLI seals a directory acquisition and replays missing observations without
  const f=await fixture(t),directory=await mkdtemp(path.join(os.tmpdir(),'retained-cli-'));t.after(()=>rm(directory,{recursive:true,force:true}));
  const document='B-10-2026-0001',id=document+'-AM-1',row={id,targetDocumentId:document,number:1,language:'en',listId:document+'-AM-001-001',wordingSource:{url:'https://data.europarl.europa.eu/distribution/missing.docx'},decisions:[{id:'vote',date:'2026-10-30',sittingId:'MTG-PL-2026-10-30',amendmentIds:[id],source:{url:'https://public.test',fetchedAt:'2026-10-30'}}]};
  const original=globalThis.fetch;let calls=0;t.after(()=>{globalThis.fetch=original;});
- globalThis.fetch=async input=>{calls++;const u=new URL(input);assert.equal(u.origin,'https://explorer.test');assert.match(u.pathname,/^\/api\/(amendments|document-context\/)/);return new Response(JSON.stringify(u.pathname==='/api/amendments'?{items:[row],total:1,limit:50,offset:0,coverage:{servingGeneration:1}}:{documentId:document}));};
+ globalThis.fetch=()=>{calls++;assert.fail('retained transport');};
  const args=['--api-base','https://explorer.test','--cache-dir',directory,'--document',document,'--as-of','2026-11-01'];
- await main([...args,'--production-data-dir',f.root,'--acquire-only']);assert.equal(calls,3);
- const snapshot=JSON.parse(await readFile(path.join(directory,'snapshot.json'),'utf8'));assert.ok(snapshot.snapshotId);assert.equal(snapshot.manifest.filter(m=>m.acquisitionUnavailable).length,2);
+ await seed(f,[row]);const before=await tree(f.root);
+ await main([...args,'--production-data-dir',f.root,'--acquire-only']);assert.equal(calls,0);assert.deepEqual(await tree(f.root),before);
+ const snapshot=JSON.parse(await readFile(path.join(directory,'snapshot.json'),'utf8'));assert.ok(snapshot.snapshotId);assert.equal(snapshot.sample.indexGeneration,21);assert.ok(snapshot.manifest.some(m=>m.acquisitionUnavailable));
  globalThis.fetch=()=>assert.fail('offline transport');await main(args);
  const files=await readdir(path.join(directory,'output'));const result=JSON.parse(await readFile(path.join(directory,'output',files.find(file=>file.endsWith('.json'))),'utf8'));
  assert.equal(result.rows.length,1);assert.equal(result.rows[0].outcome,'acquisition-unavailable');assert.equal(result.metrics.falsePlacements,0);
@@ -148,7 +173,8 @@ test('CLI acquire-only seals v2 bytes without cache or upstream requests',async 
  const directory=await mkdtemp(path.join(os.tmpdir(),'retained-v2-cli-'));t.after(()=>rm(directory,{recursive:true,force:true}));
  const document='A-10-2026-0001',id=document+'-AM-1',row={id,targetDocumentId:document,number:1,language:'en',listId:f.row.list_id,wordingSource:{url:epUrl,reportId:document},decisions:[{id:'vote',date:'2026-10-30',sittingId:'MTG-PL-2026-10-30',amendmentIds:[id],source:{url:'https://public.test',fetchedAt:'2026-10-30'}}]};
  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
- globalThis.fetch=async input=>{const u=new URL(input);assert.equal(u.origin,'https://explorer.test');return new Response(JSON.stringify(u.pathname==='/api/amendments'?{items:[row],total:1,limit:50,offset:0,coverage:{servingGeneration:1}}:{documentId:document}));};
+ globalThis.fetch=()=>assert.fail('retained transport');
+ await seed(f,[row]);
  await main(['--api-base','https://explorer.test','--cache-dir',directory,'--document',document,'--as-of','2026-11-01','--production-data-dir',f.root,'--acquire-only']);
  const snapshot=JSON.parse(await readFile(path.join(directory,'snapshot.json'),'utf8'));
  assert.equal(snapshot.manifest.find(m=>m.url===epUrl).sha256,f.row.sha256);
@@ -195,4 +221,29 @@ test('base bytes and selection decisions are read without changing the retained 
  const name=(await readdir(store.directory)).find(n=>n.endsWith('.blob')&&n.startsWith(digest(body)));
  await writeFile(path.join(store.directory,name),Buffer.alloc(body.length));
  await assert.rejects(()=>reader.get(baseUrl),/hash mismatch/);
+});
+
+test('every page and plain/selected context projects published 21, never building or extension 22',async t=>{
+ const f=await fixture(t),document='B-10-2026-0001';
+ const rows=Array.from({length:51},(_,i)=>({id:document+'-AM-'+(i+1),targetDocumentId:document,number:i+1,language:'en',listId:document+'-AM-001-051',titles:{en:'Published'},decisions:[]}));
+ await seed(f,rows);
+ execFileSync('python3',['-c',`import sqlite3,sys,json
+c=sqlite3.connect(sys.argv[1])
+for generation in [21,22]:
+ work={'id':'eli/dl/doc/'+sys.argv[2],'identifier':sys.argv[2],'work_type':'def/ep-document-types/RESOLUTION_MOTION','parliamentary_term':'org/ep-10','title_dcterms':{'en':'Generation '+str(generation)},'is_realized_by':[],'inverse_foresees_change_of':[]}
+ c.execute('INSERT INTO sources VALUES (?,?,?,?,?)',(generation,'/plenary-documents/'+sys.argv[2],'document',json.dumps(work),'2026-10-30T00:00:00Z'))
+c.commit();c.close()`,path.join(f.root,'index/activities-v1.sqlite'),document]);
+ const before=await tree(f.root),directory=await mkdtemp(path.join(os.tmpdir(),'retained-pages-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const cache=new InputCache(directory,{retained:await RetainedInputs.open(f.root),apiBase:'https://explorer.test',cap:0,fetcher:()=>assert.fail('retained transport')});
+ for(const offset of [0,50]){
+  const {input,value}=await cache.json('https://explorer.test/api/amendments?'+new URLSearchParams({limit:'50',offset:String(offset),lang:'en'}));
+  assert.equal(value.coverage.servingGeneration,21);assert.equal(value.total,51);assert.equal(value.items.length,offset?1:50);assert.ok(value.items.every(row=>row.title==='Generation 21'));assert.equal(input.status,null);assert.equal(input.fetchedAt,null);assert.equal(input.localProjection.generation,21);
+ }
+ for(const suffix of ['?lang=en','?lang=en&amendment='+rows[0].id+'&list='+rows[0].listId+'&wording-lang=en']){
+  const {input,value}=await cache.json('https://explorer.test/api/document-context/'+document+suffix);
+  assert.equal(value.documentId,document);assert.equal(input.localProjection.generation,21);assert.ok(JSON.stringify(value).includes('Generation 21'));assert.ok(!JSON.stringify(value).includes('Generation 22'));
+ }
+ const metadata=await cache.get('https://data.europarl.europa.eu/api/v2/plenary-documents/'+document+'?format=application%2Fld%2Bjson',{accept:'application/ld+json'});
+ assert.equal(metadata.status,null);assert.equal(metadata.fetchedAt,null);assert.equal(metadata.localProjection.sourceFetchedAt,'2026-10-30T00:00:00Z');
+ const manifest=cache.manifest();await cache.seal(manifest);assert.deepEqual(await tree(f.root),before);
 });
