@@ -1303,3 +1303,12 @@ for(const kind of ['commission-proposal','council-position'])test(`structured ${
   if(inline){await h.click(inline);assert.equal(block.querySelector('ins'),null);}
   assert(h.container.querySelector('button[title="Find in proposal"],button[title="Find in Council position"]'),'source text remains searchable');
 });
+
+test('report quotation labels the comparison base without a legal-text placement',async t=>{
+ const value=overlayResponse({operation:'replace',status:'report-quotation',reason:'council_text_as_quoted_in_report'});
+ const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+ assert.match(h.container.textContent,/Council text as quoted in the report\./);
+ assert(h.container.querySelector('.wording-diff'));
+ assert.equal(h.container.querySelector('[data-context-target]'),null);
+ assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
+});
