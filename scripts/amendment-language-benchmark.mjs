@@ -82,7 +82,7 @@ export function compareLanguages(current,baseline,calibration) {
       if(entries.size!==changed.length||entries.size!==calibration.rows.length)throw new Error('Oracle calibration must account for exactly every changed assertion.');
       for(const old of changed){
         const entry=entries.get(old.key);
-        if(!entry||entry.beforeDigest!==digest(assertions(old))||entry.afterDigest!==digest(assertions(now.get(old.key)))||!entry.checkedBy||!entry.note||!entry.sources?.length||entry.sources.some(source=>!/^https:\/\/(?:data\.europarl\.europa\.eu|publications\.europa\.eu)\//u.test(source.url)||! /^[a-f0-9]{64}$/u.test(source.sha256)||!source.paths?.length||!Number.isFinite(Date.parse(source.retrievedAt))))throw new Error('Oracle calibration source evidence incomplete for '+old.key);
+        if(!entry||entry.beforeDigest!==digest(assertions(old))||entry.afterDigest!==digest(assertions(now.get(old.key)))||!entry.checkedBy||!entry.note||!entry.sources?.length||entry.sources.some(source=>!/^https:\/\/(?:data\.europarl\.europa\.eu|publications\.europa\.eu|redmapl3\.europarl\.europa\.eu)\//u.test(source.url)||! /^[a-f0-9]{64}$/u.test(source.sha256)||!source.paths?.length||!Number.isFinite(Date.parse(source.retrievedAt))))throw new Error('Oracle calibration source evidence incomplete for '+old.key);
       }
       warnings.push('Source-checked oracle calibration applied to '+changed.length+' assertions; independent review of the exact head is still required.');
     }else warnings.push('Oracle implementation changed; all raw expectations and verification assertions match the sealed baseline.');
