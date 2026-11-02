@@ -124,7 +124,7 @@ export function sourceReplay(cache,runtime) {
     const type=String(nodes[0].work_type?.id||nodes[0].work_type||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
     const expected='def/ep-document-types/'+(list?'AMENDMENT_LIST':id.startsWith('A-')?'REPORT_PLENARY':id.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION');
     if(type!==expected)throw new Error('Public document type mismatch: '+id);
-    return {payload,url:input.url,fetchedAt:Date.parse(input.fetchedAt),sourceHash:input.sha256};
+    return {payload,url:input.url,fetchedAt:Date.parse(input.localProjection?.sourceFetchedAt??input.fetchedAt),sourceHash:input.sha256,...(input.localProjection?{localProjection:input.localProjection}:{})};
   };
   // Keep the production metadata validation, negotiation and redirect rules.
   // InputCache owns the single writer, request spacing/cap and immutable bytes.
