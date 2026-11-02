@@ -1,6 +1,6 @@
 import {PolicyAreaSourcesPage,usePolicyAreaLabels} from './PolicyAreaSources';
 import {cleanStoryTitle} from './topicStoryModel.mjs';
-import {europeStoryIso3} from './storyEurope.mjs';
+import {europeBeforeV14} from '../server/story-europe.mjs';
 import {dossierLinkClick,navigateDossier,useDossierReaderState,dossierJourneyRestoring} from './dossierJourney';
 import {TopicStoryDocument,TopicStoryRecords,TopicStories} from './TopicStories';
 import {storyFactsRoute} from './exactTopicStories.mjs';
@@ -40,10 +40,12 @@ function Places({data:loaded,dataOwn,finder}:{data:TopicOverview;dataOwn:string;
  // once the overview and the story facts for the requested selection are both ready.
  // Same route input as TopicStories, so the swap and the story share one request.
  const storyRequest=useInsightData<unknown>(storyFactsRoute({mode:reqMode,zoom:reqZoom,excludeOwn:reqOwn==='1',language:ui.language,period:undefined}));
- const [shown,setShown]=useState({mode:reqMode,own:reqOwn,zoom:reqZoom,data:loaded}),ready=dataOwn===reqOwn&&!storyRequest.loading&&!storyRequest.error;
- useEffect(()=>{if(ready&&(shown.mode!==reqMode||shown.own!==reqOwn||shown.zoom!==reqZoom||shown.data!==loaded))setShown({mode:reqMode,own:reqOwn,zoom:reqZoom,data:loaded});},[ready,reqMode,reqOwn,reqZoom,loaded,shown]);
- const {mode,own,zoom,data}=shown;
- const selected=data.periods.includes(quarter)?quarter:defaultMapQuarter(data),index=data.periods.indexOf(selected),latest=data.periods.length-1,scopeData={...data,items:data.items.filter(i=>zoom!=='eu'||europeStoryIso3.includes(i.iso3||i.id||''))},rising=risers(scopeData,index,mode,own==='1');
+ // The Europe set comes with the story facts, so the list follows the published projection; until then it omits rather than adds.
+ const requestedEurope=(storyRequest.data as {europe?:string[]}|null)?.europe||europeBeforeV14;
+ const [shown,setShown]=useState({mode:reqMode,own:reqOwn,zoom:reqZoom,data:loaded,europe:requestedEurope}),ready=dataOwn===reqOwn&&!storyRequest.loading&&!storyRequest.error;
+ useEffect(()=>{if(ready&&(shown.mode!==reqMode||shown.own!==reqOwn||shown.zoom!==reqZoom||shown.data!==loaded||shown.europe.join()!==requestedEurope.join()))setShown({mode:reqMode,own:reqOwn,zoom:reqZoom,data:loaded,europe:requestedEurope});},[ready,reqMode,reqOwn,reqZoom,loaded,shown,requestedEurope]);
+ const {mode,own,zoom,data,europe}=shown;
+ const selected=data.periods.includes(quarter)?quarter:defaultMapQuarter(data),index=data.periods.indexOf(selected),latest=data.periods.length-1,scopeData={...data,items:data.items.filter(i=>zoom!=='eu'||europe.includes(i.iso3||i.id||''))},rising=risers(scopeData,index,mode,own==='1');
  const ranked=[...scopeData.items].sort((a,b)=>placeValue(point(b,selected),mode,own==='1')-placeValue(point(a,selected),mode,own==='1')),positive=ranked.filter(i=>placeValue(point(i,selected),mode,own==='1')>0),rows=allPlaces?ranked:withBoundaryTies(positive,12,i=>placeValue(point(i,selected),mode,own==='1'));
  const soFar=(p:string,text:string)=>p===data.periods[latest]&&partialQuarter(p,data.partial)?ui.t('topics.periodSoFar',{period:text}):text;
  // Months in the title; compact quarters at the slider ends where space is tight.

@@ -176,14 +176,14 @@ test('map, list, story and story links swap together once the requested story fa
  const facts=(mode)=>({ready:true,periods:overview.periods,partial:{},counts:{},periodCounts:[{period,placesWithAdoptedTexts:2}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:mode==='d'?{topAdoptedPlaces:[{id:'IRN',count:9},{id:'TUR',count:1}]}:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}});
  const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'){await pending;return Response.json(facts('d'));}return Response.json(facts('q'));}return Response.json(overview);});
  const story=()=>node.querySelector('.places-caption').textContent,first=()=>node.querySelector('.places-ranking li').textContent;
- await wait(()=>/most asked-about place/.test(story()));const link=()=>[...node.querySelectorAll('.places-caption a')].find(a=>/13 questions/.test(a.textContent));assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q');
+ await wait(()=>/(?:most asked-about|asked about more than any other) place/.test(story()));const link=()=>[...node.querySelectorAll('.places-caption a')].find(a=>/13 questions/.test(a.textContent));assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q');
  const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
  await act(async()=>new Promise(r=>setTimeout(r,60)));
  assert.equal(texts.getAttribute('aria-pressed'),'true','the control shows the requested choice');
- assert.match(first(),/Türkiye\s*13/,'the list keeps the displayed questions');assert.match(story(),/Türkiye was the most asked-about place/,'the story keeps the displayed questions');
+ assert.match(first(),/Türkiye\s*13/,'the list keeps the displayed questions');assert.match(story(),/Türkiye was (?:the most asked-about|asked about more than any other) place/,'the story keeps the displayed questions');
  assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q','retained story links keep the displayed selection');
  release();await wait(()=>/adopted texts naming/.test(story()));
- assert.match(first(),/Iran\s*9/,'the list switches with the story');assert(!/most asked-about/.test(story()));
+ assert.match(first(),/Iran\s*9/,'the list switches with the story');assert(!/most asked-about|more than any other place/.test(story()));
 });
 test('a standalone story keeps its links on the displayed selection while new facts load',async t=>{
  const window=new Window({url:'http://localhost/?view=geopolitics&place=TUR&t-q=2026-Q3'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
@@ -214,10 +214,22 @@ test('in French the swap and the story share one story-facts request',async t=>{
 test('a failed story-facts request keeps the displayed view and offers Retry',async t=>{
  const period='2026-Q3',{overview,facts}=swapData(period);let fail=true;
  const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'&&fail)return Response.json({error:{message:'Story facts unavailable'}},{status:500});return Response.json(facts(u.searchParams.get('mode')));}return Response.json(overview);});
- await wait(()=>/most asked-about place/.test(node.querySelector('.places-caption').textContent));
+ await wait(()=>/(?:most asked-about|asked about more than any other) place/.test(node.querySelector('.places-caption').textContent));
  const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
  await wait(()=>[...node.querySelectorAll('button')].some(b=>/Reload|Retry|Try again/i.test(b.textContent)));
- assert.match(node.querySelector('.places-ranking li').textContent,/Türkiye\s*13/,'the map and list are not switched on failure');assert.match(node.querySelector('.places-caption').textContent,/most asked-about place/);
+ assert.match(node.querySelector('.places-ranking li').textContent,/Türkiye\s*13/,'the map and list are not switched on failure');assert.match(node.querySelector('.places-caption').textContent,/(?:most asked-about|asked about more than any other) place/);
  fail=false;await act(async()=>[...node.querySelectorAll('button')].find(b=>/Reload|Retry|Try again/i.test(b.textContent)).click());
  await wait(()=>/France\s*9/.test(node.querySelector('.places-ranking li').textContent));assert(/adopted texts naming/.test(node.querySelector('.places-caption').textContent));
+});
+// Russia 50, Ukraine 20: the Europe list follows the projection the story was built from.
+const europeSwitch=(published)=>{const period='2026-Q3',overview={ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':3},items:[{key:'place:RUS',id:'RUS',iso3:'RUS',label:'Russia',series:[{period,question:50}]},{key:'place:UKR',id:'UKR',iso3:'UKR',label:'Ukraine',series:[{period,question:20}]}]};
+ return {period,overview,facts:{ready:true,europe:published,periods:overview.periods,partial:{},counts:{},periodCounts:[{period}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:{mostQuestionedPlaces:published.includes('RUS')?[{id:'RUS',count:50}]:[{id:'UKR',count:20}]}}}};};
+for(const [name,version] of [['before',13],['after',14]])test(`Europe list and story agree ${name} the version 14 projection publishes`,async t=>{
+ const {europeBeforeV14}=await import('../server/story-europe.mjs'),{default:europe}=await import('../server/story-europe-countries.json',{with:{type:'json'}});
+ const {period,overview,facts}=europeSwitch(version===13?[...europeBeforeV14]:europe.ids);
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=geopolitics&t-zoom=eu&t-q='+period,async u=>Response.json(u.pathname==='/api/topics/story-facts'?facts:overview));
+ const story=()=>node.querySelector('.places-caption').textContent,list=()=>[...node.querySelectorAll('.places-ranking li')].map(li=>li.textContent.replace(/\s+/g,' ').trim());
+ await wait(()=>/In Europe and its neighbours/.test(story()));
+ if(version===13){assert.match(story(),/Ukraine was (?:the most asked-about|asked about more than any other) place \(20 questions\)/);assert.match(list()[0],/^Ukraine\s*20/);assert(!list().some(row=>/Russia/.test(row)),'the list leaves Russia out with the story');}
+ else{assert.match(story(),/Russia was (?:the most asked-about|asked about more than any other) place \(50 questions\)/);assert.match(list()[0],/^Russia\s*50/);}
 });
