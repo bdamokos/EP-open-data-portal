@@ -37,10 +37,8 @@
 .topic-zoom {display:flex;gap:20px}
 .topics-content .topic-zoom > button {border:0;border-radius:0;background:none;padding:0;min-height:44px;color:var(--ink-muted)}
 .topics-content .topic-zoom > button[aria-pressed=true] {background:none;color:var(--accent);text-decoration:underline;text-underline-offset:5px}
-.topic-time {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 16px;margin:4px 0 8px}
+.topic-time {display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:4px 16px;margin:4px 0 8px}
 .topics-content .places-quarter {margin:0;font:1.6rem/1.2 var(--font-serif)}
-.topics-content .places-play {min-height:44px;padding:9px 18px;border-color:var(--accent);color:var(--accent);font-weight:600;text-align:center}
-.topics-content .places-play[aria-pressed=true] {background:var(--accent-soft)}
 .places-scrubber {grid-column:1/-1;display:flex;align-items:center;gap:8px}
 .places-scrubber input {flex:1;min-width:0;min-height:44px;margin:0;accent-color:var(--accent)}
 .topics-content .places-scrubber button {min-width:44px;min-height:44px;padding:0;border:0;font-size:26px;line-height:1;text-align:center;color:var(--accent)}
@@ -122,3 +120,6 @@
 :is(.explorer,.explorer-insights) .topic-meta-toggle {min-height:32px;min-width:44px;padding:4px 6px;margin-left:6px;border:0;background:none;color:var(--accent);font:inherit;font-size:13px;vertical-align:baseline}
 
 .topic-facets [aria-pressed=true] {background:var(--accent-soft);border-color:var(--accent)}
+
+.policy-area-sources {max-width:1240px;margin:16px auto 0;padding:0 28px;font-size:15px;color:var(--ink-muted)}
+.policy-area-sources summary {cursor:pointer}
