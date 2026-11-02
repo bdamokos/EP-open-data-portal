@@ -3,8 +3,7 @@ import eurovocLabels from './topic-eurovoc-labels.json' with {type:'json'};
 import {assignmentRole,countryConcepts,eurovocCountries,countryLabels} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 
-export const RECORD_TOPICS_VERSION=8;
-export const proceedingEvent=record=>record.kind==='event'&&(/(?:^|\/)PROCEEDING_ACTIVITY$/.test(record.activityType||'')||/^MTG-PL-\d{4}-\d{2}-\d{2}-OTH-/.test(record.id)&&!/(?:^|\/)PLENARY_DEBATE$/.test(record.activityType||''));
+export const RECORD_TOPICS_VERSION=7;
 const array=v=>v==null?[]:Array.isArray(v)?v:[v];
 const canonical=v=>String(v?.id||v||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'');
 const tail=v=>canonical(v).split('/').at(-1);
@@ -43,21 +42,6 @@ export function* projectTopicSteps(nodes,{concepts=new Map(),procedureTopics=new
   if(node.kind==='document'||node.kind==='question')documents.set(r.id,node);
   else if(node.kind==='procedure')procedures.set(r.id,node);
   else if(node.kind==='event'){events.set(r.id,node);for(const docId of node.documentIds||[])documentEvents.set(docId,unique([...(documentEvents.get(docId)||[]),r.id]));}
- }
- // A proceeding marker is not a debate. Its optional target must be a retained,
- // typed debate joined by an exact parent/child edge on the same date.
- const childParents=map('proceeding_parents');
- for(const [parentId,parent] of events){yield;
-  if(parent.conflicted||!parent.date||!/\/PLENARY_DEBATE$/.test(parent.activityType||''))continue;
-  for(const child of parent.childIds||[])if(proceedingEvent(events.get(child)||{}))childParents.set(child,[...new Set([...(childParents.get(child)||[]),parentId])]);
- }
- for(const [id,node] of events){yield;
-  if(!proceedingEvent(node)||node.conflicted)continue;
-  const r=records.get(id),parents=new Set([...(node.parentIds||[]),...(childParents.get(id)||[])]);
-  r.debateIds=[...parents].filter(parentId=>{
-   const parent=events.get(parentId);
-   return parent&&!parent.conflicted&&parent.date===node.date&&parentId.startsWith('MTG-PL-'+node.date+'-PVCRE-ITM-')&&/\/PLENARY_DEBATE$/.test(parent.activityType||'')&&/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)?$/.test(parentId);
-  });records.set(id,r);
  }
  for(const [id,node] of documents){yield;
   const r=records.get(id);if(node.conflicted||node.kind==='question')continue;

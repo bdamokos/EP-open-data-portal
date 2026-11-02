@@ -1,3 +1,4 @@
+import {voteActivity} from './story-facts-model.mjs';
 import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {topicAmendments} from './topic-involvement.mjs';
 import {contributionGroup,groupContributions} from './group-aggregation.mjs';
@@ -19,7 +20,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v18-typed-event-links';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v19-exact-agenda-provenance';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -122,30 +123,32 @@ export class LegislationInsights {
     if(!sitting)missingSitting(catalogue);
     const today=brusselsDay(this.clock()),phase=sitting.activity_date>today?'upcoming':sitting.activity_date===today?'today':'past';
     if(phase==='upcoming'&&query.vote)throw new HttpError(400,'vote_not_held','This plenary vote has not taken place.');
-    const meeting={payload:{data:[sitting]}};const agendaNodes=[],agendaSources=[];let agendaComplete=false,agendaError=null;
+    const meeting={payload:{data:[sitting]}};const agendaNodes=[],agendaSources=[],agendaEvidence=new Map();let agendaComplete=false,agendaError=null;
     for(let page=0;page<LEGISLATION_LIMITS.agendaPages;page++) {
-      try {const r=await recordSource('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});agendaNodes.push(...r.payload.data);agendaSources.push(sourceEvidence(r));if(r.payload.data.length<50){agendaComplete=true;break;}}
+      try {const r=await recordSource('/meetings/'+sitting.activity_id+'/foreseen-activities',{limit:50,offset:page*50});agendaNodes.push(...r.payload.data);agendaSources.push(sourceEvidence(r));for(const node of r.payload.data)agendaEvidence.set(canonical(node.id),sourceEvidence(r));if(r.payload.data.length<50){agendaComplete=true;break;}}
       catch(error){agendaError=error.message;break;}
     }
     const foreseen={url:agendaSources[0]?.apiUrl||'https://data.europarl.europa.eu/api/v2/meetings/'+sitting.activity_id+'/foreseen-activities',fetchedAt:agendaSources[0]?.fetchedAt||null,payload:{data:agendaNodes}};
-    const topics=agendaTopics(meeting,foreseen).slice(0,LEGISLATION_LIMITS.agendaTopics);
+    const topics=agendaTopics(meeting,foreseen).slice(0,LEGISLATION_LIMITS.agendaTopics).map(item=>({...item,evidence:{...item.evidence,...agendaEvidence.get(item.uri)}}));
     const localize=n=>{const code=languagePreference(Object.keys(n.titles).filter(code=>n.titles[code]?.trim()),query.language)[0];return {...n,title:n.titles[code]||n.id,titleLanguage:code||null};};
     let detail=null;
     if(query.topic) {
-      let topic=topics.find(t=>t.id===query.topic),actualDebate=null;
+      let topic=topics.find(t=>t.id===query.topic),actualDebate=null,creatorAgendaItems=null;
       // Story records identify the actual debate, rather than its scheduled item.
       // Resolve only the published executed relationship; agenda numbers differ.
       if(!topic&&/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)?$/.test(query.topic)&&query.topic.startsWith(sitting.activity_id+'-PVCRE-ITM-')) {
-        const record=await recordSource('/events/'+query.topic),event=sourceNode(record,'event',query.topic);
+        let record;try{record=await recordSource('/events/'+query.topic);}catch(error){if(error.upstreamStatus===404||error.source?.httpStatus===404)throw Object.assign(new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.'),{upstreamStatus:404,source:error.source});throw error;}
+        const event=sourceNode(record,'event',query.topic);
         if(event.activity_date===sitting.activity_date&&phase!=='upcoming') {
           const scheduled=topics.filter(item=>refs(event.executed).includes(item.uri));
           if(tail(event.had_activity_type)==='PLENARY_DEBATE') {
+            creatorAgendaItems=scheduled;
             const merge=field=>[...new Set(scheduled.flatMap(item=>item[field]||[]))];
             topic={id:query.topic,uri:canonical(event.id),titles:event.activity_label||{},date:event.activity_date,kind:'PLENARY_DEBATE',
               documentIds:merge('documentIds'),procedureIds:merge('procedureIds'),agendaCreatorIds:merge('agendaCreatorIds'),agendaDocumentIds:merge('agendaDocumentIds'),scheduledAgendaIds:scheduled.map(item=>item.id),
               evidence:{...sourceEvidence(record),relationship:'actual debate identity and date; executed → scheduled agenda items'}};
             actualDebate={id:query.topic,evidence:{...sourceEvidence(record),relationship:'selected actual debate → consists_of → contribution'}};
-          }else if(tail(event.had_activity_type)==='PLENARY_VOTE') {
+          }else if(voteActivity(event.had_activity_type)) {
             const votes=scheduled.filter(item=>item.kind==='PLENARY_VOTE');
             if(votes.length===1)topic=votes[0];
           }
@@ -158,7 +161,8 @@ export class LegislationInsights {
       const documents=docs.length?this.store.db.prepare(`SELECT key,body,fetched_at FROM sources WHERE generation=? AND kind='document' AND json_extract(body,'$.identifier') IN (${docs.map(()=>'?').join(',')}) LIMIT ?`).all(status.servingGeneration,...docs,LEGISLATION_LIMITS.selectedDocuments).map(r=>({key:r.key,work:JSON.parse(r.body),fetchedAt:r.fetched_at})):[];
       const rows=docs.length?this.store.db.prepare(`SELECT body FROM items WHERE generation=? AND source_id IN (${docs.map(()=>'?').join(',')}) LIMIT ?`).all(status.servingGeneration,...docs,LEGISLATION_LIMITS.roleRows).map(r=>JSON.parse(r.body)):[];
       const roles=topicRoles(topic,rows,documents,members,metadata,groupOn);
-      for(const id of topic.agendaCreatorIds||[])if(!roles.some(r=>r.id===id))roles.push({...datedPerson(memberPeople([id],members,metadata)[0],topic.date,groupOn),role:'AGENDA_CONTRIBUTOR',sourceId:topic.id,date:topic.date,dateBasis:'agenda date',apiUrl:topic.evidence.apiUrl,fetchedAt:topic.evidence.fetchedAt,relationships:['agenda.structuredContent.creators label typeof=person → exact person resource'],participationId:null,stage:null,procedureId:null});
+      const rolePeople=new Set(roles.map(r=>r.id));
+      for(const item of creatorAgendaItems||[topic])for(const id of item.agendaCreatorIds||[])if(!rolePeople.has(id)&&!roles.some(r=>r.id===id&&r.role==='AGENDA_CONTRIBUTOR'&&r.sourceId===item.id))roles.push({...datedPerson(memberPeople([id],members,metadata)[0],item.date,groupOn),role:'AGENDA_CONTRIBUTOR',sourceId:item.id,date:item.date,dateBasis:'agenda date',apiUrl:item.evidence.apiUrl,fetchedAt:item.evidence.fetchedAt,relationships:['agenda.structuredContent.creators label typeof=person → exact person resource'],participationId:null,stage:null,procedureId:null});
       const missingDocuments=topic.documentIds.filter(id=>!documents.some(d=>d.work.identifier===id));
       const procedures=[];const gaps=[];const committeeWork=[];
       const debateCandidates=new Map(actualDebate?[[actualDebate.id,actualDebate.evidence]]:[]),speechSources=[];

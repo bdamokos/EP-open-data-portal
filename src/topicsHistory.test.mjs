@@ -112,7 +112,7 @@ test('places put the time control, map and story first and the ranked list and f
  await act(async()=>node.querySelector('.places-scrubber button[aria-label="Next quarter"]').click());await wait(()=>node.querySelector('.places-quarter').textContent==='2025 Q3 so far');assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3');
 });
 
-test('voting-time groups keep their event link and are never captioned as a debate',async t=>{
+test('voting-time groups without exact targets stay unlinked and never captioned as debates',async t=>{
  const window=new Window({url:'http://localhost/?view=topics&topic=oeil%3A1.10&t-q=2026-Q1'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  const vote='MTG-PL-2026-01-20-PVCRE-ITM-7-2',debate='MTG-PL-2026-01-21-PVCRE-ITM-9';
@@ -124,7 +124,7 @@ test('voting-time groups keep their event link and are never captioned as a deba
  const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
  await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelectorAll('.topic-record-group').length===2);
  const links=[...node.querySelectorAll('.topic-record-group a')].map(a=>a.getAttribute('href'));
- const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(voteLink,'the vote group title opens its event: '+links.join(' '));assert(!links.includes('#topic-records'));
+ const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(!voteLink,'an unresolved voting-time parent must not have an agenda link');assert(!links.includes('#topic-records'));
  const captions=[...node.querySelectorAll('.topic-peak')].map(b=>b.textContent);
  assert(captions.some(c=>c.includes('Support for Ukraine')),'the real debate keeps its peak caption');assert(!captions.some(c=>c.includes('(vote)')),'no caption names the voting-time item: '+captions.join(' | '));assert.equal(captions.length,1);
 });

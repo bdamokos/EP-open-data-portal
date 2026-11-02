@@ -248,7 +248,7 @@ test('legislation responses from before per-person demographic buckets are not r
 });
 
 // Projected public source shapes exercise the routes without any live API reads.
-function actualEventHarness(t,change={}) {
+function actualEventHarness(t,change={},options={}) {
  const directory=mkdtempSync(path.join(os.tmpdir(),'actual-topic-')),store=new ActivityStore(directory),calls=[];
  t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
  store.acquire();const {generation}=store.beginCycle();store.setMembers([...members.values()]);
@@ -256,11 +256,14 @@ function actualEventHarness(t,change={}) {
  const sitting='MTG-PL-2026-10-07',container=sitting+'-OJ',date='2026-10-07',uri=id=>'eli/dl/event/'+id;
  const scheduled=[1,2].map(i=>({id:uri(sitting+'-OJ-ITM-D-'+i),activity_id:sitting+'-OJ-ITM-D-'+i,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_DEBATE',activity_label:{en:'Joint topic '+i},based_on_a_realization_of:['eli/dl/doc/B-10-2026-00000'+i],inverse_was_scheduled_in:['eli/dl/proc/2026-000'+i],documented_by_a_realization_of:['eli/dl/doc/OJ-2026-000'+i],structuredContent:{en:`<item><creators><label typeof="person" resource="person/${i}"/></creators></item>`}}));
  const vote={...scheduled[0],id:uri(sitting+'-OJ-ITM-V-94'),activity_id:sitting+'-OJ-ITM-V-94',had_activity_type:'def/ep-activities/PLENARY_VOTE',based_on_a_realization_of:[],inverse_was_scheduled_in:[]};
+ const votes=[vote,...(options.multipleVotes?[{...vote,id:uri(sitting+'-OJ-ITM-V-95'),activity_id:sitting+'-OJ-ITM-V-95'}]:[])];
+ if(options.sharedCreator)scheduled[1].structuredContent=scheduled[0].structuredContent;
  const event={...fixture.speechParent.payload.data[0],executed:scheduled.map(r=>r.id),...change};
- const agenda={url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/foreseen-activities',fetchedAt:fixture.foreseen.fetchedAt,payload:{data:[{id:uri(container),activity_id:container,had_activity_type:'def/ep-activities/MEETING_PART',consists_of:[...scheduled,vote].map(r=>r.id)},...scheduled,vote]}};
+ const agenda={url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/foreseen-activities',fetchedAt:fixture.foreseen.fetchedAt,payload:{data:[{id:uri(container),activity_id:container,had_activity_type:'def/ep-activities/MEETING_PART',consists_of:[...scheduled,...votes].map(r=>r.id)},...scheduled,...votes]}};
  const catalogue={sittings:[{activity_id:sitting,activity_date:date,was_scheduled_in:[uri(container)],consists_of:[event.id]}],sources:[],year:2026,years:[2026],start:'2024-07-16',complete:true,coverage:{years:[]}};
  const clock=()=>Date.parse('2026-10-14T09:30:00Z'),service=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:async(ep,params)=>{
-  calls.push([ep,params]);if(ep.endsWith('/foreseen-activities'))return agenda;
+  calls.push([ep,params]);if(ep.endsWith('/foreseen-activities')){if(!options.paged)return agenda;return {...agenda,url:agenda.url+'?offset='+params.offset,fetchedAt:agenda.fetchedAt+params.offset*1000,payload:{data:params.offset?[scheduled[1]]:[agenda.payload.data[0],scheduled[0],vote,...Array.from({length:47},(_,i)=>({id:'unused-'+i}))]}};}
+  if(ep==='/events/'+event.activity_id&&options.upstreamStatus)throw Object.assign(new Error('Fixture source error'),{status:502,code:'odp_unavailable',upstreamStatus:options.upstreamStatus,source:{url:'https://data.europarl.europa.eu/api/v2'+ep,httpStatus:options.upstreamStatus}});
   if(ep==='/events/'+event.activity_id)return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.speechParent.fetchedAt,payload:{data:[event]}};
   if(ep.startsWith('/procedures/')){const id=ep.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.procedure.fetchedAt,payload:{data:[{id:'eli/dl/proc/'+id,consists_of:[]}]}};}
   if(ep.endsWith('/vote-results'))return {...fixture.results,payload:{data:[]}};
@@ -291,4 +294,19 @@ test('malformed actual topic IDs are rejected before any upstream request; OTH I
  const h=actualEventHarness(t);
  for(const id of ['MTG-PL-2026-10-07-PVCRE-ITM-1/../../meps/1','MTG-PL-2026-10-07-PVCRE-ITM-1-2-3','MTG-PL-2026-10-07-PVCRE-ITM-1?x=1'])await assert.rejects(h.query(id),e=>e.status===400);
  assert.equal(h.calls.length,0);await assert.rejects(h.query('MTG-PL-2026-10-07-OTH-2017087113155'),e=>e.status===404);assert(!h.calls.some(([ep])=>ep.startsWith('/events/')));
+});
+
+test('joint creators retain every exact scheduled item and its source page observation',async t=>{
+ const h=actualEventHarness(t,{}, {sharedCreator:true,paged:true}),r=await h.query(),roles=r.detail.roles.filter(r=>r.role==='AGENDA_CONTRIBUTOR');
+ assert.deepEqual(roles.map(r=>[r.id,r.sourceId]),h.scheduled.map(item=>['1',item.activity_id]));
+ for(const [i,role]of roles.entries()){assert.equal(role.apiUrl,'https://data.europarl.europa.eu/api/v2/meetings/MTG-PL-2026-10-07/foreseen-activities?offset='+i*50);assert.equal(role.fetchedAt,new Date(fixture.foreseen.fetchedAt+i*50*1000).toISOString());assert(!role.apiUrl.includes('/events/'));}
+});
+for(const type of ['PLENARY_VOTE_RESULTS','PLENARY_OUTCOME','PLENARY_DECISION','REQUEST_VOTE_URGENCY','VOTE_URGENCY','PLENARY_EXPLANATIONS_OF_VOTES','PLENARY_VOTE_SECRET'])test('exact scheduled vote resolution accepts retained vote family '+type,async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/'+type,executed:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-94']});assert.equal((await h.query()).detail.id,h.vote.activity_id);
+});
+test('a voting-time parent with several exact scheduled vote targets is unavailable',async t=>{
+ const h=actualEventHarness(t,{had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',executed:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-94','eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-95']},{multipleVotes:true});await assert.rejects(h.query(),e=>e.status===404&&e.code==='topic_not_found');
+});
+for(const status of [404,429,503])test('exact-ID upstream '+status+' keeps the domain status or source failure',async t=>{
+ const h=actualEventHarness(t,{}, {upstreamStatus:status});await assert.rejects(h.query(),e=>{assert.equal(e.status,status===404?404:502);assert.equal(e.code,status===404?'topic_not_found':'odp_unavailable');assert.equal(e.source.httpStatus,status);return true;});
 });
