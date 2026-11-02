@@ -945,3 +945,22 @@ test('Finnish published negative paragraph insertions require a unique first par
  assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
  }
 });
+
+test('a resolution paragraph original with detached source notes matches by body, note position and note text', () => {
+  const text={...motion(['1.\tFirst.','2.\tStresses the Crisis Regulation;','3.\tThird.']),notesStatus:'extracted',
+    noteAnchors:[{paragraph:4,offset:33,note:'25',label:'25'}],notes:[{id:'25',label:'25',text:'Regulation (EU) 2024/1359.'}]};
+  const originalText='2.\tStresses the Crisis Regulation25 ;\n_________________\n25 Regulation (EU) 2024/1359.';
+  const options={targetLabel:'Paragraph 2',originalText,originalFormatting:[{kind:'superscript',start:33,end:35}],proposedText:'deleted',baseline:'motion-resolution'};
+  const result=placement(text,options);
+  assert.equal(result.status,'placed',result.reason);
+  assert.deepEqual(result.span,{start:4,end:4});
+  assert.ok(result.evidence.some(item=>item.basis==='quoted-original-source-notes'));
+  assert.equal(placement(text,{...options,originalText:originalText.replace('\n25 Regulation','\n25 25 Regulation')}).status,'placed','a custom mark can repeat its label');
+  for(const [changed,why] of [
+    [{...options,originalText:originalText.replace('2024/1359.','2024/1360.')},'note text'],
+    [{...options,originalText:originalText.replace('Stresses','Notes')},'body text'],
+    [{...options,originalFormatting:[]},'unmarked number'],
+  ])assert.equal(placement(text,changed).reason,'conflicting_target_evidence',why);
+  assert.equal(placement({...text,noteAnchors:[{paragraph:4,offset:18,note:'25',label:'25'}]},options).reason,'conflicting_target_evidence','moved anchor');
+  assert.equal(placement({...text,notesStatus:'not-extracted'},options).reason,'conflicting_target_evidence','unextracted notes');
+});
