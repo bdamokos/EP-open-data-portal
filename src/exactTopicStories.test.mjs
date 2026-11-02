@@ -35,6 +35,13 @@ test('unknown joint authorship does not become an exact group count',()=>{const 
 
 test('headline winners below three linked MEP speakers cannot feature',()=>{const x=base();x.periodCounts=[{period:'2026-Q1',adoptedTexts:3}];x.periodWinners['2026-Q1']={headlineAdoptedTexts3Plus:[{id:'R',debateMeps:0}]};x.docs=[{id:'R',title:'Exact adopted text',type:'REPORT',outcome:{outcome:'ADOPTED',for:100,against:20}}];const row=()=>buildExactTopicStories(x,{topic:'oeil:1.10',period:'2026-Q1'}).find(r=>r.id==='topics.story.exact.adopted');assert.equal(row().values.texts,null);x.periodWinners['2026-Q1'].headlineAdoptedTexts3Plus[0].debateMeps=3;assert.equal(row().values.texts.message,'topics.story.exact.including');});
 
+test('a missing concept label remains plain text rather than a story reference',()=>{
+ const payload=base();payload.topic={key:'oeil:9.99',label:'oeil:9.99',labelLanguage:null};
+ const line=buildExactTopicStories(payload,{topic:'oeil:9.99'})[0];assert.equal(line.values.topic,'oeil:9.99');
+ payload.topic={label:'Élargissement',labelLanguage:'fr'};assert.equal(buildExactTopicStories(payload,{topic:'oeil:8.20'})[0].values.topic.labelLanguage,'fr');
+ assert.equal(new URLSearchParams(storyFactsRoute({topic:'oeil:8.20',language:'fr'}).split('?')[1]).get('lang'),'fr');
+});
+
 // Wording: render lines to plain English with the shipped catalogue.
 const en=JSON.parse(await (await import('node:fs/promises')).readFile(new URL('./ui-locales/en.json',import.meta.url),'utf8'));
 const say=v=>v==null?'':typeof v==='string'?v:Array.isArray(v)?new Intl.ListFormat('en-GB',{type:'conjunction'}).format(v.map(say)):v.message?(v.counts?.count===1&&en[v.message+'One']?en[v.message+'One']:en[v.message]).replace(/\{(\w+)\}/g,(_,k)=>say(v.values?.[k])):v.text!==undefined?say(v.text):'';
@@ -113,4 +120,18 @@ test('wording: exclusions follow the final narration after the headline fusion',
  x.debates=[{id:'D',title:'Debate on B',date:'2026-02-11',meps:40,places:{},docs:[A.id,B.id]}];x.docs=[A,B];x.sets={adoptedTexts:{'2026-Q1':[A.id,B.id]}};x.periodWinners['2026-Q1']={busiestDebates:[{id:'D',meps:40}],headlineAdoptedTexts3Plus:[{id:B.id,debateMeps:40}]};
  const text=lineText(buildExactTopicStories(x,{topic:'eurovoc:584',period:'2026-Q1'}));
  assert.match(text,/ended in its adoption, 400 to 200\./);assert.match(text,/Parliament also adopted one text: text A \(524–3\)\./,'A is no longer narrated, so it stays in the adoption sentence');
+});
+
+test('story records and title references preserve a non-English fallback language',()=>{
+ const x=base();x.docs=[{id:'R',title:'MOTION FOR A RESOLUTION on Titre français',titleLanguage:'fr',type:'REPORT',outcome:{outcome:'ADOPTED',for:100,against:20}}];x.counts.adoptedTexts=1;x.winners={headlineAdoptedTexts3Plus:[{id:'R',debateMeps:3}]};
+ assert.equal(storyRecord(x.docs[0],'document').titleLanguage,'fr');
+ const lines=buildExactTopicStories(x,{topic:'oeil:9.99'});assert(JSON.stringify(lines).includes('"titleLanguage":"fr"'));
+});
+
+test('months: the busiest-quarter reference names months in the interface language',async()=>{
+ const {monthRangeLabel}=await import('./topicPresentation.mjs');
+ assert.match(monthRangeLabel('2026-Q1','en'),/^January\s*[–-]\s*March 2026$/);assert.match(monthRangeLabel('2026-Q4','fr'),/octobre.*décembre 2026/);assert.equal(monthRangeLabel('bad','en'),'bad');
+ const x=base();x.periodCounts=[{period:'2026-Q1',debateSpeakerAppearances:40},{period:'2026-Q2',debateSpeakerAppearances:10}];
+ const row=buildExactTopicStories(x,{place:'IRN',language:'en',labels:{IRN:'Iran'}}).find(r=>r.id==='topics.story.place.summary.peak');
+ assert.match(lineText([row]),/^Busiest quarter: January\s*[–-]\s*March 2026\.$/);assert.equal(row.values.quarter[0].period,'2026-Q1','links keep the quarter key');
 });

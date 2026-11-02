@@ -1,0 +1,3267 @@
+{
+  "sourceUrls": {
+    "en": "https://oeil.europarl.europa.eu/oeil/en/search/facets",
+    "fr": "https://oeil.europarl.europa.eu/oeil/fr/search/facets"
+  },
+  "sourcePages": {
+    "en": "https://oeil.europarl.europa.eu/oeil/en/search",
+    "fr": "https://oeil.europarl.europa.eu/oeil/fr/search"
+  },
+  "retrievedAt": "2026-11-02",
+  "subjects": {
+    "1": {
+      "labels": {
+        "en": "European citizenship",
+        "fr": "Citoyenneté européenne"
+      },
+      "parent": null
+    },
+    "1.10": {
+      "labels": {
+        "en": "Fundamental rights in the EU, Charter",
+        "fr": "Droits fondamentaux dans l'Union, Charte"
+      },
+      "parent": "1"
+    },
+    "1.20": {
+      "labels": {
+        "en": "Citizen's rights",
+        "fr": "Droits du citoyen"
+      },
+      "parent": "1"
+    },
+    "1.20.01": {
+      "labels": {
+        "en": "Political rights, right to vote and to stand in elections",
+        "fr": "Droits politiques, vote et éligibilité"
+      },
+      "parent": "1.20"
+    },
+    "1.20.02": {
+      "labels": {
+        "en": "Social and economic rights",
+        "fr": "Droits sociaux et économiques"
+      },
+      "parent": "1.20"
+    },
+    "1.20.03": {
+      "labels": {
+        "en": "Right of petition",
+        "fr": "Droit de pétition"
+      },
+      "parent": "1.20"
+    },
+    "1.20.04": {
+      "labels": {
+        "en": "European Ombudsman",
+        "fr": "Médiateur européen"
+      },
+      "parent": "1.20"
+    },
+    "1.20.05": {
+      "labels": {
+        "en": "Public access to information and documents, administrative practice",
+        "fr": "Accès du public à l'information et aux documents, relations avec l'administration"
+      },
+      "parent": "1.20"
+    },
+    "1.20.09": {
+      "labels": {
+        "en": "Protection of privacy and data protection",
+        "fr": "Protection de la vie privée et des données"
+      },
+      "parent": "1.20"
+    },
+    "1.20.20": {
+      "labels": {
+        "en": "Diplomatic and consular protection",
+        "fr": "Protection diplomatique et consulaire"
+      },
+      "parent": "1.20"
+    },
+    "2": {
+      "labels": {
+        "en": "Internal market, single market",
+        "fr": "Marché intérieur, marché unique"
+      },
+      "parent": null
+    },
+    "2.10": {
+      "labels": {
+        "en": "Free movement of goods",
+        "fr": "Libre circulation des marchandises"
+      },
+      "parent": "2"
+    },
+    "2.10.01": {
+      "labels": {
+        "en": "Customs union, tax and duty-free, Community transit",
+        "fr": "Union douanière, franchises, transit communautaire"
+      },
+      "parent": "2.10"
+    },
+    "2.10.02": {
+      "labels": {
+        "en": "Public procurement",
+        "fr": "Marchés publics"
+      },
+      "parent": "2.10"
+    },
+    "2.10.03": {
+      "labels": {
+        "en": "Standardisation, EC/EU standards and trade mark, certification, compliance",
+        "fr": "Normalisation, norme et marque CE/UE, certification, conformité"
+      },
+      "parent": "2.10"
+    },
+    "2.20": {
+      "labels": {
+        "en": "Free movement of persons",
+        "fr": "Libre circulation des personnes"
+      },
+      "parent": "2"
+    },
+    "2.20.01": {
+      "labels": {
+        "en": "Freedom of movement, right of residence, identity checks",
+        "fr": "Déplacement et séjour, contrôle des personnes"
+      },
+      "parent": "2.20"
+    },
+    "2.30": {
+      "labels": {
+        "en": "Free movement of workers",
+        "fr": "Libre circulation des travailleurs"
+      },
+      "parent": "2"
+    },
+    "2.40": {
+      "labels": {
+        "en": "Free movement of services, freedom to provide",
+        "fr": "Libre circulation et prestation des services"
+      },
+      "parent": "2"
+    },
+    "2.40.01": {
+      "labels": {
+        "en": "Right of establishment",
+        "fr": "Droit d'établissement"
+      },
+      "parent": "2.40"
+    },
+    "2.40.02": {
+      "labels": {
+        "en": "Public services, of general interest, universal service",
+        "fr": "Services publics, d'intérêt général, service universel"
+      },
+      "parent": "2.40"
+    },
+    "2.50": {
+      "labels": {
+        "en": "Free movement of capital",
+        "fr": "Libre circulation des capitaux"
+      },
+      "parent": "2"
+    },
+    "2.50.02": {
+      "labels": {
+        "en": "Savings",
+        "fr": "Épargne"
+      },
+      "parent": "2.50"
+    },
+    "2.50.03": {
+      "labels": {
+        "en": "Securities and financial markets, stock exchange, CIUTS, investments",
+        "fr": "Marchés financiers, bourse, OPCVM, investissements, valeurs mobilières"
+      },
+      "parent": "2.50"
+    },
+    "2.50.04": {
+      "labels": {
+        "en": "Banks and credit",
+        "fr": "Banques et crédit"
+      },
+      "parent": "2.50"
+    },
+    "2.50.04.02": {
+      "labels": {
+        "en": "Electronic money and payments, cross-border credit transfers",
+        "fr": "Monnaie et paiements électroniques, virements transfrontaliers"
+      },
+      "parent": "2.50.04"
+    },
+    "2.50.05": {
+      "labels": {
+        "en": "Insurance, pension funds",
+        "fr": "Assurances, fonds de retraite"
+      },
+      "parent": "2.50"
+    },
+    "2.50.08": {
+      "labels": {
+        "en": "Financial services, financial reporting and auditing",
+        "fr": "Services financiers, information financière et contrôle des comptes"
+      },
+      "parent": "2.50"
+    },
+    "2.50.10": {
+      "labels": {
+        "en": "Financial supervision",
+        "fr": "Surveillance financière"
+      },
+      "parent": "2.50"
+    },
+    "2.60": {
+      "labels": {
+        "en": "Competition",
+        "fr": "Concurrence"
+      },
+      "parent": "2"
+    },
+    "2.60.01": {
+      "labels": {
+        "en": "Trade restrictions, concerted practices, dominant positions",
+        "fr": "Restrictions aux échanges, ententes, positions dominantes"
+      },
+      "parent": "2.60"
+    },
+    "2.60.02": {
+      "labels": {
+        "en": "Dumping, monopolies",
+        "fr": "Dumping, monopoles"
+      },
+      "parent": "2.60"
+    },
+    "2.60.03": {
+      "labels": {
+        "en": "State aids and interventions",
+        "fr": "Aides et interventions d'État"
+      },
+      "parent": "2.60"
+    },
+    "2.60.04": {
+      "labels": {
+        "en": "Economic concentration, mergers, takeover bids, holding companies",
+        "fr": "Concentration économique, fusion d'entreprises, offre publique d'achat OPA"
+      },
+      "parent": "2.60"
+    },
+    "2.70": {
+      "labels": {
+        "en": "Taxation",
+        "fr": "Fiscalité"
+      },
+      "parent": "2"
+    },
+    "2.70.01": {
+      "labels": {
+        "en": "Direct taxation",
+        "fr": "Fiscalité et impôts directs"
+      },
+      "parent": "2.70"
+    },
+    "2.70.02": {
+      "labels": {
+        "en": "Indirect taxation, VAT, excise duties",
+        "fr": "Fiscalité et impôts indirects, TVA, accises"
+      },
+      "parent": "2.70"
+    },
+    "2.80": {
+      "labels": {
+        "en": "Cooperation between administrations",
+        "fr": "Coopération et simplification administratives"
+      },
+      "parent": "2"
+    },
+    "3": {
+      "labels": {
+        "en": "Community policies",
+        "fr": "Politiques communautaires"
+      },
+      "parent": null
+    },
+    "3.10": {
+      "labels": {
+        "en": "Agricultural policy and economies ",
+        "fr": "Politique et économies agricoles"
+      },
+      "parent": "3"
+    },
+    "3.10.01": {
+      "labels": {
+        "en": "Agricultural structures and holdings, farmers ",
+        "fr": "Exploitations agricoles et agriculteurs "
+      },
+      "parent": "3.10"
+    },
+    "3.10.01.02": {
+      "labels": {
+        "en": "Rural development, European Agricultural Fund for Rural Development (EAFRD)",
+        "fr": "Développement rural, Fonds européen agricole pour le développement rural (Feader)"
+      },
+      "parent": "3.10.01"
+    },
+    "3.10.01.06": {
+      "labels": {
+        "en": "Less-favoured agricultural areas",
+        "fr": "Zones agricoles défavorisées  "
+      },
+      "parent": "3.10.01"
+    },
+    "3.10.02": {
+      "labels": {
+        "en": "Processed products, agri-foodstuffs",
+        "fr": "Produits transformés, agroalimentaire"
+      },
+      "parent": "3.10"
+    },
+    "3.10.03": {
+      "labels": {
+        "en": "Marketing and trade of agricultural products and livestock",
+        "fr": "Commercialisation et échanges des produits agricoles et des animaux"
+      },
+      "parent": "3.10"
+    },
+    "3.10.04": {
+      "labels": {
+        "en": "Livestock farming ",
+        "fr": "Elevage et production animale"
+      },
+      "parent": "3.10"
+    },
+    "3.10.04.02": {
+      "labels": {
+        "en": "Animal protection",
+        "fr": "Protection des animaux"
+      },
+      "parent": "3.10.04"
+    },
+    "3.10.05": {
+      "labels": {
+        "en": "Livestock products, in general",
+        "fr": "Produits animaux, en général"
+      },
+      "parent": "3.10"
+    },
+    "3.10.05.01": {
+      "labels": {
+        "en": "Meat",
+        "fr": "Viande"
+      },
+      "parent": "3.10.05"
+    },
+    "3.10.05.02": {
+      "labels": {
+        "en": "Milk and dairy products",
+        "fr": "Lait et produits laitiers"
+      },
+      "parent": "3.10.05"
+    },
+    "3.10.05.03": {
+      "labels": {
+        "en": "Eggs and poultry",
+        "fr": "Oeufs et volaille"
+      },
+      "parent": "3.10.05"
+    },
+    "3.10.06": {
+      "labels": {
+        "en": "Crop products in general, floriculture",
+        "fr": "Produits végétaux en général, floriculture"
+      },
+      "parent": "3.10"
+    },
+    "3.10.06.01": {
+      "labels": {
+        "en": "Fruit, citrus fruits",
+        "fr": "Fruits, agrumes"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.02": {
+      "labels": {
+        "en": "Vegetables",
+        "fr": "Légumes"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.03": {
+      "labels": {
+        "en": "Cereals, rice",
+        "fr": "Céréales, riz"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.04": {
+      "labels": {
+        "en": "Fodder plants",
+        "fr": "Plantes fourragères"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.05": {
+      "labels": {
+        "en": "Textile plants, cotton",
+        "fr": "Plantes textiles, coton"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.06": {
+      "labels": {
+        "en": "Oleaginous plants",
+        "fr": "Plantes oléagineuses"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.07": {
+      "labels": {
+        "en": "Sugar",
+        "fr": "Sucre"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.08": {
+      "labels": {
+        "en": "Wine, alcoholic and non-alcoholic beverages",
+        "fr": "Vin, boissons alcoolisées et non-alcoolisées"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.09": {
+      "labels": {
+        "en": "Industrial plants, tobacco, hops",
+        "fr": "Plantes industrielles, tabac, houblon"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.06.10": {
+      "labels": {
+        "en": "Tropical plants",
+        "fr": "Plantes tropicales"
+      },
+      "parent": "3.10.06"
+    },
+    "3.10.07": {
+      "labels": {
+        "en": "Animal and vegetable fats, oils",
+        "fr": "Matières grasses végétales et animales, huiles"
+      },
+      "parent": "3.10"
+    },
+    "3.10.08": {
+      "labels": {
+        "en": "Animal health requirements, veterinary legislation and pharmacy",
+        "fr": "Police sanitaire animale, législation et pharmacie vétérinaire"
+      },
+      "parent": "3.10"
+    },
+    "3.10.08.01": {
+      "labels": {
+        "en": "Feedingstuffs, animal nutrition",
+        "fr": "Alimentation animale"
+      },
+      "parent": "3.10.08"
+    },
+    "3.10.08.05": {
+      "labels": {
+        "en": "Animal diseases",
+        "fr": "Maladies animales"
+      },
+      "parent": "3.10.08"
+    },
+    "3.10.09": {
+      "labels": {
+        "en": "Plant health legislation, organic farming, agro-genetics in general",
+        "fr": "Phytosanitaire, phytopharmacie, agriculture biologique, agro-génétique: généralités"
+      },
+      "parent": "3.10"
+    },
+    "3.10.09.02": {
+      "labels": {
+        "en": "Plant health legislation ",
+        "fr": "Phytosanitaire, phytopharmacie"
+      },
+      "parent": "3.10.09"
+    },
+    "3.10.09.04": {
+      "labels": {
+        "en": "Organic farming ",
+        "fr": "Agriculture biologique"
+      },
+      "parent": "3.10.09"
+    },
+    "3.10.09.06": {
+      "labels": {
+        "en": "Agro-genetics, GMOs",
+        "fr": "Agro-génétique, OGM"
+      },
+      "parent": "3.10.09"
+    },
+    "3.10.10": {
+      "labels": {
+        "en": "Foodstuffs, foodstuffs legislation",
+        "fr": "Alimentation, législation alimentaire"
+      },
+      "parent": "3.10"
+    },
+    "3.10.11": {
+      "labels": {
+        "en": "Forestry policy",
+        "fr": "Politique forestière"
+      },
+      "parent": "3.10"
+    },
+    "3.10.12": {
+      "labels": {
+        "en": "Agrimonetary policy, compensatory amounts",
+        "fr": "Politique monétaire agricole, montants compensatoires"
+      },
+      "parent": "3.10"
+    },
+    "3.10.13": {
+      "labels": {
+        "en": "European Agricultural Guidance and Guarantee Fund, EAGGF and  EAGF",
+        "fr": "Fonds européen d'orientation et de garantie agricole, FEOGA et FEAGA"
+      },
+      "parent": "3.10"
+    },
+    "3.10.14": {
+      "labels": {
+        "en": "Support for producers and premiums",
+        "fr": "Soutien aux producteurs, primes et aides agricoles"
+      },
+      "parent": "3.10"
+    },
+    "3.10.14.04": {
+      "labels": {
+        "en": "Set-aside and conversion of land",
+        "fr": "Gel et conversion des terres "
+      },
+      "parent": "3.10.14"
+    },
+    "3.10.15": {
+      "labels": {
+        "en": "Agricultural production, farm surpluses, shortages and quotas, non-marketing premiums",
+        "fr": "Production agricole, excédents, déficits et quota agricoles, primes de non-commercialisation"
+      },
+      "parent": "3.10"
+    },
+    "3.10.30": {
+      "labels": {
+        "en": "Agricultural statistics",
+        "fr": "Statistiques agricoles"
+      },
+      "parent": "3.10"
+    },
+    "3.15": {
+      "labels": {
+        "en": "Fisheries policy",
+        "fr": "Politique de la pêche"
+      },
+      "parent": "3"
+    },
+    "3.15.01": {
+      "labels": {
+        "en": "Fish stocks, conservation of fishery resources",
+        "fr": "Conservation des ressources halieutiques et de pêche"
+      },
+      "parent": "3.15"
+    },
+    "3.15.02": {
+      "labels": {
+        "en": "Aquaculture",
+        "fr": "Aquaculture"
+      },
+      "parent": "3.15"
+    },
+    "3.15.03": {
+      "labels": {
+        "en": "Fishing fleets, safety of fishing vessels",
+        "fr": "Flottes de pêche, sécurité des navires de pêche"
+      },
+      "parent": "3.15"
+    },
+    "3.15.04": {
+      "labels": {
+        "en": "Management of fisheries, fisheries, fishing grounds",
+        "fr": "Gestion des pêches, pêcheries, lieux de pêche"
+      },
+      "parent": "3.15"
+    },
+    "3.15.05": {
+      "labels": {
+        "en": "Fish catches, import tariff quotas",
+        "fr": "Captures de poissons, contingents tarifaires d'importation"
+      },
+      "parent": "3.15"
+    },
+    "3.15.06": {
+      "labels": {
+        "en": "Fishing industry and statistics, fishery products",
+        "fr": "Industrie, produits et statistiques de la pêche"
+      },
+      "parent": "3.15"
+    },
+    "3.15.07": {
+      "labels": {
+        "en": "Fisheries inspectorate, surveillance of fishing vessels and areas",
+        "fr": "Contrôle et réglementation des pêches, des bateaux, des zones de pêche"
+      },
+      "parent": "3.15"
+    },
+    "3.15.08": {
+      "labels": {
+        "en": "Fishing enterprises, fishermen, working conditions on board",
+        "fr": "Entreprises de pêche, marins pêcheurs, conditions de travail"
+      },
+      "parent": "3.15"
+    },
+    "3.15.15": {
+      "labels": {
+        "en": "Fisheries agreements and cooperation",
+        "fr": "Accords de pêche et coopération"
+      },
+      "parent": "3.15"
+    },
+    "3.15.15.02": {
+      "labels": {
+        "en": "Fisheries agreements with African countries",
+        "fr": "Accords de pêche avec les pays d'Afrique"
+      },
+      "parent": "3.15.15"
+    },
+    "3.15.15.03": {
+      "labels": {
+        "en": "Fisheries agreements with Indian Ocean countries",
+        "fr": "Accords de pêche avec les pays de l'Océan indien"
+      },
+      "parent": "3.15.15"
+    },
+    "3.15.15.04": {
+      "labels": {
+        "en": "Fisheries agreements with Maghreb and Mediterranean countries",
+        "fr": "Accords de pêche avec les pays du Maghreb et de la Méditerranée"
+      },
+      "parent": "3.15.15"
+    },
+    "3.15.15.06": {
+      "labels": {
+        "en": "Fisheries agreements with Pacific countries",
+        "fr": "Accords de pêche avec les pays du Pacifique"
+      },
+      "parent": "3.15.15"
+    },
+    "3.15.15.08": {
+      "labels": {
+        "en": "Fisheries agreements with Northern and Baltic countries",
+        "fr": "Accords de pêche avec les pays du Nord et de la Baltique"
+      },
+      "parent": "3.15.15"
+    },
+    "3.15.16": {
+      "labels": {
+        "en": "Financial Instrument for Fisheries Guidance (FIFG), European Fisheries Fund (EFF)",
+        "fr": "Instrument financier d'orientation de la pêche (IFOP), Fonds européen pour la pêche (FEP)"
+      },
+      "parent": "3.15"
+    },
+    "3.15.17": {
+      "labels": {
+        "en": "European Maritime and Fisheries Fund (EMFF)",
+        "fr": "Fonds européen pour les affaires maritimes et la pêche (FEAMP)"
+      },
+      "parent": "3.15"
+    },
+    "3.15.18": {
+      "labels": {
+        "en": "European Maritime, Fisheries and Aquaculture Fund (EMFAF)",
+        "fr": "Fonds européen pour les affaires maritimes, la pêche et l'aquaculture (FEAMPA)"
+      },
+      "parent": "3.15"
+    },
+    "3.20": {
+      "labels": {
+        "en": "Transport policy in general",
+        "fr": "Politique des transports en général"
+      },
+      "parent": "3"
+    },
+    "3.20.01": {
+      "labels": {
+        "en": "Air transport and air freight",
+        "fr": "Transport aérien de personnes et frêt"
+      },
+      "parent": "3.20"
+    },
+    "3.20.01.01": {
+      "labels": {
+        "en": "Air safety",
+        "fr": "Sécurité aérienne"
+      },
+      "parent": "3.20.01"
+    },
+    "3.20.02": {
+      "labels": {
+        "en": "Rail transport: passengers and freight",
+        "fr": "Transport ferroviaire de personnes et de marchandises"
+      },
+      "parent": "3.20"
+    },
+    "3.20.02.01": {
+      "labels": {
+        "en": "Railway safety",
+        "fr": "Sécurité ferroviaire"
+      },
+      "parent": "3.20.02"
+    },
+    "3.20.03": {
+      "labels": {
+        "en": "Maritime transport: passengers and freight",
+        "fr": "Transport maritime de personnes et frêt"
+      },
+      "parent": "3.20"
+    },
+    "3.20.03.01": {
+      "labels": {
+        "en": "Maritime safety",
+        "fr": "Sécurité maritime"
+      },
+      "parent": "3.20.03"
+    },
+    "3.20.04": {
+      "labels": {
+        "en": "Inland waterway transport",
+        "fr": "Transport fluvial"
+      },
+      "parent": "3.20"
+    },
+    "3.20.05": {
+      "labels": {
+        "en": "Road transport: passengers and freight",
+        "fr": "Transport routier de personnes et de marchandises"
+      },
+      "parent": "3.20"
+    },
+    "3.20.06": {
+      "labels": {
+        "en": "Transport regulations, road safety, roadworthiness tests, driving licence",
+        "fr": "Réglementation des transports, sécurité routière, contrôle technique, permis"
+      },
+      "parent": "3.20"
+    },
+    "3.20.07": {
+      "labels": {
+        "en": "Combined transport, multimodal transport",
+        "fr": "Transport combiné, transport multimodal"
+      },
+      "parent": "3.20"
+    },
+    "3.20.08": {
+      "labels": {
+        "en": "Urban transport",
+        "fr": "Transport urbain"
+      },
+      "parent": "3.20"
+    },
+    "3.20.09": {
+      "labels": {
+        "en": "Ports policy",
+        "fr": "Politique portuaire"
+      },
+      "parent": "3.20"
+    },
+    "3.20.10": {
+      "labels": {
+        "en": "Transport undertakings, transport industry employees",
+        "fr": "Entreprises et personnel de transport"
+      },
+      "parent": "3.20"
+    },
+    "3.20.11": {
+      "labels": {
+        "en": "Trans-European transport networks",
+        "fr": "Réseaux transeuropéens de transport"
+      },
+      "parent": "3.20"
+    },
+    "3.20.15": {
+      "labels": {
+        "en": "Transport agreements and cooperation",
+        "fr": "Coopération et accords en matière de transport"
+      },
+      "parent": "3.20"
+    },
+    "3.20.15.02": {
+      "labels": {
+        "en": "Air transport agreements and cooperation",
+        "fr": "Coopération et accords de transport aérien"
+      },
+      "parent": "3.20.15"
+    },
+    "3.20.15.04": {
+      "labels": {
+        "en": "Road transport agreements and cooperation",
+        "fr": "Coopération et accords de transport routier"
+      },
+      "parent": "3.20.15"
+    },
+    "3.20.15.06": {
+      "labels": {
+        "en": "Maritime or inland transport agreements and cooperation",
+        "fr": "Coopération et accords de transport maritime ou fluvial"
+      },
+      "parent": "3.20.15"
+    },
+    "3.20.15.08": {
+      "labels": {
+        "en": "Rail transport agreements and cooperation",
+        "fr": "Coopération et accords de transport ferroviaire"
+      },
+      "parent": "3.20.15"
+    },
+    "3.20.20": {
+      "labels": {
+        "en": "Transport statistics",
+        "fr": "Statistiques sur les transports"
+      },
+      "parent": "3.20"
+    },
+    "3.30": {
+      "labels": {
+        "en": "Information and communications in general",
+        "fr": "Information et communication, généralités"
+      },
+      "parent": "3"
+    },
+    "3.30.01": {
+      "labels": {
+        "en": "Audiovisual industry and services",
+        "fr": "Industrie et services audiovisuels"
+      },
+      "parent": "3.30"
+    },
+    "3.30.01.02": {
+      "labels": {
+        "en": "Programmes and actions in audiovisual sector",
+        "fr": "Programmes et actions dans le secteur audiovisuel "
+      },
+      "parent": "3.30.01"
+    },
+    "3.30.02": {
+      "labels": {
+        "en": "Television, cable, digital, mobile",
+        "fr": "Télévision, câble, numérique, mobile"
+      },
+      "parent": "3.30"
+    },
+    "3.30.03": {
+      "labels": {
+        "en": "Telecommunications, data transmission, telephone",
+        "fr": "Télécommunications, transmission de données, téléphonie"
+      },
+      "parent": "3.30"
+    },
+    "3.30.03.04": {
+      "labels": {
+        "en": "Telecommunication networks",
+        "fr": "Réseaux de télécommunications"
+      },
+      "parent": "3.30.03"
+    },
+    "3.30.03.06": {
+      "labels": {
+        "en": "Communications by satellite",
+        "fr": "Communications par satellite"
+      },
+      "parent": "3.30.03"
+    },
+    "3.30.04": {
+      "labels": {
+        "en": "Radiocommunications, broadcasting",
+        "fr": "Radiocommunications, radiodiffusion"
+      },
+      "parent": "3.30"
+    },
+    "3.30.05": {
+      "labels": {
+        "en": "Electronic and mobile communications, personal communications ",
+        "fr": "Communications électroniques et mobiles, services cryptés "
+      },
+      "parent": "3.30"
+    },
+    "3.30.06": {
+      "labels": {
+        "en": "Information and communication technologies, digital technologies",
+        "fr": "Technologies de l'information et de la communication, technologies numériques"
+      },
+      "parent": "3.30"
+    },
+    "3.30.07": {
+      "labels": {
+        "en": "Cybersecurity, cyberspace policy",
+        "fr": "Cybersécurité, politique cyberespace"
+      },
+      "parent": "3.30"
+    },
+    "3.30.08": {
+      "labels": {
+        "en": "Press, media freedom and pluralism",
+        "fr": "Presse, liberté et pluralisme des médias"
+      },
+      "parent": "3.30"
+    },
+    "3.30.09": {
+      "labels": {
+        "en": "Postal services, parcel delivery services",
+        "fr": "Services postaux, services de livraison de colis"
+      },
+      "parent": "3.30"
+    },
+    "3.30.15": {
+      "labels": {
+        "en": "Telematics",
+        "fr": "Télématique "
+      },
+      "parent": "3.30"
+    },
+    "3.30.16": {
+      "labels": {
+        "en": "Ethical information policy",
+        "fr": "Ethique de l'information"
+      },
+      "parent": "3.30"
+    },
+    "3.30.20": {
+      "labels": {
+        "en": "Trans-European communications networks",
+        "fr": "Réseaux transeuropéens de communication"
+      },
+      "parent": "3.30"
+    },
+    "3.30.25": {
+      "labels": {
+        "en": "International information networks and society, internet",
+        "fr": "Réseaux mondiaux et société de l'information, internet"
+      },
+      "parent": "3.30"
+    },
+    "3.30.25.02": {
+      "labels": {
+        "en": "Information programmes and action plans",
+        "fr": "Programmes et plans d'action sur l'information"
+      },
+      "parent": "3.30.25"
+    },
+    "3.30.30": {
+      "labels": {
+        "en": "Information and audiovisual statistics",
+        "fr": "Statistiques sur l'information et l'audiovisuel"
+      },
+      "parent": "3.30"
+    },
+    "3.40": {
+      "labels": {
+        "en": "Industrial policy",
+        "fr": "Politique industrielle"
+      },
+      "parent": "3"
+    },
+    "3.40.01": {
+      "labels": {
+        "en": "Chemical industry, fertilizers, plastics",
+        "fr": "Industrie chimique, engrais, matières plastiques"
+      },
+      "parent": "3.40"
+    },
+    "3.40.02": {
+      "labels": {
+        "en": "Iron and steel industry, metallurgical industry",
+        "fr": "Industries sidérurgique et métallurgique"
+      },
+      "parent": "3.40"
+    },
+    "3.40.03": {
+      "labels": {
+        "en": "Motor industry, cycle and motorcycle, commercial and agricultural vehicles",
+        "fr": "Industrie automobile, cycle et motocycle, véhicules utilitaires et agricoles"
+      },
+      "parent": "3.40"
+    },
+    "3.40.04": {
+      "labels": {
+        "en": "Shipbuilding, nautical industry",
+        "fr": "Construction navale, industie nautique"
+      },
+      "parent": "3.40"
+    },
+    "3.40.05": {
+      "labels": {
+        "en": "Aeronautical industry, aerospace industry",
+        "fr": "Industries aéronautique et spatiale"
+      },
+      "parent": "3.40"
+    },
+    "3.40.06": {
+      "labels": {
+        "en": "Electronics, electrotechnical industries, ICT, robotics",
+        "fr": "Industries électronique, électrotechnique, TIC, robotique"
+      },
+      "parent": "3.40"
+    },
+    "3.40.07": {
+      "labels": {
+        "en": "Building industry",
+        "fr": "Industrie du bâtiment et de la construction"
+      },
+      "parent": "3.40"
+    },
+    "3.40.08": {
+      "labels": {
+        "en": "Mechanical engineering, machine-tool industry",
+        "fr": "Industrie mécanique, industrie des machines-outils"
+      },
+      "parent": "3.40"
+    },
+    "3.40.09": {
+      "labels": {
+        "en": "Defence and arms industry",
+        "fr": "Industrie de la défense et de l'armement"
+      },
+      "parent": "3.40"
+    },
+    "3.40.10": {
+      "labels": {
+        "en": "Textile and clothing industry, leathers",
+        "fr": "Industrie textile, du vêtement, du cuir"
+      },
+      "parent": "3.40"
+    },
+    "3.40.11": {
+      "labels": {
+        "en": "Precision engineering, optics, photography, medical",
+        "fr": "Industrie de précision, optique, photographique, médicale"
+      },
+      "parent": "3.40"
+    },
+    "3.40.12": {
+      "labels": {
+        "en": "Luxury products industry, cosmetics",
+        "fr": "Industrie des produits de luxe, cosmétiques"
+      },
+      "parent": "3.40"
+    },
+    "3.40.13": {
+      "labels": {
+        "en": "Food industry",
+        "fr": "Industrie alimentaire"
+      },
+      "parent": "3.40"
+    },
+    "3.40.14": {
+      "labels": {
+        "en": "Industrial competitiveness",
+        "fr": "Compétitivité industrielle"
+      },
+      "parent": "3.40"
+    },
+    "3.40.16": {
+      "labels": {
+        "en": "Raw materials",
+        "fr": "Matières premières"
+      },
+      "parent": "3.40"
+    },
+    "3.40.17": {
+      "labels": {
+        "en": "Manufactured goods",
+        "fr": "Produits manufacturés"
+      },
+      "parent": "3.40"
+    },
+    "3.40.18": {
+      "labels": {
+        "en": "Services sector",
+        "fr": "Secteur des services"
+      },
+      "parent": "3.40"
+    },
+    "3.45": {
+      "labels": {
+        "en": "Enterprise policy, inter-company cooperation",
+        "fr": "Politique de l'entreprise, coopération entre entreprises"
+      },
+      "parent": "3"
+    },
+    "3.45.01": {
+      "labels": {
+        "en": "Company law",
+        "fr": "Droit des sociétés"
+      },
+      "parent": "3.45"
+    },
+    "3.45.02": {
+      "labels": {
+        "en": "Small and medium-sized enterprises (SME), craft industries",
+        "fr": "Petites et moyennes entreprises (PME), artisanat"
+      },
+      "parent": "3.45"
+    },
+    "3.45.03": {
+      "labels": {
+        "en": "Financial management of undertakings, business loans, accounting",
+        "fr": "Gestion financière, prêts, comptabilité des entreprises"
+      },
+      "parent": "3.45"
+    },
+    "3.45.04": {
+      "labels": {
+        "en": "Company taxation",
+        "fr": "Fiscalité de l'entreprise"
+      },
+      "parent": "3.45"
+    },
+    "3.45.05": {
+      "labels": {
+        "en": "Business policy, e-commerce, after-sales service, commercial distribution",
+        "fr": "Politique de l'entreprise, commerce électronique, service après-vente, distribution "
+      },
+      "parent": "3.45"
+    },
+    "3.45.06": {
+      "labels": {
+        "en": "Entrepreneurship, liberal professions",
+        "fr": "Entrepreneuriat, professions libérales"
+      },
+      "parent": "3.45"
+    },
+    "3.45.07": {
+      "labels": {
+        "en": "Social economy, mutual societies, cooperatives, associations",
+        "fr": "Economie sociale, mutuelles, coopératives"
+      },
+      "parent": "3.45"
+    },
+    "3.45.08": {
+      "labels": {
+        "en": "Business environment, reduction of the administrative burdens",
+        "fr": "Environnement des entreprises, réduction des charges administratives"
+      },
+      "parent": "3.45"
+    },
+    "3.45.20": {
+      "labels": {
+        "en": "Business statistics",
+        "fr": "Statistiques sur les entreprises"
+      },
+      "parent": "3.45"
+    },
+    "3.50": {
+      "labels": {
+        "en": "Research and technological development and space",
+        "fr": "Recherche et développement technologique et espace"
+      },
+      "parent": "3"
+    },
+    "3.50.01": {
+      "labels": {
+        "en": "European research area and policy",
+        "fr": "Politique et espace européen de la recherche"
+      },
+      "parent": "3.50"
+    },
+    "3.50.01.05": {
+      "labels": {
+        "en": "Research specific areas",
+        "fr": "Secteurs spécifiques de la recherche"
+      },
+      "parent": "3.50.01"
+    },
+    "3.50.02": {
+      "labels": {
+        "en": "Framework programme and research programmes",
+        "fr": "Programme-cadre et programmes de recherche"
+      },
+      "parent": "3.50"
+    },
+    "3.50.02.01": {
+      "labels": {
+        "en": "EC, EU framework programme ",
+        "fr": "Programme-cadre CE, UE"
+      },
+      "parent": "3.50.02"
+    },
+    "3.50.02.02": {
+      "labels": {
+        "en": "Euratom framework programme, research and training programmes",
+        "fr": "Programme-cadre Euratom, programmes de recherche et de formation"
+      },
+      "parent": "3.50.02"
+    },
+    "3.50.02.03": {
+      "labels": {
+        "en": "Framework programme and research programme for Coal and Steel ",
+        "fr": "Programme-cadre et programmes de recherche pour le charbon et l'acier"
+      },
+      "parent": "3.50.02"
+    },
+    "3.50.03": {
+      "labels": {
+        "en": "European space policy",
+        "fr": "Politique spatiale européenne"
+      },
+      "parent": "3.50"
+    },
+    "3.50.04": {
+      "labels": {
+        "en": "Innovation",
+        "fr": "Innovation"
+      },
+      "parent": "3.50"
+    },
+    "3.50.06": {
+      "labels": {
+        "en": "Research staff, researchers",
+        "fr": "Personnel de la recherche, chercheurs"
+      },
+      "parent": "3.50"
+    },
+    "3.50.08": {
+      "labels": {
+        "en": "New technologies; biotechnology",
+        "fr": "Nouvelles technologies; biotechnologie"
+      },
+      "parent": "3.50"
+    },
+    "3.50.15": {
+      "labels": {
+        "en": "Intellectual property, copyright ",
+        "fr": "Propriété intellectuelle, droits d'auteur"
+      },
+      "parent": "3.50"
+    },
+    "3.50.16": {
+      "labels": {
+        "en": "Industrial property, European patent, Community patent, design and pattern",
+        "fr": "Propriété industrielle, brevet européen et communautaire, dessin et modèle"
+      },
+      "parent": "3.50"
+    },
+    "3.50.20": {
+      "labels": {
+        "en": "Scientific and technological cooperation and agreements",
+        "fr": "Coopération et accords scientifiques et technologiques"
+      },
+      "parent": "3.50"
+    },
+    "3.60": {
+      "labels": {
+        "en": "Energy policy",
+        "fr": "Politique de l'énergie"
+      },
+      "parent": "3"
+    },
+    "3.60.01": {
+      "labels": {
+        "en": "Solid fuels, coal mining, mining industry",
+        "fr": "Combustibles solides, charbonnages, industrie minière"
+      },
+      "parent": "3.60"
+    },
+    "3.60.02": {
+      "labels": {
+        "en": "Oil industry, motor fuels",
+        "fr": "Industrie pétrolière, carburants"
+      },
+      "parent": "3.60"
+    },
+    "3.60.03": {
+      "labels": {
+        "en": "Gas, electricity, natural gas, biogas",
+        "fr": "Gaz, électricité, gaz naturel, biogaz"
+      },
+      "parent": "3.60"
+    },
+    "3.60.04": {
+      "labels": {
+        "en": "Nuclear energy, industry and safety",
+        "fr": "Energie, industrie et sécurité nucléaire"
+      },
+      "parent": "3.60"
+    },
+    "3.60.05": {
+      "labels": {
+        "en": "Alternative and renewable energies",
+        "fr": "Energies douces et renouvelables"
+      },
+      "parent": "3.60"
+    },
+    "3.60.06": {
+      "labels": {
+        "en": "Trans-European energy networks",
+        "fr": "Réseaux transeuropéens d'énergie"
+      },
+      "parent": "3.60"
+    },
+    "3.60.08": {
+      "labels": {
+        "en": "Energy efficiency",
+        "fr": "Efficacité énergétique"
+      },
+      "parent": "3.60"
+    },
+    "3.60.10": {
+      "labels": {
+        "en": "Security of energy supply",
+        "fr": "Sécurité de l'approvisionnement énergétique"
+      },
+      "parent": "3.60"
+    },
+    "3.60.12": {
+      "labels": {
+        "en": "Energy statistics",
+        "fr": "Statistiques de l'énergie"
+      },
+      "parent": "3.60"
+    },
+    "3.60.15": {
+      "labels": {
+        "en": "Cooperation and agreements for energy",
+        "fr": "Coopération et accords en matière d'énergie"
+      },
+      "parent": "3.60"
+    },
+    "3.70": {
+      "labels": {
+        "en": "Environmental policy",
+        "fr": "Politique de l'environnement"
+      },
+      "parent": "3"
+    },
+    "3.70.01": {
+      "labels": {
+        "en": "Protection of natural resources: fauna, flora, nature, wildlife, countryside; biodiversity",
+        "fr": "Protection des ressources naturelles: faune, flore, vie sauvage, paysage; biodiversité "
+      },
+      "parent": "3.70"
+    },
+    "3.70.02": {
+      "labels": {
+        "en": "Atmospheric pollution, motor vehicle pollution",
+        "fr": "Pollution atmosphérique, pollution automobile"
+      },
+      "parent": "3.70"
+    },
+    "3.70.03": {
+      "labels": {
+        "en": "Climate policy, climate change, ozone layer",
+        "fr": "Politique climatique, changement climatique, couche d'ozone"
+      },
+      "parent": "3.70"
+    },
+    "3.70.04": {
+      "labels": {
+        "en": "Water control and management, pollution of waterways, water pollution",
+        "fr": "Gestion des eaux, pollution de l'eau, des cours d'eau"
+      },
+      "parent": "3.70"
+    },
+    "3.70.05": {
+      "labels": {
+        "en": "Marine and coastal pollution, pollution from ships, oil pollution",
+        "fr": "Pollution marine et côtière, pollution par les navires et les hydrocarbures"
+      },
+      "parent": "3.70"
+    },
+    "3.70.06": {
+      "labels": {
+        "en": "Soil pollution, deterioration",
+        "fr": "Pollution du sol, dégradation"
+      },
+      "parent": "3.70"
+    },
+    "3.70.07": {
+      "labels": {
+        "en": "Noise pollution",
+        "fr": "Pollution acoustique, bruit"
+      },
+      "parent": "3.70"
+    },
+    "3.70.08": {
+      "labels": {
+        "en": "Radioactive pollution",
+        "fr": "Pollution radioactive"
+      },
+      "parent": "3.70"
+    },
+    "3.70.09": {
+      "labels": {
+        "en": "Transfrontier pollution",
+        "fr": "Pollution transfrontière"
+      },
+      "parent": "3.70"
+    },
+    "3.70.10": {
+      "labels": {
+        "en": "Man-made disasters, industrial pollution and accidents",
+        "fr": "Catastrophes d'origine humaine, pollution et accidents industriels"
+      },
+      "parent": "3.70"
+    },
+    "3.70.11": {
+      "labels": {
+        "en": "Natural disasters, Solidarity Fund",
+        "fr": "Catastrophes naturelles, Fonds de solidarité"
+      },
+      "parent": "3.70"
+    },
+    "3.70.12": {
+      "labels": {
+        "en": "Waste management, domestic waste, packaging, light industrial waste",
+        "fr": "Gestion des déchets, déchets ménagers, emballages, déchets industriels légers"
+      },
+      "parent": "3.70"
+    },
+    "3.70.13": {
+      "labels": {
+        "en": "Dangerous substances, toxic and radioactive wastes (storage, transport)",
+        "fr": "Substances dangereuses, déchets toxiques et radioactifs (stockage, transport)"
+      },
+      "parent": "3.70"
+    },
+    "3.70.15": {
+      "labels": {
+        "en": "Environmental taxation",
+        "fr": "Fiscalité de l'environnement"
+      },
+      "parent": "3.70"
+    },
+    "3.70.16": {
+      "labels": {
+        "en": "Law and environment, liability",
+        "fr": "Droit et environnement, responsabilité pénale"
+      },
+      "parent": "3.70"
+    },
+    "3.70.17": {
+      "labels": {
+        "en": "European ecolabel and ecolabelling, ecodesign",
+        "fr": "Label et étiquetage écologique européen, écoconception"
+      },
+      "parent": "3.70"
+    },
+    "3.70.18": {
+      "labels": {
+        "en": "International and regional environment protection measures and agreements",
+        "fr": "Mesures et accords internationales et régionales pour la protection de l'environnement"
+      },
+      "parent": "3.70"
+    },
+    "3.70.20": {
+      "labels": {
+        "en": "Sustainable development",
+        "fr": "Développement durable"
+      },
+      "parent": "3.70"
+    },
+    "4": {
+      "labels": {
+        "en": "Economic, social and territorial cohesion",
+        "fr": "Cohésion économique, sociale et territoriale"
+      },
+      "parent": null
+    },
+    "4.10": {
+      "labels": {
+        "en": "Social policy, social charter and protocol",
+        "fr": "Politique sociale, charte et protocole social"
+      },
+      "parent": "4"
+    },
+    "4.10.02": {
+      "labels": {
+        "en": "Family policy, family law, parental leave",
+        "fr": "Politique et droit de la famille, congé parental"
+      },
+      "parent": "4.10"
+    },
+    "4.10.03": {
+      "labels": {
+        "en": "Child protection, children's rights",
+        "fr": "Protection de l'enfance, droits des enfants"
+      },
+      "parent": "4.10"
+    },
+    "4.10.04": {
+      "labels": {
+        "en": "Gender equality",
+        "fr": "Egalité des genres"
+      },
+      "parent": "4.10"
+    },
+    "4.10.04.01": {
+      "labels": {
+        "en": "Programmes and actions for gender equality",
+        "fr": "Programmes et actions en matière d'égalité des genres"
+      },
+      "parent": "4.10.04"
+    },
+    "4.10.05": {
+      "labels": {
+        "en": "Social inclusion, poverty, minimum income",
+        "fr": "Inclusion sociale, pauvreté, revenu minimum"
+      },
+      "parent": "4.10"
+    },
+    "4.10.06": {
+      "labels": {
+        "en": "People with disabilities",
+        "fr": "Personnes handicapées"
+      },
+      "parent": "4.10"
+    },
+    "4.10.07": {
+      "labels": {
+        "en": "The elderly",
+        "fr": "Personnes agées"
+      },
+      "parent": "4.10"
+    },
+    "4.10.08": {
+      "labels": {
+        "en": "Equal treatment of persons, non-discrimination",
+        "fr": "Egalité de traitement des personnes, anti-discrimination"
+      },
+      "parent": "4.10"
+    },
+    "4.10.09": {
+      "labels": {
+        "en": "Women condition and rights",
+        "fr": "Condition et droits de la femme"
+      },
+      "parent": "4.10"
+    },
+    "4.10.10": {
+      "labels": {
+        "en": "Social protection, social security",
+        "fr": "Protection social, sécurité sociale"
+      },
+      "parent": "4.10"
+    },
+    "4.10.11": {
+      "labels": {
+        "en": "Retirement, pensions",
+        "fr": "Retraites, pensions"
+      },
+      "parent": "4.10"
+    },
+    "4.10.12": {
+      "labels": {
+        "en": "Housing policy",
+        "fr": "Politique du logement"
+      },
+      "parent": "4.10"
+    },
+    "4.10.13": {
+      "labels": {
+        "en": "Sport",
+        "fr": "Sports"
+      },
+      "parent": "4.10"
+    },
+    "4.10.14": {
+      "labels": {
+        "en": "Demography",
+        "fr": "Démographie"
+      },
+      "parent": "4.10"
+    },
+    "4.10.15": {
+      "labels": {
+        "en": "European Social Fund (ESF), Fund for European Aid to the Most Deprived (FEAD)",
+        "fr": "Fonds social européen (FSE), Fonds européen d’aide aux plus démunis (FEAD)"
+      },
+      "parent": "4.10"
+    },
+    "4.10.16": {
+      "labels": {
+        "en": "Social and community life, associations, foundations",
+        "fr": "Vie sociale et associative, associations, fondations"
+      },
+      "parent": "4.10"
+    },
+    "4.10.25": {
+      "labels": {
+        "en": "Social problems: delinquency, violence, crime",
+        "fr": "Problèmes sociaux: délinquance, violence, criminalité"
+      },
+      "parent": "4.10"
+    },
+    "4.15": {
+      "labels": {
+        "en": "Employment policy, action to combat unemployment",
+        "fr": "Politique de l'emploi, lutte contre le chomage"
+      },
+      "parent": "4"
+    },
+    "4.15.02": {
+      "labels": {
+        "en": "Employment: guidelines, actions, Funds",
+        "fr": "Lignes directrices, actions, fonds pour l'emploi"
+      },
+      "parent": "4.15"
+    },
+    "4.15.03": {
+      "labels": {
+        "en": "Arrangement of working time, work schedules ",
+        "fr": "Aménagement du temps de travail, horaires "
+      },
+      "parent": "4.15"
+    },
+    "4.15.04": {
+      "labels": {
+        "en": "Workforce, occupational mobility, job conversion, working conditions",
+        "fr": "Main-d'oeuvre, mobilité et conversion professionnelles, conditions de travail "
+      },
+      "parent": "4.15"
+    },
+    "4.15.05": {
+      "labels": {
+        "en": "Industrial restructuring, job losses, redundancies, relocations, Globalisation Adjustment Fund (EGF)",
+        "fr": "Restructurations industrielles, délocalisations et licenciements, Fonds européen d'ajustement à la mondialisation (FEM)"
+      },
+      "parent": "4.15"
+    },
+    "4.15.06": {
+      "labels": {
+        "en": "Professional qualifications, recognition of qualifications",
+        "fr": "Qualifications professionnelles, reconnaissance des qualifications "
+      },
+      "parent": "4.15"
+    },
+    "4.15.08": {
+      "labels": {
+        "en": "Work, employment, wages and salaries: equal opportunities women and men, and for all",
+        "fr": "Travail, emploi et salaire: égalité homme femme et entre les personnes "
+      },
+      "parent": "4.15"
+    },
+    "4.15.10": {
+      "labels": {
+        "en": "Worker information, participation, trade unions, works councils",
+        "fr": "Information, participation des travailleurs, syndicats, comités d'entreprise "
+      },
+      "parent": "4.15"
+    },
+    "4.15.12": {
+      "labels": {
+        "en": "Workers protection and rights, labour law",
+        "fr": "Protection et droits des travailleurs, droit du travail "
+      },
+      "parent": "4.15"
+    },
+    "4.15.14": {
+      "labels": {
+        "en": "Social dialogue, social partners",
+        "fr": "Dialogue social, partenaires sociaux"
+      },
+      "parent": "4.15"
+    },
+    "4.15.15": {
+      "labels": {
+        "en": "Health and safety at work, occupational medicine",
+        "fr": "Santé et sécurité au travail, médecine"
+      },
+      "parent": "4.15"
+    },
+    "4.20": {
+      "labels": {
+        "en": "Public health",
+        "fr": "Santé publique"
+      },
+      "parent": "4"
+    },
+    "4.20.01": {
+      "labels": {
+        "en": "Medicine, diseases",
+        "fr": "Médecine, maladies"
+      },
+      "parent": "4.20"
+    },
+    "4.20.02": {
+      "labels": {
+        "en": "Medical research",
+        "fr": "Recherche médicale"
+      },
+      "parent": "4.20"
+    },
+    "4.20.02.04": {
+      "labels": {
+        "en": "Genetics and bioethics",
+        "fr": "Génie génétique et bioéthique"
+      },
+      "parent": "4.20.02"
+    },
+    "4.20.02.06": {
+      "labels": {
+        "en": "Clinical practice and experiments",
+        "fr": "Essais et expérimentation"
+      },
+      "parent": "4.20.02"
+    },
+    "4.20.03": {
+      "labels": {
+        "en": "Drug addiction, alcoholism, smoking",
+        "fr": "Toxicomanie, alcoolisme et tabagisme"
+      },
+      "parent": "4.20"
+    },
+    "4.20.04": {
+      "labels": {
+        "en": "Pharmaceutical products and industry",
+        "fr": "Produits et industrie pharmaceutiques"
+      },
+      "parent": "4.20"
+    },
+    "4.20.04.02": {
+      "labels": {
+        "en": "Safety of blood and  transfusion",
+        "fr": "Sécurité du sang et de la transfusion sanguine"
+      },
+      "parent": "4.20.04"
+    },
+    "4.20.05": {
+      "labels": {
+        "en": "Health legislation and policy",
+        "fr": "Législation et police sanitaire"
+      },
+      "parent": "4.20"
+    },
+    "4.20.06": {
+      "labels": {
+        "en": "Health services, medical institutions",
+        "fr": "Services de santé, établissements hospitaliers"
+      },
+      "parent": "4.20"
+    },
+    "4.20.07": {
+      "labels": {
+        "en": "Medical and para-medical professions",
+        "fr": "Professions médicales et paramédicales"
+      },
+      "parent": "4.20"
+    },
+    "4.30": {
+      "labels": {
+        "en": "Civil protection",
+        "fr": "Protection civile"
+      },
+      "parent": "4"
+    },
+    "4.40": {
+      "labels": {
+        "en": "Education, vocational training and youth",
+        "fr": "Education, formation professionnelle et jeunesse"
+      },
+      "parent": "4"
+    },
+    "4.40.01": {
+      "labels": {
+        "en": "European area for education, training and lifelong learning ",
+        "fr": "Espace européen de l'éducation et de la formation tout au long de la vie"
+      },
+      "parent": "4.40"
+    },
+    "4.40.03": {
+      "labels": {
+        "en": "Primary and secondary school, European Schools, early childhood ",
+        "fr": "Education scolaire primaire et secondaire, écoles européennes, petite enfance "
+      },
+      "parent": "4.40"
+    },
+    "4.40.04": {
+      "labels": {
+        "en": "Universities, higher education ",
+        "fr": "Enseignement supérieur, universités"
+      },
+      "parent": "4.40"
+    },
+    "4.40.06": {
+      "labels": {
+        "en": "Teachers, trainers, pupils, students",
+        "fr": "Enseignants, formateurs, élèves, étudiants"
+      },
+      "parent": "4.40"
+    },
+    "4.40.07": {
+      "labels": {
+        "en": "Recognition of diplomas, equivalence of studies and training",
+        "fr": "Reconnaissance des diplômes, équivalence des formations d'études"
+      },
+      "parent": "4.40"
+    },
+    "4.40.08": {
+      "labels": {
+        "en": "Language learning, regional and local languages",
+        "fr": "Apprentissage des langues, langues régionales et locales "
+      },
+      "parent": "4.40"
+    },
+    "4.40.10": {
+      "labels": {
+        "en": "Youth",
+        "fr": "Jeunesse "
+      },
+      "parent": "4.40"
+    },
+    "4.40.15": {
+      "labels": {
+        "en": "Vocational education and training",
+        "fr": "Enseignement et formation professionnelle"
+      },
+      "parent": "4.40"
+    },
+    "4.40.20": {
+      "labels": {
+        "en": "Cooperation and agreements in the fields of education, training and youth",
+        "fr": "Coopération et accords pour l'éducation, la formation et la jeunesse"
+      },
+      "parent": "4.40"
+    },
+    "4.45": {
+      "labels": {
+        "en": "Common cultural area, cultural diversity",
+        "fr": "Espace culturel commun, diversité culturelle"
+      },
+      "parent": "4"
+    },
+    "4.45.02": {
+      "labels": {
+        "en": "Cultural programmes and actions, assistance",
+        "fr": "Programmes, actions culturelles et soutien"
+      },
+      "parent": "4.45"
+    },
+    "4.45.06": {
+      "labels": {
+        "en": "Heritage and culture protection, movement of works of art",
+        "fr": "Patrimoine et cultures, circulation des oeuvres d'art"
+      },
+      "parent": "4.45"
+    },
+    "4.45.08": {
+      "labels": {
+        "en": "Cultural and artistic activities, books and reading, arts ",
+        "fr": "Activités artistiques et culturelles, livres et lecture, arts"
+      },
+      "parent": "4.45"
+    },
+    "4.45.10": {
+      "labels": {
+        "en": "Literary and artistic property",
+        "fr": "Propriété littéraire et artistique"
+      },
+      "parent": "4.45"
+    },
+    "4.50": {
+      "labels": {
+        "en": "Tourism",
+        "fr": "Tourisme"
+      },
+      "parent": "4"
+    },
+    "4.60": {
+      "labels": {
+        "en": "Consumers' protection in general",
+        "fr": "Protection des consommateurs, généralités"
+      },
+      "parent": "4"
+    },
+    "4.60.02": {
+      "labels": {
+        "en": "Consumer information, advertising, labelling",
+        "fr": "Information du consommateur, publicité, étiquetage"
+      },
+      "parent": "4.60"
+    },
+    "4.60.04": {
+      "labels": {
+        "en": "Consumer health",
+        "fr": "Santé du consommateur "
+      },
+      "parent": "4.60"
+    },
+    "4.60.04.02": {
+      "labels": {
+        "en": "Consumer security ",
+        "fr": "Sécurité du consommateur "
+      },
+      "parent": "4.60.04"
+    },
+    "4.60.04.04": {
+      "labels": {
+        "en": "Food safety ",
+        "fr": "Sûreté alimentaire"
+      },
+      "parent": "4.60.04"
+    },
+    "4.60.06": {
+      "labels": {
+        "en": "Consumers' economic and legal interests",
+        "fr": "Intérêts économiques et juridiques du consommateur"
+      },
+      "parent": "4.60"
+    },
+    "4.60.08": {
+      "labels": {
+        "en": "Safety of products and services, product liability",
+        "fr": "Sécurité des produits et des services, responsabilité du fait du produit"
+      },
+      "parent": "4.60"
+    },
+    "4.70": {
+      "labels": {
+        "en": "Regional policy",
+        "fr": "Politique régionale"
+      },
+      "parent": "4"
+    },
+    "4.70.01": {
+      "labels": {
+        "en": "Structural funds, investment funds in general, programmes",
+        "fr": "Fonds structurels, fonds d'investissement en général, programmes"
+      },
+      "parent": "4.70"
+    },
+    "4.70.02": {
+      "labels": {
+        "en": "Cohesion policy, Cohesion Fund (CF)",
+        "fr": "Politique de cohésion, Fonds de cohésion (FC)"
+      },
+      "parent": "4.70"
+    },
+    "4.70.03": {
+      "labels": {
+        "en": "Community initiatives, Community support frameworks",
+        "fr": "Initiatives communautaires, cadres communautaires d'appui"
+      },
+      "parent": "4.70"
+    },
+    "4.70.04": {
+      "labels": {
+        "en": "Urban policy, cities, town and country planning",
+        "fr": "Politique urbaine, villes, aménagement du territoire, urbanisme"
+      },
+      "parent": "4.70"
+    },
+    "4.70.05": {
+      "labels": {
+        "en": "Regional cooperation, cross-border cooperation",
+        "fr": "Coopération régionale, coopération transfrontalière"
+      },
+      "parent": "4.70"
+    },
+    "4.70.06": {
+      "labels": {
+        "en": "Outlying and outermost regions, overseas countries and territories",
+        "fr": "Régions périphériques et ultrapériphériques, territoires et pays d'outre-mer"
+      },
+      "parent": "4.70"
+    },
+    "4.70.07": {
+      "labels": {
+        "en": "European Regional Development Fund (ERDF)",
+        "fr": "Fonds européen de développement régional (FEDER)"
+      },
+      "parent": "4.70"
+    },
+    "5": {
+      "labels": {
+        "en": "Economic and monetary system",
+        "fr": "Système économique et monétaire"
+      },
+      "parent": null
+    },
+    "5.03": {
+      "labels": {
+        "en": "Global economy and globalisation",
+        "fr": "Economie mondiale et mondialisation"
+      },
+      "parent": "5"
+    },
+    "5.05": {
+      "labels": {
+        "en": "Economic growth",
+        "fr": "Croissance économique "
+      },
+      "parent": "5"
+    },
+    "5.10": {
+      "labels": {
+        "en": "Economic union",
+        "fr": "Union économique"
+      },
+      "parent": "5"
+    },
+    "5.10.01": {
+      "labels": {
+        "en": "Convergence of economic policies,  public deficit, interest rates",
+        "fr": "Convergence des politiques économiques, déficit public, taux d'interêt"
+      },
+      "parent": "5.10"
+    },
+    "5.10.02": {
+      "labels": {
+        "en": "Price policy, price stabilisation",
+        "fr": "Politique des prix, stabilité des prix"
+      },
+      "parent": "5.10"
+    },
+    "5.20": {
+      "labels": {
+        "en": "Monetary union",
+        "fr": "Union monétaire"
+      },
+      "parent": "5"
+    },
+    "5.20.01": {
+      "labels": {
+        "en": "Coordination of monetary policies, European Monetary Institute (EMI), Economic and Monetary Union (EMU)",
+        "fr": "Coordination des politiques monétaires, Institut monétaire européen (IME), Union économique et monétaire (UEM)"
+      },
+      "parent": "5.20"
+    },
+    "5.20.02": {
+      "labels": {
+        "en": "Single currency, euro, euro area",
+        "fr": "Monnaie unique, euro, zone euro"
+      },
+      "parent": "5.20"
+    },
+    "5.20.03": {
+      "labels": {
+        "en": "European Central Bank (ECB), ESCB",
+        "fr": "Banque centrale européenne (BCE), SEBC"
+      },
+      "parent": "5.20"
+    },
+    "6": {
+      "labels": {
+        "en": "External relations of the Union",
+        "fr": "Relations extérieures de l'Union"
+      },
+      "parent": null
+    },
+    "6.10": {
+      "labels": {
+        "en": "Common foreign and security policy (CFSP)",
+        "fr": "Politique étrangère et de sécurité commune (PESC)"
+      },
+      "parent": "6"
+    },
+    "6.10.01": {
+      "labels": {
+        "en": "Foreign and common diplomatic policy",
+        "fr": "Politique étrangère et diplomatique commune"
+      },
+      "parent": "6.10"
+    },
+    "6.10.02": {
+      "labels": {
+        "en": "Common security and defence policy (CSDP); WEU, NATO",
+        "fr": "Politique de sécurité et de défense commune (PSDC); UEO, OTAN"
+      },
+      "parent": "6.10"
+    },
+    "6.10.03": {
+      "labels": {
+        "en": "Armaments control, non-proliferation nuclear weapons",
+        "fr": "Contrôle des armements, non-prolifération nucléaire"
+      },
+      "parent": "6.10"
+    },
+    "6.10.04": {
+      "labels": {
+        "en": "Third-country political situation, local and regional conflicts",
+        "fr": "Situation politique des pays-tiers, conflits régionaux et locaux"
+      },
+      "parent": "6.10"
+    },
+    "6.10.05": {
+      "labels": {
+        "en": "Peace preservation, humanitarian and rescue tasks, crisis management",
+        "fr": "Maintien de la paix, missions humanitaires, gestion des crises"
+      },
+      "parent": "6.10"
+    },
+    "6.10.08": {
+      "labels": {
+        "en": "Fundamental freedoms, human rights, democracy in general",
+        "fr": "Libertés fondamentales, droits de l'homme, démocratie, état de droit en général"
+      },
+      "parent": "6.10"
+    },
+    "6.10.09": {
+      "labels": {
+        "en": "Human rights situation in the world",
+        "fr": "Situation des droits de l'homme dans le monde"
+      },
+      "parent": "6.10"
+    },
+    "6.20": {
+      "labels": {
+        "en": "Common commercial policy in general",
+        "fr": "Politique commerciale commune en général"
+      },
+      "parent": "6"
+    },
+    "6.20.01": {
+      "labels": {
+        "en": "Agreements and relations in the context of the World Trade Organization (WTO)",
+        "fr": "Accords et relations dans le cadre de l'Organisation mondiale du commerce (OMC)"
+      },
+      "parent": "6.20"
+    },
+    "6.20.02": {
+      "labels": {
+        "en": "Export/import control, trade defence, trade barriers",
+        "fr": "Contrôle des exportations/importations, défense commerciale, obstacles au commerce"
+      },
+      "parent": "6.20"
+    },
+    "6.20.03": {
+      "labels": {
+        "en": "Bilateral economic and trade agreements and relations",
+        "fr": "Accords et relations commerciales et économiques bilatérales"
+      },
+      "parent": "6.20"
+    },
+    "6.20.04": {
+      "labels": {
+        "en": "Union Customs Code, tariffs, preferential arrangements, rules of origin",
+        "fr": "Code des douanes de l'Union, tarifs douaniers, accords préférentiels, règles d'origine"
+      },
+      "parent": "6.20"
+    },
+    "6.20.05": {
+      "labels": {
+        "en": "Multilateral and plurilateral economic and trade agreements and relations",
+        "fr": "Accords et relations commerciales et économiques multilatérales et plurilatérales"
+      },
+      "parent": "6.20"
+    },
+    "6.20.06": {
+      "labels": {
+        "en": "Foreign direct investment (FDI)",
+        "fr": "Investissements étrangers directs (IED)"
+      },
+      "parent": "6.20"
+    },
+    "6.20.07": {
+      "labels": {
+        "en": "Macro-financial assistance to third countries",
+        "fr": "Assistance macrofinancière aux pays tiers"
+      },
+      "parent": "6.20"
+    },
+    "6.30": {
+      "labels": {
+        "en": "Development cooperation",
+        "fr": "Coopération au développement"
+      },
+      "parent": "6"
+    },
+    "6.30.01": {
+      "labels": {
+        "en": "Generalised scheme of tariff preferences (GSP), rules of origin",
+        "fr": "Système de préférences tarifaires généralisées (SPG), règles d'origine"
+      },
+      "parent": "6.30"
+    },
+    "6.30.02": {
+      "labels": {
+        "en": "Financial and technical cooperation and assistance",
+        "fr": "Assistance et coopération financière et technique"
+      },
+      "parent": "6.30"
+    },
+    "6.30.03": {
+      "labels": {
+        "en": "European Development Fund (EDF)",
+        "fr": "Fonds européen de développement (FED)"
+      },
+      "parent": "6.30"
+    },
+    "6.30.04": {
+      "labels": {
+        "en": "Loans to third-countries, Guarantee Fund",
+        "fr": "Prêts en faveur des pays-tiers, Fonds de garantie"
+      },
+      "parent": "6.30"
+    },
+    "6.40": {
+      "labels": {
+        "en": "Relations with third countries",
+        "fr": "Relations avec les pays tiers"
+      },
+      "parent": "6"
+    },
+    "6.40.01": {
+      "labels": {
+        "en": "Relations with EEA/EFTA countries",
+        "fr": "Relations avec les pays de l'EEE/AELE"
+      },
+      "parent": "6.40"
+    },
+    "6.40.02": {
+      "labels": {
+        "en": "Relations with central and eastern Europe",
+        "fr": "Relations avec l'Europe centrale et orientale"
+      },
+      "parent": "6.40"
+    },
+    "6.40.02.02": {
+      "labels": {
+        "en": "Relations with northern Europe and the Baltic States",
+        "fr": "Relations avec l'Europe du nord et les pays baltes"
+      },
+      "parent": "6.40.02"
+    },
+    "6.40.03": {
+      "labels": {
+        "en": "Relations with South-East Europe and the Balkans",
+        "fr": "Relations avec l'Europe du Sud-est et les Balkans"
+      },
+      "parent": "6.40"
+    },
+    "6.40.04": {
+      "labels": {
+        "en": "Relations with the Commonwealth of Independent States (CIS)",
+        "fr": "Relations avec la Communauté des États indépendants (CEI)"
+      },
+      "parent": "6.40"
+    },
+    "6.40.04.02": {
+      "labels": {
+        "en": "Relations with Russian Federation",
+        "fr": "Relations avec la Fédération de Russie "
+      },
+      "parent": "6.40.04"
+    },
+    "6.40.04.04": {
+      "labels": {
+        "en": "Relations with Caucasus countries",
+        "fr": "Relations avec les pays du Caucase"
+      },
+      "parent": "6.40.04"
+    },
+    "6.40.04.06": {
+      "labels": {
+        "en": "Relations with central Asian countries",
+        "fr": "Relations avec les pays d'Asie centrale"
+      },
+      "parent": "6.40.04"
+    },
+    "6.40.05": {
+      "labels": {
+        "en": "Relations with the Mediterranean and southern European countries",
+        "fr": "Relations avec les pays de la Méditerranée et de l'Europe méridionale"
+      },
+      "parent": "6.40"
+    },
+    "6.40.05.01": {
+      "labels": {
+        "en": "Relations with Southern European countries",
+        "fr": "Relations avec les pays d'Europe méridionale"
+      },
+      "parent": "6.40.05"
+    },
+    "6.40.05.02": {
+      "labels": {
+        "en": "Relations with the countries of the Great Maghreb and Maghreb",
+        "fr": "Relations avec les pays du Grand Maghreb et du Maghreb"
+      },
+      "parent": "6.40.05"
+    },
+    "6.40.05.04": {
+      "labels": {
+        "en": "Relations with the countries of the Mashreq",
+        "fr": "Relations avec les pays du Machrek"
+      },
+      "parent": "6.40.05"
+    },
+    "6.40.05.06": {
+      "labels": {
+        "en": "Relations with the countries of the Middle East",
+        "fr": "Relations avec les pays du Proche et Moyen Orient"
+      },
+      "parent": "6.40.05"
+    },
+    "6.40.05.08": {
+      "labels": {
+        "en": "Relations with Türkiye",
+        "fr": "Relations avec la Turquie"
+      },
+      "parent": "6.40.05"
+    },
+    "6.40.06": {
+      "labels": {
+        "en": "Relations with ACP countries, conventions and generalities",
+        "fr": "Relations avec les pays ACP, conventions et généralités"
+      },
+      "parent": "6.40"
+    },
+    "6.40.07": {
+      "labels": {
+        "en": "Relations with African countries",
+        "fr": "Relations avec les pays d'Afrique"
+      },
+      "parent": "6.40"
+    },
+    "6.40.08": {
+      "labels": {
+        "en": "Relations with Asian countries",
+        "fr": "Relations avec les pays d'Asie"
+      },
+      "parent": "6.40"
+    },
+    "6.40.09": {
+      "labels": {
+        "en": "Relations with Oceanian countries",
+        "fr": "Relations avec les pays d'Océanie"
+      },
+      "parent": "6.40"
+    },
+    "6.40.10": {
+      "labels": {
+        "en": "Relations with Latin America, Central America, Caribbean islands",
+        "fr": "Relations avec les pays d'Amérique Latine, Amérique centrale, Caraïbes"
+      },
+      "parent": "6.40"
+    },
+    "6.40.11": {
+      "labels": {
+        "en": "Relations with industrialised countries",
+        "fr": "Relations avec les pays industrialisés"
+      },
+      "parent": "6.40"
+    },
+    "6.40.12": {
+      "labels": {
+        "en": "Relations with developing countries in general",
+        "fr": "Relations avec les pays en développement en général"
+      },
+      "parent": "6.40"
+    },
+    "6.40.13": {
+      "labels": {
+        "en": "Relations with/in the context of international organisations: UN, OSCE, OECD, Council of Europe, EBRD",
+        "fr": "Relations dans le cadre/avec les organisations internationales: ONU, OSCE, OCDE, Conseil de l'Europe, BERD"
+      },
+      "parent": "6.40"
+    },
+    "6.40.14": {
+      "labels": {
+        "en": "Relations with non-governmental organisations, NGOs",
+        "fr": "Relations avec les organisations non-gouvernementales,ONG"
+      },
+      "parent": "6.40"
+    },
+    "6.40.15": {
+      "labels": {
+        "en": "European neighbourhood policy",
+        "fr": "Politique européenne de voisinage"
+      },
+      "parent": "6.40"
+    },
+    "6.40.16": {
+      "labels": {
+        "en": "Relations with/in the context of international financial organisations: World Bank, IBRD, IMF",
+        "fr": "Relations avec/dans le cadre les organisations financières internationales: Banque mondiale, BIRD, FMI"
+      },
+      "parent": "6.40"
+    },
+    "6.40.17": {
+      "labels": {
+        "en": "Relations with BRIC countries",
+        "fr": "Rélations avec les pays BRIC"
+      },
+      "parent": "6.40"
+    },
+    "6.50": {
+      "labels": {
+        "en": "Emergency, food, humanitarian aid, aid to refugees, Emergency Aid Reserve",
+        "fr": "Aide d'urgence, alimentaire, humanitaire, aux réfugiés, Réserve d'aide d'urgence"
+      },
+      "parent": "6"
+    },
+    "7": {
+      "labels": {
+        "en": "Area of freedom, security and justice",
+        "fr": "Espace de liberté, de sécurité et de justice"
+      },
+      "parent": null
+    },
+    "7.10": {
+      "labels": {
+        "en": "Free movement and integration of third-country nationals",
+        "fr": "Libre circulation et intégration des ressortissants des pays-tiers"
+      },
+      "parent": "7"
+    },
+    "7.10.02": {
+      "labels": {
+        "en": "Schengen area, Schengen acquis",
+        "fr": "Espace Schengen, acquis de Schengen"
+      },
+      "parent": "7.10"
+    },
+    "7.10.04": {
+      "labels": {
+        "en": "External borders crossing and controls, visas",
+        "fr": "Franchissement et contrôles aux frontières extérieures, visas"
+      },
+      "parent": "7.10"
+    },
+    "7.10.06": {
+      "labels": {
+        "en": "Asylum, refugees, displaced persons; Asylum, Migration and Integration Fund (AMIF)",
+        "fr": "Asile, réfugiés, personnes déplacées; Fonds «Asile, migration et intégration» (AMIF)"
+      },
+      "parent": "7.10"
+    },
+    "7.10.08": {
+      "labels": {
+        "en": "Migration policy",
+        "fr": "Politique d'immigration"
+      },
+      "parent": "7.10"
+    },
+    "7.30": {
+      "labels": {
+        "en": "Police, judicial and customs cooperation in general",
+        "fr": "Coopération policière, judiciaire et douanière en général"
+      },
+      "parent": "7"
+    },
+    "7.30.02": {
+      "labels": {
+        "en": "Customs cooperation",
+        "fr": "Coopération douanière"
+      },
+      "parent": "7.30"
+    },
+    "7.30.05": {
+      "labels": {
+        "en": "Police cooperation",
+        "fr": "Coopération policière"
+      },
+      "parent": "7.30"
+    },
+    "7.30.05.01": {
+      "labels": {
+        "en": "Europol, CEPOL",
+        "fr": "Europol, CEPOL"
+      },
+      "parent": "7.30.05"
+    },
+    "7.30.08": {
+      "labels": {
+        "en": "Action to combat racism and xenophobia",
+        "fr": "Lutte contre le racisme et la xénophobie"
+      },
+      "parent": "7.30"
+    },
+    "7.30.09": {
+      "labels": {
+        "en": "Public security",
+        "fr": "Sécurité publique"
+      },
+      "parent": "7.30"
+    },
+    "7.30.12": {
+      "labels": {
+        "en": "Control of personal weapons and ammunitions",
+        "fr": "Contrôle des armes personnelles et des munitions"
+      },
+      "parent": "7.30"
+    },
+    "7.30.20": {
+      "labels": {
+        "en": "Action to combat terrorism ",
+        "fr": "Lutte contre le terrorisme"
+      },
+      "parent": "7.30"
+    },
+    "7.30.30": {
+      "labels": {
+        "en": "Action to combat crime",
+        "fr": "Lutte contre la criminalité"
+      },
+      "parent": "7.30"
+    },
+    "7.30.30.02": {
+      "labels": {
+        "en": "Action to combat violence, trafficking in human beings and migrant smuggling",
+        "fr": "Lutte contre la violence, la traite des êtres humains et le trafic de migrants"
+      },
+      "parent": "7.30.30"
+    },
+    "7.30.30.04": {
+      "labels": {
+        "en": "Action to combat drugs and drug-trafficking ",
+        "fr": "Lutte contre les drogues et le trafic de drogues"
+      },
+      "parent": "7.30.30"
+    },
+    "7.30.30.06": {
+      "labels": {
+        "en": "Action to combat economic fraud and corruption",
+        "fr": "Lutte contre la fraude économique et corruption"
+      },
+      "parent": "7.30.30"
+    },
+    "7.30.30.08": {
+      "labels": {
+        "en": "Capital outflow, money laundering ",
+        "fr": "Evasion et blanchiment des capitaux"
+      },
+      "parent": "7.30.30"
+    },
+    "7.30.30.10": {
+      "labels": {
+        "en": "Action against counterfeiting ",
+        "fr": "Lutte contre la contrefaçon"
+      },
+      "parent": "7.30.30"
+    },
+    "7.40": {
+      "labels": {
+        "en": "Judicial cooperation",
+        "fr": "Coopération judiciaire"
+      },
+      "parent": "7"
+    },
+    "7.40.02": {
+      "labels": {
+        "en": "Judicial cooperation in civil and commercial matters",
+        "fr": "Coopération judiciaire en matière civile et commerciale"
+      },
+      "parent": "7.40"
+    },
+    "7.40.04": {
+      "labels": {
+        "en": "Judicial cooperation in criminal matters",
+        "fr": "Coopération judiciaire en matière pénale"
+      },
+      "parent": "7.40"
+    },
+    "7.90": {
+      "labels": {
+        "en": "Justice and home affairs",
+        "fr": "Justice et affaires intérieures"
+      },
+      "parent": "7"
+    },
+    "8": {
+      "labels": {
+        "en": "State and evolution of the Union",
+        "fr": "Etat et évolution de l'Union"
+      },
+      "parent": null
+    },
+    "8.10": {
+      "labels": {
+        "en": "Revision of the Treaties, intergovernmental conferences",
+        "fr": "Révision des Traités, conférences intergouvernementales"
+      },
+      "parent": "8"
+    },
+    "8.20": {
+      "labels": {
+        "en": "Enlargement of the Union",
+        "fr": "Elargissement de l'Union"
+      },
+      "parent": "8"
+    },
+    "8.20.01": {
+      "labels": {
+        "en": "Candidate countries",
+        "fr": "Pays candidats"
+      },
+      "parent": "8.20"
+    },
+    "8.20.02": {
+      "labels": {
+        "en": "Enlargement 2004: new Member States",
+        "fr": "Elargissement 2004: nouveaux États membres"
+      },
+      "parent": "8.20"
+    },
+    "8.20.03": {
+      "labels": {
+        "en": "Enlargement 2007: Bulgaria and Romania",
+        "fr": "Elargissement 2007: Bulgarie et Roumanie"
+      },
+      "parent": "8.20"
+    },
+    "8.20.04": {
+      "labels": {
+        "en": "Pre-accession and partnership",
+        "fr": "Pré-adhésion et partenariat"
+      },
+      "parent": "8.20"
+    },
+    "8.20.06": {
+      "labels": {
+        "en": "Institutional reform and enlargement",
+        "fr": "Réforme institutionnelle et élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.08": {
+      "labels": {
+        "en": "Enlargement's economic and monetary point of view",
+        "fr": "Volet économique et monétaire et élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.12": {
+      "labels": {
+        "en": "Enlargement's agricultural point of view",
+        "fr": "Volet agricole de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.13": {
+      "labels": {
+        "en": "Enlargement's fisheries point of view",
+        "fr": "Volet pêche de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.16": {
+      "labels": {
+        "en": "Enlargement's transport point of view",
+        "fr": "Volet transport de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.17": {
+      "labels": {
+        "en": "Industry, research, energy and enlargement",
+        "fr": "Industrie, recherche, énergie et élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.18": {
+      "labels": {
+        "en": "Enlargement's environment point of view",
+        "fr": "Volet environnement de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.19": {
+      "labels": {
+        "en": "Enlargement's consumer point of view",
+        "fr": "Volet consommateur de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.20": {
+      "labels": {
+        "en": "Enlargement's employment and social point of view",
+        "fr": "Volet social et emploi et élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.24": {
+      "labels": {
+        "en": "Tourism, culture and enlargement",
+        "fr": "Tourisme, culture et élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.26": {
+      "labels": {
+        "en": "Enlargement's regional point of view",
+        "fr": "Volet régional de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.28": {
+      "labels": {
+        "en": "Structural funds and instruments",
+        "fr": "Fonds et instruments structurels"
+      },
+      "parent": "8.20"
+    },
+    "8.20.32": {
+      "labels": {
+        "en": "Justice JHA and enlargement",
+        "fr": "Justice JAI et élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.20.40": {
+      "labels": {
+        "en": "Enlargement's financial point of view",
+        "fr": "Volet financier de l'élargissement"
+      },
+      "parent": "8.20"
+    },
+    "8.30": {
+      "labels": {
+        "en": "Treaties in general",
+        "fr": "Traités en général"
+      },
+      "parent": "8"
+    },
+    "8.30.10": {
+      "labels": {
+        "en": "Principles common to the Member States, EU values",
+        "fr": "Principes communs aux États membres, valeurs de l'UE"
+      },
+      "parent": "8.30"
+    },
+    "8.40": {
+      "labels": {
+        "en": "Institutions of the Union",
+        "fr": "Institutions de l'Union"
+      },
+      "parent": "8"
+    },
+    "8.40.01": {
+      "labels": {
+        "en": "European Parliament",
+        "fr": "Parlement européen"
+      },
+      "parent": "8.40"
+    },
+    "8.40.01.01": {
+      "labels": {
+        "en": "Elections, direct universal suffrage",
+        "fr": "Elections, suffrage universel direct"
+      },
+      "parent": "8.40.01"
+    },
+    "8.40.01.02": {
+      "labels": {
+        "en": "President, members, mandates, political groups",
+        "fr": "Présidence, députés, mandats, groupes politiques"
+      },
+      "parent": "8.40.01"
+    },
+    "8.40.01.03": {
+      "labels": {
+        "en": "Members' immunity ",
+        "fr": "Immunité des députés "
+      },
+      "parent": "8.40.01"
+    },
+    "8.40.01.06": {
+      "labels": {
+        "en": "Committees, interparliamentary delegations",
+        "fr": "Commissions, délégations interparlementaires"
+      },
+      "parent": "8.40.01"
+    },
+    "8.40.01.08": {
+      "labels": {
+        "en": "Business of Parliament, procedure, sittings, rules of procedure",
+        "fr": "Travaux du Parlement, procédure, sessions, règlement"
+      },
+      "parent": "8.40.01"
+    },
+    "8.40.02": {
+      "labels": {
+        "en": "Council of the Union",
+        "fr": "Conseil de l'Union"
+      },
+      "parent": "8.40"
+    },
+    "8.40.03": {
+      "labels": {
+        "en": "European Commission",
+        "fr": "Commission européenne"
+      },
+      "parent": "8.40"
+    },
+    "8.40.04": {
+      "labels": {
+        "en": "Court of Justice, Court of First Instance",
+        "fr": "Cour de justice, Tribunal de première instance"
+      },
+      "parent": "8.40"
+    },
+    "8.40.05": {
+      "labels": {
+        "en": "Court of Auditors",
+        "fr": "Cour des comptes"
+      },
+      "parent": "8.40"
+    },
+    "8.40.06": {
+      "labels": {
+        "en": "Economic and Social Committee, Committee of the Regions",
+        "fr": "Comité économique et social, Comité des régions"
+      },
+      "parent": "8.40"
+    },
+    "8.40.07": {
+      "labels": {
+        "en": "European Investment Bank (EIB)",
+        "fr": "Banque européenne d'investissement (BEI)"
+      },
+      "parent": "8.40"
+    },
+    "8.40.08": {
+      "labels": {
+        "en": "Agencies and bodies of the EU",
+        "fr": "Agences et organes de l'Union"
+      },
+      "parent": "8.40"
+    },
+    "8.40.09": {
+      "labels": {
+        "en": "European officials, EU servants, staff regulations",
+        "fr": "Fonctionnaires, agents de l'Union, statut, tribunal administratif"
+      },
+      "parent": "8.40"
+    },
+    "8.40.10": {
+      "labels": {
+        "en": "Interinstitutional relations, subsidiarity, proportionality, comitology",
+        "fr": "Relations interinstitutionnelles, subsidiarité, proportionnalité, comitologie"
+      },
+      "parent": "8.40"
+    },
+    "8.40.11": {
+      "labels": {
+        "en": "Relations with Member State governments and national parliaments",
+        "fr": "Relations avec les gouvernements et les parlements nationaux"
+      },
+      "parent": "8.40"
+    },
+    "8.40.13": {
+      "labels": {
+        "en": "ACP-EU bodies",
+        "fr": "Institutions ACP-UE"
+      },
+      "parent": "8.40"
+    },
+    "8.40.14": {
+      "labels": {
+        "en": "European Council",
+        "fr": "Conseil européen"
+      },
+      "parent": "8.40"
+    },
+    "8.40.16": {
+      "labels": {
+        "en": "Relations with interest representatives",
+        "fr": "Relations avec les représentants d’intérêts"
+      },
+      "parent": "8.40"
+    },
+    "8.50": {
+      "labels": {
+        "en": "EU law",
+        "fr": "Droit de l'Union européenne"
+      },
+      "parent": "8"
+    },
+    "8.50.01": {
+      "labels": {
+        "en": "Implementation of EU law",
+        "fr": "Application du droit de l'Union européenne"
+      },
+      "parent": "8.50"
+    },
+    "8.50.02": {
+      "labels": {
+        "en": "Legislative simplification, coordination, codification",
+        "fr": "Simplification, consolidation, codification de la législation"
+      },
+      "parent": "8.50"
+    },
+    "8.60": {
+      "labels": {
+        "en": "European statistical legislation",
+        "fr": "Législation statistique européenne"
+      },
+      "parent": "8"
+    },
+    "8.70": {
+      "labels": {
+        "en": "Budget of the Union",
+        "fr": "Budget de l'Union"
+      },
+      "parent": "8"
+    },
+    "8.70.01": {
+      "labels": {
+        "en": "Financing of the budget, own resources",
+        "fr": "Financement du budget, ressources propres"
+      },
+      "parent": "8.70"
+    },
+    "8.70.02": {
+      "labels": {
+        "en": "Financial regulations",
+        "fr": "Réglementation financière"
+      },
+      "parent": "8.70"
+    },
+    "8.70.03": {
+      "labels": {
+        "en": "Budgetary control and discharge, implementation of the budget",
+        "fr": "Contrôle budgétaire, décharge, exécution du budget"
+      },
+      "parent": "8.70"
+    },
+    "8.70.03.01": {
+      "labels": {
+        "en": "Basic texts on discharge",
+        "fr": "Textes de base sur la décharge"
+      },
+      "parent": "8.70.03"
+    },
+    "8.70.03.02": {
+      "labels": {
+        "en": "2017 discharge",
+        "fr": "Décharge 2017"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2017"
+      }
+    },
+    "8.70.03.03": {
+      "labels": {
+        "en": "2013 discharge",
+        "fr": "Décharge 2013"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2013"
+      }
+    },
+    "8.70.03.04": {
+      "labels": {
+        "en": "2014 discharge",
+        "fr": "Décharge 2014"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2014"
+      }
+    },
+    "8.70.03.05": {
+      "labels": {
+        "en": "2015 discharge ",
+        "fr": "Décharge 2015"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2015"
+      }
+    },
+    "8.70.03.06": {
+      "labels": {
+        "en": "2016 discharge",
+        "fr": "Décharge 2016"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2016"
+      }
+    },
+    "8.70.03.07": {
+      "labels": {
+        "en": "Previous discharges",
+        "fr": "Décharges antérieures"
+      },
+      "parent": "8.70.03"
+    },
+    "8.70.03.08": {
+      "labels": {
+        "en": "2018 discharge",
+        "fr": "Décharge 2018"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2018"
+      }
+    },
+    "8.70.03.09": {
+      "labels": {
+        "en": "2019 discharge",
+        "fr": "Décharge 2019"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2019"
+      }
+    },
+    "8.70.03.10": {
+      "labels": {
+        "en": "2020 discharge",
+        "fr": "Décharge 2020"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2020"
+      }
+    },
+    "8.70.03.11": {
+      "labels": {
+        "en": "2021 discharge",
+        "fr": "Décharge 2021"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2021"
+      }
+    },
+    "8.70.03.12": {
+      "labels": {
+        "en": "2022 discharge",
+        "fr": "Decharge 2022"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2022"
+      }
+    },
+    "8.70.03.13": {
+      "labels": {
+        "en": "2023 discharge",
+        "fr": "Décharge 2023"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2023"
+      }
+    },
+    "8.70.03.14": {
+      "labels": {
+        "en": "2024 discharge",
+        "fr": "Décharge 2024"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2024"
+      }
+    },
+    "8.70.03.15": {
+      "labels": {
+        "en": "2025 discharge",
+        "fr": "Décharge 2025"
+      },
+      "parent": "8.70.03",
+      "template": {
+        "kind": "discharge",
+        "year": "2025"
+      }
+    },
+    "8.70.04": {
+      "labels": {
+        "en": "Protecting financial interests of the EU against fraud",
+        "fr": "Protection des intérêts financiers de l'UE contre la fraude"
+      },
+      "parent": "8.70"
+    },
+    "8.70.40": {
+      "labels": {
+        "en": "Basic budgetary texts",
+        "fr": "Textes budgétaires de base"
+      },
+      "parent": "8.70"
+    },
+    "8.70.47": {
+      "labels": {
+        "en": "2027 budget",
+        "fr": "Budget 2027"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2027"
+      }
+    },
+    "8.70.48": {
+      "labels": {
+        "en": "2026 budget",
+        "fr": "Budget 2026"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2026"
+      }
+    },
+    "8.70.49": {
+      "labels": {
+        "en": "2025 budget",
+        "fr": "Budget 2025"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2025"
+      }
+    },
+    "8.70.50": {
+      "labels": {
+        "en": "2020 budget",
+        "fr": "Budget 2020"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2020"
+      }
+    },
+    "8.70.51": {
+      "labels": {
+        "en": "2021 budget",
+        "fr": "Budget 2021"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2021"
+      }
+    },
+    "8.70.52": {
+      "labels": {
+        "en": "2022 budget",
+        "fr": "Budget 2022"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2022"
+      }
+    },
+    "8.70.53": {
+      "labels": {
+        "en": "2023 budget",
+        "fr": "Budget 2023"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2023"
+      }
+    },
+    "8.70.54": {
+      "labels": {
+        "en": "2024 budget",
+        "fr": "Budget 2024"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2024"
+      }
+    },
+    "8.70.55": {
+      "labels": {
+        "en": "2015 budget",
+        "fr": "Budget 2015"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2015"
+      }
+    },
+    "8.70.56": {
+      "labels": {
+        "en": "2016 budget",
+        "fr": "Budget 2016"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2016"
+      }
+    },
+    "8.70.57": {
+      "labels": {
+        "en": "2017 budget",
+        "fr": "Budget 2017"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2017"
+      }
+    },
+    "8.70.58": {
+      "labels": {
+        "en": "2018 budget",
+        "fr": "Budget 2018"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2018"
+      }
+    },
+    "8.70.59": {
+      "labels": {
+        "en": "2019 budget",
+        "fr": "Budget 2019"
+      },
+      "parent": "8.70",
+      "template": {
+        "kind": "budget",
+        "year": "2019"
+      }
+    },
+    "8.70.60": {
+      "labels": {
+        "en": "Previous annual budgets",
+        "fr": "Budgets annuels antérieurs"
+      },
+      "parent": "8.70"
+    },
+    "8.70.70": {
+      "labels": {
+        "en": "Flexibility instrument",
+        "fr": "Instrument de flexibilité"
+      },
+      "parent": "8.70"
+    },
+    "9": {
+      "labels": {
+        "en": "Other topics",
+        "fr": "Autres sujets"
+      },
+      "parent": null
+    },
+    "9.10": {
+      "labels": {
+        "en": "Moral and spiritual leadership, religious figures",
+        "fr": "Leadership moral et spirituel, figures religieuses"
+      },
+      "parent": "9"
+    }
+  }
+}
