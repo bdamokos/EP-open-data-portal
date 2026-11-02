@@ -19,7 +19,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v16-retained-links';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v17-actual-debate-links';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -131,7 +131,18 @@ export class LegislationInsights {
     const localize=n=>{const code=languagePreference(Object.keys(n.titles).filter(code=>n.titles[code]?.trim()),query.language)[0];return {...n,title:n.titles[code]||n.id,titleLanguage:code||null};};
     let detail=null;
     if(query.topic) {
-      const topic=topics.find(t=>t.id===query.topic);if(!topic)throw new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.');
+      let topic=topics.find(t=>t.id===query.topic),actualDebate=null;
+      // Story records identify the actual debate, rather than its scheduled item.
+      // Resolve only the published executed relationship; agenda numbers differ.
+      if(!topic&&query.topic.startsWith(sitting.activity_id+'-PVCRE-ITM-')) {
+        const record=await recordSource('/events/'+query.topic),event=sourceNode(record,'event',query.topic);
+        if(tail(event.had_activity_type)==='PLENARY_DEBATE'&&event.activity_date===sitting.activity_date&&phase!=='upcoming') {
+          const scheduled=topics.find(item=>refs(event.executed).includes(item.uri));
+          topic={...(scheduled||{documentIds:[],procedureIds:[],agendaCreatorIds:[],agendaDocumentIds:[]}),id:query.topic,uri:canonical(event.id),titles:event.activity_label||{},date:event.activity_date,kind:'PLENARY_DEBATE',evidence:{...sourceEvidence(record),relationship:'actual debate identity and date; executed → scheduled agenda item'}};
+          actualDebate={id:query.topic,evidence:{...sourceEvidence(record),relationship:'selected actual debate → consists_of → contribution'}};
+        }
+      }
+      if(!topic)throw new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.');
       const members=new Map(this.store.db.prepare('SELECT id,body FROM members ORDER BY id').all().map(r=>[r.id,JSON.parse(r.body)]));
       const metadata=await this.loadMetadata({members,store:this.store});
       const docs=topic.documentIds.slice(0,LEGISLATION_LIMITS.selectedDocuments);
@@ -141,7 +152,7 @@ export class LegislationInsights {
       for(const id of topic.agendaCreatorIds||[])if(!roles.some(r=>r.id===id))roles.push({...datedPerson(memberPeople([id],members,metadata)[0],topic.date,groupOn),role:'AGENDA_CONTRIBUTOR',sourceId:topic.id,date:topic.date,dateBasis:'agenda date',apiUrl:topic.evidence.apiUrl,fetchedAt:topic.evidence.fetchedAt,relationships:['agenda.structuredContent.creators label typeof=person → exact person resource'],participationId:null,stage:null,procedureId:null});
       const missingDocuments=topic.documentIds.filter(id=>!documents.some(d=>d.work.identifier===id));
       const procedures=[];const gaps=[];const committeeWork=[];
-      const debateCandidates=new Map(),speechSources=[];
+      const debateCandidates=new Map(actualDebate?[[actualDebate.id,actualDebate.evidence]]:[]),speechSources=[];
       // At most two selected, explicitly supplied procedure IDs, never inferred from titles.
       for(const id of topic.procedureIds.slice(0,2)) {
         try {const record=await recordSource('/procedures/'+id);const work=sourceNode(record,'proc',id);const classification=classifyProcedure(work);const reference=work.label===`${id.replace('-', '/')}(${classification.code})`?work.label:null;
@@ -162,6 +173,7 @@ export class LegislationInsights {
         const record=await recordSource('/speeches/'+anchor.speechId);const speech=sourceNode(record,'event',anchor.speechId);
         for(const uri of refs(speech?.inverse_consists_of).filter(uri=>refs(sitting.consists_of).includes(uri)))debateCandidates.set(tail(uri),{speechId:anchor.speechId,anchorObservedAt:anchor.observedAt,apiUrl:record.url,fetchedAt:new Date(record.fetchedAt).toISOString(),relationship:'verified speech.inverse_consists_of → actual debate.executed → agenda item'});
       }catch(error){gaps.push({source:'speech association',message:error.message,sourceError:true});}
+      if(actualDebate){debateCandidates.clear();debateCandidates.set(actualDebate.id,actualDebate.evidence);}
       const contributionIds=new Set();let contributionsTruncated=false;
       for(const [eventId,evidence] of [...debateCandidates].filter(([id])=>id.slice(7,17)<=today&&id.slice(7,17)<=sitting.activity_date).sort(([a],[b])=>b.slice(7,17).localeCompare(a.slice(7,17))).slice(0,LEGISLATION_LIMITS.debateEvents))try {
         const record=await recordSource('/events/'+eventId);const event=sourceNode(record,'event',eventId);

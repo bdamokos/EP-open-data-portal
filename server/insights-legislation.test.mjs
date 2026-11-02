@@ -148,6 +148,12 @@ test('read-only service uses exact parent/child speech join, bounded requests an
     assert.equal(result.detail.speeches.length,1);assert.equal(result.detail.speeches[0].sourceId,s.activity_id);assert.equal(result.detail.speeches[0].people[0].id,'257043');assert.equal(result.detail.coverage.speechAssociations.exactChildReferences,70);
     assert.equal(result.detail.coverage.speechAssociations.childrenWithoutSavedContributionRows,69);assert.equal(result.coverage.indexComplete,false);
     assert.deepEqual(result.detail.people.find(p=>p.id==='257043').demographics,{country:'Unknown',group:'Unknown',gender:'Unknown',age:'Unknown'});
+    const actual=await service.query(q('sitting=MTG-PL-2026-10-07&topic='+fixture.speechParent.payload.data[0].activity_id));
+    assert.equal(actual.detail.id,fixture.speechParent.payload.data[0].activity_id);
+    assert.equal(actual.detail.speeches[0].sourceId,s.activity_id);
+    assert.equal(actual.detail.speeches[0].people[0].id,'257043');
+    assert.equal(actual.detail.coverage.speechAssociations.exactChildReferences,70);
+    await assert.rejects(service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-06-PVCRE-ITM-4')),e=>e.status===404);
     const count=calls.length;await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-D-69'));assert.equal(calls.length,count);
     const vote=await service.query(q('sitting=MTG-PL-2026-10-07&topic=MTG-PL-2026-10-07-OJ-ITM-V-48'));assert.equal(vote.detail.selectedVote.namedCounts.for,454);
     assert(!calls.some(([ep])=>ep.endsWith('/activities')||ep.endsWith('/events')));
