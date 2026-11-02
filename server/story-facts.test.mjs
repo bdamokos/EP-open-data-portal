@@ -643,6 +643,7 @@ test('an interrupted adoption leaves the projection dirty for the batches it com
 test('outside addresses and coverage are copied into the published generation',async t=>{
  const {store}=await fixture(t,{clock:()=>Date.parse(stamp)}),date='2026-01-21',debateId='MTG-PL-2026-01-21-PVCRE-ITM-5';
  store.putSource(1,'outside:state','outside-state',{},stamp);
+ for(const id of ['134834','165141'])store.putSource(1,'wikidata:person:'+id,'wikidata-person',{personId:id,status:'none'},stamp);
  store.putSource(1,'outside:agenda:'+debateId,'outside-agenda',{id:debateId,date,titles:{en:'Formal sitting: Spain and Portugal'},procedureIds:[]},stamp);
  const insert=store.db.prepare('INSERT INTO outside_contributions VALUES (?,?,?,?,?)');
  for(const [personId,name,role] of [['134834','Felipe VI','King of Spain'],['165141','Marcelo Rebelo de Sousa','Presidente da República de Portugal']])for(const n of [1,2]){
@@ -655,7 +656,7 @@ test('outside addresses and coverage are copied into the published generation',a
  store.db.prepare('DELETE FROM outside_contributions WHERE generation=1').run();assert.equal(storyFacts(store,query('map')).outsideSpeakers.length,2,'published evidence is immutable until rebuilt');
  store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:false,window:{end:'2026-11-01'},availability:{sourceKey:'outside',checkedIntervals:[],gaps:[],limited:true}}));
  assert.deepEqual(storyFacts(store,query('map')).outsideSpeakers,[],'incomplete coverage suppresses the line');
- store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,europe:['ESP']}));
+ store.db.prepare("UPDATE story_facts SET body=? WHERE generation=2 AND kind='outsideCoverage'").run(JSON.stringify({complete:true,wikidataPolicyVersion:2,europe:['ESP']}));
  const eu=query('map');eu.set('zoom','eu');assert.deepEqual(storyFacts(store,eu).outsideSpeakers.map(a=>a.country),['ESP'],'outside scope is pinned to its build-time set');
 
 });
