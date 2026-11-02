@@ -115,3 +115,21 @@ test('legacy timeline redirects keep the interface language',()=>{
  assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123&lang=fr')),'?view=topics&topic=eurovoc%3A123&lang=fr');
  assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&lang=de');
 });
+
+test('legacy prose requires parent and quantity coverage while other panels stay native',async t=>{
+ const {createElement:h}=await import('react'),{renderToStaticMarkup}=await import('react-dom/server'),{freshLoader}=await import('./test-support/viteRunner.mjs');
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'legacy-story-locale'});t.after(()=>load.close());
+ const {TopicStory}=await load('/src/TopicStory.tsx'),{UiI18nProvider,UiMessage}=await load('/src/UiI18nReact.tsx'),{createUiI18n}=await import('./uiI18n.mjs'),{defaultUi}=await import('./uiDefault.mjs');
+ const source={'topics.mostTiedCount':'{place} are most named, with {quantity} each.','topics.story.count.questions':{plural:'count',one:'{count} question',other:'{count} questions'}};
+ const parent={'topics.mostTiedCount':'{place}: {quantity} kummallakin.'},child={'topics.story.count.questions':{plural:'count',one:'{count} kysymys',other:'{count} kysymystä'}};
+ const data={periods:['2026-Q1'],partial:{},items:['Türkiye','Iran'].map((label,i)=>({key:'place:'+['TUR','IRN'][i],label,series:[{period:'2026-Q1',question:1234}]}))};
+ for(const [messages,native] of [[child,false],[parent,false],[{...parent,...child},true]]){
+  // Reuse the real complete English formatter for fallback, and inject only
+  // these Finnish fixtures; unrelated absent messages still use production EN.
+  const fixture=createUiI18n({source,translations:{fi:messages}}).forLocale('fi'),ui={...defaultUi,...fixture},i18n={sourceLocale:'en',forLocale:()=>ui};
+  const html=renderToStaticMarkup(h(UiI18nProvider,{i18n},h('div',null,h(TopicStory,{data,index:0,mode:'q',own:true}),h('aside',null,h(UiMessage,{id:'topics.story.count.questions',values:{count:2},counts:{count:2}})))));
+  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/a><\/span> ja /:/Türkiye<\/a><\/span> and /);
+  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/place=TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
+  if(messages===child)assert.match(html,/<aside>2 kysymystä<\/aside>/);
+ }
+});

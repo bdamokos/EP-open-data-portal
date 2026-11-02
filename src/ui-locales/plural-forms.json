@@ -485,6 +485,46 @@
     "ui.speechStat.total": {
       "one": "участие общо",
       "other": "участия общо"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} въпрос",
+      "other": "{count} въпроса"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "по {count} въпрос",
+      "other": "по {count} въпроса"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} пленарно разискване",
+      "other": "{count} пленарни разисквания"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} резолюция",
+      "other": "{count} резолюции"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} разискване или досие",
+      "other": "Общо разисквания и досиета: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} текст",
+      "other": "{count} текста"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} евродепутат",
+      "other": "{count} евродепутати"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} документ",
+      "other": "{count} документа"
+    },
+    "topics.speechesCount": {
+      "one": "{count} изказване",
+      "other": "{count} изказвания"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} евродепутат гласува различно от мнозинството в своята група.",
+      "other": "{count} евродепутати гласуваха различно от мнозинството в своята група."
     }
   },
   "cs": {
@@ -1165,6 +1205,66 @@
       "few": "příspěvky celkem",
       "many": "příspěvku celkem",
       "other": "příspěvků celkem"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} otázka",
+      "few": "{count} otázky",
+      "many": "{count} otázky",
+      "other": "{count} otázek"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "po {count} otázce",
+      "few": "po {count} otázkách",
+      "many": "po {count} otázky",
+      "other": "po {count} otázkách"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenární rozprava",
+      "few": "{count} plenární rozpravy",
+      "many": "{count} plenární rozpravy",
+      "other": "{count} plenárních rozprav"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} usnesení",
+      "few": "{count} usnesení",
+      "many": "{count} usnesení",
+      "other": "{count} usnesení"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} rozprava nebo spis",
+      "few": "Rozpravy a spisy celkem: {count}",
+      "many": "Rozpravy a spisy: {count}",
+      "other": "Rozpravy a spisy celkem: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} text",
+      "few": "{count} texty",
+      "many": "{count} textu",
+      "other": "{count} textů"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} europoslanec",
+      "few": "{count} europoslanci",
+      "many": "{count} europoslance",
+      "other": "{count} europoslanců"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "few": "{count} dokumenty",
+      "many": "{count} dokumentu",
+      "other": "{count} dokumentů"
+    },
+    "topics.speechesCount": {
+      "one": "{count} vystoupení",
+      "few": "{count} vystoupení",
+      "many": "{count} vystoupení",
+      "other": "{count} vystoupení"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} europoslanec hlasoval jinak než většina jeho skupiny.",
+      "few": "{count} europoslanci hlasovali jinak než většina jejich skupiny.",
+      "many": "Počet europoslanců s hlasem odlišným od většiny jejich skupiny: {count}.",
+      "other": "{count} europoslanců hlasovalo jinak než většina jejich skupiny."
     }
   },
   "da": {
@@ -1687,6 +1787,46 @@
     "amendmentmodel.mjs.text.occurrences.numbers": {
       "one": "{text} · forekomst {numbers}",
       "other": "{text} · forekomster {numbers}"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} spørgsmål",
+      "other": "{count} spørgsmål"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} spørgsmål hver",
+      "other": "{count} spørgsmål hver"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenardebat",
+      "other": "{count} plenardebatter"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} beslutning",
+      "other": "{count} beslutninger"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} debat eller sag",
+      "other": "{count} debatter og sager"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} tekst",
+      "other": "{count} tekster"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} medlem af Europa-Parlamentet",
+      "other": "{count} medlemmer af Europa-Parlamentet"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "other": "{count} dokumenter"
+    },
+    "topics.speechesCount": {
+      "one": "{count} indlæg",
+      "other": "{count} indlæg"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} medlem af Europa-Parlamentet stemte anderledes end flertallet i sin gruppe.",
+      "other": "{count} medlemmer af Europa-Parlamentet stemte anderledes end flertallet i deres respektive grupper."
     }
   },
   "de": {
@@ -2209,6 +2349,46 @@
     "amendmentmodel.mjs.text.occurrences.numbers": {
       "one": "{text} · Vorkommen {numbers}",
       "other": "{text} · Vorkommen {numbers}"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} Anfrage",
+      "other": "{count} Anfragen"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "jeweils {count} Anfrage",
+      "other": "jeweils {count} Anfragen"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} Plenardebatte",
+      "other": "{count} Plenardebatten"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} Entschließung",
+      "other": "{count} Entschließungen"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} Debatte oder Dossier",
+      "other": "{count} Debatten und Dossiers"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} Text",
+      "other": "{count} Texte"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} Mitglied des Europäischen Parlaments",
+      "other": "{count} Abgeordnete des Europäischen Parlaments"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} Dokument",
+      "other": "{count} Dokumente"
+    },
+    "topics.speechesCount": {
+      "one": "{count} Redebeitrag",
+      "other": "{count} Redebeiträge"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} Parlamentsmitglied stimmte anders als die Mehrheit der eigenen Fraktion.",
+      "other": "{count} Abgeordnete stimmten anders als die Mehrheit ihrer jeweiligen Fraktion."
     }
   },
   "el": {
@@ -2695,6 +2875,46 @@
     "ui.speechStat.chair": {
       "one": "Παρέμβαση προεδρεύοντος",
       "other": "Παρεμβάσεις προεδρεύοντος"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} ερώτηση",
+      "other": "{count} ερωτήσεις"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} ερώτηση ανά τόπο",
+      "other": "{count} ερωτήσεις ανά τόπο"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} συζήτηση στην ολομέλεια",
+      "other": "{count} συζητήσεις στην ολομέλεια"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} ψήφισμα",
+      "other": "{count} ψηφίσματα"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} συζήτηση ή φάκελος",
+      "other": "{count} συζητήσεις και φάκελοι"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} κείμενο",
+      "other": "{count} κείμενα"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} ευρωβουλευτής",
+      "other": "{count} ευρωβουλευτές"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} έγγραφο",
+      "other": "{count} έγγραφα"
+    },
+    "topics.speechesCount": {
+      "one": "{count} ομιλία",
+      "other": "{count} ομιλίες"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} ευρωβουλευτής ψήφισε διαφορετικά από την πλειοψηφία της ομάδας του.",
+      "other": "{count} ευρωβουλευτές ψήφισαν διαφορετικά από την πλειοψηφία της ομάδας τους."
     }
   },
   "es": {
@@ -3269,6 +3489,56 @@
       "one": "Intervención de la presidencia",
       "other": "Intervenciones de la presidencia",
       "many": "Intervenciones de la presidencia"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} pregunta",
+      "other": "{count} preguntas",
+      "many": "{count} de preguntas"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} pregunta por lugar",
+      "other": "{count} preguntas por lugar",
+      "many": "{count} de preguntas por lugar"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} debate en el Pleno",
+      "other": "{count} debates en el Pleno",
+      "many": "{count} de debates en el Pleno"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} resolución",
+      "other": "{count} resoluciones",
+      "many": "{count} de resoluciones"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} debate o expediente",
+      "other": "{count} debates y expedientes",
+      "many": "{count} de debates y expedientes"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} texto",
+      "other": "{count} textos",
+      "many": "{count} de textos"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} eurodiputado",
+      "other": "{count} eurodiputados",
+      "many": "{count} de eurodiputados"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} documento",
+      "other": "{count} documentos",
+      "many": "{count} de documentos"
+    },
+    "topics.speechesCount": {
+      "one": "{count} intervención",
+      "other": "{count} intervenciones",
+      "many": "{count} de intervenciones"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} eurodiputado votó de forma distinta a la mayoría de su grupo.",
+      "other": "{count} eurodiputados votaron de forma distinta a la mayoría de su grupo.",
+      "many": "{count} de eurodiputados votaron de forma distinta a la mayoría de su grupo."
     }
   },
   "et": {
@@ -3754,6 +4024,46 @@
     "ui.speechStat.chair": {
       "one": "juhataja kaastöö",
       "other": "juhataja kaastööd"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} küsimus",
+      "other": "{count} küsimust"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "igaühe kohta {count} küsimus",
+      "other": "igaühe kohta {count} küsimust"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} täiskogu arutelu",
+      "other": "{count} täiskogu arutelu"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} resolutsioon",
+      "other": "{count} resolutsiooni"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} arutelu või toimik",
+      "other": "arutelusid ja toimikuid kokku {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} tekst",
+      "other": "{count} teksti"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} Euroopa Parlamendi liige",
+      "other": "{count} Euroopa Parlamendi liiget"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "other": "{count} dokumenti"
+    },
+    "topics.speechesCount": {
+      "one": "{count} sõnavõtt",
+      "other": "{count} sõnavõttu"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} Euroopa Parlamendi liige hääletas oma fraktsiooni enamusest erinevalt.",
+      "other": "{count} Euroopa Parlamendi liiget hääletas oma fraktsiooni enamusest erinevalt."
     }
   },
   "fi": {
@@ -4276,6 +4586,46 @@
     "amendmentmodel.mjs.text.occurrences.numbers": {
       "one": "{text} · esiintymä {numbers}",
       "other": "{text} · esiintymät {numbers}"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} kysymys",
+      "other": "{count} kysymystä"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "kullakin {count} kysymys",
+      "other": "kullakin {count} kysymystä"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} täysistuntokeskustelu",
+      "other": "{count} täysistuntokeskustelua"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} päätöslauselma",
+      "other": "{count} päätöslauselmaa"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} keskustelu tai asiakokonaisuus",
+      "other": "yhteensä {count} keskustelua ja asiakokonaisuutta"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} teksti",
+      "other": "{count} tekstiä"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} meppi",
+      "other": "{count} meppiä"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} asiakirja",
+      "other": "{count} asiakirjaa"
+    },
+    "topics.speechesCount": {
+      "one": "{count} puheenvuoro",
+      "other": "{count} puheenvuoroa"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} meppi äänesti eri tavalla kuin oman ryhmänsä enemmistö.",
+      "other": "{count} meppiä äänesti eri tavalla kuin oman ryhmänsä enemmistö."
     }
   },
   "fr": {
@@ -4850,6 +5200,56 @@
       "one": "Intervention de la présidence",
       "other": "Interventions de la présidence",
       "many": "Interventions de la présidence"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} question",
+      "other": "{count} questions",
+      "many": "{count} de questions"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} question par lieu",
+      "other": "{count} questions par lieu",
+      "many": "{count} de questions par lieu"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} débat en séance plénière",
+      "other": "{count} débats en séance plénière",
+      "many": "{count} de débats en séance plénière"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} résolution",
+      "other": "{count} résolutions",
+      "many": "{count} de résolutions"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} débat ou dossier",
+      "other": "{count} débats et dossiers",
+      "many": "{count} de débats et dossiers"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} texte",
+      "other": "{count} textes",
+      "many": "{count} de textes"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} député",
+      "other": "{count} députés",
+      "many": "{count} de députés"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} document",
+      "other": "{count} documents",
+      "many": "{count} de documents"
+    },
+    "topics.speechesCount": {
+      "one": "{count} intervention",
+      "other": "{count} interventions",
+      "many": "{count} d’interventions"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} député a voté différemment de la majorité de son groupe.",
+      "other": "{count} députés ont voté différemment de la majorité de leur groupe.",
+      "many": "{count} de députés ont voté différemment de la majorité de leur groupe."
     }
   },
   "ga": {
@@ -5591,6 +5991,76 @@
       "few": "rannchuidiú cathaoirleachta",
       "many": "rannchuidiú cathaoirleachta",
       "other": "rannchuidiú cathaoirleachta"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} cheist",
+      "other": "Ceisteanna: {count}",
+      "two": "Ceisteanna: {count}",
+      "few": "Ceisteanna: {count}",
+      "many": "Ceisteanna: {count}"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} cheist an ceann",
+      "other": "Ceisteanna an ceann: {count}",
+      "two": "Ceisteanna an ceann: {count}",
+      "few": "Ceisteanna an ceann: {count}",
+      "many": "Ceisteanna an ceann: {count}"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} díospóireacht iomlánach",
+      "other": "Díospóireachtaí iomlánacha: {count}",
+      "two": "Díospóireachtaí iomlánacha: {count}",
+      "few": "Díospóireachtaí iomlánacha: {count}",
+      "many": "Díospóireachtaí iomlánacha: {count}"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} rún",
+      "other": "Rúin: {count}",
+      "two": "Rúin: {count}",
+      "few": "Rúin: {count}",
+      "many": "Rúin: {count}"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} díospóireacht nó sainchomhad",
+      "other": "Díospóireachtaí agus sainchomhaid san iomlán: {count}",
+      "two": "Díospóireachtaí agus sainchomhaid san iomlán: {count}",
+      "few": "Díospóireachtaí agus sainchomhaid san iomlán: {count}",
+      "many": "Díospóireachtaí agus sainchomhaid san iomlán: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} téacs",
+      "other": "Téacsanna: {count}",
+      "two": "Téacsanna: {count}",
+      "few": "Téacsanna: {count}",
+      "many": "Téacsanna: {count}"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} Fheisire",
+      "other": "Feisirí: {count}",
+      "two": "Feisirí: {count}",
+      "few": "Feisirí: {count}",
+      "many": "Feisirí: {count}"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} doiciméad",
+      "other": "Doiciméid: {count}",
+      "two": "Doiciméid: {count}",
+      "few": "Doiciméid: {count}",
+      "many": "Doiciméid: {count}"
+    },
+    "topics.speechesCount": {
+      "one": "{count} óráid",
+      "other": "Óráidí: {count}",
+      "two": "Óráidí: {count}",
+      "few": "Óráidí: {count}",
+      "many": "Óráidí: {count}"
+    },
+    "votegroups.voted_differently": {
+      "one": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "other": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "two": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "few": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "many": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}."
     }
   },
   "hr": {
@@ -6159,6 +6629,56 @@
       "one": "doprinos ukupno",
       "few": "doprinosa ukupno",
       "other": "doprinosa ukupno"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} pitanje",
+      "few": "{count} pitanja",
+      "other": "{count} pitanja"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "po {count} pitanje",
+      "few": "po {count} pitanja",
+      "other": "po {count} pitanja"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenarna rasprava",
+      "few": "{count} plenarne rasprave",
+      "other": "{count} plenarnih rasprava"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} rezolucija",
+      "few": "{count} rezolucije",
+      "other": "{count} rezolucija"
+    },
+    "topics.story.count.groups": {
+      "one": "Rasprave i predmeti ukupno: {count}",
+      "few": "Rasprave i predmeti ukupno: {count}",
+      "other": "Rasprave i predmeti ukupno: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} tekst",
+      "few": "{count} teksta",
+      "other": "{count} tekstova"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} zastupnik u Europskom parlamentu",
+      "few": "{count} zastupnika u Europskom parlamentu",
+      "other": "{count} zastupnika u Europskom parlamentu"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "few": "{count} dokumenta",
+      "other": "{count} dokumenata"
+    },
+    "topics.speechesCount": {
+      "one": "{count} govor",
+      "few": "{count} govora",
+      "other": "{count} govora"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} zastupnik u Europskom parlamentu glasovao je drukčije od većine svojeg kluba.",
+      "few": "{count} zastupnika u Europskom parlamentu glasovala su drukčije od većine svojeg kluba.",
+      "other": "{count} zastupnika u Europskom parlamentu glasovalo je drukčije od većine svojeg kluba."
     }
   },
   "hu": {
@@ -6639,6 +7159,46 @@
     "ui.speechStat.chair": {
       "one": "elnöki felszólalás",
       "other": "elnöki felszólalás"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} kérdés",
+      "other": "{count} kérdés"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "egyenként {count} kérdés",
+      "other": "egyenként {count} kérdés"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenáris vita",
+      "other": "{count} plenáris vita"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} állásfoglalás",
+      "other": "{count} állásfoglalás"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} vita vagy dosszié",
+      "other": "összesen {count} vita és dosszié"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} szöveg",
+      "other": "{count} szöveg"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} EP-képviselő",
+      "other": "{count} EP-képviselő"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokumentum",
+      "other": "{count} dokumentum"
+    },
+    "topics.speechesCount": {
+      "one": "{count} felszólalás",
+      "other": "{count} felszólalás"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} EP-képviselő a képviselőcsoportja többségétől eltérően szavazott.",
+      "other": "{count} EP-képviselő a képviselőcsoportja többségétől eltérően szavazott."
     }
   },
   "it": {
@@ -7213,6 +7773,56 @@
       "one": "Intervento della presidenza",
       "other": "Interventi della presidenza",
       "many": "Interventi della presidenza"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} interrogazione",
+      "other": "{count} interrogazioni",
+      "many": "{count} di interrogazioni"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} interrogazione per luogo",
+      "other": "{count} interrogazioni per luogo",
+      "many": "{count} di interrogazioni per luogo"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} dibattito in plenaria",
+      "other": "{count} dibattiti in plenaria",
+      "many": "{count} di dibattiti in plenaria"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} risoluzione",
+      "other": "{count} risoluzioni",
+      "many": "{count} di risoluzioni"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} dibattito o fascicolo",
+      "other": "{count} dibattiti e fascicoli",
+      "many": "{count} di dibattiti e fascicoli"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} testo",
+      "other": "{count} testi",
+      "many": "{count} di testi"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} deputato",
+      "other": "{count} deputati",
+      "many": "{count} di deputati"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} documento",
+      "other": "{count} documenti",
+      "many": "{count} di documenti"
+    },
+    "topics.speechesCount": {
+      "one": "{count} intervento",
+      "other": "{count} interventi",
+      "many": "{count} di interventi"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} deputato ha votato diversamente dalla maggioranza del proprio gruppo.",
+      "other": "{count} deputati hanno votato diversamente dalla maggioranza del proprio gruppo.",
+      "many": "{count} di deputati hanno votato diversamente dalla maggioranza del proprio gruppo."
     }
   },
   "lt": {
@@ -7868,6 +8478,66 @@
       "few": "pirmininkavimo pasisakymai",
       "many": "pirmininkavimo pasisakymo",
       "other": "pirmininkavimo pasisakymų"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} klausimas",
+      "other": "{count} klausimų",
+      "few": "{count} klausimai",
+      "many": "{count} klausimo"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "po {count} klausimą",
+      "other": "po {count} klausimų",
+      "few": "po {count} klausimus",
+      "many": "po {count} klausimo"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenarinė diskusija",
+      "other": "{count} plenarinių diskusijų",
+      "few": "{count} plenarinės diskusijos",
+      "many": "{count} plenarinės diskusijos"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} rezoliucija",
+      "other": "{count} rezoliucijų",
+      "few": "{count} rezoliucijos",
+      "many": "{count} rezoliucijos"
+    },
+    "topics.story.count.groups": {
+      "one": "diskusijų ir bylų iš viso {count}",
+      "other": "diskusijų ir bylų iš viso {count}",
+      "few": "diskusijų ir bylų iš viso {count}",
+      "many": "diskusijų ir bylų iš viso {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} tekstas",
+      "other": "{count} tekstų",
+      "few": "{count} tekstai",
+      "many": "{count} teksto"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} EP narys",
+      "other": "{count} EP narių",
+      "few": "{count} EP nariai",
+      "many": "{count} EP nario"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokumentas",
+      "other": "{count} dokumentų",
+      "few": "{count} dokumentai",
+      "many": "{count} dokumento"
+    },
+    "topics.speechesCount": {
+      "one": "{count} kalba",
+      "other": "{count} kalbų",
+      "few": "{count} kalbos",
+      "many": "{count} kalbos"
+    },
+    "votegroups.voted_differently": {
+      "one": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
+      "other": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
+      "few": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}.",
+      "many": "EP narių, balsavusių kitaip nei jų frakcijos dauguma: {count}."
     }
   },
   "lv": {
@@ -8435,6 +9105,56 @@
       "zero": "priekšsēdētāja uzstāšanās reižu",
       "one": "priekšsēdētāja uzstāšanās reize",
       "other": "priekšsēdētāja uzstāšanās reizes"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} jautājums",
+      "other": "{count} jautājumi",
+      "zero": "{count} jautājumu"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "katrai {count} jautājums",
+      "other": "katrai {count} jautājumi",
+      "zero": "katrai {count} jautājumu"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenārsēdes debates",
+      "other": "{count} plenārsēžu debates",
+      "zero": "{count} plenārsēžu debašu"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} rezolūcija",
+      "other": "{count} rezolūcijas",
+      "zero": "{count} rezolūciju"
+    },
+    "topics.story.count.groups": {
+      "one": "debašu un lietu kopskaits — {count}",
+      "other": "debašu un lietu kopskaits — {count}",
+      "zero": "debašu un lietu kopskaits — {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} teksts",
+      "other": "{count} teksti",
+      "zero": "{count} tekstu"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} EP deputāts",
+      "other": "{count} EP deputāti",
+      "zero": "{count} EP deputātu"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokuments",
+      "other": "{count} dokumenti",
+      "zero": "{count} dokumentu"
+    },
+    "topics.speechesCount": {
+      "one": "{count} runa",
+      "other": "{count} runas",
+      "zero": "{count} runu"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} EP deputāts balsoja citādi nekā savas politiskās grupas vairākums.",
+      "other": "{count} EP deputāti balsoja citādi nekā savas politiskās grupas vairākums.",
+      "zero": "EP deputātu, kas balsoja citādi nekā savas politiskās grupas vairākums: {count}."
     }
   },
   "mt": {
@@ -9176,6 +9896,76 @@
       "few": "kontribuzzjonijiet tal-presidenza",
       "many": "kontribuzzjoni tal-presidenza",
       "other": "kontribuzzjoni tal-presidenza"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} mistoqsija",
+      "other": "Mistoqsijiet: {count}",
+      "two": "Mistoqsijiet: {count}",
+      "few": "Mistoqsijiet: {count}",
+      "many": "Mistoqsijiet: {count}"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} mistoqsija għal kull wieħed",
+      "other": "Mistoqsijiet għal kull wieħed: {count}",
+      "two": "Mistoqsijiet għal kull wieħed: {count}",
+      "few": "Mistoqsijiet għal kull wieħed: {count}",
+      "many": "Mistoqsijiet għal kull wieħed: {count}"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} dibattitu plenarju",
+      "other": "Dibattiti plenarji: {count}",
+      "two": "Dibattiti plenarji: {count}",
+      "few": "Dibattiti plenarji: {count}",
+      "many": "Dibattiti plenarji: {count}"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} riżoluzzjoni",
+      "other": "Riżoluzzjonijiet: {count}",
+      "two": "Riżoluzzjonijiet: {count}",
+      "few": "Riżoluzzjonijiet: {count}",
+      "many": "Riżoluzzjonijiet: {count}"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} dibattitu jew dossier",
+      "other": "Dibattiti u dossiers b'kollox: {count}",
+      "two": "Dibattiti u dossiers b'kollox: {count}",
+      "few": "Dibattiti u dossiers b'kollox: {count}",
+      "many": "Dibattiti u dossiers b'kollox: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} test",
+      "other": "Testi: {count}",
+      "two": "Testi: {count}",
+      "few": "Testi: {count}",
+      "many": "Testi: {count}"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} Membru tal-PE",
+      "other": "Membri tal-PE: {count}",
+      "two": "Membri tal-PE: {count}",
+      "few": "Membri tal-PE: {count}",
+      "many": "Membri tal-PE: {count}"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "other": "Dokumenti: {count}",
+      "two": "Dokumenti: {count}",
+      "few": "Dokumenti: {count}",
+      "many": "Dokumenti: {count}"
+    },
+    "topics.speechesCount": {
+      "one": "{count} diskors",
+      "other": "Diskorsi: {count}",
+      "two": "Diskorsi: {count}",
+      "few": "Diskorsi: {count}",
+      "many": "Diskorsi: {count}"
+    },
+    "votegroups.voted_differently": {
+      "one": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "other": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "two": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "few": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "many": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}."
     }
   },
   "nl": {
@@ -9698,6 +10488,46 @@
     "amendmentmodel.mjs.text.occurrences.numbers": {
       "one": "{text} · voorkomen {numbers}",
       "other": "{text} · voorkomens {numbers}"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} vraag",
+      "other": "{count} vragen"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "elk {count} vraag",
+      "other": "elk {count} vragen"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenair debat",
+      "other": "{count} plenaire debatten"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} resolutie",
+      "other": "{count} resoluties"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} debat of dossier",
+      "other": "{count} debatten en dossiers"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} tekst",
+      "other": "{count} teksten"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} Europarlementariër",
+      "other": "{count} Europarlementariërs"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} document",
+      "other": "{count} documenten"
+    },
+    "topics.speechesCount": {
+      "one": "{count} bijdrage",
+      "other": "{count} bijdragen"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} Europarlementariër stemde anders dan de meerderheid van de eigen fractie.",
+      "other": "{count} Europarlementariërs stemden anders dan de meerderheid van hun eigen fractie."
     }
   },
   "pl": {
@@ -10354,6 +11184,66 @@
       "few": "wystąpienia łącznie",
       "many": "wystąpień łącznie",
       "other": "wystąpienia łącznie"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} pytanie",
+      "few": "{count} pytania",
+      "many": "{count} pytań",
+      "other": "{count} pytania"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "po {count} pytaniu",
+      "few": "po {count} pytania",
+      "many": "po {count} pytań",
+      "other": "po {count} pytania"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} debata plenarna",
+      "few": "{count} debaty plenarne",
+      "many": "{count} debat plenarnych",
+      "other": "{count} debaty plenarnej"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} rezolucja",
+      "few": "{count} rezolucje",
+      "many": "{count} rezolucji",
+      "other": "{count} rezolucji"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} debata lub sprawa",
+      "few": "Debaty i sprawy łącznie: {count}",
+      "many": "Debaty i sprawy łącznie: {count}",
+      "other": "Debaty i sprawy: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} tekst",
+      "few": "{count} teksty",
+      "many": "{count} tekstów",
+      "other": "{count} tekstu"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} poseł do PE",
+      "few": "{count} posłów do PE",
+      "many": "{count} posłów do PE",
+      "other": "{count} posła do PE"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "few": "{count} dokumenty",
+      "many": "{count} dokumentów",
+      "other": "{count} dokumentu"
+    },
+    "topics.speechesCount": {
+      "one": "{count} wystąpienie",
+      "few": "{count} wystąpienia",
+      "many": "{count} wystąpień",
+      "other": "{count} wystąpienia"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} poseł do PE zagłosował inaczej niż większość jego grupy.",
+      "few": "{count} posłów do PE zagłosowało inaczej niż większość ich grupy.",
+      "many": "{count} posłów do PE zagłosowało inaczej niż większość ich grupy.",
+      "other": "Liczba posłów do PE głosujących inaczej niż większość ich grupy: {count}."
     }
   },
   "pt": {
@@ -10928,6 +11818,56 @@
       "one": "Intervenção na presidência",
       "other": "Intervenções na presidência",
       "many": "Intervenções na presidência"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} pergunta",
+      "other": "{count} perguntas",
+      "many": "{count} de perguntas"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} pergunta por local",
+      "other": "{count} perguntas por local",
+      "many": "{count} de perguntas por local"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} debate em plenário",
+      "other": "{count} debates em plenário",
+      "many": "{count} de debates em plenário"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} resolução",
+      "other": "{count} resoluções",
+      "many": "{count} de resoluções"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} debate ou dossiê",
+      "other": "{count} debates e dossiês",
+      "many": "{count} de debates e dossiês"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} texto",
+      "other": "{count} textos",
+      "many": "{count} de textos"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} deputado",
+      "other": "{count} deputados",
+      "many": "{count} de deputados"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} documento",
+      "other": "{count} documentos",
+      "many": "{count} de documentos"
+    },
+    "topics.speechesCount": {
+      "one": "{count} intervenção",
+      "other": "{count} intervenções",
+      "many": "{count} de intervenções"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} deputado votou de forma diferente da maioria do seu grupo.",
+      "other": "{count} deputados votaram de forma diferente da maioria do seu grupo.",
+      "many": "{count} de deputados votaram de forma diferente da maioria do seu grupo."
     }
   },
   "ro": {
@@ -11501,6 +12441,56 @@
       "one": "Intervenție în calitate de președinte",
       "few": "Intervenții în calitate de președinte",
       "other": "de intervenții în calitate de președinte"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} întrebare",
+      "other": "{count} de întrebări",
+      "few": "{count} întrebări"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} întrebare pentru fiecare loc",
+      "other": "{count} de întrebări pentru fiecare loc",
+      "few": "{count} întrebări pentru fiecare loc"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} dezbatere în plen",
+      "other": "{count} de dezbateri în plen",
+      "few": "{count} dezbateri în plen"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} rezoluție",
+      "other": "{count} de rezoluții",
+      "few": "{count} rezoluții"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} dezbatere sau dosar",
+      "other": "{count} de dezbateri și dosare",
+      "few": "{count} dezbateri și dosare"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} text",
+      "other": "{count} de texte",
+      "few": "{count} texte"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} eurodeputat",
+      "other": "{count} de eurodeputați",
+      "few": "{count} eurodeputați"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} document",
+      "other": "{count} de documente",
+      "few": "{count} documente"
+    },
+    "topics.speechesCount": {
+      "one": "{count} intervenție",
+      "other": "{count} de intervenții",
+      "few": "{count} intervenții"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} eurodeputat a votat diferit față de majoritatea grupului său.",
+      "other": "{count} de eurodeputați au votat diferit față de majoritatea grupului lor.",
+      "few": "{count} eurodeputați au votat diferit față de majoritatea grupului lor."
     }
   },
   "sk": {
@@ -12181,6 +13171,66 @@
       "few": "príspevky spolu",
       "many": "príspevku spolu",
       "other": "príspevkov spolu"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} otázka",
+      "few": "{count} otázky",
+      "many": "{count} otázky",
+      "other": "{count} otázok"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "po {count} otázke",
+      "few": "po {count} otázky",
+      "many": "po {count} otázky",
+      "other": "po {count} otázok"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenárna rozprava",
+      "few": "{count} plenárne rozpravy",
+      "many": "{count} plenárnej rozpravy",
+      "other": "{count} plenárnych rozpráv"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} uznesenie",
+      "few": "{count} uznesenia",
+      "many": "{count} uznesenia",
+      "other": "{count} uznesení"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} rozprava alebo spis",
+      "few": "Rozpravy a spisy spolu: {count}",
+      "many": "Rozpravy a spisy: {count}",
+      "other": "Rozpravy a spisy spolu: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} text",
+      "few": "{count} texty",
+      "many": "{count} textu",
+      "other": "{count} textov"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} europoslanec",
+      "few": "{count} europoslanci",
+      "many": "{count} europoslanca",
+      "other": "{count} europoslancov"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "few": "{count} dokumenty",
+      "many": "{count} dokumentu",
+      "other": "{count} dokumentov"
+    },
+    "topics.speechesCount": {
+      "one": "{count} vystúpenie",
+      "few": "{count} vystúpenia",
+      "many": "{count} vystúpenia",
+      "other": "{count} vystúpení"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} europoslanec hlasoval inak než väčšina jeho skupiny.",
+      "few": "{count} europoslanci hlasovali inak než väčšina ich skupiny.",
+      "many": "Počet europoslancov s hlasom odlišným od väčšiny ich skupiny: {count}.",
+      "other": "{count} europoslancov hlasovalo inak než väčšina ich skupiny."
     }
   },
   "sl": {
@@ -12861,6 +13911,66 @@
       "two": "prispevka skupaj",
       "few": "prispevki skupaj",
       "other": "prispevkov skupaj"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} vprašanje",
+      "two": "{count} vprašanji",
+      "few": "{count} vprašanja",
+      "other": "{count} vprašanj"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "po {count} vprašanje",
+      "two": "po {count} vprašanji",
+      "few": "po {count} vprašanja",
+      "other": "po {count} vprašanj"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenarna razprava",
+      "two": "{count} plenarni razpravi",
+      "few": "{count} plenarne razprave",
+      "other": "{count} plenarnih razprav"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} resolucija",
+      "two": "{count} resoluciji",
+      "few": "{count} resolucije",
+      "other": "{count} resolucij"
+    },
+    "topics.story.count.groups": {
+      "one": "Razprave in dosjeji skupaj: {count}",
+      "two": "Razprave in dosjeji skupaj: {count}",
+      "few": "Razprave in dosjeji skupaj: {count}",
+      "other": "Razprave in dosjeji skupaj: {count}"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} besedilo",
+      "two": "{count} besedili",
+      "few": "{count} besedila",
+      "other": "{count} besedil"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} poslanec Evropskega parlamenta",
+      "two": "{count} poslanca Evropskega parlamenta",
+      "few": "{count} poslanci Evropskega parlamenta",
+      "other": "{count} poslancev Evropskega parlamenta"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "two": "{count} dokumenta",
+      "few": "{count} dokumenti",
+      "other": "{count} dokumentov"
+    },
+    "topics.speechesCount": {
+      "one": "{count} govor",
+      "two": "{count} govora",
+      "few": "{count} govori",
+      "other": "{count} govorov"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} poslanec Evropskega parlamenta je glasoval drugače kot večina njegove skupine.",
+      "two": "{count} poslanca Evropskega parlamenta sta glasovala drugače kot večina njune skupine.",
+      "few": "{count} poslanci Evropskega parlamenta so glasovali drugače kot večina njihove skupine.",
+      "other": "{count} poslancev Evropskega parlamenta je glasovalo drugače kot večina njihove skupine."
     }
   },
   "sv": {
@@ -13383,6 +14493,46 @@
     "amendmentmodel.mjs.text.occurrences.numbers": {
       "one": "{text} · förekomst {numbers}",
       "other": "{text} · förekomster {numbers}"
+    },
+    "topics.story.count.questions": {
+      "one": "{count} fråga",
+      "other": "{count} frågor"
+    },
+    "topics.story.count.questionsEach": {
+      "one": "{count} fråga vardera",
+      "other": "{count} frågor vardera"
+    },
+    "topics.story.count.debates": {
+      "one": "{count} plenardebatt",
+      "other": "{count} plenardebatter"
+    },
+    "topics.story.count.resolutions": {
+      "one": "{count} resolution",
+      "other": "{count} resolutioner"
+    },
+    "topics.story.count.groups": {
+      "one": "{count} debatt eller ärende",
+      "other": "{count} debatter och ärenden"
+    },
+    "topics.story.count.texts": {
+      "one": "{count} text",
+      "other": "{count} texter"
+    },
+    "topics.story.count.meps": {
+      "one": "{count} Europaparlamentsledamot",
+      "other": "{count} Europaparlamentsledamöter"
+    },
+    "topics.mapDocuments": {
+      "one": "{count} dokument",
+      "other": "{count} dokument"
+    },
+    "topics.speechesCount": {
+      "one": "{count} anförande",
+      "other": "{count} anföranden"
+    },
+    "votegroups.voted_differently": {
+      "one": "{count} ledamot röstade annorlunda än den egna gruppens majoritet.",
+      "other": "{count} ledamöter röstade annorlunda än sina respektive gruppers majoritet."
     }
   }
 }
