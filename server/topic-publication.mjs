@@ -26,7 +26,10 @@ export async function rebuildTopicProjection(store,{generation=store.get('active
  // of this publication. The disk check uses it to estimate the next build.
  const usedPages=()=>store.db.prepare('PRAGMA page_count').get().page_count-store.db.prepare('PRAGMA freelist_count').get().freelist_count,before=usedPages();
  const staged=new Map(),shadow=new Proxy(store,{get(target,key){if(key==='get')return k=>staged.has(k)?staged.get(k):store.get(k);if(key==='set')return(k,v)=>keys.has(k)?staged.set(k,v):store.set(k,v);const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
- const result=await buildTopics(shadow,{...options,generation:epoch,sourceGeneration:generation,prune:false,onProgress});
+ let result;
+ try{result=await buildTopics(shadow,{...options,generation:epoch,sourceGeneration:generation,prune:false,onProgress});}
+ // Partial rows from a failed build would count against the disk check that gates the retry.
+ catch(error){await pruneTopicData(store,[previous].filter(Boolean)).catch(()=>{});throw error;}
  const projectionBytes=Math.max(0,usedPages()-before)*store.db.prepare('PRAGMA page_size').get().page_size;
  store.transaction(()=>{store.assertWriter();if(store.get('active')!==generation)throw Error('Index generation changed during topic publication.');
   for(const [key,value] of staged){if(value&&typeof value==='object'&&value.generation===epoch)store.set(key,{...value,generation,...(['recordTopicProjection','storyProjection'].includes(key)?{dataGeneration:epoch}:{})});else store.set(key,value);}

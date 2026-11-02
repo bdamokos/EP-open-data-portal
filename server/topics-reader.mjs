@@ -8,7 +8,7 @@ const busy=()=>new HttpError(503,'topics_busy','Topics unavailable.');
 export const topicReaderWorkers=()=>size;
 function spawn(){
  const slot={worker:new Worker(new URL('./topics-reader-worker.mjs',import.meta.url)),job:null,failure:null,dead:false,idleTimer:null};size++;
- slot.worker.on('message',m=>{const job=slot.job;if(!job||m.id!==job.id)return;slot.job=null;clearTimeout(job.timer);if(m.error)job.reject(new HttpError(m.status||503,m.code||'topics_unavailable',m.error));else job.resolve(m.value);release(slot);});
+ slot.worker.on('message',m=>{const job=slot.job;if(!job||m.id!==job.id||slot.terminating)return;slot.job=null;clearTimeout(job.timer);if(m.error)job.reject(new HttpError(m.status||503,m.code||'topics_unavailable',m.error));else job.resolve(m.value);release(slot);});
  slot.worker.on('error',error=>{slot.failure=error;});
  slot.worker.once('exit',()=>{
   size--;slot.dead=true;clearTimeout(slot.idleTimer);const i=idle.indexOf(slot);if(i>=0)idle.splice(i,1);
@@ -21,11 +21,11 @@ function spawn(){
 function take(){const job=waiting.shift();clearTimeout(job.wait);return job;}
 function start(slot,job){
  clearTimeout(slot.idleTimer);slot.job=job;
- job.timer=setTimeout(()=>{slot.failure=new HttpError(503,'topics_timeout','Topics unavailable.');void slot.worker.terminate();},topicReaderSettings.timeoutMs);
+ job.timer=setTimeout(()=>{slot.failure=new HttpError(503,'topics_timeout','Topics unavailable.');slot.terminating=true;void slot.worker.terminate();},topicReaderSettings.timeoutMs);
  slot.worker.postMessage({id:job.id,...job.request});
 }
 function release(slot){
- if(slot.dead)return;
+ if(slot.dead||slot.terminating)return;
  if(waiting.length){start(slot,take());return;}
  idle.push(slot);slot.idleTimer=setTimeout(()=>{const i=idle.indexOf(slot);if(i>=0){idle.splice(i,1);void slot.worker.terminate();}},topicReaderSettings.idleMs);slot.idleTimer.unref();
 }

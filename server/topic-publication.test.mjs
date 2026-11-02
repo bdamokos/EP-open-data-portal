@@ -46,5 +46,8 @@ test('backoff and a used window stop builds waking or blocking the writer',async
  now+=15*60_000;assert.equal(worker.topicBuildStep(),'topics');
  store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:1,askerSubsets:['all','home','elsewhere','not-home']});store.set('storyProjection',{version:STORY_FACTS_VERSION,generation:1,dataGeneration:1});store.set('topicProjectionDirty',true);store.set('topicBuildState',null);
  assert(topicRebuildDue(store,now));topicBuildStarted(store,now);assert.equal(topicRebuildDue(store,now+60_000),false,'one refresh per window');assert.equal(worker.topicBuildStep(),null);
+ // A generation published later in the same window still gets its build.
+ store.set('active',2);store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:1,dataGeneration:1,askerSubsets:['all','home','elsewhere','not-home']});assert(topicRebuildDue(store,now+30*60_000),'new generation in the same window');
+ topicBuildStarted(store,now+30*60_000);assert.equal(topicRebuildDue(store,now+40*60_000),false);
  now+=86400_000;assert(topicRebuildDue(store,now));
 });
