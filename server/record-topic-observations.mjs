@@ -4,8 +4,8 @@ import {classifyProcedure} from './insights-legislation-model.mjs';
 const arr=x=>x==null?[]:Array.isArray(x)?x:[x],tail=x=>String(x?.id||x||'').split('/').at(-1);
 const refs=x=>arr(x).map(tail),unique=x=>[...new Set(x)],at=s=>Date.parse(s?.fetchedAt||'')||0;
 const person=x=>String(x?.id||x||'').match(/(?:^|\/)person\/(\d+)$/)?.[1];
-const fields=['based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in','executed'];
-const topology=w=>JSON.stringify(Object.fromEntries(['is_about','isAboutSubjectMatter','inverse_created_a_realization_of','inverse_based_on_a_realization_of','inverse_decided_on_a_realization_of',...fields,'consists_of'].filter(k=>Object.hasOwn(w,k)).map(k=>[k,k==='consists_of'?arr(w[k]).map(c=>typeof c==='object'?{id:tail(c.id||c.activity_id),topology:topology(c)}:tail(c)).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):refs(w[k]).sort()])));
+const fields=['based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in','executed','consists_of'];
+const topology=w=>JSON.stringify(Object.fromEntries(['is_about','isAboutSubjectMatter','inverse_created_a_realization_of','inverse_based_on_a_realization_of','inverse_decided_on_a_realization_of',...fields].filter(k=>Object.hasOwn(w,k)).map(k=>[k,k==='consists_of'?arr(w[k]).map(c=>typeof c==='object'?{id:tail(c.id||c.activity_id),topology:topology(c)}:tail(c)).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))):refs(w[k]).sort()])));
 
 // Embedded event shapes publish a subset of fields. Resolve each supplied
 // relationship observation separately; an omitted embedded field is not a
@@ -52,7 +52,7 @@ export function* topicObservationSteps(observations,{map=()=>new Map(),stream=fa
   }
  }
  function event(id,s){if(!nodes.has(id))nodes.set(id,{id,kind:'event',titles:{},source:s});return nodes.get(id);}
- for(const [id,values] of eventFields){yield;const e=event(id,Object.values(values)[0]?.source);e.conflicted=Object.values(values).some(v=>v.conflicted);const executed=values.executed;e.executed=e.conflicted?[]:executed?.value||[];e.executedSource=executed?.source;e.executedKnown=Boolean(executed);nodes.set(id,e);}
+ for(const [id,values] of eventFields){yield;const e=event(id,Object.values(values)[0]?.source);e.conflicted=Object.values(values).some(v=>v.conflicted);const executed=values.executed;e.executed=e.conflicted?[]:executed?.value||[];e.executedSource=executed?.source;e.executedKnown=Boolean(executed);e.parentIds=e.conflicted?[]:values.inverse_consists_of?.value||[];e.childIds=e.conflicted?[]:values.consists_of?.value||[];nodes.set(id,e);}
  function documentEdge(eventId,docId,field,s){
   const e=event(eventId,s),own=eventFields.get(eventId)?.based_on_a_realization_of,doc=latest.get(docId);if(e.conflicted||doc?.conflicted)return;
   if(own&&at(own.source)>=at(s)&&!own.value.includes(docId))return;

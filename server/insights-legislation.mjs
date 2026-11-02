@@ -19,7 +19,7 @@ import {retainedSpeechMetadata} from './corpus-speeches.mjs';
 import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
 
 export const LEGISLATION_LIMITS=Object.freeze({agendaPages:2,agendaTopics:100,decisions:250,rawBytes:8*1024*1024,cacheEntries:24,cacheMs:6*60*60_000,selectedDocuments:30,roleRows:3000,detailDocuments:2,debateEvents:2,contributions:200});
-export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v17-actual-debate-links';
+export const LEGISLATION_VIEW_VERSION='shared-plenary-calendar-v18-typed-event-links';
 // This primary-source locator is revalidated; it is not an inferred counterpart.
 const verifiedSpeechAnchors={
   'MTG-PL-2026-10-07-OJ-ITM-D-69':{speechId:'MTG-PL-2026-10-07-OTH-2017097993206',observedAt:'2026-10-14T09:24:49.429Z'}
@@ -91,6 +91,7 @@ export class LegislationInsights {
     return {...catalogue,latestAvailable:latestCatalogueSitting(catalogue,today)!==null};
   }
   async query(query,savedCatalogue=null,binding=null) {
+    if(query.topic?.includes('-PVCRE-ITM-')&&!/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)?$/.test(query.topic))throw new HttpError(400,'invalid_query','Choose a valid agenda topic.');
     const status=binding?.status||this.store.status();
     const groupOn=binding?.groupOn||generationGroupOn(this.store,status.servingGeneration);if(!status.currentMeps||!status.servingGeneration)throw new HttpError(503,'insights_loading','The saved MEP index is not available yet.');
     const catalogue=savedCatalogue||await this.catalogue();
@@ -134,12 +135,20 @@ export class LegislationInsights {
       let topic=topics.find(t=>t.id===query.topic),actualDebate=null;
       // Story records identify the actual debate, rather than its scheduled item.
       // Resolve only the published executed relationship; agenda numbers differ.
-      if(!topic&&query.topic.startsWith(sitting.activity_id+'-PVCRE-ITM-')) {
+      if(!topic&&/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)?$/.test(query.topic)&&query.topic.startsWith(sitting.activity_id+'-PVCRE-ITM-')) {
         const record=await recordSource('/events/'+query.topic),event=sourceNode(record,'event',query.topic);
-        if(tail(event.had_activity_type)==='PLENARY_DEBATE'&&event.activity_date===sitting.activity_date&&phase!=='upcoming') {
-          const scheduled=topics.find(item=>refs(event.executed).includes(item.uri));
-          topic={...(scheduled||{documentIds:[],procedureIds:[],agendaCreatorIds:[],agendaDocumentIds:[]}),id:query.topic,uri:canonical(event.id),titles:event.activity_label||{},date:event.activity_date,kind:'PLENARY_DEBATE',evidence:{...sourceEvidence(record),relationship:'actual debate identity and date; executed → scheduled agenda item'}};
-          actualDebate={id:query.topic,evidence:{...sourceEvidence(record),relationship:'selected actual debate → consists_of → contribution'}};
+        if(event.activity_date===sitting.activity_date&&phase!=='upcoming') {
+          const scheduled=topics.filter(item=>refs(event.executed).includes(item.uri));
+          if(tail(event.had_activity_type)==='PLENARY_DEBATE') {
+            const merge=field=>[...new Set(scheduled.flatMap(item=>item[field]||[]))];
+            topic={id:query.topic,uri:canonical(event.id),titles:event.activity_label||{},date:event.activity_date,kind:'PLENARY_DEBATE',
+              documentIds:merge('documentIds'),procedureIds:merge('procedureIds'),agendaCreatorIds:merge('agendaCreatorIds'),agendaDocumentIds:merge('agendaDocumentIds'),scheduledAgendaIds:scheduled.map(item=>item.id),
+              evidence:{...sourceEvidence(record),relationship:'actual debate identity and date; executed → scheduled agenda items'}};
+            actualDebate={id:query.topic,evidence:{...sourceEvidence(record),relationship:'selected actual debate → consists_of → contribution'}};
+          }else if(tail(event.had_activity_type)==='PLENARY_VOTE') {
+            const votes=scheduled.filter(item=>item.kind==='PLENARY_VOTE');
+            if(votes.length===1)topic=votes[0];
+          }
         }
       }
       if(!topic)throw new HttpError(404,'topic_not_found','That agenda topic is not in the selected sitting.');

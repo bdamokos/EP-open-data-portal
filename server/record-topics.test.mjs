@@ -86,3 +86,24 @@ test('a country ID absent from the authority snapshot is unresolved, not a secon
  const {countryIdentity}=await import('./topic-country-identity.mjs');
  assert.equal(countryIdentity('XKX'),null);assert.equal(countryIdentity('1A0')?.id,'1A0');assert.equal(eurovocCountries.get('http://eurovoc.europa.eu/5695'),'XKX');
 });
+
+test('proceeding OTH records are not debates and expose only an exact typed debate target',t=>{
+ const store=fixture(t),oth='MTG-PL-2026-07-08-OTH-2017087113155',parent='MTG-PL-2026-07-08-PVCRE-ITM-9',document='B-10-2026-000001';
+ const run=(parents=[],extra=[])=>{
+  const projection=projectRecordTopics([{id:oth,kind:'event',activityType:'def/ep-activities/PROCEEDING_ACTIVITY',date:'2026-07-08',titles:{en:'Procedural note on Nigeria'},documentIds:[document],parentIds:parents},{id:document,kind:'document',date:'2026-07-08',titles:{en:'Nigeria'},eurovoc:['http://eurovoc.europa.eu/2058']},...extra]);
+  writeTopicProjection(store,projection);return new RecordTopics(store);
+ };
+ const debate=(id=parent,changes={})=>({id,kind:'event',activityType:'def/ep-activities/PLENARY_DEBATE',date:'2026-07-08',titles:{en:'Debate'},...changes});
+ const group=reader=>reader.query(new URLSearchParams('key=place:NGA'),'detail').groups.find(g=>g.key===oth);
+ let reader=run();assert.equal(reader.record(oth,'en').kind,'event');assert.equal(group(reader).kind,'record');assert(!group(reader).agendaId);assert.equal(reader.query(new URLSearchParams('role=place'),'overview').items.find(p=>p.id==='NGA').counts.debate||0,0);assert.equal(reader.query(new URLSearchParams('role=place'),'overview').items.find(p=>p.id==='NGA').series[0].top.kind,'record');
+ reader=run([parent],[debate()]);assert.equal(group(reader).agendaId,parent);assert.equal(group(reader).kind,'record');
+ reader=run([],[debate(parent,{childIds:[oth]})]);assert.equal(group(reader).agendaId,parent,'a published forward child edge also establishes the target');
+ for(const change of [{activityType:'def/ep-activities/PLENARY_VOTE'},{date:'2026-07-07'},{conflicted:true}]){reader=run([parent],[debate(parent,change)]);assert(!group(reader).agendaId);}
+ reader=run([parent,parent+'-1'],[debate(),debate(parent+'-1')]);assert(!group(reader).agendaId,'ambiguous parents never select the first debate');
+ reader=run([],[debate()]);assert(!group(reader).agendaId,'similar titles or dates alone cannot supply a target');
+});
+test('untyped OTH event placeholders do not become debates, and speech groups retain their record kind',t=>{
+ const store=fixture(t),oth='MTG-PL-2026-07-08-OTH-2017087113155',key='place:NGA',assignment={key,role:'place',paths:[]};
+ writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:oth,kind:'event',date:'2026-07-08',titles:{en:'Proceeding'},assignments:[assignment]},{id:'MTG-PL-2026-07-08-OTH-100',kind:'speech',date:'2026-07-08',parentIds:[oth],members:[],titles:{en:'Speech'},assignments:[assignment]}]});
+ const reader=new RecordTopics(store),detail=reader.query(new URLSearchParams('key='+key),'detail');assert.equal(reader.record(oth).kind,'event');assert.equal(detail.groups[0].kind,'record');assert.equal(detail.groups[0].speechCount,1);assert(!detail.groups[0].agendaId);
+});

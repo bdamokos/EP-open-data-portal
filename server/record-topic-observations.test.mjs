@@ -51,3 +51,10 @@ test('question membership retains exact authors and excludes addressee participa
 test('question titles merge supplied expressions and work labels using the Questions source rules',()=>{
  const q={id:'eli/dl/doc/E-10-2026-000001',identifier:'E-10-2026-000001',work_type:'def/ep-document-types/QUESTION_WRITTEN',title_dcterms:{fr:'Question'},is_realized_by:[{title:{en:'Greece and Cyprus'}}]};assert.deepEqual(topicObservationNodes([observation(q,'24')])[0].titles,{en:'Greece and Cyprus',fr:'Question'});
 });
+
+test('actual event observations retain exact proceeding parent and child edges and their retractions',()=>{
+ const debate='MTG-PL-2026-07-08-PVCRE-ITM-9',oth='MTG-PL-2026-07-08-OTH-2017087113155';
+ const parent={activity_id:debate,activity_date:'2026-07-08',had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:['eli/dl/event/'+oth]},child={activity_id:oth,activity_date:'2026-07-08',had_activity_type:'def/ep-activities/PROCEEDING_ACTIVITY',inverse_consists_of:['eli/dl/event/'+debate]};
+ let nodes=topicObservationNodes([observation(parent,'23'),observation(child,'23')]);assert.deepEqual(nodes.find(n=>n.id===debate).childIds,[oth]);assert.deepEqual(nodes.find(n=>n.id===oth).parentIds,[debate]);
+ nodes=topicObservationNodes([observation(parent,'23'),observation({...parent,consists_of:[]},'24'),observation(child,'23'),observation({...child,inverse_consists_of:[]},'24')]);assert.deepEqual(nodes.find(n=>n.id===debate).childIds,[]);assert.deepEqual(nodes.find(n=>n.id===oth).parentIds,[]);
+});

@@ -6,8 +6,8 @@ import {orderRecordKeywords} from './topic-keyword-order.mjs';
 import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
-import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=19;
+import {RECORD_TOPICS_VERSION,validTopicKey,proceedingEvent} from './record-topics.mjs';
+export const TOPICS_VERSION=20;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -30,13 +30,13 @@ export function topicTables(db){questionPlaceTables(db);db.exec(`
  `);}
 const topicWriteStatements=new WeakMap();
 export function putTopicRecords(store,generation,records){
- const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {remove,group,put,member}=statements;
- for(const record of records){const r={...record,kind:record.kind==='event'?/\/(?:PLENARY_VOTE|PLENARY_VOTE_RESULTS|PLENARY_OUTCOME|REQUEST_VOTE_URGENCY)$/.test(record.activityType||'')?'vote':'debate':record.kind};
+ const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key,group_kind FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {remove,group,put,member}=statements;
+ for(const record of records){const r={...record,kind:proceedingEvent(record)?'event':record.kind==='event'?/\/(?:PLENARY_VOTE|PLENARY_VOTE_RESULTS|PLENARY_OUTCOME|REQUEST_VOTE_URGENCY)$/.test(record.activityType||'')?'vote':'debate':record.kind};
  const parents=r.kind==='speech'?r.parentIds:r.kind==='debate'?r.agendaIds:r.eventIds||[];
  const resolvedParents=[...new Set((parents||[]).map(id=>group.get(generation,id)?.group_key||id))];
  const parent=resolvedParents.length===1?resolvedParents[0]:null,procedure=r.procedureIds?.length===1?r.procedureIds[0]:null;
  const parentGroup=parent?group.get(generation,parent)?.group_key:null;
- r.groupKey=parentGroup||parent||((r.kind==='debate')?r.id:procedure)||r.id;r.groupKind=parent||r.kind==='debate'?'debate':procedure?'procedure':'record';
+ r.groupKey=parentGroup||parent||((r.kind==='debate'||r.kind==='event')?r.id:procedure)||r.id;r.groupKind=parent?(group.get(generation,parent)?.group_kind||(/^MTG-PL-\d{4}-\d{2}-\d{2}-(?:PVCRE-ITM-|OJ-ITM-)/.test(parent)?'debate':'record')):r.kind==='debate'?'debate':r.kind==='event'?'record':procedure?'procedure':'record';
  remove.run(generation,r.id);
  put.run(generation,r.id,r.kind,r.date,r.groupKey,r.groupKind,JSON.stringify(r));
  for(const a of r.assignments)member.run(generation,a.key,r.id,r.kind,r.date,r.groupKey);
@@ -137,7 +137,7 @@ export class RecordTopics{
  // use the same bound so both count the same records.
  const bound=calendar.end||calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now());
  // A top group whose parent is excluded (procedural) carries kind 'record' so captions never call it a debate.
- const procedural=this.db.prepare("SELECT 1 FROM record_topic_records WHERE generation=? AND id=? AND json_extract(body,'$.procedural') IS 1");
+ const procedural=this.db.prepare("SELECT 1 FROM record_topic_records WHERE generation=? AND id=? AND (json_extract(body,'$.procedural') IS 1 OR kind='event')");
  const top=value=>{if(!value)return undefined;const t=typeof value==='string'?JSON.parse(value):value;return {key:t.key,title:t.titles?.[languagePreference(Object.keys(t.titles||{}),language)[0]]||t.key,date:t.date,...(procedural.get(generation,t.key)?{kind:'record'}:{})};};
  if(view!=='detail'){
  for(const row of this.db.prepare('SELECT key,period,kind,n FROM '+(askers==='all'?'record_topic_totals':'record_topic_filtered_totals')+' WHERE generation=?'+(askers==='all'?'':' AND askers=?')).iterate(generation,...(askers==='all'?[]:[askers]))){
@@ -175,7 +175,7 @@ export class RecordTopics{
    for(const row of this.db.prepare('SELECT group_key,MAX(date) date,COUNT(*) n '+scope+' GROUP BY group_key ORDER BY n DESC,date DESC,group_key').iterate(...values)){
     if(topCount===undefined)topCount=row.n;if(row.n!==topCount)break;
     let base=peakTitles.get(row.group_key);if(!base){const raw=this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND id=?').get(generation,row.group_key)||this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND group_key=? ORDER BY date DESC,id LIMIT 1').get(generation,row.group_key);base=raw?JSON.parse(raw.body):{id:row.group_key,titles:{}};peakTitles.set(row.group_key,base);}
-    const languageUsed=languagePreference(Object.keys(base.titles||{}),language)[0];groups.push({key:row.group_key,kind:base.procedural===true?'record':base.kind==='procedure'?'procedure':base.kind==='debate'||base.kind==='event'?'debate':base.groupKind||'record',title:base.titles?.[languageUsed]||row.group_key,language:languageUsed||null,date:row.date,n:row.n});
+    const languageUsed=languagePreference(Object.keys(base.titles||{}),language)[0];groups.push({key:row.group_key,kind:base.procedural===true?'record':base.kind==='procedure'?'procedure':base.kind==='debate'?'debate':base.groupKind||'record',title:base.titles?.[languageUsed]||row.group_key,language:languageUsed||null,date:row.date,n:row.n});
    }
    peaks[metric].push({period:point.period,n:maximum,groups});
   }
@@ -195,8 +195,8 @@ export class RecordTopics{
  for(const {id} of this.db.prepare('SELECT DISTINCT CAST(j.value AS TEXT) id'+recordScope+" JOIN json_each(r.body,'$.members') j WHERE r.kind='speech' ORDER BY r.date DESC,r.id,j.key LIMIT 5").all(...args,g.group_key)){const raw=this.db.prepare('SELECT body FROM members WHERE id=?').get(id);speakers.set(id,{id,name:raw?JSON.parse(raw.body).name||null:null});}
  const title=r=>r.titles?.[languagePreference(Object.keys(r.titles||{}),language)[0]]||r.id;
  // An excluded (procedural) parent, such as a voting-time item, is never presented as a debate.
- const groupKind=parent?.procedural===true?'record':representative.groupKind;
- return {key:g.group_key,kind:groupKind,title:title(base),date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
+ const groupKind=parent?.procedural===true||parent?.kind==='event'?'record':representative.groupKind;
+ return {key:g.group_key,kind:groupKind,title:title(base),date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(groupKind==='debate'?{agendaId:g.group_key}:parent?.debateIds?.length===1?{agendaId:parent.debateIds[0]}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
  });
  return {ready:true,coverage,...extras,groupsTotal:groupTotal,concept,periods,series,peaks,chart,facets,groups,total,nextOffset:offset+20<groupTotal?offset+20:null};
  }

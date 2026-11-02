@@ -246,3 +246,49 @@ test('legislation responses from before per-person demographic buckets are not r
     assert.equal(result.oldSchema,undefined);assert.equal(result.topics.length,18);
   }finally{store.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+// Projected public source shapes exercise the routes without any live API reads.
+function actualEventHarness(t,change={}) {
+ const directory=mkdtempSync(path.join(os.tmpdir(),'actual-topic-')),store=new ActivityStore(directory),calls=[];
+ t.after(()=>{store.close();rmSync(directory,{recursive:true,force:true});});
+ store.acquire();const {generation}=store.beginCycle();store.setMembers([...members.values()]);
+ const speech=fixture.speech.payload.data[0];store.putSource(generation,'/speeches/'+speech.activity_id,'speech',{id:speech.activity_id},new Date(fixture.speech.fetchedAt).toISOString(),speechRows(speech,new Date(fixture.speech.fetchedAt).toISOString()));
+ const sitting='MTG-PL-2026-10-07',container=sitting+'-OJ',date='2026-10-07',uri=id=>'eli/dl/event/'+id;
+ const scheduled=[1,2].map(i=>({id:uri(sitting+'-OJ-ITM-D-'+i),activity_id:sitting+'-OJ-ITM-D-'+i,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_DEBATE',activity_label:{en:'Joint topic '+i},based_on_a_realization_of:['eli/dl/doc/B-10-2026-00000'+i],inverse_was_scheduled_in:['eli/dl/proc/2026-000'+i],documented_by_a_realization_of:['eli/dl/doc/OJ-2026-000'+i],structuredContent:{en:`<item><creators><label typeof="person" resource="person/${i}"/></creators></item>`}}));
+ const vote={...scheduled[0],id:uri(sitting+'-OJ-ITM-V-94'),activity_id:sitting+'-OJ-ITM-V-94',had_activity_type:'def/ep-activities/PLENARY_VOTE',based_on_a_realization_of:[],inverse_was_scheduled_in:[]};
+ const event={...fixture.speechParent.payload.data[0],executed:scheduled.map(r=>r.id),...change};
+ const agenda={url:'https://data.europarl.europa.eu/api/v2/meetings/'+sitting+'/foreseen-activities',fetchedAt:fixture.foreseen.fetchedAt,payload:{data:[{id:uri(container),activity_id:container,had_activity_type:'def/ep-activities/MEETING_PART',consists_of:[...scheduled,vote].map(r=>r.id)},...scheduled,vote]}};
+ const catalogue={sittings:[{activity_id:sitting,activity_date:date,was_scheduled_in:[uri(container)],consists_of:[event.id]}],sources:[],year:2026,years:[2026],start:'2024-07-16',complete:true,coverage:{years:[]}};
+ const clock=()=>Date.parse('2026-10-14T09:30:00Z'),service=new LegislationInsights(store,{clock,loadMetadata:async()=>metadata,request:async(ep,params)=>{
+  calls.push([ep,params]);if(ep.endsWith('/foreseen-activities'))return agenda;
+  if(ep==='/events/'+event.activity_id)return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.speechParent.fetchedAt,payload:{data:[event]}};
+  if(ep.startsWith('/procedures/')){const id=ep.split('/').at(-1);return {url:'https://data.europarl.europa.eu/api/v2'+ep,fetchedAt:fixture.procedure.fetchedAt,payload:{data:[{id:'eli/dl/proc/'+id,consists_of:[]}]}};}
+  if(ep.endsWith('/vote-results'))return {...fixture.results,payload:{data:[]}};
+  if(ep.endsWith('/decisions'))return {...fixture.decisions,payload:{data:[]}};
+  throw Error('Unexpected fixture source: '+ep);
+ }});
+ const query=(topic=event.activity_id)=>service.query({language:'en',sitting,topic},catalogue);
+ return {query,calls,event,scheduled,vote};
+}
+test('actual joint debates merge all exact executed contexts and retain their own speakers',async t=>{
+ const h=actualEventHarness(t),r=await h.query();
+ assert.deepEqual(r.detail.documentIds,['B-10-2026-000001','B-10-2026-000002']);assert.deepEqual(r.detail.procedureIds,['2026-0001','2026-0002']);
+ assert.deepEqual(r.detail.agendaCreatorIds,['1','2']);assert.deepEqual(r.detail.agendaDocumentIds,['OJ-2026-0001','OJ-2026-0002']);assert.deepEqual(r.detail.scheduledAgendaIds,h.scheduled.map(r=>r.activity_id));
+ assert.equal(r.detail.speeches.length,1);assert(h.calls.filter(([ep])=>ep.startsWith('/procedures/')).length<=2);
+});
+test('topical debates without executed and actual debate sub-items resolve by exact identity',async t=>{
+ const h=actualEventHarness(t,{activity_id:'MTG-PL-2026-10-07-PVCRE-ITM-4-1',id:'eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-4-1',executed:undefined});
+ const r=await h.query();assert.equal(r.detail.id,h.event.activity_id);assert.equal(r.detail.speeches.length,1);assert.deepEqual(r.detail.documentIds,[]);assert.deepEqual(r.detail.scheduledAgendaIds,[]);
+});
+test('actual vote sub-items open only their exact scheduled vote item',async t=>{
+ const h=actualEventHarness(t,{activity_id:'MTG-PL-2026-10-07-PVCRE-ITM-9-6',id:'eli/dl/event/MTG-PL-2026-10-07-PVCRE-ITM-9-6',had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-V-94']});
+ const r=await h.query();assert.equal(r.detail.id,h.vote.activity_id);assert.equal(r.detail.kind,'PLENARY_VOTE');assert(h.calls.some(([ep])=>ep.endsWith('/vote-results')));
+});
+for(const change of [{had_activity_type:'def/ep-activities/PROCEEDING_ACTIVITY'},{activity_date:'2026-10-06'},{had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:undefined},{had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:['eli/dl/event/MTG-PL-2026-10-07-OJ-ITM-D-1']}])test('actual event route rejects unrelated type, date or vote context '+JSON.stringify(change),async t=>{
+ const h=actualEventHarness(t,change);await assert.rejects(h.query(),e=>e.status===404);assert(!h.calls.some(([ep])=>ep.endsWith('/vote-results')));
+});
+test('malformed actual topic IDs are rejected before any upstream request; OTH IDs are not agenda aliases',async t=>{
+ const h=actualEventHarness(t);
+ for(const id of ['MTG-PL-2026-10-07-PVCRE-ITM-1/../../meps/1','MTG-PL-2026-10-07-PVCRE-ITM-1-2-3','MTG-PL-2026-10-07-PVCRE-ITM-1?x=1'])await assert.rejects(h.query(id),e=>e.status===400);
+ assert.equal(h.calls.length,0);await assert.rejects(h.query('MTG-PL-2026-10-07-OTH-2017087113155'),e=>e.status===404);assert(!h.calls.some(([ep])=>ep.startsWith('/events/')));
+});
