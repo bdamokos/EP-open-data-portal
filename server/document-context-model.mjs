@@ -521,10 +521,31 @@ export function resolveAmendmentPlacement(text, options = {}) {
   const complete = (start, end) => rows.slice(start, end + 1).every((row, index) => row.complete && row.source.container === 'body' && (!index || consecutive(rows[start + index - 1], row)));
   const span = unit => ({start: unit.start, end: unit.end});
   if (operation === 'insert') {
-    if(ref?.negative&&ref.isNew&&ref.kind==='paragraph'&&options.language==='fi'&&/^-1[a-z]?$/u.test(ref.label)&&!referenceText) {
+    // A negative first label (-1, -1a, -A, point -a) precedes the first
+    // published sibling of its kind, after any heading that opens that part.
+    // A negative number is never printed, so an empty original marks it new.
+    const firstLabel={paragraph:'1',recital:'A',point:'a'}[ref?.kind];
+    if(ref?.negative&&firstLabel&&new RegExp(`^-${firstLabel}[a-z]?$`,'u').test(ref.label)&&(ref.isNew||!String(options.originalText??'').trim())) {
       const paragraphs=units.filter(unit=>unit.kind==='paragraph');
-      const first=paragraphs[0];
-      if(first?.label!=='1'||paragraphs.filter(unit=>unit.label==='1').length!==1||first.start<1||!complete(first.start,first.end)||!consecutive(rows[first.start-1],rows[first.start]))return unresolved('insertion_reference_unavailable');
+      const siblings=units.filter(unit=>unit.kind===ref.kind&&parentMatches(unit,ref)).sort((a,b)=>a.start-b.start);
+      const first=siblings[0];
+      if(first?.label!==firstLabel||siblings.filter(unit=>unit.label===firstLabel).length!==1||first.start<1||!complete(first.start,first.end)||!consecutive(rows[first.start-1],rows[first.start]))return unresolved('insertion_reference_unavailable');
+      // Recitals precede the operative paragraphs; a later recital A belongs
+      // to an annexed opinion, not to this resolution.
+      if(ref.kind==='recital'&&!(paragraphs[0]&&first.start<paragraphs[0].start))return unresolved('insertion_reference_unavailable');
+      if(ref.kind==='point'&&ref.parents.length!==1)return unresolved('insertion_reference_unavailable');
+      // An incomplete row can hide another first label or parent paragraph.
+      if(structure.incompleteLabels.has(ref.kind==='point'?ref.paragraph:firstLabel))return unresolved('source_passage_incomplete');
+      if(ref.kind==='point') {
+        const owners=paragraphs.filter(unit=>unit.label===ref.paragraph);
+        if(owners.length!==1||!complete(owners[0].start,first.start))return unresolved('source_passage_incomplete');
+      }
+      if(referenceText) {
+        const relative=parseReference(referenceText),same=placementReference(referenceText,'en');
+        const before=relative?.relation==='before'&&relative.kind===ref.kind&&(ref.kind==='paragraph'?relative.number==='1':ref.kind==='recital'?relative.letter==='A':relative.number===ref.paragraph&&relative.point==='a');
+        if(!before&&!(same?.kind===ref.kind&&same.label===ref.label&&same.negative&&JSON.stringify(same.parents)===JSON.stringify(ref.parents)))return unresolved('conflicting_target_evidence');
+        evidence.push({basis:'relative-reference',reference:referenceText});
+      }
       evidence.push({basis:'published-reference',label:ref.label,anchor:first.label});
       return {operation,status:'placed',insertAfter:first.start-1,insertBefore:first.start,evidence};
     }
