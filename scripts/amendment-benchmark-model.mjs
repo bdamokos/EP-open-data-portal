@@ -2,7 +2,7 @@ import {assertSimilarPlacement,oracleSimilarity} from './amendment-similarity-or
 import {assertMaintainerPrinciple} from './amendment-maintainer-oracle.mjs';
 import {assertQuotedSibling} from './amendment-quoted-sibling-oracle.mjs';
 import {assertElidedDeletion} from './amendment-elision-oracle.mjs';
-import {assertFootnoteComparison} from './amendment-footnote-oracle.mjs';
+import {assertFootnoteComparison,assertResolutionFootnotes} from './amendment-footnote-oracle.mjs';
 import {oracleAddress,oracleRelative,oracleFold} from './amendment-oracle-grammar.mjs';
 import {rawLetterPointAssertion} from './amendment-benchmark-letter-point-oracle.mjs';
 import {rawQuotedProposalAssertion} from './amendment-benchmark-quoted-oracle.mjs';
@@ -360,7 +360,7 @@ function verifyKnownPlacement({placement, wording, items, text, nativeQuoted, ta
     if (source.includes('\uFFFC') || wording.originalText.includes('\uFFFC')) return {status:'unverified',reason:'oracle-object-comparison-unavailable'};
     const key = value => wording.baseline==='present-text'?existingLawOracleNormal(value,labels):oracleNormal(value,labels);
     const left = key(source), right = key(wording.originalText);
-    const footnotes=proposal&&assertFootnoteComparison(proposal,wording,placement);
+    const footnotes=proposal?assertFootnoteComparison(proposal,wording,placement):assertResolutionFootnotes(text,wording,placement);
     if(footnotes?.status==='failed')return footnotes;
     if(!footnotes&&(!left||!right||left!==right)){
       const quotes=value=>value.normalize('NFC').replace(/[‘’‚‛ʻʼ“”„‟«»"'\s]/gu,'');

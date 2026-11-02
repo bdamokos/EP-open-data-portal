@@ -45,7 +45,7 @@ async function harness(t,{response=questions(),language='en'}={}) {
 
 test('Questions counts current and former authors together and labels former MEPs without changing current-roster charts or navigation',async t=>{
   const h=await harness(t);
-  assert.equal(h.container.querySelector('.insight-question-results > .insight-section-heading > span').textContent,'1 question · 3 MEP authors');
+  assert.equal(h.container.querySelector('.insight-question-results > .insight-section-heading > span').textContent,'1 question · 3 MEP authors · Jul 1, 2026 — Oct 17, 2026');
   assert.equal(h.caption().textContent,'Current MEPs: 1 · former MEPs: 2 · each person counted once');
   assert.doesNotMatch(h.caption().textContent,/other speakers|outside the current roster/);
   assert.equal(h.container.querySelector('.insight-donut-total').textContent,'1','former authors do not inflate the current-roster charts');
@@ -80,7 +80,7 @@ test('Questions suppresses the former-MEP caption when zero and uses singular wo
     const h=await harness(t,{response:questions(selectedStats,authors().slice(0,1+formerCount))});
     assert.equal(h.caption().textContent,formerCount?'Current MEPs: 1 · former MEP: 1 · each person counted once':'1 current MEP · each person counted once');
     assert.equal(h.container.querySelectorAll('.insight-person-membership').length,formerCount);
-    assert.equal(h.container.querySelector('.insight-question-results > .insight-section-heading > span').textContent,`1 question · ${1+formerCount} MEP author${formerCount?'s':''}`);
+    assert.equal(h.container.querySelector('.insight-question-results > .insight-section-heading > span').textContent,`1 question · ${1+formerCount} MEP author${formerCount?'s':''} · Jul 1, 2026 — Oct 17, 2026`);
   });
 });
 
