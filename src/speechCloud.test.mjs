@@ -52,7 +52,7 @@ test('the cloud analyses the interface language without a language choice and ke
 test('an interface language without word filtering falls back to English and says so',async t=>{
   const calls=[];
   const ui=await cloud(t,async input=>{const language=new URL(input,'http://localhost').searchParams.get('lang');calls.push(language);const data=result(speeches.slice(0,1));data.language=language;return Response.json(data);});
-  await ui.render({member:1,interfaceLanguage:'mt'});
+  await ui.render({member:1,interfaceLanguage:'xx'});
   assert.deepEqual(calls,['en']);
   assert.match(ui.container.querySelector('.text-language-note').textContent,/unavailable · showing/);
 });
