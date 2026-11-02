@@ -945,3 +945,37 @@ test('Finnish published negative paragraph insertions require a unique first par
  assert.equal(resolveAmendmentPlacement({...text,paragraphs:text.paragraphs.map(v=>v.startsWith('1.')?'2. Changed first;':v)},options).status,'unresolved');
  }
 });
+
+test('a pure suffixed insertion is placed by label in another language edition of the same document',()=>{
+  // B-10-2026-0411 AM1: English wording, Spanish edition only.
+  const text=document(['El Parlamento Europeo,','A.\tConsiderando que…;','8.\tPide al Gobierno español…;','9.\tExpresa su profunda preocupación…;'],{textLanguage:'es'});
+  const insert={language:'en',baseline:'motion-resolution',originalText:'',proposedText:'8a. Calls on…;',targetLabel:'Paragraph 8 a (new)'};
+  const placed=resolveAmendmentPlacement(text,insert);
+  assert.equal(placed.status,'placed');assert.equal(placed.insertAfter,2);assert.equal(placed.insertBefore,3);
+  assert.deepEqual(placed.evidence.find(e=>e.basis==='cross-language-label'),{basis:'cross-language-label',matchKind:'label-cross-language',wordingLanguage:'en',textLanguage:'es'});
+  assert.equal(resolveAmendmentPlacement(text,{...insert,targetLabel:'Recital A a (new)',proposedText:'Aa. whereas…;'}).insertBefore,2);
+  // Wording-dependent operations and other label shapes stay withheld.
+  for(const changes of [
+    {originalText:'8.\tCalls on the Spanish Government…;',proposedText:'8.\tCalls on…;',targetLabel:'Paragraph 8'},
+    {originalText:'8.\tCalls on the Spanish Government…;',proposedText:'deleted',targetLabel:'Paragraph 8'},
+    {targetLabel:'Paragraph 8 – point a (new)'},
+    {targetLabel:undefined},
+  ])assert.equal(resolveAmendmentPlacement(text,{...insert,...changes}).reason,'different_text_languages',JSON.stringify(changes));
+  assert.equal(resolveAmendmentPlacement(text,{...insert,referenceText:'After § 9'}).reason,'conflicting_target_evidence','the vote reference must agree');
+  assert.equal(resolveAmendmentPlacement(text,{...insert,targetLabel:'Paragraph 8 a'}).reason,'different_text_languages','the label must be marked new');
+  // Published vote references are English and still bind non-English wording.
+  const french={...insert,language:'fr',targetLabel:'Paragraphe 8 bis (nouveau)',proposedText:'8 bis. Demande…;'};
+  assert.equal(resolveAmendmentPlacement(text,french).status,'placed');
+  assert.equal(resolveAmendmentPlacement(text,{...french,referenceText:'After § 9'}).reason,'conflicting_target_evidence');
+  assert.equal(resolveAmendmentPlacement(text,{...insert,targetLabel:'Paragraph 12 a (new)'}).status,'unresolved','the base must exist in the edition');
+});
+
+test('another-edition placement compares every published vote reference in English',async()=>{
+  const {documentContextPlacement}=await import('./document-context-placement.mjs');
+  const text=document(['El Parlamento Europeo,','A.\tConsiderando que…;','8.\tPide al Gobierno español…;','9.\tExpresa su profunda preocupación…;'],{textLanguage:'es'});
+  const chosen={language:'fr',targetLabelLanguage:'fr',baseline:'motion-resolution',originalText:'',proposedText:'8 bis. Demande…;',targetLabel:'Paragraphe 8 bis (nouveau)'};
+  const place=referenceTexts=>documentContextPlacement({chosen,text,referenceTexts,resolutionDocument:true});
+  assert.equal(place(['After § 8']).status,'placed');
+  assert.equal(place(['After § 9']).reason,'conflicting_target_evidence');
+  assert.equal(place(['After § 8','After § 9']).reason,'conflicting_target_evidence','several references conflict');
+});

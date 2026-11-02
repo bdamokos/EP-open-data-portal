@@ -29,7 +29,10 @@ export function documentContextPlacement({chosen,text,items,baseline,referenceTe
   if(proposalKind)return items?.length&&chosen.language&&(chosen.targetPath?.language??chosen.targetLabelLanguage)===chosen.language
     ?resolveProposalPlacement(items,chosen):unresolved(items?.length?'different_text_languages':council?'council_position_unavailable':'proposal_baseline_unavailable');
   // Only parsed, same-language vote references are location evidence; the rest stay in provenance.
-  const comparable=referenceTexts.filter(reference=>resolutionReference(reference,chosen.language));
+  // Another language edition places by label alone, so the published (English)
+  // vote references are compared there whatever the wording language.
+  const otherEdition=Boolean(chosen.language&&text?.textLanguage&&text.textLanguage!==chosen.language);
+  const comparable=referenceTexts.filter(reference=>resolutionReference(reference,otherEdition?'en':chosen.language));
   let placement=['present-text','council-position'].includes(chosen.baseline)
     ?unresolved(chosen.baseline==='present-text'?'amends_existing_law':'council_position_unavailable')
     :resolveAmendmentPlacement(text,{...chosen,targetLabel:chosen.targetLabelLanguage===chosen.language?chosen.targetLabel:undefined,referenceText:comparable[0],resolutionDocument});

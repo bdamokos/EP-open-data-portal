@@ -464,7 +464,8 @@ export const resolutionReference = (value, language) => english(language)
 
 export function resolveAmendmentPlacement(text, options = {}) {
   const operation = amendmentOperation(options), evidence = [];
-  const referenceText = resolutionReference(options.referenceText, options.language);
+  const otherEdition = Boolean(options.language && text?.textLanguage && text.textLanguage !== options.language);
+  const referenceText = resolutionReference(options.referenceText, otherEdition ? 'en' : options.language);
   const unresolved = reason => ({operation, status: 'unresolved', reason, evidence});
   const placed = fields => ({operation, status: 'placed', ...fields, evidence});
   const mixedScope=amendmentMixedLanguageScope(options);
@@ -479,10 +480,14 @@ export function resolveAmendmentPlacement(text, options = {}) {
   if (/\barticle\b|\bregulation\b|\bdirective\b/i.test(firstLine)
     || options.baseline != null && options.baseline !== 'motion-resolution'
       && (options.baseline !== 'unknown' || options.resolutionDocument !== true)) return unresolved('baseline_unavailable');
-  if (!options.language || text?.textLanguage && text.textLanguage !== options.language) return unresolved('different_text_languages');
+  // EP language editions share numbering: a pure suffixed insertion can be
+  // placed by its label in another edition of the same document, without
+  // comparing wording. Structure is read in the edition's own language.
+  const crossLanguage = otherEdition;
+  if (!options.language || crossLanguage && operation !== 'insert') return unresolved('different_text_languages');
   const rows = sourceStructure(text);
   if (!rows) return unresolved('source_structure_unavailable');
-  const structure = motionStructure(text, options.language), {units} = structure;
+  const structure = motionStructure(text, crossLanguage ? text.textLanguage : options.language), {units} = structure;
   if (!units.length) return unresolved('baseline_unavailable');
   if (structure.selection?.multipleOpenings) {
     // The report identity alone cannot distinguish decisions that restart at 1.
@@ -505,7 +510,11 @@ export function resolveAmendmentPlacement(text, options = {}) {
     evidence.push({basis:'published-ordinal-alias',publishedLabel:ref.label,sourceLabel:'Β'+ref.suffix,ordinal:2});
     ref={...ref,label:'Β'+ref.suffix,base:'Β'};
   }
-  const pointPlacement = resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
+  if (crossLanguage) {
+    if (!ref?.suffix || !ref.isNew || ref.after || ref.negative || !['paragraph', 'recital'].includes(ref.kind)) return unresolved('different_text_languages');
+    evidence.push({basis: 'cross-language-label', matchKind: 'label-cross-language', wordingLanguage: options.language, textLanguage: text.textLanguage});
+  }
+  const pointPlacement = crossLanguage ? null : resolutionPointPlacement(text, rows, structure, {...options, referenceText}, operation);
   if (pointPlacement) return pointPlacement;
   const parentMatches = (unit, reference) => {
     if (reference.kind !== 'point') return true;
