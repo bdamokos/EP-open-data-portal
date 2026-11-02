@@ -11703,7 +11703,7 @@
           "source": "explorer-translation"
         },
         "7.30.30.10": {
-          "label": "Bekæmpelse af varemærkeforfalskning",
+          "label": "Bekæmpelse af forfalskning",
           "source": "explorer-translation"
         },
         "7.40": {
@@ -13413,7 +13413,7 @@
           "source": "explorer-translation"
         },
         "7.30.30.10": {
-          "label": "Bekämpfung von Produkt- und Markenpiraterie",
+          "label": "Bekämpfung von Fälschungen",
           "source": "explorer-translation"
         },
         "7.40": {
@@ -13509,7 +13509,7 @@
           "source": "explorer-translation"
         },
         "8.20.32": {
-          "label": "Justiz und Inneres und Erweiterung",
+          "label": "Justiz und Inneres sowie Erweiterung",
           "source": "explorer-translation"
         },
         "8.20.40": {
@@ -13675,7 +13675,7 @@
           "source": "explorer-translation"
         },
         "discharge": {
-          "label": "Entlastung für {year}",
+          "label": "Entlastung {year}",
           "source": "explorer-translation"
         }
       }
@@ -15123,7 +15123,7 @@
           "source": "explorer-translation"
         },
         "7.30.30.10": {
-          "label": "Tuoteväärennösten torjunta",
+          "label": "Väärennösten torjunta",
           "source": "explorer-translation"
         },
         "7.40": {
@@ -20579,7 +20579,7 @@
           "source": "explorer-translation"
         },
         "2.10.03": {
-          "label": "Caighdeánú, caighdeáin CE/AE agus trádmharc CE/AE, deimhniú, comhréireacht",
+          "label": "Caighdeánú, caighdeáin agus trádmharc CE/AE, deimhniú, comhréireacht",
           "source": "explorer-translation"
         },
         "2.20": {
@@ -21699,7 +21699,7 @@
           "source": "explorer-translation"
         },
         "6.10.02": {
-          "label": "An comhbheartas slándála agus cosanta (CBSC); Aontas Iarthar na hEorpa (WEU), NATO",
+          "label": "An comhbheartas slándála agus cosanta (CBSC); Aontas Iarthar na hEorpa (AIE), NATO",
           "source": "explorer-translation"
         },
         "6.10.03": {
@@ -22087,11 +22087,11 @@
           "source": "explorer-translation"
         },
         "8.40.01.02": {
-          "label": "Uachtarán, comhaltaí, sainorduithe, grúpaí polaitiúla",
+          "label": "Uachtarán, Feisirí, sainorduithe, grúpaí polaitiúla",
           "source": "explorer-translation"
         },
         "8.40.01.03": {
-          "label": "Díolúine na gcomhaltaí",
+          "label": "Díolúine na bhFeisirí",
           "source": "explorer-translation"
         },
         "8.40.01.06": {
@@ -22241,7 +22241,7 @@
           "source": "explorer-translation"
         },
         "1.20": {
-          "label": "Állampolgári jogok",
+          "label": "A polgárok jogai",
           "source": "explorer-translation"
         },
         "1.20.01": {
@@ -22401,7 +22401,7 @@
           "source": "explorer-translation"
         },
         "3.10.01.06": {
-          "label": "Kedvezőtlen helyzetű mezőgazdasági térségek",
+          "label": "Kedvezőtlen adottságú mezőgazdasági területek",
           "source": "explorer-translation"
         },
         "3.10.02": {
@@ -22729,7 +22729,7 @@
           "source": "explorer-translation"
         },
         "3.30.04": {
-          "label": "Rádió-távközlés, műsorszórás",
+          "label": "Rádiótávközlés, műsorszórás",
           "source": "explorer-translation"
         },
         "3.30.05": {
@@ -23137,7 +23137,7 @@
           "source": "explorer-translation"
         },
         "4.10.25": {
-          "label": "Társadalmi problémák: jogsértő magatartás, erőszak, bűnözés",
+          "label": "Társadalmi problémák: bűnelkövetés, erőszak, bűnözés",
           "source": "explorer-translation"
         },
         "4.15": {
@@ -23157,7 +23157,7 @@
           "source": "explorer-translation"
         },
         "4.15.05": {
-          "label": "Ipari szerkezetátalakítás, munkahelyvesztés, elbocsátások, áttelepítések, Európai Globalizációs Alkalmazkodási Alap (EGAA)",
+          "label": "Ipari szerkezetátalakítás, munkahelyvesztés, elbocsátások, a termelés áthelyezése, Európai Globalizációs Alkalmazkodási Alap (EGAA)",
           "source": "explorer-translation"
         },
         "4.15.06": {
@@ -23329,7 +23329,7 @@
           "source": "explorer-translation"
         },
         "4.70.01": {
-          "label": "Strukturális alapok, befektetési alapok általában, programok",
+          "label": "Strukturális alapok, beruházási alapok általában, programok",
           "source": "explorer-translation"
         },
         "4.70.02": {
@@ -23349,7 +23349,7 @@
           "source": "explorer-translation"
         },
         "4.70.06": {
-          "label": "Periférikus és legkülső régiók, tengerentúli országok és területek",
+          "label": "Periferikus és legkülső régiók, tengerentúli országok és területek",
           "source": "explorer-translation"
         },
         "4.70.07": {
@@ -23469,7 +23469,7 @@
           "source": "explorer-translation"
         },
         "6.30.01": {
-          "label": "Általános vámkedvezmény-rendszer (GSP), származási szabályok",
+          "label": "Általános tarifális preferenciák rendszere (GSP), származási szabályok",
           "source": "explorer-translation"
         },
         "6.30.02": {
