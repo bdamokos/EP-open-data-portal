@@ -26,11 +26,15 @@ export async function retainedSourceSelection({file,snapshot,cache,runtime}) {
   requireValue(filename!==repository&&!filename.startsWith(repository+path.sep),'configuration must be outside Git');
   const bytes=await readFile(filename),config=JSON.parse(bytes);
   requireValue(config.schemaVersion===1&&config.baseSnapshotId===snapshot.snapshotId,'snapshot identity mismatch');
+  requireValue(cache.snapshotId==null||cache.snapshotId===snapshot.snapshotId,'cache snapshot identity mismatch');
+  cache.snapshotId=snapshot.snapshotId;
   requireValue(Array.isArray(config.bindings)&&config.bindings.length>0&&Array.isArray(config.supplement?.manifest),'invalid configuration');
   const directory=await realpath(path.resolve(path.dirname(filename),config.supplement.directory));
   requireValue(directory!==repository&&!directory.startsWith(repository+path.sep),'captured supplement must be outside Git');
   const extra=new InputCache(directory,{apiBase:cache.apiBase,fetchMissing:false,cap:0});
-  await extra.seal(config.supplement.manifest);
+  await extra.seal(config.supplement.manifest,{snapshotId:snapshot.snapshotId});
+  // Both sealed layers share result observations, never captured inputs.
+  extra.gapScope=cache.gapScope;extra.frozenInputGaps=cache.frozenInputGaps;
   const records=new Map(),layers=new Map();
   for(const layer of [cache,extra])for(const entry of layer.manifest()) {
     const key=identity(entry.url,entry.request);
@@ -40,13 +44,18 @@ export async function retainedSourceSelection({file,snapshot,cache,runtime}) {
   const manifest=[...records.values()].sort((a,b)=>a.url.localeCompare(b.url,'en')||JSON.stringify(a.request||{}).localeCompare(JSON.stringify(b.request||{}),'en'));
   const selectedURLs=new Set(),missingComparisons=new Set();
   const combined={apiBase:cache.apiBase,fetchMissing:false,cap:0,sealed:new Set(records.keys()),
+    frozenInputGaps:cache.frozenInputGaps,
+    observeFrozenInputs:read=>cache.observeFrozenInputs(read),
+    noteFrozenInputs:inputs=>cache.noteFrozenInputs(inputs),
+    frozenObservations:()=>cache.frozenObservations(),
     get requests(){return cache.requests+extra.requests;},
     get missing(){return new Map([...cache.missing,...extra.missing]);},
     manifest:()=>manifest,
     assertHealthy(){if(this.failure)throw this.failure;cache.assertHealthy();extra.assertHealthy();},
     async get(url,options={}) {
       try {
-        const layer=layers.get(identity(url,options));requireValue(layer,'input not captured: '+url);
+        const layer=layers.get(identity(url,options));
+        if(!layer)return cache.get(url,options);
         // This flag admits a retained official download host; it creates no
         // redirect observation and cannot fetch because both layers are sealed.
         return await layer.get(url,{...options,...(selectedURLs.has(url)&&runtime.allowedDownload(url)?{officialRedirect:true}:{})});
