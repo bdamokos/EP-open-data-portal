@@ -105,7 +105,9 @@ export class SpeechCloudInsights {
     if(state&&this.clock()-state.at>CLOUD_LIMITS.cacheMs){this.states.delete(key);state=null;}
     if(!state) {state={at:this.clock(),availabilityRevision:status.availabilityRevision,scope:null,cursor:{date:0,offset:0},page:-1,records:new Map(),seen:new Set(),scans:new Map(),sourceIssues:new Set(),duplicates:0,sources:[],rawRecords:0,missingLanguage:0,missingLanguageAlternatives:new Map(),invalidText:0,xmlBytes:0,textBytes:0,truncated:false,pending:null,result:null};this.states.set(key,state);while(this.states.size>CLOUD_LIMITS.queries)this.states.delete(this.states.keys().next().value);}
     try {
-      if(state.pending)await waitForRequest(state.pending);
+      // Recheck after every wait: another waiter may have started the next build.
+      // Builds yield during analysis, so two at once could release shared texts.
+      while(state.pending)await waitForRequest(state.pending);
       // A cancelled build advanced past its published result: start again.
       if(state.dirty){if(this.states.get(key)===state)this.states.delete(key);return await this.query(query,restarts);}
       if(state.result&&(state.page>=page||state.cursor===null))return state.result;

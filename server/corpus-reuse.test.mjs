@@ -197,6 +197,17 @@ test('cloud requests read several saved pages, analyse once and stop a batch at 
   const partial=await busy.query(query);assert.equal(partial.coverage.transcripts,50);assert.equal(partial.nextPage,1);
   const resumed=await busy.query({...query,page:1});assert.equal(resumed.coverage.transcripts,121);assert.equal(resumed.nextPage,null);
 });
+test('concurrent cloud waiters share one build at a time',async t=>{
+  const {index,add}=fixture(t);for(let n=1;n<=120;n++)add(activity(n));
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),offsets=[];let release;const gate=new Promise(resolve=>{release=resolve;});
+  const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:{first:0,next:60_000},readCorpusPage:async params=>{offsets.push(params.offset);if(offsets.length===1)await gate;return retainedSpeechPage(params);}});
+  const pending=[0,1,1].map(page=>cloud.query({...query,page}));
+  release();
+  const [first,second,third]=await Promise.all(pending);
+  assert.equal(first.coverage.transcripts,50);
+  assert.equal(second.coverage.transcripts,120);assert.equal(second.nextPage,null);assert.deepEqual(third,second);
+  assert.deepEqual(offsets,[0,50,100],'no page is read twice');
+});
 test('a cancelled cloud batch restarts instead of serving a result behind its cursor',async t=>{
   const {index,add}=fixture(t);for(let n=1;n<=121;n++)add(activity(n));
   const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),controller=new AbortController();let reads=0;
