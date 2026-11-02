@@ -98,7 +98,12 @@ export function replaySourceClients(cache,runtime) {
       await Promise.allSettled([...view.pending.values()]);
     }
   };
-  return {sources,documents:new runtime.CellarDocuments({sources,directory:null,clock})};
+  const documents=new runtime.CellarDocuments({sources,directory:null,clock});
+  if(cache.retained?.baseScope)for(const name of ['candidates','metadata','metadataByWork','content']) {
+    const original=documents[name].bind(documents);
+    documents[name]=(...args)=>cache.retained.baseScope({type:'cellar',method:name,arguments:args},()=>original(...args));
+  }
+  return {sources,documents};
 }
 
 export function sourceReplay(cache,runtime) {
@@ -130,8 +135,20 @@ export function sourceReplay(cache,runtime) {
   // InputCache owns the single writer, request spacing/cap and immutable bytes.
   const {documents}=replaySourceClients(cache,runtime);
   const readProposal=runtime.createProposalBaseline({documents,request});
-  const readCouncil=runtime.createCouncilPositionBaseline?.({documents,request});
-  const readExisting=runtime.createExistingLawBaseline?.({documents});
+  const discoveryScope=(reader,method,identify,query)=>reader&&async function(options) {
+    if(!cache.retained?.baseScope)return reader(options);
+    const identity=await identify(options);
+    if(identity.status!=='resolved')return reader(options);
+    let queryText;try{queryText=query(identity,options);}catch{return reader(options);}
+    const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');
+    url.searchParams.set('query',queryText);url.searchParams.set('format','application/sparql-results+json');
+    return cache.retained.baseScope({type:'cellar',method,arguments:[{...identity,language:options.language}],discoveryRequest:{url:url.href,request:{accept:'application/sparql-results+json'}}},()=>reader(options));
+  };
+  const readCouncil=discoveryScope(runtime.createCouncilPositionBaseline?.({documents,request}),'council-discovery',async options=>{
+    const report=await request('/plenary-documents/'+options.reportId);
+    return runtime.reportCouncilReference(report.payload.data[0],options);
+  },identity=>runtime.councilCandidatesSparql(identity));
+  const readExisting=discoveryScope(runtime.createExistingLawBaseline?.({documents}),'existing-law-discovery',options=>runtime.existingLawReference(options),(identity,options)=>runtime.consolidationsSparql(identity.baseCelex,options.language));
   const nativeCaller=typeof runtime.DocumentContext?.prototype.readNleReferences==='function'?new runtime.DocumentContext({request,readProposal,download:async url=>{
     const input=await cache.get(url);
     if(!input.ok)throw new Error('document-source-http-'+input.status);
@@ -190,7 +207,7 @@ export function sourceReplay(cache,runtime) {
         const files=runtime.documentFiles(selected.work).filter(f=>f.format==='DOCX'&&runtime.allowedDownload(f.url));
         const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
-        if(chosen)await cache.get(chosen.url);
+        if(chosen){const read=()=>cache.get(chosen.url);await (cache.retained?.baseScope?cache.retained.baseScope({type:'ep-document',documentId:id,file:chosen},read):read());}
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
         if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
         if(readExisting&&!cache.sealed)for(const hint of lawHints.values()){await readExisting({...hint,language});cache.assertHealthy();}
@@ -212,12 +229,17 @@ export function sourceReplay(cache,runtime) {
       const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
       const chosen=files.find(f=>f.language===preferred[0])||files[0];
       const source=chosen?await cache.get(chosen.url):null;
+      const provenance={sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok,...(source.acquisitionUnavailable?{acquisitionUnavailable:true,acquisitionUnavailableReason:source.acquisitionUnavailableReason}:{})}:null};
+      if(source?.acquisitionUnavailable) {
+        cache.assertHealthy();
+        return {...provenance,status:'unavailable',paragraphs:[],textLanguage:chosen.language||language,reason:'acquisition-unavailable',acquisitionUnavailableReason:source.acquisitionUnavailableReason};
+      }
       const text=await runtime.documentText(work,language,{directory:null,clock:()=>source?Date.parse(source.fetchedAt):0,download:async url=>{
         const input=await cache.get(url);
         if(!input.ok)throw new Error('document-source-http-'+input.status);
         return {...runtime.docxContent(input.body),resolvedSourceUrl:input.resolvedSourceUrl||url};
       }});
-      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
+      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,...provenance};
     },
     async proposal(options,selection) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};
@@ -277,7 +299,8 @@ export function sourceReplay(cache,runtime) {
       if(!readExisting)return {baseline:{status:'unresolved',gaps:['existing-law-baseline-unavailable']},items:[]};
       const identity=runtime.existingLawReference(options);
       if(identity.status!=='resolved')return {baseline:identity,items:[]};
-      const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',runtime.consolidationsSparql(identity.baseCelex,options.language));url.searchParams.set('format','application/sparql-results+json');
+      let queryText;try{queryText=runtime.consolidationsSparql(identity.baseCelex,options.language);}catch{const baseline=await readExisting(options);cache.assertHealthy();return {baseline,items:[]};}
+      const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');url.searchParams.set('query',queryText);url.searchParams.set('format','application/sparql-results+json');
       if(cache.sealed&&!cache.sealed.has(JSON.stringify([url.href,{accept:'application/sparql-results+json'}])))return {baseline:{status:'unresolved',gaps:['existing-law-source-not-in-snapshot']},items:[]};
       const source=await readExisting(options);cache.assertHealthy();const items=[];
       try {for(const item of source.items)items.push({kind:item.kind,index:item.index,proposal:runtime.parsePublicLegalXhtml(item.buffer,{language:options.language,sourceUrl:item.source.url,identity:{work:source.workId,expression:item.expressionId,item:item.itemId,celex:source.celex}})});

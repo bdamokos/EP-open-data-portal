@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {OfficialContextSources} from './official-context.mjs';
+import {upstreamPortServices} from './odp.mjs';
 import {ProcedureProgress,PROGRESS_LIMITS,procedureProgressQuery,progressSparql,parseProgress,parseProgressDocuments,readableDocumentUrl} from './procedure-progress.mjs';
 import {apiCachePolicy} from './response-cache.mjs';
 import {createInsights} from './insights.mjs';
@@ -166,19 +167,22 @@ test('summary-initiated shared-URL refreshes cannot replace the validated progre
   const retained=await service.query(rsp);
   assert.deepEqual(retained.events,initial.events);assert.deepEqual(retained.status,initial.status);assert.equal(retained.source.fetchedAt,initial.source.fetchedAt);assert(retained.source.refreshError);
 });
-test('cached source failures retain their full retry deadline and suppress early refresh',async()=>{
-  let now=Date.parse('2026-10-27T12:10:00Z'),limited=false,reads=0;
+test('cached source failures retain their full retry deadline and suppress early refresh',async t=>{
+  // Advance the cache clock and the shared origin admission clock together.
+  t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.now()+2000});
+  t.after(()=>{for(const origin of ['https://oeil.europarl.europa.eu','https://publications.europa.eu']){const q=upstreamPortServices().queueFor(origin);assert.equal(q.active,0);q.nextStart=0;q.cooldownUntil=0;q.drain();}});
+  let now=Date.now(),limited=false,reads=0;
   const sources=new OfficialContextSources({directory:null,clock:()=>now,run:operation=>operation(),fetchSource:async url=>{
     if(url.includes('/sparql'))return Response.json(data([]));
     reads++;return limited?new Response('',{status:503,headers:{'retry-after':'120'}}):new Response(oeilHtml,{headers:{'content-type':'text/html'}});
   }});
   const service=new ProcedureProgress(sources),saved=await service.query(rsp);
-  now+=PROGRESS_LIMITS.freshMs+1;limited=true;
+  now+=PROGRESS_LIMITS.freshMs+1;t.mock.timers.tick(PROGRESS_LIMITS.freshMs+1);limited=true;
   await service.query(rsp);await Promise.allSettled([...sources.cache.pending.values()]);
   const paused=await service.query(rsp),retryAt=now+120_000;
   assert.deepEqual(paused.events,saved.events);assert(paused.source.refreshError);assert.equal(paused.source.retryAt,retryAt);assert.equal(progressSourceState(paused).retryAt,retryAt);assert.equal(reads,2);
-  now+=60_001;await service.query(rsp);await Promise.allSettled([...sources.cache.pending.values()]);assert.equal(reads,2,'the cache does not shorten the upstream pause to its normal one-minute retry');
-  now=retryAt+1;limited=false;const updating=await service.query(rsp);
+  now+=60_001;t.mock.timers.tick(60_001);await service.query(rsp);await Promise.allSettled([...sources.cache.pending.values()]);assert.equal(reads,2,'the cache does not shorten the upstream pause to its normal one-minute retry');
+  const elapsed=retryAt+1-now;now=retryAt+1;t.mock.timers.tick(elapsed);limited=false;const updating=await service.query(rsp);
   assert.equal(updating.source.refreshInProgress,true);assert.equal(updating.source.refreshError,null);assert.equal(updating.source.retryAt,null);assert.equal(progressSourceState(updating).pending,true,'an admitted retry follows the new attempt instead of its previous failure');
   await Promise.allSettled([...sources.cache.pending.values()]);
   const recovered=await service.query(rsp);assert.equal(reads,3);assert.equal(recovered.source.retryAt,null);assert.equal(recovered.source.refreshError,null);

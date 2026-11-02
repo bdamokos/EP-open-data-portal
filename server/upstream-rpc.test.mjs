@@ -4,6 +4,7 @@ import {Worker,MessageChannel} from 'node:worker_threads';
 import {once} from 'node:events';
 import {setTimeout as delay} from 'node:timers/promises';
 import {UpstreamQueue} from './upstream-queue.mjs';
+import {upstreamPortServices} from './odp.mjs';
 import {OdpObservations} from './odp-observability.mjs';
 import {serveUpstreamPort,UpstreamRpcClient} from './upstream-rpc.mjs';
 
@@ -14,10 +15,10 @@ function reply(worker,id,type='done') {
     worker.on('message',receive);
   });
 }
-async function fixture(t,options={}) {
-  const queue=new UpstreamQueue(options),observations=new OdpObservations({onResponse:status=>queue.recordResponse(status),log:()=>{}});
+async function fixture(t,options={},services) {
+  const queue=services?.queueFor('https://oeil.europarl.europa.eu')||new UpstreamQueue(options),observations=new OdpObservations({onResponse:status=>queue.recordResponse(status),log:()=>{}});
   const {port1,port2}=new MessageChannel();
-  const close=serveUpstreamPort(port1,{queueFor:()=>queue,observations});
+  const close=serveUpstreamPort(port1,{queueFor:services?.queueFor||(()=>queue),observations});
   const worker=new Worker(new URL('./test-support/source-writer-fixture.mjs',import.meta.url),{workerData:{upstreamPort:port2},transferList:[port2]});
   t.after(async()=>{close();await worker.terminate();});await once(worker,'message');
   let sequence=0;
@@ -94,4 +95,19 @@ test('header telemetry preserves the body-held admission and sanitizes worker ne
   const barrier=await f.queue.acquire('background');barrier();
   const snapshot=f.observations.snapshot();assert.equal(snapshot.networkErrors,1);assert.equal(snapshot.failureKinds.connection,1);
   assert(!JSON.stringify(snapshot).match(/EXCLUDED|EXACT-ID|secret/));assert.equal(f.queue.active,0);
+});
+
+ test('OEIL source workers and foreground readers share the same serial paced origin grants',async t=>{
+ const services=upstreamPortServices(),one=await fixture(t,{},services),two=await fixture(t,{},services),source='https://oeil.europarl.europa.eu';
+ const first=await one.command('acquire',{source},'grant'),started=Date.now();
+ const next=two.command('acquire',{source},'grant');await tick();assert.equal(one.queue.active,1);
+ let foregroundAt;const foreground=one.queue.acquire().then(release=>{foregroundAt=Date.now();release();});
+ await one.command('release',{grant:first.grant});await foreground;assert(foregroundAt-started>=900);
+ const second=await next;assert(Date.now()-foregroundAt>=900);assert.equal(one.queue.maximum,1);await two.command('release',{grant:second.grant});
+ });
+
+test('lowest background rank reaches shared admission and enables existing adaptive backfill policy',async t=>{
+ const services=upstreamPortServices(),{port1,port2}=new MessageChannel(),close=serveUpstreamPort(port1,services),client=new UpstreamRpcClient(port2);t.after(()=>{client.close();close();});
+ await client.queue('odp').run(async()=>{}, {priority:'background',backgroundRank:1});await tick();
+ const queue=services.queueFor('odp');assert.equal(queue.adaptive,true);assert(queue.interval>0);assert.equal(queue.active,0);
 });

@@ -1,4 +1,4 @@
-import {upstreamResponseError} from './odp.mjs';
+import {boundedUpstream,upstreamResponseError} from './odp.mjs';
 import {backfillContext,checkBackfillCapacity} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {createHash} from 'node:crypto';
@@ -105,7 +105,7 @@ export class CellarDocuments {
       while(true) {
         // Each hop/negotiation reacquires admission and any origin pause, within
         // the same deadline. No retry follows throttling or a multipart reply.
-        const result=await this.sources.schedule(async()=>{
+        const result=await this.sources.schedule(()=>{const run=async()=>{
           if(contentRequest&&backfillContext())backfillContext().downloaded=true;
           signal.throwIfAborted();
           const response=await this.fetchSource(target,{headers:{Accept:selectedAccept,'User-Agent':userAgent('Commission proposal context'),...(language?{'Accept-Language':language}:{}),...(selectedValidators.etag?{'If-None-Match':selectedValidators.etag}:{}),...(selectedValidators.lastModified?{'If-Modified-Since':selectedValidators.lastModified}:{})},redirect:'manual',signal});
@@ -135,7 +135,7 @@ export class CellarDocuments {
             return {status:200,url:target,accept:selectedAccept,contentType,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
           } else await response.body?.cancel();
           throw failure(response.status===300?'cellar_multipart':[404,406,410].includes(response.status)?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');
-        },{origin:new URL(initial).origin,priority:backfillContext()?'background':'interactive',signal});
+        };return backfillContext()?boundedUpstream(run,{source:new URL(initial).origin,priority:'background',signal}):run();},{origin:new URL(initial).origin,priority:backfillContext()?'background':'interactive',signal});
         if(result.redirect){target=result.redirect;redirects++;continue;}
         if(result.advertisement){negotiation=result.advertisement;selectedAccept=negotiation.advertisedAccept;selectedValidators={};continue;}
         return {...result,...(negotiation?{negotiation}:{})};
