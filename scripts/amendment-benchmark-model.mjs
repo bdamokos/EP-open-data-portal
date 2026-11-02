@@ -202,7 +202,7 @@ function verifyNegativeFirst(text,wording,target,placement) {
   if(label.kind==='recital'&&!(paragraphs.length&&anchor.start<Math.min(...paragraphs.map(unit=>unit.start))))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   // Incomplete or non-body rows before the anchor can hide another first label.
   // Points also need the only printed owner paragraph from the resolution start.
-  const from=Math.min(...raw.units.map(unit=>unit.start)),owner=label.kind==='point'?anchor.parent:null;
+  const from=raw.start,owner=label.kind==='point'?anchor.parent:null;
   const printedFirst={paragraph:/^1[.)]\s/u,recital:/^A[.)]\s/u,point:/^\(a\)\s|^a\)\s/u}[label.kind];
   const printedOwner=owner===null?null:new RegExp(`^${target.segments[0].value}[.)]\\s`,'u');
   if(!Number.isInteger(from)||owner!==null&&!(from<=owner))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};

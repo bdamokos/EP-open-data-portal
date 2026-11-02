@@ -39,3 +39,14 @@ test('an incomplete earlier parent paragraph withholds a negative point', () => 
   text.paragraphSources[2].complete=false;
   assert.notEqual(verifyPlacement({text,wording:wording('Paragraph 1 – point ‑a (new)','(-a)\tnew point;'),placement:insert(5)}).status,'verified');
 });
+
+
+test('negative first boundaries inspect incomplete owners before the first recognised unit', () => {
+  for(const point of [false,true]) {
+    const rows=['The European Parliament,','1.\tEarlier first \uFFFC;','Heading','1.\tComplete first:','(a)\tfirst point;','(b)\tsecond point;','2.\tSecond.'];
+    const text=resolution(rows);text.paragraphSources[1].complete=false;
+    const label=point?'Paragraph 1 – point ‑a (new)':'Paragraph -1 (new)';
+    const proposed=point?'(-a)\tnew point;':'-1.\tNew;';
+    assert.equal(verifyPlacement({text,wording:wording(label,proposed),placement:insert(point?4:3)}).status,'unverified');
+  }
+});
