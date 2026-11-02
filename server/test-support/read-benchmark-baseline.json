@@ -400,6 +400,18 @@
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
+    },
+    {
+      "name": "weekCloud.ready",
+      "pageFetches": 11,
+      "rowsReturned": 1,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH p USING INDEX sqlite_autoindex_week_clouds_1 (week=? AND language=?)",
+        "SEARCH r USING INDEX sqlite_autoindex_week_cloud_revisions_1 (week=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
     }
   ]
 }
