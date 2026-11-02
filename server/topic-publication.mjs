@@ -1,3 +1,4 @@
+import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
 import {buildTopics} from './topics-project.mjs';
 import {topicCollectionDue} from './topics-collector.mjs';
@@ -7,6 +8,8 @@ import {storyCollectionDue} from './story-facts-collector.mjs';
 const keys=new Set(['recordTopicProjection','recordTopicCoverage','recordTopicCalendar','recordTopicAskerCoverage','storyProjection','storyCoverage','storyProjectionDirty','topicProjectionDirty']);
 export const projectionTables=['record_topic_records','record_topic_memberships','record_topic_concepts','record_topic_totals','record_topic_groups','record_topic_group_summary','record_topic_question_places','record_topic_author_countries','record_topic_filtered_totals','record_topic_filtered_groups','story_facts','story_links','story_places','story_topics','story_parents','story_scope_records','story_scope_counts','story_rank','story_place_rank','story_map_groups'];
 export function topicRebuildDue(store,now=store.clock(),window){
+ if(!store.get('active'))return false;
+ if(topicBootstrapRequired(store))return true;
  if(!topicBuildWindowOpen(now,window))return false;
  if(!store.get('topicProjectionDirty')&&!store.get('storyProjectionDirty'))return false;
  const last=store.get('topicProjectionPublishedAt')||0;
