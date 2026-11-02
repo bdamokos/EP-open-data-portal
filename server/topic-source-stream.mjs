@@ -43,7 +43,9 @@ export function* rootSourceValues(chunks,{arrays=[],scalars=[]}={}){
  if(!closed||string||capture)throw Error('Incomplete source envelope.');
 }
 const sourceReaders=new WeakMap();
-export function* sourceByteChunks(db,rowid,{chunkSize=65536}={}){
+// SQLite materialises the whole cell for each substr call, so chunks are large:
+// a 20 MB source is read in five passes, not hundreds.
+export function* sourceByteChunks(db,rowid,{chunkSize=4*1024*1024}={}){
  // SQLite statement registers can retain a complete source cell. Reuse one
  // statement rather than leaving a large register behind for every sitting.
  let read=sourceReaders.get(db);if(!read){read=db.prepare('SELECT substr(CAST(body AS BLOB),?,?) chunk FROM sources WHERE rowid=?');sourceReaders.set(db,read);}

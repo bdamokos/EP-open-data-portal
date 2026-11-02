@@ -41,6 +41,9 @@ export async function rebuildTopicProjection(store,{generation=store.get('active
  return {...result,generation,dataGeneration:epoch,projectionBytes};
 }
 
+// Rows from a build that died (heap limit, cancellation, lost lease) count
+// against the disk check, so the writer prunes them before checking.
+export async function pruneUnpublishedTopicData(store){const old=store.get('recordTopicProjection');await pruneTopicData(store,[old?.dataGeneration||old?.generation].filter(Boolean));}
 async function pruneTopicData(store,keep){
  for(const table of projectionTables){if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table))continue;
   const old=store.db.prepare('SELECT DISTINCT generation FROM '+table+(keep.length?' WHERE generation NOT IN ('+keep.map(()=>'?').join(',')+')':'')).all(...keep);

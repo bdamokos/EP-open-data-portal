@@ -81,3 +81,8 @@ test('overview and detail count records within the same projection date bound',t
  const topics=new RecordTopics(store),overview=topics.query(new URLSearchParams('role=topic'),'overview'),detail=topics.query(new URLSearchParams('key=oeil:8.20'),'detail');
  assert.equal(overview.items[0].total,1);assert.equal(detail.total,overview.items[0].total);assert.equal(topics.query(new URLSearchParams('key=oeil:8.20&to=2026-12-31'),'detail').total,1);
 });
+
+test('a country ID absent from the authority snapshot is unresolved, not a second place',async()=>{
+ const {countryIdentity}=await import('./topic-country-identity.mjs');
+ assert.equal(countryIdentity('XKX'),null);assert.equal(countryIdentity('1A0')?.id,'1A0');assert.equal(eurovocCountries.get('http://eurovoc.europa.eu/5695'),'XKX');
+});

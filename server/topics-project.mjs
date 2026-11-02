@@ -81,7 +81,7 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  const url=new URL(v.url),reference=url.searchParams.get('reference');if(!reference)continue;let p;try{p=parseProcedurePage(v.html,reference,url.pathname.includes('/fr/')?'fr':'en');}catch{continue;}
  const id=reference.slice(0,9).replace('/','-')+(reference.match(/^\d{4}\/\d{4}([A-Z])/)?.[1]||'');const node=byId.get(id);if(!node||node.reference!==reference)continue;
  const existing=procedureTopics.get(id)||{reference,assignments:[]};existing.oeilRead=true;
- for(const subject of p.subjects){const key='oeil:'+subject.code,c=concepts.get(key)||{key,scheme:'oeil',uri:v.url+'#subject-'+subject.code,labels:{},source:{url:v.url,fetchedAt:v.fetchedAt}};c.labels[p.language]=subject.label;concepts.set(key,c);if(!existing.assignments.some(a=>a.concept.key===key))existing.assignments.push({concept:c,basis:'direct',steps:[{from:id,field:'OEIL subject',to:subject.code}],sources:[{url:v.url,fetchedAt:v.fetchedAt}]});}procedureTopics.set(id,existing);
+ for(const subject of p.subjects){const key='oeil:'+subject.code,c=concepts.get(key)||{key,scheme:'oeil',role:'topic',uri:v.url+'#subject-'+subject.code,labels:{},source:{url:v.url,fetchedAt:v.fetchedAt}};c.labels[p.language]=subject.label;concepts.set(key,c);if(!existing.assignments.some(a=>a.concept.key===key))existing.assignments.push({concept:c,basis:'direct',steps:[{from:id,field:'OEIL subject',to:subject.code}],sources:[{url:v.url,fetchedAt:v.fetchedAt}]});}procedureTopics.set(id,existing);
  }
  // Persist collector's retained pages independently of its bounded HTTP cache.
  for(const row of store.db.prepare('SELECT id,reference,body FROM topic_procedure_pages').iterate()){

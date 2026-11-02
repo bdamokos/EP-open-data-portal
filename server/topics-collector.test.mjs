@@ -87,3 +87,15 @@ test('a permanent OEIL failure keeps the last good page and records the failure 
  assert.equal(store.db.prepare('SELECT body FROM topic_procedure_pages').get().body,good,'the good observation is retained');assert.equal(store.get('topicProjectionDirty'),false);
  const attempt=store.db.prepare('SELECT attempts,error FROM topic_procedure_attempts').get();assert.equal(attempt.attempts,1);assert.equal(attempt.error,'missing');assert.equal(store.db.prepare('SELECT next_read FROM topic_procedure_queue').get().next_read,now+30*86400_000);
 });
+
+test('a page saved under an older reference is neither reused nor kept as good',async t=>{
+ const {readFile}=await import('node:fs/promises'),dir=await mkdtemp(path.join(tmpdir(),'topic-old-reference-'));let now=Date.parse('2026-01-01');const store=new ActivityStore(dir,{clock:()=>now,initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ topicCollectorTables(store.db);store.db.prepare('INSERT INTO topic_procedure_queue VALUES (?,?,0)').run('2025-2110','2025/2110(INI)');
+ const html=await readFile(new URL('./fixtures/oeil-procedure-2025-2110-subjects.html',import.meta.url),'utf8');let fail=false,calls=0;
+ const sources={get:async url=>{calls++;if(fail)throw Object.assign(Error('missing'),{code:'official_source_unavailable',cause:{status:404}});return {html,url,fetchedAt:new Date(now).toISOString()};}},worker={store,clock:()=>now,requests:0,budget:10,controller:new AbortController()};
+ await collectTopicProcedure(worker,{sources});assert.equal(calls,1);
+ // The dossier's reference changes; the saved page belongs to the old one.
+ store.db.prepare('UPDATE topic_procedure_queue SET reference=?,next_read=0').run('2025/2999(INI)');fail=true;
+ await collectTopicProcedure(worker,{sources});assert.equal(calls,2,'the new reference is read, not skipped as held');
+ const page=store.db.prepare('SELECT reference,body FROM topic_procedure_pages').get();assert.equal(page.reference,'2025/2999(INI)');assert.equal(JSON.parse(page.body).state,'unavailable','a permanent failure is recorded for the new reference');
+});

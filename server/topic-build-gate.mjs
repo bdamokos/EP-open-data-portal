@@ -2,8 +2,9 @@ import {statSync} from 'node:fs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
 const MINUTE=60_000,DAY=1440*MINUTE;
 // Failed or skipped builds wait 15 minutes, doubling to one day. Refreshes
-// (not bootstraps) start at most once per Brussels window occurrence and
-// source generation, so a generation published later in the window still builds.
+// (not bootstraps) start once per source generation and at most twice per
+// Brussels window occurrence, so a generation published later in the window
+// still builds but repeated recovery publications cannot rebuild all night.
 export const topicBuildBackoff=failures=>Math.min(DAY,15*MINUTE*2**Math.min(Math.max(0,failures-1),20));
 export function topicBuildWindowKey(now,window=process.env.TOPICS_REBUILD_WINDOW||'03:00-05:00'){
  topicBuildWindowOpen(now,window);const start=Number(window.slice(0,2))*60+Number(window.slice(3,5));
@@ -11,20 +12,23 @@ export function topicBuildWindowKey(now,window=process.env.TOPICS_REBUILD_WINDOW
  return new Date(Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day),Number(p.hour),Number(p.minute))-start*MINUTE).toISOString().slice(0,10);
 }
 const state=store=>store.get('topicBuildState')||{};
-const attemptKey=(store,now,window)=>topicBuildWindowKey(now,window)+':'+(store.get('active')??'');
+export const topicRefreshesPerWindow=2;
+const attempts=(s,key)=>s.window===key&&Array.isArray(s.generations)?s.generations:[];
 export function topicBuildAllowed(store,now=store.clock(),{bootstrap=false,window}={}){
  const s=state(store);if(Number(s.retryAt)>now)return false;
- return bootstrap||s.windowAttempt!==attemptKey(store,now,window);
+ if(bootstrap)return true;const used=attempts(s,topicBuildWindowKey(now,window));
+ return used.length<topicRefreshesPerWindow&&!used.includes(store.get('active')??null);
 }
 export function topicBuildStarted(store,now=store.clock(),{bootstrap=false,window}={}){
- if(!bootstrap)store.set('topicBuildState',{...state(store),windowAttempt:attemptKey(store,now,window)});
+ if(bootstrap)return;const s=state(store),key=topicBuildWindowKey(now,window);
+ store.set('topicBuildState',{...s,windowAttempt:undefined,window:key,generations:[...attempts(s,key),store.get('active')??null]});
 }
 export function topicBuildFailed(store,error,now=store.clock(),{skipped=false}={}){
  const s=state(store),failures=(s.failures||0)+1;
  const next={...s,failures,lastFailureAt:new Date(now).toISOString(),error:String(error?.message||error).slice(0,500),...(skipped?{skipped:true}:{skipped:undefined}),retryAt:now+topicBuildBackoff(failures)};
  store.set('topicBuildState',next);return next;
 }
-export function topicBuildSucceeded(store){const {windowAttempt}=state(store);store.set('topicBuildState',windowAttempt?{windowAttempt}:null);}
+export function topicBuildSucceeded(store){const {window,generations}=state(store);store.set('topicBuildState',window?{window,generations}:null);}
 // The build adds one publication beside the readable one. Use the last
 // measured publication size, or a fifth of the used pages before the first
 // measurement, less pages SQLite can reuse.
