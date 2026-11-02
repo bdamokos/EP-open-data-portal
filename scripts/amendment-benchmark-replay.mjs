@@ -212,12 +212,17 @@ export function sourceReplay(cache,runtime) {
       const preferred=runtime.languagePreference(files.map(f=>f.language).filter(Boolean),language);
       const chosen=files.find(f=>f.language===preferred[0])||files[0];
       const source=chosen?await cache.get(chosen.url):null;
+      const provenance={sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok,...(source.acquisitionUnavailable?{acquisitionUnavailable:true,acquisitionUnavailableReason:source.acquisitionUnavailableReason}:{})}:null};
+      if(source?.acquisitionUnavailable) {
+        cache.assertHealthy();
+        return {...provenance,status:'unavailable',paragraphs:[],textLanguage:chosen.language||language,reason:'acquisition-unavailable',acquisitionUnavailableReason:source.acquisitionUnavailableReason};
+      }
       const text=await runtime.documentText(work,language,{directory:null,clock:()=>source?Date.parse(source.fetchedAt):0,download:async url=>{
         const input=await cache.get(url);
         if(!input.ok)throw new Error('document-source-http-'+input.status);
         return {...runtime.docxContent(input.body),resolvedSourceUrl:input.resolvedSourceUrl||url};
       }});
-      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,sourceMetadataGaps:selected.declaration?['requested-language-omitted-by-current-EP-metadata']:[],fileDeclarationSource:selected.declaration??null,sourceInput:source?{url:source.url,fetchedAt:source.fetchedAt,sha256:source.sha256,status:source.status,ok:source.ok}:null};
+      cache.assertHealthy();return {...text,nativeBuffer:source?.ok?source.body:undefined,...provenance};
     },
     async proposal(options,selection) {
       if(typeof options.language!=='string'||!options.reportId&&!options.celex)return {baseline:{status:'unresolved',language:options.language,gaps:['proposal-identity-unavailable']},items:[]};
