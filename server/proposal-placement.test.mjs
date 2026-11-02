@@ -429,3 +429,17 @@ test('similarity recovery withholds table-cell passages without independent tabl
  const placed=resolveProposalPlacement([{kind:'act',proposal}],{targetLabel:'Article 1 – paragraph 1 – point 1',originalText:text.replace('system','systen'),proposedText:'New text.',language:'en'});
  assert.equal(placed.status,'unresolved');
 });
+
+// A-10-2026-0201 AM107/AM112: cell-exact table rows inside the addressed annex provision.
+test('annex table addresses replace a unique cell-exact run of rows',()=>{
+  const rows=[['ANNEX III','Annexetitre','body'],['The following Annex VIII is added:','Normal','body'],['Iron and steel','Normal','body'],['CN code','Normal','cell',1,1,1],['Greenhouse gas','Normal','cell',1,1,2],['ex 7204 Ferrous waste','Normal','cell',1,2,1],['Carbon dioxide','Normal','cell',1,2,2],['Aluminium','Normal','body'],['CN code','Normal','cell',2,1,1],['Greenhouse gas','Normal','cell',2,1,2],['ex 7602 Aluminium waste','Normal','cell',2,2,1],['Carbon dioxide','Normal','cell',2,2,2],['’','Normal','body']];
+  const projection={paragraphs:rows.map(r=>r[0]),structureStatus:'extracted',
+    paragraphSources:rows.map((r,ordinal)=>r[2]==='cell'?{path:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]/w:p[1]`,ordinal,container:'table-cell',containerPath:`/w:document[1]/w:body[1]/w:tbl[${r[3]}]/w:tr[${r[4]}]/w:tc[${r[5]}]`,segment:ordinal,complete:true}:{path:'/w:document[1]/w:body[1]/w:p['+ordinal+']',ordinal,container:'body',containerPath:'/w:document[1]/w:body[1]',segment:ordinal,complete:true}),
+    paragraphProperties:rows.map(r=>({styleId:r[1],numberingComplete:true,notesComplete:true}))};
+  const items=[{kind:'annex',index:1,proposal:parseProposal(projection,{item:'annex'})}];
+  const place=(targetLabel,originalText)=>resolveProposalPlacement(items,{targetLabel,originalText,proposedText:'Changed',language:'en'});
+  const placed=place('Annex III – paragraph 1 – table','Aluminium\nCN code\tGreenhouse gas\nex 7602 Aluminium waste\tCarbon dioxide');
+  assert.equal(placed.status,'placed');assert.deepEqual(placed.span,{start:7,end:11});
+  assert.equal(place('Annex III – paragraph 1 – table on aluminium','Aluminium\nCN code\tGreenhouse gas\n7602 Aluminium waste\tCarbon dioxide').status,'unresolved','A-10-2026-0201 AM136 differs in one cell');
+  assert.equal(place('Annex III – paragraph 1 – table','CN code\tGreenhouse gas').status,'unresolved','repeated header rows are ambiguous');
+});
