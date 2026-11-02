@@ -142,7 +142,8 @@ export function rawResolutionUnits(text,language) {
   const italicTitle=i=>{
     const value=paragraphs[i].trim(),after=number(i+1);
     if(!value||value.length>=180||!/^\p{Lu}/u.test(value)||/[.;!?:]$/u.test(value)||!wholeBold(paragraphs[i],text.paragraphFormats?.[i],'italic'))return false;
-    if(!after||!contiguous(sources[i],sources[i+1])||/:\s*$/u.test(paragraphs[i-1]??''))return false;
+    // Only native XML may certify omitted blank rows between title and number.
+    if(!after||!adjacent(sources[i],sources[i+1])||/:\s*$/u.test(paragraphs[i-1]??''))return false;
     let before=null;
     for(let j=i-1;j>=start;j--){if(sources[j]?.container!=='body')continue;before=number(j);if(before)break;}
     return Boolean(before)&&Number(before)+1===Number(after);

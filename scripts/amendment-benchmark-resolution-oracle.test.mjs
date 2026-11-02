@@ -93,3 +93,21 @@ test('a wholly italic title closes a paragraph only between consecutive raw numb
  const partial=rows('Recommendations','82. Calls;');partial.paragraphFormats[2]={marks:[{kind:'italic',start:0,end:5}]};
  assert.equal(unit(partial).complete,false,'partial emphasis is not a title');
 });
+test('an italic title separated by native blank rows still closes the preceding paragraph',()=>{
+ // A-10-2026-0025 (EN) prints empty Word paragraphs around its italic titles.
+ const p=value=>'<w:p><w:r><w:t>'+value+'</w:t></w:r></w:p>',blank='<w:p><w:pPr><w:ind w:left="567"/></w:pPr></w:p>';
+ const build=gap=>{
+  const text=input(p('The European Parliament,')+p('27. Calls for new dwellings;')+blank+p('Granting legal certainty')+gap+p('28. Stresses the balance;'));
+  text.paragraphSources.forEach(source=>source.segment=0);
+  text.paragraphFormats[2]={marks:[{kind:'italic',start:0,end:text.paragraphs[2].length}]};
+  return text;
+ };
+ const unit=text=>rawResolutionUnits(text,'en').units.find(candidate=>candidate.label==='27');
+ const certified=build(blank);
+ assert.equal(certified.paragraphSources[3].ordinal-certified.paragraphSources[2].ordinal,2,'the fixture omits a blank row before 28');
+ assert.equal(unit(certified).complete,true);
+ const tabled=build('<w:tbl/>');
+ assert.equal(tabled.paragraphs.length,certified.paragraphs.length,'the table is omitted like the blank row');
+ assert.equal(unit(tabled).complete,false,'an omitted non-paragraph row is not certified');
+ assert.equal(unit({...certified,nativeBuffer:undefined}).complete,false,'without native XML the gap is not certified');
+});
