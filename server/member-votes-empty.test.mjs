@@ -92,6 +92,16 @@ test('scheduled votes without published decisions stay pending and open before t
  assert.equal(day.state,'partial');assert.equal(day.completeness.complete,false);assert.equal(data.coverage.status,'partial');assert.equal(data.pagination.observedTotal,0);
 });
 
+test('failed vote reads stay unavailable even when the agenda schedules votes',async t=>{
+ const date='2026-10-19',{service}=setup(t,{dates:[date],status:500,agenda:{[date]:agendaWithVotes(date)}}),data=await service.query('42',query('sitting=MTG-PL-'+date));
+ assert.equal(data.coverage.sittings[0].pendingVotes,null);assert.equal(data.coverage.sittings[0].state,'unavailable');assert.equal(data.coverage.status,'unavailable');
+});
+
+test('today’s verified 404 with scheduled votes is pending',async t=>{
+ const date='2026-10-20',{service}=setup(t,{dates:[date],agenda:{[date]:agendaWithVotes(date)}}),data=await service.query('42',query('sitting=MTG-PL-'+date));
+ assert.deepEqual(data.coverage.sittings[0].pendingVotes,{scheduledVoteCount:2,startsAt:date+'T12:00:00+02:00'});assert.equal(data.coverage.sittings[0].state,'partial');
+});
+
 test('agenda without votes, or a settled sitting, keeps the no-votes reading',async t=>{
  for(const [date,agenda] of [['2026-10-19',agendaWithVotes('2026-10-19',0)],['2026-01-27',agendaWithVotes('2026-01-27')]])await t.test(date,async t=>{
   const {service}=setup(t,{dates:[date],agenda:{[date]:agenda}}),data=await service.query('42',query('sitting=MTG-PL-'+date));

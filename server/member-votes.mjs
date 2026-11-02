@@ -167,7 +167,9 @@ export class MemberVotes extends VoteSourceReader {
     // settle, are unpublished, not absent. Keep the day open for re-reading.
     const scheduledVoteIds=agendaNodes.filter(n=>tail(n.had_activity_type)==='PLENARY_VOTE').map(n=>relative(n.id));
     const voteSlotStarts=agenda.nodes.filter(n=>tail(n.had_activity_type)==='MEETING_PART'&&new RegExp('^eli/dl/event/'+sittingId+'-TF-\\d{4}$').test(relative(n.id))&&refs(n.consists_of).some(id=>scheduledVoteIds.includes(id))).flatMap(n=>[n.activity_start_date].flat()).filter(value=>typeof value==='string'&&Number.isFinite(Date.parse(value)));
-    const votesPending=agenda.coverage.state==='complete'&&scheduledVoteIds.length>0&&!decisions.length&&!parents.length&&brusselsDay(this.clock())<sittingConfirmationDay(sittingId);
+    // Only verified empty reads count: a complete end, or today's exact first-page 404.
+    const verifiedEmpty=collection=>!collection.coverage.error&&(collection.coverage.state==='complete'||collection.coverage.stopReason==='not-found');
+    const votesPending=agenda.coverage.state==='complete'&&[all,named,results].every(verifiedEmpty)&&!voteErrors.length&&scheduledVoteIds.length>0&&!decisions.length&&!parents.length&&brusselsDay(this.clock())<sittingConfirmationDay(sittingId);
     const pendingVotes=votesPending?{scheduledVoteCount:scheduledVoteIds.length,startsAt:voteSlotStarts.sort((a,b)=>Date.parse(a)-Date.parse(b))[0]??null}:null;
     const votingRecordsComplete=!votesPending&&[all,named,results].every(c=>c.coverage.state==='complete')&&![missingResultIds,missingDecisionIds,missingNamedDecisionIds,conflictingDecisionIds,undeclaredChildResultIds,voteErrors].some(a=>a.length);
     const completeness={missingResultIds,missingDecisionIds,missingNamedDecisionIds,unresolvedAgendaItemIds,conflictingDecisionIds,undeclaredChildResultIds,invalidSourceIds:[...new Set(errors)],declaredResultCount:Array.isArray(node.consists_of)?declaredResults.length:declaredResults.length||null,declaredDecisionCount:declaredDecisions.length,votingRecordsComplete,complete:false};
