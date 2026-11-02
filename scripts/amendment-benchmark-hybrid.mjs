@@ -53,6 +53,7 @@ export class HybridInputs {
     else if(identity.type!=='cellar'||new URL(url).origin!=='https://publications.europa.eu')proven=false;
     if(identity.discoveryRequest&&key(url,request)!==key(identity.discoveryRequest.url,identity.discoveryRequest.request))proven=false;
     const b=proven?await this.b.read(url,request):null;
+    if(actual(b)&&proof?.sourceHashes?.some(hash=>hash.toLowerCase()!==b.sha256))return this.wrap(null,url,request,null,identity,'base-source-hash-mismatch');
     // Empty gap hashes are not observations. An attested actual hash conflict
     // cannot be repaired by taking an older observation.
     const redirect=b&&[301,302,303,307,308].includes(b.status)&&typeof b.headers?.location==='string'&&Number.isFinite(Date.parse(b.fetchedAt));
@@ -71,12 +72,24 @@ export class HybridInputs {
       const files=this.runtime.documentFiles(work).filter(f=>f.url===identity.file.url&&f.language===identity.file.language&&f.format==='DOCX');
       // documentFiles supplies canonical URL/language/format; retain edition
       // fields as well, including publisher size and issue time.
-      return files.flatMap(file=>this.runtime.array(work.is_realized_by).flatMap(e=>this.runtime.array(e.is_embodied_by).filter(m=>m.is_exemplified_by===file.url||new URL(m.is_exemplified_by,'https://data.europarl.europa.eu').href===file.url).map(m=>({file,descriptor:m,edition:Object.fromEntries(['epNumberVersion','isVersionOf','is_replaced_by','replaces'].filter(k=>work[k]!==undefined).map(k=>[k,work[k]]))}))));
+      return files.flatMap(file=>this.runtime.array(work.is_realized_by).flatMap(e=>this.runtime.array(e.is_embodied_by).filter(m=>m.is_exemplified_by===file.url||new URL(m.is_exemplified_by,'https://data.europarl.europa.eu').href===file.url).map(m=>({file,descriptor:{url:file.url,language:file.language,format:file.format,byteSize:file.byteSize??null,issued:m.issued??null},hash:m.sha256??null,edition:Object.fromEntries(['epNumberVersion','isVersionOf','is_replaced_by','replaces'].filter(k=>work[k]!==undefined).map(k=>[k,work[k]]))}))));
     });
-    if(!descriptors.every(d=>d.length===1)||stable(descriptors[0][0])!==stable(descriptors[1][0]))return null;
+    if(!descriptors.every(d=>d.length===1))return null;
+    const [copy,base]=descriptors.map(d=>d[0]);
+    if(stable(copy.file)!==stable(base.file)||stable(copy.descriptor)!==stable(base.descriptor))return null;
+    // Retained projections omit raw manifestation IDs and some edition fields.
+    // Compare the canonical declaration; preserve one-sided edition evidence
+    // without treating an omitted projection field as an observed conflict.
+    for(const field of new Set([...Object.keys(copy.edition),...Object.keys(base.edition)])) {
+      if(copy.edition[field]===undefined&&inputs[0].localProjection?.representation==='retained-index-projection')continue;
+      if(stable(copy.edition[field])!==stable(base.edition[field]))return null;
+    }
+    const sourceHashes=[copy.hash,base.hash].filter(hash=>hash!==null);
+    if(sourceHashes.some(hash=>typeof hash!=='string'||!/^[a-f0-9]{64}$/i.test(hash))||new Set(sourceHashes.map(hash=>hash.toLowerCase())).size>1)return null;
+    const declaration={file:copy.file,descriptor:copy.descriptor,edition:{copy:copy.edition,base:base.edition}};
     const redirects=[];let current=identity.file.url;
     for(let hops=0;hops<=3;hops++) {
-      if(current===requestedUrl)return {declaration:descriptors[0][0],redirects,observations:inputs.map((input,i)=>({snapshotId:[this.a,this.b][i].snapshot.snapshotId,url:input.url,request:input.request,sha256:input.sha256,fetchedAt:input.fetchedAt}))};
+      if(current===requestedUrl)return {declaration,sourceHashes,redirects,observations:inputs.map((input,i)=>({snapshotId:[this.a,this.b][i].snapshot.snapshotId,url:input.url,request:input.request,sha256:input.sha256,fetchedAt:input.fetchedAt}))};
       const response=await this.b.read(current);
       if(!response||![301,302,303,307,308].includes(response.status)||!Number.isFinite(Date.parse(response.fetchedAt))||!this.runtime.allowedDownload(response.redirectUrl||''))return null;
       redirects.push({snapshotId:this.b.snapshot.snapshotId,url:current,redirectUrl:response.redirectUrl,status:response.status,sha256:response.sha256,fetchedAt:response.fetchedAt});
