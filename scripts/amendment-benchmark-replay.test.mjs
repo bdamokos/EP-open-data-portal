@@ -169,6 +169,15 @@ test('motion text and resolution selection use cached DOCX even when the live bo
   const [result]=await evaluateReport([f.row],sample,cache,{runtime,replay:sourceReplay(cache,runtime)});
   assert.equal(result.outcome,'correct',JSON.stringify(result.stages));assert.equal(result.stages.S5.span.start,2);
 });
+test('retained document gaps preserve null observation time without rendering or retry dates',async()=>{
+  const runtime=await replayRuntime(root),f=fixture(false),work=(await (await f.fetcher(publicDocumentUrl(f.document))).json()).data[0];
+  const file=runtime.documentFiles(work).find(f=>f.format==='DOCX');
+  const gap={url:file.url,ok:false,status:null,fetchedAt:null,sha256:digest(''),body:Buffer.alloc(0),acquisitionUnavailable:true,acquisitionUnavailableReason:'amendment-source-attestation-missing'};
+  const cache={get:async url=>{assert.equal(url,file.url);return gap;},assertHealthy(){}};
+  const result=await sourceReplay(cache,runtime).text(work,'en');
+  assert.equal(result.status,'unavailable');assert.deepEqual(result.paragraphs,[]);assert.equal(result.reason,'acquisition-unavailable');assert.equal(result.acquisitionUnavailableReason,gap.acquisitionUnavailableReason);
+  assert.equal(result.sourceInput.fetchedAt,null);assert.equal(result.sourceInput.status,null);assert.equal(result.nextRetryAt,undefined);assert.equal(result.nativeBuffer,undefined);
+});
 test('cache misses in the proposal reader abort instead of becoming source gaps',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'amendment-replay-missing-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const runtime=await replayRuntime(root),cache=new InputCache(directory,{apiBase});

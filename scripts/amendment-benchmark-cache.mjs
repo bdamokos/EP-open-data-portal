@@ -84,7 +84,7 @@ export class InputCache {
       if(body.length>maximum)throw new Error('Cached input exceeds source size limit: '+url);
       if (body.length!==meta.bytes||digest(body)!==meta.sha256) throw new Error('Cache hash mismatch: '+url);
     } else if(this.retained) {
-      const input=await this.retained.get(url,request,{cache:this});
+      const input=await this.retained.get(url,request,{cache:this,maximum});
       ({body,...meta}=input);
       await writeFile(bodyPath,body);await writeFile(metaPath,JSON.stringify(meta,null,2)+'\n');
     } else {
