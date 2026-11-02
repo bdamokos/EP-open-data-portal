@@ -24,16 +24,12 @@ export function topicBuildFailed(store,error,now=store.clock(),{skipped=false}={
 }
 export function topicBuildSucceeded(store){const {windowAttempt}=state(store);store.set('topicBuildState',windowAttempt?{windowAttempt}:null);}
 // The build adds one publication beside the readable one. Use the last
-// measured publication size, or the current projection's pages, less pages
-// SQLite can reuse. Without either, assume a fifth of the used pages.
+// measured publication size, or a fifth of the used pages before the first
+// measurement, less pages SQLite can reuse.
 export function topicBuildDiskCheck(store,diskLimit){
  if(!Number.isFinite(diskLimit)||!store.filename)return {ok:true};
  const size=['','-wal','-shm'].reduce((sum,suffix)=>{try{return sum+statSync(store.filename+suffix).size;}catch{return sum;}},0);
  const page=store.db.prepare('PRAGMA page_size').get().page_size,pages=store.db.prepare('PRAGMA page_count').get().page_count,free=store.db.prepare('PRAGMA freelist_count').get().freelist_count*page;
- const estimate=Number(store.get('topicProjectionSize')?.bytes)||currentProjectionBytes(store)||Math.round((pages*page-free)/5),needed=Math.max(0,estimate-free);
+ const estimate=Number(store.get('topicProjectionSize')?.bytes)||Math.round((pages*page-free)/5),needed=Math.max(0,estimate-free);
  return {ok:size+needed<=diskLimit,size,estimate,needed,diskLimit};
-}
-function currentProjectionBytes(store){
- try{let bytes=0;for(const {name} of store.db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table','index') AND (tbl_name LIKE 'record\\_topic\\_%' ESCAPE '\\' OR tbl_name LIKE 'story\\_%' ESCAPE '\\') AND tbl_name NOT IN ('story_inputs','story_jobs','story_seen_pages')").all())bytes+=store.db.prepare('SELECT COALESCE(SUM(pgsize),0) n FROM dbstat WHERE name=? AND aggregate=TRUE').get(name).n;return bytes;}
- catch{return 0;}
 }
