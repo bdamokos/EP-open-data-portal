@@ -100,6 +100,14 @@ test('vote-family groups expose only one retained exact scheduled vote target',t
  assert.equal(groups.find(g=>g.key===event(1)).agendaId,scheduled(94));for(const n of [2,3,4])assert(!groups.find(g=>g.key===event(n)).agendaId);assert(groups.every(g=>g.kind==='record'));
 });
 
+test('a dossier group whose newest item is a vote stays a dossier when the procedure record is absent',t=>{
+ const store=fixture(t),key='place:NGA',assignment={key,role:'place',paths:[]};
+ writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:'A10-0001/2026',kind:'document',procedureIds:['2026-0001'],date:'2026-07-01',titles:{en:'Report'},assignments:[assignment]},{id:'MTG-PL-2026-07-09-PVCRE-ITM-9-1',kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_RESULTS',procedureIds:['2026-0001'],agendaIds:[],date:'2026-07-09',titles:{en:'Vote'},assignments:[assignment]}]});
+ const groups=new RecordTopics(store).query(new URLSearchParams({key}),'detail').groups,dossier=groups.find(g=>g.key==='2026-0001');
+ if(dossier){assert.equal(dossier.kind,'procedure');assert.equal(dossier.procedureId,'2026-0001');assert.equal(dossier.agendaId,undefined);}
+ assert(!groups.some(g=>g.kind==='record'&&g.key==='2026-0001'),'a dossier group never becomes a record because of its newest item');
+});
+
 test('speeches under vote-family parents are records without an inferred agenda target',t=>{
  const store=fixture(t),date='2026-07-09',key='place:NGA',parent='MTG-PL-'+date+'-PVCRE-ITM-9-6',speech='MTG-PL-'+date+'-OTH-100';
  writeTopicProjection(store,{concepts:[{key,role:'place',labels:{en:'Nigeria'}}],records:[{id:parent,kind:'event',activityType:'def/ep-activities/PLENARY_VOTE_EXPLANATIONS',date,titles:{en:'Explanations of votes'},assignments:[]},{id:speech,kind:'speech',parentIds:[parent],members:[],date,titles:{en:'Speech'},assignments:[{key,role:'place',paths:[]}]}]});

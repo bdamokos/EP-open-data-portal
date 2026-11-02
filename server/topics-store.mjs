@@ -218,9 +218,12 @@ export class RecordTopics{
  // No held title gives null (the interface shows a short label); IDs stay in keys and links.
  const titleLanguage=r=>languagePreference(Object.keys(r.titles||{}),language)[0]||null,title=r=>r.titles?.[titleLanguage(r)]||null;
  // An excluded (procedural) parent, such as a voting-time item, is never presented as a debate.
- const groupKind=parent?.procedural===true||base.kind==='vote'?'record':representative.groupKind;
- const voteTargets=base.kind==='vote'?[...new Set(base.agendaIds||[])].filter(id=>{let row;try{row=this.db.prepare("SELECT body FROM story_inputs WHERE kind='agenda' AND id=?").get(id);}catch(error){if(/no such table/.test(error.message))return false;throw error;}const agenda=row?JSON.parse(row.body):null;return agenda&&!agenda.conflicted&&agenda.type==='PLENARY_VOTE'&&agenda.date===base.date&&id.startsWith('MTG-PL-'+base.date+'-OJ-ITM-V-');}):[];
- return {key:g.group_key,kind:groupKind,title:title(base),titleLanguage:title(base)?titleLanguage(base):null,date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(base.kind==='vote'?(voteTargets.length===1?{agendaId:voteTargets[0]}:{}):groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),titleLanguage:title(r)?titleLanguage(r):null,date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
+ // Only a stored vote parent makes a group a vote record; a dossier group whose
+ // newest item happens to be a vote stays a dossier.
+ const parentVote=parent?.kind==='vote';
+ const groupKind=parent?.procedural===true||parentVote?'record':representative.groupKind;
+ const voteTargets=parentVote?[...new Set(base.agendaIds||[])].filter(id=>{let row;try{row=this.db.prepare("SELECT body FROM story_inputs WHERE kind='agenda' AND id=?").get(id);}catch(error){if(/no such table/.test(error.message))return false;throw error;}const agenda=row?JSON.parse(row.body):null;return agenda&&!agenda.conflicted&&agenda.type==='PLENARY_VOTE'&&agenda.date===base.date&&id.startsWith('MTG-PL-'+base.date+'-OJ-ITM-V-');}):[];
+ return {key:g.group_key,kind:groupKind,title:title(base),titleLanguage:title(base)?titleLanguage(base):null,date:g.date,...(base.reference?{reference:base.reference}:{}),...(groupKind==='procedure'?{procedureId:g.group_key}:{}),...(parentVote?(voteTargets.length===1?{agendaId:voteTargets[0]}:{}):groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),titleLanguage:title(r)?titleLanguage(r):null,date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
  });
  return {ready:true,coverage,...extras,groupsTotal:groupTotal,concept,periods,series,peaks,chart,facets,groups,total,nextOffset:offset+20<groupTotal?offset+20:null};
  }
