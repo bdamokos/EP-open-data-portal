@@ -88,10 +88,11 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');
   const roleCounts=speakerRoles.get(d.id);
-  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id),d.speechLabels),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
+  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id),d.speechLabels,nodes.get(d.id)?.conflicted?null:nodes.get(d.id)?.activityType),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
   put.run(generation,'debate',d.id,d.date,JSON.stringify(body));addLinks('debate-document',d.id,body.docs);addLinks('debate-procedure',d.id,body.procedures);
   for(const p of procedural?[]:body.places)place.run(generation,p.id,'debate',d.id,d.date,p.basis);
-  if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
+  const read=storyInput(store,'event',d.id);if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
+  if(read&&!Object.hasOwn(read,'type'))queueStoryRead(store,'event',d.id,{refresh:true});
   if(!agenda||!Object.keys(agenda.formats||{}).length)queueStoryRead(store,'agenda','MTG-PL-'+d.date,{unavailable:d.date<'2024-12-16'});
  }} )());
  const topicKeys=store.db.prepare("SELECT DISTINCT m.key FROM json_each(?) j CROSS JOIN record_topic_memberships m INDEXED BY record_topic_record CROSS JOIN record_topic_concepts c WHERE m.generation=? AND m.record_id=j.value AND c.generation=m.generation AND c.key=m.key AND c.role IN ('topic','keyword')");
@@ -123,7 +124,7 @@ async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){
  };
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,kind,date,group_key,body FROM record_topic_records WHERE generation=? AND kind='debate' ORDER BY id").iterate(generation)){
   yield;const r=JSON.parse(row.body),known=fact('debate',row.id);if(known){save(row,r,known.procedural?{procedural:true,places:[]}:known);continue;}
-  const agenda=storyInput(store,'agenda',row.id),docs=docsFor(row.id),title=r.titles?.en||Object.values(r.titles||{})[0]||'';save(row,r,proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',row.id))?{procedural:true,places:[]}:debatePlaces(title,docs.flatMap(d=>d.places),debateFormat(agenda,docs)));
+  const agenda=storyInput(store,'agenda',row.id),docs=docsFor(row.id),title=r.titles?.en||Object.values(r.titles||{})[0]||'';save(row,r,proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',row.id),[],r.status==='ambiguous'?null:r.activityType)?{procedural:true,places:[]}:debatePlaces(title,docs.flatMap(d=>d.places),debateFormat(agenda,docs)));
  }} )());
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,kind,date,group_key,body FROM record_topic_records WHERE generation=? AND kind='speech' ORDER BY id").iterate(generation)){
   yield;const r=JSON.parse(row.body),parent=parentGet.get(generation,row.id)?.parent,known=parent?fact('debate',parent):null;if(known)save(row,r,known.procedural?{places:[]}:known,parent);

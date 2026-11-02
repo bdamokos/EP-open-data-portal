@@ -3,7 +3,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {countryConcepts,eurovocCountries} from './topic-roles.mjs';
 import {titlePlaces} from './insights-places.mjs';
 import {GROUP_VOICE_GROUPS} from '../src/groupVoiceTerms.mjs';
-export const STORY_FACTS_VERSION=12;
+export const STORY_FACTS_VERSION=13;
 // Parser revision of staged document inputs. A re-parse of retained bytes under a
 // newer revision replaces the staged input instead of reading as a source conflict.
 export const STORY_DOCUMENT_PARSER=2;
@@ -99,7 +99,12 @@ export const votingItem=title=>/\(vote\)\s*$/i.test(String(title||''));
 // The verbatim item's own English label decides (its /events activity_label). Before
 // that record is read, the speeches' copy of the item label is used only when every
 // speech carries the same English label. Without an English label the item stays a debate.
-export function votingDebate(event,speechLabels=[]){
+const VOTE_EVENT=/^(?:PLENARY_VOTE|PLENARY_VOTE_RESULTS|PLENARY_OUTCOME|REQUEST_VOTE_URGENCY|EXPLANATIONS_OF_VOTES|EXPLANATION_OF_VOTE|PLENARY_EXPLANATION_OF_VOTE|PLENARY_EXPLANATIONS_OF_VOTES)$/;
+// The event's own published type is exact evidence: a vote type excludes, PLENARY_DEBATE keeps it a debate.
+// Labels decide only when no type is retained.
+export function votingDebate(event,speechLabels=[],type=null){
+ const own=event&&!event.conflicted?tail(event.type||''):'',t=own||tail(type||'');
+ if(VOTE_EVENT.test(t))return true;if(t==='PLENARY_DEBATE')return false;
  // A read item decides by its own English label; conflicted or missing labels keep it a debate.
  if(event){if(event.conflicted)return false;const own=event.titles?.en;return typeof own==='string'&&Boolean(own.trim())&&votingItem(own);}
  if(!speechLabels.length||speechLabels.some(l=>typeof l!=='string'||!l.trim()))return false;

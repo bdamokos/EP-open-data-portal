@@ -26,7 +26,7 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
   if(id.includes('OJ-ITM-')){kind='agenda';value=storyAgenda(w,source);}
   else if(/-DEC-/.test(id)){kind='decision';value=storyDecision(w,source);}
   else if(/-VOT-ITM-/.test(id)){kind='result';value={id,date:w.activity_date||null,type:tail(w.had_activity_type)||'PLENARY_VOTE_RESULTS',decisions:refs(w.consists_of),executed:refs(w.executed),basedOn:refs(w.based_on_a_realization_of),relationships:Object.fromEntries(['executed','based_on_a_realization_of'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
-  else if(/-PVCRE-ITM-/.test(id)){kind='event';value={id,executed:refs(w.executed),executedKnown:Object.hasOwn(w,'executed'),titles:w.activity_label||{},date:w.activity_date||null,relationships:Object.fromEntries(['executed','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
+  else if(/-PVCRE-ITM-/.test(id)){kind='event';value={id,type:tail(w.had_activity_type)||null,executed:refs(w.executed),executedKnown:Object.hasOwn(w,'executed'),titles:w.activity_label||{},date:w.activity_date||null,relationships:Object.fromEntries(['executed','based_on_a_realization_of','inverse_consists_of','inverse_was_scheduled_in'].filter(f=>Object.hasOwn(w,f)).map(f=>[f,w[f]])),source};}
  }
  if(!value)return;source=value.source||source;const p=prepared(store.db),old=p.get.get(kind,value.id),at=sourceTime(source.fetchedAt)||'';
  if(old&&(old.fetched_at>at||old.fetched_at===at&&old.rank>rank))return;
@@ -41,8 +41,10 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;
 }
 export function storyInput(store,kind,id){const row=prepared(store.db).input.get(kind,id);return row?{...JSON.parse(row.body),source:JSON.parse(row.source)}:null;}
-export function queueStoryRead(store,kind,id,{unavailable=false}={}){
+export function queueStoryRead(store,kind,id,{unavailable=false,refresh=false}={}){
  const key=kind+':'+id;
+ // A completed read whose retained input lacks a field added later is read once more.
+ if(refresh){store.db.exec('CREATE TABLE IF NOT EXISTS story_seen_pages(job TEXT,signature TEXT,PRIMARY KEY(job,signature))');if(store.db.prepare("UPDATE story_jobs SET state='pending',next_read=0,attempts=0,error=NULL WHERE key=? AND state='available'").run(key).changes)store.db.prepare('DELETE FROM story_seen_pages WHERE job=?').run(key);}
  prepared(store.db).queue.run(key,kind,id,unavailable?'unavailable':'pending',unavailable?null:0,unavailable?'not-served-before-2024-12-16':null);
 }
 export function* storyTopicObservations(store){

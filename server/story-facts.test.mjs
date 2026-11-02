@@ -353,3 +353,35 @@ test('the projection queues vote decisions only for sittings before today',async
  await buildTopics(store);assert.equal(queued(),0,'no decision read is queued on the sitting day');
  now=Date.parse('2026-10-29T10:00:00Z');store.acquire();await buildTopics(store);assert.equal(queued(),1);
 });
+
+test('the event type decides before any label: PLENARY_VOTE excludes, PLENARY_DEBATE keeps',()=>{
+ assert.equal(votingDebate({titles:{en:'Motions for resolutions - Nigeria'},type:'PLENARY_VOTE'},[]),true);
+ assert.equal(votingDebate({titles:{en:'Something (vote)'},type:'PLENARY_DEBATE'},['Something (vote)']),false);
+ assert.equal(votingDebate(null,['Nigeria'],'def/ep-activities/PLENARY_VOTE'),true,'a retained topic-event type counts before the read');
+ assert.equal(votingDebate({titles:{en:'Nigeria'},type:'PLENARY_VOTE',conflicted:true},[],null),false,'conflicted evidence never establishes a vote');
+ assert.equal(votingDebate({titles:{en:'Nigeria (vote)'}},[]),true,'labels still decide without a type');
+});
+test('vote-typed items leave story and topic counters, events read before types are read once more, and proceeding markers are not debates',async t=>{
+ const {store}=await fixture(t),day='2026-07-09',proc='2026-2111',vote='MTG-PL-'+day+'-PVCRE-ITM-9-6',debate='MTG-PL-'+day+'-PVCRE-ITM-8',old='MTG-PL-'+day+'-PVCRE-ITM-10',marker='MTG-PL-'+day+'-OTH-2017087113155';
+ store.putSource(1,'/plenary-documents/B-10-2026-0300','document',{id:'eli/dl/doc/B-10-2026-0300',identifier:'B-10-2026-0300',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Nigeria'},creator:['org/PPE'],is_about:[geo('NGA'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:[vote,debate,old].map(id=>'eli/dl/event/'+id),inverse_created_a_realization_of:['eli/dl/proc/'+proc]},stamp);
+ stageStoryInput(store,{activity_id:vote,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/PLENARY_VOTE',executed:[]},source,{rank:4});
+ stageStoryInput(store,{activity_id:debate,activity_date:day,activity_label:{en:'Nigeria (debate)'},had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:[]},source,{rank:4});
+ // An event read before types were retained: its stored input has no type key.
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',old,JSON.stringify({id:old,executed:[],executedKnown:true,titles:{en:'Nigeria again (debate)'},date:day,relationships:{}}),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+old,'event',old);
+ store.db.exec('CREATE TABLE IF NOT EXISTS story_seen_pages(job TEXT,signature TEXT,PRIMARY KEY(job,signature))');store.db.prepare('INSERT INTO story_seen_pages VALUES (?,?)').run('event:'+old,'sig');
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+debate,'event',debate);
+ let n=0;for(const parent of [vote,debate,old])for(const person of ['1','2','3']){const id='MTG-PL-'+day+'-OTH-8'+(++n);store.putSource(1,'/speeches/'+id,'speech',{outside:{id,date:day,titles:{en:'Nigeria'},participants:[person],parentIds:[parent],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+id,id,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ await buildTopics(store);
+ const story=storyFacts(store,new URLSearchParams('scope=place&key=NGA&period=2026-Q3'));
+ assert.deepEqual(story.debates.map(d=>d.id).sort(),[debate,old].sort(),'the PLENARY_VOTE item is not a debate although its label lacks "(vote)"');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='debate'").get(vote).n,0);
+ assert.equal(store.db.prepare("SELECT state FROM story_jobs WHERE key=?").get('event:'+old).state,'pending','a type-less read is queued once more');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM story_seen_pages WHERE job=?").get('event:'+old).n,0,'its page signature is cleared so the re-read is staged');
+ assert.equal(store.db.prepare("SELECT state FROM story_jobs WHERE key=?").get('event:'+debate).state,'available','a typed read is not repeated');
+ // Proceeding markers and chair announcements carry their own type from the speech feed; they are never debate records or groups.
+ const {putTopicRecords}=await import('./topics-store.mjs');const record=(id,type)=>({id,kind:'event',activityType:'def/ep-activities/'+type,date:day,titles:{en:'Catch-the-eye procedure'},assignments:[{key:'place:NGA',role:'place',paths:[]}],parentIds:[],procedureIds:[],agendaIds:[],members:[],status:'classified'});
+ putTopicRecords(store,1,[record(marker,'PROCEEDING_ACTIVITY'),record('MTG-PL-'+day+'-OTH-2017087113160','MEETING_NAME_CHAIR'),record('MTG-PL-'+day+'-PVCRE-ITM-11','PLENARY_DEBATE')]);
+ for(const id of [marker,'MTG-PL-'+day+'-OTH-2017087113160']){assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_records WHERE generation=1 AND id=?').get(id).n,0,'proceeding markers are not debate records');assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=?').get(id).n,0);}
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get('MTG-PL-'+day+'-PVCRE-ITM-11').kind,'debate','real debates keep their kind');
+});
