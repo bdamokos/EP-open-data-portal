@@ -1,3 +1,4 @@
+import {backfillSelectionMatches} from './base-source-backfill-context.mjs';
 import path from 'node:path';
 import {retainBaseSelection} from './base-source-store.mjs';
 import {committeeDraftId,committeeDocumentEndpoint,committeeDocumentKind} from './committee-amendments.mjs';
@@ -71,6 +72,7 @@ export function createCouncilPositionBaseline({documents=new CellarDocuments(),r
       const [workId,celex]=JSON.parse(choices[0]);if(!CELLAR_WORK_PATTERN.test(workId))return unavailable('council-work-unverified');
       const metadata=await documents.metadata(celex),resolved=resolveCouncilTree(metadata.xml,{...identity,celex,language});evidence.push(...resolved.evidence,{kind:'cellar-source',url:metadata.url,fetchedAt:metadata.fetchedAt});
       if(resolved.status!=='resolved'||resolved.workId!==workId)return unavailable(resolved.gaps[0]||'council-work-conflict');
+      if(!backfillSelectionMatches({...resolved,workId:workId,celex:celex}))return unavailable('retained-selection-conflict');
       const items=[];for(const item of resolved.items)items.push({...item,...await documents.content({celex,...item,language:item.languageUri})});
       const gaps=[];if(report.stale||metadata.viewCache?.stale||candidates.viewCache?.stale)gaps.push('stale-metadata');if(items.some(item=>item.source.stale))gaps.push('stale-content');
       return {status:gaps.length?'partial':'available',celex,workId,language,items,gaps,evidence};

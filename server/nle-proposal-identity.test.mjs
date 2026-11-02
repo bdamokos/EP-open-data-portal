@@ -7,20 +7,8 @@ import {nativeNleDecisionProcedure,nativeNleReferencePair,nativeConsultationProc
 import {commissionProcedures,reportProposalReference,resolveProposalTree} from './commission-proposal-identity.mjs';
 import {documentContextPlacement} from './document-context-placement.mjs';
 
-// Small supplied XML packages, not recorded HTTP observations. Full native
-// source bytes remain outside Git; the private actual-byte cohort is separate.
+import {word,p,heading,reportId,procedure,reference} from './test-support/nle-native-fixture.mjs';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-function word(body) {
-  const name=Buffer.from('word/document.xml'),bytes=Buffer.from(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`);
-  const local=Buffer.alloc(30),central=Buffer.alloc(46),end=Buffer.alloc(22);
-  local.writeUInt32LE(0x04034b50);local.writeUInt32LE(bytes.length,18);local.writeUInt32LE(bytes.length,22);local.writeUInt16LE(name.length,26);
-  central.writeUInt32LE(0x02014b50);central.writeUInt32LE(bytes.length,20);central.writeUInt32LE(bytes.length,24);central.writeUInt16LE(name.length,28);
-  end.writeUInt32LE(0x06054b50);end.writeUInt16LE(1,8);end.writeUInt16LE(1,10);end.writeUInt32LE(central.length+name.length,12);end.writeUInt32LE(local.length+name.length+bytes.length,16);
-  return Buffer.concat([local,name,bytes,central,name,end]);
-}
-const p=(text,style='Normal',hidden=false)=>`<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r>${hidden?'<w:rPr><w:vanish/></w:rPr>':''}<w:t>${text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}</w:t></w:r></w:p>`;
-const heading=(procedure='2026/0137 (NLE)',type='COUNCIL DECISION',hidden=false)=>p(procedure,'Rfrenceinterinstitutionnelle',hidden)+p('Proposal for a','Statut',hidden)+p(type,'Typedudocument',hidden);
-const reportId='A-10-2026-0260',procedure='2026/0137(NLE)',reference='(COM(2026)0510 – C10-0153/2026 – '+procedure+')';
 const source=(buffer,extra={})=>({buffer,reportId,...extra,source:{url:'https://example.invalid/supplied-native-fixture.docx',fetchedAt:new Date(0).toISOString(),language:'en',sha256:hash(buffer),fixture:true}});
 const pair=(reportRaw=reference,listRaw=reference)=>nativeNleReferencePair({report:source(word(p('<NoDocSe>A10-0260/2026</NoDocSe>')+p('<DocRef>'+reportRaw+'</DocRef>'))),list:source(word(p('<A5Nr>A10-0260/2026</A5Nr>')+p('<NumOfAM>001-033</NumOfAM>')+p('<ReferenceNo>'+listRaw+'</ReferenceNo>')),{listId:reportId+'-AM-001-033'})},{reportId,language:'en'});
 const report={id:'eli/dl/doc/'+reportId,work_type:'def/ep-document-types/REPORT_PLENARY',inverse_created_a_realization_of:['eli/dl/proc/2026-0137'],is_realized_by:[{title_alternative:{en:reference}}]};
