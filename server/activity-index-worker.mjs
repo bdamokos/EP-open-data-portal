@@ -1,3 +1,8 @@
+import {topicBootstrapRequired} from './topic-projection-state.mjs';
+import {topicBuildWindowOpen} from './topic-build-window.mjs';
+import {topicRebuildDue} from './topic-publication.mjs';
+import {topicBuildAllowed} from './topic-build-gate.mjs';
+import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 import {odp} from './odp.mjs';
 import {indexErrorEvent,indexErrorLog} from './index-error-log.mjs';
 import {OfficialContextWarmer} from './official-context-warmer.mjs';
@@ -9,6 +14,10 @@ import {sourceObservationHash,sourceRuleError} from './source-retry.mjs';
 import {setImmediate as projectionYield} from 'node:timers/promises';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {SittingSnapshotCollector} from './sitting-snapshot-collector.mjs';
+import {RECORD_TOPICS_VERSION} from './record-topics.mjs';
+import {storyCollectionDue} from './story-facts-collector.mjs';
+import {STORY_FACTS_VERSION} from './story-facts-model.mjs';
+import {topicCollectionDue} from './topics-collector.mjs';
 import {validCommitteeWork,committeeDraftId} from './committee-amendments.mjs';
 import {prepareCommitteeList,scheduleCommitteeDiscovery,prepareCommitteeAmendments,committeePreparationDue} from './committee-amendments-worker.mjs';
 import {retainDemographicRecord,retainDemographicAttempt,retainRosterAttempt,demographicPerson} from './demographic-metadata.mjs';
@@ -96,13 +105,13 @@ export function feedDocuments(xml,endpoint) {
   if(entries.length && !result.length)throw new Error('Update feed entries contain no recognised API identifiers.');
   return result;
 }
-export async function apiFetch(endpoint,params={}, {xml=false,signal,snapshotObservation=false}={}) {
+export async function apiFetch(endpoint,params={}, {xml=false,signal,backgroundLow=false,preserveStatus=false,snapshotObservation=false}={}) {
   const url=new URL(ODP_BASE+endpoint);
   for (const [key,value] of Object.entries({...params,...(!xml?{format:'application/ld+json'}:{})})) url.searchParams.set(key,String(value));
   return boundedUpstream(async()=> {
     const response=await observedOdpFetch(url,{headers:{Accept:xml?'application/atom+xml':'application/ld+json','User-Agent':userAgent('activity index')},redirect:'error',signal:AbortSignal.any([AbortSignal.timeout(45_000),...(signal?[signal]:[])])});
     if(snapshotObservation)await snapshotHttpObservation(response,url,{signal});
-    if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString()};
+    if (response.status===204) return xml ? {xml:'<feed/>',fetchedAt:new Date().toISOString()} : {payload:{data:[]},fetchedAt:new Date().toISOString(),...(preserveStatus?{status:204}:{})};
     if (!response.ok) { await response.body?.cancel();const e=new Error(`EP API returned ${response.status} at ${endpoint}.`);e.status=response.status;const hint=response.headers.get('retry-after');e.retryAfter=hint?retryAfterSeconds(hint):0;if(response.status===429||response.status===503){e.retryAfter=retryAfterSeconds(hint);backoffUpstream(e.retryAfter);}throw e; }
     const contentType=response.headers.get('content-type') || '';
     if (!(xml?/xml/.test(contentType):/json/.test(contentType))) {await response.body?.cancel();throw new Error(`EP API returned unexpected ${contentType || 'missing content type'} at ${endpoint}.`);}
@@ -112,7 +121,7 @@ export async function apiFetch(endpoint,params={}, {xml=false,signal,snapshotObs
     if (xml) return {xml:text,fetchedAt:new Date().toISOString()};
     const payload=JSON.parse(text);if(!Array.isArray(payload.data))throw new Error('EP API returned an invalid data array.');
     return {payload,fetchedAt:new Date().toISOString()};
-  },{priority:'background',signal});
+  },{priority:'background',signal,backgroundRank:backgroundLow?1:0});
 }
 // Amendment rebuilds can outrank due refresh tasks indefinitely, e.g. a
 // members rebuild that restarts after newly fetched profiles. When both are
@@ -136,8 +145,19 @@ export class ActivityWorker {
     if(!['normal','backfill'].includes(recoveryMode))throw new Error('Invalid ACTIVITY_INDEX_RECOVERY_MODE.');
     this.recoveryMode=recoveryMode;this.followupStartupRepair=true;this.amendmentRouteStartupRepair=true;
   }
+  // Bootstraps start at once; version and generation refreshes wait for the
+  // window. Both respect the persisted failure backoff and one refresh a window.
+  topicBuildStep({versionsOnly=false}={}) {
+    const active=this.store.get('active'),now=this.clock();if(!active||!this.generationExecutor)return null;
+    const bootstrap=topicBootstrapRequired(this.store),record=this.store.get('recordTopicProjection');
+    if(!topicBuildAllowed(this.store,now,{bootstrap})||!bootstrap&&!topicBuildWindowOpen(now))return null;
+    if(bootstrap||record?.version!==RECORD_TOPICS_VERSION||record?.generation!==active)return 'topics';
+    if(this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION)return 'stories';
+    return !versionsOnly&&topicRebuildDue(this.store,now)?'topics':null;
+  }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
+    if(storyCollectionDue(this.store,this.clock())||topicCollectionDue(this.store,this.clock())||this.topicBuildStep())return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
@@ -816,7 +836,9 @@ export class ActivityWorker {
       if(this.stopped)return;
       let sittingSnapshotTurn=0;
       this.controller.signal.throwIfAborted();
-      const active=this.store.get('active') || 0,existing=this.store.get('working');
+      const active=this.store.get('active') || 0,existing=this.store.get('working'),graphStep=this.topicBuildStep({versionsOnly:true});
+      // Failed or skipped builds back off inside the task; core work continues.
+      if(graphStep)await this.generationExecutor(graphStep,{generation:active,signal:this.controller.signal});
       if(!existing && active) {
         // A rollback may have advanced the core generation while leaving the
         // additive amendment snapshot behind. Adopt it before reading sources.
@@ -951,7 +973,10 @@ export class ActivityWorker {
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
+          // Reserve one of 32 busy dispatches; idle capacity still fills sources.
+          if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
           if(!task)break;
+          ordinaryCollectorTurn(this);
           try {await this.task(task);this.controller.signal.throwIfAborted();this.finishOutsideGap(task);}
           catch(error) {
             if(this.stopped||this.controller.signal.aborted)break;
@@ -965,6 +990,7 @@ export class ActivityWorker {
         } finally {taskIteration();}
       }
       if(!this.stopped)this.controller.signal.throwIfAborted();
+      if(!this.stopped&&this.generationExecutor&&topicRebuildDue(this.store,this.clock()))await this.generationExecutor('topics',{generation:this.store.get('active'),signal:this.controller.signal});
       if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }
@@ -1000,7 +1026,7 @@ export function activityIndex() {
   }});
   warmer.references.cache.assertWriter=()=>store.assertWriter();
   worker.officialContext=warmer;
-  worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,options);
+  worker.generationExecutor=(operation,options)=>activityGenerationTask(store,operation,{diskLimit:worker.diskLimit,...options});
   service={store,worker,press};return service;
 }
 export function activityIndexStatus(){return activityIndex().store.status();}
