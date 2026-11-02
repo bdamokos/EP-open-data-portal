@@ -58,7 +58,7 @@ test('place uses one detail response, not-home records and all metric peak ties'
 });
 
 test('coverage counts read plus unavailable and clears when collected',async t=>{
- const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ const window=new Window({url:'http://localhost/?view=topics&t-tab=topics'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
 
  let read=4;t.mock.method(globalThis,'fetch',async()=>Response.json({ready:true,items:[],periods:[],partial:{},coverage:{read,unavailable:1,referenced:9}}));
@@ -83,7 +83,7 @@ test('filter changes keep the page and chart on screen while records load',async
 });
 
 test('heat strip sorts by the term, the last full quarter or the current quarter so far, with full row labels',async t=>{
- const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ const window=new Window({url:'http://localhost/?view=topics&t-tab=topics'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
  let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
  const long='Relations with/in the context of international organisations: UN, OSCE, OECD, Council of Europe, EBRD',row=(key,label,q3,q4,total)=>({key,label,groupsTotal:total,series:[{period:'2026-Q3',groups:q3},{period:'2026-Q4',groups:q4}]});
  t.mock.method(globalThis,'fetch',async input=>Response.json({ready:true,periods:['2026-Q3','2026-Q4'],partial:new URL(String(input),location.href).searchParams.get('lang')==='fr'?{first:null,last:null}:{first:null,last:'2026-10-29'},items:[row('oeil:a','Term leader',1,0,30),row('oeil:b','Full quarter leader',9,1,10),row('oeil:c',long,2,5,7)]}));
@@ -134,4 +134,37 @@ test('voting-time groups keep their event link and are never captioned as a deba
  const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(voteLink,'the vote group title opens its event: '+links.join(' '));assert(!links.includes('#topic-records'));
  const captions=[...node.querySelectorAll('.topic-peak')].map(b=>b.textContent);
  assert(captions.some(c=>c.includes('Support for Ukraine')),'the real debate keeps its peak caption'); assert(!captions.some(c=>/Untitled|MTG-PL-2026-01-22/.test(c)),'an untitled peak group gets no caption');assert(!captions.some(c=>c.includes('(vote)')),'no caption names the voting-time item: '+captions.join(' | '));assert.equal(captions.length,1);
+});
+
+async function placesHarness(t,url,respond){
+ const window=new Window({url}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ t.mock.method(globalThis,'fetch',async input=>respond(new URL(String(input),location.href)));
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<80&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ await act(async()=>root.render(createElement(Topics,{language:'en'})));return {node,wait};
+}
+const placesData=(sittingQ4,label='Iran')=>({ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':sittingQ4},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label,series:[{period:'2026-Q2',question:5},{period:'2026-Q3',question:6},{period:'2026-Q4',question:2}]}]});
+test('Topics opens on the map; an explicit t-tab=topics keeps the heat strip',async t=>{
+ const overview=[];const {node,wait}=await placesHarness(t,'http://localhost/?view=topics',u=>{if(u.pathname==='/api/topics/overview')overview.push(u.searchParams.get('role'));return Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:placesData(3));});
+ await wait(()=>node.querySelector('.places-map'));assert.equal(overview[0],'place');assert.equal(node.querySelector('.topic-tabs [aria-current=page]').textContent,'Places');
+});
+test('Topics with t-tab=topics opens the heat strip',async t=>{
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=topics',u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:{...placesData(3),items:[]}));
+ await wait(()=>node.querySelector('.topic-tabs [aria-current=page]'));assert.equal(node.querySelector('.topic-tabs [aria-current=page]').textContent,'Topics');assert.equal(node.querySelector('.places-map'),null);
+});
+for(const [name,sittings,url,expected] of [['the current quarter once its first plenary has happened',3,'',/^October\s*[–-]\s*December 2026 so far$/],['the last quarter with plenary data before the current quarter\'s first sitting',0,'',/^July\s*[–-]\s*September 2026$/],['an explicit t-q',3,'&t-q=2026-Q2',/^April\s*[–-]\s*June 2026$/]])test('the map defaults to '+name,async t=>{
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places'+url,u=>Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:placesData(sittings)));
+ await wait(()=>node.querySelector('.places-quarter'));assert.match(node.querySelector('.places-quarter').textContent,expected);
+});
+test('leaving out own-country questions refreshes inline: content stays, no loading state, focus stays',async t=>{
+ let release;const pending=new Promise(r=>release=r);
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places',async u=>{if(u.pathname==='/api/topics/story-facts')return Response.json({ready:false});if(u.searchParams.get('askers')==='all'){await pending;return Response.json(placesData(3,'Iran (all askers)'));}return Response.json(placesData(3));});
+ await wait(()=>node.querySelector('.places-ranking')?.textContent.includes('Iran'));
+ const box=node.querySelector('.topic-controls input[type=checkbox]');box.focus();await act(async()=>box.click());
+ await act(async()=>new Promise(r=>setTimeout(r,60)));
+ assert(node.querySelector('.places-map'),'the map stays');assert(node.querySelector('.places-ranking').textContent.includes('Iran'),'the list stays');assert(node.querySelector('.places-quarter'),'the time control stays');
+ assert(!/Loading/.test(node.textContent),'no loading state');assert.equal(node.querySelector('.topics-content').getAttribute('data-topics-pending'),null);
+ assert.equal(document.activeElement,node.querySelector('.topic-controls input[type=checkbox]'),'focus stays on the checkbox');
+ release();await wait(()=>node.querySelector('.places-ranking').textContent.includes('all askers'));
 });

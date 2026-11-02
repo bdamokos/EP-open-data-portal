@@ -122,7 +122,7 @@ test('riser ratios use the max(1, average) baseline shared with stories',()=>{
 
 test('legacy timeline redirects keep the interface language',()=>{
  assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123&lang=fr')),'?view=topics&topic=eurovoc%3A123&lang=fr');
- assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&lang=de');
+ assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&t-tab=topics&lang=de','old topic timelines keep landing on the heat strip');
 });
 
 test('legacy prose requires parent and quantity coverage while other panels stay native',async t=>{
