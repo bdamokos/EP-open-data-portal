@@ -62,7 +62,7 @@ test('new families preserve unknown units, lower-bound display and quoted occurr
   assert.deepEqual(amendmentPlanSummary({type:'text',quote:'exact',occurrences:[21]},ui),['The text “exact” · occurrence 21']);
 });
 
-test('Topics Irish and Maltese count fragments remain grammatical noun phrases through teen counts',async()=>{
+test('Topics count fragments retain reviewed noun phrases and neutral singular wording',async()=>{
   const i18n=createAppUiI18n(await nativeCatalogues());
   const cases=[
     ['ga','questions',0,'0 de cheisteanna'],['ga','questions',1,'1 cheist'],
@@ -70,6 +70,9 @@ test('Topics Irish and Maltese count fragments remain grammatical noun phrases t
     ['ga','questions',11,'11 de cheisteanna'],['ga','questions',19,'19 de cheisteanna'],
     ['ga','questions',21,'21 de cheisteanna'],['ga','meps',7,'7 bhFeisire'],
     ['ga','meps',11,'11 d’Fheisirí'],
+    ['ga','groups',11,'11 de dhíospóireachtaí agus de shainchomhaid'],
+    ['ga','groups',21,'21 de dhíospóireachtaí agus de shainchomhaid'],
+    ['de','meps',1,'1 Mitglied des Europäischen Parlaments'],
     ['mt','questions',0,'0 mistoqsijiet'],['mt','questions',1,'1 mistoqsija'],
     ['mt','questions',2,'2 mistoqsijiet'],['mt','questions',11,'11-il mistoqsija'],
     ['mt','questions',19,'19-il mistoqsija'],['mt','questions',21,'21 mistoqsija'],

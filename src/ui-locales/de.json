@@ -2494,7 +2494,7 @@
   "topics.story.count.texts": "{count} Texte",
   "topics.story.count.textsOne": "{count} Text",
   "topics.story.count.meps": "{count} Abgeordnete",
-  "topics.story.count.mepsOne": "{count} Abgeordneter",
+  "topics.story.count.mepsOne": "{count} Mitglied des Europäischen Parlaments",
   "topics.policyAreaSource": "Bezeichnungen der Politikbereiche: {source}.",
   "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt."
 }

@@ -2375,7 +2375,7 @@
       "other": "{count} Texte"
     },
     "topics.story.count.meps": {
-      "one": "{count} Abgeordneter",
+      "one": "{count} Mitglied des Europäischen Parlaments",
       "other": "{count} Abgeordnete"
     },
     "topics.mapDocuments": {
@@ -6022,7 +6022,7 @@
     },
     "topics.story.count.groups": {
       "one": "{count} díospóireacht nó sainchomhad",
-      "other": "{count} san iomlán de dhíospóireachtaí agus de shainchomhaid",
+      "other": "{count} de dhíospóireachtaí agus de shainchomhaid",
       "two": "{count} dhíospóireacht nó shainchomhad",
       "few": "{count} dhíospóireacht nó shainchomhad",
       "many": "{count} ndíospóireacht nó sainchomhad"
