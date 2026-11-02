@@ -334,7 +334,7 @@ test('a failed later agenda page preserves earlier pages through retry backoff',
     return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset===0?50:0},(_,i)=>({id:String(i)}))}};
   };
   assert(await h.collector.step(h.worker));
-  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshot_staging WHERE kind='agenda'").get().n,1);
+  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshot_staging WHERE kind='agenda' AND key<>'agenda:cursor'").get().n,1);
   assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING),null);
   fail=false;h.advance(86400000);
   assert(await h.collector.step(h.worker));
@@ -365,7 +365,7 @@ function isolateJob(h,kind,id){
 test('resuming an agenda after the week boundary refreshes preliminary staged pages',async t=>{
   const h=setup(t);h.advance(Date.parse('2026-10-11T12:00Z')-h.clock());
   isolateJob(h,'agenda',SNAPSHOT_SITTING);const offsets=[];
-  h.worker.fetchRecord=async(endpoint,params)=>{offsets.push(params.offset);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset===0?50:1},()=>({label:offsets.length===1?'preliminary':'final'}))}};};
+  h.worker.fetchRecord=async(endpoint,params)=>{offsets.push(params.offset);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset===0?50:1},(_,i)=>({id:'item-'+(params.offset+i),label:offsets.length===1?'preliminary':'final'}))}};};
   assert.equal(await h.collector.step(h.worker,{requestBudget:1}),false);
   h.advance(2*DAY);assert.equal(await h.collector.step(h.worker,{requestBudget:1}),false);
   assert(await h.collector.step(h.worker,{requestBudget:1}));
@@ -415,4 +415,115 @@ test('missing agenda and calendar retries use age decay without reopening held d
   const h=setup(t);await drain(h);const before=h.fixture.calls.length;
   h.collector.discoverSittings([h.fixture.meeting]);await h.collector.step(h.worker);
   assert.equal(h.fixture.calls.length,before,'unchanged complete held agendas do not fetch again');
+});
+
+test('agenda collection advances past 500 rows under one-request budgets',async t=>{
+  const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);const offsets=[];
+  h.worker.fetchRecord=async(endpoint,params)=>{
+    offsets.push(params.offset);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset<500?50:1},(_,i)=>({id:'item-'+(params.offset+i)}))}};
+  };
+  for(let i=0;i<12;i++)await h.collector.step(h.worker,{requestBudget:1});
+  assert(offsets.includes(500));assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages.flatMap(p=>p.payload.data).length,501);
+  assert.deepEqual(offsets,Array.from({length:11},(_,i)=>i*50));
+});
+test('a retry adopts a healthy held debate without another upstream download',async t=>{
+  const h=setup(t),id=SNAPSHOT_SITTING+'-PVCRE-ITM-99';isolateJob(h,'debate',id);let cached=null,calls=0,lookups=0;
+  h.collector.readCached=async()=>{lookups++;return cached;};
+  h.worker.fetchRecord=async()=>{calls++;throw Object.assign(Error('transport unavailable'),{status:503});};
+  await h.collector.step(h.worker);h.advance(DAY);
+  cached={url:'https://data.europarl.europa.eu/api/v2/events/'+id,fetchedAt:h.clock(),payload:{data:[{id:'eli/dl/event/'+id,activity_date:SNAPSHOT_SITTING.slice(7),had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:[]}]}};
+  await h.collector.step(h.worker);assert.equal(calls,1);assert.equal(lookups,2);assert(h.reader.read('debate',1,id));
+});
+test('missing old debate links use the sitting age decay',async t=>{
+  for(const [date,days] of [['2026-04-01',30],['2025-04-01',90],['2024-08-01',180]]){
+    const h=setup(t),id='MTG-PL-'+date+'-PVCRE-ITM-1';isolateJob(h,'debate',id);
+    h.worker.fetchRecord=async()=>{throw Object.assign(Error('missing debate'),{status:404});};
+    await h.collector.step(h.worker);
+    assert.equal(h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id).next_check,h.clock()+days*DAY,date);
+  }
+});
+
+test('agenda dispatches save their cursor and finish full terminal pages after restart',async t=>{
+  for(const total of [500,1250]){
+    const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);const offsets=[];
+    h.worker.fetchRecord=async(endpoint,params)=>{offsets.push(params.offset);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:Math.min(50,total-params.offset)},(_,i)=>({id:'item-'+(params.offset+i)}))}};};
+    await h.collector.step(h.worker);
+    assert.equal(offsets.length,8);assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING),null);
+    assert.equal(h.collector.writer.staged({kind:'agenda',version:1,id:SNAPSHOT_SITTING},'agenda:cursor',0).offset,400);
+    const resumed=new SittingSnapshotCollector(h.store,{hints:h.hints,readCached:async()=>null});
+    for(let i=0;i<4&&h.reader.read('agenda',1,SNAPSHOT_SITTING)===null;i++)await resumed.step(h.worker);
+    assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages.flatMap(p=>p.payload.data).length,total);
+    assert.deepEqual(offsets,Array.from({length:total/50+1},(_,i)=>i*50));
+  }
+});
+test('agenda retries adopt held pages after a failure without losing their cursor',async t=>{
+  const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);let cached=null,calls=0;
+  h.collector.readCached=async()=>cached;
+  h.worker.fetchRecord=async()=>{calls++;throw Object.assign(Error('unavailable'),{status:503});};
+  await h.collector.step(h.worker);h.advance(DAY);
+  cached={url:'https://data.europarl.europa.eu/api/v2/meetings/'+SNAPSHOT_SITTING+'/foreseen-activities',fetchedAt:h.clock(),payload:{data:[]}};
+  await h.collector.step(h.worker);assert.equal(calls,1);assert(h.reader.read('agenda',1,SNAPSHOT_SITTING));
+});
+test('retries bypass an identical rejected cache payload but adopt corrected held data',async t=>{
+  const h=setup(t),id=SNAPSHOT_SITTING+'-PVCRE-ITM-99';isolateJob(h,'debate',id);let calls=0,lookups=0;
+  const payload={data:[{id:'eli/dl/event/'+id,activity_date:SNAPSHOT_SITTING.slice(7),had_activity_type:'def/ep-activities/PLENARY_DEBATE',consists_of:null}]};
+  h.collector.readCached=async()=>{lookups++;return {fetchedAt:h.clock(),payload};};
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:structuredClone(payload)};};
+  await h.collector.step(h.worker);h.advance(DAY);
+  await h.collector.step(h.worker);assert.equal(calls,2);assert.equal(lookups,2);assert.equal(h.reader.read('debate',1,id),null);
+  h.advance(DAY);payload.data[0].consists_of=[];
+  await h.collector.step(h.worker);assert.equal(calls,2);assert(h.reader.read('debate',1,id));
+});
+test('calendar pagination can progress past the former 80-page and 4000-row stops',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2024');const offsets=[];
+  h.worker.fetchRecord=async(endpoint,params)=>{offsets.push(params.offset);return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset<4050?50:0},(_,i)=>({id:'eli/dl/event/committee-'+(params.offset+i),had_activity_type:'def/ep-activities/COMMITTEE_MEETING'}))}};};
+  for(let i=0;i<82;i++)await h.collector.step(h.worker,{requestBudget:1});
+  assert.equal(offsets.at(-1),4050);assert.equal(h.reader.read('calendar',1,'2024').coverage.state,'complete');
+});
+test('calendar retries can use fresh held pages rather than repeat a failed download',async t=>{
+  const h=setup(t);isolateJob(h,'calendar','2026');let cached=null,calls=0;
+  h.collector.readCached=async()=>cached;
+  h.worker.fetchRecord=async()=>{calls++;throw Object.assign(Error('unavailable'),{status:503});};
+  await h.collector.step(h.worker);h.advance(DAY);
+  cached={url:'https://data.europarl.europa.eu/api/v2/meetings',fetchedAt:h.clock(),payload:{data:[]}};
+  await h.collector.step(h.worker);assert.equal(calls,1);assert(h.reader.read('calendar',1,'2026'));
+});
+
+test('a completed agenda cursor survives retention failure without fetching another terminal page',async t=>{
+  const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  const retain=h.collector.writer.retain.bind(h.collector.writer);
+  h.collector.writer.retain=()=>{throw Error('temporary storage failure');};
+  await h.collector.step(h.worker);h.advance(DAY);h.collector.writer.retain=retain;
+  await h.collector.step(h.worker);assert.equal(calls,1);assert(h.reader.read('agenda',1,SNAPSHOT_SITTING));
+});
+test('invalid agenda and calendar observations cannot stay pinned in staging',async t=>{
+  for(const kind of ['agenda','calendar']){
+    const h=setup(t),id=kind==='agenda'?SNAPSHOT_SITTING:'2026';isolateJob(h,kind,id);let calls=0;
+    const bad=kind==='agenda'?{data:[null]}:{data:[{id:'eli/dl/event/MTG-PL-2025-10-07',activity_id:'MTG-PL-2025-10-07',activity_date:'2025-10-07',had_activity_type:'def/ep-activities/PLENARY_SITTING'}]};
+    h.collector.readCached=async()=>({fetchedAt:h.clock(),payload:bad});
+    h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:calls===1?bad:{data:[]}};};
+    await h.collector.step(h.worker);assert.equal(h.reader.read(kind,1,id),null);h.advance(DAY);
+    await h.collector.step(h.worker);assert.equal(calls,2);assert(h.reader.read(kind,1,id));
+  }
+});
+test('repeated agenda and calendar pages are unpinned and corrected held pages finish the job',async t=>{
+  for(const kind of ['agenda','calendar']){
+    const h=setup(t),id=kind==='agenda'?SNAPSHOT_SITTING:'2026';isolateJob(h,kind,id);let calls=0,corrected=false;
+    h.collector.readCached=async(_endpoint,params)=>corrected&&params.offset===50?{fetchedAt:h.clock(),payload:{data:[]}}:null;
+    h.worker.fetchRecord=async()=>{calls++;return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:50},(_,i)=>({id:'eli/dl/event/item-'+i}))}};};
+    await h.collector.step(h.worker);assert.equal(h.reader.read(kind,1,id),null);assert.equal(calls,2);
+    corrected=true;h.advance(DAY);await h.collector.step(h.worker);
+    assert.equal(calls,2);assert(h.reader.read(kind,1,id));
+  }
+});
+
+test('rewinding a preliminary cursor preserves already held post-week pages',async t=>{
+  const h=setup(t);isolateJob(h,'agenda',SNAPSHOT_SITTING);
+  const job={kind:'agenda',version:1,id:SNAPSHOT_SITTING},endpoint='/meetings/'+SNAPSHOT_SITTING+'/foreseen-activities';
+  h.collector.writer.stage(job,JSON.stringify([endpoint,{limit:50,offset:0}]),{fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:50},(_,i)=>({id:'item-'+i}))}},h.clock());
+  // Simulate a crash between retaining a post-boundary page and its cursor update.
+  h.collector.writer.stage(job,'agenda:cursor',{offset:50,settled:false},h.clock());const offsets=[];
+  h.worker.fetchRecord=async(_endpoint,params)=>{offsets.push(params.offset);assert.equal(params.offset,50);return {fetchedAt:new Date(h.clock()).toISOString(),payload:{data:[]}};};
+  await h.collector.step(h.worker);assert.deepEqual(offsets,[50]);assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages.length,2);
 });

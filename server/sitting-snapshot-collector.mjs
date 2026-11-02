@@ -6,19 +6,33 @@ import {statSync} from 'node:fs';
 import {MemberVotes,MEMBER_VOTES_VERSION} from './member-votes.mjs';
 import {MemberAttendance,MEMBER_ATTENDANCE_VERSION} from './member-attendance.mjs';
 import {MeetingsReader} from './meetings-reader.mjs';
-import {calendarYears,currentTermSittings} from './plenary-calendar.mjs';
+import {calendarYears,currentTermSittings,isPlenarySitting,identifiedPlenarySitting} from './plenary-calendar.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {sittingConfirmationDay,DAY} from './refresh-policy.mjs';
 import {missingSourceDelay,sourceMissing,transientSourceDelay,confirmSourceRejection,SOURCE_RECHECK_MS,sourceObservationHash} from './source-retry.mjs';
 import {requestTimeout,runWithRequestSignal} from './request-budget.mjs';
 import {collectVoteChairs} from './vote-chairs.mjs';
-import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
+import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA,SNAPSHOT_MAX_BYTES} from './sitting-snapshot-store.mjs';
 
 const SIX_HOURS=6*60*60_000;
 const agendaEndpoint=id=>'/meetings/'+id.slice(0,17)+'/foreseen-activities';
 const settledLinks=(id,now)=>agendaFreshMs(agendaEndpoint(id),now)===Infinity;
 const readerVersions={votes:MEMBER_VOTES_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
 const discoveryKey=now=>[2,brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
+const agendaCursorKey='agenda:cursor',agendaDispatchPages=8;
+const validDebate=(record,id)=>{
+  const node=record?.payload?.data?.find(node=>String(node?.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/event/'+id),links=node?.consists_of;
+  return Boolean(node&&tail(node.had_activity_type)==='PLENARY_DEBATE'&&node.activity_date===id.slice(7,17)&&(Array.isArray(links)||typeof links==='string'||links&&typeof links==='object'&&typeof links.id==='string'));
+};
+const validCollectionRecord=(record,job)=>{
+  const data=record?.payload?.data;
+  if(!Array.isArray(data))return false;
+  if(job.kind==='debate')return validDebate(record,job.id);
+  if(data.some(node=>!node||typeof node!=='object'||typeof node.id!=='string'))return false;
+  if(job.kind==='calendar')return data.every(node=>!isPlenarySitting(node)||identifiedPlenarySitting(node)&&node.activity_date.slice(0,4)===job.id);
+  return true;
+};
+const rejectedRecord=record=>Object.assign(new Error('Collection source has invalid metadata.'),{code:'source_parser_rejection',sourceHash:sourceObservationHash(record)});
 const fresh=source=>source&&!source.stale&&!source.refreshInProgress&&!source.refreshError;
 export function sittingSnapshotNextCheck(id,now,{complete=true,attempts=0,retryAfter=0,confirmed=true}={}) {
   const correcting=brusselsDay(now)<sittingConfirmationDay(id);
@@ -32,7 +46,7 @@ export function pastSittingRecheckDelay(date,now,currentDelay) {
   const today=brusselsDay(now),months=(Number(today.slice(0,4))-Number(date.slice(0,4)))*12+Number(today.slice(5,7))-Number(date.slice(5,7))-(today.slice(8)<date.slice(8)?1:0);
   return Math.max(currentDelay,months>=24?180*DAY:months>=12?90*DAY:months>=4?30*DAY:0);
 }
-const retryDelay=(job,now,delay)=>['agenda','calendar'].includes(job.kind)?pastSittingRecheckDelay(job.kind==='calendar'?job.id+'-12-31':job.id.slice(7,17),now,delay):delay;
+const retryDelay=(job,now,delay)=>['agenda','calendar','debate'].includes(job.kind)?pastSittingRecheckDelay(job.kind==='calendar'?job.id+'-12-31':job.id.slice(7,17),now,delay):delay;
 const voteSources=value=>[...value.catalogue.coverage.sources,...Object.values(value.day.sources).flat(),...(value.day.chairing?.sources||[])];
 export const sittingSourcesConfirmed=(id,sources)=>sources.every(source=>Number.isFinite(Date.parse(source?.fetchedAt))&&brusselsDay(Date.parse(source.fetchedAt))>=sittingConfirmationDay(id));
 export const completeVoteSnapshot=value=>value.catalogue.coverage.state==='complete'&&value.day.coverage.completeness.complete&&
@@ -99,23 +113,32 @@ export class SittingSnapshotCollector {
       const heldLinks=['agenda','debate'].includes(job.kind);
       let saved=this.writer.staged(job,key,heldLinks||job.kind==='calendar'?0:this.store.clock());
       const observedAt=typeof saved?.fetchedAt==='number'?saved.fetchedAt:Date.parse(saved?.fetchedAt);
-      if(saved&&(job.kind==='calendar'&&saved.failure||heldLinks&&settledLinks(job.id,now)&&(!Number.isFinite(observedAt)||observedAt<agendaSettledAfter(agendaEndpoint(job.id),now)))){
+      const collectionJob=['agenda','calendar','debate'].includes(job.kind);
+      const invalidSaved=saved&&!saved.failure&&collectionJob&&!validCollectionRecord(saved,job);
+      const preliminarySaved=heldLinks&&settledLinks(job.id,now)&&(!Number.isFinite(observedAt)||observedAt<agendaSettledAfter(agendaEndpoint(job.id),now));
+      if(saved&&(job.kind==='calendar'&&saved.failure||invalidSaved||preliminarySaved)){
         this.writer.unstage(job,key);saved=null;
       }
       if(saved?.failure)throw Object.assign(new Error(saved.failure.message),saved.failure);
       if(saved)return saved;
-      if(heldLinks&&job.attempts===0&&settledLinks(job.id,now)){
+      if((heldLinks&&settledLinks(job.id,now))||job.kind==='calendar'){
         let cached;try{cached=await this.readCached(endpoint,params);}catch{}
         const fetchedAt=typeof cached?.fetchedAt==='number'?cached.fetchedAt:Date.parse(cached?.fetchedAt);
-        if(cached&&Number.isFinite(fetchedAt)&&fetchedAt>=agendaSettledAfter(agendaEndpoint(job.id),now)){
+        const boundary=heldLinks?agendaSettledAfter(agendaEndpoint(job.id),now):Number(job.id)<Number(brusselsDay(now).slice(0,4))?Date.parse((Number(job.id)+1)+'-01-01T00:00Z'):now-SIX_HOURS;
+        const rejected=this.store.get(rejectionKey);
+        if(cached&&Array.isArray(cached.payload?.data)&&Number.isFinite(fetchedAt)&&fetchedAt>=boundary&&fetchedAt<=now&&
+          validCollectionRecord(cached,job)&&(job.kind!=='calendar'||fresh(cached))&&(!rejected||sourceObservationHash(cached)!==rejected.hash)){
           worker.controller.signal.throwIfAborted();this.store.assertWriter();
-          const record={...cached,fetchedAt:typeof cached.fetchedAt==='number'?new Date(cached.fetchedAt).toISOString():cached.fetchedAt};
+          const record={...cached,fetchedAt:new Date(fetchedAt).toISOString()};
           this.writer.stage(job,key,record,this.store.clock());return record;
         }
       }
       if(worker.requests>=requestLimit||worker.monotonic()>=worker.runDeadline){deferred=true;throw requestTimeout();}
       let record;
-      try{record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false,snapshotObservation:true});}
+      try{
+        record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false,snapshotObservation:true});
+        if(collectionJob&&!validCollectionRecord(record,job))throw rejectedRecord(record);
+      }
       catch(error){
         retryAfter=Math.max(retryAfter,error.retryAfter||0);
         failure=Object.assign(error,{snapshotSource:key});
@@ -131,28 +154,55 @@ export class SittingSnapshotCollector {
       return await runWithRequestSignal(worker.controller.signal,async()=>{
         let value,complete,next;
         if(job.kind==='agenda'){
-          const pages=[];
-          for(let offset=0;offset<500;offset+=50){
-            const record=await request('/meetings/'+job.id+'/foreseen-activities',{limit:50,offset});
-            pages.push(record);
-            if(record.payload.data.length<50)break;
+          let cursor=this.writer.staged(job,agendaCursorKey,0);
+          if(cursor&&(!Number.isSafeInteger(cursor.offset)||cursor.offset<0||cursor.offset%50!==0||settledLinks(job.id,now)&&!cursor.settled)){
+            // Rewind metadata only; each saved page has its own freshness check.
+            this.writer.unstage(job,agendaCursorKey);cursor=null;
           }
-          complete=pages.at(-1).payload.data.length<50;value={pages};
-          next=complete&&settledLinks(job.id,now)?Number.MAX_SAFE_INTEGER:now+retryDelay(job,now,SIX_HOURS);
+          cursor??={offset:0,settled:settledLinks(job.id,now),lastHash:null};
+          for(let batch=0;batch<agendaDispatchPages&&!cursor.terminal;batch++){
+            const params={limit:50,offset:cursor.offset},record=await request(agendaEndpoint(job.id),params);
+            const hash=sourceObservationHash(record);
+            if(record.payload.data.length>=50&&hash===cursor.lastHash){
+              this.writer.unstage(job,JSON.stringify([agendaEndpoint(job.id),params]));
+              throw Object.assign(new Error('Agenda pagination repeated a page.'),{code:'source_parser_rejection',sourceHash:hash});
+            }
+            cursor={offset:cursor.offset+50,settled:settledLinks(job.id,now),lastHash:hash,terminal:record.payload.data.length<50};
+            this.writer.stage(job,agendaCursorKey,cursor,this.store.clock());
+          }
+          if(!cursor.terminal){
+            // A dispatch is bounded; the total inventory has no row ceiling.
+            this.store.db.prepare('UPDATE sitting_snapshots SET complete=0,next_check=0 WHERE kind=? AND version=? AND id=?').run(job.kind,job.version,job.id);
+            return true;
+          }
+          const pages=[];let bytes=14;
+          for(let offset=0;offset<cursor.offset;offset+=50){
+            const page=this.writer.staged(job,JSON.stringify([agendaEndpoint(job.id),{limit:50,offset}]),0);
+            if(!page){this.writer.unstage(job,agendaCursorKey);return true;}
+            bytes+=Buffer.byteLength(JSON.stringify(page))+1;
+            if(bytes>SNAPSHOT_MAX_BYTES)throw new Error('Sitting snapshot exceeds its bounded size.');
+            pages.push(page);
+          }
+          complete=true;value={pages};
+          next=settledLinks(job.id,now)?Number.MAX_SAFE_INTEGER:now+retryDelay(job,now,SIX_HOURS);
         }else if(job.kind==='debate'){
           value=await request('/events/'+job.id);
-          const node=value.payload.data.find(node=>String(node.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/event/'+job.id);
-          const links=node?.consists_of;
-          if(!node||tail(node.had_activity_type)!=='PLENARY_DEBATE'||node.activity_date!==job.id.slice(7,17)||!(Array.isArray(links)||typeof links==='string'||links&&typeof links==='object'&&typeof links.id==='string')){
+          if(!validDebate(value,job.id)){
             this.writer.unstage(job,JSON.stringify(['/events/'+job.id,{}]));
             throw Object.assign(new Error('Exact debate links unavailable.'),{code:'source_parser_rejection',sourceHash:sourceObservationHash(value)});
           }
           complete=true;next=settledLinks(job.id,now)?Number.MAX_SAFE_INTEGER:now+SIX_HOURS;
         }else if(job.kind==='calendar'){
-          const reader=new MeetingsReader({request,clock:this.store.clock,limits:{cataloguePages:80}});
+          const reader=new MeetingsReader({request,clock:this.store.clock,limits:{cataloguePages:Number.MAX_SAFE_INTEGER,maxRows:Number.MAX_SAFE_INTEGER}});
           value=Number(job.id)<Number(brusselsDay(now).slice(0,4))?new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('calendar',SITTING_CALENDAR_VERSION,job.id,{retained:true}):null;
           value??=await reader.year(Number(job.id));
           complete=value.coverage.state==='complete'&&value.coverage.sources.every(fresh);
+          if(!complete&&(value.coverage.stopReason==='repeated-page'||value.coverage.error?.code==='vote_source_changed')){
+            const offset=(value.coverage.pages-1)*50,key=JSON.stringify(['/meetings',{year:Number(job.id),limit:50,offset}]);
+            const rejected=this.writer.staged(job,key,0);
+            this.writer.unstage(job,key);
+            if(rejected)failure=Object.assign(rejectedRecord(rejected),{snapshotSource:key});
+          }
           next=now+(complete?(Number(job.id)===Number(brusselsDay(now).slice(0,4))?SIX_HOURS:Number.MAX_SAFE_INTEGER-now):retryDelay(job,now,missingSourceDelay(job.attempts)));
           this.discoverSittings(currentTermSittings(value.nodes,brusselsDay(now)));
           for(const node of currentTermSittings(value.nodes,brusselsDay(now))){
