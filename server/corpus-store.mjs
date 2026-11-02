@@ -584,10 +584,13 @@ export class CorpusStore {
     // change the labels below, without changing offsets or speech contents.
     const total=selection.n,revision=total+':'+selection.revision;
     if(params.expectedRevision!==undefined&&params.expectedRevision!==revision)return {changed:true};
+    // Continuation pages of a bounded walk can skip the selection-wide coverage
+    // scans below; the walk keeps the evidence read with its first page.
+    const coverage=params.coverage!==false;
     // Filter the selection before probing retained texts. SQLite can otherwise
     // run the correlated text lookup for every speech in the date window,
     // exhausting the reader budget even for a member with only a few speeches.
-    const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
+    const missingRetainedLanguage=!coverage?null:params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
       SELECT source_id FROM ${selectionTable} WHERE ${where.join(' AND ')}
       AND source_id IN (SELECT source_id FROM speech_catalog c WHERE c.source_id=${selectionName}.source_id AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?))
     ) SELECT COUNT(*) n FROM selected c WHERE NOT EXISTS (
@@ -595,6 +598,8 @@ export class CorpusStore {
     const direction=descending?'DESC':'ASC';
     const ids=this.db.prepare(`SELECT source_id FROM ${member!==null&&descending?'speech_member_catalog INDEXED BY speech_member_list':selectionTable} WHERE ${where.join(' AND ')} ORDER BY ${member!==null&&descending?'order_ms DESC,source_order ASC':`date ${direction},start ${direction},numbering ${direction},source_id ${direction}`}  LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
+    const nextOffset=offset+ids.length<total?offset+ids.length:null;
+    if(!coverage)return {...result,total,offset,revision,missingRetainedLanguage,nextOffset,coverage:null};
     const today=brusselsDay(this.clock());
     const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
     const latestKindDate=this.db.prepare('SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=?').get(...kinds,today).date||null;
@@ -610,7 +615,7 @@ export class CorpusStore {
       const dates=new Map(kinds.map(kind=>[kind,latestKind.get(kind,today).date]));
       availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
     }
-    return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
+    return {...result,total,offset,revision,missingRetainedLanguage,nextOffset,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
   });}
 
   speechTranscript({sourceId,language,allowFallback=false}) {

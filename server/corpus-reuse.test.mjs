@@ -19,8 +19,11 @@ import {speechMedia} from './mmc.mjs';
 import {CorpusReader} from './corpus-reader.mjs';
 import {allowSlowCorpusReaders} from './test-support/corpus-reader.mjs';
 import {periodAvailability} from './source-availability.mjs';
+import {runWithRequestSignal} from './request-budget.mjs';
 
 const fetchedAt='2026-10-17T10:00:00Z',now=()=>Date.parse(fetchedAt),url='https://data.europarl.europa.eu/api/v2/speeches?include-output=xml_fragment';
+// One saved page per request, for tests of cursor and restart mechanics.
+const pageWalk={first:0,next:0};
 const xml='<oralStatements><speech xml:lang="de-t-en-mtec"><from><person refersTo="person/42">Exact Speaker</person></from><p>Climate climate water.</p></speech></oralStatements>';
 function activity(number,{member='42',date='2026-10-07',kind='PLENARY_DEBATE_SPEECH',fragments={en:xml}}={}) {
   const id=`MTG-PL-${date}-OTH-${number}`;
@@ -173,12 +176,47 @@ test('clouds consume retained paragraphs and saved speaker metadata without any 
 });
 test('cloud corpus pagination never switches catalogues and keeps country and topic filters',async t=>{
   const {index,add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
-  let calls=0;const cloud=new SpeechCloudInsights(index,{clock:now,readCorpusPage:async params=>{calls++;return retainedSpeechPage(params);}}),query=speechCloudQuery(new URLSearchParams('member=42&days=term&country=HU'),{now:now()});
+  let calls=0;const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:pageWalk,readCorpusPage:async params=>{calls++;return retainedSpeechPage(params);}}),query=speechCloudQuery(new URLSearchParams('member=42&days=term&country=HU'),{now:now()});
   const first=await cloud.query(query);assert.equal(first.coverage.transcripts,50);assert.equal(first.nextPage,1);
   const second=await cloud.query({...query,page:1});assert.equal(second.coverage.transcripts,51);assert.equal(second.nextPage,null);assert.equal(calls,2);
   const parent='MTG-PL-2026-10-07-OJ-ITM-D-1';
   const topic=new SpeechCloudInsights(index,{clock:now,legislation:{catalogue:async()=>({sittings:[{activity_id:'MTG-PL-2026-10-07',activity_date:'2026-10-07'}]}),query:async()=>({detail:{coverage:{speechAssociations:{sources:[{eventDate:'2026-10-07',contributionIds:[activity(51).activity_id]}]}},people:[],title:'Exact topic'}})}});
   const selected=await topic.query(speechCloudQuery(new URLSearchParams('sitting=MTG-PL-2026-10-07&topic='+parent),{now:now()}));assert.equal(selected.coverage.transcripts,1);assert.equal(selected.speeches[0].id,activity(51).activity_id);
+});
+test('cloud requests read several saved pages, analyse once and stop a batch at a busy reader',async t=>{
+  const {index,add}=fixture(t);for(let n=1;n<=121;n++)add(activity(n));
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),reads=[];
+  const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:{first:60_000,next:60_000},readCorpusPage:async params=>{reads.push(params);return retainedSpeechPage(params);}});
+  const all=await cloud.query(query);
+  assert.equal(all.coverage.transcripts,121);assert.equal(all.nextPage,null);
+  assert.deepEqual(reads.map(params=>[params.offset,params.coverage]),[[0,undefined],[50,false],[100,false]]);
+  assert.deepEqual(all.words,(await new SpeechCloudInsights(index,{clock:now,walkMs:pageWalk}).query({...query,page:2})).words);
+  assert(all.availability,'the batch keeps its first read availability');
+  assert([...cloud.states.values()][0].records.values().every(record=>record.text===null),'a finished walk keeps no speech text');
+  let calls=0;const busy=new SpeechCloudInsights(index,{clock:now,walkMs:{first:60_000,next:60_000},readCorpusPage:params=>++calls===2?null:retainedSpeechPage(params)});
+  const partial=await busy.query(query);assert.equal(partial.coverage.transcripts,50);assert.equal(partial.nextPage,1);
+  const resumed=await busy.query({...query,page:1});assert.equal(resumed.coverage.transcripts,121);assert.equal(resumed.nextPage,null);
+});
+test('concurrent cloud waiters share one build at a time',async t=>{
+  const {index,add}=fixture(t);for(let n=1;n<=120;n++)add(activity(n));
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),offsets=[];let release;const gate=new Promise(resolve=>{release=resolve;});
+  const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:{first:0,next:60_000},readCorpusPage:async params=>{offsets.push(params.offset);if(offsets.length===1)await gate;return retainedSpeechPage(params);}});
+  const pending=[0,1,1].map(page=>cloud.query({...query,page}));
+  release();
+  const [first,second,third]=await Promise.all(pending);
+  assert.equal(first.coverage.transcripts,50);
+  assert.equal(second.coverage.transcripts,120);assert.equal(second.nextPage,null);assert.deepEqual(third,second);
+  assert.deepEqual(offsets,[0,50,100],'no page is read twice');
+});
+test('a cancelled cloud batch restarts instead of serving a result behind its cursor',async t=>{
+  const {index,add}=fixture(t);for(let n=1;n<=121;n++)add(activity(n));
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),controller=new AbortController();let reads=0;
+  const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:{first:0,next:60_000},readCorpusPage:async params=>{if(++reads===3)controller.abort(new Error('owner timed out'));return retainedSpeechPage(params);}});
+  const first=await cloud.query(query),state=[...cloud.states.values()][0];
+  await assert.rejects(runWithRequestSignal(controller.signal,()=>cloud.buildCorpus(state,query,1,{pages:20,textBytes:4*1024*1024})),/owner timed out/);
+  assert.equal(state.dirty,true);assert.equal(state.result.nextPage,first.nextPage);
+  const restarted=await cloud.query({...query,page:first.nextPage});
+  assert.equal(restarted.coverage.transcripts,100);assert.equal(restarted.nextPage,2);assert.notEqual([...cloud.states.values()][0],state);
 });
 test('an unavailable corpus retains the existing public pagination fallback',async t=>{
   const {index}=fixture(t);let calls=0;
@@ -217,7 +255,7 @@ test('missing retained translations are counted across the exact selection, inde
 });
 test('an unavailable later corpus page cannot reinterpret its offset as an upstream page',async t=>{
   const {index,add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
-  let reads=0;const service=new SpeechCloudInsights(index,{clock:now,readCorpusPage:params=>++reads===1?retainedSpeechPage(params):null});
+  let reads=0;const service=new SpeechCloudInsights(index,{clock:now,walkMs:pageWalk,readCorpusPage:params=>++reads===1?retainedSpeechPage(params):null});
   const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()});
   assert.equal((await service.query(query)).coverage.transcripts,50);
   await assert.rejects(service.query({...query,page:1}),error=>error.code==='corpus_unavailable');
@@ -372,7 +410,7 @@ test('legacy incomplete procedure projections retain source classification and d
 });
 test('cloud and member page walks restart when selected members change without silently skipping a speech',async t=>{
   const {store,index,add}=fixture(t);for(let n=1;n<=51;n++)add(activity(n));
-  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),cloud=new SpeechCloudInsights(index,{clock:now});
+  const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()}),cloud=new SpeechCloudInsights(index,{clock:now,walkMs:pageWalk});
   assert.equal((await cloud.query(query)).coverage.transcripts,50);
   store.putSpeechMetadata(activity(1,{member:'7'}),url,'2026-10-17T11:00:00Z');
   const reset=await cloud.query({...query,page:1});assert.equal(reset.restarted,true);assert.equal(reset.coverage.transcripts,50);assert.equal(reset.nextPage,null);assert(!reset.speeches.some(row=>row.id===activity(1).activity_id));assert(reset.speeches.some(row=>row.id===activity(51).activity_id));
@@ -394,7 +432,7 @@ test('availability updates refresh labels without restarting speech counts or wo
   const {store,index,add}=fixture(t,{realReaders:false});
   for(let n=1;n<=121;n++)add(activity(n));
   const readCorpusPage=async params=>store.speechPage(params);
-  const cloud=new SpeechCloudInsights(index,{clock:now,readCorpusPage});
+  const cloud=new SpeechCloudInsights(index,{clock:now,walkMs:pageWalk,readCorpusPage});
   const stats=new SpeechInterventions({clock:now,identities:null,readCorpusPage});
   const query=speechCloudQuery(new URLSearchParams('member=42&days=term'),{now:now()});
   const revision=store.speechPage({member:'42',language:'en'}).revision;
