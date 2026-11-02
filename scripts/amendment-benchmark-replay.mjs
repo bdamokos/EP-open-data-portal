@@ -106,6 +106,15 @@ export function replaySourceClients(cache,runtime) {
   return {sources,documents};
 }
 
+// Shared exact-ID frozen context declaration protocol for replay and hybrid proof.
+export function contextFileDeclarations(id,language,value,input,runtime) {
+  const document=value?.document;
+  if(value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)return [];
+  const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
+  if(new Set(files.map(file=>file.url)).size!==1)return [];
+  return files.map(file=>({...file,catalogue:{url:input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},upstreamSources:value.sources||[]}));
+}
+
 export function sourceReplay(cache,runtime) {
   const observedFiles=new Map();
   const textWork=(work,language)=>{
@@ -185,11 +194,8 @@ export function sourceReplay(cache,runtime) {
     proposalRequiresSelection,
     observeFiles(id,contexts) {
       for(const [language,{plain}] of contexts) {
-        const document=plain.value?.document;
-        if(plain.value?.documentId!==id||document?.selectedDocumentId&&document.selectedDocumentId!==id)continue;
-        const files=(document?.files||[]).filter(file=>file.language===language&&file.format==='DOCX'&&runtime.allowedDownload(file.url));
-        const urls=[...new Set(files.map(file=>file.url))];
-        if(urls.length===1)observedFiles.set(language,{url:urls[0],language,catalogue:{url:plain.input.url,sha256:plain.input.sha256,fetchedAt:plain.input.fetchedAt},upstreamSources:plain.value.sources||[]});
+        const files=contextFileDeclarations(id,language,plain.value,plain.input,runtime);
+        if(files.length)observedFiles.set(language,files[0]);
       }
     },
     references:buffer=>{
@@ -209,6 +215,13 @@ export function sourceReplay(cache,runtime) {
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
         if(chosen){const read=()=>cache.get(chosen.url);await (cache.retained?.baseScope?cache.retained.baseScope({type:'ep-document',documentId:id,file:chosen},read):read());}
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
+        if(id.startsWith('A-')&&cache.retained?.nativeSelections&&runtime.array(work.is_realized_by).some(e=>Object.values(e.title_alternative||{}).flat().some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)'))))) {
+          for(const selection of await cache.retained.nativeSelections(id,language)) {
+            const options={reportId:id,language},bound=await readNativeSelection(options,selection,record);
+            if(!bound.gap)await readProposal({...options,nativeReferencePair:bound.pair});
+            cache.assertHealthy();
+          }
+        }
         if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
         if(readExisting&&!cache.sealed)for(const hint of lawHints.values()){await readExisting({...hint,language});cache.assertHealthy();}
         const hints=[...new Map((references.get(language)||[]).map(ref=>[JSON.stringify(ref),ref])).values()];
