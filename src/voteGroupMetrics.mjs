@@ -18,7 +18,7 @@ export function differentFromMajority(rows) {
   return groupMajorities(rows).reduce((sum,g)=>sum+(g.majority?g.voters-g.counts[g.majority]:0),0);
 }
 export function allGroupsAgree(groups) {
-  return groups.length>0&&groups.every(g=>g.majority!==null&&g.majority===groups[0].majority);
+  return groups.length>=2&&groups.every(g=>g.majority!==null&&g.majority===groups[0].majority);
 }
 export function fisherExactTwoSided(a,b,c,d) {
   const n=a+b+c+d,logs=[0];

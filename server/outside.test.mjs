@@ -216,6 +216,52 @@ test('dated-roster work validates paging and an empty source remains a retryable
   assert.equal(store.source(generation,'outside:roster:2025-03-11'),undefined);
   assert.equal(store.taskCounts(generation).completed,0);
 }));
+test('a short dated roster completes without requesting its repeated boundary member and classifies retained speeches',withStore(async(store,generation)=>{
+  const row=fixture.contributions.find(row=>row.activity.had_participation.had_participant_person.includes('person/227855'));
+  const speech=project(row),members=speech.participants.filter(id=>id!=='227855');
+  if(!members.length)members.push('999999');
+  store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},row.retrievedAt);
+  recordOutside(store,generation,speech);
+  const calls=[];
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>{
+    calls.push(params);assert.equal(endpoint,'/meps/show-current');assert.equal(params.offset,0);
+    return {payload:{data:members.map(identifier=>({identifier}))},fetchedAt:saved.fetchedAt};
+  }});
+  await worker.task(store.nextTask(generation));
+  assert.equal(calls.length,1);
+  assert.deepEqual(store.source(generation,'outside:roster:'+speech.date).work.ids,members);
+  assert.equal(outsideSpeaker(store,'227855',{language:'en'}).contributions[0].id,speech.id);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE key=?').get('outside:roster:'+speech.date).done,1);
+}));
+test('legacy short-page cursors restart with fresh roster evidence instead of accepting old membership',withStore(async(store,generation)=>{
+  const retained={...project(fixture.contributions[0]),id:'MTG-PL-2025-11-12-OTH-123',date:'2025-11-12',participants:['123'],headers:[]};
+  store.putSource(generation,'/speeches/'+retained.id,'speech',{id:retained.id,outside:retained},saved.fetchedAt);
+  store.enqueue(generation,'roster-test','outside-roster',{date:'2025-11-12',offset:718,ids:['123'],sources:[saved]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>{
+    assert.equal(params.offset,0);
+    return {payload:{data:[{identifier:'456'}]},fetchedAt:'2026-11-02T18:00:00Z'};
+  }});
+  await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2025-11-12').work;
+  assert.deepEqual(roster.ids,['456']);assert.equal(roster.sources.length,1);
+  assert.match(roster.sources[0].url,/offset=0/);assert.equal(roster.sources[0].fetchedAt,'2026-11-02T18:00:00Z');
+  assert.deepEqual(store.db.prepare('SELECT person FROM outside_contributions WHERE generation=? AND speech=?').all(generation,retained.id).map(row=>row.person),['123']);
+}));
+test('a full dated-roster page remains pending until a short final page',withStore(async(store,generation)=>{
+  store.enqueue(generation,'roster-test','outside-roster',{date:'2025-03-11',offset:0,ids:[],sources:[]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async(endpoint,params)=>({payload:{data:(params.offset===0?Array.from({length:1000},(_,i)=>i+1):[1001]).map(identifier=>({identifier}))},fetchedAt:saved.fetchedAt})});
+  await worker.task(store.nextTask(generation));
+  assert.equal(store.source(generation,'outside:roster:2025-03-11'),undefined);
+  await worker.task(store.nextTask(generation));
+  const roster=store.source(generation,'outside:roster:2025-03-11').work;
+  assert.equal(roster.ids.length,1001);assert.equal(roster.sources.length,2);
+}));
+for(const data of [[{identifier:'123'},{identifier:'123'}],[{identifier:'invalid'}]])test('invalid or duplicate dated-roster identities cannot publish '+JSON.stringify(data),withStore(async(store,generation)=>{
+  store.enqueue(generation,'roster-test','outside-roster',{date:'2025-03-11',offset:0,ids:[],sources:[]},102);
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>({payload:{data},fetchedAt:saved.fetchedAt})});
+  await assert.rejects(worker.task(store.nextTask(generation)),/repeated a member|invalid identity/);
+  assert.equal(store.source(generation,'outside:roster:2025-03-11'),undefined);
+}));
 test('speaker endpoint query validation rejects duplicate and unsupported terms and parameters',()=>{
   assert.deepEqual(outsideQuery(new URLSearchParams('term=9&lang=hu')),{term:'9',language:'hu'});
   for(const q of ['term=8','term=10&term=9','person=123','limit=100000'])assert.throws(()=>outsideQuery(new URLSearchParams(q)),error=>error.status===400);
