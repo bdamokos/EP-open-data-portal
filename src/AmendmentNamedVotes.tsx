@@ -1,3 +1,5 @@
+import {groupMajorities} from './voteGroupMetrics.mjs';
+import {GroupUnity,VoteGroupSummary} from './VoteGroupSummary';
 import {defaultUi} from './uiDefault.mjs';
 import {UiMessage, useUiI18n} from './UiI18nReact';
 import {RecordMemberAffiliation} from './components/RecordMemberAffiliation';
@@ -20,7 +22,8 @@ const keyOf=(voter:DecisionVoter)=>voter.group?.groupId??'unavailable';
 function GroupVotes({voters,code,language}:{voters:DecisionVoter[];code:string|null;language:string}) {
   const ui = useUiI18n();
   const [showAll,setShowAll]=useState(false),name=code ? groupLabel(code,ui) : ui.t("amendmentnamedvotes.tsx.group.unknown");
-  return <details className="amendment-named-votes__group"><summary><span lang={code ? groupLabelLanguage(code,ui) : ui.messageLocale('amendmentnamedvotes.tsx.group.unknown')}>{name}</span><span className="amendment-vote-strip" aria-hidden="true">{choices.map(position=><span key={position} data-position={labels[position]} style={{flexGrow:voters.filter(v=>v.position===position).length}}/>)}</span><span className="amendment-group-counts">{choices.map(position=><span key={position}><UiMessage id={position==='for' ? "amendmentnamedvotes.tsx.count.for" : position==='against' ? "amendmentnamedvotes.tsx.count.against" : "amendmentnamedvotes.tsx.count.abstained"} values={{count:<b>{voters.filter(v=>v.position===position).length.toLocaleString(language)}</b>}}/></span>)}</span></summary>
+  const metric=groupMajorities(voters.map(v=>({group:code,position:v.position})))[0];
+  return <details className="amendment-named-votes__group"><summary><span lang={code ? groupLabelLanguage(code,ui) : ui.messageLocale('amendmentnamedvotes.tsx.group.unknown')}>{name}</span><span className="amendment-vote-strip" aria-hidden="true">{choices.map(position=><span key={position} data-position={labels[position]} style={{flexGrow:voters.filter(v=>v.position===position).length}}/>)}</span><span className="amendment-group-counts">{choices.map(position=><span key={position}><UiMessage id={position==='for' ? "amendmentnamedvotes.tsx.count.for" : position==='against' ? "amendmentnamedvotes.tsx.count.against" : "amendmentnamedvotes.tsx.count.abstained"} values={{count:<b>{voters.filter(v=>v.position===position).length.toLocaleString(language)}</b>}}/></span>)}</span><GroupUnity metric={metric} withPosition/></summary>
     <div className="amendment-named-votes__people" aria-label={ui.t("amendmentnamedvotes.tsx.named.voters.group", {group: String(name)})}>{choices.map(position=>{const people=voters.filter(v=>v.position===position);return people.length>0&&<section key={position}><h6><>{labelsUi(ui)[position]} ({people.length.toLocaleString(language)})</></h6><ul>{(showAll ? people : people.slice(0,12)).map(voter=><li key={voter.personId}><a href={insightMemberHref(voter.personId,language)}><PersonName id={voter.personId} fallback={ui.t("amendmentnamedvotes.tsx.mep.id", {id: String(voter.personId)})}/></a><RecordMemberAffiliation id={voter.personId} datedGroup={voter.group?.code} language={language}/></li>)}</ul></section>;})}{choices.some(position=>voters.filter(v=>v.position===position).length>12)&&<button type="button" onClick={()=>setShowAll(!showAll)}>{showAll ? <UiMessage id="amendmentnamedvotes.tsx.show.fewer.names"/> : <UiMessage id="amendmentnamedvotes.tsx.show.all.names"/>}</button>}</div>
   </details>;
 }
@@ -36,6 +39,8 @@ function NamedVoteRead({item,decision,language}:{item:Amendment;decision:Amendme
   if(data.decision!.method!=='VOTE_ELECTRONIC_ROLLCALL')return <p>{knownVoteMethodLabel(data.decision!.method, ui) ? <UiMessage id="amendmentnamedvotes.tsx.not.individually.recorded"/> : <UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/>}</p>;
   if(data.integrity==='unavailable'||data.integrity==='conflicting')return <p><UiMessage id="amendmentnamedvotes.tsx.named.votes.unavailable"/> <button type="button" onClick={request.retry}><UiMessage id="textsearch.retry.9f5cd8"/></button></p>;
   const groups=[...new Map(data.voters.map(voter=>[keyOf(voter),voter.group?.code??null])).entries()].sort(([a,ac],[b,bc])=>(a==='unavailable') ? 1 : ((b==='unavailable') ? (-1) : ((ac??'').localeCompare(bc??'')||a.localeCompare(b))));
+  const metricRows=data.voters.filter(v=>v.status==='recorded').map(v=>({group:v.group?.code??null,position:v.position}));
+  const majorities=groupMajorities(metricRows).sort((a,b)=>a.code.localeCompare(b.code));
   const authors=item.conflicted ? ([]) : ([...new Map((item.authors||[]).map((author,index)=>[author.personId ? String(author.personId) : ('unresolved:'+index),author])).values()]);
   return <>
     {item.conflicted&&<p><UiMessage id="amendmentnamedvotes.tsx.author.votes.withheld.sources.conflict"/></p>}
@@ -48,7 +53,7 @@ function NamedVoteRead({item,decision,language}:{item:Amendment;decision:Amendme
       const authorNode=<><span lang="" title={author.name}><PersonName id={author.personId} label={author.displayName||author.name}/></span><RecordMemberAffiliation id={author.personId} datedGroup={voter?.group?.code} language={language}/></>;
       return <li key={index}>{ui.rich(id,{author:authorNode,part:String(decision.partNumber??'')}).map((part,index)=>typeof part==='string'?<strong key={index} data-position={authorVotePosition(author.personId,data)}>{part}</strong>:<span key={index}>{part}</span>)}</li>;
     })}</ul></section>}
-    {(data.integrity==='complete'||data.groupHistory===null)&&<details className="amendment-named-votes__groups"><summary><UiMessage id="amendmentnamedvotes.tsx.how.groups.voted"/></summary>{(data.groupHistory===null) ? <p><UiMessage id="amendmentnamedvotes.tsx.groups.unavailable.for.this.date"/></p> : ((data.integrity==='complete') ? groups.map(([group,code])=><GroupVotes key={group} code={code} voters={data.voters.filter(voter=>keyOf(voter)===group)} language={language}/>) : null)}</details>}
+    {(data.integrity==='complete'||data.groupHistory===null)&&<details className="amendment-named-votes__groups"><summary><UiMessage id="amendmentnamedvotes.tsx.how.groups.voted"/></summary>{(data.groupHistory===null) ? <p><UiMessage id="amendmentnamedvotes.tsx.groups.unavailable.for.this.date"/></p> : ((data.integrity==='complete') ? <>{groups.map(([group,code])=><GroupVotes key={group} code={code} voters={data.voters.filter(voter=>keyOf(voter)===group)} language={language}/>)}<VoteGroupSummary groups={majorities} rows={metricRows}/></> : null)}</details>}
   </>;
 }
 // Named positions load when the decision approaches the viewport, sharing the
