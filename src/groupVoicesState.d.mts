@@ -1,5 +1,5 @@
 export type GroupVoiceState={group:string;period:string;person:string|null;subject:string|null;tab:string;q:string;peopleLimit:number;offset:number};
-export type GroupVoicePerson={id:string;name:string|null;nameVariants?:{value:string;script:string;language:string|null;source:string}[];total:number;subjects:Record<string,number>};
+export type GroupVoicePerson={id:string;name:string|null;nameVariants?:{value:string;script:string;language:string|null;source:string}[];total:number;subjects:Record<string,number>;days?:Record<string,number>};
 export const GROUP_VOICE_DEFAULTS:Readonly<GroupVoiceState>;
 export function readGroupVoicesState(params:URLSearchParams,options?:{now?:number}):GroupVoiceState;
 export function groupVoicesUrl(input:string,state:GroupVoiceState):URL;

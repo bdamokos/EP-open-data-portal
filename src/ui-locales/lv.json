@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} EP deputāti",
   "topics.story.count.mepsOne": "{count} EP deputāts",
   "topics.policyAreaSource": "Politikas jomu nosaukumi: {source}.",
-  "topics.explorerTranslation": "Politikas jomu nosaukumus tulkojis izpētes rīks."
+  "topics.explorerTranslation": "Politikas jomu nosaukumus tulkojis izpētes rīks.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Uzstāšanās pa mēnešiem",
+  "groupvoices.contributions_by_sitting_day.77a719": "Uzstāšanās pa sēžu dienām"
 }

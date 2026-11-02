@@ -2499,5 +2499,8 @@
   "topics.story.count.meps": "{count} евродепутати",
   "topics.story.count.mepsOne": "{count} евродепутат",
   "topics.policyAreaSource": "Наименования на областите на политиката: {source}.",
-  "topics.explorerTranslation": "Наименованията на областите на политиката са преведени от инструмента за разглеждане."
+  "topics.explorerTranslation": "Наименованията на областите на политиката са преведени от инструмента за разглеждане.",
+  "groupvoices.date_count.692412": "{date}: {count}",
+  "groupvoices.contributions_by_month.0ca3ec": "Изказвания по месеци",
+  "groupvoices.contributions_by_sitting_day.77a719": "Изказвания по заседателни дни"
 }
