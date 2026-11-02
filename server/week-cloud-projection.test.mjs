@@ -1,0 +1,38 @@
+import {zstdDecompressSync} from 'node:zlib';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {weekCloudFixture} from './test-support/week-cloud-fixture.mjs';
+import {fillWeekCloud} from './week-cloud-worker.mjs';
+import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
+import {CorpusReader} from './corpus-reader.mjs';
+const query=()=>speechCloudQuery(new URLSearchParams('week=2026-10-19&lang=en'));
+const params=f=>({week:'2026-10-19',language:'en',dates:f.dates,generation:f.store.indexState().generation,demographicRevision:0});
+test('worker publishes an exact text-free week, single-response read and invalidation preserve fallback',async t=>{
+  const f=weekCloudFixture(201);t.after(()=>f.close());
+  let checkpoints=0;const checkpoint=async()=>{checkpoints++;f.store.assertWriter();};
+  const cloud=new SpeechCloudInsights(f.index,{clock:f.clock,readWeekCloud:null,request:async()=>{throw Error('no upstream');},readCorpusPage:async p=>f.store.speechPage(p),walkMs:{first:0,next:0}});
+  cloud.scope=async()=>({kind:'week',dates:f.dates.map(start=>({start,end:start})),ids:null,phase:'past',title:null,titleLanguage:null});
+  let before=await cloud.query(query());while(before.nextPage!==null)before=await cloud.query({...query(),page:before.nextPage});
+  assert.equal(await fillWeekCloud(f.store,checkpoint),true);assert(checkpoints>4);
+  f.store.db.exec('PRAGMA query_only=ON');
+  const after=f.store.weekCloud(params(f));assert(after);
+  f.store.db.exec('PRAGMA query_only=OFF');assert.equal(after.nextPage,null);
+  for(const key of ['words','speeches','coverage','sources','availability'])assert.deepEqual(after[key],before[key],key);
+  const reader=new CorpusReader(f.directory+'/corpus',{timeoutMs:10000});
+  assert.deepEqual((await reader.query('speech-cloud',params(f))).words,before.words);
+  const projected=new SpeechCloudInsights(f.index,{clock:f.clock,readWeekCloud:async p=>f.store.weekCloud(p),readCorpusPage:async()=>{throw Error('must not walk');}});
+  projected.scope=cloud.scope;
+  assert.deepEqual((await projected.query(query())).words,before.words);
+  const persisted=zstdDecompressSync(f.store.db.prepare('SELECT body FROM week_clouds').get().body).toString();assert(!persisted.includes('provides energy security for citizens'));
+  f.add(202,'hu');assert.equal(f.store.weekCloud(params(f)),null,'new speech invalidates ready row');
+  await fillWeekCloud(f.store,checkpoint);await fillWeekCloud(f.store,checkpoint);
+  assert.equal(f.store.weekCloud(params(f)).coverage.missingLanguage,1);
+  assert(f.store.weekCloud({...params(f),language:'hu'}));
+  assert.equal(f.store.weekCloud({...params(f),dates:f.dates.slice(0,3)}),null);
+  assert.equal(f.store.weekCloud({...params(f),generation:999}),null);
+});
+test('lease loss prevents publication and leaves legacy path available',async t=>{
+  const f=weekCloudFixture(10);t.after(()=>f.close());
+  await assert.rejects(fillWeekCloud(f.store,async()=>{f.store.release();f.store.assertWriter();}),/lease/i);
+  assert.equal(f.store.weekCloud(params(f)),null);
+});

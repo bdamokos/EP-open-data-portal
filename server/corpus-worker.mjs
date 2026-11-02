@@ -1,3 +1,4 @@
+import {fillWeekCloud,weekCloudWorkDue} from './week-cloud-worker.mjs';
 import {isDeepStrictEqual} from 'node:util';
 import {createHash} from 'node:crypto';
 import {cataloguePage,acquisitionMode} from './availability-history.mjs';
@@ -154,7 +155,11 @@ export class CorpusWorker {
     if(!checked||this.clock()-checked>=60*60_000)return true;
     return index.generation!==null&&(this.store.get('discoveredGeneration')!==index.generation||this.store.get('discoveredPublished')!==index.published);
   }
-  due(){return this.discoveryDue()||this.store.hasDueTask();}
+  cloudDue(){
+    if(this.cloudCheckedAt&&this.clock()-this.cloudCheckedAt<60_000)return false;
+    this.cloudCheckedAt=this.clock();return weekCloudWorkDue(this.store);
+  }
+  due(){return this.discoveryDue()||this.store.hasDueTask()||this.cloudDue();}
   async discover() {
     const now=this.clock(), today=day(now);
     // Build the queryable projection locally through this leased writer. No
@@ -404,6 +409,8 @@ export class CorpusWorker {
       this.store.assertWriter();
       this.store.set('phase',this.store.get('backfilledAt')?'refreshing':'backfilling');
       if(this.discoveryDue())await this.discover();
+      // Bound local work to one persisted week/language per iteration.
+      if(weekCloudWorkDue(this.store)&&await this.store.diskBytes()<this.diskLimit)this.cloudCheckedAt=await fillWeekCloud(this.store,()=>this.checkpoint())?0:this.clock();
       while(!this.stopped && !controller.signal.aborted && requests+this.fallbackRequests<this.budget && this.clock()-started<this.maxDuration) {
         const taskIteration=loopTimer('corpus-task',{threshold:5000});
         try {
