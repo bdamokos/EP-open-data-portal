@@ -34,6 +34,7 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
  const {default:PlacesMap}=await load('/src/PlacesMap.tsx');const map=renderToStaticMarkup(h(PlacesMap,{data:{items:[{key:'place:IRN',iso3:'IRN',label:'Iran',series:[]}]},period:'2026-Q1',mode:'q',own:false,zoom:'world',pause:()=>{}}));assert.match(map,/<a tabindex="-1" aria-hidden="true"[^>]+href=/);assert.match(map,/place=IRN/);
  const {TopicStory}=await load('/src/TopicStory.tsx');
  const rareData={periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{},items:[{key:'place:IRN',label:'Iran',series:[{period:'2025-Q3',question:8,document:3,top:{key:'MTG-PL-1',title:'A debate (debate)'}}]}]};const rare=renderToStaticMarkup(h(TopicStory,{data:rareData,index:2,mode:'q',own:false}));assert.match(rare,/rarely asked about before/);assert(!rare.includes('Infinity')&&!rare.includes('Biggest debate'));assert.match(renderToStaticMarkup(h(TopicStory,{data:rareData,index:2,mode:'d',own:false})),/Biggest debate/);
+ const untitledData={...rareData,items:[{...rareData.items[0],series:[{...rareData.items[0].series[0],top:{key:'MTG-PL-2025-09-10-PVCRE-ITM-7',title:null}}]}]};const untitledStory=renderToStaticMarkup(h(TopicStory,{data:untitledData,index:2,mode:'d',own:false}));assert(!untitledStory.includes('Biggest debate')&&!untitledStory.includes('<a></a>')&&!untitledStory.includes('Untitled'),'a debate without a held title is not named as the biggest debate');
  const voteData={...rareData,items:[{...rareData.items[0],series:[{...rareData.items[0].series[0],top:{key:'MTG-PL-2025-09-10-PVCRE-ITM-7-2',title:'Support for Ukraine (vote)',kind:'record'}}]}]};const voteStory=renderToStaticMarkup(h(TopicStory,{data:voteData,index:2,mode:'d',own:false}));assert(!voteStory.includes('Biggest debate')&&!voteStory.includes('(vote)'),'a voting-time group is never named the biggest debate');
  const tieData={periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{},items:['Iran','Georgia'].map((label,i)=>({key:'place:'+['IRN','GEO'][i],label,series:[{period:'2025-Q1',document:2},{period:'2025-Q2',document:2},{period:'2025-Q3',document:10}]}))};const tied=renderToStaticMarkup(h(TopicStory,{data:tieData,index:2,mode:'d',own:false}));assert(tied.includes('Georgia')&&tied.includes('Iran')&&tied.includes('each'));
  for(const mode of ['d','q']){const single={periods:['2026-Q1'],partial:{},items:[{key:'place:IRN',label:'Iran',series:[{period:'2026-Q1',document:1,question:1}]}]},text=renderToStaticMarkup(h(TopicStory,{data:single,index:0,mode,own:false}));assert(text.includes(mode==='d'?'1 document':'1 question'));assert(!text.includes(mode==='d'?'1 documents':'1 questions'));}
@@ -122,4 +123,22 @@ test('riser ratios use the max(1, average) baseline shared with stories',()=>{
 test('legacy timeline redirects keep the interface language',()=>{
  assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123&lang=fr')),'?view=topics&topic=eurovoc%3A123&lang=fr');
  assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&lang=de');
+});
+
+test('legacy prose requires parent and quantity coverage while other panels stay native',async t=>{
+ const {createElement:h}=await import('react'),{renderToStaticMarkup}=await import('react-dom/server'),{freshLoader}=await import('./test-support/viteRunner.mjs');
+ const load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'legacy-story-locale'});t.after(()=>load.close());
+ const {TopicStory}=await load('/src/TopicStory.tsx'),{UiI18nProvider,UiMessage}=await load('/src/UiI18nReact.tsx'),{createUiI18n}=await import('./uiI18n.mjs'),{defaultUi}=await import('./uiDefault.mjs');
+ const source={'topics.mostTiedCount':'{place} are most named, with {quantity} each.','topics.story.count.questions':{plural:'count',one:'{count} question',other:'{count} questions'}};
+ const parent={'topics.mostTiedCount':'{place}: {quantity} kummallakin.'},child={'topics.story.count.questions':{plural:'count',one:'{count} kysymys',other:'{count} kysymystä'}};
+ const data={periods:['2026-Q1'],partial:{},items:['Türkiye','Iran'].map((label,i)=>({key:'place:'+['TUR','IRN'][i],label,series:[{period:'2026-Q1',question:1234}]}))};
+ for(const [messages,native] of [[child,false],[parent,false],[{...parent,...child},true]]){
+  // Reuse the real complete English formatter for fallback, and inject only
+  // these Finnish fixtures; unrelated absent messages still use production EN.
+  const fixture=createUiI18n({source,translations:{fi:messages}}).forLocale('fi'),ui={...defaultUi,...fixture},i18n={sourceLocale:'en',forLocale:()=>ui};
+  const html=renderToStaticMarkup(h(UiI18nProvider,{i18n},h('div',null,h(TopicStory,{data,index:0,mode:'q',own:true}),h('aside',null,h(UiMessage,{id:'topics.story.count.questions',values:{count:2},counts:{count:2}})))));
+  assert.match(html,new RegExp('lang="'+(native?'fi':'en')+'"'));assert.match(html,native?/Türkiye<\/a><\/span> ja /:/Türkiye<\/a><\/span> and /);
+  assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/place=TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
+  if(messages===child)assert.match(html,/<aside>2 kysymystä<\/aside>/);
+ }
 });

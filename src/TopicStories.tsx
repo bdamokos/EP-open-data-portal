@@ -1,8 +1,9 @@
 import {buildExactTopicStories,storyFactsRoute,storyRecord} from './exactTopicStories.mjs';
+import {defaultUi} from './uiDefault.mjs';
 import {useInsightData} from './InsightData';
 import {GROUP_VOICE_GROUPSUi} from './groupVoiceTerms.mjs';
 import {useEffect,useRef,useState,useId,type ReactNode} from 'react';
-import {UiMessage,useUiI18n} from './UiI18nReact';
+import {UiI18nProvider,UiMessage,useUiI18n} from './UiI18nReact';
 import {useExplorerParam} from './explorerUrl';
 import {buildReferenceTopicStories,storyNumber,normalizeReferenceStoryFacts,type StoryRecord,type StoryFacts,type StoryReference,type StorySelection,type StoryValue} from './topicStoryModel.mjs';
 import {topicsHref} from './topicPresentation.mjs';
@@ -10,14 +11,18 @@ import {recordHref} from './TopicsLinks';
 import {sourcePageUrl} from './SourceLink';
 import {dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
 import {InsightQuestionReader,InsightSpeechReader} from './InsightReaders';
-export function TopicStories({selection,fallback,facts:provided,onRecords,onReady}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string)=>void;onReady?:()=>void}){
+export function TopicStories({selection,fallback,facts:provided,onRecords}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string)=>void}){
  const ui=useUiI18n(),panel=useId(),[selected,setSelected]=useExplorerParam<string>('t-story',''),[reading,setReading]=useExplorerParam<string>('t-story-read',''),[,setQuarter]=useExplorerParam<string>('t-q','');
  const response=useInsightData<any>(provided?null:storyFactsRoute({...selection,language:ui.language,period:undefined}));
  const facts=provided?normalizeReferenceStoryFacts(provided):null;
  const [shown,setShown]=useState(20);
- const lines=provided?buildReferenceTopicStories(facts,{...selection,language:ui.language,proseLanguage:ui.messageLocale('topics.story.ordinal.other')}):buildExactTopicStories(response.data,{...selection,language:ui.language}),heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLAnchorElement|null>(null);
+ // Model numbers, dates and ordinal choices must use the same locale as every
+ // message in the generated prose tree. Inspect reference labels, not records.
+ const build=(locale:string)=>provided?buildReferenceTopicStories(facts,{...selection,language:locale,proseLanguage:locale}):buildExactTopicStories(response.data,{...selection,language:locale});
+ const nativeValue=(value:StoryValue):boolean=>value==null||typeof value==='string'||(Array.isArray(value)?value.every(nativeValue):'message' in value?ui.messageLocale(value.message)===ui.locale&&Object.values(value.values).every(nativeValue):nativeValue(value.text));
+ const candidate=build(ui.locale),proseUi=candidate.every(line=>ui.messageLocale(line.id)===ui.locale&&Object.values(line.values).every(nativeValue))?ui:defaultUi;
+ const lines=proseUi===ui?candidate:build(proseUi.locale),proseI18n={sourceLocale:'en',forLocale:()=>proseUi},heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLAnchorElement|null>(null);
  useEffect(()=>{setShown(20);if(selected&&heading.current){heading.current.focus({preventScroll:true});heading.current.scrollIntoView({block:'start'});}else if(!selected&&opener.current?.isConnected){opener.current.focus({preventScroll:true});opener.current=null;}},[selected,Boolean(lines.length)]);
- useEffect(()=>{if(provided||!response.loading)onReady?.();},[provided,response.loading,onReady]);
  const questionGap=false;
  if(!lines.length)return <>{response.data?.ready&&questionGap?<p className="topic-muted"><UiMessage id="topics.story.questionsUnavailable"/></p>:response.error||response.data?.ready===false||!response.data?fallback:null}</>;
  const refs=new Map<string,StoryReference>();
@@ -25,7 +30,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords,onRead
  const renderValues=(values:Record<string,StoryValue>,path:string):Record<string,ReactNode>=>Object.fromEntries(Object.entries(values).map(([key,value])=>[key,render(value,path+'-'+key)]));
  const render=(value:StoryValue,path:string):ReactNode=>{
   if(value===null||typeof value==='string')return value;
-  if(Array.isArray(value))return new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{style:'long',type:'conjunction'}).formatToParts(value.map((_,i)=>String(i))).map((part,i)=>part.type==='element'?<span key={i}>{render(value[Number(part.value)],path+'-'+part.value)}</span>:part.value);
+  if(Array.isArray(value))return new Intl.ListFormat(proseUi.language==='en'?'en-GB':proseUi.locale,{style:'long',type:'conjunction'}).formatToParts(value.map((_,i)=>String(i))).map((part,i)=>part.type==='element'?<span key={i}>{render(value[Number(part.value)],path+'-'+part.value)}</span>:part.value);
   if('message' in value)return <UiMessage id={value.message} values={renderValues(value.values,path)} counts={value.counts}/>;
   if(value.labelLanguage)return <span lang={value.labelLanguage}>{typeof value.text==='string'?value.text:render(value.text,path+'-label')}</span>;
   refs.set(path,value);
@@ -38,7 +43,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords,onRead
   const inline=['document','question','speech'].includes(r.kind),source=r.kind==='press'?sourcePageUrl(r.url):null,href=inline?hrefFor(selected,r.id):source||recordHref(r.id,r.kind),o=r.outcome;
   return <article key={r.kind+':'+r.id}><small>{r.date||<UiMessage id="topics.story.dateUnavailable"/>}</small><a lang={r.titleLanguage===undefined?'en':r.titleLanguage||''} href={href} onClick={e=>{if(inline&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey){e.preventDefault();setReading(reading===r.id?'':r.id);}else if(!source)dossierLinkClick(e);}}>{r.title}</a>{r.groups?.length? <p><UiMessage id="topics.story.records.groups" values={{groups:new Intl.ListFormat(ui.language==='en'?'en-GB':ui.locale,{type:'conjunction'}).format(r.groups.map(g=>(GROUP_VOICE_GROUPSUi(ui) as Record<string,string>)[g.replace('S-D','S_D').replace('VERTS-ALE','VERTS_ALE').replace('THE-LEFT','THE_LEFT')]||g))}}/></p>:null}{o&&['ADOPTED','REJECTED'].includes(o.outcome)&&<p><UiMessage id={'topics.story.records.'+(o.outcome==='REJECTED'?(o.for!=null&&o.against!=null?'rejectedTally':'rejected'):o.for!=null&&o.against!=null?'passed':/VOTE_HAND/.test(o.method||o.decision_method||'')?'showOfHands':'adopted')} values={{for:o.for==null?'':num(o.for),against:o.against==null?'':num(o.against)}}/></p>}{reading===r.id&&(r.kind==='speech'?<InsightSpeechReader id={r.id} language={ui.language}/>:<InsightQuestionReader id={r.id} language={ui.language} heading={ui.t('topics.kind.'+r.kind)}/>)}</article>;
  };
- return <div className="topic-stories"><p className="topic-story">{sentences}</p>{selection.mode==='d'&&<p className="topic-muted"><UiMessage id="topics.story.jointOnce"/></p>}{(questionGap)&&<p className="topic-muted"><UiMessage id={questionGap?'topics.story.questionsUnavailable':'topics.story.comparisonsUnavailable'}/></p>}{active&&!active.pageRecords&&<section id={panel} className="topic-story-records" aria-label={ui.t('topics.story.records')}><h3 ref={heading} tabIndex={-1}>{active.browse?.periods?<UiMessage id="topics.story.exact.periods"/>:typeof active.text==='string'?active.text:render(active.text,'record-heading')}</h3>{active.browse?<StoryBrowse key={selected} selection={selection} browse={active.browse} renderRecord={renderRecord}/>:active.records.slice(0,shown).map(renderRecord)}{active.records.length>shown&&<button onClick={()=>setShown(n=>n+20)}><UiMessage id="topics.more"/></button>}{!active.browse&&!active.records.length&&<p><UiMessage id="topics.empty"/></p>}</section>}</div>;
+ return <div className="topic-stories"><p className="topic-story" lang={proseUi.language}><UiI18nProvider i18n={proseI18n}>{sentences}</UiI18nProvider></p>{selection.mode==='d'&&<p className="topic-muted" lang={ui.messageLocale('topics.story.jointOnce')}><UiMessage id="topics.story.jointOnce"/></p>}{(questionGap)&&<p className="topic-muted"><UiMessage id={questionGap?'topics.story.questionsUnavailable':'topics.story.comparisonsUnavailable'}/></p>}{active&&!active.pageRecords&&<section id={panel} className="topic-story-records" aria-label={ui.t('topics.story.records')}><h3 ref={heading} tabIndex={-1} lang={active.browse?.periods?ui.messageLocale('topics.story.exact.periods'):proseUi.language}>{active.browse?.periods?<UiMessage id="topics.story.exact.periods"/>:<UiI18nProvider i18n={proseI18n}>{typeof active.text==='string'?active.text:render(active.text,'record-heading')}</UiI18nProvider>}</h3>{active.browse?<StoryBrowse key={selected} selection={selection} browse={active.browse} renderRecord={renderRecord}/>:active.records.slice(0,shown).map(renderRecord)}{active.records.length>shown&&<button onClick={()=>setShown(n=>n+20)}><UiMessage id="topics.more"/></button>}{!active.browse&&!active.records.length&&<p><UiMessage id="topics.empty"/></p>}</section>}</div>;
 }
 
 function StoryBrowse({selection,browse,renderRecord}:{selection:StorySelection;browse:Record<string,string>;renderRecord:(record:any)=>ReactNode}){

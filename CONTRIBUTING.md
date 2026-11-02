@@ -74,7 +74,7 @@ Use public sources and keep exact identifiers, dates, languages and attribution.
 
 Benchmark caches, snapshots and results stay outside Git and out of CI artifacts. Run any benchmark script with `--help` for the full options.
 
-**Read benchmark.** `npm run bench:reads` (needs the `sqlite3` CLI) measures SQLite page reads for the main queries on synthetic data. CI compares page fetches with the committed baseline and fails above 1.2× + 10 or on a new full scan of a large table. Add scenarios in `scripts/read-benchmark.mjs`.
+**Read benchmark.** `npm run bench:reads` (needs the `sqlite3` CLI) measures SQLite page reads on synthetic data; add `-- --compare REF` to compare against a Git revision. CI measures the base and head in the same job and fails when page fetches exceed base × 1.20 + 10 or an existing scenario adds a full scan of a large table. New and removed scenarios are reported without failing the gate.
 
 **Amendment benchmark** (`npm run bench:amendments`) scores amendment placement against a frozen public snapshot:
 
