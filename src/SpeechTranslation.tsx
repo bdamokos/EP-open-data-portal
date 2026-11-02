@@ -6,7 +6,7 @@ import './SpeechTranslation.css';
 
 // Only a source annotation establishes the original language. Available
 // editions and the UI language do not establish provenance.
-export function useSpeechTranslation(id:string,requested:string,interfaceLanguage=requested) {
+export function useSpeechTranslation(id:string,requested:string) {
   const ui = useUiI18n();
   const key=id+':'+requested;
   const [choice,setChoice]=useState<{key:string;source:string;translation:string|null}|null>(null);
@@ -28,6 +28,5 @@ export function useSpeechTranslation(id:string,requested:string,interfaceLanguag
     {original ? <button type="button" onClick={()=>setChoice(null)}><UiMessage id="batch6.speechtranslation.show.translation.26"/>{current!.translation ? (` (${name(current!.translation)})`) : null}</button> : (source ? <button type="button" onClick={()=>setChoice({key,source,translation:body?.textLanguage??null})}><UiMessage id="batch6.speechtranslation.show.original.language.27" values={{language: name(source)}}/></button> : <span><UiMessage id="batch6.speechtranslation.original.language.unavailable.28"/></span>)}
   </span> : null;
   return {state:{...state,transcript:exactOriginal ? body : null},selected,control,reset:()=>setChoice(null),
-    originalAudio:original||requested!==interfaceLanguage&&body?.translationType==='original',
     originalGap:original&&!state.loading&&!exactOriginal};
 }

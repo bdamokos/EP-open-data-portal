@@ -43,7 +43,7 @@ async function harness(t,items=[member()],v2=false,dossiers=[]) {
  function Checks({language}){controls.useSavedChecks(language);return null;}
  const render=(language='en',strict=false,following=true,members)=>act(async()=>root.render(createElement(strict?StrictMode:Fragment,null,(harness.focusChecks||!following)&&createElement(Checks,{language}),createElement(controls.SavedNav,{onClick(){}}),following&&createElement(Saved,{members,language,onBack(){},onMember:(...args)=>opened.push(args),renderActivity:({member,sourceId,profileHref,onOpenProfile})=>createElement('div',null,'Inline '+member+' '+sourceId,createElement('a',{href:profileHref,onClick:event=>{event.preventDefault();onOpenProfile();}},'Open in profile'))}))));
  const click=async(text,scope=container)=>{await act(async()=>{const button=[...scope.querySelectorAll('button')].find(x=>x.textContent===text);assert(button,'Missing '+text+' in '+scope.textContent);button.click();});await settle();};
- const check=()=>click('Check for updates');
+ const check=async()=>{await background(true);await settle();};
  const background=(force=false,lang='en')=>act(async()=>{await controls.checkSaved(lang,force).catch(()=>{});});
  const holdNextDetail=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);memberGate={started,wait};return {ready,release};};
  const holdNextStatus=()=>{let started,release;const ready=new Promise(resolve=>started=resolve),wait=new Promise(resolve=>release=resolve);statusGate={started,wait};return {ready,release};};
@@ -343,7 +343,7 @@ test('background storage errors retain entries and failed follow changes revert 
  await act(async()=>cards(h)[0].querySelector('.explorer-save-button').click());assert.equal(h.controls.savedStore.snapshot().items.length,1);assert.match(h.container.textContent,/Couldn't save in this browser/);t.mock.restoreAll();await h.click('Retry saving');assert.equal(h.controls.savedStore.snapshot().storageError,null);
 });
 test('empty Following makes no requests; epoch reset keeps readable entries',async t=>{
- const h=await harness(t,[]);await h.render();assert(h.container.querySelector('.explorer-saved-heading button').disabled);assert.equal(h.requests.length,0);
+ const h=await harness(t,[]);await h.render();assert(!h.container.querySelector('.explorer-saved-heading button'),'Following has no manual check');assert.equal(h.requests.length,0);
  await act(async()=>h.controls.savedStore.toggle(member()));await h.background();h.setStatus({generation:6});h.setDetail([['late',0,6]],[speech]);await h.check();await settle();h.setStatus({epoch:'two',generation:1});await h.check();assert.equal(h.item().entries.length,1);assert.doesNotMatch(h.container.textContent,/Update tracking restarted/);
 });
 

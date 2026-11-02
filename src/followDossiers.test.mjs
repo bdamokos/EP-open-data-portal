@@ -137,3 +137,17 @@ test('entries from one observation share their discovery time even when the cloc
   store.observeProgress(id,data('2026-10-31T09:00:00Z',[{id:'first:'+id,status:'recorded',date:'2026-10-30',label:'Decision by Parliament',labelLanguage:'en'},{id:'second:'+id,status:'recorded',date:'2026-10-30'}]),item());
   const times=new Set(item().entries.map(entry=>entry.discoveredAt));assert.equal(times.size,1);
 });
+
+test('a valid reread of the stored progress and OEIL observations clears their failure gaps without new entries',()=>{
+  const h=setup(),data=progress('2026-10-23T09:00:00Z',[event('a')]);
+  h.store.observeProgress(id,data,h.expected());h.store.observePress(id,press(1),h.expected());
+  const baseline=structuredClone(h.item().observations);
+  h.store.unavailable(id,h.expected(),'progress');h.store.unavailable(id,h.expected(),'oeil');h.store.unavailable(id,h.expected(),'press');
+  assert(h.item().gaps.progress&&h.item().gaps.oeil&&h.item().gaps.press);
+  h.store.observeProgress(id,data,h.expected());h.store.observePress(id,press(1),h.expected());
+  assert.deepEqual(h.item().gaps,{progress:false,oeil:false,press:false});
+  assert.deepEqual(h.item().observations,baseline,'the stored baselines are unchanged');assert.equal(h.item().entries.length,0);
+  h.store.unavailable(id,h.expected(),'progress');
+  h.store.observeProgress(id,progress('2026-10-23T08:00:00Z',[event('a'),event('b')]),h.expected());
+  assert(h.item().gaps.progress,'an older observation still cannot clear a gap');assert.equal(h.item().entries.length,0);
+});

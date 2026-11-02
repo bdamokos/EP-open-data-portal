@@ -1,20 +1,13 @@
-import {availabilityHistoryVersion} from './availability-history.mjs';
-import {SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
-import {corpusTextVersion} from './corpus-text-schema.mjs';
-import {followMarksVersion} from './follow-marks.mjs';
-import {activityReadVersion} from './activity-read-projections.mjs';
-import {activityAvailabilityIndexVersion} from './availability-evidence.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync,statSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {ActivityStore} from './activity-index-store.mjs';
-import {committeeAmendmentIndexVersion,amendmentReadVersion,amendmentLinkIndexVersion} from './amendments-store.mjs';
-import {CorpusStore} from './corpus-store.mjs';
+import {ActivityStore,ACTIVITY_SCHEMA_GATES} from './activity-index-store.mjs';
+import {CorpusStore,CORPUS_SCHEMA_GATES} from './corpus-store.mjs';
 import {absolutePathFromEnvironment,booleanFromEnvironment,integerFromEnvironment} from './config.mjs';
 
 const bytes=filename=>['','-wal','-shm'].reduce((sum,suffix)=>sum+(existsSync(filename+suffix)?statSync(filename+suffix).size:0),0);
-const prepared=(store,kind)=>store.get('resourceIndexes')===1&&store.get('availabilityHistoryVersion')===availabilityHistoryVersion&&(kind==='activity'?store.get('fastReadSchemaVersion')===1&&store.get('recoveryScheduleVersion')===1&&store.get('committeeAmendmentIndexVersion')===committeeAmendmentIndexVersion&&store.get('amendmentReadVersion')===amendmentReadVersion&&store.get('amendmentLinkIndexVersion')===amendmentLinkIndexVersion&&store.get('motionLinksIndexVersion')===1&&store.get('activityReadVersion')===activityReadVersion&&store.get('refreshPolicyVersion')===1&&store.get('followMarksVersion')===followMarksVersion&&store.get('activityAvailabilityIndexVersion')===activityAvailabilityIndexVersion&&store.get('sittingSnapshotSchema')===SITTING_SNAPSHOT_SCHEMA:store.get('speechMemberIndex')===2&&store.get('questionDiscoveryVersion')===1&&store.get('corpusTextVersion')===corpusTextVersion);
+const prepared=(store,kind)=>(kind==='activity'?ACTIVITY_SCHEMA_GATES:CORPUS_SCHEMA_GATES).every(({key,value})=>store.get(key)===value);
 
 // Run before opening the HTTP listener or starting either source writer.
 export function prepareStartupIndexes() {

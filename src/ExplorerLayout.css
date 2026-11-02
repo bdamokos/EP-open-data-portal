@@ -81,8 +81,7 @@
 .explorer-insights .explorer-video-actions button { flex:0 1 auto; min-width:140px; }
 .explorer-insights .explorer-video .explorer-notice { border-left:3px solid var(--warning); }
 .explorer-insights .explorer-video [role=alert] { color:var(--warning); }
-.explorer-insights .explorer-video-heading button,.explorer-insights .explorer-video-controls button,.explorer-insights .explorer-video-controls select { min-height:44px; }
-.explorer-insights .explorer-video-controls select { width:100%; }
+.explorer-insights .explorer-video-heading button { min-height:44px; }
 @media(max-width:1000px) {
   /* Start with readable agenda cards; show the compact picker inside an item. */
   .insight-agenda { display:grid; grid-template-columns:1fr; max-height:none; overflow:visible; }

@@ -56,11 +56,8 @@ test('progress is independent, preserves exact selection and lazy readable docum
   await act(async()=>answerSummary(Response.json({reference:ref,title:'Civil protection',language:'en',summary:{id:'1',stage:'proposal',date:'2026-10-01',blocks:[{kind:'paragraph',text:'Existing official summary.'}],source:{url:'https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1'}},summaries:[{id:'1',stage:'proposal',date:'2026-10-01'}],subjects:[],topics:[],source:{url:'https://oeil.europarl.europa.eu/oeil/en/procedure-file?reference='+ref}})));
   assert.match(container.textContent,/Existing official summary/);assert(button('Hide timeline'),'summary completion retains the expanded progress selection');
   assert.match(container.textContent,/Saved progress/,'late OEIL completion does not imply a progress read');
-  await act(async()=>button('Check again').click());
-  assert.match(container.textContent,/Checking…/);
-  assert(!button('Check again'));
-  await act(async()=>answerProgress(Response.json(progress)));
-  assert.doesNotMatch(container.textContent,/Saved progress/);assert(button('Hide timeline'));
+  assert(!button('Check again'),'saved progress has no manual refresh');assert(button('Hide timeline'));
+  assert.equal(calls.filter(url=>url.pathname.endsWith('/procedure-progress')&&!url.searchParams.has('detail')).length,1);
   const details=container.querySelector('.procedure-progress-documents');
   await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
   assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,1);
@@ -70,8 +67,10 @@ test('progress is independent, preserves exact selection and lazy readable docum
   assert.equal(container.querySelectorAll('.procedure-progress a[href*="sparql"],.procedure-progress a[href*="resource/cellar"]').length,0);
   assert.match(details.textContent,/Not checked recently\./);
   assert.doesNotMatch(details.textContent,/Checking for updates/,'a completed read must not imply continued client polling');
-  await act(async()=>button('Check again').click());
-  assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,2,'retry bypasses the saved browser response');
+  assert(!button('Check again'),'saved document links have no manual refresh');
+  await act(async()=>{details.open=false;details.dispatchEvent(new window.Event('toggle'));});
+  await act(async()=>{details.open=true;details.dispatchEvent(new window.Event('toggle'));});
+  assert.equal(calls.filter(url=>url.searchParams.get('detail')==='documents').length,2,'reopening stale details bypasses the saved browser response');
   assert.match(details.textContent,/Commission proposal/,'saved links stay visible during the retry');
   await act(async()=>answerDocuments(Response.json({...documentData,source:{...source,stale:true,refreshError:'Source unavailable'}})));
   assert.match(details.textContent,/Couldn’t check for updates\./);

@@ -50,13 +50,14 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   t.mock.method(globalThis,'fetch',async input=>{
     const url=new URL(input,window.location.href);assert(url.pathname.endsWith('/amendments'));
     assert.equal(url.searchParams.get('lang'),locale);
-    const items=fixtures(reads++>0);
-    return Response.json({items,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:false,gaps:[],lastUpdated:'2026-10-16T12:00:00Z'}});
+    const first=reads++===0,items=fixtures(!first);
+    return Response.json({items,total:items.length,offset:0,limit:20,coverage:{complete:false,pending:first,gaps:[],lastUpdated:'2026-10-16T12:00:00Z'}});
   });
   loadModule=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}});
   const {Amendments}=await loadModule('/src/Amendments.tsx');
   const {createRoot}=await import('react-dom/client');
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
+  const polls=[];t.mock.method(window,'setInterval',(callback,delay)=>polls.push({callback,delay}));
   await act(async()=>root.render(createElement('div',{lang:locale},createElement(Amendments,{language:locale,document:'A-10-2026-0254'}))));
   const card=id=>container.querySelector('#amendment-'+id);
   const grouping=()=>container.querySelectorAll('.explorer-amendment-controls select')[1];
@@ -103,7 +104,8 @@ for(const locale of ['en','hu','fr'])test(`${locale}: target labels and topics k
   }
   await assertPaths(false);
   assert.equal(reads,1);
-  await act(async()=>[...container.querySelectorAll('button')].find(button=>button.textContent==='Refresh').click());
+  assert(![...container.querySelectorAll('button')].some(button=>button.textContent==='Refresh'),'amendments have no manual refresh');
+  assert.deepEqual(polls.map(poll=>poll.delay),[10_000]);await act(async()=>polls[0].callback());
   assert.equal(reads,2);
   await assertPaths(true);
   assert.doesNotMatch(container.textContent,/Article 1 — retained English label|Article 7 — retained English variant|Retained English topic/,'a refreshed exact French label replaces the retained English value and language together');

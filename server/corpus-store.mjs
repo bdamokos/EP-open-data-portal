@@ -1,5 +1,5 @@
 import {corpusTextVersion,prepareCorpusTexts} from './corpus-text-schema.mjs';
-import {initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
+import {availabilityHistoryVersion,initializeAvailabilityHistory,observeSource,observeCheck,finishAvailabilityWrite,historyStatus} from './availability-history.mjs';
 import {sourceAvailability} from './source-availability.mjs';
 import {availabilityGap} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
@@ -28,6 +28,15 @@ import {questionAddressees} from './question-addressees.mjs';
 // the attached index's `items.source_id`.
 export const CORPUS_STATUS_VERSION=2;
 export const CORPUS_COVERAGE_VERSION=2;
+// All entries are required by preparation; history remains prepared on acquire.
+export const CORPUS_SCHEMA_GATES=Object.freeze([
+  {key:'resourceIndexes',value:1},
+  {key:'availabilityHistoryVersion',value:availabilityHistoryVersion,constructorGate:false,writerGate:false},
+  {key:'speechMemberIndex',value:2},
+  {key:'questionDiscoveryVersion',value:1},
+  {key:'corpusTextVersion',value:corpusTextVersion},
+].map(Object.freeze));
+
 const KINDS=['speech','question','answer'];
 const parse=value=>value==null?null:JSON.parse(value);
 const sha=value=>createHash('sha256').update(value).digest('hex');
@@ -89,7 +98,7 @@ export class CorpusStore {
     this.db.function('speech_order_ms',{deterministic:true},(start,date)=>{const value=Date.parse(start||date);return Number.isFinite(value)?value:null;});
     this.db.function('question_addressee_ids',{deterministic:true},body=>body===null?null:JSON.stringify(questionAddressees(parse(body)).map(item=>item.id)));
     if(!this.initializeIndexes) {
-      try {if(this.get('speechMemberIndex')!==2||this.get('resourceIndexes')!==1||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)throw new Error('Unprepared corpus indexes.');}
+      try {if(CORPUS_SCHEMA_GATES.some(gate=>gate.constructorGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Unprepared corpus indexes.');}
       catch {this.db.close();throw new Error('Corpus indexes need preparation. Stop the app and run node server/migrate-indexes.mjs before starting it.');}
     }
     if(readOnly)this.db.exec('PRAGMA busy_timeout=250; PRAGMA query_only=ON;');
@@ -160,7 +169,7 @@ export class CorpusStore {
       const old=this.db.prepare('SELECT * FROM lease WHERE id=1').get();
       if(old && old.owner!==this.owner && old.expires>this.clock())return false;
       const initialize=this.get('resourceIndexes')!==1;
-      if((initialize||this.get('questionDiscoveryVersion')!==1||this.get('corpusTextVersion')!==corpusTextVersion)&&!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
+      if(!this.initializeIndexes&&CORPUS_SCHEMA_GATES.some(gate=>gate.writerGate!==false&&this.get(gate.key)!==gate.value))throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
       this.db.prepare('INSERT OR REPLACE INTO lease VALUES (1,?,?)').run(this.owner,this.clock()+ttl);
       initializeAvailabilityHistory(this);
       if(this.get('corpusTextVersion')!==corpusTextVersion){prepareCorpusTexts(this.db);this.set('corpusTextVersion',corpusTextVersion);initialized=true;}
@@ -191,7 +200,6 @@ export class CorpusStore {
         this.set('resourceIndexes',1);initialized=true;
       }
       if(this.get('speechMemberIndex')!==2) {
-        if(!this.initializeIndexes)throw new Error('Run node server/migrate-indexes.mjs before starting the app.');
         this.db.exec(`DROP TRIGGER IF EXISTS speech_member_insert; DROP TRIGGER IF EXISTS speech_member_update; DROP TRIGGER IF EXISTS speech_member_delete;
           DROP TABLE IF EXISTS speech_member_catalog;
           CREATE TABLE speech_member_catalog (
@@ -584,10 +592,13 @@ export class CorpusStore {
     // change the labels below, without changing offsets or speech contents.
     const total=selection.n,revision=total+':'+selection.revision;
     if(params.expectedRevision!==undefined&&params.expectedRevision!==revision)return {changed:true};
+    // Continuation pages of a bounded walk can skip the selection-wide coverage
+    // scans below; the walk keeps the evidence read with its first page.
+    const coverage=params.coverage!==false;
     // Filter the selection before probing retained texts. SQLite can otherwise
     // run the correlated text lookup for every speech in the date window,
     // exhausting the reader budget even for a member with only a few speeches.
-    const missingRetainedLanguage=params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
+    const missingRetainedLanguage=!coverage?null:params.metadataOnly||!params.language?0:this.db.prepare(`WITH selected AS MATERIALIZED (
       SELECT source_id FROM ${selectionTable} WHERE ${where.join(' AND ')}
       AND source_id IN (SELECT source_id FROM speech_catalog c WHERE c.source_id=${selectionName}.source_id AND EXISTS (SELECT 1 FROM json_each(c.available_languages) WHERE value=?))
     ) SELECT COUNT(*) n FROM selected c WHERE NOT EXISTS (
@@ -595,6 +606,8 @@ export class CorpusStore {
     const direction=descending?'DESC':'ASC';
     const ids=this.db.prepare(`SELECT source_id FROM ${member!==null&&descending?'speech_member_catalog INDEXED BY speech_member_list':selectionTable} WHERE ${where.join(' AND ')} ORDER BY ${member!==null&&descending?'order_ms DESC,source_order ASC':`date ${direction},start ${direction},numbering ${direction},source_id ${direction}`}  LIMIT ? OFFSET ?`).all(...args,limit,offset).map(row=>row.source_id);
     const result=this.speechDataSnapshot({...params,sourceIds:ids});
+    const nextOffset=offset+ids.length<total?offset+ids.length:null;
+    if(!coverage)return {...result,total,offset,revision,missingRetainedLanguage,nextOffset,coverage:null};
     const today=brusselsDay(this.clock());
     const latestDataDate=this.db.prepare("SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('PLENARY_DEBATE_SPEECH','PLENARY_DEBATE_WRITTEN_STATEMENT') AND date<=?").get(today).date||null;
     const latestKindDate=this.db.prepare('SELECT MAX(date) date FROM speech_catalog WHERE kind IN ('+kinds.map(()=>'?').join(',')+') AND date<=?').get(...kinds,today).date||null;
@@ -610,7 +623,7 @@ export class CorpusStore {
       const dates=new Map(kinds.map(kind=>[kind,latestKind.get(kind,today).date]));
       availability={metadata:sourceAvailability({...args,sourceKey:'speech-metadata',latestObservedDate:latestKindDate}),metadataSources:kinds.map(kind=>sourceAvailability({...args,sourceKey:kind,subtype:kind,latestObservedDate:dates.get(kind)||null})),text:params.metadataOnly?null:sourceAvailability({...args,sourceKey:'speech-text',subtype:kinds.length===1?kinds[0]:null,stage:'text',language:params.language,latestObservedDate:latestTextDate})};
     }
-    return {...result,total,offset,revision,missingRetainedLanguage,nextOffset:offset+ids.length<total?offset+ids.length:null,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
+    return {...result,total,offset,revision,missingRetainedLanguage,nextOffset,coverage:{basis:'retained-corpus',authoritativeComplete:false,backfillComplete:Boolean(this.get('backfilledAt')),latestDataDate,availability}};
   });}
 
   speechTranscript({sourceId,language,allowFallback=false}) {

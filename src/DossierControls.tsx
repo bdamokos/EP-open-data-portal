@@ -51,15 +51,14 @@ export function checkDossiers(options:{force?:boolean;signal?:AbortSignal;only?:
 }
 export function useDossierChecks() {
   const ui = useUiI18n();
-  const {items}=useDossiers(),key=items.map(item=>item.id+':'+item.savedAt).join(','),controller=useRef<AbortController|null>(null);
+  const {items}=useDossiers(),key=items.map(item=>item.id+':'+item.savedAt).join(',');
   useEffect(()=>{
-    const current=new AbortController();controller.current=current;
+    const current=new AbortController();
     void checkDossiers({signal:current.signal});
     const check=()=>{if(document.visibilityState==='visible')void checkDossiers({signal:current.signal}, ui);};
     window.addEventListener('focus',check);document.addEventListener('visibilitychange',check);
     return()=>{current.abort();window.removeEventListener('focus',check);document.removeEventListener('visibilitychange',check);};
   },[key]);
-  return ()=>checkDossiers({force:true,signal:controller.current?.signal});
 }
 export function FollowDossierButton({reference,title,titleLanguage=null,compact=false}:{reference:string;title?:string;titleLanguage?:string|null;compact?:boolean}) {
   const ui = useUiI18n();

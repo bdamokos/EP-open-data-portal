@@ -155,3 +155,44 @@ test('CLI acquire-only seals v2 bytes without cache or upstream requests',async 
  const offline=new InputCache(path.join(directory,'inputs'),{apiBase:'https://explorer.test',fetcher:()=>assert.fail('offline upstream')});await offline.seal(snapshot.manifest);assert.deepEqual((await offline.get(epUrl)).body,f.native);
  assert.deepEqual((await readdir(f.root)).sort(),['corpus','index']);
 });
+
+async function tree(root){const result={};for(const entry of await readdir(root,{withFileTypes:true})){const file=path.join(root,entry.name);result[entry.name]=entry.isDirectory()?await tree(file):(await readFile(file)).toString('base64');}return result;}
+
+test('base bytes and selection decisions are read without changing the retained tree',async t=>{
+ const {BaseSourceStore,retainBaseSelection}=await import('../server/base-source-store.mjs');
+ const f=await fixture(t),directory=path.join(f.root,'cache'),store=new BaseSourceStore(path.join(directory,'base-sources-v1'));
+ const baseUrl='https://data.europarl.europa.eu/distribution/base_en.docx',body=Buffer.from('native base');
+ const source={url:baseUrl,status:200,request:{accept:'*/*',language:'en'},headers:{'content-type':'application/octet-stream'},fetchedAt:'2026-11-01T12:00:00Z',descriptor:{url:baseUrl,format:'DOCX',language:'en',byteSize:body.length,issued:'2026-10-30T00:00:00Z'}};
+ await store.save(source,body);
+ const {startSourceWriters}=await import('../server/source-writers.mjs');
+ const {Worker}=await import('node:worker_threads');
+ let worker;
+ const stop=startSourceWriters({enabled:true,workerUrl:new URL('../server/test-support/base-retention-writer.mjs',import.meta.url),
+   createWorker:(url,options)=>worker=new Worker(url,{...options,env:{...process.env,ACTIVITY_INDEX_ENABLED:'false',CORPUS_ENABLED:'false'}})});
+ t.after(stop);
+ await new Promise((resolve,reject)=>{
+   const ready=message=>{if(message.type==='ready'){worker.off('message',ready);resolve();}};
+   worker.on('message',ready);worker.once('error',reject);
+ });
+ await retainBaseSelection('proposal',{reportId:'A-10-2026-0001',language:'en'},{status:'unresolved',gaps:['ambiguous-com-candidates'],evidence:[{kind:'com-candidates',rows:[{workId:'exact-id'}]}],items:[{buffer:body,title:'omit',score:0.9}]},{directory});
+ await stop();
+ const before=await tree(f.root),reader=await RetainedInputs.open(f.root);
+ assert.deepEqual((await reader.get(baseUrl,{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'})).body,body);
+ assert.equal((await reader.get(baseUrl,{accept:'*/*',language:'fr'})).acquisitionUnavailable,true);
+ const inputs=await mkdtemp(path.join(os.tmpdir(),'base-repeat-'));t.after(()=>rm(inputs,{recursive:true,force:true}));
+ const cache=new InputCache(inputs,{retained:reader,apiBase:'https://explorer.test',fetchMissing:true,delay:0,fetcher:()=>assert.fail('no upstream')});
+ for(const options of [{},{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'}]) {
+   const first=await cache.get(baseUrl,options),again=await cache.get(baseUrl,options);
+   assert.deepEqual(first.body,body);assert.deepEqual(again.body,body);
+   assert.deepEqual(first.request??null,options.accept?options:null);
+   assert.deepEqual(first.retainedSource.observedRequest,source.request);
+ }
+ const offline=new InputCache(inputs,{apiBase:'https://explorer.test',fetcher:()=>assert.fail('no replay upstream')});
+ assert.deepEqual((await offline.get(baseUrl)).body,body);
+ assert.deepEqual((await offline.get(baseUrl,{accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',language:'en'})).body,body);
+ const selections=await reader.selections('proposal');assert.equal(selections.length,1);assert.deepEqual(selections[0].decision.items,[{}]);assert.equal(selections[0].decision.gaps[0],'ambiguous-com-candidates');
+ assert.deepEqual(await tree(f.root),before);
+ const name=(await readdir(store.directory)).find(n=>n.endsWith('.blob')&&n.startsWith(digest(body)));
+ await writeFile(path.join(store.directory,name),Buffer.alloc(body.length));
+ await assert.rejects(()=>reader.get(baseUrl),/hash mismatch/);
+});

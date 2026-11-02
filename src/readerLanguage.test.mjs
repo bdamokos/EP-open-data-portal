@@ -320,11 +320,10 @@ test('speech video opens beside its heading and transcript language changes do n
   assert(panel.hidden);assert.equal(h.requests.filter(route=>route.startsWith('speech-media/')).length,0);
   assert(panel.previousElementSibling.classList.contains('explorer-speech-transcript-heading'),'the player stays next to the control rather than after the transcript');
   await h.click(toggle);assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
-  assert.equal(panel.querySelector('select').options[0].textContent,'English');
+  assert.equal(panel.querySelector('select'),null);
   await h.change(h.container.querySelector('.insight-reader-heading select'),'fr');
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
-  assert.equal(panel.querySelector('select').value,'language');
   assert.deepEqual(h.requests.filter(route=>route.startsWith('speech-media/')),[`speech-media/${speechId}?lang=en`]);
   await h.click(panel.querySelector('button'));assert.equal(toggle.getAttribute('aria-expanded'),'false');assert.equal(document.activeElement,toggle);
 });
@@ -349,7 +348,7 @@ test('speech readers preserve source italics and notes inside timed paragraphs, 
   assert.equal(connected.querySelectorAll('i').length,4,'parentheses in spoken text do not acquire italics');
 });
 
-test('inline original toggle preserves source text, returns to translation, and defaults only new videos to floor audio',async t=>{
+test('inline original toggle preserves source text, returns to translation, and keeps video in the interface language',async t=>{
   const h=await harness(t,(route,params)=>route.startsWith('speech-media/')?{available:false,status:'audio-unavailable'}:route.startsWith('speech/')?{...speech(params.get('lang')),start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z',translationType:params.get('lang')==='fr'?'original':'machine',xml:params.get('lang')==='fr'?'<speech xml:lang="fr"><p>Texte original exact.</p></speech>':'<speech xml:lang="fr-t-en-mtec"><p>English translation.</p></speech>'}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
   const button=label=>[...h.container.querySelectorAll('button')].find(node=>node.textContent===label);
@@ -358,12 +357,11 @@ test('inline original toggle preserves source text, returns to translation, and 
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   assert.equal(h.container.querySelector('.text-language-note'),null);
   await h.click(button('Video'));
-  assert(h.requests.includes(`speech-media/${speechId}?lang=en&audio=or`));
+  assert(h.requests.includes(`speech-media/${speechId}?lang=en`));
+  assert(!h.requests.some(route=>route.includes('audio=or')),'original text does not select floor audio');
   await h.click(button('Show translation (English)'));
   assert.equal(h.container.querySelector('.insight-reader-text').textContent,'English translation.');
-  assert.equal(h.container.querySelector('.explorer-video select').value,'original','open video is not retuned');
-  await h.click(button('Close video'));await h.click(button('Video'));
-  assert(h.requests.includes(`speech-media/${speechId}?lang=en`));
+  assert(button('Close video'),'open video is not closed by a text change');
   await h.click(button('Show original (French)'));
   await h.change(h.container.querySelector('.insight-reader-heading select'),'en');
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'en','dropdown clears the inline override even when the parent language was already English');

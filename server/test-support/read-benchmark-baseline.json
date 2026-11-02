@@ -6,7 +6,7 @@
   "scenarios": [
     {
       "name": "remaining/weeks",
-      "pageFetches": 24,
+      "pageFetches": 23,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -17,7 +17,7 @@
     },
     {
       "name": "remaining/savedCount",
-      "pageFetches": 56,
+      "pageFetches": 55,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -28,7 +28,7 @@
     },
     {
       "name": "remaining/motions",
-      "pageFetches": 76,
+      "pageFetches": 75,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -39,7 +39,7 @@
     },
     {
       "name": "remaining/savedPreviews",
-      "pageFetches": 68,
+      "pageFetches": 67,
       "rowsReturned": 1,
       "fullScanSteps": 0,
       "plan": [
@@ -96,6 +96,40 @@
         "SEARCH document USING INTEGER PRIMARY KEY (rowid=?)",
         "CORRELATED SCALAR SUBQUERY 5",
         "SEARCH prior USING INDEX sqlite_autoindex_tasks_1 (key=?)"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyDiscovery",
+      "pageFetches": 34,
+      "rowsReturned": 8,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX document_body_discovery (generation=? AND (date,source_id,mep,category)<(?,?,?,?))"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyUndated",
+      "pageFetches": 24,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH items USING INDEX document_body_discovery (generation=? AND date=? AND (source_id,mep,category)<(?,?,?))"
+      ],
+      "fullScanTables": [],
+      "fullScanLargeTable": false
+    },
+    {
+      "name": "remaining/documentBodyIdle",
+      "pageFetches": 22,
+      "rowsReturned": 0,
+      "fullScanSteps": 0,
+      "plan": [
+        "SEARCH document_body_jobs USING INDEX document_body_due (next_check<?)",
+        "USE TEMP B-TREE FOR ORDER BY"
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false
@@ -335,40 +369,6 @@
       "fullScanLargeTable": false
     },
     {
-      "name": "remaining/documentBodyDiscovery",
-      "pageFetches": 39,
-      "rowsReturned": 8,
-      "fullScanSteps": 0,
-      "plan": [
-        "SEARCH items USING INDEX document_body_discovery (generation=? AND (date,source_id,mep,category)<(?,?,?,?))"
-      ],
-      "fullScanTables": [],
-      "fullScanLargeTable": false
-    },
-    {
-      "name": "remaining/documentBodyUndated",
-      "pageFetches": 29,
-      "rowsReturned": 0,
-      "fullScanSteps": 0,
-      "plan": [
-        "SEARCH items USING INDEX document_body_discovery (generation=? AND date=? AND (source_id,mep,category)<(?,?,?))"
-      ],
-      "fullScanTables": [],
-      "fullScanLargeTable": false
-    },
-    {
-      "name": "remaining/documentBodyIdle",
-      "pageFetches": 27,
-      "rowsReturned": 0,
-      "fullScanSteps": 0,
-      "plan": [
-        "SEARCH document_body_jobs USING INDEX document_body_due (next_check<?)",
-        "USE TEMP B-TREE FOR ORDER BY"
-      ],
-      "fullScanTables": [],
-      "fullScanLargeTable": false
-    },
-    {
       "name": "member.speechKindFrontier",
       "pageFetches": 9,
       "rowsReturned": 1,
@@ -392,11 +392,11 @@
     },
     {
       "name": "member.memberSpeechPage",
-      "pageFetches": 11,
+      "pageFetches": 12,
       "rowsReturned": 50,
       "fullScanSteps": 0,
       "plan": [
-        "SEARCH speech_member_catalog USING COVERING INDEX speech_member_page (member=? AND date>? AND date<?)"
+        "SEARCH speech_member_catalog USING COVERING INDEX speech_member_list (member=?)"
       ],
       "fullScanTables": [],
       "fullScanLargeTable": false

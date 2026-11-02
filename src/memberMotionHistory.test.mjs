@@ -142,7 +142,7 @@ for(const exit of ['Back to members','MEPs'])test('opening another MEP through '
  }
 });
 
-for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': actual motion body scroll survives cold pending restore, a second departure, and Refresh list',async t=>{
+for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+': actual motion body scroll survives cold pending restore and later departures',async t=>{
  let delayed=false,releaseBody;
  const delayedBodies=new Set();
  const h=await harness(t,query({}),{context:url=>{
@@ -183,10 +183,9 @@ for(const scroller of ['.explorer-profile-body','main.explorer'])test(scroller+'
  await act(async()=>releaseBody());await h.settle();
  assert.equal(h.container.querySelectorAll('.document-context-reader [data-source-paragraph]').length,207);assert.equal(outer().scrollTop,413);
  assert(writes.some(write=>write.value===413&&!write.pending));
- // Refreshing the list reuses this mounted source body. Its new scalar position
- // must win over an older checkpoint, even with no intervening scroll event.
+ // A new scalar position must win over the older checkpoint, even without a scroll event.
  outer().scrollTop=617;const before=history.length;
- await h.click(button(h.container,'Refresh list'));
+ assert(![...h.container.querySelectorAll('button')].some(node=>node.textContent==='Refresh list'));
  assert.equal(history.length,before);assert.equal(outer().scrollTop,617);
  await h.click(button(h.container,'Profile'));outer().scrollTop=72;
  await h.click(button(h.container,'Political activities'));
