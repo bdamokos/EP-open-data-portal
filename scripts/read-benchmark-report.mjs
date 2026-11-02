@@ -62,7 +62,7 @@ export function renderReadBenchmarkReport({before,after,beforeLabel='Before',aft
   out.push(`<details><summary>All ${rows.length} scenarios</summary>`,'',table(rows,{beforeLabel,afterLabel}),'','</details>');
   if(gate?.failures.length)out.push('','**Gate failures**','',...gate.failures.map(message=>`- ${message}`));
 
-  for(const [label,result,source] of [[beforeLabel,before,beforeSource],[afterLabel,after,afterSource]])if(result)out.push('',`${cell(label)}: ${source}; commit ${cell(result.commit??'unknown')}; tree ${cell(result.tree??'unknown')}.`, '',`${cell(label)} toolchain: SQLite CLI ${cell(result.sqliteVersion??'unknown')}; Node ${cell(result.nodeVersion??'unknown')}; node:sqlite ${cell(result.nodeSqliteVersion??'unknown')}.`);
+  for(const [label,result,source] of [[beforeLabel,before,beforeSource],[afterLabel,after,afterSource]])if(result)out.push('',`${cell(label)}: ${source}; commit ${cell(result.commit??'unknown')}; tree ${cell(result.tree??'unknown')}; benchmark inputs ${cell(result.inputHash??'unknown')}.`, '',`${cell(label)} toolchain: SQLite CLI ${cell(result.sqliteVersion??'unknown')}; Node ${cell(result.nodeVersion??'unknown')}; node:sqlite ${cell(result.nodeSqliteVersion??'unknown')}.`);
   out.push('','Pages are SQLite page fetches and are deterministic. Times are from this run only and vary between runners.');
   return [...out,...footer].join('\n')+'\n';
 }

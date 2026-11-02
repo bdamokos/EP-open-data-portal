@@ -1,3 +1,4 @@
+import {benchmarkIdentity,readBenchmarkResult} from './read-benchmark-cache.mjs';
 import {runWeekCloudReadBenchmark} from '../server/test-support/week-cloud-read-benchmark.mjs';
 import {execFileSync} from 'node:child_process';
 import {appendFileSync,writeFileSync,readFileSync,mkdtempSync,mkdirSync,rmSync} from 'node:fs';
@@ -78,19 +79,17 @@ export async function main(args=process.argv.slice(2)) {
     options[args[index]]=args[index+1];
   }
   if(!options['--compare'] && Object.keys(options).length)throw new Error('Cached inputs require --compare');
-  const cwd=fileURLToPath(new URL('..',import.meta.url));
-  const identity=ref=>Object.fromEntries([['commit',`${ref}^{commit}`],['tree',`${ref}^{tree}`]].map(([key,value])=>[key,execFileSync('git',['rev-parse','--verify',value],{cwd,encoding:'utf8'}).trim()]));
   const stamp=(result,ref,cached)=>{
-    const id=identity(ref);
-    if(cached && result.tree!==id.tree)throw new Error('Cached benchmark tree does not match revision');
-    return {...result,...id,measuredCommit:result.measuredCommit??result.commit??id.commit};
+    const id=benchmarkIdentity(ref);
+    if(cached && result.inputHash!==id.inputHash)throw new Error('Cached benchmark inputs do not match revision');
+    return {...result,...id,measuredCommit:result.measuredCommit??result.commit??id.commit,measuredTree:result.measuredTree??result.tree??id.tree};
   };
   const measuredBase=options['--compare'] && !options['--cached-base']?measureReference(options['--compare']):undefined;
   const reference=options['--compare']?{
-    result:stamp(options['--cached-base']?JSON.parse(readFileSync(options['--cached-base'],'utf8')):measuredBase.result,measuredBase?.revision??options['--compare'],!!options['--cached-base']),
+    result:stamp(options['--cached-base']?readBenchmarkResult(options['--cached-base']):measuredBase.result,measuredBase?.revision??options['--compare'],!!options['--cached-base']),
   }:undefined;
   if(reference)writeFileSync(path.join(tmpdir(),'read-benchmark-base-result.json'),JSON.stringify(reference.result,null,2)+'\n');
-  const result=stamp(options['--cached-head']?JSON.parse(readFileSync(options['--cached-head'],'utf8')):{version:1,sqliteVersion:execFileSync('sqlite3',['--version'],{encoding:'utf8'}).trim(),nodeVersion:process.version,nodeSqliteVersion:process.versions.sqlite,scenarios:benchmarks.flatMap(run=>run({ci:true}).scenarios)},'HEAD',!!options['--cached-head']);
+  const result=stamp(options['--cached-head']?readBenchmarkResult(options['--cached-head']):{version:1,sqliteVersion:execFileSync('sqlite3',['--version'],{encoding:'utf8'}).trim(),nodeVersion:process.version,nodeSqliteVersion:process.versions.sqlite,scenarios:benchmarks.flatMap(run=>run({ci:true}).scenarios)},'HEAD',!!options['--cached-head']);
   const output=path.join(tmpdir(),'read-benchmark-result.json');
   writeFileSync(output,JSON.stringify(result,null,2)+'\n');
   console.log(`Read benchmark result: ${output}`);
