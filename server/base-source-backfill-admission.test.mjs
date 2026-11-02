@@ -33,3 +33,34 @@ test('Cellar 429 slows shared HTTP-owned admission and preserves Retry-After thr
  assert.equal(calls,1);assert(q.minimumInterval>0);assert(q.interval>q.minimumInterval);assert(q.cooldownUntil>=Date.now()+119_000);
  assert.equal(q.quotaSnapshot().backgroundRemaining,399);
 });
+
+test('adaptive backfill intervals delay background starts while visitors retain immediate shared quota access',async t=>{
+ const {UpstreamQueue}=await import('./upstream-queue.mjs');
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+ const q=new UpstreamQueue({interval:750,adaptive:true,backgroundPacing:true,rateLimit:{maximum:500,windowMs:300000,foregroundReserve:100}});
+ const release=await q.acquire('background');release();
+ let backgroundStarted=false;
+ const background=q.acquire('background').then(release=>{backgroundStarted=true;return release;});
+ const visitorRelease=await q.acquire('interactive');
+ assert.equal(backgroundStarted,false);assert.equal(q.nextStart,1750);
+ visitorRelease();t.mock.timers.tick(749);await Promise.resolve();assert.equal(backgroundStarted,false);
+ t.mock.timers.tick(1);const finishBackground=await background;finishBackground();
+ q.recordResponse(429);assert.equal(q.interval,1125);
+ let lowStarted=false;
+ const low=q.run(()=>{lowStarted=true;},{priority:'interactive',backgroundRank:1});
+ const secondVisitor=await q.acquire('interactive');assert.equal(lowStarted,false);secondVisitor();
+ t.mock.timers.tick(1125);await low;assert.equal(lowStarted,true);
+ q.backoff(120);
+ await assert.rejects(q.acquire('interactive'),error=>error.code==='upstream_busy'&&error.retryAfter>=120);
+ assert(q.quotaSnapshot().startsInWindow<=400);
+});
+
+test('a visitor joining queued background work can promote its start without borrowing another background slot',async t=>{
+ const {UpstreamQueue}=await import('./upstream-queue.mjs');
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+ const q=new UpstreamQueue({interval:750,adaptive:true,backgroundPacing:true});
+ const release=await q.acquire('background');release();
+ const owner={},pending=q.runHeld(release=>{release();return 'visited';},{priority:'background',backgroundRank:1,owner});
+ assert.equal(q.waiters.length,1);q.reprioritize(owner,'interactive');
+ assert.equal(await pending,'visited');assert.equal(q.nextStart,1750);assert.equal(q.background,0);
+});

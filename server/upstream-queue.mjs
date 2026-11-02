@@ -10,10 +10,10 @@ export function retryAfterSeconds(value, now=Date.now()) {
 }
 // Concurrency is a resource bound. Only sources with published quotas set rateLimit.
 export class UpstreamQueue {
-  constructor({ interval=0, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000, rateLimit=null, adaptive=false }={}) {
+  constructor({ interval=0, maximum=2, backgroundMaximum=1, interactiveWaitMs=10_000, rateLimit=null, adaptive=false, backgroundPacing=false }={}) {
     this.interval=interval;this.maximum=maximum;this.backgroundMaximum=backgroundMaximum;
     this.interactiveWaitMs=interactiveWaitMs;this.rateLimit=rateLimit;this.starts=[];
-    this.adaptive=adaptive;this.minimumInterval=interval;this.successes=0;
+    this.backgroundPacing=backgroundPacing;this.adaptive=adaptive;this.minimumInterval=interval;this.successes=0;
     this.backgroundTurns=0;this.active=0;this.background=0;this.nextStart=0;this.cooldownUntil=0;this.waiters=[];this.admitted=new Set();this.joiners=new Set();this.timer=null;
   }
   joinBackground(promise,{signal}={}) {
@@ -64,6 +64,7 @@ export class UpstreamQueue {
   enqueue(priority,{signal,owner,backgroundOwner=priority==='background',yieldBackground,backgroundRank=0}={},start=(release,resolve)=>resolve(release)) {
     return new Promise((resolve,reject)=>{
       if(signal?.aborted){reject(signal.reason);return;}
+      if(backgroundRank>0){priority='background';backgroundOwner=true;}
       if(!backgroundOwner&&priority!=='background'&&this.cooldownUntil>Date.now()){reject(this.unavailable());return;}
       const waiter={priority,owner,backgroundOwner,yieldBackground,backgroundRank,resolve,reject,start,timer:null,cleanup:()=>signal?.removeEventListener('abort',abort)};
       const abort=()=>{
@@ -110,22 +111,23 @@ export class UpstreamQueue {
     this.onActivity?.();this.drain();
   }
   readyAt(priority) {
-    const now=Date.now();
+    const now=Date.now(),paced=!this.backgroundPacing||priority==='background';
+    const nextStart=paced?this.nextStart:0;
     if(this.rateLimit){
       const {maximum,windowMs,foregroundReserve=0}=this.rateLimit;
       // Keep the boundary inclusive; a start exactly one window old still counts.
       while(this.starts.length&&this.starts[0]<now-windowMs)this.starts.shift();
       const allowance=maximum-(priority==='background'?foregroundReserve:0);
-      if(this.starts.length>=allowance)return Math.max(this.cooldownUntil,this.nextStart,this.starts[this.starts.length-allowance]+windowMs+1);
+      if(this.starts.length>=allowance)return Math.max(this.cooldownUntil,nextStart,this.starts[this.starts.length-allowance]+windowMs+1);
     }
-    return Math.max(this.cooldownUntil,this.nextStart);
+    return Math.max(this.cooldownUntil,nextStart);
   }
   drain() {
     clearTimeout(this.timer);this.timer=null;
     if(this.active>=this.maximum)return;
     // Foreground readers can use reserved quota without lending their reserved
     // connection to a second durable background job.
-    const eligible=w=>(!w.backgroundOwner||this.background<this.backgroundMaximum)&&(!(w.backgroundRank>0)||this.lowBackgroundAllowed?.()!==false);
+    const eligible=w=>(!w.backgroundOwner||this.background<this.backgroundMaximum)&&(!(w.priority==='background'&&w.backgroundRank>0)||this.lowBackgroundAllowed?.()!==false);
     let i=this.waiters.findIndex(w=>w.priority!=='background'&&eligible(w));
     if(i<0){let rank=Infinity;for(let j=0;j<this.waiters.length;j++){const w=this.waiters[j];if(w.priority==='background'&&eligible(w)&&w.backgroundRank<rank){i=j;rank=w.backgroundRank;}}}
     if(i>=0&&this.waiters[i].priority==='background'&&this.backgroundTurns>=31){const low=this.waiters.findIndex(w=>w.priority==='background'&&w.backgroundRank>0&&eligible(w));if(low>=0)i=low;}
@@ -136,7 +138,7 @@ export class UpstreamQueue {
     this.admitted.add(waiter);
     if(waiter.backgroundOwner){this.background++;this.backgroundTurns=waiter.backgroundRank>0?0:Math.min(31,this.backgroundTurns+1);}
     this.onActivity?.();
-    this.nextStart=Date.now()+this.interval;
+    if(!this.backgroundPacing||waiter.priority==='background')this.nextStart=Date.now()+this.interval;
     if(this.rateLimit)this.starts.push(Date.now());
     let released=false;
     waiter.start(()=>{if(released)return;released=true;this.admitted.delete(waiter);this.active--;if(waiter.backgroundOwner)this.background--;this.onActivity?.();this.drain();},waiter.resolve,waiter.reject);
