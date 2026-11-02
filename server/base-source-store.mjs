@@ -15,7 +15,7 @@ export const BASE_SOURCE_DEFAULT_MIB=128;
 export class BaseSourceStore {
   constructor(directory,{maxBytes=integerFromEnvironment('BASE_SOURCE_MAX_DISK_MIB',BASE_SOURCE_DEFAULT_MIB,1,8192)*1024*1024,maxBindings=integerFromEnvironment('BASE_SOURCE_MAX_BINDINGS',4096,1,1000000),readOnly=false,io={readFile,readdir,unlink,stat},write=writeCacheFile}={}) {
     Object.assign(this,{directory,maxBytes,maxBindings,readOnly,io,write});
-    this.records=new Map();this.blobs=new Map();this.totalBytes=0;this.ready=null;
+    this.records=new Map();this.blobs=new Map();this.totalBytes=0;this.ready=null;this.reconciled=false;
   }
   save(observation,body) {
     if(!this.directory||this.readOnly)return Promise.resolve(false);
@@ -44,6 +44,7 @@ export class BaseSourceStore {
       blob.refs++;
     }
     for(const [sha,blob] of this.blobs)if(!blob.refs)await this.removeBlob(sha);
+    this.reconciled=true;
   }
   async removeBlob(sha) {
     const blob=this.blobs.get(sha);if(!blob||blob.refs)return;
