@@ -35,7 +35,7 @@ test('a failed public source page preserves successful pages, cursor and provena
 
 test('unavailable retained pages resume the saved cursor and preserve missing-text and partial states',async()=>{
   const offsets=[];let failed=false;
-  const cloud=new SpeechCloudInsights(store,{clock:now,legislation,request:()=>assert.fail('Saved cursors must not switch to public offsets'),readCorpusPage:async({offset})=>{
+  const cloud=new SpeechCloudInsights(store,{clock:now,legislation,walkMs:{first:0,next:0},request:()=>assert.fail('Saved cursors must not switch to public offsets'),readCorpusPage:async({offset})=>{
     offsets.push(offset);
     if(offset===100&&!failed){failed=true;return null;}
     return {revision:'fixture-revision',total:120,nextOffset:offset===100?null:offset+50,records:Array.from({length:Math.min(50,120-offset)},(_,n)=>{

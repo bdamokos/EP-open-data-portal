@@ -10,10 +10,13 @@ import {countryCode,memberCountry} from './insights-countries.mjs';
 import {speechParagraphText,speechWordTokens,speechWordStopwords,speechWordLanguages} from './insights-speech-words.mjs';
 import {speechSpeakers,speechSpeakerDetails,speakerNameIsSpecific} from './speech-speakers.mjs';
 import {transcriptLanguage} from './transcript-language.mjs';
-import {phraseModel} from './insights-phrases.mjs';
+import {phraseModelSteps} from './insights-phrases.mjs';
+import {finishWork,cooperativeWork} from './cooperative-work.mjs';
 import {requestSignal,sharedRequest,waitForRequest} from './request-budget.mjs';
 import {retainedSpeechPage} from './corpus-speeches.mjs';
 
+// A finished walk only serves its published result; keep no speech text in memory.
+const releaseTexts=state=>{if(!state.cursor)for(const record of state.records.values())record.text=null;};
 const calendarEvidence=scope=>scope.catalogue?{catalogueComplete:scope.catalogueComplete,catalogue:scope.catalogue}:{};
 export const SPEECH_CLOUD_VERSION=4;
 const alternativeLanguages=state=>[...state.missingLanguageAlternatives].sort(([a],[b])=>a.localeCompare(b)).map(([language,count])=>({language,count}));
@@ -28,6 +31,9 @@ function displayTitle(titles,language,fallback=null) {
 
 // A week scales the total page and retained-text budgets by its number of held sittings (at most five).
 export const CLOUD_LIMITS=Object.freeze({pageSize:50,pages:20,textBytes:4*1024*1024,weekSittings:5,queries:6,cacheMs:30*60_000});
+// Saved speeches are local reads. The first request reads one page so the
+// cloud appears quickly; later ones read pages for this long, then analyse once.
+export const CLOUD_WALK_MS=Object.freeze({first:0,next:2000});
 export const CLOUD_SORT='sitting-date:asc,video-start-time:asc,numbering:asc';
 export function speechCloudQuery(search,{now=Date.now()}={}) {
   const allowed=new Set(['lang','member','sitting','week','topic','days','end','page','country']);
@@ -48,9 +54,11 @@ export const meaningfulSpeakerName=speakerNameIsSpecific;
 const participants=activity=>[...new Set(array(activity.had_participation).flatMap(p=>array(p.had_participant_person)).map(personId).filter(Boolean))];
 const escaped=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 
-export function analyzeSpeechCloud(records,language) {
+export const analyzeSpeechCloud=(records,language)=>finishWork(analyzeSpeechCloudSteps(records,language));
+// HTTP callers yield between speeches so a large week does not block other requests.
+export function* analyzeSpeechCloudSteps(records,language) {
   const stopwords=speechWordStopwords(language);
-  const phrases=language==='en'?phraseModel(records.map(s=>({id:s.id,titles:{en:s.analysisTitle??s.title}})),{bodies:new Map(records.map(s=>[s.id,{paragraphs:[s.text]}])),stopwords,minCount:2,maxShare:.8}):null;
+  const phrases=language==='en'?yield* phraseModelSteps(records.map(s=>({id:s.id,titles:{en:s.analysisTitle??s.title}})),{bodies:new Map(records.map(s=>[s.id,{paragraphs:[s.text]}])),stopwords,minCount:2,maxShare:.8}):null;
   const words=new Map();
   for(const speech of records) {
     const extracted=phrases?.extract(speech.text),counts=new Map();
@@ -59,13 +67,14 @@ export function analyzeSpeechCloud(records,language) {
     for(const term of counts.values()) {
       const word=words.get(term.word)||{word:term.word,label:term.label,speechCount:0,occurrences:0,speechIds:[]};word.speechCount++;word.occurrences+=term.occurrences;if(word.speechIds.length<8)word.speechIds.push(speech.id);words.set(term.word,word);
     }
+    yield;
   }
   return [...words.values()].sort((a,b)=>b.speechCount-a.speechCount||b.occurrences-a.occurrences||a.word.localeCompare(b.word,language)).slice(0,60);
 }
 
 // Selected-view retrieval only: normal ODP cache/queue, no index or worker writes.
 export class SpeechCloudInsights {
-  constructor(store,{request=odp,legislation,clock=Date.now,loadMetadata=async()=>new Map(),readCorpusPage=request===odp?retainedSpeechPage:null}={}) {Object.assign(this,{store,request,legislation,clock,loadMetadata,readCorpusPage});this.states=new Map();}
+  constructor(store,{request=odp,legislation,clock=Date.now,loadMetadata=async()=>new Map(),readCorpusPage=request===odp?retainedSpeechPage:null,walkMs=CLOUD_WALK_MS}={}) {Object.assign(this,{store,request,legislation,clock,loadMetadata,readCorpusPage,walkMs});this.states=new Map();}
   async scope(query) {
     if(query.member) {
       if(!this.store.db.prepare('SELECT id FROM members WHERE id=?').get(query.member))throw new HttpError(404,'member_not_found','This MEP is not in the current roster.');
@@ -178,25 +187,38 @@ export class SpeechCloudInsights {
       if((scan.ended||shortPage||noProgress)&&knownTotal&&scan.ids.size!==declaredTotal)state.sourceIssues.add('source-total-mismatch');
       if(state.page>=limits.pages-1&&state.cursor){state.sourceIssues.add('page-limit');state.cursor=null;}
     }
-    const records=[...state.records.values()];
+    const records=[...state.records.values()],words=await cooperativeWork(analyzeSpeechCloudSteps(records,query.language));
     const scans=[...state.scans.values()],sourceRecords={unique:scans.reduce((sum,scan)=>sum+scan.ids.size,0),declared:scans.every(scan=>scan.totals.size===1)?scans.reduce((sum,scan)=>sum+[...scan.totals][0],0):null,duplicates:state.duplicates,issues:[...state.sourceIssues]};
     state.truncated=state.sourceIssues.size>0;
-    state.result={view:'speech-cloud',availability:state.availability||sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:query.language,start:state.scope.dates[0]?.start,end:state.scope.dates.at(-1)?.end,limited:true,route:'public-api',observedRecords:records.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1),retention:state.corpusFirst?.missingRetainedLanguage?{reason:'language-not-retained',policy:state.corpusFirst.coverage?.availability?.text?.retention||null}:null}),scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0]?.start||null,end:state.scope.dates.at(-1)?.end||null,days:query.days},country:query.country,words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,analysisTitle,...speech})=>speech),coverage:{...calendarEvidence(state.scope),transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,missingLanguageAlternatives:alternativeLanguages(state),unreadableText:state.invalidText,complete:state.cursor===null&&!state.truncated&&state.scope.catalogueComplete!==false,truncated:state.truncated,sourceRecords,associationUnavailable:state.scope.kind==='topic'&&!state.scope.dates.length,xmlBytes:state.xmlBytes,textBytes:state.textBytes},nextPage:state.cursor?state.page+1:null,sources:state.sources,computedAt:new Date(this.clock()).toISOString()};
+    state.result={view:'speech-cloud',availability:state.availability||sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:query.language,start:state.scope.dates[0]?.start,end:state.scope.dates.at(-1)?.end,limited:true,route:'public-api',observedRecords:records.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1),retention:state.corpusFirst?.missingRetainedLanguage?{reason:'language-not-retained',policy:state.corpusFirst.coverage?.availability?.text?.retention||null}:null}),scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0]?.start||null,end:state.scope.dates.at(-1)?.end||null,days:query.days},country:query.country,words,speeches:records.map(({text,analysisTitle,...speech})=>speech),coverage:{...calendarEvidence(state.scope),transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,missingLanguageAlternatives:alternativeLanguages(state),unreadableText:state.invalidText,complete:state.cursor===null&&!state.truncated&&state.scope.catalogueComplete!==false,truncated:state.truncated,sourceRecords,associationUnavailable:state.scope.kind==='topic'&&!state.scope.dates.length,xmlBytes:state.xmlBytes,textBytes:state.textBytes},nextPage:state.cursor?state.page+1:null,sources:state.sources,computedAt:new Date(this.clock()).toISOString()};
+    releaseTexts(state);
     return state.result;
   }
-  corpusSelection(state,query,offset) {
+  corpusSelection(state,query,offset,coverage=true) {
     return {member:query.member,from:state.scope.dates[0].start,to:state.scope.dates.at(-1).end,
       dates:query.member?null:state.scope.dates.map(window=>window.start),sourceIds:state.scope.ids?[...state.scope.ids]:null,
-      language:query.language,offset,limit:CLOUD_LIMITS.pageSize,expectedRevision:state.corpusRevision};
+      language:query.language,offset,limit:CLOUD_LIMITS.pageSize,expectedRevision:state.corpusRevision,
+      // Each response refreshes availability once; later reads in its batch skip the scans.
+      ...(coverage?{}:{coverage:false})};
   }
   async buildCorpus(state,query,page,limits) {
     const members=new Map(this.store.db.prepare('SELECT id,body FROM members').all().map(row=>[row.id,JSON.parse(row.body)]));
     const metadata=query.country?await this.loadMetadata({members,store:this.store}):new Map();
     requestSignal()?.throwIfAborted();
-    while(state.cursor&&state.page<page) {
-      const result=state.corpusFirst||await this.readCorpusPage(this.corpusSelection(state,query,state.cursor.offset));
-      requestSignal()?.throwIfAborted();
-      if(!result)throw new HttpError(503,'corpus_unavailable','Saved speeches are temporarily unavailable. Please retry.');
+    // Read past the requested page while the budget lasts. Re-analysing every
+    // 50 speeches made a full plenary week quadratic. Give later reads at least
+    // twice the last analysis time so analysis stays a minority of the walk.
+    const started=performance.now(),budget=state.page<0?this.walkMs.first:this.walkMs.next&&Math.max(this.walkMs.next,2*(state.analysisMs||0));
+    let read=0;
+    while(state.cursor&&(state.page<page||performance.now()-started<budget)) {
+      // Once this request has advanced, a busy reader or closed request ends
+      // the batch: the result below must still describe every page read.
+      let result;
+      try {
+        result=state.corpusFirst||await this.readCorpusPage(this.corpusSelection(state,query,state.cursor.offset,read===0));
+        requestSignal()?.throwIfAborted();
+      }catch(error){if(read)break;throw error;}
+      if(!result){if(read)break;throw new HttpError(503,'corpus_unavailable','Saved speeches are temporarily unavailable. Please retry.');}
       if(result.changed)throw new HttpError(409,'corpus_changed','Saved speeches changed during loading. Please retry.');
       state.corpusRevision=result.revision;state.availability=result.coverage?.availability?.text||state.availability||null;state.corpusFirst=null;state.storedTotal=result.total;
       for(const record of result.records) {
@@ -219,18 +241,20 @@ export class SpeechCloudInsights {
             return {id,name:known?.name||[known?.firstName,known?.lastName].filter(Boolean).join(' ')||(meaningfulSpeakerName(header?.name)?header.name:null),currentMep:members.has(id),role:header?.role||null,roleLanguage:header?.roleLanguage||null,roleLabels:header?.roleLabels||{},roleSource:header?.roleSource||{speechId:record.id,date:saved.summary.date,url:saved.sourceUrl,fetchedAt:saved.fetchedAt}};
           })});
       }
-      state.page++;
+      state.page++;read++;
       if(result.truncated){state.sourceIssues.add('text-byte-limit');state.cursor=null;}
       if(state.cursor)state.cursor=result.nextOffset===null?null:{date:0,offset:result.nextOffset};
       if(state.page>=limits.pages-1&&state.cursor){state.sourceIssues.add('page-limit');state.cursor=null;}
     }
     const records=[...state.records.values()];state.truncated=state.sourceIssues.size>0;
+    const analysed=performance.now(),words=await cooperativeWork(analyzeSpeechCloudSteps(records,query.language));state.analysisMs=performance.now()-analysed;
     state.result={view:'speech-cloud',availability:state.availability||sourceAvailability({sourceKey:'speech-text',family:'speeches',stage:'text',language:query.language,start:state.scope.dates[0]?.start,end:state.scope.dates.at(-1)?.end,limited:true,route:'public-api',observedRecords:records.length,checkedAt:state.sources.map(source=>source.fetchedAt).filter(Boolean).sort().at(-1),retention:state.corpusFirst?.missingRetainedLanguage?{reason:'language-not-retained',policy:state.corpusFirst.coverage?.availability?.text?.retention||null}:null}),scope:{kind:state.scope.kind,member:query.member,sitting:query.sitting,week:query.week,topic:query.topic,title:state.scope.title,titleLanguage:state.scope.titleLanguage,phase:state.scope.phase},
       language:query.language,availableAnalysisLanguages:speechWordLanguages,window:{start:state.scope.dates[0].start,end:state.scope.dates.at(-1).end,days:query.days},country:query.country,
-      words:analyzeSpeechCloud(records,query.language),speeches:records.map(({text,analysisTitle,...speech})=>speech),
+      words,speeches:records.map(({text,analysisTitle,...speech})=>speech),
       coverage:{...calendarEvidence(state.scope),basis:'retained-corpus',transcripts:records.length,matchedSpeechRecords:state.rawRecords,missingLanguage:state.missingLanguage,missingLanguageAlternatives:alternativeLanguages(state),unreadableText:state.invalidText,complete:false,truncated:state.truncated,
         sourceRecords:{unique:state.rawRecords,declared:null,retained:state.storedTotal,duplicates:state.duplicates,issues:[...state.sourceIssues]},associationUnavailable:false,xmlBytes:state.xmlBytes,textBytes:state.textBytes},
       nextPage:state.cursor?state.page+1:null,sources:[...new Map(state.sources.map(source=>[JSON.stringify(source),source])).values()],computedAt:new Date(this.clock()).toISOString()};
+    releaseTexts(state);
     return state.result;
   }
 }
