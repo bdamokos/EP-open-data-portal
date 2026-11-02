@@ -202,6 +202,7 @@ test('topic stories retain placed oral questions from their exact policy members
  writeTopicProjection(store,{records:[record],concepts:[{key:'place:CYP',role:'place',labels:{en:'Cyprus'}},{key:'oeil:8.20',role:'topic',labels:{en:'Enlargement'}}]});await finishStoryProjection(store,1);
  const selected=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&askers=elsewhere&list=questions'));assert.equal(selected.questions[0].id,record.id);assert.equal(selected.questions[0].askers.CYP,'elsewhere');
  assert.equal(storyFacts(store,new URLSearchParams('scope=topic&key=oeil:4.40')).questions.length,0);
+ const french=storyFacts(store,new URLSearchParams('scope=topic&key=oeil:8.20&lang=fr')).topic;assert.equal(french.labelLanguage,'fr');assert.equal(french.source.source,'oeil');assert.equal(french.label,"Elargissement de l'Union");
 });
 
 test('retained unavailable procedure reads propagate through exact document, debate and speech links',async t=>{

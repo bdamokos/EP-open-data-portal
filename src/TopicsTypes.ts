@@ -1,4 +1,4 @@
-export type TopicConcept={key:string;label:string;role?:string;id?:string;iso3?:string|null;language?:string|null;featured?:boolean;askers?:string};
+export type TopicConcept={key:string;label:string;labelLanguage?:string|null;source?:{source?:string;url?:string}|null;role?:string;id?:string;iso3?:string|null;language?:string|null;featured?:boolean;askers?:string};
 export type TopicSeries={period:string;question:number;questionHome:number;questionElsewhere:number;questionUnknown:number;questionNotHome?:number;document:number;speech:number;vote:number;debate:number;groups:number;top?:{key:string;title:string;date:string;kind?:string}};
 export type TopicItem=TopicConcept&{series:TopicSeries[];total:number;groupsTotal:number;counts:Record<string,number>};
 export type TopicOverview={ready:boolean;items:TopicItem[];periods:string[];sittingDays:Record<string,number|null>;partial:{first:string|null;last:string|null};coverage?:{procedures?:number;referenced?:number;[key:string]:unknown}};
