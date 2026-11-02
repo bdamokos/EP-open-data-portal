@@ -5,7 +5,7 @@ import os from 'node:os';
 import net from 'node:net';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {InputCache,digest,outsideRepository} from './amendment-benchmark-cache.mjs';
+import {InputCache,digest,outsideRepository,observeFrozenInputs,withFrozenInputGaps} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay} from './amendment-benchmark-replay.mjs';
 
 const DOCUMENT='A-10-2026-0175',LIST=DOCUMENT+'-AM-001-008',LANGUAGES=['en','fr','hu','pl','ga'];
@@ -115,6 +115,49 @@ async function snapshotInputs(snapshot) {
   for(const item of snapshot.originalInputs){const original=research.originalSnapshots[item.snapshot];insist(original,'Unknown original snapshot');const manifest=JSON.parse(await checked(original.path,original.sha256)).manifest;insist(manifest.some(meta=>JSON.stringify(meta)===JSON.stringify(item.meta)),'Original observation mismatch');await checked(item.path,item.meta.sha256);add(item.meta,item.path);}
   return {research,records};
 }
+// Missing replay inputs do not remove observations or relax native assertions.
+export async function evaluateCouncilEditions({editions,native,cache,runtime,replay=sourceReplay(cache,runtime)}) {
+  const rows=[];
+  for(const edition of editions) {
+    const language=edition.language,assertions=native.editions.find(e=>e.language===language).rows;
+    const unavailable=(assertion,gaps)=>withFrozenInputGaps({key:assertion.key,number:assertion.number,language,identity:{documentId:DOCUMENT,listId:LIST,number:assertion.number,language},expectedAssertionSha256:digest(JSON.stringify(assertion)),nativeState:assertion.state,nativeAssertionStatus:assertion.state==='typed-note-equivalence-held'?'unsupported':'verified',placement:{operation:assertion.operation,status:'unresolved',reason:'frozen-input-absent'},outcome:'withheld',reason:'frozen-input-absent'},gaps);
+    const prerequisite=await observeFrozenInputs(cache,async()=>{
+      const response=await replay.request('/plenary-documents/'+DOCUMENT);
+      if(response.acquisitionUnavailable)return null;
+      const report=response.payload.data[0];insist(report,'Missing exact published report.');
+      let list=runtime.array(report.inverse_foresees_change_of).find(v=>String(v.id||v).replace(/^https?:\/\/data.europarl.europa.eu\//u,'')==='eli/dl/doc/'+LIST);
+      insist(list,'Missing exact published amendment-list relationship.');
+      if(typeof list!=='object'||!Object.hasOwn(list,'is_realized_by')){const saved=await cache.json('https://data.europarl.europa.eu/api/v2/documents/'+LIST+'?format=application%2Fld%2Bjson');if(saved.input.frozenInputGap)return null;list=saved.value?.data?.[0];}
+      const canonical=v=>String(v?.id||v).replace(/^https?:\/\/data.europarl.europa.eu\//u,'');
+      insist(canonical(list?.id)==='eli/dl/doc/'+LIST&&canonical(list.work_type)==='def/ep-document-types/AMENDMENT_LIST'&&runtime.array(list.foresees_change_of).some(v=>canonical(v)==='eli/dl/doc/'+DOCUMENT),'Wrong published amendment-list identity/owner.');
+      const files=runtime.documentFiles(list).filter(f=>f.language===language&&f.format==='DOCX');
+      insist(files.length===1&&runtime.allowedDownload(files[0].url),'Unavailable or competing same-language amendment DOCX.');
+      const input=await cache.get(files[0].url);if(input.frozenInputGap)return null;insist(input.ok&&input.sha256===edition.word.sha256,'Selected amendment source differs from native evidence.');
+      const extraction=runtime.extractAmendments(input.body,{listId:LIST,targetDocumentId:DOCUMENT,language,sourceUrl:files[0].url,fetchedAt:input.fetchedAt});
+      insist(JSON.stringify(extraction.amendments.map(a=>a.number))===JSON.stringify([1,2,3,4,5,6,7,8]),'Missing/changed extracted amendment identities.');
+      return {files,input,extraction};
+    });
+    cache.assertHealthy();
+    if(prerequisite.gaps.length){rows.push(...assertions.map(assertion=>unavailable(assertion,prerequisite.gaps)));continue;}
+    const {files,input,extraction}=prerequisite.value;
+    for(const chosen of extraction.amendments) {
+      insist(!runtime.amendmentTextLosses(extraction,chosen).length,'Amendment wording incomplete.');
+      insist(chosen.baseline==='council-position'&&chosen.baselineSource?.category==='council-position'&&chosen.baselineSource.conflicted===false,'Extracted comparison does not select the Council runtime provider.');
+      const assertion=native.editions.find(e=>e.language===language).rows.find(r=>r.number===chosen.number);
+      insist(normal(chosen.originalText)===assertion.word.original&&normal(chosen.proposedText)===assertion.word.proposed&&chosen.targetLabel===assertion.word.Article,'Extracted complete wording/target differs from native Word.');
+      const observed=await observeFrozenInputs(cache,()=>replay.council({reportId:DOCUMENT,language,documentReferences:chosen.documentReferences}));cache.assertHealthy();
+      if(observed.gaps.length){rows.push(unavailable(assertion,observed.gaps));continue;}
+      const source=observed.value;
+      const bound=edition.binding,item=source.baseline.items?.[0];
+      insist(source.baseline.workId===bound.workId&&source.baseline.celex==='52026AG0006(01)'&&source.baseline.language===language&&source.items.length===1&&item?.itemId===bound.items[0].itemId&&item.expressionId===bound.items[0].expressionId&&item.manifestationId===bound.items[0].manifestationId&&item.source.sha256===edition.xhtml.sha256&&item.source.language===bound.items[0].languageUri&&item.source.url===bound.items[0].itemId.replace(/^http:/u,'https:'),'Runtime selected another Council identity/language/source.');
+      const placement=runtime.documentContextPlacement({chosen:{...chosen,targetLabelLanguage:language},items:source.items,baseline:source.baseline,resolutionDocument:true});
+      const assessment=assessPlacement(placement,assertion,source.items[0].proposal);
+      rows.push({key:assertion.key,number:chosen.number,language,identity:{documentId:DOCUMENT,listId:LIST,number:chosen.number,language,wording:{url:files[0].url,resolvedSourceUrl:input.resolvedSourceUrl||input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},council:{workId:source.baseline.workId,celex:source.baseline.celex,itemId:item.itemId,expressionId:item.expressionId,manifestationId:item.manifestationId,source:item.source}},expectedAssertionSha256:digest(JSON.stringify(assertion)),nativeState:assertion.state,nativeAssertionStatus:assertion.state==='typed-note-equivalence-held'?'unsupported':'verified',wording:{parserVersion:runtime.AMENDMENT_EXTRACTION_VERSION,status:'complete',baseline:chosen.baseline,targetLabel:chosen.targetLabel,originalSha256:digest(chosen.originalText),proposedSha256:digest(chosen.proposedText)},placement,...assessment,baseline:{status:source.baseline.status,gaps:source.baseline.gaps,evidence:source.baseline.evidence,projection:{parserVersion:source.items[0].proposal.parserVersion,sourceHash:source.items[0].proposal.sourceHash,complete:source.items[0].proposal.complete,gaps:source.items[0].proposal.gaps}}});
+    }
+  }
+  return rows;
+}
+
 export async function main(args=process.argv.slice(2)) {
   const opts=options(args);
   if(opts.help){process.stdout.write('Offline controlled Council language gate: --snapshot FILE --runtime-root CHECKOUT --output-dir DIRECTORY --request-cap 0 [--baseline REPORT]\n');return;}
@@ -136,37 +179,13 @@ export async function main(args=process.argv.slice(2)) {
     const calls=[],get=cache.get.bind(cache);cache.get=async(url,options={})=>{calls.push({url,request:options.accept?{accept:options.accept,...(options.language?{language:options.language}:{})}:null});return get(url,options);};
     const runtime=await replayRuntime(root),rows=[];
     const replay=sourceReplay(cache,runtime);
-    for(const edition of snapshot.editions) {
-      const language=edition.language,report=(await replay.request('/plenary-documents/'+DOCUMENT)).payload.data[0];
-      let list=runtime.array(report.inverse_foresees_change_of).find(v=>String(v.id||v).replace(/^https?:\/\/data.europarl.europa.eu\//u,'')==='eli/dl/doc/'+LIST);
-      insist(list,'Missing exact published amendment-list relationship.');
-      if(typeof list!=='object'||!Object.hasOwn(list,'is_realized_by'))list=(await cache.json('https://data.europarl.europa.eu/api/v2/documents/'+LIST+'?format=application%2Fld%2Bjson')).value?.data?.[0];
-      const canonical=v=>String(v?.id||v).replace(/^https?:\/\/data.europarl.europa.eu\//u,'');
-      insist(canonical(list?.id)==='eli/dl/doc/'+LIST&&canonical(list.work_type)==='def/ep-document-types/AMENDMENT_LIST'&&runtime.array(list.foresees_change_of).some(v=>canonical(v)==='eli/dl/doc/'+DOCUMENT),'Wrong published amendment-list identity/owner.');
-      const files=runtime.documentFiles(list).filter(f=>f.language===language&&f.format==='DOCX');
-      insist(files.length===1&&runtime.allowedDownload(files[0].url),'Unavailable or competing same-language amendment DOCX.');
-      const input=await cache.get(files[0].url);insist(input.ok&&input.sha256===edition.word.sha256,'Selected amendment source differs from native evidence.');
-      const extraction=runtime.extractAmendments(input.body,{listId:LIST,targetDocumentId:DOCUMENT,language,sourceUrl:files[0].url,fetchedAt:input.fetchedAt});
-      insist(JSON.stringify(extraction.amendments.map(a=>a.number))===JSON.stringify([1,2,3,4,5,6,7,8]),'Missing/changed extracted amendment identities.');
-      for(const chosen of extraction.amendments) {
-        insist(!runtime.amendmentTextLosses(extraction,chosen).length,'Amendment wording incomplete.');
-        insist(chosen.baseline==='council-position'&&chosen.baselineSource?.category==='council-position'&&chosen.baselineSource.conflicted===false,'Extracted comparison does not select the Council runtime provider.');
-        const assertion=native.editions.find(e=>e.language===language).rows.find(r=>r.number===chosen.number);
-        insist(normal(chosen.originalText)===assertion.word.original&&normal(chosen.proposedText)===assertion.word.proposed&&chosen.targetLabel===assertion.word.Article,'Extracted complete wording/target differs from native Word.');
-        const source=await replay.council({reportId:DOCUMENT,language,documentReferences:chosen.documentReferences});cache.assertHealthy();
-        const bound=edition.binding,item=source.baseline.items?.[0];
-        insist(source.baseline.workId===bound.workId&&source.baseline.celex==='52026AG0006(01)'&&source.baseline.language===language&&source.items.length===1&&item?.itemId===bound.items[0].itemId&&item.expressionId===bound.items[0].expressionId&&item.manifestationId===bound.items[0].manifestationId&&item.source.sha256===edition.xhtml.sha256&&item.source.language===bound.items[0].languageUri&&item.source.url===bound.items[0].itemId.replace(/^http:/u,'https:'),'Runtime selected another Council identity/language/source.');
-        const placement=runtime.documentContextPlacement({chosen:{...chosen,targetLabelLanguage:language},items:source.items,baseline:source.baseline,resolutionDocument:true});
-        const assessment=assessPlacement(placement,assertion,source.items[0].proposal);
-        rows.push({key:assertion.key,number:chosen.number,language,identity:{documentId:DOCUMENT,listId:LIST,number:chosen.number,language,wording:{url:files[0].url,resolvedSourceUrl:input.resolvedSourceUrl||input.url,sha256:input.sha256,fetchedAt:input.fetchedAt},council:{workId:source.baseline.workId,celex:source.baseline.celex,itemId:item.itemId,expressionId:item.expressionId,manifestationId:item.manifestationId,source:item.source}},expectedAssertionSha256:digest(JSON.stringify(assertion)),nativeState:assertion.state,nativeAssertionStatus:assertion.state==='typed-note-equivalence-held'?'unsupported':'verified',wording:{parserVersion:runtime.AMENDMENT_EXTRACTION_VERSION,status:'complete',baseline:chosen.baseline,targetLabel:chosen.targetLabel,originalSha256:digest(chosen.originalText),proposedSha256:digest(chosen.proposedText)},placement,...assessment,baseline:{status:source.baseline.status,gaps:source.baseline.gaps,evidence:source.baseline.evidence,projection:{parserVersion:source.items[0].proposal.parserVersion,sourceHash:source.items[0].proposal.sourceHash,complete:source.items[0].proposal.complete,gaps:source.items[0].proposal.gaps}}});
-      }
-    }
+    rows.push(...await evaluateCouncilEditions({editions:snapshot.editions,native,cache,runtime,replay}));
     cache.assertHealthy();insist(rows.length===40&&new Set(rows.map(r=>r.key)).size===40,'Controlled observation set differs.');
     insist(JSON.stringify(runtimeIdentity)===JSON.stringify(await identity(root))&&JSON.stringify(harness)===JSON.stringify(await harnessIdentity()),'Runtime or harness changed during replay.');
     const canonicalOracleFiles=['amendment-language-oracle.mjs','amendment-language-raw.py','amendment-language-vocabulary.mjs','amendment-benchmark-operation-oracle.mjs','amendment-benchmark-scope-oracle.mjs','fixtures/amendment-language-scope-oracle.json','amendment-oracle-grammar.mjs','amendment-benchmark-proposal-oracle.mjs'];
     const canonicalOracleFingerprint=digest(Buffer.concat(await Promise.all(canonicalOracleFiles.map(f=>readFile(path.join(root,'scripts',f))))));
-    const counts=Object.fromEntries(['legal-correct','placed-unverified','withheld','false-placement'].map(status=>[status,rows.filter(r=>r.outcome===status).length]));
-    const result={schemaVersion:1,scope:'additive-controlled-council-languages',snapshotSha256,expectedAssertionsSha256:snapshot.expected.sha256,canonicalOracleFingerprint,oracleFingerprint:digest(await readFile(new URL('amendment-council-language-native.py',import.meta.url))),harness,runtime:runtimeIdentity,acquisition:{requests:cache.requests,requestCap:0},observations:40,newLanguageObservations:32,retainedEnglishControls:8,distinctAmendments:8,noChangeOutcomes:0,nativeAssertions:{verified:rows.filter(r=>r.nativeAssertionStatus==='verified').length,unsupported:rows.filter(r=>r.nativeAssertionStatus==='unsupported').length},counts,rows,requests:calls};
+    const counts=Object.fromEntries(['legal-correct','placed-unverified','withheld','false-placement','acquisition-unavailable'].map(status=>[status,rows.filter(r=>r.outcome===status).length]));
+    const result={schemaVersion:1,scope:'additive-controlled-council-languages',snapshotSha256,expectedAssertionsSha256:snapshot.expected.sha256,canonicalOracleFingerprint,oracleFingerprint:digest(await readFile(new URL('amendment-council-language-native.py',import.meta.url))),harness,runtime:runtimeIdentity,acquisition:{requests:cache.requests,requestCap:0,...(cache.frozenInputGaps.size?{frozenInputGaps:cache.frozenObservations()}: {})},observations:40,newLanguageObservations:32,retainedEnglishControls:8,distinctAmendments:8,noChangeOutcomes:0,nativeAssertions:{verified:rows.filter(r=>r.nativeAssertionStatus==='verified').length,unsupported:rows.filter(r=>r.nativeAssertionStatus==='unsupported').length},counts,rows,requests:calls};
     if(opts.baseline)result.comparison=compare(result,await json(opts.baseline));
     const file=path.join(output,'council-languages-'+runtimeIdentity.head+'-'+snapshotSha256.slice(0,12)+'.json');await writeFile(file,JSON.stringify(result,null,2)+'\n',{flag:'wx'});
     process.stdout.write(JSON.stringify({file,head:runtimeIdentity.head,counts,comparison:result.comparison,acquisition:result.acquisition})+'\n');
