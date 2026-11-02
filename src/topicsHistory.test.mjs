@@ -168,3 +168,34 @@ test('leaving out own-country questions refreshes inline: content stays, no load
  assert.equal(document.activeElement,node.querySelector('.topic-controls input[type=checkbox]'),'focus stays on the checkbox');
  release();await wait(()=>node.querySelector('.places-ranking').textContent.includes('all askers'));
 });
+test('map, list, story and story links swap together once the requested story facts arrive',async t=>{
+ let release;const pending=new Promise(r=>release=r);const period='2026-Q3';
+ const overview={ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{first:null,last:'2026-11-02'},sittingDays:{'2026-Q2':12,'2026-Q3':8,'2026-Q4':3},items:[{key:'place:TUR',id:'TUR',iso3:'TUR',label:'Türkiye',series:[{period,question:13,document:1}]},{key:'place:IRN',id:'IRN',iso3:'IRN',label:'Iran',series:[{period,question:4,document:9}]}]};
+ const facts=(mode)=>({ready:true,periods:overview.periods,partial:{},counts:{},periodCounts:[{period,placesWithAdoptedTexts:2}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:mode==='d'?{topAdoptedPlaces:[{id:'IRN',count:9},{id:'TUR',count:1}]}:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}});
+ const {node,wait}=await placesHarness(t,'http://localhost/?view=topics&t-tab=places&t-q='+period,async u=>{if(u.pathname==='/api/topics/story-facts'){if(u.searchParams.get('mode')==='d'){await pending;return Response.json(facts('d'));}return Response.json(facts('q'));}return Response.json(overview);});
+ const story=()=>node.querySelector('.places-caption').textContent,first=()=>node.querySelector('.places-ranking li').textContent;
+ await wait(()=>/most asked-about place/.test(story()));const link=()=>[...node.querySelectorAll('.places-caption a')].find(a=>/13 questions/.test(a.textContent));assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q');
+ const texts=[...node.querySelectorAll('.insight-chart-switch button')].find(b=>/Texts on/.test(b.textContent));await act(async()=>texts.click());
+ await act(async()=>new Promise(r=>setTimeout(r,60)));
+ assert.equal(texts.getAttribute('aria-pressed'),'true','the control shows the requested choice');
+ assert.match(first(),/Türkiye\s*13/,'the list keeps the displayed questions');assert.match(story(),/Türkiye was the most asked-about place/,'the story keeps the displayed questions');
+ assert.equal(new URL(link().getAttribute('href'),location.href).searchParams.get('t-mode'),'q','retained story links keep the displayed selection');
+ release();await wait(()=>/adopted texts naming/.test(story()));
+ assert.match(first(),/Iran\s*9/,'the list switches with the story');assert(!/most asked-about/.test(story()));
+});
+test('a standalone story keeps its links on the displayed selection while new facts load',async t=>{
+ const window=new Window({url:'http://localhost/?view=topics&place=TUR&t-q=2026-Q3'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ let release;const pending=new Promise(r=>release=r),period='2026-Q3';
+ const facts={ready:true,periods:['2026-Q2','2026-Q3','2026-Q4'],partial:{},counts:{},periodCounts:[{period}],winners:{},sets:{},questions:[],debates:[],docs:[],series:{},periodWinners:{[period]:{mostQuestionedPlaces:[{id:'TUR',count:13}]}}};
+ t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);if(u.searchParams.get('askers')==='all'){await pending;}return Response.json(facts);});
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {TopicStories}=await load('/src/TopicStories.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<80&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ const selection=excludeOwn=>({periods:facts.periods,partial:[],period,zoom:'world',mode:'q',excludeOwn,labels:{TUR:'Türkiye'}});
+ await act(async()=>root.render(createElement(TopicStories,{selection:selection(true)})));
+ const own=()=>new URL([...node.querySelectorAll('a')].find(a=>/13 questions/.test(a.textContent)).getAttribute('href'),location.href).searchParams.get('t-own');
+ await wait(()=>/13 questions/.test(node.textContent));assert.equal(own(),'1');
+ await act(async()=>root.render(createElement(TopicStories,{selection:selection(false)})));await act(async()=>new Promise(r=>setTimeout(r,60)));
+ assert.equal(own(),'1','links keep the displayed selection until the new facts arrive');
+ release();await wait(()=>own()==='0');
+});
