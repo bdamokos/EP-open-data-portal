@@ -393,6 +393,64 @@ function quotedSiblingInsertion(selected,targetPath,proposedText,language) {
   return {itemIndex,insertBefore:before,evidence:[{basis:'whole-quoted-sibling',owner:owner.id,anchor:anchor.id,label:value}]};
 }
 
+// An instruction replacing "the second subparagraph" of Article 30(6) quotes
+// that whole subparagraph. Its published inner address (point b – point iii a,
+// point (b)(va), point (ba), third subparagraph) is read from the quoted rows'
+// printed labels: the parser flattens nested Roman points (A-10-2026-0201).
+const SUBPARAGRAPH_ORDINALS=['first','second','third','fourth','fifth','sixth'];
+function quotedSubparagraphInsertion(selected,targetPath,proposedText,language) {
+  const {unit:owner,proposal,itemIndex}=selected,reference=targetPath?.underlying;
+  if(language!=='en'||targetPath?.language!==language||proposal.language!==language||reference?.length!==1||!reference[0].raw)return null;
+  // The parser's nested-list ambiguity is what the printed labels resolve here;
+  // every row must still be complete, with no other source gap in the owner.
+  const ownerRows=proposal.paragraphs.slice(owner.extent.start,owner.extent.end);
+  if(owner.scope!=='proposal'||owner.kind!=='point'||!owner.instruction||owner.pathConflict||ownerRows.some(p=>!p.complete||!p.source||p.source.complete===false)
+    ||proposal.gaps.some(gap=>gap.paragraph>=owner.extent.start&&gap.paragraph<owner.extent.end&&!['ambiguous-point-level','duplicate-label'].includes(gap.code)))return null;
+  const instruction=/^\(\d+\)\s*in Article (\d+[a-z]*)\((\d+)\), the ([a-z]+) subparagraph is replaced by the following:$/u.exec(owner.instruction.raw.replace(/\s+/gu,' ').trim());
+  if(!instruction)return null;
+  const [article,paragraph,subparagraph,...points]=reference[0].raw.split(/\s+[–-]\s+/u);
+  const sub=/^(?:subparagraph (\d+)|([a-z]+) subparagraph)(\s*\(new\))?$/u.exec(subparagraph??'');
+  if(article!=='Article '+instruction[1]||paragraph!=='paragraph '+instruction[2]||!sub)return null;
+  const replaced=SUBPARAGRAPH_ORDINALS.indexOf(instruction[3])+1,number=sub[1]?Number(sub[1]):SUBPARAGRAPH_ORDINALS.indexOf(sub[2])+1;
+  const act=/(\d{4}\/\d+)/u.exec(reference[0].document??'')?.[1];
+  let parent=null;for(let u=owner;u;u=flat(proposal.units).find(c=>c.children.includes(u))){if(u.instruction&&/is amended as follows:$/u.test(u.instruction.raw.trim())){parent=u;break;}}
+  if(!replaced||!act||!parent||!new RegExp(`\\b${escape(act)} is amended as follows:$`,'u').test(parent.instruction.raw.replace(/\s+/gu,' ').trim()))return null;
+  const quotes=owner.children.filter(unit=>unit.kind==='quotation');
+  if(quotes.length!==1)return null;
+  const rows=proposal.paragraphs.slice(quotes[0].extent.start,quotes[0].extent.end);
+  if(!rows.length||!/^‘/u.test(rows[0].text.trim())||!/’[;.]?\s*$/u.test(rows.at(-1).text)||rows.some((row,i)=>!row.complete||row.source?.container!=='body'||i&&row.source.ordinal!==rows[i-1].source.ordinal+1))return null;
+  const end=quotes[0].extent.end;
+  if(!points.length)return sub[3]&&number===replaced+1&&!/^\(/u.test(proposedText.trim())?{itemIndex,insertBefore:end,evidence:[{basis:'quoted-subparagraph-following',owner:owner.id,quotation:quotes[0].id}]}:null;
+  if(number!==replaced||sub[3]||points.some(point=>!point.startsWith('point ')))return null;
+  const labels=points.flatMap(point=>{
+    const value=point.slice(6).replace(/\s*\(?new\)?$/u,'').trim(),nested=/^\(?([a-z]+)\)?\s*\(([a-z]+)\)$/u.exec(value);
+    return nested?[nested[1],nested[2]]:[value.replace(/[()\s]/gu,'')];
+  });
+  const label=labels.at(-1),split=/^([a-z]+?)([a-z])$/u.exec(label),printed=new RegExp(`^\\(${escape(label)}\\)\\s`,'u');
+  if(labels.length>2||!split||!printed.test(proposedText.trim()))return null;
+  const opens=value=>row=>row.text.trim().replace(/^‘/u,'').startsWith('('+value+')');
+  const block=letter=>{
+    const at=rows.findIndex(opens(letter));
+    if(at<0||rows.filter(opens(letter)).length!==1)return null;
+    const next=rows.findIndex(opens(String.fromCharCode(letter.charCodeAt(0)+1)));
+    return {start:at,end:next>at?next:rows.length};
+  };
+  let at;
+  if(labels.length===1){
+    const own=/^[a-z]$/u.test(split[1])&&block(split[1]);
+    if(!own||rows.some(opens(label)))return null;
+    at=own.end;
+  } else {
+    const own=/^[a-z]$/u.test(labels[0])&&/^[ivxl]+$/u.test(split[1])&&block(labels[0]);
+    if(!own)return null;
+    const inside=rows.slice(own.start+1,own.end),base=inside.filter(opens(split[1]));
+    if(base.length!==1||inside.some(opens(label)))return {reason:base.length?'duplicate_target_label':'relative_target_not_found'};
+    const following=inside.slice(inside.indexOf(base[0])+1).findIndex(row=>/^\([ivxl]+[a-z]?\)/u.test(row.text.trim()));
+    at=following<0?own.end:own.start+1+inside.indexOf(base[0])+1+following;
+  }
+  return {itemIndex,insertBefore:at<rows.length?rows[at].index:end,evidence:[{basis:'quoted-subparagraph-point',owner:owner.id,quotation:quotes[0].id,label:labels.join('/')}]};
+}
+
 // Explicit drafting conventions within the instruction selected by the label.
 function draftingInsertion(selected,proposedText,language) {
   if(language!=='en')return null;
@@ -590,7 +648,7 @@ export function resolveProposalPlacement(items,{originalText,proposedText,target
     return {operation,status:'placed',itemIndex:selected.itemIndex,span:selected.match.span,splice:selected.match.splice,originalText:selected.match.originalText,evidence};
   };
   if(operation==='insert') {
-    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)):null;
+    const quoted=candidates.length===1?(twoLinePointInsertion(candidates[0],targetPath,proposedText,language)??quotedInteriorInsertion(candidates[0],targetPath,proposedText,language)??quotedSiblingInsertion(candidates[0],targetPath,proposedText,language)??quotedSubparagraphInsertion(candidates[0],targetPath,proposedText,language)):null;
     if(quoted){
       if(quoted.reason)return unresolved(quoted.reason);
       evidence.push(...quoted.evidence);

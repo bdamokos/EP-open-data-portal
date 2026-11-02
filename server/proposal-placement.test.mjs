@@ -392,6 +392,20 @@ test('quoted sibling insertion follows the complete paragraph and preserves the 
  assert.equal(resolveProposalPlacement([item(source(texts,styles))],amendment).status,'unresolved');
 });
 
+test('points inserted inside a quoted replacement subparagraph follow the printed nested labels',()=>{
+ const texts=['Article 1','Regulation (EU) 2023/956 is amended as follows:','(20)\tin Article 30(6), the second subparagraph is replaced by the following:','‘Before 2028 the Commission shall report on:','(a) an assessment of:','(i) leakage;','(ii) sectors;','(b) an assessment of:','(i) governance;','(ii) scope;','(iii) circumvention;','(iv) penalties;','(v) thresholds;','(c) results;','(d) information.;’','(21)\tAnnex I is amended.','Article 2'];
+ const styles=['Titrearticle','Normal','Point0',...texts.slice(3,15).map(()=>'Normal'),'Point0','Titrearticle'];
+ const place=(raw,proposedText)=>resolveProposalPlacement([item(source(texts,styles))],{language:'en',targetLabel:'Article 1 – paragraph 1 – point 20',originalText:'',proposedText,targetPath:{language:'en',proposal:[{raw:'Article 1 – paragraph 1 – point 20'}],underlying:[{document:'Regulation (EU) 2023/956',raw}]}});
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiia)\tNew.').insertBefore,11);
+ for(const raw of ['Article 30 – paragraph 6 – second subparagraph – point b – point va (new)','Article 30 – paragraph 6 – subparagraph 2 – point (b)(va)'])assert.equal(place(raw,'(va)\tNew.').insertBefore,13,raw);
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point (ba) new','(ba)\tNew.').insertBefore,13);
+ assert.equal(place('Article 30 – paragraph 6 – third subparagraph (new)','A new subparagraph.').insertBefore,15);
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiib)\tNew.').status,'unresolved','the printed label must match the address');
+ assert.equal(place('Article 31 – paragraph 6 – subparagraph 2 – point b – point iii a (new)','(iiia)\tNew.').status,'unresolved','another article');
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point ii a (new)','(iia)\tNew.').insertBefore,10);
+ assert.equal(place('Article 30 – paragraph 6 – subparagraph 2 – point b – point iii (new)','(iii)\tNew.').status,'unresolved','an existing printed label');
+});
+
 test('detached footnotes cannot enable a whole-article deletion without extent verification',()=>{
  const proposal=structuredClone(item(source(['Article 1','1. Public body.','Article 2'],['Titrearticle','Normal','Titrearticle'])).proposal);
  proposal.notes=[{id:'native',label:'6',text:'Public note.',complete:true}];proposal.anchors=[{paragraph:1,offset:14,note:'native',label:'6'}];
