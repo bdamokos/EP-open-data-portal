@@ -77,3 +77,19 @@ test('cached automatic recital and paragraph numbers independently certify blank
  assert.equal(visible.filter(row=>row.numberingLabel).map(row=>row.numberingLabel).join(','),'A.,B.,C.,D.,E.,F.,1.,2.,3.,4.,5.,6.,7.,8.,9.');
  const units=rawResolutionUnits(text,'en').units;for(const label of ['D','1','2','5'])assert.equal(units.find(unit=>unit.label===label&&unit.kind===(label==='D'?'recital':'paragraph'))?.complete,true,label);
 });
+test('a wholly italic title closes a paragraph only between consecutive raw numbers',()=>{
+ // A-10-2026-0085 prints its recurring "Recommendations" titles in italics only.
+ const rows=(title,next,before='81. Recalls the earlier findings;')=>{
+  const paragraphs=['The European Parliament,',before,title,next];
+  return {paragraphs,paragraphFormats:paragraphs.map((value,i)=>i===2?{marks:[{kind:'italic',start:0,end:value.length}]}:{}),
+   paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,container:'body',containerPath:'body',ordinal,segment:0,complete:true}))};
+ };
+ const unit=text=>rawResolutionUnits(text,'en').units.find(candidate=>candidate.label==='81');
+ assert.deepEqual([unit(rows('Recommendations','82. Calls on the Commission to:')).end,unit(rows('Recommendations','82. Calls on the Commission to:')).complete],[1,true]);
+ assert.equal(unit(rows('Recommendations','83. Calls on the Commission to:')).complete,false,'a skipped number leaves the extent open');
+ assert.equal(unit(rows('Recommendations','82. Calls;','81. Calls on the Commission to:')).complete,false,'an introduced list may continue');
+ const plain=rows('Recommendations','82. Calls;');plain.paragraphFormats[2]={};
+ assert.equal(unit(plain).complete,false,'unformatted titles remain uncertain');
+ const partial=rows('Recommendations','82. Calls;');partial.paragraphFormats[2]={marks:[{kind:'italic',start:0,end:5}]};
+ assert.equal(unit(partial).complete,false,'partial emphasis is not a title');
+});

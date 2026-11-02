@@ -11,10 +11,10 @@ const label=value=>{
   match=/^(?:\(([\p{Ll}]{1,4})\)|([\p{Ll}]{1,4})\))\s+/u.exec(value);
   return match?{kind:'point',label:match[1]||match[2]}:null;
 };
-function wholeBold(value,format) {
+function wholeBold(value,format,kind='bold') {
   const start=value.search(/\S/u),end=value.trimEnd().length;
   let covered=start;
-  for(const mark of (format?.marks||[]).filter(m=>m.kind==='bold').sort((a,b)=>a.start-b.start)) {
+  for(const mark of (format?.marks||[]).filter(m=>m.kind===kind).sort((a,b)=>a.start-b.start)) {
     if(mark.start>covered)break;
     covered=Math.max(covered,mark.end);
   }
@@ -138,6 +138,15 @@ export function rawResolutionUnits(text,language) {
   const start=Number.isInteger(selectedOpening)?selectedOpening+1:0,events=[],openerRows=new Set(openers);
   const endings={da:'bilag|begrundelse',et:'lisa|seletuskiri',fi:'liite|perustelut',ga:'iarscríbhinn|ráiteas míniúcháin',hu:'melléklet|indokolás',it:'allegato|motivazione',lt:'priedas|aiškinamoji dalis',lv:'pielikums|paskaidrojums',mt:'anness|nota spjegattiva',nl:'bijlage|toelichting',pl:'załącznik|uzasadnienie',pt:'anexo|exposição de motivos',sk:'príloha|dôvodová správa',sl:'priloga|obrazložitev',sv:'bilaga|motivering',fr:'annexe|exposé des motifs|justification',es:'anexo|exposición de motivos|justificación',de:'anlage|anhang|begründung',bg:'приложение|изложение на мотивите|мотиви|обосновка',el:'παράρτημα|αιτιολογική έκθεση|αιτιολόγηση',hr:'prilog|obrazloženje',cs:'příloha|vysvětlující prohlášení|odůvodnění'};
   const languageEnd=endings[language]?new RegExp(`^(?:${endings[language]})(?=\\s|$|[:.–—-])`,'iu'):null;
+  const number=i=>/^\s*([1-9]\d{0,5})\s*[a-zα-ωа-я]{0,3}[.)]\s+/u.exec(paragraphs[i]??'')?.[1];
+  const italicTitle=i=>{
+    const value=paragraphs[i].trim(),after=number(i+1);
+    if(!value||value.length>=180||!/^\p{Lu}/u.test(value)||/[.;!?:]$/u.test(value)||!wholeBold(paragraphs[i],text.paragraphFormats?.[i],'italic'))return false;
+    if(!after||!contiguous(sources[i],sources[i+1])||/:\s*$/u.test(paragraphs[i-1]??''))return false;
+    let before=null;
+    for(let j=i-1;j>=start;j--){if(sources[j]?.container!=='body')continue;before=number(j);if(before)break;}
+    return Boolean(before)&&Number(before)+1===Number(after);
+  };
   let group=0,parent=null,citation=0,provisions=false,active=true;
   for(let i=start;i<paragraphs.length;i++) {
     const value=paragraphs[i].trim(),format=text.paragraphFormats?.[i],source=sources[i];
@@ -162,6 +171,10 @@ export function rawResolutionUnits(text,language) {
       if(ref.kind==='point'&&parent===null){events.push({start:i,boundary:true,uncertain:true});group++;continue;}
       if(ref.kind!=='point'){parent=ref.kind==='paragraph'?i:null;if(ref.kind!=='citation')provisions=true;}
       events.push({...ref,start:i,group,parent:ref.kind==='point'?parent:null});
+    } else if(italicTitle(i)) {
+      // A wholly italic title between consecutively numbered paragraphs is a
+      // section boundary: the raw numbers on both sides establish the extent.
+      events.push({start:i,boundary:true});group++;parent=null;
     } else if(value&&value.length<180&&/^\p{Lu}/u.test(value)&&(!/[.;!?]$/u.test(value)||value.endsWith(':'))) {
       // Unformatted title-like rows cannot establish either prose continuation
       // or a heading boundary. Withhold the preceding extent instead of guessing.
