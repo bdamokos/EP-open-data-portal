@@ -58,11 +58,14 @@ function publishedContainer(proposal,root,language) {
   const start=title?title.index+1:first.index;
   const nodes=[],stack=[];
   // Some sources (COM(2025)580) print outer paragraph numbers as literal
-  // text in Normal rows. Accept them only as one complete 1, 2, 3... run in
-  // an article that has no NumPar paragraphs at all.
-  const literal=row=>row.properties?.styleId==='Normal'&&/^(\d+)\.\t/u.exec(row.text)?.[1];
+  // text. Accept them only as one complete 1, 2, 3... run in an article that
+  // has no NumPar paragraphs at all, all in Normal rows or starting at the
+  // article's first row (its Article 2 mixes Normal and Point styles).
+  const literal=row=>/^(\d+)\.\t/u.exec(row.text)?.[1];
   const literals=kind==='article'&&!amendingList&&!content.some(row=>paragraph(row))?content.filter(row=>literal(row)):[];
-  const numbered=literals.length&&literals.every((row,i)=>literal(row)===String(i+1))?new Set(literals.map(row=>row.index)):new Set();
+  const run=literals.length&&literals.every((row,i)=>literal(row)===String(i+1))
+    &&(literals.every(row=>row.properties?.styleId==='Normal')||literals[0]===content[0]);
+  const numbered=new Set(run?literals.map(row=>row.index):[]);
   const paragraphOf=row=>paragraph(row)??(numbered.has(row.index)?literal(row):null);
   const explicit=amendingList?[]:content.filter(row=>paragraphOf(row));
   if(!explicit.length) {
