@@ -43,7 +43,10 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
   s.transaction(()=>{s.assertWriter();
    s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(retry.next,row.id);
    if(!retry.paused)s.db.prepare('INSERT OR REPLACE INTO topic_procedure_attempts VALUES (?,?,?)').run(row.id,retry.attempts,String(error.message).slice(0,200));
-   if(retry.permanent){const url=row.reference?'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference}):'https://data.europarl.europa.eu/api/v2/procedures/'+row.id;const prior=s.db.prepare('SELECT body FROM topic_procedure_pages WHERE id=?').get(row.id),next={state:'unavailable',reason:error.code==='official_source_size'?'source-too-large':error.code||'source-unavailable',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString(),retryAt:retry.next};s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify(next));if(observationChanged(prior?JSON.parse(prior.body):null,next))s.set('topicProjectionDirty',true);}
+   // A permanent failure never replaces the last good page; the attempts row
+   // records it and the retained subjects stay in use until a later read.
+   const prior=retry.permanent?s.db.prepare('SELECT body FROM topic_procedure_pages WHERE id=?').get(row.id):null,good=prior&&JSON.parse(prior.body).state!=='unavailable';
+   if(retry.permanent&&!good){const url=row.reference?'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference}):'https://data.europarl.europa.eu/api/v2/procedures/'+row.id,next={state:'unavailable',reason:error.code==='official_source_size'?'source-too-large':error.code||'source-unavailable',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString(),retryAt:retry.next};s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify(next));if(observationChanged(prior?JSON.parse(prior.body):null,next))s.set('topicProjectionDirty',true);}
   });
  }
 
