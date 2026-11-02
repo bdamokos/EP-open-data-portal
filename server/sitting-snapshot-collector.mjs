@@ -1,3 +1,7 @@
+import {agendaFreshMs,agendaSettledAfter} from './plenary-cache-policy.mjs';
+import {odp} from './odp.mjs';
+import {array,tail} from './activity-index-model.mjs';
+import {SittingSnapshotReader} from './sitting-snapshot-store.mjs';
 import {statSync} from 'node:fs';
 import {MemberVotes,MEMBER_VOTES_VERSION} from './member-votes.mjs';
 import {MemberAttendance,MEMBER_ATTENDANCE_VERSION} from './member-attendance.mjs';
@@ -11,8 +15,10 @@ import {collectVoteChairs} from './vote-chairs.mjs';
 import {SittingSnapshotWriter,sittingSnapshotHints,SITTING_CALENDAR_VERSION,SITTING_SNAPSHOT_SCHEMA} from './sitting-snapshot-store.mjs';
 
 const SIX_HOURS=6*60*60_000;
+const agendaEndpoint=id=>'/meetings/'+id.slice(0,17)+'/foreseen-activities';
+const settledLinks=(id,now)=>agendaFreshMs(agendaEndpoint(id),now)===Infinity;
 const readerVersions={votes:MEMBER_VOTES_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
-const discoveryKey=now=>[brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
+const discoveryKey=now=>[2,brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
 const fresh=source=>source&&!source.stale&&!source.refreshInProgress&&!source.refreshError;
 export function sittingSnapshotNextCheck(id,now,{complete=true,attempts=0,retryAfter=0,confirmed=true}={}) {
   const correcting=brusselsDay(now)<sittingConfirmationDay(id);
@@ -30,12 +36,21 @@ export const completeAttendanceSnapshot=value=>['observed','not-published'].incl
 // Runs only while the activity writer owns its existing lease. No independent
 // timer, source writer, request allowance or full-term in-memory cache.
 export class SittingSnapshotCollector {
-  constructor(store,{hints=sittingSnapshotHints,readChairs=collectVoteChairs,diskLimit}={}){
-    this.store=store;this.writer=new SittingSnapshotWriter(store,{diskLimit});this.hints=hints;this.readChairs=readChairs;
+  constructor(store,{hints=sittingSnapshotHints,readChairs=collectVoteChairs,diskLimit,readCached=(endpoint,params)=>odp(endpoint,params,{cachedOnly:true,ttl:Infinity})}={}){
+    this.store=store;this.writer=new SittingSnapshotWriter(store,{diskLimit});this.hints=hints;this.readChairs=readChairs;this.readCached=readCached;
   }
   due(){
     const now=this.store.clock();
     return this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscovery')!==discoveryKey(now)||this.writer.hasDue(now);
+  }
+  discoverSittings(nodes){
+    for(const node of nodes){
+      this.writer.enqueue('agenda',1,node.activity_id);
+      for(const ref of array(node.consists_of)){
+        const id=tail(typeof ref==='object'?ref.id:ref);
+        if(new RegExp('^'+node.activity_id+'-PVCRE-ITM-\\d+$').test(id))this.writer.enqueue('debate',1,id);
+      }
+    }
   }
   admit(){
     this.store.assertWriter();
@@ -47,8 +62,12 @@ export class SittingSnapshotCollector {
         this.store.db.prepare('DELETE FROM sitting_snapshots WHERE kind=? AND version<>?').run(kind,version);
         this.store.db.prepare('DELETE FROM sitting_snapshot_staging WHERE kind=? AND version<>?').run(kind,version);
       }
-      for(const selected of calendarYears(brusselsDay(this.store.clock())))this.writer.enqueue('calendar',SITTING_CALENDAR_VERSION,String(selected));
-      this.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='calendar' AND version=? AND complete=1 AND error IS NULL").run(SITTING_CALENDAR_VERSION);
+      for(const selected of calendarYears(brusselsDay(this.store.clock()))){
+        this.writer.enqueue('calendar',SITTING_CALENDAR_VERSION,String(selected));
+        const retained=new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('calendar',SITTING_CALENDAR_VERSION,String(selected),{retained:true});
+        if(retained)this.discoverSittings(retained.nodes);
+      }
+      this.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='calendar' AND version=? AND id=? AND complete=1 AND error IS NULL").run(SITTING_CALENDAR_VERSION,brusselsDay(this.store.clock()).slice(0,4));
       this.store.set('sittingSnapshotDiscovery',key);
     }
     for(const hint of this.hints.drain())if(readerVersions[hint.kind]===hint.version)this.writer.enqueue(hint.kind,hint.version,hint.id,100,hint);
@@ -70,16 +89,26 @@ export class SittingSnapshotCollector {
     };
     const request=async(endpoint,params={},options={})=>{
       const key=JSON.stringify([endpoint,params]);
-      const saved=this.writer.staged(job,key,this.store.clock());
+      const heldLinks=['agenda','debate'].includes(job.kind);
+      const saved=this.writer.staged(job,key,heldLinks||job.kind==='calendar'?0:this.store.clock());
       if(saved?.failure)throw Object.assign(new Error(saved.failure.message),saved.failure);
       if(saved)return saved;
+      if(heldLinks&&settledLinks(job.id,now)){
+        let cached;try{cached=await this.readCached(endpoint,params);}catch{}
+        const fetchedAt=typeof cached?.fetchedAt==='number'?cached.fetchedAt:Date.parse(cached?.fetchedAt);
+        if(cached&&Number.isFinite(fetchedAt)&&fetchedAt>=agendaSettledAfter(agendaEndpoint(job.id),now)){
+          worker.controller.signal.throwIfAborted();this.store.assertWriter();
+          const record={...cached,fetchedAt:typeof cached.fetchedAt==='number'?new Date(cached.fetchedAt).toISOString():cached.fetchedAt};
+          this.writer.stage(job,key,record,this.store.clock());return record;
+        }
+      }
       if(worker.requests>=requestLimit||worker.monotonic()>=worker.runDeadline){deferred=true;throw requestTimeout();}
       let record;
       try{record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false,snapshotObservation:true});}
       catch(error){
         retryAfter=Math.max(retryAfter,error.retryAfter||0);
         failure=Object.assign(error,{snapshotSource:key});
-        if(error.code==='odp_no_content'||error.code==='odp_unavailable'&&error.source?.httpStatus===404){
+        if(!heldLinks&&(error.code==='odp_no_content'||error.code==='odp_unavailable'&&error.source?.httpStatus===404)){
           this.store.assertWriter();this.writer.stage(job,key,{failure:{message:error.message,code:error.code,status:error.status,upstreamStatus:error.upstreamStatus,source:error.source,responseBytes:error.responseBytes}},this.store.clock());
         }
         throw error;
@@ -90,11 +119,27 @@ export class SittingSnapshotCollector {
     try {
       return await runWithRequestSignal(worker.controller.signal,async()=>{
         let value,complete,next;
-        if(job.kind==='calendar'){
-          const reader=new MeetingsReader({request,clock:this.store.clock});
-          value=await reader.year(Number(job.id));
+        if(job.kind==='agenda'){
+          const pages=[];
+          for(let offset=0;offset<500;offset+=50){
+            const record=await request('/meetings/'+job.id+'/foreseen-activities',{limit:50,offset});
+            pages.push(record);
+            if(record.payload.data.length<50)break;
+          }
+          complete=pages.at(-1).payload.data.length<50;value={pages};
+          next=complete&&settledLinks(job.id,now)?Number.MAX_SAFE_INTEGER:now+SIX_HOURS;
+        }else if(job.kind==='debate'){
+          value=await request('/events/'+job.id);
+          const node=value.payload.data.find(node=>String(node.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/event/'+job.id);
+          if(!node||tail(node.had_activity_type)!=='PLENARY_DEBATE'||node.activity_date!==job.id.slice(7,17)||!Array.isArray(node.consists_of))throw new Error('Exact debate links unavailable.');
+          complete=true;next=settledLinks(job.id,now)?Number.MAX_SAFE_INTEGER:now+SIX_HOURS;
+        }else if(job.kind==='calendar'){
+          const reader=new MeetingsReader({request,clock:this.store.clock,limits:{cataloguePages:80}});
+          value=Number(job.id)<Number(brusselsDay(now).slice(0,4))?new SittingSnapshotReader({db:this.store.db,clock:this.store.clock}).read('calendar',SITTING_CALENDAR_VERSION,job.id,{retained:true}):null;
+          value??=await reader.year(Number(job.id));
           complete=value.coverage.state==='complete'&&value.coverage.sources.every(fresh);
-          next=now+(complete?(Number(job.id)===Number(brusselsDay(now).slice(0,4))?SIX_HOURS:30*DAY):missingSourceDelay(job.attempts));
+          next=now+(complete?(Number(job.id)===Number(brusselsDay(now).slice(0,4))?SIX_HOURS:Number.MAX_SAFE_INTEGER-now):missingSourceDelay(job.attempts));
+          this.discoverSittings(currentTermSittings(value.nodes,brusselsDay(now)));
           for(const node of currentTermSittings(value.nodes,brusselsDay(now))){
             this.writer.enqueue('votes',MEMBER_VOTES_VERSION,node.activity_id);
             this.writer.enqueue('attendance',MEMBER_ATTENDANCE_VERSION,node.activity_id);
@@ -115,7 +160,9 @@ export class SittingSnapshotCollector {
         next=Math.max(next,now+retryAfter*1000);
         if(failure&&!complete)next=retryNext(failure);
         else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
-        this.writer.retain(job,value,{complete,now,next});return true;
+        this.writer.retain(job,value,{complete,now,next,preserveStage:!complete&&['calendar','agenda','debate'].includes(job.kind)});
+        if(['agenda','debate'].includes(job.kind))this.store.set('availabilityRevision',Number(this.store.get('availabilityRevision')||0)+1);
+        return true;
       });
     }catch(error){
       if(worker.controller.signal.aborted)throw error;

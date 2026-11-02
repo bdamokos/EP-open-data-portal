@@ -9,7 +9,7 @@ import {participation,participationQuery} from './insights-participation.mjs';
 
 const clock=()=>Date.parse('2026-10-17T12:00:00Z'),day='2026-10-16',sitting='MTG-PL-'+day,topic=sitting+'-OJ-ITM-D-1',event=sitting+'-PVCRE-ITM-1';
 const speech=(date,id)=>({activity_id:`MTG-PL-${date}-OTH-${id}`,activity_date:date,had_activity_type:'def/ep-activities/PLENARY_DEBATE_SPEECH',had_participation:{had_participant_person:['person/42'],participation_role:'def/ep-roles/SPEAKER'}});
-for(const [failVotes,singleton] of [[false,false],[true,false],[false,true]])test(`exact debate coverage ignores vote-only rows, foreign speech gaps and voting failures (${failVotes}, singleton=${singleton})`,async t=>{
+for(const [failVotes,singleton] of [[false,false],[true,false],[false,true],[false,'empty']])test(`exact debate coverage ignores vote-only rows, foreign speech gaps and voting failures (${failVotes}, singleton=${singleton})`,async t=>{
   const dir=mkdtempSync(path.join(os.tmpdir(),'participation-selected-')),store=new ActivityStore(dir,{clock});
   t.after(()=>{store.close();rmSync(dir,{recursive:true,force:true});});store.acquire();const {generation}=store.beginCycle();store.setMembers([{id:'42',name:'Test member',countryCode:'HU'}]);
   const saved=speech(day,'2'),worker=new ActivityWorker(store,{clock});worker.saveSpeech(generation,saved,clock());
@@ -19,9 +19,10 @@ for(const [failVotes,singleton] of [[false,false],[true,false],[false,true]])tes
   const legislation={cache:new Map(),catalogue:async()=>({complete:true,sittings:[{activity_id:sitting,activity_date:day,consists_of:['eli/dl/event/'+event]}]}),loadMetadata:async()=>new Map(),
     record:async endpoint=>{if(failVotes)throw new Error('Voting record failed');return endpoint.endsWith('vote-results')?source([{id:resultId,had_activity_type:'def/ep-activities/PLENARY_VOTE_RESULTS',executed:['eli/dl/event/'+voteTopic]}]):source([{id:'eli/dl/event/'+sitting+'-DEC-2',activity_date:day,inverse_consists_of:[resultId],had_voter_favor:['person/42']}]);},
     query:async()=>({topics:[{id:topic,uri:'eli/dl/event/'+topic,date:day,kind:'PLENARY_DEBATE',title:'Saved debate'},{id:voteTopic,uri:'eli/dl/event/'+voteTopic,date:day,kind:'PLENARY_VOTE',title:'Saved vote'}],coverage:{sources:[]}})};
+  if(singleton==='empty')store.db.prepare("DELETE FROM items WHERE category='plenary-contributions'").run();
   const response=await participation(legislation,store,participationQuery(new URLSearchParams({sitting})),{clock,readEvent:async()=>source([{id:'eli/dl/event/'+event,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_DEBATE',executed:['eli/dl/event/'+topic],consists_of:singleton?'eli/dl/event/'+saved.activity_id:['eli/dl/event/'+saved.activity_id,'eli/dl/event/'+sitting+'-OTH-91',{id:'eli/dl/event/'+sitting+'-OTH-92',had_activity_type:'def/ep-activities/PLENARY_PROCEEDING'},{id:'eli/dl/event/'+sitting+'-OTH-93',had_activity_type:'def/ep-activities/PLENARY_DEBATE_WRITTEN_STATEMENT',had_participation:[{had_participant_person:['person/42']}]}]}])});
-  assert.equal(response.series[0].speakers,1);assert.equal(response.series[0].availability.speakers,'observed');
-  assert.equal(response.topics.find(row=>row.id===topic).availability.speakers,'observed');
+  assert.equal(response.series[0].speakers,singleton==='empty'?null:1);assert.equal(response.series[0].availability.speakers,singleton==='empty'?'unavailable':'observed');
+  assert.equal(response.topics.find(row=>row.id===topic).availability.speakers,singleton==='empty'?'unavailable':'observed');
   assert.equal(response.availability.speakers.gaps.length,1,'the unrelated archive failure is still disclosed separately');
   assert.equal(response.series[0].availability.voters,failVotes?'unavailable':'observed');
 });

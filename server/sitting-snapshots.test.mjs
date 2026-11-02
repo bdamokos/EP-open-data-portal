@@ -31,7 +31,7 @@ async function drain(h){for(let i=0;i<20&&h.collector.due();i++)assert(await h.c
 test('collector discovers held current-term sittings and persists identical member-independent responses',async t=>{
   const h=setup(t);await drain(h);
   assert(h.fixture.calls.every(call=>call.options.priority==='background'));
-  assert.deepEqual(h.store.db.prepare("SELECT kind,complete FROM sitting_snapshots WHERE id=? ORDER BY kind").all(SNAPSHOT_SITTING).map(row=>({...row})),[{kind:'attendance',complete:1},{kind:'votes',complete:1}]);
+  assert.deepEqual(h.store.db.prepare("SELECT kind,complete FROM sitting_snapshots WHERE id=? ORDER BY kind").all(SNAPSHOT_SITTING).map(row=>({...row})),[{kind:'agenda',complete:1},{kind:'attendance',complete:1},{kind:'votes',complete:1}]);
   const direct=await snapshotResponses({request:h.fixture.request,clock:h.clock});
   for(const language of ['en','fr','hu'])for(const week of [false,true]){
     const before=h.fixture.calls.length;
@@ -278,4 +278,82 @@ test('latest member votes resolve entirely from persisted calendar and sitting s
   assert.equal(result.period.week,'2026-10-05');
   assert.equal(result.coverage.collectionComplete,true);
   assert.deepEqual(result.coverage.scannedSittingIds,[SNAPSHOT_SITTING]);
+});
+
+test('agenda pages and exact debate links resume after restart and serve readers without upstream',async t=>{
+  const h=setup(t);h.collector.admit();
+  h.store.db.prepare('UPDATE sitting_snapshots SET next_check=?').run(Number.MAX_SAFE_INTEGER);
+  const id=SNAPSHOT_SITTING,debate=id+'-PVCRE-ITM-9',speech=id+'-OTH-9';
+  h.collector.discoverSittings([{activity_id:id,consists_of:['eli/dl/event/'+debate]}]);
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='agenda'").run();
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=? WHERE kind='debate'").run(Number.MAX_SAFE_INTEGER);
+  const calls=[];
+  h.worker.fetchRecord=async(endpoint,params)=>{
+    calls.push([endpoint,params]);
+    const data=endpoint.startsWith('/events/')?[{id:'eli/dl/event/'+debate,had_activity_type:'def/ep-activities/PLENARY_DEBATE',activity_date:id.slice(7),consists_of:['eli/dl/event/'+speech],executed:[]}]:Array.from({length:params.offset===0?50:1},(_,i)=>({id:'eli/dl/event/'+id+'-OJ-ITM-'+(params.offset+i)}));
+    return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data}};
+  };
+  assert.equal(await h.collector.step(h.worker,{requestBudget:1}),false);
+  assert.equal(calls.length,1);
+  h.advance(2*60*60_000);
+  const resumed=new SittingSnapshotCollector(h.store,{hints:h.hints,readCached:async()=>null});
+  assert.equal(await resumed.step(h.worker,{requestBudget:1}),true);
+  assert.equal(calls.length,2);assert.equal(calls[1][1].offset,50);
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='debate'").run();
+  assert.equal(await resumed.step(h.worker,{requestBudget:1}),true);
+  const before=calls.length;
+  const {LegislationInsights}=await import('./insights-legislation.mjs');
+  const {cachedEvent}=await import('./insights-participation.mjs');
+  const reader=new LegislationInsights(h.store,{snapshots:h.reader,request:()=>assert.fail('retained agenda must not fetch')});
+  assert.equal((await reader.record('/meetings/'+id+'/foreseen-activities',{limit:50,offset:50})).payload.data.length,1);
+  assert.equal((await cachedEvent(debate,undefined,h.reader)).payload.data[0].consists_of[0],'eli/dl/event/'+speech);
+  assert.equal(calls.length,before);
+  assert.equal(h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='agenda'").get().next_check,Number.MAX_SAFE_INTEGER);
+});
+
+test('collector adopts held raw agenda pages without downloading them again',async t=>{
+  const h=setup(t);h.collector.admit();
+  h.store.db.prepare('UPDATE sitting_snapshots SET next_check=?').run(Number.MAX_SAFE_INTEGER);
+  h.collector.writer.enqueue('agenda',1,SNAPSHOT_SITTING);
+  const retained={url:'https://data.europarl.europa.eu/api/v2/meetings/'+SNAPSHOT_SITTING+'/foreseen-activities?limit=50&offset=0',fetchedAt:SNAPSHOT_NOW,payload:{data:[]}};
+  const collector=new SittingSnapshotCollector(h.store,{hints:h.hints,readCached:async()=>retained});
+  h.worker.fetchRecord=()=>assert.fail('held data must not be downloaded again');
+  assert(await collector.step(h.worker));
+  assert.equal(h.worker.requests,0);
+  assert.deepEqual(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages[0].payload.data,[]);
+});
+
+test('a failed later agenda page preserves earlier pages through retry backoff',async t=>{
+  const h=setup(t);h.collector.admit();
+  h.store.db.prepare('UPDATE sitting_snapshots SET next_check=?').run(Number.MAX_SAFE_INTEGER);
+  h.collector.writer.enqueue('agenda',1,SNAPSHOT_SITTING);
+  let fail=true;const offsets=[];
+  h.worker.fetchRecord=async(endpoint,params)=>{
+    offsets.push(params.offset);
+    if(params.offset===50&&fail)throw Object.assign(Error('upstream unavailable'),{status:503,retryAfter:60});
+    return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:Array.from({length:params.offset===0?50:0},(_,i)=>({id:String(i)}))}};
+  };
+  assert(await h.collector.step(h.worker));
+  assert.equal(h.store.db.prepare("SELECT COUNT(*) n FROM sitting_snapshot_staging WHERE kind='agenda'").get().n,1);
+  assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING),null);
+  fail=false;h.advance(86400000);
+  assert(await h.collector.step(h.worker));
+  assert.deepEqual(offsets,[0,50,50]);
+  assert.equal(h.reader.read('agenda',1,SNAPSHOT_SITTING).pages.length,2);
+});
+
+ test('background calendar can resume beyond the foreground ten-page cap',async t=>{
+  const h=setup(t);h.collector.admit();
+  h.store.db.prepare('UPDATE sitting_snapshots SET next_check=?').run(Number.MAX_SAFE_INTEGER);
+  h.store.db.prepare("UPDATE sitting_snapshots SET next_check=0 WHERE kind='calendar' AND id='2024'").run();
+  const offsets=[];h.worker.fetchRecord=async(endpoint,params)=>{
+    offsets.push(params.offset);
+    return {url:'https://data.europarl.europa.eu/api/v2'+endpoint+'?'+new URLSearchParams(params),fetchedAt:new Date(h.clock()).toISOString(),payload:{data:params.offset<550?Array.from({length:50},(_,i)=>({id:'eli/dl/event/committee-'+(params.offset+i),had_activity_type:'def/ep-activities/COMMITTEE_MEETING'})):[]}};
+  };
+  for(let i=0;i<12;i++)await h.collector.step(h.worker,{requestBudget:1});
+  assert.deepEqual(offsets,Array.from({length:12},(_,i)=>i*50));
+  assert.equal(h.reader.read('calendar',1,'2024').coverage.state,'complete');
+  const {MeetingsReader}=await import('./meetings-reader.mjs');
+  const reader=new MeetingsReader({clock:h.clock,snapshots:h.reader,request:()=>assert.fail('retained calendar must not fetch')});
+  assert.equal((await reader.year(2024)).coverage.state,'complete');
 });

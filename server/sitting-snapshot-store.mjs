@@ -64,10 +64,10 @@ export class SittingSnapshotReader {
       this.db=db;this.owned=true;return db;
     }catch{db?.close();return null;}
   }
-  read(kind,version,id){
+  read(kind,version,id,{retained=false}={}){
     try {
       // Filter on metadata before reading or decompressing any payload.
-      const row=this.connection()?.prepare('SELECT body FROM sitting_snapshots WHERE kind=? AND version=? AND id=? AND complete=1 AND error IS NULL AND next_check>?').get(kind,version,id,this.clock());
+      const row=this.connection()?.prepare('SELECT body FROM sitting_snapshots WHERE kind=? AND version=? AND id=? AND complete=1 AND error IS NULL AND next_check>?').get(kind,version,id,retained?0:this.clock());
       if(row?.body)return decode(row.body);
     }catch{/* Unavailable/corrupt local evidence falls back to the public reader. */}
     return null;
@@ -87,23 +87,23 @@ export class SittingSnapshotWriter {
   due(now){return this.db.prepare('SELECT kind,version,id,attempts FROM sitting_snapshots WHERE next_check<=? ORDER BY priority DESC,next_check,id DESC LIMIT 1').get(now);}
   hasDue(now){return Boolean(this.db.prepare('SELECT 1 FROM sitting_snapshots WHERE next_check<=? LIMIT 1').get(now));}
   usage(){return this.db.prepare('SELECT COALESCE(SUM(length(body)),0) AS n FROM sitting_snapshots').get().n+this.db.prepare('SELECT COALESCE(SUM(length(body)),0) AS n FROM sitting_snapshot_staging').get().n;}
-  retain(job,value,{complete,now,next}){
+  retain(job,value,{complete,now,next,preserveStage=false}){
     this.store.assertWriter();
     const body=encode(value);
     this.store.transaction(()=>{
       this.store.assertWriter();
       const old=this.db.prepare('SELECT length(body) AS n FROM sitting_snapshots WHERE kind=? AND version=? AND id=?').get(job.kind,job.version,job.id)?.n||0;
       const staged=this.db.prepare('SELECT COALESCE(SUM(length(body)),0) AS n FROM sitting_snapshot_staging WHERE kind=? AND version=? AND id=?').get(job.kind,job.version,job.id).n;
-      if(this.usage()-old-staged+body.length>this.diskLimit)throw new Error('Sitting snapshots reached their configured disk limit.');
+      if(this.usage()-old-(preserveStage?0:staged)+body.length>this.diskLimit)throw new Error('Sitting snapshots reached their configured disk limit.');
       this.db.prepare('UPDATE sitting_snapshots SET body=?,complete=?,checked_at=?,next_check=?,attempts=?,priority=0,error=NULL WHERE kind=? AND version=? AND id=?').run(body,Number(complete),now,next,complete?0:job.attempts+1,job.kind,job.version,job.id);
-      this.clearStage(job);
+      if(!preserveStage)this.clearStage(job);
     });
   }
 
   fail(job,error,next){
     this.store.assertWriter();
     this.db.prepare('UPDATE sitting_snapshots SET attempts=attempts+1,next_check=?,priority=0,error=? WHERE kind=? AND version=? AND id=?').run(next,error.message,job.kind,job.version,job.id);
-    this.clearStage(job);
+    if(!['calendar','agenda','debate'].includes(job.kind))this.clearStage(job);
   }
   stage(job,key,record,now){
     this.store.assertWriter();const body=encode(record);

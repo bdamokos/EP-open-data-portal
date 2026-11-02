@@ -1,3 +1,4 @@
+import {sittingSnapshots} from './sitting-snapshot-store.mjs';
 import {fastReadsReady} from './fast-read-projections.mjs';
 import {questionCoverageRecords} from './insights-store.mjs';
 import {HttpError} from './http-utils.mjs';
@@ -13,7 +14,7 @@ import {indexAvailability} from './availability-evidence.mjs';
 import {brusselsDay} from './analysis-period.mjs';
 import {periodAvailability} from './source-availability.mjs';
 
-export const PARLIAMENT_SEARCH_VERSION=7;
+export const PARLIAMENT_SEARCH_VERSION=8;
 const types=['mep','topic','question'];
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase();
 const date=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||'')&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;
@@ -27,12 +28,16 @@ export function parliamentSearchQuery(params) {
   if(!terms.length)throw new HttpError(400,'invalid_query','Enter a search term.');
   return {query,terms,type,offset,from,to,language:odpLanguage(params.get('lang')||'en')};
 }
-const cachedRequest=(endpoint,params,options)=>odp(endpoint,params,{...options,cachedOnly:true});
+const cachedRequest=(endpoint,params,options)=>{
+  const id=endpoint.match(/^\/meetings\/(MTG-PL-\d{4}-\d{2}-\d{2})\/foreseen-activities$/)?.[1];
+  const page=id&&sittingSnapshots.read('agenda',1,id)?.pages.find(page=>Number(new URL(page.url).searchParams.get('offset'))===Number(params.offset||0));
+  return page?Promise.resolve({...page,fetchedAt:Date.parse(page.fetchedAt)}):odp(endpoint,params,{...options,cachedOnly:true});
+};
 
 // Search existing public observations. This reader neither starts collection nor
 // writes another index; missing retained calendars/agendas remain coverage gaps.
 export class ParliamentSearch {
-  constructor(store,{request=cachedRequest,clock=Date.now}={}){this.store=store;this.request=request;this.clock=clock;this.meetings=new MeetingsReader({request,clock});}
+  constructor(store,{request=cachedRequest,clock=Date.now}={}){this.store=store;this.request=request;this.clock=clock;this.meetings=new MeetingsReader({request,clock,snapshots:request===cachedRequest?sittingSnapshots:null});}
   async query(query) {
     const status=this.store.status(),generation=status.servingGeneration;
     if(!generation)throw new HttpError(503,'search_unavailable','Search unavailable.');

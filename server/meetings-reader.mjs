@@ -1,3 +1,4 @@
+import {sittingSnapshots,SITTING_CALENDAR_VERSION} from './sitting-snapshot-store.mjs';
 import {odp} from './odp.mjs';
 import {HttpError} from './http-utils.mjs';
 import {CURRENT_TERM_START,brusselsDay} from './analysis-period.mjs';
@@ -13,10 +14,12 @@ export const missingSitting=catalogue=>{if(catalogue.complete===false)throw new 
 // One metadata observation per year. Exact meeting details and their participants
 // remain separate ODP records; this reader never replaces those payloads.
 export class MeetingsReader extends VoteSourceReader {
-  constructor({request=odp,clock=Date.now,limits={}}={}){super();this.request=request;this.clock=clock;this.limits={...LIMITS,...limits};this.saved=new Map();this.pending=new Map();this.cacheBytes=0;}
+  constructor({request=odp,clock=Date.now,limits={},snapshots=request===odp?sittingSnapshots:null}={}){super();this.snapshots=snapshots;this.request=request;this.clock=clock;this.limits={...LIMITS,...limits};this.saved=new Map();this.pending=new Map();this.cacheBytes=0;}
   year(year) {
     requestSignal()?.throwIfAborted();
     if(!Number.isInteger(year)||year<Number(CURRENT_TERM_START.slice(0,4))||year>Number(brusselsDay(this.clock()).slice(0,4)))throw new HttpError(400,'invalid_year','Choose a current-term year.');
+    const retained=this.snapshots?.read('calendar',SITTING_CALENDAR_VERSION,String(year));
+    if(retained)return Promise.resolve(retained);
     const old=this.saved.get(year);
     if(old&&this.clock()-old.at<this.limits.cacheMs)return waitForRequest(Promise.resolve(old.value));
     if(old){this.saved.delete(year);this.cacheBytes-=old.size;}
