@@ -2382,7 +2382,7 @@
   "topics.less": "Kevesebb",
   "topics.all": "Összes megjelenítése",
   "topics.more": "Továbbiak",
-  "topics.coverage": "Szakpolitikai területek összegyűjtve: {collected} dosszié a(z) {referenced} dossziéból",
+  "topics.coverage": "Szakpolitikai területek összegyűjtve: {collected}/{referenced} dosszié",
   "topics.metric.questionNotHome": "A helyet említő kérdések, az ott megválasztott EP-képviselők kérdései nélkül",
   "topics.classifying": "Néhány dosszié besorolása még folyamatban van.",
   "topics.cellCount": "{topic}, {period}: {quantity}",
