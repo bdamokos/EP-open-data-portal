@@ -209,6 +209,13 @@ export function sourceReplay(cache,runtime) {
         const chosen=files.find(f=>f.language===preferred[0])||files[0];
         if(chosen){const read=()=>cache.get(chosen.url);await (cache.retained?.baseScope?cache.retained.baseScope({type:'ep-document',documentId:id,file:chosen},read):read());}
         if(id.startsWith('A-')){await readProposal({reportId:id,language});cache.assertHealthy();}
+        if(id.startsWith('A-')&&cache.retained?.nativeSelections&&runtime.array(work.is_realized_by).some(e=>Object.values(e.title_alternative||{}).flat().some(raw=>runtime.commissionProcedures(raw).some(p=>p.endsWith('(NLE)'))))) {
+          for(const selection of await cache.retained.nativeSelections(id,language)) {
+            const options={reportId:id,language},bound=await readNativeSelection(options,selection,record);
+            if(!bound.gap)await readProposal({...options,nativeReferencePair:bound.pair});
+            cache.assertHealthy();
+          }
+        }
         if(id.startsWith('A-')&&readCouncil){await readCouncil({reportId:id,language,documentReferences:references.get(language)||[]});cache.assertHealthy();}
         if(readExisting&&!cache.sealed)for(const hint of lawHints.values()){await readExisting({...hint,language});cache.assertHealthy();}
         const hints=[...new Map((references.get(language)||[]).map(ref=>[JSON.stringify(ref),ref])).values()];

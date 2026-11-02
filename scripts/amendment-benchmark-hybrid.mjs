@@ -14,7 +14,7 @@ async function source(directory) {
   if(snapshot.schemaVersion!==3||snapshot.snapshotId!==digest(JSON.stringify({apiBase:snapshot.apiBase,sample:snapshot.sample,manifest:snapshot.manifest})))throw new Error('Invalid hybrid source seal');
   const cache=new InputCache(path.join(directory,'inputs'),{apiBase:snapshot.apiBase,cap:0});
   const manifest=new Map(snapshot.manifest.map(m=>[key(m.url,m.request),m]));
-  return {directory,snapshot,async read(url,request){
+  return {directory,snapshot,manifest,async read(url,request){
     const meta=manifest.get(key(url,request));if(!meta)return null;
     const input=await cache.get(url,{...request,raw:true,officialRedirect:allowedDownload(url)});const {body,...found}=input;
     if(stable(found)!==stable(meta))throw new Error('Hybrid source differs from seal: '+url);
@@ -38,14 +38,57 @@ export class HybridInputs {
     if(a.snapshot.apiBase!==b.snapshot.apiBase||a.snapshot.asOf!==b.snapshot.asOf)throw new Error('Hybrid source origin/date mismatch');
     return new HybridInputs(a,b);
   }
-  constructor(a,b){Object.assign(this,{a,b});this.scope=new AsyncLocalStorage();this.wording=new Set();this.rows={};this.current=[];}
+  constructor(a,b){Object.assign(this,{a,b});this.scope=new AsyncLocalStorage();this.wording=new Set();this.wordingRows=new Map();this.rows={};this.current=[];}
   baseScope(identity,operation){return this.scope.run(identity,operation);}
-  registerWording(row){for(const v of row.variants?.length?row.variants:[row])if(v.wordingSource?.url)this.wording.add(v.wordingSource.url);}
+  registerWording(row){for(const v of row.variants?.length?row.variants:[row])if(v.wordingSource?.url){this.wording.add(v.wordingSource.url);const rows=this.wordingRows.get(v.wordingSource.url)||[];rows.push({id:row.id,documentId:row.targetDocumentId,number:row.number,...v});this.wordingRows.set(v.wordingSource.url,rows);}}
+  async catalogue(source){
+    source.rows??=(async()=>{const rows=[];for(const m of source.snapshot.manifest){if(!m.url.startsWith(source.snapshot.apiBase+'/api/amendments?'))continue;const input=await source.read(m.url,m.request);if(actual(input))for(const row of JSON.parse(input.body).items||[])for(const v of row.variants?.length?row.variants:[row])rows.push({id:row.id,documentId:row.targetDocumentId,number:row.number,...v,catalogueSource:{snapshotId:source.snapshot.snapshotId,url:m.url,sha256:m.sha256,fetchedAt:m.fetchedAt}});}return rows;})();
+    return source.rows;
+  }
+  async wordingProof(url){
+    const a=this.wordingRows.get(url)||[],b=await this.catalogue(this.b),proof=[];
+    for(const row of a){
+      const matches=b.filter(v=>['id','documentId','listId','language'].every(k=>row[k]&&row[k]===v[k])&&v.wordingSource?.url===url);
+      if(matches.length!==1)return null;
+      const old=matches[0];
+      for(const k of ['sha256','contentHash','byteSize','issued','sourceVersion'])if(row.wordingSource[k]!=null&&old.wordingSource[k]!=null&&stable(row.wordingSource[k])!==stable(old.wordingSource[k]))return null;
+      proof.push({copy:row,base:old});
+    }
+    return proof.length?{bindings:proof,sourceHashes:proof.flatMap(p=>[p.copy.wordingSource.sha256,p.base.wordingSource.sha256,p.copy.wordingSource.contentHash,p.base.wordingSource.contentHash].filter(hash=>hash!=null))}:null;
+  }
+  async nativeSelections(documentId,language){
+    const rows=await this.catalogue(this.b),result=[];
+    for(const row of rows.filter(r=>r.documentId===documentId&&r.language===language)){
+      const url=row.wordingSource?.url,proof=url&&await this.wordingProof(url);
+      if(!proof||!proof.bindings.some(p=>p.base.id===row.id&&p.base.listId===row.listId))continue;
+      const a=await this.a.read(url),b=await this.b.read(url),input=actual(a)?a:b;
+      if(!actual(input)||!proof.sourceHashes.every(hash=>typeof hash==='string'&&hash.toLowerCase()===input.sha256))continue;
+      result.push({listId:row.listId,number:row.number,wordingSource:{url,sha256:input.sha256},originalText:row.originalText,proposedText:row.proposedText});
+    }
+    return result;
+  }
+  async metadataProof(input){
+    if(!input?.localProjection||!actual(input))return null;
+    const work=JSON.parse(input.body).data?.[0],documentId=String(work?.id||'').replace(/^https?:\/\/data.europarl.europa.eu\//,'').replace(/^eli\/dl\/doc\//,'');
+    if(!/^(?:A|B|RC)-10-\d{4}-\d{4}(?:-AM-\d+-\d+)?$/.test(documentId))return null;
+    const base=await this.b.read(input.url,input.request);if(!actual(base))return null;
+    const files=this.runtime.documentFiles(JSON.parse(base.body).data?.[0]||{}).filter(f=>f.format==='DOCX');
+    if(!files.length)return null;
+    const declarations=[];
+    for(const file of files){const proof=await this.epProof({documentId,file});if(!proof)return null;declarations.push(proof);}
+    return {type:'ep-metadata',documentId,declarations,copyObservation:{snapshotId:this.a.snapshot.snapshotId,sha256:input.sha256,localProjection:input.localProjection}};
+  }
   trackRows(rows){this.current=rows.map(r=>r.id);for(const row of rows){this.rows[row.id]??={catalogue:this.a.snapshot.snapshotId,wording:this.a.snapshot.snapshotId,bindings:(row.variants?.length?row.variants:[row]).map(v=>({listId:v.listId,language:v.language,url:v.wordingSource?.url??null})),inputs:[]};this.registerWording(row);}}
   observe(meta){for(const id of this.current){const inputs=this.rows[id].inputs,k=key(meta.url,meta.request);if(!inputs.some(i=>key(i.url,i.request)===k))inputs.push({url:meta.url,...(meta.request?{request:meta.request}:{}),sha256:meta.sha256,...meta.hybridSource});}}
   receipt(){return {protocol:'settled-base-hybrid-v1',copySnapshotId:this.a.snapshot.snapshotId,baseSnapshotId:this.b.snapshot.snapshotId,rows:this.rows};}
   async get(url,request){
-    const a=await this.a.read(url,request),identity=this.scope.getStore();
+    const a=await this.a.read(url,request);const identity=this.scope.getStore();
+    const metadata=await this.metadataProof(a);
+    if(metadata){const b=await this.b.read(url,request);if(actual(b)&&b.status===200&&Number.isFinite(Date.parse(b.fetchedAt)))return this.wrap(b,url,request,this.b,metadata,'settled-base-metadata');}
+    if(this.wording.has(url)&&(!a||a.acquisitionUnavailable)){
+      const proof=await this.wordingProof(url),b=proof?await this.b.read(url,request):null;
+      if(actual(b)&&proof.sourceHashes.every(hash=>typeof hash==='string'&&hash.toLowerCase()===b.sha256))return this.wrap(b,url,request,this.b,{type:'wording',proof},'settled-wording-fallback');
+    }
     if(a&&!a.acquisitionUnavailable||!identity||this.wording.has(url))return this.wrap(a,url,request,this.a,identity,a?'copy-input':'missing-copy-input');
     let proven=true;
     let proof=null;
@@ -61,12 +104,12 @@ export class HybridInputs {
     return this.wrap(a?.acquisitionUnavailable?a:null,url,request,a?.acquisitionUnavailable?this.a:null,identity,proven?'base-missing-in-both':'base-identity-mismatch');
   }
   async epProof(identity,requestedUrl=identity.file.url){
-    const url=publicDocumentUrl(identity.documentId),request={accept:'application/ld+json'};
+    const url=identity.documentId.includes('-AM-')?'https://data.europarl.europa.eu/api/v2/documents/'+identity.documentId+'?format=application%2Fld%2Bjson':publicDocumentUrl(identity.documentId),request={accept:'application/ld+json'};
     const inputs=await Promise.all([this.a.read(url,request),this.b.read(url,request)]);
     const descriptors=inputs.map(input=>{
       if(!actual(input))return [];
       const work=JSON.parse(input.body).data?.[0];
-      const expected='def/ep-document-types/'+(identity.documentId.startsWith('A-')?'REPORT_PLENARY':identity.documentId.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION');
+      const expected='def/ep-document-types/'+(identity.documentId.includes('-AM-')?'AMENDMENT_LIST':identity.documentId.startsWith('A-')?'REPORT_PLENARY':identity.documentId.startsWith('RC-')?'RESOLUTION_MOTION_JOINT':'RESOLUTION_MOTION');
       if(String(work?.work_type?.id||work?.work_type||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')!==expected)return [];
       if(!['eli/dl/doc/'+identity.documentId,'https://data.europarl.europa.eu/eli/dl/doc/'+identity.documentId].includes(work?.id))return [];
       const files=this.runtime.documentFiles(work).filter(f=>f.url===identity.file.url&&f.language===identity.file.language&&f.format==='DOCX');
