@@ -18,7 +18,7 @@ export async function fillWeekCloud(store,checkpoint) {
   if(rows.length)store.transaction(()=>{store.assertWriter();for(const {date} of rows)store.db.prepare('INSERT OR IGNORE INTO week_cloud_revisions VALUES (?,1)').run(monday(date));store.set('weekCloudSeed',rows.at(-1).date);});
   const identity=indexIdentity(store);
   const pending=pendingWeek(store,today,identity);
-  if(!pending){if(!rows.length){store.assertWriter();store.set('weekCloudReady',readyStamp(store,today,identity));}return rows.length>0;}
+  if(!pending){markReadyIfFinished(store,today,identity);return rows.length>0;}
   const dates=store.db.prepare("SELECT DISTINCT date FROM speech_catalog WHERE kind='PLENARY_DEBATE_SPEECH' AND date BETWEEN ? AND date(?,'+6 days') AND date<=? ORDER BY date").all(pending.week,pending.week,today).map(row=>row.date);
   if(dates.length>5)return false;
   const languages=store.db.prepare("SELECT DISTINCT l.value language FROM speech_catalog c,json_each(c.available_languages) l WHERE c.kind='PLENARY_DEBATE_SPEECH' AND c.date BETWEEN ? AND date(?,'+6 days') AND c.date<=?").all(pending.week,pending.week,today).map(r=>r.language).filter(l=>speechWordLanguages.includes(l));
@@ -30,6 +30,7 @@ export async function fillWeekCloud(store,checkpoint) {
   const first=store.speechPage({dates,from:dates[0],to:dates.at(-1),language,limit:50});
   if(!first||first.missingRetainedLanguage) {
     store.transaction(()=>{store.assertWriter();store.db.prepare('INSERT OR REPLACE INTO week_clouds VALUES (?,?,?,?,?,?,?,NULL)').run(pending.week,language,pending.revision,WEEK_CLOUD_VERSION,JSON.stringify(dates),identity.generation,identity.demographics);});
+    markReadyIfFinished(store,today,identity);
     return true;
   }
   let result=await cloud.query(query);
@@ -38,7 +39,12 @@ export async function fillWeekCloud(store,checkpoint) {
   // Recheck ownership/content before publishing the ready row atomically.
   store.transaction(()=>{store.assertWriter();if(store.db.prepare('SELECT revision FROM week_cloud_revisions WHERE week=?').get(pending.week)?.revision!==pending.revision)return;
     store.db.prepare('INSERT OR REPLACE INTO week_clouds VALUES (?,?,?,?,?,?,?,?)').run(pending.week,language,pending.revision,WEEK_CLOUD_VERSION,JSON.stringify(dates),identity.generation,identity.demographics,zstdCompressSync(Buffer.from(JSON.stringify(result))));});
+  markReadyIfFinished(store,today,identity);
   return true;
+}
+
+function markReadyIfFinished(store,today,identity) {
+  if(!weekCloudWorkDue(store)){store.assertWriter();store.set('weekCloudReady',readyStamp(store,today,identity));}
 }
 
 function pendingWeek(store,today,identity) {

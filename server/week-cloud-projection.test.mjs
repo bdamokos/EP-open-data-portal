@@ -2,7 +2,7 @@ import {zstdDecompressSync} from 'node:zlib';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {weekCloudFixture} from './test-support/week-cloud-fixture.mjs';
-import {fillWeekCloud} from './week-cloud-worker.mjs';
+import {fillWeekCloud,weekCloudWorkDue} from './week-cloud-worker.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {CorpusReader} from './corpus-reader.mjs';
 const query=()=>speechCloudQuery(new URLSearchParams('week=2026-10-19&lang=en'));
@@ -14,6 +14,8 @@ test('worker publishes an exact text-free week, single-response read and invalid
   cloud.scope=async()=>({kind:'week',dates:f.dates.map(start=>({start,end:start})),ids:null,phase:'past',title:null,titleLanguage:null});
   let before=await cloud.query(query());while(before.nextPage!==null)before=await cloud.query({...query(),page:before.nextPage});
   assert.equal(await fillWeekCloud(f.store,checkpoint),true);assert(checkpoints>4);
+  assert(f.store.get('weekCloudReady'),'the final language publishes the idle ready marker without another writer wake');
+  assert.equal(weekCloudWorkDue(f.store),false);
   f.store.db.exec('PRAGMA query_only=ON');
   const after=f.store.weekCloud(params(f));assert(after);
   f.store.db.exec('PRAGMA query_only=OFF');assert.equal(after.nextPage,null);
