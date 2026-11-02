@@ -1,6 +1,6 @@
 import {dossierLinkClick} from './dossierJourney';
 import {UiMessage,useUiI18n} from './UiI18nReact';
-import {topicsHref,point,risers,placeValue,agendaTitle} from './topicPresentation.mjs';
+import {topicsHref,point,risers,placeValue,agendaTitle,monthRangeLabel} from './topicPresentation.mjs';
 import type {TopicOverview} from './TopicsTypes';
 import {recordHref} from './TopicsLinks';
 // Keep the API-driven story independent of the map and chart layout.
@@ -15,6 +15,6 @@ export function TopicStory({data,index,mode,own}:{data:TopicOverview;index:numbe
  const candidate=mode==='d'&&risings.length===1&&rising&&point(rising.item,period).top;
  const quantity=(count:number)=><UiMessage id={mode==='d'?'topics.mapDocuments':'topics.story.count.questions'} values={{count}} counts={{count}}/>;
  // Only a real debate is named as the biggest debate; excluded voting-time groups are kind 'record'.
- const top=candidate&&candidate.key.startsWith('MTG-PL-')&&candidate.kind!=='record'?candidate:null;
- return <p className="topic-story"><strong>{period.replace('-',' ')}: </strong>{rising?<UiMessage id={rising.average<0.5?(mode==='d'?(risings.length>1?'topics.rareTextsTiedCount':'topics.rareTextsCount'):risings.length>1?'topics.rareTiedCount':'topics.rareCount'):risings.length>1?'topics.roseTiedCount':'topics.roseCount'} values={{place:risingPlaces,quantity:quantity(rising.count),ratio:rising.ratio.toFixed(1)}}/>:<UiMessage id={leaders.length>1?'topics.mostTiedCount':'topics.mostCount'} values={{place:places,quantity:quantity(placeValue(point(leader,period),mode,own))}}/>}{top&&<> <UiMessage id="topics.biggest" values={{title:<a onClick={dossierLinkClick} href={recordHref(top.key)}>{agendaTitle(top.title)}</a>}}/></>}{rising&&!risings.some(r=>r.item.key===leader.key)&&<> <UiMessage id={leaders.length>1?'topics.overallTied':'topics.overall'} values={{place:places,count:placeValue(point(leader,period),mode,own)}}/></>}</p>;
+ const top=candidate&&candidate.key.startsWith('MTG-PL-')&&candidate.kind!=='record'&&candidate.title?candidate:null;
+ return <p className="topic-story"><strong>{monthRangeLabel(period,ui.language)}: </strong>{rising?<UiMessage id={rising.average<0.5?(mode==='d'?(risings.length>1?'topics.rareTextsTiedCount':'topics.rareTextsCount'):risings.length>1?'topics.rareTiedCount':'topics.rareCount'):risings.length>1?'topics.roseTiedCount':'topics.roseCount'} values={{place:risingPlaces,quantity:quantity(rising.count),ratio:rising.ratio.toFixed(1)}}/>:<UiMessage id={leaders.length>1?'topics.mostTiedCount':'topics.mostCount'} values={{place:places,quantity:quantity(placeValue(point(leader,period),mode,own))}}/>}{top&&<> <UiMessage id="topics.biggest" values={{title:<a onClick={dossierLinkClick} href={recordHref(top.key)}>{agendaTitle(top.title||'')}</a>}}/></>}{rising&&!risings.some(r=>r.item.key===leader.key)&&<> <UiMessage id={leaders.length>1?'topics.overallTied':'topics.overall'} values={{place:places,count:placeValue(point(leader,period),mode,own)}}/></>}</p>;
 }
