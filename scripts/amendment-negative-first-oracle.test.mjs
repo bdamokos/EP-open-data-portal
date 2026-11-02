@@ -33,3 +33,9 @@ test('an incomplete earlier first label withholds verification', () => {
   text.paragraphSources[2].complete=false;
   assert.notEqual(verifyPlacement({text,wording:wording('Paragraph -1 (new)','-1.\tNew;'),placement:insert(4)}).status,'verified');
 });
+
+test('an incomplete earlier parent paragraph withholds a negative point', () => {
+  const text=resolution(['The European Parliament,','A.\twhereas one;','1.\tEarlier first \uFFFC;','Heading','1.\tComplete first:','(a)\tfirst point;','(b)\tsecond point;','2.\tSecond.']);
+  text.paragraphSources[2].complete=false;
+  assert.notEqual(verifyPlacement({text,wording:wording('Paragraph 1 – point ‑a (new)','(-a)\tnew point;'),placement:insert(5)}).status,'verified');
+});

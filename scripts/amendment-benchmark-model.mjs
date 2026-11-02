@@ -201,12 +201,14 @@ function verifyNegativeFirst(text,wording,target,placement) {
   if(anchor?.label!==first||family.filter(unit=>unit.label===first).length!==1||anchor.start<1)return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   if(label.kind==='recital'&&!(paragraphs.length&&anchor.start<Math.min(...paragraphs.map(unit=>unit.start))))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   // Incomplete or non-body rows before the anchor can hide another first label.
-  const from=label.kind==='point'?paragraphs.find(unit=>unit.start===anchor.parent)?.start:Math.min(...raw.units.map(unit=>unit.start));
+  // Points also need the only printed owner paragraph from the resolution start.
+  const from=Math.min(...raw.units.map(unit=>unit.start)),owner=label.kind==='point'?anchor.parent:null;
   const printedFirst={paragraph:/^1[.)]\s/u,recital:/^A[.)]\s/u,point:/^\(a\)\s|^a\)\s/u}[label.kind];
-  if(!Number.isInteger(from))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+  const printedOwner=owner===null?null:new RegExp(`^${target.segments[0].value}[.)]\\s`,'u');
+  if(!Number.isInteger(from)||owner!==null&&!(from<=owner))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   for(let row=from;row<anchor.start;row++) {
-    const source=text.paragraphSources?.[row];
-    if(source?.complete!==true||source.container!=='body'||printedFirst.test(String(text.paragraphs[row]??'').trim()))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
+    const source=text.paragraphSources?.[row],value=String(text.paragraphs[row]??'').trim();
+    if(source?.complete!==true||source.container!=='body'||(owner===null||row>owner)&&printedFirst.test(value)||printedOwner&&row!==owner&&printedOwner.test(value))return {status:'unverified',reason:'oracle-anchor-identity-unverified'};
   }
   const before=text.paragraphSources?.[anchor.start-1],at=text.paragraphSources?.[anchor.start];
   if(!anchor.complete||before?.complete!==true||before.container!=='body'||at?.complete!==true)return {status:'unverified',reason:'oracle-resolution-extent-unverified'};
