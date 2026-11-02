@@ -200,8 +200,9 @@ test('group topic counts use indexed joins and stay exact across statuses withou
  assert(!statements.some(sql=>/SELECT body FROM record_topic_records WHERE generation=\? AND id=\?/.test(sql)),'no per-contribution record reads');
  assert.deepEqual(summary.groupSubjects.find(g=>g.id==='S_D'),{id:'S_D',total:3,speakerTotal:2,subjects:{'oeil:3.10.01':1,'oeil:7.30.30.06':1},unresolvedContributions:2,truncated:false});
  assert.deepEqual(summary.groupSubjects.find(g=>g.id==='PPE'),{id:'PPE',total:1,speakerTotal:1,subjects:{'oeil:3.10.01':1},unresolvedContributions:0,truncated:false});
- assert.deepEqual(summary.topicAvailability,{state:'partial',unresolvedContributions:2});assert.deepEqual(summary.subjects,concepts.map(c=>({id:c.key,label:officialSubjects.subjects[c.key.slice(5)].labels.en})));
+ assert.deepEqual(summary.topicAvailability,{state:'partial',unresolvedContributions:2});assert.deepEqual(summary.subjects,concepts.map(c=>({id:c.key,label:officialSubjects.subjects[c.key.slice(5)].labels.en.trim().replace(/\s+/g,' '),labelLanguage:'en'})));
  assert.deepEqual(summary.people.find(p=>p.id==='42').subjects,{'oeil:3.10.01':1,'oeil:7.30.30.06':1});
+ const french=groupVoicesPage(store,query('lang=fr'));assert(french.subjects.every(c=>c.labelLanguage==='fr'&&!('source' in c)));assert.equal(french.subjects[0].label,officialSubjects.subjects[french.subjects[0].id.slice(5)].labels.fr.trim().replace(/\s+/g,' '));
  const page=groupVoicesPage(store,query('part=contributions&subject=oeil:7.30.30.06'));assert.equal(page.knownTotal,1);assert.equal(page.total,null);assert.deepEqual(page.contributions.map(c=>[c.id,c.topics]),[[voices[0].id,['oeil:3.10.01','oeil:7.30.30.06']]]);
  const plan=store.db.prepare("EXPLAIN QUERY PLAN SELECT json_extract(r.body,'$.status') FROM record_topic_records r INDEXED BY topic_record_status WHERE r.generation=? AND r.id=?").all(1,'x');assert(plan.some(p=>/COVERING INDEX topic_record_status/.test(p.detail)));
 });

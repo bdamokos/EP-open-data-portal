@@ -70,3 +70,13 @@ test('official and projected topic, keyword and place labels omit repeated sourc
   assert(!('source' in label));assert(!('labelSource' in label));
  }
 });
+
+test('keyword and place detail retain one source object while every list stays compact',async t=>{
+ const {countryLabelSource}=await import('./insights-places.mjs');
+ const dir=await mkdtemp(path.join(tmpdir(),'label-detail-source-')),store=new ActivityStore(dir,{initializeIndexes:true});t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});store.acquire();store.set('active',1);
+ const source={url:'https://example.test/eurovoc',fetchedAt:'2026-11-02'},id='B-10-2026-000001',keys=['eurovoc:245','place:HUN'];
+ writeTopicProjection(store,{concepts:[{key:keys[0],role:'keyword',labels:{en:'Descriptor'},labelSource:source},{key:keys[1],role:'place',labels:{en:'Hungary'}}],records:[{id,kind:'document',date:'2026-03-01',titles:{en:'Document'},assignments:keys.map(key=>({key,paths:[]}))}]});
+ const read=(view,values)=>new RecordTopics(store).query(new URLSearchParams(values),view);
+ assert.deepEqual(read('detail',{key:keys[0]}).concept.source,source);assert.deepEqual(read('detail',{key:keys[1]}).concept.source,countryLabelSource);
+ for(const list of [read('overview',{role:'place'}).items,read('search',{q:'Hungary'}).results,read('search',{q:'Descriptor'}).results,read('records',{ids:id}).records[0].keywords,read('records',{ids:id}).records[0].places,read('detail',{key:keys[0]}).facets.places])for(const label of list)assert(!('source' in label));
+});

@@ -42,5 +42,37 @@ test('followed policy labels use the single page disclosure with no inline prove
  await wait(()=>node.querySelector('.policy-area-sources')?.textContent.includes('translated by the explorer'));
  assert.equal(node.querySelector('h2 a').getAttribute('lang'),'hu');assert(!node.querySelector('.explorer-saved-card').textContent.includes('translated by'));
  assert.equal(node.querySelectorAll('details').length,1);assert.equal(node.querySelector('details').open,false);
- await act(async()=>node.querySelector('.explorer-saved-card button').click());await wait(()=>!node.querySelector('.explorer-saved-card'));await wait(()=>!node.querySelector('details').textContent.includes('translated by'));
+ await act(async()=>node.querySelector('.explorer-saved-card button').click());await wait(()=>!node.querySelector('.explorer-saved-card'));await wait(()=>!node.querySelector('details'));
+});
+
+test('Sources stays absent for loading, unavailable and Places, and appears for place-detail policy facets',async t=>{
+ const {node,root,load,wait}=await harness(t,'http://localhost/?view=topics&t-tab=places');let release,requested=false,ready=false;
+ const gate=new Promise(r=>release=r);
+ t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);if(u.pathname==='/api/topics/overview'){if(!ready){requested=true;await gate;return Response.json({ready:false});}return Response.json({ready:true,items:[],periods:['2026-Q1'],partial:{}});}if(u.pathname==='/api/topics/detail')return Response.json({ready:true,concept:{key:'place:HUN',label:'Hungary',iso3:'HUN'},series:[],periods:['2026-Q1'],partial:{},groupsTotal:0,total:0,groups:[],facets:{topics:[{key:'oeil:9.99',label:'Policy facet',n:1}],keywords:[],places:[]},nextOffset:null});return Response.json({ready:false});});
+ const {Topics}=await load('/src/Topics.tsx');await act(async()=>root.render(h(Topics,{})));await wait(()=>requested);assert(!node.querySelector('.policy-area-sources'));
+ await act(async()=>release());await wait(()=>node.textContent.includes('Unavailable'));assert(!node.querySelector('.policy-area-sources'));
+ ready=true;await act(async()=>root.render(h(Topics,{key:'ready',language:'fr'})));await wait(()=>node.querySelector('.places-layout'));assert(!node.querySelector('.policy-area-sources'));
+ await act(async()=>{history.replaceState({},'','?view=topics&place=HUN');window.dispatchEvent(new window.PopStateEvent('popstate'));root.render(h(Topics,{key:'detail',language:'fr'}));});await wait(()=>node.querySelector('.topic-facets a')?.textContent.includes('Policy facet'));await wait(()=>node.querySelector('.policy-area-sources'));
+});
+
+test('Sources gating keeps the provider, child DOM, input value and focus mounted',async t=>{
+ const {node,root,load,wait}=await harness(t),{PolicyAreaSourcesPage,PolicyAreaLabelUsage}=await load('/src/PolicyAreaSources.tsx');
+ const render=enabled=>root.render(h(PolicyAreaSourcesPage,{enabled},h('section',{},h(PolicyAreaLabelUsage,{labels:[{key:'oeil:9.99',label:'Policy'}]}),h('input',{defaultValue:'Original'}))));
+ await act(async()=>render(false));const section=node.querySelector('section'),input=node.querySelector('input');input.value='Edited';input.focus();assert(!node.querySelector('details'));
+ await act(async()=>render(true));await wait(()=>node.querySelector('details'));assert.equal(node.querySelector('section'),section);assert.equal(node.querySelector('input'),input);assert.equal(input.value,'Edited');assert.equal(document.activeElement,input);
+ await act(async()=>render(false));assert(!node.querySelector('details'));assert.equal(node.querySelector('input'),input);assert.equal(document.activeElement,input);
+});
+
+test('keyword-page TopicLines can disclose policy areas while a keyword alone cannot',async t=>{
+ const {node,root,load,wait}=await harness(t),{PolicyAreaSourcesPage,PolicyAreaLabelUsage}=await load('/src/PolicyAreaSources.tsx'),{TopicLine}=await load('/src/RecordTopics.tsx');
+ const children=show=>h(PolicyAreaSourcesPage,{},h(PolicyAreaLabelUsage,{labels:[{key:'eurovoc:245',label:'Keyword'}]}),show?h(TopicLine,{record:{id:'B-10-2026-1',status:'classified',topics:[{key:'oeil:9.99',label:'Policy',labelSource:'explorer-translation'}],keywords:[],places:[]}}):null);
+ await act(async()=>root.render(children(false)));assert(!node.querySelector('details'));await act(async()=>root.render(children(true)));await wait(()=>node.querySelector('details')?.textContent.includes('translated by'));assert.equal(node.querySelectorAll('details').length,1);
+});
+
+test('fallback story titles and their opened records carry the actual French language',async t=>{
+ const {node,root,load,wait}=await harness(t,'http://localhost/?view=topics&topic=oeil%3A9.99');
+ const payload={ready:true,counts:{groups:1,adoptedTexts:1},periodCounts:[],periodWinners:{},winners:{headlineAdoptedTexts3Plus:[{id:'R',debateMeps:5}]},sets:{},questions:[],debates:[],docs:[{id:'R',type:'REPORT',title:'Titre français',titleLanguage:'fr',date:'2025-03-12',places:[],keywords:[],groups:[],procedures:[],outcome:{outcome:'ADOPTED',for:100,against:20}}],topic:{key:'oeil:9.99',label:'Policy',labelLanguage:'en'}};
+ t.mock.method(globalThis,'fetch',async()=>Response.json(payload));const {TopicStories}=await load('/src/TopicStories.tsx');await act(async()=>root.render(h(TopicStories,{selection:{periods:[],topic:'oeil:9.99'}})));
+ await wait(()=>node.querySelector('i[lang=fr]'));assert.equal(node.querySelector('i[lang=fr]').textContent,'Titre français');
+ await act(async()=>node.querySelector('i[lang=fr]').closest('a').click());await wait(()=>node.querySelector('.topic-story-records article a[lang=fr]'));assert.equal(node.querySelector('.topic-story-records article a[lang=fr]').textContent,'Titre français');
 });
