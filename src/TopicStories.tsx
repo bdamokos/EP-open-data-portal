@@ -11,7 +11,7 @@ import {recordHref} from './TopicsLinks';
 import {sourcePageUrl} from './SourceLink';
 import {dossierLinkClick,navigateDossier,useDossierReaderState} from './dossierJourney';
 import {InsightQuestionReader,InsightSpeechReader} from './InsightReaders';
-export function TopicStories({selection,fallback,facts:provided,onRecords,onReady}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string)=>void;onReady?:()=>void}){
+export function TopicStories({selection,fallback,facts:provided,onRecords}:{selection:StorySelection;fallback?:ReactNode;facts?:StoryFacts;onRecords?:(period?:string)=>void}){
  const ui=useUiI18n(),panel=useId(),[selected,setSelected]=useExplorerParam<string>('t-story',''),[reading,setReading]=useExplorerParam<string>('t-story-read',''),[,setQuarter]=useExplorerParam<string>('t-q','');
  const response=useInsightData<any>(provided?null:storyFactsRoute({...selection,language:ui.language,period:undefined}));
  const facts=provided?normalizeReferenceStoryFacts(provided):null;
@@ -23,7 +23,6 @@ export function TopicStories({selection,fallback,facts:provided,onRecords,onRead
  const candidate=build(ui.locale),proseUi=candidate.every(line=>ui.messageLocale(line.id)===ui.locale&&Object.values(line.values).every(nativeValue))?ui:defaultUi;
  const lines=proseUi===ui?candidate:build(proseUi.locale),proseI18n={sourceLocale:'en',forLocale:()=>proseUi},heading=useRef<HTMLHeadingElement>(null),opener=useRef<HTMLAnchorElement|null>(null);
  useEffect(()=>{setShown(20);if(selected&&heading.current){heading.current.focus({preventScroll:true});heading.current.scrollIntoView({block:'start'});}else if(!selected&&opener.current?.isConnected){opener.current.focus({preventScroll:true});opener.current=null;}},[selected,Boolean(lines.length)]);
- useEffect(()=>{if(provided||!response.loading)onReady?.();},[provided,response.loading,onReady]);
  const questionGap=false;
  if(!lines.length)return <>{response.data?.ready&&questionGap?<p className="topic-muted"><UiMessage id="topics.story.questionsUnavailable"/></p>:response.error||response.data?.ready===false||!response.data?fallback:null}</>;
  const refs=new Map<string,StoryReference>();

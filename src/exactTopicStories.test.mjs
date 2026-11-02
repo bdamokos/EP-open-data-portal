@@ -161,3 +161,11 @@ test('story records and title references preserve a non-English fallback languag
  assert.equal(storyRecord(x.docs[0],'document').titleLanguage,'fr');
  const lines=buildExactTopicStories(x,{topic:'oeil:9.99'});assert(JSON.stringify(lines).includes('"titleLanguage":"fr"'));
 });
+
+test('months: the busiest-quarter reference names months in the interface language',async()=>{
+ const {monthRangeLabel}=await import('./topicPresentation.mjs');
+ assert.match(monthRangeLabel('2026-Q1','en'),/^January\s*[–-]\s*March 2026$/);assert.match(monthRangeLabel('2026-Q4','fr'),/octobre.*décembre 2026/);assert.equal(monthRangeLabel('bad','en'),'bad');
+ const x=base();x.periodCounts=[{period:'2026-Q1',debateSpeakerAppearances:40},{period:'2026-Q2',debateSpeakerAppearances:10}];
+ const row=buildExactTopicStories(x,{place:'IRN',language:'en',labels:{IRN:'Iran'}}).find(r=>r.id==='topics.story.place.summary.peak');
+ assert.match(lineText([row]),/^Busiest quarter: January\s*[–-]\s*March 2026\.$/);assert.equal(row.values.quarter[0].period,'2026-Q1','links keep the quarter key');
+});
