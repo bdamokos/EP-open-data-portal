@@ -7,7 +7,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=18;
+export const TOPICS_VERSION=19;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -66,7 +66,7 @@ export function finishTopicProjection(store,generation,concepts,{questionCountri
  for(const r of store.db.prepare(`SELECT substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,kind,COUNT(*) n FROM record_topic_records WHERE generation=? AND date BETWEEN '2024-07-16' AND ? AND kind IN ('debate','document','question','speech','vote') GROUP BY period,kind`).iterate(generation,end))if(periodTotals[r.period])periodTotals[r.period][r.kind]=r.n;
  for(const r of store.db.prepare(`SELECT substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,COUNT(DISTINCT substr(id,8,10)) n FROM record_topic_records WHERE generation=? AND date BETWEEN '2024-07-16' AND ? AND id LIKE 'MTG-PL-%' AND kind IN ('debate','vote') GROUP BY period`).iterate(generation,end))if(r.n)sittingDays[r.period]=r.n;
  const last=store.db.prepare("SELECT MAX(date) date FROM record_topic_records WHERE generation=? AND date<=? AND kind IN ('debate','document','question','speech','vote')").get(generation,end).date;
- store.set('recordTopicCalendar',{generation,periodTotals,sittingDays,partial:{first:'2024-07-16',last:last||null}});
+ store.set('recordTopicCalendar',{generation,periodTotals,sittingDays,end,partial:{first:'2024-07-16',last:last||null}});
  store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation,askerSubsets:['all','home','elsewhere','not-home'],builtAt:new Date().toISOString()});});
 }
 export function writeTopicProjection(store,projection,generation=store.get('active')||store.get('working')?.generation){topicTables(store.db);store.transaction(()=>{store.assertWriter();store.set('recordTopicProjection',null);for(const t of ['record_topic_records','record_topic_concepts','record_topic_memberships','record_topic_totals'])store.db.prepare('DELETE FROM '+t+' WHERE generation=?').run(generation);putTopicRecords(store,generation,[...projection.records].sort((a,b)=>(a.kind==='event'?-1:1)-(b.kind==='event'?-1:1)));});finishTopicProjection(store,generation,projection.concepts);}
@@ -104,7 +104,7 @@ function* finishTopicSteps(store,generation,concepts,{questionCountries}={}){
   yield;const n=db.prepare("SELECT COUNT(DISTINCT substr(id,8,10)) n FROM record_topic_records WHERE generation=? AND kind IN ('debate','vote') AND date>=? AND date<? AND date>='2024-07-16' AND date<=? AND id LIKE 'MTG-PL-%'").get(generation,start,next,end).n;if(n)sittingDays[period]=n;
  }
  let last=null;for(const kind of topicKinds){yield;const date=db.prepare('SELECT MAX(date) date FROM record_topic_records WHERE generation=? AND kind=? AND date<=?').get(generation,kind,end).date;if(date&&(!last||date>last))last=date;}
- store.set('recordTopicCalendar',{generation,periodTotals,sittingDays,partial:{first:'2024-07-16',last}});
+ store.set('recordTopicCalendar',{generation,periodTotals,sittingDays,end,partial:{first:'2024-07-16',last}});
  store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation,askerSubsets:['all','home','elsewhere','not-home'],builtAt:new Date().toISOString()});
 }
 
@@ -133,6 +133,9 @@ export class RecordTopics{
  if(!generation||askers==='not-home'&&view!=='detail'&&!this.state.askerSubsets?.includes('not-home'))return {ready:false};
  if(view==='records')return {ready:true,records:[...new Set(ids)].map(id=>this.record(id,language))};
  const periods=topicPeriods(),summary=new Map(),storedCoverage=this.store.get('recordTopicCoverage'),coverage=storedCoverage?{...storedCoverage,pending:storedCoverage.pending??Math.max(0,storedCoverage.referenced-storedCoverage.read-storedCoverage.unavailable)}:storedCoverage,calendar=this.store.get('recordTopicCalendar')||{},extras={sittingDays:calendar.sittingDays||{},periodTotals:calendar.periodTotals||{},partial:calendar.partial||{first:'2024-07-16',last:null}};
+ // Overview totals were bounded by the build day; detail and question splits
+ // use the same bound so both count the same records.
+ const bound=calendar.end||calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now());
  const top=value=>{if(!value)return undefined;const t=typeof value==='string'?JSON.parse(value):value;return {key:t.key,title:t.titles?.[languagePreference(Object.keys(t.titles||{}),language)[0]]||t.key,date:t.date};};
  if(view!=='detail'){
  for(const row of this.db.prepare('SELECT key,period,kind,n FROM '+(askers==='all'?'record_topic_totals':'record_topic_filtered_totals')+' WHERE generation=?'+(askers==='all'?'':' AND askers=?')).iterate(generation,...(askers==='all'?[]:[askers]))){
@@ -140,13 +143,13 @@ export class RecordTopics{
  }
  for(const r of this.db.prepare('SELECT key,period,groups,top FROM '+(askers==='all'?'record_topic_group_summary':'record_topic_filtered_groups')+' WHERE generation=?'+(askers==='all'?'':' AND askers=?')).iterate(generation,...(askers==='all'?[]:[askers]))){const item=summary.get(r.key);if(!item)continue;if(!r.period)item.groupsTotal=r.groups;else {const period=item.series.find(s=>s.period===r.period);if(period)Object.assign(period,{groups:r.groups,top:top(r.top)});}}
  for(const item of summary.values())if(item.role==='place')for(const s of item.series)Object.assign(s,{questionHome:0,questionElsewhere:0,questionUnknown:0});
- for(const r of this.db.prepare("SELECT key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,askers,COUNT(*) n FROM record_topic_question_places WHERE generation=? AND date>='2024-07-16' AND date<=?"+(askers==='all'?'':" AND askers IN (SELECT value FROM json_each(?))")+' GROUP BY key,period,askers').iterate(generation,calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now()),...(askers==='all'?[]:[JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers])]))){const s=summary.get(r.key)?.series.find(s=>s.period===r.period);if(s)s['question'+r.askers[0].toUpperCase()+r.askers.slice(1)]=r.n;}
+ for(const r of this.db.prepare("SELECT key,substr(date,1,4)||'-Q'||CAST((CAST(substr(date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,askers,COUNT(*) n FROM record_topic_question_places WHERE generation=? AND date>='2024-07-16' AND date<=?"+(askers==='all'?'':" AND askers IN (SELECT value FROM json_each(?))")+' GROUP BY key,period,askers').iterate(generation,bound,...(askers==='all'?[]:[JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers])]))){const s=summary.get(r.key)?.series.find(s=>s.period===r.period);if(s)s['question'+r.askers[0].toUpperCase()+r.askers.slice(1)]=r.n;}
  const items=[...summary.values()].sort((a,b)=>b.total-a.total||a.key.localeCompare(b.key));
  if(view==='overview')return {ready:true,coverage,...extras,periods,items:items.filter(c=>c.role===role).map(({key,label,id,iso3,deprecated,total,counts,series,groupsTotal})=>({key,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,groupsTotal,counts,series}))};
  const text=params.get('q')||'';if(text.length>120)throw new HttpError(400,'invalid_query','Use a shorter search.');const q=fold(text),limits={topic:0,keyword:0,place:0};return {ready:true,results:items.filter(c=>(!q?c.role==='topic':fold(c.label).includes(q))&&limits[c.role]++<8).map(({key,role,label,id,iso3,deprecated,total,counts})=>({key,role,label,...(id?{id,iso3,...(deprecated?{deprecated:true}:{})}:{}),total,counts}))};
  }
  const concept=this.concept(key,language);if(concept?.role==='hidden')throw new HttpError(400,'invalid_topic','Choose a topic.');
- const where=['m.generation=?','m.key=?',"m.kind IN ('debate','document','question','speech','vote')","m.date>=?","m.date<=?"],args=[generation,key,from&&from>'2024-07-16'?from:'2024-07-16',to||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now())];
+ const where=['m.generation=?','m.key=?',"m.kind IN ('debate','document','question','speech','vote')","m.date>=?","m.date<=?"],args=[generation,key,from&&from>'2024-07-16'?from:'2024-07-16',to&&to<bound?to:bound];
  if(kind){where.push('m.kind=?');args.push(kind);}for(const filter of [keyword,place])if(filter){where.push('EXISTS (SELECT 1 FROM record_topic_memberships f WHERE f.generation=m.generation AND f.record_id=m.record_id AND f.key=?)');args.push(filter);}
  if(askers!=='all'){where.push("(m.kind<>'question' OR EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.askers IN (SELECT value FROM json_each(?))"+(key.startsWith('place:')||place?' AND q.key=?':'')+'))');args.push(JSON.stringify(askers==='not-home'?['elsewhere','unknown']:[askers]),...(key.startsWith('place:')||place?[key.startsWith('place:')?key:place]:[]));}
  const selection='FROM record_topic_memberships m WHERE '+where.join(' AND ');
