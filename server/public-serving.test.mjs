@@ -7,6 +7,7 @@ import path from 'node:path';
 import {readJson} from '../src/client.mjs';
 import {execFileAsync,registerSubprocesses} from './test-support/subprocess.mjs';
 import {execProcessGroupAsync} from './test-support/subprocess-group.mjs';
+import {processTable} from './test-support/process-table.mjs';
 
 beforeEach(registerSubprocesses);
 
@@ -90,7 +91,7 @@ test('public data reads omit credentials on initial, retry and terminal-error re
 });
 
 
-test('real node:test timeout and cancellation reap children before FIFO fixture cleanup',{skip:process.platform==='win32'?'POSIX process-group lifecycle probe':false},async t=>{
+test('real node:test timeout and cancellation reap children before FIFO fixture cleanup',processTable,async t=>{
   const directory=mkdtempSync(path.join(tmpdir(),'subprocess-lifecycle-'));
   const groups=[];
   t.after(()=>{
@@ -174,7 +175,7 @@ async function assertSameGroup(t,group,members) {
   for(const [pid,pgid] of rows){assert(members.includes(pid));assert.equal(pgid,group,'no regression descendant may escape its owned group');}
 }
 
-test('outer 3s timeout descendants stay contained until process-group teardown',{skip:process.platform==='win32'},async t=>{
+test('outer 3s timeout descendants stay contained until process-group teardown',processTable,async t=>{
   const directory=mkdtempSync(path.join(tmpdir(),'subprocess-outer-timeout-'));
   const helper=JSON.stringify(new URL('./test-support/subprocess.mjs',import.meta.url).href);
   const ready=path.join(directory,'inner-ready.json'),outerReady=path.join(directory,'outer-ready.json'),go=path.join(directory,'go'),negativeProof=path.join(directory,'negative-proof.json');
