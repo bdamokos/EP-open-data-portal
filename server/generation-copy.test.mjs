@@ -22,7 +22,7 @@ test('batched generation copies match a single statement at every boundary',()=>
 
 test('a generation copy through JS trigger functions stays within a small heap',()=>{
   // One statement over these rows keeps every parsed body alive and exceeds
-  // the 48 MiB limit; batched ranges release them between statements.
+  // the 24 MiB limit; batched ranges release them between statements.
   const script=`
     import {DatabaseSync} from 'node:sqlite';
     import {copyGenerationRows} from ${JSON.stringify(new URL('./generation-copy.mjs',import.meta.url).href)};
@@ -30,9 +30,9 @@ test('a generation copy through JS trigger functions stays within a small heap',
     db.exec('CREATE TABLE sources (generation INTEGER, key TEXT, body TEXT, PRIMARY KEY(generation,key)); CREATE TABLE reads (generation INTEGER, key TEXT, value TEXT)');
     db.function('compact',{deterministic:true},body=>{const value=JSON.parse(body);return JSON.stringify({id:value.id,count:value.items.length});});
     const body=JSON.stringify({id:'x',items:Array.from({length:400},(_,i)=>({a:i,b:'text '+i,c:[i,i+1]}))});
-    const insert=db.prepare('INSERT INTO sources VALUES (1,?,?)');db.exec('BEGIN');for(let i=0;i<12000;i++)insert.run('k'+String(i).padStart(6,'0'),body);db.exec('COMMIT');
+    const insert=db.prepare('INSERT INTO sources VALUES (1,?,?)');db.exec('BEGIN');for(let i=0;i<5000;i++)insert.run('k'+String(i).padStart(6,'0'),body);db.exec('COMMIT');
     db.exec("CREATE TRIGGER copy_reads AFTER INSERT ON sources BEGIN INSERT INTO reads VALUES (NEW.generation,NEW.key,compact(NEW.body)); END");
     db.exec('BEGIN');copyGenerationRows(db,{table:'sources',key:'key',select:'INSERT INTO sources SELECT ?,key,body FROM sources'},2,1);db.exec('COMMIT');
     process.stdout.write(String(db.prepare('SELECT COUNT(*) n FROM reads WHERE generation=2').get().n));`;
-  assert.equal(execFileSync(process.execPath,['--max-old-space-size=48','--input-type=module','-e',script],{encoding:'utf8'}),'12000');
+  assert.equal(execFileSync(process.execPath,['--max-old-space-size=24','--input-type=module','-e',script],{encoding:'utf8'}),'5000');
 });
