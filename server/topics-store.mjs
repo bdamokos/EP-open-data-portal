@@ -1,4 +1,5 @@
 import {voteActivity} from './story-facts-model.mjs';
+import {storyEventType} from './story-facts-storage.mjs';
 import {readableRecordTopicState} from './topic-projection-state.mjs';
 import {topicBatches} from './topic-disk-map.mjs';
 import {countryLabelSource} from './insights-places.mjs';
@@ -29,12 +30,15 @@ export function topicTables(db){questionPlaceTables(db);db.exec(`
  CREATE TABLE IF NOT EXISTS record_topic_group_summary(generation INTEGER,key TEXT,period TEXT,groups INTEGER,top TEXT,PRIMARY KEY(generation,key,period));
  CREATE TABLE IF NOT EXISTS record_topic_totals(generation INTEGER,key TEXT,period TEXT,kind TEXT,n INTEGER,PRIMARY KEY(generation,key,period,kind));
  `);}
+const eventTypeEvidence=(store,id)=>{try{return storyEventType(store,id);}catch(error){if(/no such table/.test(error.message))return null;throw error;}};
 const topicWriteStatements=new WeakMap();
 export function putTopicRecords(store,generation,records){
  const db=store.db;let statements=topicWriteStatements.get(db);if(!statements){statements={remove:db.prepare('DELETE FROM record_topic_memberships WHERE generation=? AND record_id=?'),group:db.prepare('SELECT group_key FROM record_topic_records WHERE generation=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO record_topic_records VALUES (?,?,?,?,?,?,?)'),member:db.prepare('INSERT OR IGNORE INTO record_topic_memberships VALUES (?,?,?,?,?,?)')};topicWriteStatements.set(db,statements);}const {remove,group,put,member}=statements;
  // Proceeding markers (catch-the-eye starts/ends, notes) and chair announcements are not records anyone reads as debates.
  for(const record of records){if(record.kind==='event'&&/\/(?:PROCEEDING_ACTIVITY|MEETING_NAME_CHAIR)$/.test(record.activityType||'')){remove.run(generation,record.id);continue;}
- const r={...record,kind:record.kind==='event'?voteActivity(record.activityType)?'vote':'debate':record.kind};
+ // Same evidence as story debates: retained type observations first; conflicting evidence keeps a debate.
+ const evidence=record.kind==='event'?eventTypeEvidence(store,record.id):null;
+ const r={...record,kind:record.kind==='event'?!evidence?.conflicted&&voteActivity(evidence?evidence.type:record.activityType)?'vote':'debate':record.kind};
  const parents=r.kind==='speech'?r.parentIds:r.kind==='debate'?r.agendaIds:r.eventIds||[];
  const resolvedParents=[...new Set((parents||[]).map(id=>group.get(generation,id)?.group_key||id))];
  const parent=resolvedParents.length===1?resolvedParents[0]:null,procedure=r.procedureIds?.length===1?r.procedureIds[0]:null;

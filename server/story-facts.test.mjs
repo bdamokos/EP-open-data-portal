@@ -424,3 +424,40 @@ test('conflicting type evidence from any source never excludes',async t=>{
  assert.equal(votingDebate(storyInput(store,'event',id),['Item (vote)'],evidence.type,Boolean(evidence.conflicted)),false);
  assert.equal(votingDebate({titles:{en:'Item'},type:'PLENARY_DEBATE',conflicted:true},[],'PLENARY_VOTE',false),false,'a conflicted story event never excludes, even with a vote type elsewhere');
 });
+
+// Integration: held types arrive through the real ingestion paths, never by a network read.
+async function heldEventFixture(t,{child,parent,day}){
+ const dir=await mkdtemp(path.join(tmpdir(),'story-held-')),cache=path.join(dir,'cache');await (await import('node:fs/promises')).mkdir(cache);const store=new ActivityStore(path.join(dir,'index'),{initializeIndexes:true});store.acquire();store.set('active',1);storyTables(store.db);t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ const legacy={id:child,executed:[],executedKnown:true,titles:{en:'Nigeria'},date:day,relationships:{executed:[]}};
+ store.db.prepare('INSERT INTO story_inputs VALUES (?,?,?,?,?,?)').run('event',child,JSON.stringify(legacy),JSON.stringify(source),stamp,4);
+ store.db.prepare("INSERT INTO story_jobs(key,kind,id,state,next_read) VALUES (?,?,?,'available',NULL)").run('event:'+child,'event',child);
+ store.putSource(1,'/plenary-documents/B-10-2026-0310','document',{id:'eli/dl/doc/B-10-2026-0310',identifier:'B-10-2026-0310',work_type:'def/ep-document-types/RESOLUTION_MOTION',document_date:day,title_dcterms:{en:'MOTION FOR A RESOLUTION on Nigeria'},creator:['org/PPE'],is_about:[geo('NGA'),'http://eurovoc.europa.eu/245'],inverse_based_on_a_realization_of:['eli/dl/event/'+child]},stamp);
+ for(const person of ['1','2','3']){const sid='MTG-PL-'+day+'-OTH-5'+person;store.putSource(1,'/speeches/'+sid,'speech',{outside:{id:sid,date:day,titles:{en:'Nigeria'},participants:[person],parentIds:[child],headers:[{personId:person}],source}},stamp);store.db.prepare('INSERT INTO items VALUES (?,?,?,?,?,?,?)').run(1,'/speeches/'+sid,sid,person,'plenary-contributions',day,JSON.stringify({speechKind:'PLENARY_DEBATE_SPEECH'}));}
+ return {store,cache};
+}
+const heldChecks=(store,child)=>{
+ assert.equal(storyEventType(store,child)?.type,'PLENARY_VOTE','the held type is recorded');
+ assert.equal(store.db.prepare('SELECT state FROM story_jobs WHERE key=?').get('event:'+child).state,'available','no read is queued');
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,1,'the vote is not a debate');
+ assert.equal(store.db.prepare("SELECT COUNT(*) n FROM record_topic_memberships WHERE generation=1 AND record_id=? AND kind='debate'").get(child).n,0);
+};
+test('an outside-agenda record supplies a held type through ingestion with no read',async t=>{
+ const day='2026-07-09',child='MTG-PL-'+day+'-PVCRE-ITM-9-6',{store}=await heldEventFixture(t,{child,day});
+ store.putSource(1,'outside:agenda:'+child,'outside-agenda',{id:child,date:day,titles:{en:'Nigeria'},kind:'PLENARY_VOTE',procedureIds:[],source:{url:'https://data.europarl.europa.eu/api/v2/events/'+child,fetchedAt:'2026-10-20T11:10:24.838Z'}},stamp);
+ await buildTopics(store,{cache:null});heldChecks(store,child);
+});
+test('a retained raw parent supplies its embedded child type through ingestion with no read',async t=>{
+ const day='2026-07-09',parent='MTG-PL-'+day+'-PVCRE-ITM-9',child=parent+'-6',{store,cache}=await heldEventFixture(t,{child,day});
+ await (await import('node:fs/promises')).writeFile(path.join(cache,'b'.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+parent,fetchedAt:Date.parse('2026-10-20T12:00Z'),payload:{data:[{id:'eli/dl/event/'+parent,activity_id:parent,activity_date:day,activity_label:{en:'Voting time'},had_activity_type:'def/ep-activities/PLENARY_VOTE',consists_of:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,had_activity_type:'def/ep-activities/PLENARY_VOTE',activity_label:{en:'Nigeria'},inverse_consists_of:['eli/dl/event/'+parent]}]}]}}));
+ await buildTopics(store,{cache});heldChecks(store,child);
+});
+for(const order of [['PLENARY_DEBATE','PLENARY_VOTE'],['PLENARY_VOTE','PLENARY_DEBATE']])test('stories and topic records agree when same-time types conflict: '+order.join(' then '),async t=>{
+ const day='2026-07-09',child='MTG-PL-'+day+'-PVCRE-ITM-12',{store,cache}=await heldEventFixture(t,{child,day});
+ const fs=await import('node:fs/promises'),at=Date.parse('2026-11-02T12:00Z');
+ for(const [n,type] of [['c',order[0]],['d',order[1]]])await fs.writeFile(path.join(cache,n.repeat(64)+'.json'),JSON.stringify({url:'https://data.europarl.europa.eu/api/v2/events/'+child+'?'+n,fetchedAt:at,payload:{data:[{id:'eli/dl/event/'+child,activity_id:child,activity_date:day,activity_label:{en:'Nigeria'},had_activity_type:'def/ep-activities/'+type}]}}));
+ await buildTopics(store,{cache});
+assert.equal(storyEventType(store,child).conflicted,1);
+ assert.equal(store.db.prepare("SELECT json_extract(body,'$.procedural') p FROM story_facts WHERE generation=1 AND kind='debate' AND id=?").get(child)?.p,0,'conflicting evidence keeps a story debate');
+ assert.equal(store.db.prepare('SELECT kind FROM record_topic_records WHERE generation=1 AND id=?').get(child)?.kind,'debate','the topic record agrees');
+ const totals=store.get('recordTopicCalendar').periodTotals['2026-Q3'];assert.equal(totals.debate,1);assert.equal(totals.vote,0);
+});

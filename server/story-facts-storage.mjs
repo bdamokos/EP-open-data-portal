@@ -21,6 +21,8 @@ const statements=new WeakMap();
 function prepared(db){let p=statements.get(db);if(!p){p={queue:db.prepare('INSERT OR IGNORE INTO story_jobs(key,kind,id,state,next_read,error) VALUES (?,?,?,?,?,?)'),input:db.prepare('SELECT body,source FROM story_inputs WHERE kind=? AND id=?'),get:db.prepare('SELECT body,source,fetched_at,rank FROM story_inputs WHERE kind=? AND id=?'),put:db.prepare('INSERT OR REPLACE INTO story_inputs VALUES (?,?,?,?,?,?)')};statements.set(db,p);}return p;}
 export function stageStoryInput(store,w,source,{rank=1}={}){
  source={...source,fetchedAt:sourceTime(source?.fetchedAt)};let kind,value;
+ // Verbatim items embedded as consists_of children of a retained parent carry their own type.
+ for(const child of array(w?.consists_of))if(child&&typeof child==='object'&&child.had_activity_type){const cid=child.activity_id||tail(child.id);if(/-PVCRE-ITM-/.test(cid))recordEventType(store,cid,tail(child.had_activity_type),sourceTime(source.fetchedAt)||'');}
  if(w.outside){const o=w.outside;if(!o.id)return;kind='speech';value={id:o.id,date:o.date,titles:o.titles||{},parentIds:o.parentIds||[],creIds:o.parentDocumentIds||[],creId:o.parentDocumentId||null,headers:array(o.headers).map(h=>({personId:String(h.personId),capacity:h.capacity||null,role:h.role||null})),source:o.source||source};}
  else if(w.work_type){kind='document';value=storyDocument(w,source);}
  else {const id=w.activity_id||tail(w.id);if(!id)return;
