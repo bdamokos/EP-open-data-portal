@@ -13,11 +13,13 @@ export function buildExactTopicStories(payload,s={}){
  const cm=(n,unit)=>({...msg('count.'+unit,{count:num(n)}),counts:{count:n}});
  const browse=(text,list,place,askers)=>ref(text,[],{browse:{list,...(place?{place}:{}),...(askers?{askers}:{})}});
  const title=d=>ref(cleanStoryTitle(agendaTitle(d.rawTitle||d.title)),[storyRecord(d,ds.has(d.id)?'debate':'document')],{italic:true});
- const add=(id,values,priority=1,order=priority)=>lines.push({id:'topics.story.'+id,values,priority,order,cost:1});
+ const add=(id,values,priority=1,order=priority,extra={})=>lines.push({id:'topics.story.'+id,values,priority,order,cost:1,...extra});
  const records=d=>[storyRecord(d,'debate'),...(d.docs||[]).map(id=>docs.get(id)).filter(Boolean).filter(d=>d.outcome?.outcome==='ADOPTED').map(d=>storyRecord(d,'document'))];
  const debates=(ids)=>ids.map(x=>ds.get(typeof x==='string'?x:x.id)).filter(d=>d&&d.meps>=3);
  const busy0=debates(s.place?w.leadingPlaceDebates3Plus||[]:s.topic?w.busiestDebates||[]:w.busiestNonUrgencyDebates||[]);
  const busy=[...busy0].sort(byDate);
+ const narratedText=d=>{const all=(d.docs||[]).map(id=>docs.get(id)).filter(x=>x?.outcome?.outcome==='ADOPTED'&&/RESOLUTION_MOTION/.test(x.type));return all.find(x=>x.type==='RESOLUTION_MOTION_JOINT')||all[0]||null;};
+ const narrates=list=>({narrates:list.map(narratedText).filter(Boolean).map(x=>x.id)});
  const outcome=d=>{const all=(d.docs||[]).map(id=>docs.get(id)).filter(x=>x?.outcome?.outcome==='ADOPTED'&&/RESOLUTION_MOTION/.test(x.type)),r=all.find(x=>x.type==='RESOLUTION_MOTION_JOINT')||all[0];if(!r)return null;const o=r.outcome,rs=[storyRecord(r,'document')],resolution=ref(msg('resolution'),rs);return msg('semicolon',{value:o.for!=null&&o.against!=null?msg(r.type==='RESOLUTION_MOTION_JOINT'&&r.groupsAvailable===true&&r.groups?.length>=2?'outcome.jointPassed':'outcome.passed',{resolution,groups:ref(num(r.groups?.length||0),rs),tally:msg('tally.simple',{for:ref(digits(o.for),rs),against:ref(digits(o.against),rs)})}):msg(/VOTE_HAND/.test(o.method||'')?'outcome.showOfHands':'outcome.adopted',{resolution})});};
  const day=d=>new Intl.DateTimeFormat(s.language==='en'?'en-GB':s.language||'en-GB',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(d+'T12:00:00Z'));
  const fmt=d=>['council-commission','commission','hrvp','eucouncil','president','topical','oral-question'].includes(d.format)?msg('comma',{value:msg('format.'+d.format)}):null;
@@ -26,10 +28,10 @@ export function buildExactTopicStories(payload,s={}){
  if((period||!s.place&&!s.topic)&&busy.length){
   if(busy.length===1&&!s.place){const d=busy[0],pp=d.primaryPlace||primaryStoryPlace(d),v=debateValues(d);
    // Lead with the place when the debate has one primary place in view; topics use their own frame.
-   if(s.topic)add('exact.topicBusiest',v,1,2);
-   else if(pp)add('exact.busiestPlace',{...v,place:name(pp,true)},1,2);
-   else add('exact.busiestPlain',v,1,2);}
-  else add(s.place?'exact.placeDebates':busy.length===1?'exact.busiestOne':'exact.busiestMany',{debates:busyValues},1,2);}
+   if(s.topic)add('exact.topicBusiest',v,1,2,narrates([d]));
+   else if(pp)add('exact.busiestPlace',{...v,place:name(pp,true)},1,2,narrates([d]));
+   else add('exact.busiestPlain',v,1,2,narrates([d]));}
+  else add(s.place?'exact.placeDebates':busy.length===1?'exact.busiestOne':'exact.busiestMany',{debates:busyValues},1,2,narrates(busy));}
  if(!s.place&&!s.topic){
   const urg=(payload.sets?.urgencyDebates?.[period]||[]).map(id=>ds.get(id)).filter(Boolean).sort(byDate);
   if(c.urgencyDebates&&urg.length){const primary=d=>d.primaryPlace||primaryStoryPlace(d),adopted=d=>(d.docs||[]).some(id=>docs.get(id)?.outcome?.outcome==='ADOPTED'&&/RESOLUTION_MOTION/.test(docs.get(id)?.type)),allAdopted=urg.every(adopted),places=[...new Set(urg.map(primary).filter(Boolean))];add(urg.length===1?'map.urgency.one':places.length===urg.length?'map.urgency.many':places.length?'exact.urgencyPartial':'exact.urgencyCount',{count:ref(num(c.urgencyDebates).replace(/^./,x=>x.toLocaleUpperCase(s.language)),urg.flatMap(records)),urgencyDebates:ref({...msg('count.urgencyDebates',{count:num(c.urgencyDebates).replace(/^./,x=>x.toLocaleUpperCase(s.language))}),counts:{count:c.urgencyDebates}},urg.flatMap(records)),title:ref(cleanStoryTitle(agendaTitle(urg[0].rawTitle||urg[0].title)),records(urg[0]),{italic:true}),resolution:allAdopted?msg('urgency.resolution',{resolution:ref(msg('resolution'),records(urg[0]))}):null,places:places.map(p=>ref(name(p),urg.filter(d=>primary(d)===p).flatMap(records))),resolutions:allAdopted?msg('urgency.resolutions',{resolutions:ref(msg('resolutions'),urg.flatMap(records))}):null,debates:urg.map(d=>ref(cleanStoryTitle(agendaTitle(d.rawTitle||d.title)),records(d),{italic:true}))},4,3);}
@@ -57,20 +59,24 @@ export function buildExactTopicStories(payload,s={}){
  }else {const full=payload.periodCounts.filter(p=>!partialQuarter(p.period,payload.partial)),peak=Math.max(0,...full.map(p=>p.groups));if(period&&c.groups>0&&c.groups===peak)add('topic.quarter.peak',{groups:ref(cm(c.groups,'groups'),[],{pageRecords:true,period})},1);if(!period&&c.groups)add('topic.summary',{groups:ref(cm(c.groups,'groups'),[],{pageRecords:true}),topic:payload.topic?.label||s.topic},1);}
  if(s.topic||s.place&&period){const ids=payload.sets?.adoptedTexts?.[period]||payload.sets?.adoptedTextsWhenAtMostTwo?.[period]||[],named=ids.map(id=>docs.get(id)).filter(Boolean),headline=(w.headlineAdoptedTexts3Plus||[]).filter(x=>x.debateMeps>=3).map(x=>docs.get(x.id)).filter(Boolean);
   const vote=d=>d.outcome?.for!=null&&d.outcome?.against!=null?msg('textWithTally',{title:title(d),for:ref(digits(d.outcome.for),[storyRecord(d,'document')]),against:ref(digits(d.outcome.against),[storyRecord(d,'document')])}):title(d);
-  // A text already told with its debate is not repeated.
-  const quarterOf=date=>date?date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3):null,counted=new Set(ids);
-  const narrated=d=>{const all=(d.docs||[]).map(id=>docs.get(id)).filter(x=>x?.outcome?.outcome==='ADOPTED'&&/RESOLUTION_MOTION/.test(x.type));return all.find(x=>x.type==='RESOLUTION_MOTION_JOINT')||all[0]||null;};
-  // Only a text the debate sentence narrated, adopted in this quarter and in this selection's adopted set, is left out below.
-  const told=new Set(!period?[]:busy.map(narrated).filter(x=>x&&quarterOf(x.outcome.date)===period&&(!counted.size||counted.has(x.id))).map(x=>x.id));
+  // Counted membership is proven by the quarter's adopted set or by the adopted-text winners drawn from it.
+  const quarterOf=date=>date?date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3):null;
+  const counted=new Set([...ids,...(w.headlineAdoptedTexts3Plus||[]).map(x=>x.id),...(w.headlineAdoptedTexts||[]).map(x=>x.id),...(w.closestAdoptedTexts||[]).map(x=>x.id)]);
   // Topic quarters: when the busiest debate's own dossier text is the headline adoption, say it once.
   const lead=s.topic&&period&&busy.length===1?busy[0]:null,merged=lead&&headline.find(d=>(lead.docs||[]).includes(d.id)&&d.outcome?.for!=null&&d.outcome?.against!=null);
-  if(merged){const i=lines.findIndex(l=>l.id==='topics.story.exact.topicBusiest');if(i>=0)lines.splice(i,1);add('exact.topicBusiestAdopted',{title:ref(cleanStoryTitle(agendaTitle(lead.rawTitle||lead.title)),records(lead),{italic:true}),date:day(lead.date),meps:ref(cm(lead.meps,'meps'),records(lead)),tally:msg('tally.simple',{for:ref(digits(merged.outcome.for),[storyRecord(merged,'document')]),against:ref(digits(merged.outcome.against),[storyRecord(merged,'document')])})},1,2);told.add(merged.id);}
-  const rest=named.filter(d=>!told.has(d.id)),restHeadline=headline.filter(d=>!told.has(d.id)),already=[...told].filter(id=>docs.get(id)).length;
-  if(c.adoptedTexts&&c.adoptedTexts>already&&(!named.length||rest.length))add(already?'exact.adoptedAlso':'exact.adopted',{count:browse(cm(c.adoptedTexts-already,'texts'),'adoptedTexts'),texts:named.length?msg('exact.named',{texts:rest.map(vote)}):restHeadline.length?msg('exact.including',{texts:restHeadline.map(vote)}):null},3);
+  if(merged){const i=lines.findIndex(l=>l.id==='topics.story.exact.topicBusiest');if(i>=0)lines.splice(i,1);add('exact.topicBusiestAdopted',{title:ref(cleanStoryTitle(agendaTitle(lead.rawTitle||lead.title)),records(lead),{italic:true}),date:day(lead.date),meps:ref(cm(lead.meps,'meps'),records(lead)),tally:msg('tally.simple',{for:ref(digits(merged.outcome.for),[storyRecord(merged,'document')]),against:ref(digits(merged.outcome.against),[storyRecord(merged,'document')])})},1,2,{narrates:[merged.id]});}
+  // The adoption sentence is built from the final story: a text is left out only if a kept sentence names it,
+  // it was adopted in this quarter, and it is provably in the counted set.
+  if(c.adoptedTexts)add('exact.adopted',null,3,3,{finalize:kept=>{
+   const told=new Set(!period?[]:kept.flatMap(l=>l.narrates||[]).filter(id=>{const x=docs.get(id);return x&&quarterOf(x.outcome?.date)===period&&counted.has(id);}));
+   const rest=named.filter(d=>!told.has(d.id)),restHeadline=headline.filter(d=>!told.has(d.id)),already=told.size;
+   if(c.adoptedTexts<=already||named.length&&!rest.length)return null;
+   return {id:'topics.story.'+(already?'exact.adoptedAlso':'exact.adopted'),values:{count:browse(cm(c.adoptedTexts-already,'texts'),'adoptedTexts'),texts:named.length?msg('exact.named',{texts:rest.map(vote)}):restHeadline.length?msg('exact.including',{texts:restHeadline.map(vote)}):null}};}});
   const closest=(w.closestAdoptedTexts||[]).filter(x=>x.margin<100).map(x=>docs.get(x.id)).filter(Boolean);if(period&&closest.length)add(closest.length===1?'exact.closestOne':'exact.closest',{texts:closest.map(vote)},4);
  }
 
  if(!period&&s.place){const best=Math.max(0,...payload.periodCounts.map(p=>p.debateSpeakerAppearances)),peaks=payload.periodCounts.filter(p=>best>0&&p.debateSpeakerAppearances===best);if(peaks.length)add('place.summary.peak',{quarter:peaks.map(p=>ref(p.period.replace('-',' '),[],{period:p.period}))},4);}
  if(period&&busy.length){const procedures=new Set(busy.flatMap(d=>d.procedures||[])),press=[...new Map([...procedures].flatMap(p=>f.press?.[p]||[]).map(p=>[p.id,p])).values()];if(press.length)add('press',{title:ref(press[0].title,[{...press[0],kind:'press'}],{italic:true})},6);}
- return lines.sort((a,b)=>a.priority-b.priority).slice(0,4).sort((a,b)=>a.order-b.order);
+ const kept=lines.sort((a,b)=>a.priority-b.priority).slice(0,4).sort((a,b)=>a.order-b.order);
+ return kept.flatMap(l=>{if(!l.finalize)return [l];const r=l.finalize(kept.filter(x=>x!==l));return r?[{...l,...r,finalize:undefined}]:[];}).map(({finalize,narrates,...l})=>l);
 }
