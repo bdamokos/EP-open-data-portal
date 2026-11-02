@@ -13,6 +13,8 @@ test('new Roman points under a childless lettered point end that point', () => {
   assert.equal(rawProposalAssertion({proposal:p,wording:amendment('Article 7 – paragraph 1 – point a – point ii (new)'),placement:insert(4)}).status,'failed');
   const flattened=proposal([['Article 4','Titrearticle'],['4. Lead:','ManualNumPar1'],['(a) First:','Point1'],['(i) Existing child;','Point1'],['(b) Last.','Point1'],['Article 5','Titrearticle']]);
   assert.notEqual(rawProposalAssertion({proposal:flattened,wording:amendment('Article 4 – paragraph 4 – point a – point ii (new)'),placement:insert(3)}).status,'verified');
+  const afterH=proposal([['Article 4','Titrearticle'],['4. Lead:','ManualNumPar1'],...'abcdefg'.split('').map(l=>[`(${l}) Point;`,'Point1']),['(h) Last parent:','Point1'],['(i) Existing child;','Point1'],['Article 5','Titrearticle']]);
+  assert.notEqual(rawProposalAssertion({proposal:afterH,wording:amendment('Article 4 – paragraph 4 – point h – point ii (new)'),placement:insert(10)}).status,'verified');
 });
 
 const resolution=paragraphs=>({paragraphs,paragraphSources:paragraphs.map((_,ordinal)=>({ordinal,complete:true,container:'body',containerPath:'body',segment:0})),paragraphFormats:paragraphs.map(()=>({}))});

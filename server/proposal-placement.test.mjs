@@ -273,6 +273,8 @@ test('unsuffixed points need a predecessor; new Roman points start below a child
   assert.equal(resolve(nested,'Article 4 – paragraph 4 – point a – point iii (new)').status,'unresolved','an existing Roman list needs its predecessor');
   const flattened=source(['Article 4','4. Lead:','(a) First:','(i) Existing child;','(b) Last.'],['Titrearticle','','Point1','Point1','Point1']);
   assert.equal(resolve(flattened,'Article 4 – paragraph 4 – point a – point ii (new)').status,'unresolved','a flattened (i) breaks the a, b peer sequence');
+  const afterH=source(['Article 4','4. Lead:',...'abcdefg'.split('').map(l=>`(${l}) Point;`),'(h) Last parent:','(i) Existing child;'],['Titrearticle','',...Array(9).fill('Point1')]);
+  assert.equal(resolve(afterH,'Article 4 – paragraph 4 – point h – point ii (new)').status,'unresolved','a following (i) may be a flattened Roman child');
   assert.equal(resolve(projection,'Article 4 – paragraph 9 – point a – point i (new)').reason,'parent_target_not_found');
 });
 

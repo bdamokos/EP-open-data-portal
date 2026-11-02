@@ -158,7 +158,7 @@ export function rawProposalAssertion({proposal,wording,placement}) {
       // Childlessness needs the parent's raw peers to run a, b, c... unbroken;
       // a flattened (i) between (a) and (b) leaves a child outside the parent.
       const peers=article.nodes.filter(node=>node.kind==='point'&&node.parent===parent.parent).sort((a,b)=>a.start-b.start);
-      if(!peers.every((node,index)=>node.value===String.fromCharCode(97+index)))return unknown('oracle-raw-anchor-ambiguous');
+      if(!peers.every((node,index)=>node.value===String.fromCharCode(97+index))||peers[peers.indexOf(parent)+1]?.value==='i')return unknown('oracle-raw-anchor-ambiguous');
       before=scope.end;
     }
     else if(rank!==null&&rank>1) {
