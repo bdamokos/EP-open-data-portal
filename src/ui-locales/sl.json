@@ -2385,7 +2385,7 @@
   "topics.all": "Prikaži vse",
   "topics.more": "Več",
   "topics.coverage": "Področja politike · dosjeji z zbranimi podatki: {collected} od {referenced}",
-  "topics.metric.questionNotHome": "Vprašanja z omembo, brez vprašanj poslancev, izvoljenih v tej državi",
+  "topics.metric.questionNotHome": "Vprašanja, ki omenjajo ta kraj, brez vprašanj s soavtorjem, izvoljenim v tej državi",
   "topics.classifying": "Nekateri dosjeji se še razvrščajo.",
   "topics.cellCount": "{topic}, {period}: {quantity}",
   "topics.barCount": "{period}: {quantity}",
@@ -2439,10 +2439,10 @@
   "topics.clear": "Počisti filter",
   "topics.overlap": "En prispevek ima lahko več tem.",
   "topics.metric.groups": "Razprave in dosjeji",
-  "topics.metric.question": "Vprašanja z omembo",
-  "topics.metric.questionElsewhere": "Vprašanja z omembo, samo od poslancev, izvoljenih v drugih državah",
-  "topics.metric.questionHome": "Vprašanja z omembo in z avtorjem, izvoljenim v tej državi",
-  "topics.metric.document": "Plenarni dokumenti o temi",
+  "topics.metric.question": "Vprašanja, ki omenjajo ta kraj",
+  "topics.metric.questionElsewhere": "Vprašanja, ki omenjajo ta kraj, samo od poslancev, izvoljenih v drugih državah",
+  "topics.metric.questionHome": "Vprašanja, ki omenjajo ta kraj, z vsaj enim soavtorjem, izvoljenim v tej državi",
+  "topics.metric.document": "Plenarni dokumenti o tem kraju",
   "topics.kind.question": "Vprašanje",
   "topics.kind.document": "Dokument",
   "topics.kind.debate": "Razprava",
@@ -2498,5 +2498,5 @@
   "topics.story.count.meps": "{count} poslancev Evropskega parlamenta",
   "topics.story.count.mepsOne": "{count} poslanec Evropskega parlamenta",
   "topics.policyAreaSource": "Imena področij politike: {source}.",
-  "topics.explorerTranslation": "Imena področij politik, ki jih je prevedel raziskovalnik."
+  "topics.explorerTranslation": "Imena področij politike je prevedel raziskovalnik."
 }

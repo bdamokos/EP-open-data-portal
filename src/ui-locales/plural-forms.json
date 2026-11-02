@@ -2375,8 +2375,8 @@
       "other": "{count} Texte"
     },
     "topics.story.count.meps": {
-      "one": "{count} Mitglied des Europäischen Parlaments",
-      "other": "{count} Abgeordnete des Europäischen Parlaments"
+      "one": "{count} Abgeordneter",
+      "other": "{count} Abgeordnete"
     },
     "topics.mapDocuments": {
       "one": "{count} Dokument",
@@ -5994,73 +5994,73 @@
     },
     "topics.story.count.questions": {
       "one": "{count} cheist",
-      "other": "Ceisteanna: {count}",
-      "two": "Ceisteanna: {count}",
-      "few": "Ceisteanna: {count}",
-      "many": "Ceisteanna: {count}"
+      "other": "{count} de cheisteanna",
+      "two": "{count} cheist",
+      "few": "{count} cheist",
+      "many": "{count} gceist"
     },
     "topics.story.count.questionsEach": {
       "one": "{count} cheist an ceann",
-      "other": "Ceisteanna an ceann: {count}",
-      "two": "Ceisteanna an ceann: {count}",
-      "few": "Ceisteanna an ceann: {count}",
-      "many": "Ceisteanna an ceann: {count}"
+      "other": "{count} de cheisteanna an ceann",
+      "two": "{count} cheist an ceann",
+      "few": "{count} cheist an ceann",
+      "many": "{count} gceist an ceann"
     },
     "topics.story.count.debates": {
       "one": "{count} díospóireacht iomlánach",
-      "other": "Díospóireachtaí iomlánacha: {count}",
-      "two": "Díospóireachtaí iomlánacha: {count}",
-      "few": "Díospóireachtaí iomlánacha: {count}",
-      "many": "Díospóireachtaí iomlánacha: {count}"
+      "other": "{count} de dhíospóireachtaí iomlánacha",
+      "two": "{count} dhíospóireacht iomlánacha",
+      "few": "{count} dhíospóireacht iomlánacha",
+      "many": "{count} ndíospóireacht iomlánacha"
     },
     "topics.story.count.resolutions": {
       "one": "{count} rún",
-      "other": "Rúin: {count}",
-      "two": "Rúin: {count}",
-      "few": "Rúin: {count}",
-      "many": "Rúin: {count}"
+      "other": "{count} de rúin",
+      "two": "{count} rún",
+      "few": "{count} rún",
+      "many": "{count} rún"
     },
     "topics.story.count.groups": {
       "one": "{count} díospóireacht nó sainchomhad",
-      "other": "Díospóireachtaí agus sainchomhaid san iomlán: {count}",
-      "two": "Díospóireachtaí agus sainchomhaid san iomlán: {count}",
-      "few": "Díospóireachtaí agus sainchomhaid san iomlán: {count}",
-      "many": "Díospóireachtaí agus sainchomhaid san iomlán: {count}"
+      "other": "{count} san iomlán de dhíospóireachtaí agus de shainchomhaid",
+      "two": "{count} dhíospóireacht nó shainchomhad",
+      "few": "{count} dhíospóireacht nó shainchomhad",
+      "many": "{count} ndíospóireacht nó sainchomhad"
     },
     "topics.story.count.texts": {
       "one": "{count} téacs",
-      "other": "Téacsanna: {count}",
-      "two": "Téacsanna: {count}",
-      "few": "Téacsanna: {count}",
-      "many": "Téacsanna: {count}"
+      "other": "{count} de théacsanna",
+      "two": "{count} théacs",
+      "few": "{count} théacs",
+      "many": "{count} dtéacs"
     },
     "topics.story.count.meps": {
       "one": "{count} Fheisire",
-      "other": "Feisirí: {count}",
-      "two": "Feisirí: {count}",
-      "few": "Feisirí: {count}",
-      "many": "Feisirí: {count}"
+      "other": "{count} d’Fheisirí",
+      "two": "{count} Fheisire",
+      "few": "{count} Fheisire",
+      "many": "{count} bhFeisire"
     },
     "topics.mapDocuments": {
       "one": "{count} doiciméad",
-      "other": "Doiciméid: {count}",
-      "two": "Doiciméid: {count}",
-      "few": "Doiciméid: {count}",
-      "many": "Doiciméid: {count}"
+      "other": "{count} de dhoiciméid",
+      "two": "{count} dhoiciméad",
+      "few": "{count} dhoiciméad",
+      "many": "{count} ndoiciméad"
     },
     "topics.speechesCount": {
       "one": "{count} óráid",
-      "other": "Óráidí: {count}",
-      "two": "Óráidí: {count}",
-      "few": "Óráidí: {count}",
-      "many": "Óráidí: {count}"
+      "other": "{count} d’óráidí",
+      "two": "{count} óráid",
+      "few": "{count} óráid",
+      "many": "{count} n-óráid"
     },
     "votegroups.voted_differently": {
-      "one": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
-      "other": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
-      "two": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
-      "few": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
-      "many": "Feisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}."
+      "one": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "other": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "two": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "few": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}.",
+      "many": "Líon na bhFeisirí a vótáil ar bhealach éagsúil le tromlach a ngrúpa féin: {count}."
     }
   },
   "hr": {
@@ -9899,73 +9899,73 @@
     },
     "topics.story.count.questions": {
       "one": "{count} mistoqsija",
-      "other": "Mistoqsijiet: {count}",
-      "two": "Mistoqsijiet: {count}",
-      "few": "Mistoqsijiet: {count}",
-      "many": "Mistoqsijiet: {count}"
+      "other": "{count} mistoqsija",
+      "two": "{count} mistoqsijiet",
+      "few": "{count} mistoqsijiet",
+      "many": "{count}-il mistoqsija"
     },
     "topics.story.count.questionsEach": {
       "one": "{count} mistoqsija għal kull wieħed",
-      "other": "Mistoqsijiet għal kull wieħed: {count}",
-      "two": "Mistoqsijiet għal kull wieħed: {count}",
-      "few": "Mistoqsijiet għal kull wieħed: {count}",
-      "many": "Mistoqsijiet għal kull wieħed: {count}"
+      "other": "{count} mistoqsija għal kull wieħed",
+      "two": "{count} mistoqsijiet għal kull wieħed",
+      "few": "{count} mistoqsijiet għal kull wieħed",
+      "many": "{count}-il mistoqsija għal kull wieħed"
     },
     "topics.story.count.debates": {
       "one": "{count} dibattitu plenarju",
-      "other": "Dibattiti plenarji: {count}",
-      "two": "Dibattiti plenarji: {count}",
-      "few": "Dibattiti plenarji: {count}",
-      "many": "Dibattiti plenarji: {count}"
+      "other": "{count} dibattitu plenarju",
+      "two": "{count} dibattiti plenarji",
+      "few": "{count} dibattiti plenarji",
+      "many": "{count}-il dibattitu plenarju"
     },
     "topics.story.count.resolutions": {
       "one": "{count} riżoluzzjoni",
-      "other": "Riżoluzzjonijiet: {count}",
-      "two": "Riżoluzzjonijiet: {count}",
-      "few": "Riżoluzzjonijiet: {count}",
-      "many": "Riżoluzzjonijiet: {count}"
+      "other": "{count} riżoluzzjoni",
+      "two": "{count} riżoluzzjonijiet",
+      "few": "{count} riżoluzzjonijiet",
+      "many": "{count}-il riżoluzzjoni"
     },
     "topics.story.count.groups": {
       "one": "{count} dibattitu jew dossier",
-      "other": "Dibattiti u dossiers b'kollox: {count}",
-      "two": "Dibattiti u dossiers b'kollox: {count}",
-      "few": "Dibattiti u dossiers b'kollox: {count}",
-      "many": "Dibattiti u dossiers b'kollox: {count}"
+      "other": "{count} dibattitu jew dossier",
+      "two": "{count} dibattiti jew dossiers",
+      "few": "{count} dibattiti jew dossiers",
+      "many": "{count}-il dibattitu jew dossier"
     },
     "topics.story.count.texts": {
       "one": "{count} test",
-      "other": "Testi: {count}",
-      "two": "Testi: {count}",
-      "few": "Testi: {count}",
-      "many": "Testi: {count}"
+      "other": "{count} test",
+      "two": "{count} testi",
+      "few": "{count} testi",
+      "many": "{count}-il test"
     },
     "topics.story.count.meps": {
       "one": "{count} Membru tal-PE",
-      "other": "Membri tal-PE: {count}",
-      "two": "Membri tal-PE: {count}",
-      "few": "Membri tal-PE: {count}",
-      "many": "Membri tal-PE: {count}"
+      "other": "{count} Membru tal-PE",
+      "two": "{count} Membri tal-PE",
+      "few": "{count} Membri tal-PE",
+      "many": "{count}-il Membru tal-PE"
     },
     "topics.mapDocuments": {
       "one": "{count} dokument",
-      "other": "Dokumenti: {count}",
-      "two": "Dokumenti: {count}",
-      "few": "Dokumenti: {count}",
-      "many": "Dokumenti: {count}"
+      "other": "{count} dokument",
+      "two": "{count} dokumenti",
+      "few": "{count} dokumenti",
+      "many": "{count}-il dokument"
     },
     "topics.speechesCount": {
       "one": "{count} diskors",
-      "other": "Diskorsi: {count}",
-      "two": "Diskorsi: {count}",
-      "few": "Diskorsi: {count}",
-      "many": "Diskorsi: {count}"
+      "other": "{count} diskors",
+      "two": "{count} diskorsi",
+      "few": "{count} diskorsi",
+      "many": "{count}-il diskors"
     },
     "votegroups.voted_differently": {
-      "one": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
-      "other": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
-      "two": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
-      "few": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
-      "many": "Membri tal-PE li vvotaw b'mod differenti mill-maġġoranza tal-grupp tagħhom: {count}."
+      "one": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "other": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "two": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "few": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}.",
+      "many": "Għadd ta’ Membri tal-PE li vvotaw b’mod differenti mill-maġġoranza tal-grupp tagħhom: {count}."
     }
   },
   "nl": {

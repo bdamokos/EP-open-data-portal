@@ -2442,7 +2442,7 @@
   "topics.metric.question": "Pitanja sa spomenom teme ili mjesta",
   "topics.metric.questionElsewhere": "Pitanja sa spomenom, samo od zastupnika izabranih u drugim zemljama",
   "topics.metric.questionHome": "Pitanja sa spomenom i s autorom izabranim u toj zemlji",
-  "topics.metric.document": "Plenarni dokumenti o temi",
+  "topics.metric.document": "Plenarni dokumenti o tom mjestu",
   "topics.kind.question": "Pitanje",
   "topics.kind.document": "Dokument",
   "topics.kind.debate": "Rasprava",

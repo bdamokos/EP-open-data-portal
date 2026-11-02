@@ -2442,7 +2442,7 @@
   "topics.metric.question": "Въпроси с посочване на темата или мястото",
   "topics.metric.questionElsewhere": "Въпроси с посочване, само от евродепутати, избрани в други държави",
   "topics.metric.questionHome": "Въпроси с посочване и с автор, избран в съответната държава",
-  "topics.metric.document": "Пленарни документи по темата",
+  "topics.metric.document": "Пленарни документи за мястото",
   "topics.kind.question": "Въпрос",
   "topics.kind.document": "Документ",
   "topics.kind.debate": "Разискване",

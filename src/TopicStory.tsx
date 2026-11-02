@@ -13,6 +13,7 @@ export function TopicStory({data,index,mode,own}:{data:TopicOverview;index:numbe
  const rising=risings[0];
  const candidate=mode==='d'&&risings.length===1&&rising&&point(rising.item,period).top;
  const quantity=(count:number)=><UiMessage id={mode==='d'?'topics.mapDocuments':'topics.story.count.questions'} values={{count}} counts={{count}}/>;
+ // Only a real debate is named as the biggest debate; excluded voting-time groups are kind 'record'.
  const top=candidate&&candidate.key.startsWith('MTG-PL-')&&candidate.kind!=='record'?candidate:null;
  const parentId=rising?rising.average<0.5?(mode==='d'?(risings.length>1?'topics.rareTextsTiedCount':'topics.rareTextsCount'):risings.length>1?'topics.rareTiedCount':'topics.rareCount'):risings.length>1?'topics.roseTiedCount':'topics.roseCount':leaders.length>1?'topics.mostTiedCount':'topics.mostCount';
  const overallId=leaders.length>1?'topics.overallTied':'topics.overall',hasOverall=rising&&!risings.some(r=>r.item.key===leader.key);

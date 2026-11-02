@@ -2400,8 +2400,8 @@
   "topics.pause": "❚❚ Szünet",
   "topics.play": "▶ Lejátszás",
   "topics.quarter": "Negyedév",
-  "topics.documents": "dokumentumok",
-  "topics.questions": "kérdések",
+  "topics.documents": "dokumentum",
+  "topics.questions": "kérdés",
   "topics.documentsQuarter": "dokumentum egy negyedévben",
   "topics.questionsQuarter": "kérdés egy negyedévben",
   "topics.mapHome": " (ebből {count} az ott megválasztott EP-képviselőktől)",
@@ -2411,9 +2411,9 @@
   "topics.recordKind": "Bejegyzés típusa",
   "topics.placeSummary": "{questions} · {documents} ebben a ciklusban",
   "topics.euPlaceSummary": "{elsewhere} más országokban megválasztott EP-képviselőktől, {home} az ott megválasztottaktól · {documents} ebben a ciklusban",
-  "topics.peak.groups": "A legtöbb vitát és dossziét érintő negyedév: {period} · {title}",
-  "topics.peak.documents": "A legtöbb plenáris dokumentumot érintő negyedév: {period} · {title}",
-  "topics.peak.questions": "A legtöbb kérdést érintő negyedév: {period} · {title}",
+  "topics.peak.groups": "A legtöbb vitát és dossziét tartalmazó negyedév: {period} · {title}",
+  "topics.peak.documents": "A legtöbb plenáris dokumentumot tartalmazó negyedév: {period} · {title}",
+  "topics.peak.questions": "A legtöbb kérdést tartalmazó negyedév: {period} · {title}",
   "topics.partialLegend": "Sraffozás: részleges negyedév.",
   "topics.mapValue": "{place} · {period} · {questions}{home} · {documents}",
   "topics.rose": "A legnagyobb növekedés: {place}, {count} {unit}, a szokásos értékhez viszonyítva: {ratio}×.",
@@ -2498,5 +2498,5 @@
   "topics.story.count.meps": "{count} EP-képviselő",
   "topics.story.count.mepsOne": "{count} EP-képviselő",
   "topics.policyAreaSource": "A szakpolitikai területek nevei: {source}.",
-  "topics.explorerTranslation": "A szakpolitikai területek nevét a Parliament explorer fordította le."
+  "topics.explorerTranslation": "A szakpolitikai területek nevét az adatböngésző fordította le."
 }

@@ -2389,7 +2389,7 @@
   "topics.classifying": "Certains dossiers sont encore en cours de classement.",
   "topics.cellCount": "{topic}, {period} : {quantity}",
   "topics.barCount": "{period} : {quantity}",
-  "topics.cell": "{topic}, {period} : débats et dossiers : {count}",
+  "topics.cell": "{topic}, {period} : {count} débats et dossiers",
   "topics.asked": "Questions sur",
   "topics.texts": "Textes sur",
   "topics.leaveOwn": "Exclure le pays d’élection des députés",
@@ -2498,5 +2498,5 @@
   "topics.story.count.meps": "{count} députés",
   "topics.story.count.mepsOne": "{count} député",
   "topics.policyAreaSource": "Noms des domaines d’action : {source}.",
-  "topics.explorerTranslation": "Noms des domaines politiques traduits par l’explorateur."
+  "topics.explorerTranslation": "Noms des domaines d’action traduits par l’explorateur."
 }

@@ -2423,7 +2423,7 @@
   "topics.biggest": "Suurin keskustelu: {title}.",
   "topics.overall": "Eniten mainintoja yhteensä: {place} ({count}).",
   "topics.follow": "Seuraa",
-  "topics.following": "Seurannassa",
+  "topics.following": "Seurataan",
   "topics.speechesCount": "{count} puheenvuoroa",
   "topics.speechCount": "{count} puheenvuoro",
   "topics.summary": "{groups} · {speeches} tällä vaalikaudella",
@@ -2498,5 +2498,5 @@
   "topics.story.count.meps": "{count} meppiä",
   "topics.story.count.mepsOne": "{count} meppi",
   "topics.policyAreaSource": "Politiikanalojen nimet: {source}.",
-  "topics.explorerTranslation": "Politiikan alojen nimet on kääntänyt Explorer."
+  "topics.explorerTranslation": "Politiikanalojen nimet on kääntänyt selailusovellus."
 }

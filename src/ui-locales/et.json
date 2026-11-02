@@ -2423,7 +2423,7 @@
   "topics.biggest": "Suurim arutelu: {title}.",
   "topics.overall": "Kokku enim nimetatud: {place} ({count}).",
   "topics.follow": "Jälgi",
-  "topics.following": "Jälgimisel",
+  "topics.following": "Jälgitav",
   "topics.speechesCount": "{count} sõnavõttu",
   "topics.speechCount": "{count} sõnavõtt",
   "topics.summary": "{groups} · {speeches} sel ametiajal",

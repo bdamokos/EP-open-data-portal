@@ -2441,7 +2441,7 @@
   "topics.metric.groups": "Debatten und Dossiers",
   "topics.metric.question": "Anfragen mit Ortsnennung",
   "topics.metric.questionElsewhere": "Anfragen mit Ortsnennung, nur von in anderen Ländern gewählten Abgeordneten",
-  "topics.metric.questionHome": "Anfragen mit Ortsnennung und mindestens einer dort gewählten Person unter den Verfassenden",
+  "topics.metric.questionHome": "Anfragen mit Ortsnennung, mitverfasst von dort gewählten Abgeordneten",
   "topics.metric.document": "Plenardokumente zum Ort",
   "topics.kind.question": "Anfrage",
   "topics.kind.document": "Dokument",
@@ -2452,7 +2452,7 @@
   "topics.group.procedure": "Dossier",
   "topics.group.record": "Eintrag",
   "topics.saveError": "Folgen konnte nicht gespeichert werden.",
-  "topics.ownMepTag": "mit mindestens einer dort gewählten Person unter den Verfassenden",
+  "topics.ownMepTag": "mitverfasst von dort gewählten Abgeordneten",
   "topics.onlyElsewhere": "Nur von in anderen Ländern gewählten Abgeordneten gestellt",
   "topics.roseTied": "Größter Anstieg: {place}, jeweils {count} {unit}, das {ratio}-Fache des jeweils üblichen Werts.",
   "topics.findSummary": "{debates} · {questions}",
@@ -2495,8 +2495,8 @@
   "topics.story.count.groupsOne": "{count} Debatte oder Dossier",
   "topics.story.count.texts": "{count} Texte",
   "topics.story.count.textsOne": "{count} Text",
-  "topics.story.count.meps": "{count} Abgeordnete des Europäischen Parlaments",
-  "topics.story.count.mepsOne": "{count} Mitglied des Europäischen Parlaments",
+  "topics.story.count.meps": "{count} Abgeordnete",
+  "topics.story.count.mepsOne": "{count} Abgeordneter",
   "topics.policyAreaSource": "Bezeichnungen der Politikbereiche: {source}.",
   "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt."
 }
