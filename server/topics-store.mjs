@@ -18,6 +18,7 @@ export function topicTables(db){questionPlaceTables(db);db.exec(`
  CREATE TABLE IF NOT EXISTS record_topic_records(generation INTEGER,id TEXT,kind TEXT,date TEXT,group_key TEXT,group_kind TEXT,body TEXT,PRIMARY KEY(generation,id));
  CREATE INDEX IF NOT EXISTS topic_record_kind_date ON record_topic_records(generation,kind,date,id);
  CREATE INDEX IF NOT EXISTS topic_group ON record_topic_records(generation,group_key,date DESC,id);
+ CREATE INDEX IF NOT EXISTS topic_record_status ON record_topic_records(generation,id,json_extract(body,'$.status'));
  CREATE TABLE IF NOT EXISTS record_topic_concepts(generation INTEGER,key TEXT,role TEXT,body TEXT,PRIMARY KEY(generation,key));
  CREATE TABLE IF NOT EXISTS record_topic_memberships(generation INTEGER,key TEXT,record_id TEXT,kind TEXT,date TEXT,group_key TEXT,PRIMARY KEY(generation,key,record_id));
  CREATE INDEX IF NOT EXISTS record_topic_record ON record_topic_memberships(generation,record_id,key);
