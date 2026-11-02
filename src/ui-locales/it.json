@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Commissione europea",
   "questionanswerer.institution.council": "Consiglio",
   "textsearch.advanced_options": "Altre opzioni",
-  "topics.explorerTranslation": "Nomi dei settori di intervento tradotti dall’esploratore."
+  "topics.explorerTranslation": "Nomi dei settori di intervento tradotti dall’esploratore.",
+  "topics.policyAreaSource": "Nomi dei settori d’intervento: {source}."
 }

@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Europese Commissie",
   "questionanswerer.institution.council": "Raad",
   "textsearch.advanced_options": "Meer opties",
-  "topics.explorerTranslation": "Namen van beleidsterreinen vertaald door de verkenner."
+  "topics.explorerTranslation": "Namen van beleidsterreinen vertaald door de verkenner.",
+  "topics.policyAreaSource": "Namen van beleidsterreinen: {source}."
 }

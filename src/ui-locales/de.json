@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Europäische Kommission",
   "questionanswerer.institution.council": "Rat",
   "textsearch.advanced_options": "Weitere Optionen",
-  "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt."
+  "topics.explorerTranslation": "Die Bezeichnungen der Politikbereiche wurden vom Explorer übersetzt.",
+  "topics.policyAreaSource": "Bezeichnungen der Politikbereiche: {source}."
 }

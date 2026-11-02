@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Europeiska kommissionen",
   "questionanswerer.institution.council": "Rådet",
   "textsearch.advanced_options": "Fler alternativ",
-  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren."
+  "topics.explorerTranslation": "Politikområdenas namn har översatts av utforskaren.",
+  "topics.policyAreaSource": "Namn på politikområden: {source}."
 }

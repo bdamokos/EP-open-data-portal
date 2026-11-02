@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Evropska komisija",
   "questionanswerer.institution.council": "Svet",
   "textsearch.advanced_options": "Več možnosti",
-  "topics.explorerTranslation": "Imena področij politik, ki jih je prevedel raziskovalnik."
+  "topics.explorerTranslation": "Imena področij politik, ki jih je prevedel raziskovalnik.",
+  "topics.policyAreaSource": "Imena področij politike: {source}."
 }

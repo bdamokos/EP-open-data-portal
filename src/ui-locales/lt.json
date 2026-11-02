@@ -2381,5 +2381,6 @@
   "questionanswerer.institution.commission": "Europos Komisija",
   "questionanswerer.institution.council": "Taryba",
   "textsearch.advanced_options": "Daugiau parinkčių",
-  "topics.explorerTranslation": "Politikos sričių pavadinimus išvertė „Parliament explorer“."
+  "topics.explorerTranslation": "Politikos sričių pavadinimus išvertė „Parliament explorer“.",
+  "topics.policyAreaSource": "Politikos sričių pavadinimai: {source}."
 }

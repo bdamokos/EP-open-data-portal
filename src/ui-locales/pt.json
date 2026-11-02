@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Comissão Europeia",
   "questionanswerer.institution.council": "Conselho",
   "textsearch.advanced_options": "Mais opções",
-  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador."
+  "topics.explorerTranslation": "Nomes dos domínios de intervenção traduzidos pelo explorador.",
+  "topics.policyAreaSource": "Nomes dos domínios de intervenção: {source}."
 }

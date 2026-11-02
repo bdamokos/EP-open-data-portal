@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Euroopa Komisjon",
   "questionanswerer.institution.council": "Nõukogu",
   "textsearch.advanced_options": "Rohkem valikuid",
-  "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija."
+  "topics.explorerTranslation": "Poliitikavaldkondade nimed on tõlkinud sirvija.",
+  "topics.policyAreaSource": "Poliitikavaldkondade nimetused: {source}."
 }

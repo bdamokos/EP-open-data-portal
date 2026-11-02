@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "An Coimisiún Eorpach",
   "questionanswerer.institution.council": "An Chomhairle",
   "textsearch.advanced_options": "Tuilleadh roghanna",
-  "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag Parliament explorer."
+  "topics.explorerTranslation": "Ainmneacha réimsí beartais aistrithe ag Parliament explorer.",
+  "topics.policyAreaSource": "Ainmneacha réimsí beartais: {source}."
 }

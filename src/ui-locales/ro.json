@@ -2384,5 +2384,6 @@
   "questionanswerer.institution.commission": "Comisia Europeană",
   "questionanswerer.institution.council": "Consiliul",
   "textsearch.advanced_options": "Mai multe opțiuni",
-  "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator."
+  "topics.explorerTranslation": "Denumirile domeniilor de politică sunt traduse de explorator.",
+  "topics.policyAreaSource": "Denumirile domeniilor de politică: {source}."
 }

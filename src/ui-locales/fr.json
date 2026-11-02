@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Commission européenne",
   "questionanswerer.institution.council": "Conseil",
   "textsearch.advanced_options": "Plus d’options",
-  "topics.explorerTranslation": "Noms des domaines politiques traduits par l’explorateur."
+  "topics.explorerTranslation": "Noms des domaines politiques traduits par l’explorateur.",
+  "topics.policyAreaSource": "Noms des domaines d’action : {source}."
 }

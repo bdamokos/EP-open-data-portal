@@ -2367,5 +2367,6 @@
   "questionanswerer.institution.commission": "Ευρωπαϊκή Επιτροπή",
   "questionanswerer.institution.council": "Συμβούλιο",
   "textsearch.advanced_options": "Περισσότερες επιλογές",
-  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης."
+  "topics.explorerTranslation": "Οι ονομασίες των τομέων πολιτικής μεταφράστηκαν από το εργαλείο εξερεύνησης.",
+  "topics.policyAreaSource": "Ονομασίες τομέων πολιτικής: {source}."
 }
