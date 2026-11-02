@@ -1,0 +1,143 @@
+import {execFileSync} from 'node:child_process';
+import {appendFileSync} from 'node:fs';
+import {randomUUID} from 'node:crypto';
+import {pathToFileURL} from 'node:url';
+import {isDeepStrictEqual} from 'node:util';
+
+export const LANGUAGES = 'bg cs da de el es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
+export const MARKER = '<!-- translation-coverage-report -->';
+const DRIFT = 'Potential translation drift — verify before merging';
+const FOOTER = '\nDeterministic catalogue comparison; no linguistic verification.\n\nAutomated comment from a coding agent. Implementation and independent review: gpt-6.1-sol.\n';
+const own = (object, key) => Object.hasOwn(object ?? {}, key);
+const native = value => typeof value === 'string' && value.trim().length > 0;
+
+const categoryCache = new Map();
+function categories(language, branch) {
+  const cacheKey = language + '/' + branch;
+  if (!categoryCache.has(cacheKey)) {
+    const rules = new Intl.PluralRules(language === 'pt' ? 'pt-PT' : language);
+    // English other includes native one at e.g. French zero and Lithuanian 21.
+    const samples = [...Array.from({length: 201}, (_, n) => n), 1000000, 1000001, 0.1, 0.5, 1.5, 2.5, 3.5, 10.5];
+    categoryCache.set(cacheKey, branch === 'one' ? [rules.select(1)] : branch === 'other'
+      ? [...new Set(samples.filter(n => n !== 1).map(n => rules.select(n)))]
+      : rules.resolvedOptions().pluralCategories);
+  }
+  return categoryCache.get(cacheKey);
+}
+
+function effective(snapshot, language, key, pair, branch, plural) {
+  const dictionary = snapshot.locales[language] ?? {};
+  const value = id => own(dictionary, id) ? dictionary[id] : undefined;
+  const primary = pair?.other ?? key;
+  const supplement = snapshot.forms?.[language]?.[primary];
+  if (!pair && !supplement && !plural) return {text: value(key)};
+  // Match createAppUiI18n: dictionary one is inherited only with a dictionary other.
+  const forms = {...(typeof value(primary) === 'string' ? {other: value(primary), ...(pair && typeof value(pair.one) === 'string' ? {one: value(pair.one)} : {})} : {}), ...supplement};
+  if (!native(forms.other)) return {other: forms.other};
+  return Object.fromEntries(categories(language, branch).map(category => [category, own(forms, category) ? forms[category] : forms.other]));
+}
+
+// Keep these narrow grammatical branches in sync with uiCatalogue.test.mjs.
+export function applicable(key, language) {
+  if (key.startsWith('MotionComparison.contextStage.')) return language === 'ro';
+  if (key.startsWith('membervotesummary.fullPosition.') || key.startsWith('membervotes.summary.recorded.')) return ['ro', 'lt'].includes(language);
+  return true;
+}
+
+export function compareCatalogues(base, head) {
+  const findings = [];
+  for (const [key, value] of Object.entries(head.english)) {
+    const existing = own(base.english, key);
+    if (existing && isDeepStrictEqual(base.english[key], value)) continue;
+    const pairFor = snapshot => (snapshot.pairs ?? []).find(pair => pair.one === key || pair.other === key);
+    const pair = pairFor(head) ?? pairFor(base);
+    const branch = pair ? (pair.one === key ? 'one' : 'other') : undefined;
+    const missing = [], drift = [];
+    for (const language of LANGUAGES) {
+      if (!applicable(key, language)) continue;
+      const plural = Boolean(pair || base.forms?.[language]?.[key] || head.forms?.[language]?.[key]);
+      const before = effective(base, language, key, pairFor(base), branch, plural);
+      const after = effective(head, language, key, pairFor(head), branch, plural);
+      const absent = Object.values(after).some(value => !native(value));
+      if (absent) missing.push(language);
+      if (existing && (absent || Object.entries(after).some(([category, value]) => isDeepStrictEqual(before[category], value)))) drift.push(language);
+    }
+    if (missing.length || drift.length) findings.push({key, value, previous: existing ? base.english[key] : undefined, missing, drift});
+  }
+  return findings;
+}
+
+// Encode Markdown/HTML syntax and mentions, including embedded workflow commands.
+export function markdown(value, limit = 240) {
+  const text = String(value).replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ');
+  return [...text].slice(0, limit).map(char => /[&<>"'`*_{}\[\]()#+.!|\\@~:%=\-]/.test(char) ? `&#${char.codePointAt(0)};` : char).join('') + ([...text].length > limit ? '…' : '');
+}
+export const annotation = value => String(value).slice(0, 1800).replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, ' ').replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+
+export function renderReport(findings, {base = '', head = ''} = {}) {
+  const missingLanguages = LANGUAGES.filter(language => findings.some(row => row.missing.includes(language)));
+  const driftLanguages = LANGUAGES.filter(language => findings.some(row => row.drift.includes(language)));
+  const lines = [MARKER, '## UI translation advisory', '', `Compared exact PR base ${markdown(base, 40)} with head ${markdown(head, 40)}.`, ''];
+  if (driftLanguages.length) lines.push(`> **${DRIFT}**`, '>', '> Existing English wording changed with missing or unchanged relevant translations. Verification before merge is required; this CI advisory remains non-blocking.', '', `Potential drift languages: ${driftLanguages.join(', ')}.`, '');
+  if (missingLanguages.length) lines.push(`Missing translation languages: ${missingLanguages.join(', ')}.`, 'Translations may be added in this PR or a follow-up. This advisory does not block English feature releases.', '');
+  if (!findings.length) lines.push('No missing translations or potential drift detected for added or changed English messages. Previous findings are cleared.');
+  else {
+    lines.push(`${findings.length} affected English messages. Each affected effective plural branch is compared separately; a sibling or unrelated category edit does not clear drift. Updated wording is not proof of translation accuracy. Matching English and native text alone is not treated as untranslated.`, '');
+    let shown = 0;
+    for (const row of findings) {
+      const line = `- **${markdown(row.key)}**: ${markdown(row.value)}${row.previous === undefined ? '' : ` (previous: ${markdown(row.previous)})`}. Missing: ${row.missing.join(', ') || 'none'}. Potential drift: ${row.drift.join(', ') || 'none'}.`;
+      if (shown >= 80 || Buffer.byteLength(lines.join('\n') + line, 'utf8') > 38000) break;
+      lines.push(line); shown++;
+    }
+    if (shown < findings.length) lines.push('', `${findings.length - shown} additional messages omitted to keep the report within GitHub limits; language totals above include all findings.`);
+  }
+  return lines.join('\n') + '\n' + FOOTER;
+}
+
+export function readRevision(revision, cwd = process.cwd()) {
+  if (!/^[a-f0-9]{40}$/i.test(revision ?? '')) throw new Error('Expected exact commit SHA');
+  const git = args => execFileSync('git', args, {cwd, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']});
+  if (git(['cat-file', '-t', revision]).trim() !== 'commit') throw new Error('Expected commit');
+  function json(name, fallback) {
+    const path = `src/ui-locales/${name}.json`;
+    if (!git(['ls-tree', '--name-only', revision, '--', path]).trim()) {
+      if (fallback !== undefined) return fallback;
+      throw new Error('Missing English catalogue');
+    }
+    const value = JSON.parse(git(['show', `${revision}:${path}`]));
+    if (!value || typeof value !== 'object') throw new Error('Invalid catalogue');
+    return value;
+  }
+  const english = json('en');
+  if (Array.isArray(english) || Object.values(english).some(value => typeof value !== 'string')) throw new Error('Invalid English catalogue');
+  const locales = Object.fromEntries(LANGUAGES.map(language => [language, json(language, {})]));
+  for (const dictionary of Object.values(locales)) if (Array.isArray(dictionary) || Object.values(dictionary).some(value => typeof value !== 'string')) throw new Error('Invalid native catalogue');
+  const pairs = json('plural-pairs', []), forms = json('plural-forms', {});
+  if (!Array.isArray(pairs) || pairs.some(pair => !pair || !['one', 'other', 'count'].every(key => typeof pair[key] === 'string')) || Array.isArray(forms)) throw new Error('Invalid plural data');
+  for (const dictionary of Object.values(forms)) {
+    if (!dictionary || typeof dictionary !== 'object' || Array.isArray(dictionary)) throw new Error('Invalid plural data');
+    for (const categories of Object.values(dictionary)) if (!categories || typeof categories !== 'object' || Array.isArray(categories) || Object.values(categories).some(value => typeof value !== 'string')) throw new Error('Invalid plural forms');
+  }
+  return {english, locales, pairs, forms};
+}
+
+export function run(env = process.env) {
+  let report;
+  try {
+    const findings = compareCatalogues(readRevision(env.TRANSLATION_BASE), readRevision(env.TRANSLATION_HEAD));
+    report = renderReport(findings, {base: env.TRANSLATION_BASE, head: env.TRANSLATION_HEAD});
+    for (const row of findings.slice(0, 40)) {
+      const message = `${row.drift.length ? DRIFT + '. Verification before merge is required. ' : ''}${row.key}: missing ${row.missing.join(', ') || 'none'}; potential drift ${row.drift.join(', ') || 'none'}. Translations may be added in this PR or a follow-up; CI remains non-blocking.`;
+      process.stdout.write(`::warning file=src/ui-locales/en.json::${annotation(message)}\n`);
+    }
+  } catch {
+    report = `${MARKER}\n## UI translation advisory\n\nTranslation comparison unavailable. Inspect the exact PR base/head catalogues manually; no coverage conclusion was produced. This advisory remains non-blocking.\n${FOOTER}`;
+    process.stdout.write('::warning::Translation comparison unavailable; inspect the exact PR base/head catalogues manually.\n');
+  }
+  // Output failures are advisory too, and never expose raw git errors/catalogue text.
+  try { if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, report); } catch { process.stdout.write('::warning::Translation job summary unavailable.\n'); }
+  try { if (env.GITHUB_OUTPUT) { const delimiter = `translation_${randomUUID()}`; appendFileSync(env.GITHUB_OUTPUT, `report<<${delimiter}\n${report}\n${delimiter}\n`); } } catch { process.stdout.write('::warning::Translation comment output unavailable.\n'); }
+  return report;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) run();
