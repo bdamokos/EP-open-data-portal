@@ -1,3 +1,4 @@
+import {withBoundaryTies} from './topicPresentation.mjs';
 import {GROUP_VOICE_GROUPS,GROUP_VOICE_SUBJECTS} from './groupVoiceTerms.mjs';
 export const GROUP_VOICE_DEFAULTS=Object.freeze({group:'PPE',period:'term',person:null,subject:null,tab:'people',q:'',peopleLimit:15,offset:0});
 const keys={group:'group',period:'period',person:'person',subject:'subject',tab:'tab',q:'q',peopleLimit:'people-limit',offset:'offset'};
@@ -13,9 +14,9 @@ export function readGroupVoicesState(params,{now=Date.now()}={}){
   return {group:Object.hasOwn(GROUP_VOICE_GROUPS,value('group'))?value('group'):d.group,
     period,
     person:/^[1-9]\d{0,12}$/.test(value('person')||'')?value('person'):null,
-    subject:Object.hasOwn(GROUP_VOICE_SUBJECTS,value('subject'))?value('subject'):null,
+    subject:(Object.hasOwn(GROUP_VOICE_SUBJECTS,value('subject'))||/^oeil:\d(?:\.\d{2}){1,3}$/.test(value('subject')||''))?value('subject'):null,
     tab:['people','subjects'].includes(value('tab'))?value('tab'):d.tab,q:(value('q')||'').slice(0,200),
-    peopleLimit:integer('people-limit',15,15,1000),offset:integer('offset',0,0,20000)};
+    peopleLimit:integer('people-limit',15,15,Number.MAX_SAFE_INTEGER),offset:integer('offset',0,0,20000)};
 }
 export function groupVoicesUrl(input,state){
   const url=new URL(input);
@@ -35,5 +36,6 @@ export function visibleGroupPeople(people,state){
   const q=state.q.normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().trim();
   const rows=people.map(person=>({...person,count:state.subject?person.subjects[state.subject]||0:person.total})).filter(person=>person.count>0&&(!q||[person.id,person.name,...(person.nameVariants||[]).map(n=>n.value)].filter(Boolean).join(' ').normalize('NFKD').replace(/\p{M}/gu,'').toLocaleLowerCase().includes(q))).sort((a,b)=>b.count-a.count||(a.name||a.id).localeCompare(b.name||b.id));
   const selected=rows.findIndex(person=>person.id===state.person),limit=Math.max(state.peopleLimit,selected+1);
-  return {rows,visible:rows.slice(0,limit),hasMore:rows.length>limit&&limit<1000};
+  const visible=withBoundaryTies(rows,limit,p=>p.count);
+  return {rows,visible,hasMore:rows.length>visible.length};
 }

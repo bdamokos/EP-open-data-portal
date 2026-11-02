@@ -1,0 +1,20 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {ActivityStore} from './activity-index-store.mjs';
+import {projectRecordTopics} from './record-topics.mjs';
+import {writeTopicProjection} from './topics-store.mjs';
+import {readTopics,topicReaderSettings,topicReaderWorkers} from './topics-reader.mjs';
+test('topic reads share two long-lived workers and queue briefly before 503',async t=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'topics-reader-')),store=new ActivityStore(dir,{initializeIndexes:true}),defaults={...topicReaderSettings};
+ t.after(async()=>{Object.assign(topicReaderSettings,defaults);store.close();await rm(dir,{recursive:true,force:true});});
+ store.acquire();store.set('active',1);const id='E-10-2026-000001';writeTopicProjection(store,projectRecordTopics([{id,kind:'question',date:'2026-10-07',titles:{en:'Greece'},members:['42']}]));store.release();
+ const read=()=>readTopics(store.filename,'records',new URLSearchParams('ids='+id));
+ const results=await Promise.all(Array.from({length:8},read));assert(results.every(r=>r.ready&&r.records[0].id===id),'queued reads succeed instead of failing fast');assert.equal(topicReaderWorkers(),2);
+ await read();assert.equal(topicReaderWorkers(),2,'idle workers are reused');
+ Object.assign(topicReaderSettings,{queue:1});const full=await Promise.allSettled(Array.from({length:4},read));assert.equal(full.filter(r=>r.status==='fulfilled').length,3);
+ assert(full.filter(r=>r.status==='rejected').every(r=>r.reason.status===503&&r.reason.code==='topics_busy'),'only a full queue fails fast');
+ await assert.rejects(readTopics(store.filename,'overview',new URLSearchParams('role=bad')),e=>e.status===400);assert.equal((await read()).ready,true,'a rejected query leaves the worker usable');
+});

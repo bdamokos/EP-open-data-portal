@@ -1,0 +1,2 @@
+// Natural Earth largest-ring centres within the approved Equal Earth zoom box.
+export const europeStoryIso3=["1A0", "ALB", "AND", "ARM", "AUT", "AZE", "BEL", "BGR", "BIH", "BLR", "CHE", "CYN", "CYP", "CZE", "DEU", "DNK", "DZA", "EGY", "ESP", "EST", "FIN", "FRA", "GBR", "GEO", "GRC", "HRV", "HUN", "IRL", "IRN", "IRQ", "ISL", "ISR", "ITA", "JOR", "KAZ", "KWT", "LBN", "LBY", "LIE", "LTU", "LUX", "LVA", "MAR", "MCO", "MDA", "MKD", "MLT", "MNE", "NLD", "NOR", "POL", "PRT", "PSE", "QAT", "ROU", "SMR", "SRB", "SVK", "SVN", "SWE", "SYR", "TKM", "TUN", "TUR", "UKR", "UZB", "VAT"];

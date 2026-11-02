@@ -9,7 +9,7 @@ export const useInsightFrame=()=>useContext(FramedInsight);
 
 // Navigation is eager and stays mounted while a destination's code loads.
 export function InsightFrame({view,language='en',onBack,onNavigate,onSaved,children}:InsightProps&{
-  view:'legislation'|'questions'|'outside'|'amendments'|'groups';children:ReactNode;
+  view:'legislation'|'questions'|'topics'|'outside'|'amendments'|'groups';children:ReactNode;
 }) {
   const frame=useRef<HTMLElement>(null);
   // These destinations used to remount their scroll container. Keep that

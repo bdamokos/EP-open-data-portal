@@ -1,3 +1,4 @@
+import {topicFixture} from './test-support/topicFixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {act,createElement} from 'react';
@@ -30,7 +31,7 @@ async function harness(t,{sourceId=questionId,selected=[],items=[],complete=fals
     for(const [key,value] of originals)value?Object.defineProperty(globalThis,key,value):delete globalThis[key];
     assert.deepEqual(unexpected,[],'all reads use offline fixtures');
   });
-  t.mock.method(globalThis,'fetch',async input=>{
+  t.mock.method(globalThis,'fetch',async input=>{const classification=topicFixture(input);if(classification)return classification;
     const url=new URL(input,location.href);requests.push(url);
     if(url.pathname==='/api/latest-activities/42') {
       if(failFirst&&attempts++===0)return Response.json({error:{code:'temporarily_unavailable',message:'Activity fixture unavailable.'}},{status:503});
