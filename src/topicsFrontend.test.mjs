@@ -23,7 +23,7 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
  const compact=renderToStaticMarkup(h(TopicLine,{record}));assert.match(compact,/\+1/);assert.match(compact,/place=IRN/);assert.match(compact,/topic=oeil%3A1.10/);assert(!compact.includes('Customs'));
  const full=renderToStaticMarkup(h(TopicLine,{record,full:true}));assert.match(full,/Customs/);assert.match(full,/topic=eurovoc%3A123/);
  assert.equal(renderToStaticMarkup(h(TopicLine,{record:{...record,topics:[],places:[],keywords:[]}})),'');
- const translated={...record,topics:[{key:'oeil:1.10',label:'Magyar név',labelLanguage:'hu',source:{source:'explorer-translation'}}]};
+ const translated={...record,topics:[{key:'oeil:1.10',label:'Magyar név',labelLanguage:'hu',labelSource:'explorer-translation'}]};
  const translatedMarkup=renderToStaticMarkup(h(TopicLine,{record:translated,full:true,language:'fr'}));
  assert.match(translatedMarkup,/lang="hu"[^>]*>Magyar név/);
  assert.match(translatedMarkup,/<details[^>]*><summary>Sources<\/summary><p[^>]*>Policy-area names translated by the explorer/);

@@ -79,7 +79,8 @@ export function storyFacts(store,params,{pressFilename}={}){
  const q=storyQuery(params),state=readableStoryState(store,{askers:q.askers}),generation=state?.dataGeneration||state?.generation;
  if(!state)return {ready:false};
  const db=store.db,periods=topicPeriods(),selectedPeriods=q.period?[q.period]:periods,key=q.scope==='map'?q.zoom:q.scope==='place'?q.key.slice(6):q.key,dimension=[generation,q.scope,key,q.askers];
- const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),q.language)[0];return {value:values?.[lang]||fallback,language:lang||null};};
+ // Story titles keep English selection; request lang selects policy labels below.
+ const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),'en')[0];return {value:values?.[lang]||fallback,language:lang||null};};
  const zeroCounts=()=>({...emptyStoryCounts(),...(q.scope==='map'?{placesWithQuestions:0,placesWithDebates:0,placesWithAdoptedTexts:0}:{})});
  const rows=db.prepare('SELECT period,body FROM story_scope_counts INDEXED BY story_count_scope WHERE generation=? AND scope=? AND key=? AND askers=?').all(...dimension),cells=new Map(rows.map(r=>[r.period,{...zeroCounts(),...JSON.parse(r.body)}]));
  const counts=cells.get(q.period||'')||zeroCounts(),periodCounts=periods.map(period=>({period,...(cells.get(period)||zeroCounts())}));

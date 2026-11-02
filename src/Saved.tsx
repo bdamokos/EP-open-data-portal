@@ -1,3 +1,4 @@
+import {PolicyAreaSourcesPage} from './PolicyAreaSources';
 import {FollowedTopics,useTopics} from './TopicFollowing';
 import {uiErrorText} from './uiErrors.mjs';
 import {defaultUi} from './uiDefault.mjs';
@@ -112,7 +113,7 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
       }
     })().finally(()=>{if(current())setChecking(false);});
   };
-  return <section className="explorer-saved-view" lang={ui.language}>
+  return <PolicyAreaSourcesPage enabled={topicFollows.some(c=>c.key.startsWith('oeil:'))}><section className="explorer-saved-view" lang={ui.language}>
     <Status scope={`saved-check:${context}:${attempt}`} message={((!dossiers.items.length) && (completion?.items===items)) ? completion.message : null} pending={checking||dossierChecking}/>
     <button onClick={onBack}><UiMessage id="document.back"/></button>
     <div className="explorer-saved-heading"><h1><UiMessage id="batch4.dossiercontrols.tsx.64.2"/></h1></div>
@@ -132,5 +133,5 @@ export function Saved({members,language,onBack,onMember,renderActivity}:SavedPro
     {!items.length&&!dossiers.items.length&&!topicFollows.length&&<p><UiMessage id="Saved.follow_a_mep_or_dossier_or_save_a_question_to_see_updates_here"/></p>}
     <div className="explorer-saved-items">{cards.map(({item})=>(item.kind==='dossier') ? <DossierCard key={'dossier:'+item.id+':'+item.savedAt} item={item} language={language} now={now}/> : <FollowCard key={savedKey(item)+':'+item.savedAt} item={item} directoryMember={membersById.get(item.id)} language={language} onMember={onMember} renderActivity={renderActivity} now={now} resolution={resolver.resolution(item)} retry={()=>resolver.retry(item)} checkState={(item.kind==='question') ? saved.questionCheckState : saved.checkState} check={check}/>)}</div>
     <FollowSuggestions language={language}/>
-  </section>;
+  </section></PolicyAreaSourcesPage>;
 }
