@@ -135,8 +135,19 @@ export function sourceReplay(cache,runtime) {
   // InputCache owns the single writer, request spacing/cap and immutable bytes.
   const {documents}=replaySourceClients(cache,runtime);
   const readProposal=runtime.createProposalBaseline({documents,request});
-  const readCouncil=runtime.createCouncilPositionBaseline?.({documents,request});
-  const readExisting=runtime.createExistingLawBaseline?.({documents});
+  const discoveryScope=(reader,method,identify,query)=>reader&&async function(options) {
+    if(!cache.retained?.baseScope)return reader(options);
+    const identity=await identify(options);
+    if(identity.status!=='resolved')return reader(options);
+    const url=new URL('https://publications.europa.eu/webapi/rdf/sparql');
+    url.searchParams.set('query',query(identity,options));url.searchParams.set('format','application/sparql-results+json');
+    return cache.retained.baseScope({type:'cellar',method,arguments:[{...identity,language:options.language}],discoveryRequest:{url:url.href,request:{accept:'application/sparql-results+json'}}},()=>reader(options));
+  };
+  const readCouncil=discoveryScope(runtime.createCouncilPositionBaseline?.({documents,request}),'council-discovery',async options=>{
+    const report=await request('/plenary-documents/'+options.reportId);
+    return runtime.reportCouncilReference(report.payload.data[0],options);
+  },identity=>runtime.councilCandidatesSparql(identity));
+  const readExisting=discoveryScope(runtime.createExistingLawBaseline?.({documents}),'existing-law-discovery',options=>runtime.existingLawReference(options),(identity,options)=>runtime.consolidationsSparql(identity.baseCelex,options.language));
   const nativeCaller=typeof runtime.DocumentContext?.prototype.readNleReferences==='function'?new runtime.DocumentContext({request,readProposal,download:async url=>{
     const input=await cache.get(url);
     if(!input.ok)throw new Error('document-source-http-'+input.status);

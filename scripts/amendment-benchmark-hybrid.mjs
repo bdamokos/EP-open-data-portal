@@ -49,7 +49,8 @@ export class HybridInputs {
     let proven=true;
     let proof=null;
     if(identity.type==='ep-document'){proof=await this.epProof(identity);proven=Boolean(proof);}
-    else if(identity.type!=='cellar')proven=false;
+    else if(identity.type!=='cellar'||new URL(url).origin!=='https://publications.europa.eu')proven=false;
+    if(identity.discoveryRequest&&key(url,request)!==key(identity.discoveryRequest.url,identity.discoveryRequest.request))proven=false;
     const b=proven?await this.b.read(url,request):null;
     // Empty gap hashes are not observations. An attested actual hash conflict
     // cannot be repaired by taking an older observation.
