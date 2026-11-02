@@ -1,3 +1,4 @@
+const observationChanged=(a,b)=>JSON.stringify(a&&Object.fromEntries(['subjects','language','status','lastActivity','state','reason','url'].map(k=>[k,a[k]])))!==JSON.stringify(Object.fromEntries(['subjects','language','status','lastActivity','state','reason','url'].map(k=>[k,b[k]])));
 import {procedurePageHints,procedureRefresh} from './topic-refresh.mjs';
 import {collectorRetry} from './collector-retry.mjs';
 import {projectProcedure} from './activity-index-model.mjs';
@@ -18,7 +19,8 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
   const record=await worker.request('/procedures/'+row.id,{}, {backgroundLow:true}),identity=value=>String(value||'').replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''),expected='eli/dl/proc/'+row.id;
   const matches=(record.payload?.data||[]).filter(w=>identity(w.id)===expected);if(matches.length!==1)throw Error('Procedure identity unavailable.');const work=matches[0];if(work['@id']&&identity(work['@id'])!==expected||work.process_id&&work.process_id!==row.id)throw Error('Conflicting procedure identity.');
   const code=classifyProcedure(work).code,reference=typeof work.label==='string'&&/^\d{4}\/\d{4}[A-Z]?\([A-Z]+\)$/.test(work.label)?work.label:code?row.id.replace('-','/')+'('+code+')':null;if(!reference)throw Error('Procedure reference unavailable.');
-  s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_metadata VALUES (?,?,?,?)').run(row.id,JSON.stringify({...projectProcedure(work),...Object.fromEntries(['process_status','procedure_status','status','stage','process_stage'].filter(k=>work[k]!==undefined).map(k=>[k,work[k]]))}),record.url,typeof record.fetchedAt==='number'?new Date(record.fetchedAt).toISOString():record.fetchedAt);s.db.prepare('UPDATE topic_procedure_queue SET reference=?,next_read=0 WHERE id=?').run(reference,row.id);s.db.prepare('DELETE FROM topic_procedure_attempts WHERE id=?').run(row.id);s.set('topicProjectionDirty',true);});return true;
+  const old=s.db.prepare('SELECT body FROM topic_procedure_metadata WHERE id=?').get(row.id),body=JSON.stringify({...projectProcedure(work),...Object.fromEntries(['process_status','procedure_status','status','stage','process_stage'].filter(k=>work[k]!==undefined).map(k=>[k,work[k]]))});
+  s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_metadata VALUES (?,?,?,?)').run(row.id,body,record.url,typeof record.fetchedAt==='number'?new Date(record.fetchedAt).toISOString():record.fetchedAt);s.db.prepare('UPDATE topic_procedure_queue SET reference=?,next_read=0 WHERE id=?').run(reference,row.id);s.db.prepare('DELETE FROM topic_procedure_attempts WHERE id=?').run(row.id);if(!old||old.body!==body)s.set('topicProjectionDirty',true);});return true;
  }
  const url='https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference});
  const raw=s.db.prepare('SELECT body,fetched_at FROM topic_procedure_metadata WHERE id=?').get(row.id),active=s.source(s.get('active'),'/procedures/'+row.id),metadata=active&&(!raw||Date.parse(active.fetchedAt)>Date.parse(raw.fetched_at))?active.work:raw?JSON.parse(raw.body):{};
@@ -32,14 +34,15 @@ export async function collectTopicProcedure(worker,{sources=worker.officialConte
  worker.controller.signal.throwIfAborted();s.assertWriter();if(page.viewCache?.stale)return true;
  let parsed;try{parsed=parseProcedurePage(page.html,row.reference,'en');}catch(error){if(error.code)throw error;throw Object.assign(new Error(error.message),{code:'official_document_invalid',cause:error});}
  const hints=procedurePageHints(page.html,row.reference,now),source={url:page.url,fetchedAt:page.fetchedAt};policy=procedureRefresh(metadata,{...hints,source},now);
- s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify({subjects:parsed.subjects,language:parsed.language,url:page.url,source,...hints}));s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(policy.next,row.id);s.db.prepare('DELETE FROM topic_procedure_attempts WHERE id=?').run(row.id);s.set('topicProjectionDirty',true);});
+ const next={subjects:parsed.subjects,language:parsed.language,url:page.url,source,...hints};
+ s.transaction(()=>{s.assertWriter();s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify(next));s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(policy.next,row.id);s.db.prepare('DELETE FROM topic_procedure_attempts WHERE id=?').run(row.id);if(observationChanged(saved,next))s.set('topicProjectionDirty',true);});
  }catch(error){
   if(worker.controller.signal.aborted)throw error;s.assertWriter();
   const retry=collectorRetry(error,attempts,worker.clock());
   s.transaction(()=>{s.assertWriter();
    s.db.prepare('UPDATE topic_procedure_queue SET next_read=? WHERE id=?').run(retry.next,row.id);
    if(!retry.paused)s.db.prepare('INSERT OR REPLACE INTO topic_procedure_attempts VALUES (?,?,?)').run(row.id,retry.attempts,String(error.message).slice(0,200));
-   if(retry.permanent){const url=row.reference?'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference}):'https://data.europarl.europa.eu/api/v2/procedures/'+row.id;s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify({state:'unavailable',reason:error.code==='official_source_size'?'source-too-large':error.code||'source-unavailable',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString(),retryAt:retry.next}));s.set('topicProjectionDirty',true);}
+   if(retry.permanent){const url=row.reference?'https://oeil.europarl.europa.eu/oeil/en/procedure-file?'+new URLSearchParams({reference:row.reference}):'https://data.europarl.europa.eu/api/v2/procedures/'+row.id;const prior=s.db.prepare('SELECT body FROM topic_procedure_pages WHERE id=?').get(row.id),next={state:'unavailable',reason:error.code==='official_source_size'?'source-too-large':error.code||'source-unavailable',subjects:[],url,checkedAt:new Date(worker.clock()).toISOString(),retryAt:retry.next};s.db.prepare('INSERT OR REPLACE INTO topic_procedure_pages VALUES (?,?,?)').run(row.id,row.reference,JSON.stringify(next));if(observationChanged(prior?JSON.parse(prior.body):null,next))s.set('topicProjectionDirty',true);}
   });
  }
 

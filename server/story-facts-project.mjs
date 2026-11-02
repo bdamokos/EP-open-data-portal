@@ -12,11 +12,11 @@ export async function buildStoryFacts(store,generation,options={}){
  store.db.exec('PRAGMA cache_size=-1024;PRAGMA temp_store=FILE;PRAGMA temp.cache_size=-1024');
  try{return await projectStoryFacts(store,generation,options);}finally{store.db.exec('PRAGMA cache_size='+Number(previous));}
 }
-async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{}}={}){
+async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},sourceGeneration=generation}={}){
  storyTables(store.db);store.assertWriter();store.set('storyProjection',null);
  // Existing whole-motion projections and the full sitting fallback share exact
  // result/decision identities. Stream each row, never the complete vote graph.
- for(const source of store.db.prepare("SELECT rowid,key,fetched_at FROM sources WHERE generation=? AND kind='motion-outcomes'").iterate(generation)){
+ for(const source of store.db.prepare("SELECT rowid,key,fetched_at FROM sources WHERE generation=? AND kind='motion-outcomes'").iterate(sourceGeneration)){
   const metadata=Object.fromEntries([...rootSourceValues(sourceByteChunks(store.db,source.rowid),{scalars:['resultsUrl','decisionsUrl','resultsFetchedAt','decisionsFetchedAt']})].map(x=>[x.field,x.value]));
   let n=0;
   for(const {field,value} of rootSourceValues(sourceByteChunks(store.db,source.rowid),{arrays:['results','decisions']})){
@@ -67,7 +67,7 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{}}={
    yield;const p=JSON.parse(row.body);if(p.status==='ambiguous'||p.parentIds?.length!==1){roleCoverage.unresolvedParents++;continue;}const id=p.parentIds[0];if(!/PVCRE-ITM-/.test(id)||!inTerm(p.date))continue;
    parent.run(generation,id,row.id);const o=storyInput(store,'speech',row.id);if(!o)continue;
    let seed=seeds.get(id);if(!seed)seed={id,date:p.date,titles:o.titles||{},creIds:[],source:o.source};seed.creIds=unique([...seed.creIds,...(o.creIds||[]),...(o.creId?[o.creId]:[])]);seeds.set(id,seed);
-   for(const member of items.iterate(generation,row.id)){
+   for(const member of items.iterate(sourceGeneration,row.id)){
     const item=JSON.parse(member.body);if(item.speechKind!=='PLENARY_DEBATE_SPEECH')continue;
     const header=o.headers.find(h=>String(h.personId)===String(member.mep)),eligible=speakerEligible(item,header);
     if(header?.capacity&&header.capacity!=='member')roleCoverage.institutionalExcluded++;else if(!eligible)roleCoverage.chairExcluded++;else if(!header?.capacity)roleCoverage.unknownCapacity++;

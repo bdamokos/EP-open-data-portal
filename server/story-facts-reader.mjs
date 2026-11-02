@@ -75,8 +75,8 @@ export function storyQuery(params){
 }
 const cleanTitle=title=>String(title||'').replace(/^\d+(?:\.\d+)*\.\s*/,'').replace(/\s*\((?:debate|topical debate|joint debate|continuation of debate)\)\s*$/i,'');
 export function storyFacts(store,params,{pressFilename}={}){
- const q=storyQuery(params),state=store.get('storyProjection'),base=store.get('recordTopicProjection'),generation=store.get('active');
- if(!state||state.version!==STORY_FACTS_VERSION||state.generation!==generation||base?.generation!==generation||base.version!==RECORD_TOPICS_VERSION)return {ready:false};
+ const q=storyQuery(params),state=store.get('storyProjection'),base=store.get('recordTopicProjection'),active=store.get('active'),generation=state?.dataGeneration||state?.generation;
+ if(!state||state.version!==STORY_FACTS_VERSION||state.generation>active||![active,store.get('previous')].includes(state.generation)||base?.generation!==state.generation||(base.dataGeneration||base.generation)!==generation||base.version!==RECORD_TOPICS_VERSION)return {ready:false};
  const db=store.db,periods=topicPeriods(),selectedPeriods=q.period?[q.period]:periods,key=q.scope==='map'?q.zoom:q.scope==='place'?q.key.slice(6):q.key,dimension=[generation,q.scope,key,q.askers];
  const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),q.language)[0];return {value:values?.[lang]||fallback,language:lang||null};};
  const zeroCounts=()=>({...emptyStoryCounts(),...(q.scope==='map'?{placesWithQuestions:0,placesWithDebates:0,placesWithAdoptedTexts:0}:{})});

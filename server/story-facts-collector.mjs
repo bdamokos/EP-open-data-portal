@@ -29,8 +29,8 @@ export async function collectStorySource(worker){
   const signature=createHash('sha256').update(JSON.stringify([...new Set(ids)].sort())).digest('hex');
   store.db.exec('CREATE TABLE IF NOT EXISTS story_seen_pages(job TEXT,signature TEXT,PRIMARY KEY(job,signature))');
   if(store.db.prepare('SELECT 1 FROM story_seen_pages WHERE job=? AND signature=?').get(row.key,signature)){update('partial','repeated-page',row.offset,signature);store.set('storyProjectionDirty',true);return true;}
-  const source={url:record.url,fetchedAt:record.fetchedAt};let batch=[];
-  const save=()=>store.transaction(()=>{store.assertWriter();for(const w of batch)stageStoryInput(store,w,source,{rank:4});});
+  const source={url:record.url,fetchedAt:record.fetchedAt};let batch=[],changed=false;
+  const save=()=>store.transaction(()=>{store.assertWriter();for(const w of batch)changed=Boolean(stageStoryInput(store,w,source,{rank:4}))||changed;});
   for(const work of works)for(const w of row.kind==='agenda'?expanded(work):[work]){
    batch.push(w);if(batch.length===25){save();batch=[];store.renew();await new Promise(setImmediate);}
   }
@@ -39,8 +39,8 @@ export async function collectStorySource(worker){
    // The decisions endpoint ignores pagination. One full response completes it.
    const more=row.kind==='agenda'&&works.length===STORY_PAGE_SIZE;
    update(more?'pending':'available',null,row.offset+(row.kind==='agenda'?works.length:0),signature);
-   store.set(row.kind==='decisions'?'storyProjectionDirty':'topicProjectionDirty',true);
+   if(changed)store.set(row.kind==='decisions'?'storyProjectionDirty':'topicProjectionDirty',true);
   });
- }catch(error){if(worker.controller.signal.aborted)throw error;store.assertWriter();const retry=collectorRetry(error,row.attempts,worker.clock());store.db.prepare('UPDATE story_jobs SET state=?,attempts=?,next_read=?,error=? WHERE key=?').run(retry.permanent?'unavailable':'pending',retry.attempts,retry.next,retry.paused?null:String(error.message).slice(0,200),row.key);if(retry.permanent)store.set('storyProjectionDirty',true);}
+ }catch(error){if(worker.controller.signal.aborted)throw error;store.assertWriter();const retry=collectorRetry(error,row.attempts,worker.clock());store.db.prepare('UPDATE story_jobs SET state=?,attempts=?,next_read=?,error=? WHERE key=?').run(retry.permanent?'unavailable':'pending',retry.attempts,retry.next,retry.paused?null:String(error.message).slice(0,200),row.key);if(retry.permanent&&(row.state!=='unavailable'||row.error!==String(error.message).slice(0,200)))store.set('storyProjectionDirty',true);}
  return true;
 }

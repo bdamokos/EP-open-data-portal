@@ -1,3 +1,4 @@
+import {topicRebuildDue} from './topic-publication.mjs';
 import {dispatchCollector,ordinaryCollectorTurn} from './collector-dispatch.mjs';
 import {odp} from './odp.mjs';
 import {OfficialContextWarmer} from './official-context-warmer.mjs';
@@ -141,7 +142,7 @@ export class ActivityWorker {
   }
   coreDue() { return Boolean(this.store.get('working') || !this.store.get('active') || this.store.motionClassificationPending(this.store.get('active')) || this.repairOnStartup&&(groupHistoryRepairDue(this.store)||adoptedTextDiscoveryDue(this.store,this.clock())||adoptedTextRepairDue(this.store,this.store.get('active'))) || day(Date.parse(this.store.get('lastSuccess')))!==day(this.clock()) && hour(this.clock())>=3); }
   due() {
-    if(storyCollectionDue(this.store,this.clock())||this.store.get('storyProjectionDirty')||this.generationExecutor&&this.store.get('active')&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||topicCollectionDue(this.store,this.clock())||this.store.get('topicProjectionDirty')||this.generationExecutor&&this.store.get('active')&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
+    if(storyCollectionDue(this.store,this.clock())||topicRebuildDue(this.store,this.clock())||this.generationExecutor&&this.store.get('active')&&this.store.get('storyProjection')?.version!==STORY_FACTS_VERSION||topicCollectionDue(this.store,this.clock())||this.generationExecutor&&this.store.get('active')&&(this.store.get('recordTopicProjection')?.version!==RECORD_TOPICS_VERSION||this.store.get('recordTopicProjection')?.generation!==this.store.get('active')))return true;
     const active=this.store.get('active') || 0;
     const cycle=this.store.get('working'),generation=cycle?.generation || active;
     if(this.store.get('recoveryScheduleVersion')!==1||this.store.get('resourceIndexes')!==1||this.store.get('amendmentReadVersion')!==amendmentReadVersion)return true;
@@ -966,8 +967,7 @@ export class ActivityWorker {
         } finally {taskIteration();}
       }
       if(!this.stopped)this.controller.signal.throwIfAborted();
-      if(!this.stopped&&this.store.get('topicProjectionDirty')&&this.generationExecutor)await this.generationExecutor('topics',{generation:this.store.get('active'),signal:this.controller.signal});
-      else if(!this.stopped&&this.store.get('storyProjectionDirty')&&this.generationExecutor)await this.generationExecutor('stories',{generation:this.store.get('active'),signal:this.controller.signal});
+      if(!this.stopped&&topicRebuildDue(this.store,this.clock())&&this.generationExecutor)await this.generationExecutor('topics',{generation:this.store.get('active'),signal:this.controller.signal});
       if(!this.stopped&&cycle&&this.store.get('working'))publishMissingHistory(this.store,generation);
     } finally {clearInterval(heartbeat);this.store.release();this.running=false;delete this.runDeadline;}
   }

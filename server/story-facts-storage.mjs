@@ -32,7 +32,7 @@ export function stageStoryInput(store,w,source,{rank=1}={}){
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body!==body){value={...value,conflicted:true};}
  const saved=JSON.stringify({...value,source:undefined}),encodedSource=JSON.stringify(source);
  if(old&&old.fetched_at===at&&old.rank===rank&&old.body===saved&&old.source===encodedSource)return;
- p.put.run(kind,value.id,saved,encodedSource,at,rank);
+ p.put.run(kind,value.id,saved,encodedSource,at,rank);return !old||old.body!==saved;
 }
 export function storyInput(store,kind,id){const row=prepared(store.db).input.get(kind,id);return row?{...JSON.parse(row.body),source:JSON.parse(row.source)}:null;}
 export function queueStoryRead(store,kind,id,{unavailable=false}={}){
