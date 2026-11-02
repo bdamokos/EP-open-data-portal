@@ -26,7 +26,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
  // Prose, links and browsing all use the displayed selection; only the quarter follows the request at once.
  const display:StorySelection={...view.selection,period:selection.period};
  const facts=provided?normalizeReferenceStoryFacts(provided):null;
- const build=(locale:string)=>provided?storyLinkClaims(buildReferenceTopicStories(facts,{...display,language:locale,proseLanguage:locale}),display):buildExactTopicStories(view.data,{...display,language:locale});
+ const build=(locale:string)=>provided?storyLinkClaims(buildReferenceTopicStories(facts,{...display,language:locale,proseLanguage:locale}),display):buildExactTopicStories(view.data,{...display,language:locale,hasMessage:(id:string)=>{const i=locale===ui.locale?ui:defaultUi;return i.messageLocale(id)===i.locale;}});
  const nativeValue=(value:StoryValue):boolean=>value==null||typeof value==='string'||(Array.isArray(value)?value.every(nativeValue):'message'in value?ui.messageLocale(value.message)===ui.locale&&Object.values(value.values).every(nativeValue):nativeValue(value.text));
  const candidate=build(ui.locale),proseUi=candidate.every(line=>ui.messageLocale(line.id)===ui.locale&&Object.values(line.values).every(nativeValue))?ui:defaultUi;
  const lines=proseUi===ui?candidate:build(proseUi.locale),proseI18n={sourceLocale:'en',forLocale:()=>proseUi};
