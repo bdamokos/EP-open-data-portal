@@ -60,7 +60,7 @@ export function GroupVoices({language='en',...props}:InsightProps){
   const page=useInsightData<Summary&Contributions>(`insights/group-voices?lang=${language}&group=${s.group}&period=${s.period}${s.person ? ('&person='+s.person) : ''}${s.subject ? ('&subject='+s.subject) : ''}&offset=${s.offset}`);
   if(page.data)retained.current={key:scopeKey,data:page.data};
   const data=page.data||((retained.current?.key===scopeKey) ? retained.current.data : null),people=data?.people||[],selected=people.find(p=>p.id===s.person),list=visibleGroupPeople(people,s);
-  const labels=data?.subjects?Object.fromEntries(data.subjects.map(t=>[t.id,t.label])):subjectsUi(ui);
+  const labels:Record<string,string>={...subjectsUi(ui),...(data?.subjects?Object.fromEntries(data.subjects.map(t=>[t.id,t.label])):{})};
   const topicsKnown=data?.ready!==false&&(!data?.topicAvailability||data.topicAvailability.state==='available');
  const scope=people.filter(p=>!s.person||p.id===s.person);
   const total=s.subject&&!topicsKnown?null:scope.reduce((n,p)=>n+(s.subject ? (p.subjects[s.subject]||0) : p.total),0),speakers=s.subject&&!topicsKnown?null:scope.filter(p=>(s.subject ? (p.subjects[s.subject]||0) : p.total)>0).length;
