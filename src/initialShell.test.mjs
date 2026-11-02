@@ -22,7 +22,7 @@ test('the initial document has a visible shell and native navigation without loa
   assert.equal(shell.querySelector('[role="status"]').textContent,'Loading view…');
   assert.equal(shell.querySelector('section').getAttribute('aria-busy'),'true');
   const links=[...shell.querySelectorAll('nav a')];
-  assert.deepEqual(links.map(link=>link.textContent),['Members','Plenary agenda','Questions','Outside voices','Group voices','Following']);
+  assert.deepEqual(links.map(link=>link.textContent),['Members','Plenary agenda','Questions','Geopolitics','Outside voices','Group voices','Following']);
   for(const link of links)assert.equal(new URL(link.href).pathname,'/explorer/');
   assert(document.head.querySelector('style').textContent.includes('#initial-shell'));
   assert(document.head.querySelector('script[src="./assets/initial-shell.js"]').defer);
@@ -32,7 +32,9 @@ test('the small shell enhancement selects only supported headings and keeps the 
   for(const [query,title,view] of [
     ['?lang=hu&view=questions&q-search=climate','Questions','questions'],
     ['?view=groups','Group voices','groups'],
-    ['?view=legislation&pl-mode=dossier','Dossiers','legislation'],
+    ['?view=legislation&pl-mode=dossier','Plenary agenda','legislation'],
+    ['?view=geopolitics','Geopolitics','geopolitics'],
+    ['?view=legislation&pl-mode=topics&topic=oeil:1','Topics','legislation'],
     ['?view=legislation&pl-mode=constructor','Plenary agenda','legislation'],
     ['?member=257043&module=votes','MEP 257043','members'],
     ['?view=amendments','Members of the European Parliament','members'],

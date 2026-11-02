@@ -26,7 +26,7 @@ export function TopicStories({selection,fallback,facts:provided,onRecords}:{sele
  const questionGap=false;
  if(!lines.length)return <>{response.data?.ready&&questionGap?<p className="topic-muted"><UiMessage id="topics.story.questionsUnavailable"/></p>:response.error||response.data?.ready===false||!response.data?fallback:null}</>;
  const refs=new Map<string,StoryReference>();
- const hrefFor=(key:string,record='',period=selection.period)=>{const filters={'t-q':period||'','t-mode':selection.mode||'q','t-own':selection.excludeOwn?'1':'0','t-zoom':selection.zoom||'world','t-story':key,...(record?{'t-story-read':record}:{})};return selection.place||selection.topic?topicsHref(selection.place?'place:'+selection.place:selection.topic!,filters):'?'+new URLSearchParams({view:'topics','t-tab':'places',...filters});};
+ const hrefFor=(key:string,record='',period=selection.period)=>{const filters={'t-q':period||'','t-mode':selection.mode||'q','t-own':selection.excludeOwn?'1':'0','t-zoom':selection.zoom||'world','t-story':key,...(record?{'t-story-read':record}:{})};return selection.place||selection.topic?topicsHref(selection.place?'place:'+selection.place:selection.topic!,filters):'?'+new URLSearchParams({view:'geopolitics',...filters});};
  const renderValues=(values:Record<string,StoryValue>,path:string):Record<string,ReactNode>=>Object.fromEntries(Object.entries(values).map(([key,value])=>[key,render(value,path+'-'+key)]));
  const render=(value:StoryValue,path:string):ReactNode=>{
   if(value===null||typeof value==='string')return value;

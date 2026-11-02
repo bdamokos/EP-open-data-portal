@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {titleParts,mapCode,point,quarterBounds,placeValue,riser,risers,legacyTopics,topicsHref,agendaTitle,isEuPlace,withBoundaryTies} from './topicPresentation.mjs';
+import {titleParts,mapCode,point,quarterBounds,placeValue,riser,risers,emptyDossierRedirect,topicsHref,agendaTitle,isEuPlace,withBoundaryTies} from './topicPresentation.mjs';
 import {explorerParams} from './explorerQuery.mjs';
 test('official titles retain every character and style English only',()=>{
  for(const title of ['REPORT on the proposal for a regulation of the European Parliament and of the Council on transport','MOTION FOR A RESOLUTION on Iran','REPORT on trade as regards apples as regards pears','Plain title']){
@@ -12,7 +12,6 @@ test('official titles retain every character and style English only',()=>{
 test('map identity joins Belarus by ISO and documents the Kosovo exception',()=>{assert.equal(mapCode('BLR'),'BLR');assert.equal(mapCode('1A0'),'KOS');assert.equal(mapCode(null),null);});
 test('sparse periods align without shifting and own-country exclusion preserves unknown',()=>{const item={series:[{period:'2026-Q2',question:10,questionHome:3,questionUnknown:2}]};assert.deepEqual(point(item,'2026-Q1'),{});assert.equal(placeValue(point(item,'2026-Q2'),'q',true),7);assert.equal(placeValue(point(item,'2026-Q2'),'q',false),10);assert.deepEqual(quarterBounds('2024-Q1'),{from:'2024-01-01',to:'2024-03-31'});assert.equal(quarterBounds('2024-Q5'),null);});
 test('risers use earlier full quarters and never a partial quarter',()=>{const data={periods:['2025-Q1','2025-Q2','2025-Q3','2025-Q4'],partial:{first:null,last:'2025-12-01'},items:[{key:'place:IND',series:[{period:'2025-Q1',question:2},{period:'2025-Q2',question:2},{period:'2025-Q3',question:10}]}]};assert.equal(riser(data,2,'q',false).ratio,5);assert.equal(riser(data,3,'q',false),null);assert.equal(riser(data,1,'q',false),null);});
-test('legacy timelines redirect and drilldown filters survive explorer serialization',()=>{assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123')),'?view=topics&topic=eurovoc%3A123');assert.equal(legacyTopics(new URLSearchParams('view=questions')),null);const href=topicsHref('place:IRN',{'t-q':'2026-Q1','t-kind':'question','t-own':'1'}),q=new URL(href,'http://localhost').searchParams;assert.equal(q.get('place'),'IRN');assert.equal(explorerParams(q,'topics').get('t-own'),'1');assert.equal(explorerParams(q,'topics').get('t-q'),'2026-Q1');});
 test('heat cells expose zero values, partial state and drilldown; finder supports keyboard and cancellation',async()=>{const source=await readFile(new URL('./Topics.tsx',import.meta.url),'utf8'),finder=await readFile(new URL('./TopicFinder.tsx',import.meta.url),'utf8');assert(source.includes('data-zero={n===0}'));assert(source.includes("'topic-partial'"));assert(source.includes("{'t-q':p}"));for(const key of ['ArrowDown','ArrowUp','Enter','Escape','aria-activedescendant','role="combobox"'])assert(finder.includes(key));});
 
 test('kicker renders +N and place links, keeps keywords reader-only, and hides empty records',async t=>{
@@ -53,8 +52,6 @@ test('finder selects the active result with arrows and Enter and closes with Esc
  const press=key=>act(async()=>input.dispatchEvent(new window.KeyboardEvent('keydown',{key,bubbles:true})));
  await press('ArrowDown');assert(input.getAttribute('aria-activedescendant'));await press('ArrowDown');await press('Enter');assert.equal(selected.key,'place:IRN');assert.equal(input.getAttribute('aria-expanded'),'false');await press('ArrowDown');await press('Escape');assert.equal(input.getAttribute('aria-expanded'),'false');
 });
-
-test('legacy EuroVoc URI bookmarks keep exact concept identity',()=>{assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-topic=http%3A%2F%2Feurovoc.europa.eu%2F404')),'?view=topics&topic=eurovoc%3A404');});
 
 test('malformed quarter URLs cannot silently select an unfiltered record list',async()=>{const {readExplorerParam}=await import('./explorerQuery.mjs');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q8'),'t-q',''),'');assert.equal(readExplorerParam(new URLSearchParams('t-q=2026-Q3'),'t-q',''),'2026-Q3');});
 
@@ -120,10 +117,6 @@ test('riser ratios use the max(1, average) baseline shared with stories',()=>{
  assert.equal(riser(data,2,'q',false).item.key,'place:BBB');assert.equal(riser(data,2,'q',false).ratio,30);
 });
 
-test('legacy timeline redirects keep the interface language',()=>{
- assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&trend-key=123&lang=fr')),'?view=topics&topic=eurovoc%3A123&lang=fr');
- assert.equal(legacyTopics(new URLSearchParams('view=legislation&pl-mode=trends&lang=de')),'?view=topics&lang=de');
-});
 
 test('legacy prose requires parent and quantity coverage while other panels stay native',async t=>{
  const {createElement:h}=await import('react'),{renderToStaticMarkup}=await import('react-dom/server'),{freshLoader}=await import('./test-support/viteRunner.mjs');
@@ -141,4 +134,19 @@ test('legacy prose requires parent and quantity coverage while other panels stay
   assert(html.includes(native?'1 234 kysymystä':'1,234 questions'),html);assert.match(html,/place=TUR/);assert.match(html,/t-own=1/);assert(html.includes('Türkiye'));
   if(messages===child)assert.match(html,/<aside>2 kysymystä<\/aside>/);
  }
+});
+
+test('topic and place links select their canonical navigation context and retain filters',()=>{
+ for(const [key,view,mode,param] of [['place:IRN','geopolitics',null,'place'],['oeil:1.10','legislation','topics','topic'],['eurovoc:404','legislation','topics','topic']]){
+  const q=new URL(topicsHref(key,{'t-q':'2026-Q1','t-own':'1',lang:'fr'}),'http://localhost').searchParams;
+  assert.equal(q.get('view'),view);assert.equal(q.get('pl-mode'),mode);assert.equal(q.get(param),key.replace(/^place:/,''));assert.equal(q.get('lang'),'fr');
+  const saved=explorerParams(q,view);assert.equal(saved.get(param),q.get(param));assert.equal(saved.get('t-q'),'2026-Q1');assert.equal(saved.get('t-own'),'1');
+ }
+});
+test('empty dossier entry returns to agenda while referenced dossiers and other parameters survive',()=>{
+ for(const suffix of ['', '&dossier-ref=', '&dossier-ref=%20']){
+  const q=new URLSearchParams('view=legislation&pl-mode=dossier&lang=fr&agenda-period=week%3A2026-10-05'+suffix),redirect=new URL(emptyDossierRedirect(q),'http://localhost').searchParams;
+  assert.equal(redirect.get('view'),'legislation');assert.equal(redirect.has('pl-mode'),false);assert.equal(redirect.get('lang'),'fr');assert.equal(redirect.get('agenda-period'),'week:2026-10-05');
+ }
+ assert.equal(emptyDossierRedirect(new URLSearchParams('view=legislation&pl-mode=dossier&dossier-ref=2025%2F0407(COD)')),null);
 });
