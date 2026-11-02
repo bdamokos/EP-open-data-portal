@@ -192,3 +192,30 @@ for(const mode of ['good','wrong-id','wrong-selected','wrong-language','conflict
  const context=apiBase+'/api/document-context/'+id+'?lang=en',value={documentId:mode==='wrong-id'?id+'9':id,document:{selectedDocumentId:mode==='wrong-selected'?id+'9':id,files:[{url,language:mode==='wrong-language'?'fr':'en',format:'DOCX',...(mode==='hash'?{sha256:'a'.repeat(64)}:{})}]}};
  const records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(context,value)]);const before=await Promise.all([tree(f.a),tree(f.b)]),h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;const cache=new InputCache(f.out,{apiBase,cap:0,retained:h,fetcher:()=>assert.fail('zero requests')});const input=await h.baseScope(f.identity,()=>cache.get(url));assert.equal(Boolean(input.acquisitionUnavailable),mode!=='good');if(mode==='good'){const contexts=input.hybridSource.identity.proof.declaration.contexts.base;assert.equal(contexts[0].url,context);assert(contexts[0].sha256);assert(contexts[0].fetchedAt);}assert.equal(cache.requests,0);assert.deepEqual(await Promise.all([tree(f.a),tree(f.b)]),before);
 });
+
+test('wording fallback proves only captured owners of the requested URL',async t=>{
+ const f=await fixture(t),row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url}};
+ const catalogue=apiBase+'/api/amendments?limit=50&offset=0',records=await Promise.all(f.sb.manifest.map(m=>f.h.b.read(m.url,m.request)));await seal(f.b,[...records,record(catalogue,{items:[row]})]);
+ const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;h.trackRows([row]);
+ for(let i=0;i<200;i++)h.registerWording({...row,id:row.id+'-'+i,wordingSource:{url:wording+'-'+i+'.docx'}});
+ const prove=h.wordingProof.bind(h);let proofs=0;h.wordingProof=async declared=>{assert.equal(declared,url);proofs++;return prove(declared);};
+ const selected=await h.wordingFallback(url);assert.equal(selected.input.body.toString(),'OLD BASE');assert.equal(proofs,1);
+ assert.equal(await h.wordingFallback(url.replace('base','unrelated')),null);assert.equal(proofs,1);
+});
+
+for(const hops of [0,1,2,3])test('metadata prefilter retains every full-proof acceptance through '+hops+' captured redirects',async t=>{
+ const f=await fixture(t),row={id:id+'-AM-1',targetDocumentId:id,number:1,listId:id+'-AM-001-001',language:'en',wordingSource:{url,sha256:digest(Buffer.from('OLD BASE'))}};
+ const urls=[url,...Array.from({length:hops},(_,i)=>'https://redmapl3.europarl.europa.eu/RedmapFront/media/test/hop-'+i+'.docx')];
+ const records=await Promise.all(f.sb.manifest.filter(m=>m.url!==url).map(m=>f.h.b.read(m.url,m.request)));
+ for(let i=0;i<hops;i++)records.push({...record(urls[i],'<moved/>'),status:302,ok:true,redirectUrl:urls[i+1],headers:i%2?{location:new URL(urls[i+1]).pathname}:{}});
+ records.push(record(urls.at(-1),'OLD BASE'),record(apiBase+'/api/amendments?limit=50&offset=0',{items:[row]}));await seal(f.b,records);
+ const h=await HybridInputs.open(f.a,f.b,f.out);h.runtime=f.h.runtime;
+ h.registerWording({...row,id:row.id+'-unrelated',wordingSource:{url:wording}});h.trackRows([row]);
+ const filteredOwners=h.wordingOwners.bind(h);
+ for(const requested of urls){
+  const filtered=await h.wordingFallback(requested);
+  // Disable only the prefilter; run the exact same full proof on all owners.
+  h.wordingOwners=()=>[...h.wording];const full=await h.wordingFallback(requested);h.wordingOwners=filteredOwners;
+  assert(full?.input,'the full proof accepts this captured chain position');assert.deepEqual(filtered,full);assert.equal(filtered.proof.finalObservation.sha256,row.wordingSource.sha256);
+ }
+});

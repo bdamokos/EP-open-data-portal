@@ -122,9 +122,24 @@ export class HybridInputs {
     if((actual(b)||redirect&&(identity.type==='cellar'||identity.type==='ep-document'&&this.runtime.allowedDownload(b.redirectUrl||'')))&&(!actual(a)||a.sha256===b.sha256))return this.wrap(b,url,request,this.b,proof?{...identity,proof}:identity,'settled-base-fallback');
     return this.wrap(a?.acquisitionUnavailable?a:null,url,request,a?.acquisitionUnavailable?this.a:null,identity,proven?'base-missing-in-both':'base-identity-mismatch');
   }
+  wordingOwners(requestedUrl){
+    // This is only a metadata prefilter. wordingFallback still verifies every
+    // selected owner's observations, catalogue bindings and final bytes.
+    return [...this.wording].filter(url=>{
+      let current=url;const seen=new Set();
+      for(let hops=0;hops<=3;hops++){
+        if(current===requestedUrl)return true;
+        if(seen.has(current))break;seen.add(current);
+        const observation=this.b.manifest.get(key(current));
+        if(!observation||![301,302,303,307,308].includes(observation.status)||!observation.redirectUrl)break;
+        current=observation.redirectUrl;
+      }
+      return false;
+    });
+  }
   async wordingFallback(requestedUrl){
     if(!this.runtime.allowedDownload(requestedUrl))return null;
-    for(const url of this.wording){
+    for(const url of this.wordingOwners(requestedUrl)){
       const proof=await this.wordingProof(url);if(!proof)continue;
       const copy=await this.a.read(url);if(copy&&!copy.acquisitionUnavailable)continue;
       const chain=[];let current=url;
