@@ -1315,3 +1315,12 @@ test('report quotation labels the comparison base without a legal-text placement
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
 });
+
+// B-10-2026-0411 AM1: English wording, Spanish edition.
+const crossEditionResponse=evidence=>{const value=overlayResponse();value.document.selectedText.textLanguage='es';value.document.selectedText.availableTextLanguages=['es'];value.placement.evidence=evidence;return value;};
+const crossLanguageEvidence={basis:'cross-language-label',matchKind:'label-cross-language',wordingLanguage:'en',textLanguage:'es'};
+for(const [name,evidence,placed] of [['renders in place',[crossLanguageEvidence],true],['without cross-language evidence stays withheld',[],false],['naming another edition stays withheld',[{...crossLanguageEvidence,textLanguage:'fr'}],false]])
+  test('a label-only insertion in another language edition '+name,async t=>{
+    const h=await harness(t,()=>crossEditionResponse(evidence));await h.render({request:overlayRequest,language:'en'});
+    assert.equal(Boolean(h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]')),placed);
+  });
