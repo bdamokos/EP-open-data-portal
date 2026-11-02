@@ -2,7 +2,7 @@ import test from 'node:test';
 import {snapshotHttpObservation} from './sitting-snapshot-source.mjs';
 import {gzipSync,gunzipSync} from 'node:zlib';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync,statSync} from 'node:fs';
+import {mkdtempSync,rmSync,statSync,readFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {ActivityStore} from './activity-index-store.mjs';
@@ -636,4 +636,77 @@ test('reader-level calendar conflicts unstage only the rejected page through sou
   assert.equal(h.store.get('sittingSnapshotRejection:'+JSON.stringify(['calendar',1,'2026'])).count,1);
   healthy=true;h.advance(DAY);await h.collector.step(h.worker);
   assert(h.reader.read('calendar',1,'2026'));assert.deepEqual(offsets,[0,50]);
+});
+
+const realEventShapes=JSON.parse(readFileSync(new URL('./fixtures/sitting-event-shapes.json',import.meta.url)));
+test('real PVCRE procedural, explanation and debate shapes recover from old parser failures using held bytes',async t=>{
+  for(const fixture of realEventShapes){
+    const h=setup(t);h.advance(Date.parse('2026-11-02T12:00Z')-h.clock());
+    const id=fixture.payload.data[0].activity_id;isolateJob(h,'debate',id);
+    const key='sittingSnapshotRejection:'+JSON.stringify(['debate',1,id]);
+    const {sourceObservationHash}=await import('./source-retry.mjs');
+    const record={url:fixture.sourceUrl,fetchedAt:h.clock(),payload:fixture.payload};
+    h.store.set(key,{hash:sourceObservationHash(record),parserVersion:1,count:3,firstSeen:h.clock()-2*DAY,descriptor:JSON.stringify(['/events/'+id,{}])});
+    h.store.db.prepare("UPDATE sitting_snapshots SET attempts=12,error='Collection source has invalid metadata.',next_check=? WHERE kind='debate' AND id=?").run(h.clock()+180*DAY,id);
+    h.store.db.prepare("DELETE FROM meta WHERE key='sittingDebateParser'").run();
+    assert(h.collector.due());h.collector.admit();
+    const row=h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
+    assert.equal(row.next_check,h.clock()+pastSittingRecheckDelay(id.slice(7,17),h.clock(),DAY));
+    h.collector.readCached=async()=>record;
+    h.worker.fetchRecord=()=>assert.fail('valid held bytes must not download again');
+    h.advance(row.next_check-h.clock());await h.collector.step(h.worker);
+    assert.deepEqual(h.reader.read('debate',1,id).payload,fixture.payload);
+    assert.equal(h.store.get(key),null);
+    assert.equal(h.store.db.prepare("SELECT attempts FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id).attempts,0);
+  }
+});
+test('PVCRE identity, date, type, links and duplicate conflicts remain rejected',async t=>{
+  for(const mutate of [
+    node=>delete node.id,
+    node=>node.activity_id+='-99',
+    node=>node.activity_date='2026-10-21',
+    node=>node.had_activity_type='def/ep-activities/COMMITTEE_MEETING',
+    node=>node.consists_of=['eli/dl/event/MTG-PL-2025-01-01-OTH-1'],
+    node=>node.consists_of=[{}],
+    node=>node.consists_of=null,
+    (node,data)=>data.push({...node,activity_label:{en:'Conflicting title'}}),
+  ]){
+    const h=setup(t);h.advance(Date.parse('2026-11-02T12:00Z')-h.clock());
+    const payload=structuredClone(realEventShapes[1].payload),id=payload.data[0].activity_id;
+    mutate(payload.data[0],payload.data);isolateJob(h,'debate',id);
+    h.collector.readCached=async()=>null;
+    h.worker.fetchRecord=async()=>({fetchedAt:h.clock(),payload});
+    await h.collector.step(h.worker);assert.equal(h.reader.read('debate',1,id),null);
+    assert.match(h.store.db.prepare("SELECT error FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id).error,/invalid metadata/);
+  }
+});
+test('pre-boundary observations never confirm permanent byte rejection',async t=>{
+  const h=setup(t),fixture=realEventShapes[0],id=fixture.payload.data[0].activity_id;
+  h.advance(Date.parse('2026-11-02T12:00Z')-h.clock());isolateJob(h,'debate',id);
+  const record={fetchedAt:Date.parse(id.slice(7,17)+'T12:00Z'),payload:fixture.payload};
+  h.collector.readCached=async()=>record;let calls=0;
+  h.worker.fetchRecord=async()=>{calls++;return record;};
+  for(let i=0;i<4;i++){
+    await h.collector.step(h.worker);
+    assert.equal(h.store.get('sittingSnapshotRejection:'+JSON.stringify(['debate',1,id])),null);
+    const row=h.store.db.prepare("SELECT next_check FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
+    h.advance(row.next_check-h.clock());
+  }
+  assert.equal(calls,4);
+});
+test('PVCRE collection follows exact declared sub-items and accepts absolute identities and leaf items',async t=>{
+  const h=setup(t);h.advance(Date.parse('2026-11-02T12:00Z')-h.clock());
+  const parent=structuredClone(realEventShapes.find(f=>f.payload.data[0].activity_id==='MTG-PL-2026-10-22-PVCRE-ITM-11'));
+  const id=parent.payload.data[0].activity_id;isolateJob(h,'debate',id);
+  const child=structuredClone(realEventShapes.find(f=>f.payload.data[0].activity_id===id+'-4'));
+  child.payload.data[0].id='https://data.europarl.europa.eu/'+child.payload.data[0].id;
+  delete child.payload.data[0].activity_id;delete child.payload.data[0].consists_of;
+  h.collector.readCached=async endpoint=>({url:'https://data.europarl.europa.eu/api/v2'+endpoint,fetchedAt:h.clock(),payload:endpoint.endsWith(id)?parent.payload:child.payload});
+  h.worker.fetchRecord=()=>assert.fail('held parent and child must be reused');
+  await h.collector.step(h.worker);
+  assert(h.store.db.prepare("SELECT 1 FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id+'-4'));
+  await h.collector.step(h.worker);assert(h.reader.read('debate',1,id+'-4'));
+  const retained=h.store.db.prepare("SELECT next_check,body FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id);
+  h.store.db.prepare("DELETE FROM meta WHERE key='sittingDebateParser'").run();h.collector.admit();
+  assert.deepEqual(h.store.db.prepare("SELECT next_check,body FROM sitting_snapshots WHERE kind='debate' AND id=?").get(id),retained);
 });
