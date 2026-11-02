@@ -111,3 +111,20 @@ test('places put the time control, map and story first and the ranked list and f
  assert.deepEqual([...node.querySelectorAll('.places-ends span')].map(s=>s.textContent),['2025 Q1','2025 Q3 so far']);
  await act(async()=>node.querySelector('.places-scrubber button[aria-label="Next quarter"]').click());await wait(()=>node.querySelector('.places-quarter').textContent==='2025 Q3 so far');assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3');
 });
+
+test('voting-time groups keep their event link and are never captioned as a debate',async t=>{
+ const window=new Window({url:'http://localhost/?view=topics&topic=oeil%3A1.10&t-q=2026-Q1'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ const vote='MTG-PL-2026-01-20-PVCRE-ITM-7-2',debate='MTG-PL-2026-01-21-PVCRE-ITM-9';
+ const detail={ready:true,concept:{key:'oeil:1.10',label:'Trade',role:'topic'},periods:['2026-Q1','2026-Q2'],partial:{first:null,last:null},series:[{period:'2026-Q1',groups:2,speech:8,question:0,document:0,debate:1,top:{key:vote,title:'Support for Ukraine (vote)',kind:'record'}},{period:'2026-Q2',groups:0,speech:0,question:0,document:0,debate:0}],
+  peaks:{groups:[{period:'2026-Q1',n:2,groups:[{key:vote,kind:'record',title:'Support for Ukraine (vote)',language:'en',date:'2026-01-20',n:5},{key:debate,kind:'debate',title:'Support for Ukraine (debate)',language:'en',date:'2026-01-21',n:5}]}]},
+  groupsTotal:2,total:2,facets:{keywords:[],places:[],topics:[]},groups:[{key:vote,kind:'record',title:'Support for Ukraine (vote)',date:'2026-01-20',items:[],speechCount:5,speakers:[]},{key:debate,kind:'debate',agendaId:debate,title:'Support for Ukraine (debate)',date:'2026-01-21',items:[],speechCount:3,speakers:[]}],nextOffset:null};
+ t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);return Response.json(u.pathname==='/api/topics/story-facts'?{ready:false}:detail);});
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelectorAll('.topic-record-group').length===2);
+ const links=[...node.querySelectorAll('.topic-record-group a')].map(a=>a.getAttribute('href'));
+ const voteLink=links.find(h=>h&&h.includes(encodeURIComponent(vote))||h&&h.includes(vote));assert(voteLink,'the vote group title opens its event: '+links.join(' '));assert(!links.includes('#topic-records'));
+ const captions=[...node.querySelectorAll('.topic-peak')].map(b=>b.textContent);
+ assert(captions.some(c=>c.includes('Support for Ukraine')),'the real debate keeps its peak caption');assert(!captions.some(c=>c.includes('(vote)')),'no caption names the voting-time item: '+captions.join(' | '));assert.equal(captions.length,1);
+});

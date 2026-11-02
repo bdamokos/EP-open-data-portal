@@ -96,6 +96,7 @@ test('an excluded vote item leaves every topic, keyword and place counter',async
  assert.equal(detail.groups.find(g=>g.key===vote)?.kind,'record','the vote item group is not presented as a debate');
  assert.equal(detail.groups.find(g=>g.key===vote)?.agendaId,undefined);
  assert.equal(detail.groups.find(g=>g.key===debate)?.kind,'debate');
+ const tops=detail.series.map(x=>x.top).filter(Boolean);assert(tops.length);for(const t of tops)assert.equal(t.kind,t.key===vote?'record':undefined,'series tops carry the voting-time kind');
  for(const peak of Object.values(detail.peaks).flat())for(const g of peak.groups)assert(!(g.key===vote&&g.kind==='debate'),'peaks never label the vote item a debate');
  assert(Object.values(detail.peaks).flat().some(p=>p.groups.some(g=>g.key===vote)),'the vote group still counts in all-kind groups');
 });

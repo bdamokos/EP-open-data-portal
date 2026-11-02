@@ -136,7 +136,9 @@ export class RecordTopics{
  // Overview totals were bounded by the build day; detail and question splits
  // use the same bound so both count the same records.
  const bound=calendar.end||calendar.partial?.last||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Brussels'}).format(Date.now());
- const top=value=>{if(!value)return undefined;const t=typeof value==='string'?JSON.parse(value):value;return {key:t.key,title:t.titles?.[languagePreference(Object.keys(t.titles||{}),language)[0]]||t.key,date:t.date};};
+ // A top group whose parent is excluded (procedural) carries kind 'record' so captions never call it a debate.
+ const procedural=this.db.prepare("SELECT 1 FROM record_topic_records WHERE generation=? AND id=? AND json_extract(body,'$.procedural') IS 1");
+ const top=value=>{if(!value)return undefined;const t=typeof value==='string'?JSON.parse(value):value;return {key:t.key,title:t.titles?.[languagePreference(Object.keys(t.titles||{}),language)[0]]||t.key,date:t.date,...(procedural.get(generation,t.key)?{kind:'record'}:{})};};
  if(view!=='detail'){
  for(const row of this.db.prepare('SELECT key,period,kind,n FROM '+(askers==='all'?'record_topic_totals':'record_topic_filtered_totals')+' WHERE generation=?'+(askers==='all'?'':' AND askers=?')).iterate(generation,...(askers==='all'?[]:[askers]))){
  if(!periods.includes(row.period))continue;let item=summary.get(row.key);if(!item){const c=this.concept(row.key,language);if(!c||c.role==='hidden')continue;item={...c,total:0,counts:counts(),series:[]};summary.set(row.key,item);}item.total+=row.n;item.counts[row.kind]+=row.n;let s=item.series.find(s=>s.period===row.period);if(!s){s={period:row.period,...counts()};item.series.push(s);}s[row.kind]+=row.n;
