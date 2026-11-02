@@ -1,0 +1,71 @@
+[
+  {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-03-25-PVCRE-ITM-17?format=application%2Fld%2Bjson",
+    "retrievedOn": "2026-11-02",
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-03-25-PVCRE-ITM-17",
+          "type": "Activity",
+          "activity_date": "2026-03-25",
+          "activity_id": "MTG-PL-2026-03-25-PVCRE-ITM-17",
+          "activity_label": {
+            "hu": "17. Az azonnali halálbüntetéssel való fenyegetések Iránban, tekintettel a legutóbbi, többek között az iráni rezsim által 2026. március 18-án és 19-én végrehajtott kivégzésekre (vita)",
+            "en": "17. Imminent death penalty threats in Iran in the light of the latest executions, including on 18 and 19 March 2026, by the Iranian regime (debate)"
+          },
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-03-25-OTH-2017069433527",
+            "eli/dl/event/MTG-PL-2026-03-25-OTH-2017069433541"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_DEBATE"
+        }
+      ]
+    }
+  },
+  {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-10-22-PVCRE-ITM-11-4?format=application%2Fld%2Bjson",
+    "retrievedOn": "2026-11-02",
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-22-PVCRE-ITM-11-4",
+          "type": "Activity",
+          "activity_date": "2026-10-22",
+          "activity_id": "MTG-PL-2026-10-22-PVCRE-ITM-11-4",
+          "activity_label": {
+            "en": "11.4. UN Climate Change Conference 2026 in Antalya, Türkiye (COP31) (B10-0468/2026)",
+            "hu": "11.4. Az ENSZ 2026. évi antalyai (Törökország) éghajlatváltozási konferenciája (COP31) (B10-0468/2026)"
+          },
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-22-OTH-2017100591562",
+            "eli/dl/event/MTG-PL-2026-10-22-OTH-2017100591566"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_VOTE_EXPLANATIONS"
+        }
+      ]
+    }
+  },
+  {
+    "sourceUrl": "https://data.europarl.europa.eu/api/v2/events/MTG-PL-2026-10-22-PVCRE-ITM-11?format=application%2Fld%2Bjson",
+    "retrievedOn": "2026-11-02",
+    "payload": {
+      "data": [
+        {
+          "id": "eli/dl/event/MTG-PL-2026-10-22-PVCRE-ITM-11",
+          "type": "Activity",
+          "activity_date": "2026-10-22",
+          "activity_id": "MTG-PL-2026-10-22-PVCRE-ITM-11",
+          "activity_label": {
+            "en": "11. Oral explanations of votes (Rule 201)",
+            "hu": "11. Szóbeli szavazatindokolások (az eljárási szabályzat 201. cikke)"
+          },
+          "consists_of": [
+            "eli/dl/event/MTG-PL-2026-10-22-PVCRE-ITM-11-1",
+            "eli/dl/event/MTG-PL-2026-10-22-PVCRE-ITM-11-4"
+          ],
+          "had_activity_type": "def/ep-activities/PLENARY_ACTIVITY"
+        }
+      ]
+    }
+  }
+]
