@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {Window} from 'happy-dom';
-import {INTERFACE_LANGUAGE_KEY,INTERFACE_LANGUAGES,saveInterfaceLanguage} from './interfaceLanguage.mjs';
+import {INTERFACE_LANGUAGE_KEY,INTERFACE_LANGUAGES,saveInterfaceLanguage,defaultInterfaceLanguage,interfaceLanguageInUrl} from './interfaceLanguage.mjs';
 import {interfaceLanguages} from './interfaceCopy.ts';
 
 const script=await readFile(new URL('../public/assets/interface-language.js',import.meta.url),'utf8');
@@ -57,12 +57,29 @@ test('the startup script runs blocking in the head before the shell and app read
   assert.match(vite,/startupAssets = \[[^\]]*'interface-language'/,'production builds fingerprint the startup script');
 });
 
-test('saving a choice tolerates unavailable storage',()=>{
+test('saving and reading a choice tolerate unavailable storage, including a denied storage getter',t=>{
   const values=new Map();
   saveInterfaceLanguage('hu',{setItem:(key,value)=>values.set(key,value)});
   assert.equal(values.get(INTERFACE_LANGUAGE_KEY),'hu');
   assert.doesNotThrow(()=>saveInterfaceLanguage('hu',{setItem(){throw new Error('blocked');}}));
   assert.doesNotThrow(()=>saveInterfaceLanguage('hu',null));
+  const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,get(){throw new Error('SecurityError');}});
+  t.after(()=>original?Object.defineProperty(globalThis,'localStorage',original):delete globalThis.localStorage);
+  assert.doesNotThrow(()=>saveInterfaceLanguage('fr'));
+  assert.equal(defaultInterfaceLanguage({languages:['fi-FI']}),'fi');
+});
+
+test('the app resolves a missing language exactly like the startup script and keeps explicit English when it differs',async t=>{
+  const cases=[[{stored:'de',browser:['hu']},'de'],[{stored:'en',browser:['hu']},'en'],[{browser:['nb-NO','pt-BR']},'pt'],[{stored:'xx',browser:['ga-IE']},'ga'],[{browser:['ja']},'en']];
+  for(const [options,expected] of cases) {
+    const storage={getItem:key=>key===INTERFACE_LANGUAGE_KEY?options.stored??null:null};
+    assert.equal(defaultInterfaceLanguage({storage,languages:options.browser}),expected);
+    const window=boot(t,{search:'?view=questions',...options});
+    assert.equal(new URLSearchParams(window.location.search).get('lang')??'en',expected,'startup script agrees');
+    assert.equal(interfaceLanguageInUrl('en',{storage,languages:options.browser}),expected!=='en');
+    assert.equal(interfaceLanguageInUrl('fr',{storage,languages:options.browser}),true);
+  }
 });
 
 test('the header control shows the translate mark and code and lists endonyms in protocol order',async t=>{

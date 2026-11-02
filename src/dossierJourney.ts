@@ -1,3 +1,4 @@
+import {defaultInterfaceLanguage} from './interfaceLanguage.mjs';
 import {useEffect,useRef,useState,type Dispatch,type SetStateAction} from 'react';
 import type {MouseEvent} from 'react';
 
@@ -12,7 +13,7 @@ const change='dossier-journey-change';
 const capture='dossier-journey-capture';
 const readerStates=new Map<string,Map<string,unknown>>();
 
-const routeKey=(href:string)=>{const url=new URL(href,window.location.href);if(!url.searchParams.has('role'))url.searchParams.set('role','both');if(!url.searchParams.has('lang'))url.searchParams.set('lang','en');if(url.searchParams.has('member')&&!url.searchParams.has('view')&&!url.searchParams.has('module'))url.searchParams.set('module','profile');url.searchParams.sort();return url.pathname+url.search+url.hash;};
+const routeKey=(href:string)=>{const url=new URL(href,window.location.href);if(!url.searchParams.has('role'))url.searchParams.set('role','both');if(!url.searchParams.has('lang'))url.searchParams.set('lang',defaultInterfaceLanguage());if(url.searchParams.has('member')&&!url.searchParams.has('view')&&!url.searchParams.has('module'))url.searchParams.set('module','profile');url.searchParams.sort();return url.pathname+url.search+url.hash;};
 function pathFor(node:Element|null):string|null {
   if(!node||node===document.body)return null;
   const parts:string[]=[];

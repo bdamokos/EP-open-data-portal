@@ -48,7 +48,7 @@ import { API_ROOT } from "./api";
 import { interfaceLabel, countryName, compareCountries } from "./interfaceLabels.mjs";
 import { publicUrl } from "./publicUrl";
 import { interfaceCopy, interfaceLanguages } from "./interfaceCopy";
-import {saveInterfaceLanguage} from "./interfaceLanguage.mjs";
+import {defaultInterfaceLanguage,interfaceLanguageInUrl,saveInterfaceLanguage} from "./interfaceLanguage.mjs";
 import type {
   Directory,
   MemberProfile,
@@ -101,7 +101,7 @@ const normalize = (s: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase();
 const queryLanguage = (query: URLSearchParams) =>
-  interfaceLanguages.includes(query.get("lang") || "") ? (query.get("lang")!) : "en";
+  interfaceLanguages.includes(query.get("lang") || "") ? (query.get("lang")!) : defaultInterfaceLanguage();
 const queryRole = (query: URLSearchParams) =>
   ["both", "member", "substitute"].includes(query.get("role") || "") ? (query.get("role")!) : "both";
 const queryActivityOffset=(query:URLSearchParams)=>{
@@ -623,7 +623,7 @@ export default function App() {
     if(!view&&member)for(const [key,value] of memberVotesJourneyParams(votes.journey))ownParams.set(key,value);
     u.search = new URLSearchParams({
       ...Object.fromEntries(ownParams),
-      ...((lang!=='en') ? ({lang}) : ({})),
+      ...(interfaceLanguageInUrl(lang) ? ({lang}) : ({})),
       ...(((!view) && member) ? ({ member: String(member), module: tab }) : ({})),
       ...((!view && organization) ? {organization,...(organizationName?{'organization-name':organizationName}:{})} : {}),
       ...(((!view) && committee) ? ({ committee }) : ({})),
@@ -752,7 +752,7 @@ export default function App() {
   };
   const changeLanguage=(language:string)=>{
     votes.remember();motions.remember();saveInterfaceLanguage(language);
-    const url=new URL(location.href);if(language==='en')url.searchParams.delete('lang');else url.searchParams.set('lang',language);
+    const url=new URL(location.href);if(interfaceLanguageInUrl(language))url.searchParams.set('lang',language);else url.searchParams.delete('lang');
     history.replaceState(history.state,'',url);startTransition(()=>setLang(language));
   };
   const leaveSaved=()=>{
