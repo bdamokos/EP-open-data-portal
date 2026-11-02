@@ -150,7 +150,7 @@ test('old projection schemas fall back until preparation and worker refill',asyn
   f.store.db.exec('ALTER TABLE week_clouds DROP COLUMN inputs');f.store.set('weekCloudSchema',1);f.store.release();
   assert.equal(f.store.weekCloud(params(f)),null);
   prepareIndexes({corpusDirectory:f.directory+'/corpus',clock:f.clock,log:()=>{}});
-  assert.equal(f.store.get('weekCloudSchema'),2);assert(f.store.acquire());assert.equal(f.store.weekCloud(params(f)),null);
+  assert.equal(f.store.get('weekCloudSchema'),3);assert(f.store.acquire());assert.equal(f.store.weekCloud(params(f)),null);
   await fillWeekCloud(f.store,async()=>f.store.assertWriter());assert.equal(f.store.weekCloud(params(f)).coverage.transcripts,8);
 });
 test('concurrent week fallback requests retain one shared build',async t=>{
@@ -161,4 +161,51 @@ test('concurrent week fallback requests retain one shared build',async t=>{
   const first=service.query(query());await entered;
   const second=service.query(query());await new Promise(resolve=>setImmediate(resolve));release();
   const [a,b]=await Promise.all([first,second]);assert.equal(reads,1);assert.deepEqual(a,b);
+});
+
+// Existing pre-projection corpora have speechLanguages but no input counter.
+// With recursive triggers, REPLACE deletes the old key and its DELETE trigger
+// used to allocate the rowid already reserved by the outer INSERT.
+test('worker discovery replaces retained languages before any projection input counter exists',async t=>{
+  const {CorpusWorker}=await import('./corpus-worker.mjs');
+  const f=weekCloudFixture(0);t.after(()=>f.close());
+  f.store.set('speechLanguages','all');
+  f.store.db.exec("DELETE FROM meta WHERE key='weekCloudInputRevision'");
+  const worker=new CorpusWorker(f.store,{clock:f.clock,budget:0,diskLimit:0,fetchRecord:async()=>{throw Error('unexpected network');}});
+  await worker.discover();
+  assert.equal(f.store.get('speechLanguages'),'all');
+  assert.equal(f.store.get('discoveryCheckedAt'),f.clock());
+});
+
+test('startup preparation replaces deployed meta-writing triggers without scanning retained data',async t=>{
+  const {prepareIndexes}=await import('./migrate-indexes.mjs');
+  const {CorpusStore}=await import('./corpus-store.mjs');
+  const f=weekCloudFixture(8);t.after(()=>f.close());
+  await fillWeekCloud(f.store,async()=>f.store.assertWriter());
+  const documents=f.store.db.prepare('SELECT COUNT(*) n FROM documents').get().n;
+  const triggers=f.store.db.prepare("SELECT name,tbl_name,sql FROM sqlite_master WHERE type='trigger' AND name LIKE 'week_cloud_inputs_%'").all();
+  assert.equal(triggers.length,18);
+  for(const {name,sql} of triggers) {
+    f.store.db.exec(`DROP TRIGGER ${name}`);
+    f.store.db.exec(sql.replace('UPDATE week_cloud_inputs SET revision=revision+1 WHERE id=1;',"INSERT INTO meta(key,value) VALUES ('weekCloudInputRevision','1') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1;"));
+  }
+  f.store.set('weekCloudSchema',2);f.store.set('speechLanguages','all');
+  f.store.db.exec("DELETE FROM meta WHERE key='weekCloudInputRevision'; DROP TABLE week_cloud_inputs");
+  f.store.release();
+  assert.equal(f.store.weekCloud(params(f)),null);
+  assert.equal(prepareIndexes({corpusDirectory:f.directory+'/corpus',clock:f.clock,log:()=>{}})[0].noop,false);
+  assert.equal(prepareIndexes({corpusDirectory:f.directory+'/corpus',clock:f.clock,log:()=>{}})[0].noop,true);
+  const reopened=new CorpusStore(f.directory+'/corpus',{clock:f.clock});
+  try {
+    assert(reopened.acquire());reopened.set('speechLanguages','all');
+    assert.equal(reopened.get('weekCloudSchema'),3);
+    assert.equal(reopened.db.prepare('SELECT COUNT(*) n FROM documents').get().n,documents);
+    assert(reopened.db.prepare('SELECT revision FROM week_cloud_inputs').get().revision>0);
+    assert(reopened.db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name LIKE 'week_cloud_inputs_%'").all().every(row=>!row.sql.includes('INSERT INTO meta')));
+    reopened.release();
+  }finally {reopened.close();}
+  assert(f.store.acquire());
+  assert.equal(f.store.weekCloud(params(f)),null,'v2 projections require refill');
+  await fillWeekCloud(f.store,async()=>f.store.assertWriter());
+  assert.equal(f.store.weekCloud(params(f)).coverage.transcripts,8);
 });
