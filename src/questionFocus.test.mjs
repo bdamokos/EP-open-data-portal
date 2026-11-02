@@ -232,3 +232,19 @@ for(const query of ['?view=questions&q-offset=25&q-topic=topic-E-10-2026-000001'
   const h=await harness(t,()=>questions(25),{query});
   assert(h.resultHeading());assert.equal(h.container.querySelector('.insight-period-more'),null);
 });
+
+test('the term continuation is not offered once the shorter period reaches the term analysis limit',async t=>{
+  const h=await harness(t,()=>({...questions(4975),counts:{selectedQuestions:5000},nextOffset:null,questions:Array.from({length:25},(_,i)=>question(4976+i))}),{query:'?view=questions&q-offset=4975'});
+  assert(h.resultHeading());assert.equal(h.container.querySelector('.insight-period-more'),null);
+});
+
+test('an empty shorter period continues from the start of the term, keeping the end date and addressee',async t=>{
+  const empty={...questions(),counts:{selectedQuestions:0},questions:[],nextOffset:null};
+  const h=await harness(t,url=>url.searchParams.get('days')==='term'?{...questions(),window:{start:'2024-07-16',end:'2026-09-30'}}:empty,{query:'?view=questions&q-until=2026-09-30&q-addressee=org%2FCOM'});
+  assert.equal(h.container.querySelector('.insight-period-more').textContent,'Show earlier questions from the current term');
+  await h.click('Show earlier questions from the current term');
+  const request=h.calls.at(-1);
+  assert.equal(request.searchParams.get('days'),'term');assert.equal(request.searchParams.get('offset'),'0');
+  assert.equal(request.searchParams.get('end'),'2026-09-30');assert.equal(request.searchParams.get('addressee'),'org/COM');
+  assert.equal(document.activeElement,h.container.querySelector('.insight-question-list article h3'));
+});

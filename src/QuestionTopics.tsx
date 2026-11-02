@@ -103,7 +103,7 @@ export function QuestionTopics(props:InsightProps) {
   const countryPeak=Math.max(0,...(data?.facets?.countries.map(f=>f.count)||[])),selectionStart=range?.start||data?.window.start||fallbackStart,selectionEnd=range?.end||data?.window.end||fallbackEnd;
   const selectionDates=(selectionStart && selectionEnd) ? (humanDate(selectionStart,language)+((selectionStart===selectionEnd) ? '' : (' — '+humanDate(selectionEnd,language)))) : '';
   const trendSelection=word ? ('word:'+word) : (cluster ? ('cluster:'+cluster) : '');
-  const earlier=(data&&data.nextOffset==null&&days!=='term'&&!range&&!cluster&&!word&&!data.coverage.truncated&&data.counts.selectedQuestions<=5000) ? data.counts.selectedQuestions : null;
+  const earlier=(data&&data.nextOffset==null&&days!=='term'&&!range&&!cluster&&!word&&!data.coverage.truncated&&data.counts.selectedQuestions<5000) ? data.counts.selectedQuestions : null;
   const missingTopic=Boolean(cluster&&error==='That topic is not in this window.');
   const resultStatus=((data && (!loading)) && (!error)) ? [
     data.counts.selectedQuestions?ui.t('batch4.questiontopics.tsx.count.questions.match.these.filters',{count:data.counts.selectedQuestions}):ui.t('batch4.questiontopics.tsx.no.questions.match.these.filters'),
