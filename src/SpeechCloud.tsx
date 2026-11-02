@@ -19,7 +19,7 @@ type CloudPerson=SpeechSpeaker&{currentMep:boolean};
 type CloudSpeech={id:string;date:string;title:string;titleLanguage?:string|null;machineTranslation:boolean;people:CloudPerson[]};
 export type SpeechCloudResult={availability?:SourceAvailability;restarted?:boolean;scope:{kind:'member'|'sitting'|'week'|'topic';phase:'upcoming'|'past'};language:string;words:{word:string;label:string|null;speechCount:number;occurrences:number;speechIds:string[]}[];speeches:CloudSpeech[];coverage:{catalogueComplete?:boolean;basis?:string;transcripts:number;matchedSpeechRecords:number;missingLanguage:number;missingLanguageAlternatives?:{language:string;count:number}[];unreadableText:number;complete:boolean;truncated:boolean;associationUnavailable:boolean;sourceRecords?:{unique:number;declared:number|null;duplicates:number;issues:string[]}};window:{start:string|null;end:string|null};nextPage:number|null};
 const client=createSpeechCloudClient(api);
-const languages='bg cs da de el en es et fi fr ga hr hu it lt lv nl pl pt ro sk sl sv'.split(' ');
+const languages='bg cs da de el en es et fi fr ga hr hu it lt lv mt nl pl pt ro sk sl sv'.split(' ');
 const wordLabel=(word:string)=>['ai','gdp','nato'].includes(word) ? word.toUpperCase() : word;
 
 function useCloud(route:string) {
