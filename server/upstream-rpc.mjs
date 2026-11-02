@@ -17,7 +17,7 @@ export function serveUpstreamPort(port,{queueFor,observations}) {
       try {
         // A source-writer dependency's default priority cannot borrow readers'
         // foreground reserve. All traffic on this port has a background owner.
-        const release=await queueFor(message.source).acquire('background',{signal:controller.signal});
+        const release=await queueFor(message.source,{backgroundRank:message.backgroundRank||0}).acquire('background',{signal:controller.signal,backgroundRank:message.backgroundRank||0});
         if(closed||controller.signal.aborted){release();return;}
         request.release=release;send({type:'grant',id});
       }catch(error){requests.delete(id);send({type:'rejected',id,error:{message:error.message,code:error.code,retryAfter:error.retryAfter}});}
@@ -62,21 +62,21 @@ export class UpstreamRpcClient {
     port.once('close',()=>this.close());
   }
   send(message){if(!this.closed)this.port.postMessage(message);}
-  acquire(priority='background',route='/other',{source='odp',signal}={}) {
+  acquire(priority='background',route='/other',{source='odp',signal,backgroundRank=0}={}) {
     if(this.closed||signal?.aborted)return Promise.reject(signal?.reason||aborted());
     const id=++this.sequence;
     return new Promise((resolve,reject)=>{
       const abort=()=>{this.pending.delete(id);signal.removeEventListener('abort',abort);this.send({type:'cancel',id});reject(signal.reason);};
       this.pending.set(id,{resolve,reject,cleanup:()=>signal?.removeEventListener('abort',abort)});
-      signal?.addEventListener('abort',abort,{once:true});this.send({type:'acquire',id,priority,route,source});
+      signal?.addEventListener('abort',abort,{once:true});this.send({type:'acquire',id,priority,route,source,backgroundRank});
     });
   }
   release(id,result=this.grants.get(id)){if(this.grants.delete(id))this.send({type:'release',id,result});}
   queue(source) {
     const client=this;
     return {
-      async run(operation,{priority,signal}={}) {
-        const id=await client.acquire(priority,'/other',{source,signal});
+      async run(operation,{priority,signal,backgroundRank=0}={}) {
+        const id=await client.acquire(priority,'/other',{source,signal,backgroundRank});
         try {signal?.throwIfAborted();return await client.context.run(id,()=>operation(signal));}
         finally {client.release(id);}
       },
