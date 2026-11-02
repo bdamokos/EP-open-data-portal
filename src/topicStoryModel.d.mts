@@ -8,6 +8,7 @@ export type StoryFacts={questions:{id:string;d:string;t:string;oral?:boolean|num
 export type StorySelection={periods:string[];partial?:string[];period?:string;place?:string;topic?:string;zoom?:string;mode?:string;excludeOwn?:boolean;unknownQuestions?:boolean;unknownHistory?:boolean;labels?:Record<string,string>;language?:string;proseLanguage?:string};
 export function cleanStoryTitle(title:string):string;
 export function storyNumber(n:number,language?:string):string;
+export function storyPlaceName(id:string,label:string,options?:{language?:string;start?:boolean}):string;
 export function buildReferenceTopicStories(facts:StoryFacts|null|undefined,selection:StorySelection):StoryLine[];
 export function primaryStoryPlace(debate:StoryFacts['debates'][number]):string|null;
 export function strongStoryPlace(debate:StoryFacts['debates'][number],place:string):boolean;
