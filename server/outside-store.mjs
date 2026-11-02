@@ -16,7 +16,8 @@ export const mandateRosterBody=date=>({date,basis:'member-mandates',ids:[],check
 export function rebuildFirstDayRoster(store,generation,date) {
   const roster=store.source(generation,'outside:roster:'+date);
   if(!roster||roster.work.basis==='member-mandates')return false;
-  store.enqueue(generation,'outside:roster:'+date,'outside-roster',mandateRosterBody(date),102,true);
+  // A rebuild that exhausted its retries is an outside gap; gap recovery keeps its cursor and timing.
+  if(!store.source(generation,'outside:gap:outside:roster:'+date))store.enqueue(generation,'outside:roster:'+date,'outside-roster',mandateRosterBody(date),102,true);
   return true;
 }
 const parse = value => JSON.parse(value);

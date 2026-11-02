@@ -337,6 +337,22 @@ test('a completed dated roster for a term first day is rebuilt from mandates and
   worker.initializeOutside({generation});
   assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,'outside:roster:2019-07-02').done,1);
 }));
+test('a legacy first-day rebuild deferred into an outside gap is left to gap recovery',withStore(async(store,generation)=>{
+  store.putSource(generation,'outside:state','outside-state',{version:1},saved.fetchedAt);
+  store.putSource(generation,'outside:roster:2019-07-02','outside-roster',{date:'2019-07-02',ids:['200'],sources:[saved]},saved.fetchedAt);
+  const key='outside:roster:2019-07-02',progress={date:'2019-07-02',basis:'member-mandates',ids:['100'],checked:['100'],sources:[{url:'https://data.europarl.europa.eu/api/v2/meps/100?format=application%2Fld%2Bjson',fetchedAt:saved.fetchedAt}]};
+  store.enqueue(generation,key,'outside-roster',progress,102);
+  store.putSource(generation,'outside:gap:'+key,'outside-gap',{taskKey:key,taskKind:'outside-roster',taskBody:progress,priority:102,error:'Parliament data is unavailable (500).',attempts:3,failedAt:saved.fetchedAt},saved.fetchedAt);
+  store.finishTask(store.nextTask(generation));
+  const worker=new ActivityWorker(store,{fetchRecord:async()=>assert.fail('No request while the gap waits for recovery.')});
+  worker.initializeOutside({generation});
+  const task=store.db.prepare('SELECT done,body FROM tasks WHERE generation=? AND key=?').get(generation,key);
+  assert.equal(task.done,1);assert.deepEqual(JSON.parse(task.body).checked,['100']);
+  // The legacy roster still cannot classify a speech meanwhile.
+  const speech={...project(fixture.contributions[0]),id:'MTG-PL-2019-07-02-OTH-9',date:'2019-07-02',term:9,participants:['300'],headers:[]};
+  assert.equal(recordOutside(store,generation,speech),false);
+  assert.equal(store.db.prepare('SELECT done FROM tasks WHERE generation=? AND key=?').get(generation,key).done,1);
+}));
 test('a term first-day roster keeps the gap when a speaker record fails',withStore(async(store,generation)=>{
   const speech={...project(fixture.contributions[0]),id:'MTG-PL-2024-07-16-OTH-1',date:'2024-07-16',term:10,participants:['245770'],headers:[]};
   store.putSource(generation,'/speeches/'+speech.id,'speech',{id:speech.id,outside:speech},saved.fetchedAt);
