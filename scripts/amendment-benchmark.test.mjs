@@ -10,7 +10,7 @@ import {parseProposal} from '../server/proposal-structure.mjs';
 import {resolveProposalPlacement} from '../server/proposal-placement.mjs';
 import {documentContextPlacement} from '../server/document-context-placement.mjs';
 import {resolveAmendmentPlacement} from '../server/document-context-model.mjs';
-import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility} from './amendment-benchmark-model.mjs';
+import {classify,verifyPlacement,metrics,compareBaseline,targetPatterns,oracleNormal,existingLawOracleNormal,projectionCompatibility,instructionFrameWording} from './amendment-benchmark-model.mjs';
 import {InputCache,allowedInput,retryDelay,digest,apiOrigin} from './amendment-benchmark-cache.mjs';
 import {options,monday,evaluateReport,acquireReport,placeableDecision,contextUrl} from './amendment-benchmark.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
@@ -481,4 +481,31 @@ test('proposal oracle rejects an implicit paragraph extent swallowing a publishe
   const checked=verifyPlacement({placement,wording:amendment,items:broken});
   assert.equal(checked.status,'failed');assert.equal(checked.reason,'oracle-published-paragraph-boundary-mismatch');
   assert.equal(classify({...stages(),S5:placement,S6:checked}).outcome,'false-placement');
+});
+
+test('present-text instruction frames assert only new numbered proposal instructions',()=>{
+  const wording=(raw,proposedText,language='en',proposal=[])=>({baseline:'present-text',language,targetLabel:raw,targetPath:{proposal,underlying:[{document:'Regulation (EU) 2024/1689',raw:'Article 6 – paragraph 1'}]},originalText:'1. Present law;',proposedText});
+  const framed=instructionFrameWording(wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended as follows:'));
+  assert.equal(framed.baseline,'commission-proposal');assert.equal(framed.originalText,'');assert.deepEqual(framed.targetPath.underlying,[]);
+  assert.equal(framed.targetLabel,'Article 1 – paragraph 1 – point 5 b (new)');
+  assert(instructionFrameWording(wording('Article 1 – paragraph 1 – point 2 a (new)\nRegulation (EU) 2024/1689 — Article 2 – paragraph 8','(2 a)\tin Article 2, paragraph 8 is replaced:')));
+  assert(instructionFrameWording(wording('Article 1 – paragraph 1 – point -1','(-1)\tin Article 10a, paragraph 1 is replaced:')));
+  assert(instructionFrameWording(wording('Article 1 a (new)','Article 1 a (new)\n"In Article 1 of Decision (EU) 2015/1814:')));
+  // The complete printed article number must match ('1 bis' is not '1 bis bis').
+  assert(instructionFrameWording(wording('Article 1 bis (nouveau)','Article 1 bis (nouveau)\nÀ l’article 1:','fr')));
+  assert.equal(instructionFrameWording(wording('Article 1 bis (nouveau)','Article 1 bis bis (nouveau)\nÀ l’article 1:','fr')),null);
+  assert.equal(instructionFrameWording(wording('Article 1 a (new)','Article 1 ab (new)\nIn Article 1:')),null);
+  // Nested points are outside the outer-level rule, whatever their numbering.
+  assert.equal(instructionFrameWording(wording('Article 1 – paragraph 1 – point 5 – point 1 a (new)','(1a)\tNew nested point')),null);
+  assert.equal(instructionFrameWording(wording('Article 1 – paragraph 1 – point 5 – point b a (new)','(ba)\tNew nested point')),null);
+  assert.equal(instructionFrameWording(wording('Article 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:')),null);
+  assert(instructionFrameWording(wording('Artykuł 1 – akapit 1 – punkt 6 b (nowy)','6b)\tart. 12 otrzymuje brzmienie:','pl')));
+  for(const value of [
+    wording('Article 1 – paragraph 1 – point 5 b (new)','(5c)\tArticle 6(1) is amended as follows:'),
+    wording('Article 1 – paragraph 1 – point 5','(5)\tArticle 6(1) is amended as follows:'),
+    wording('Regulation (EU) 2024/1689 — Article 6 – paragraph 1','(5b)\tArticle 6(1) is amended:'),
+    wording('Artykuł 1 – akapit 1 – punkt 6 a – litera a (nowa)','6a)\tw art. 11 wprowadza się następujące zmiany:','pl'),
+    {...wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:'),baseline:'commission-proposal'},
+    wording('Article 1 – paragraph 1 – point 5 b (new)','(5b)\tArticle 6(1) is amended:','en',[{raw:'Article 1 – paragraph 1 – point 5 b (new)'},{raw:'Article 2'}]),
+  ])assert.equal(instructionFrameWording(value),null,value.targetLabel+' / '+value.proposedText);
 });
