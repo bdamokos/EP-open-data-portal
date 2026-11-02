@@ -27,9 +27,11 @@ export class OfficialContextWarmer {
     Object.assign(this,{store,clock,sources});this.catalog=catalog||new EurovocCatalog(sources);
     this.context=context||new ProcedureContext(sources,this.catalog);this.progress=progress||new ProcedureProgress(sources);
     this.references=references;this.nextAt=0;this.dailyOriginLimit=dailyOriginLimit;
-    this.sources.beforeFetch=async origin=>{
+    // Topic collection opts out of the daily origin count; it keeps the
+    // origin pacing, the capacity check and the writer's run budget.
+    this.sources.beforeFetch=async(origin,{dailyLimit=true}={})=>{
       if(!await this.admitCapacity())throw Object.assign(new Error('Official context cache capacity reached.'),{retryAfter:60});
-      this.admitOrigin(origin);
+      if(dailyLimit)this.admitOrigin(origin);
     };
     this.sources.cache.assertWriter=()=>this.store.assertWriter();
     if(this.catalog.cache)this.catalog.cache.assertWriter=()=>this.store.assertWriter();

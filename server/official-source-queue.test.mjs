@@ -59,9 +59,8 @@ test('an aborted reader detaches from a shared cold source without cancelling it
   const cached=await reader.get(po+'?query=shared');assert.equal(cached.fetchedAt,result.fetchedAt);assert.equal(calls,1);
 });
 
-test('the source budget removes queued work and never starts its fetch',async t=>{
-  const budgets=[];
-  t.mock.method(AbortSignal,'timeout',ms=>{assert.equal(ms,20_000);const c=new AbortController();budgets.push(c);return c.signal;});
+test('an admission wait that runs out removes queued work, never starts its fetch, and pauses',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
   const started=[],reader=new OfficialContextSources({directory:null,fetchSource:async(url,{signal})=>{
     signal.throwIfAborted();started.push(url);
     return new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}));
@@ -69,27 +68,26 @@ test('the source budget removes queued work and never starts its fetch',async t=
   const one=reader.get(po+'?query=one'),settledOne=one.catch(()=>{});await until(()=>started.length===1);
   const queue=reader.queues.get(new URL(po).origin);queue.interval=0;queue.nextStart=0;
   const two=reader.get(po+'?query=two'),settledTwo=two.catch(()=>{});await until(()=>started.length===2);
-  const three=reader.get(po+'?query=three'),rejected=assert.rejects(three,/source budget ended/);await until(()=>queue.waiters.length===1);
+  const three=reader.get(po+'?query=three',{priority:'background'}).catch(error=>error);await until(()=>queue.waiters.length===1);
   try {
-    assert.equal(started.length,2);assert.equal(queue.active,2);assert.equal(queue.waiters.length,1);
-    budgets[2].abort(new Error('source budget ended'));await rejected;
+    assert.equal(started.length,2);assert.equal(queue.active,2);
+    t.mock.timers.tick(20_000);const error=await three;assert.equal(error.code,'source_admission_paused');assert.equal(error.retryAfter,60);
     assert.equal(queue.waiters.length,0);assert.equal(started.length,2);
-  }finally{for(const c of budgets)c.abort(new Error('cleanup'));await Promise.all([settledOne,settledTwo]);}
+  }finally{await Promise.all([settledOne,settledTwo]);}
   assert.equal(queue.active,0);
 });
 
-test('one source budget spans redirects and a stalled body, then releases admission',async t=>{
-  const budget=new AbortController(),signals=[];let timeoutCalls=0,body;
-  t.mock.method(AbortSignal,'timeout',ms=>{assert.equal(ms,20_000);timeoutCalls++;return budget.signal;});
-  const reader=new OfficialContextSources({directory:null,fetchSource:async(_url,{signal})=>{
+test('one source budget spans redirects and a stalled body, excludes queue waits, then releases admission',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});const signals=[];let body;
+  const reader=new OfficialContextSources({directory:null,run:(operation,{signal})=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>resolve(operation()),15_000);signal.addEventListener('abort',()=>{clearTimeout(timer);reject(signal.reason);},{once:true});}),fetchSource:async(_url,{signal})=>{
     signals.push(signal);
     if(signals.length===1)return new Response(null,{status:302,headers:{location:po+'?query=redirected'}});
     return new Response(new ReadableStream({start(controller){body=controller;signal.addEventListener('abort',()=>controller.error(signal.reason),{once:true});}}),{headers:{'content-type':'application/json'}});
   }});
-  const pending=reader.get(po+'?query=initial'),rejected=assert.rejects(pending,/whole source budget ended/);
-  await until(()=>body);assert.equal(signals.length,2);assert.equal(timeoutCalls,1);assert(signals.every(signal=>signal===budget.signal));
-  budget.abort(new Error('whole source budget ended'));await rejected;
-  assert.equal(reader.queues.get(new URL(po).origin).active,0);
+  const pending=reader.get(po+'?query=initial').catch(error=>error);
+  t.mock.timers.tick(15_000);for(let i=0;i<100;i++){await flush();if(body)break;t.mock.timers.tick(1000);}await until(()=>body);assert.equal(signals.length,2);assert.equal(signals[0],signals[1]);assert.equal(signals[0].aborted,false,'15 s queued spends none of the 20 s budget');
+  t.mock.timers.tick(19_000);await flush();assert.equal(signals[0].aborted,false);t.mock.timers.tick(1_000);assert.equal((await pending).name,'TimeoutError');
+  assert.equal(upstreamPortServices().queueFor(new URL(po).origin).active,0);
 });
 
 test('official redirects cannot borrow another origin admission pool',async()=>{

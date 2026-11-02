@@ -14,6 +14,8 @@ test('retry classifications preserve source causes, identity/parse gaps and serv
  for(const e of [{status:404},{code:'official_source_unavailable',cause:{status:404}},{code:'procedure_identity'},{code:'official_document_invalid'},Error('Procedure reference unavailable.'),Error('Event identity does not match the request.'),Error('Sitting identities do not match the request.'),Error('EP API returned an invalid data array.')])assert(collectorPermanent(e));
  assert.equal(collectorRetry({code:'official_context_capacity'},8,0).attempts,8);
  assert.equal(collectorRetry({retryAfter:9*DAY/1000},20,0).next,9*DAY);
+ for(const e of [{code:'source_admission_paused'},{status:429},{status:503},{code:'official_source_limited',sourceStatus:429},Error('Official context background budget exhausted.'),Error('Official context daily origin budget exhausted.')])assert.equal(collectorRetry(e,4,0).attempts,4,'admission caps and pauses are not failures');
+ assert.equal(collectorRetry({code:'official_source_limited',sourceStatus:500},4,0).attempts,5);
  assert.equal(collectorRetry(Error('offline'),0,0).next,60_000);assert.equal(collectorRetry(Error('offline'),1,0).next,120_000);assert.equal(collectorRetry(Error('offline'),30,0).next,7*DAY);
 });
 for(const kind of ['topic','story'])for(const permanent of [true,false])test(`${kind} retains ${permanent?'unavailable rechecks':'growing transient retries'} across restart`,async t=>{

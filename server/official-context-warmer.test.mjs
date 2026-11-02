@@ -163,3 +163,19 @@ test('discovery inside the step transaction enqueues procedures without nesting 
   assert.equal(store.db.prepare('SELECT count(*) n FROM official_context_jobs').get().n,24*3);
   assert(store.get('officialContextCursor'),'the discovery cursor commits');
 });
+
+test('topic collection reads OEIL past the warmer daily cap and counts no request itself',async t=>{
+  const dir=mkdtempSync(path.join(os.tmpdir(),'official-topic-cap-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const {readFile}=await import('node:fs/promises'),{collectTopicProcedure}=await import('./topics-collector.mjs'),{topicCollectorTables}=await import('./topics-project.mjs');
+  const now=Date.parse('2026-11-01T12:00Z'),store=new ActivityStore(path.join(dir,'index'),{clock:()=>now,initializeIndexes:true});t.after(()=>store.close());store.acquire();topicCollectorTables(store.db);
+  const html=await readFile(new URL('./fixtures/oeil-procedure-2025-2110-subjects.html',import.meta.url),'utf8');let fetched=0;
+  const sources=new OfficialContextSources({directory:path.join(dir,'cache'),writable:true,clock:()=>now,fetchSource:async()=>{fetched++;return new Response(html,{headers:{'content-type':'text/html'}});}});
+  const warmer=new OfficialContextWarmer(store,{clock:()=>now,dailyOriginLimit:1,sources});warmer.admitOrigin('https://oeil.europarl.europa.eu');
+  assert.throws(()=>warmer.admitOrigin('https://oeil.europarl.europa.eu'),/daily origin budget/);
+  store.db.prepare('INSERT INTO topic_procedure_queue VALUES (?,?,0)').run('2025-2110','2025/2110(INI)');
+  const worker={store,clock:()=>now,requests:0,budget:10,controller:new AbortController()};
+  assert(await collectTopicProcedure(worker,{sources}));assert.equal(fetched,1);assert.equal(worker.requests,0,'the writer wrapper, not the collector, counts the HTTP start');
+  assert(JSON.parse(store.db.prepare('SELECT body FROM topic_procedure_pages').get().body).subjects.length);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM topic_procedure_attempts').get().n,0);
+  assert.equal(store.get('officialContextOrigin:https://oeil.europarl.europa.eu').count,1,'collector reads do not use the warmer allowance');
+});
+
