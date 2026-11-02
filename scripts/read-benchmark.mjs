@@ -85,8 +85,9 @@ export async function main(args=process.argv.slice(2)) {
     if(cached && result.tree!==id.tree)throw new Error('Cached benchmark tree does not match revision');
     return {...result,...id,measuredCommit:result.measuredCommit??result.commit??id.commit};
   };
+  const measuredBase=options['--compare'] && !options['--cached-base']?measureReference(options['--compare']):undefined;
   const reference=options['--compare']?{
-    result:stamp(options['--cached-base']?JSON.parse(readFileSync(options['--cached-base'],'utf8')):measureReference(options['--compare']).result,options['--compare'],!!options['--cached-base']),
+    result:stamp(options['--cached-base']?JSON.parse(readFileSync(options['--cached-base'],'utf8')):measuredBase.result,measuredBase?.revision??options['--compare'],!!options['--cached-base']),
   }:undefined;
   if(reference)writeFileSync(path.join(tmpdir(),'read-benchmark-base-result.json'),JSON.stringify(reference.result,null,2)+'\n');
   const result=stamp(options['--cached-head']?JSON.parse(readFileSync(options['--cached-head'],'utf8')):{version:1,sqliteVersion:execFileSync('sqlite3',['--version'],{encoding:'utf8'}).trim(),nodeVersion:process.version,nodeSqliteVersion:process.versions.sqlite,scenarios:benchmarks.flatMap(run=>run({ci:true}).scenarios)},'HEAD',!!options['--cached-head']);
