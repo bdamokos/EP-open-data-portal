@@ -14,7 +14,7 @@ export const placeValue=(s,mode='q',own=true)=>mode==='d'?(s.document||0):own?Ma
 export function risers(data,index,mode,own){
  if(index<2||partialQuarter(data.periods[index],data.partial))return [];
  const earlier=data.periods.slice(0,index).filter(p=>!partialQuarter(p,data.partial));if(!earlier.length)return [];
- const ranked=data.items.map(item=>{const count=placeValue(point(item,data.periods[index]),mode,own),average=earlier.reduce((n,p)=>n+placeValue(point(item,p),mode,own),0)/earlier.length;return {item,count,ratio:count/Math.max(1,average)};}).filter(r=>r.count>=(mode==='d'?3:8)).sort((a,b)=>b.ratio-a.ratio||b.count-a.count||a.item.key.localeCompare(b.item.key));
+ const ranked=data.items.map(item=>{const count=placeValue(point(item,data.periods[index]),mode,own),average=earlier.reduce((n,p)=>n+placeValue(point(item,p),mode,own),0)/earlier.length;return {item,count,average,ratio:average?count/average:Infinity};}).filter(r=>r.count>=(mode==='d'?3:8)&&r.ratio>=1.5).sort((a,b)=>b.ratio-a.ratio||b.count-a.count||a.item.key.localeCompare(b.item.key));
  return ranked.length?ranked.filter(r=>r.ratio===ranked[0].ratio&&r.count===ranked[0].count):[];
 }
 export const riser=(...args)=>risers(...args)[0]||null;

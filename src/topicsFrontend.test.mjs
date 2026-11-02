@@ -95,3 +95,7 @@ test('fallback and finder quantities select independent singular and plural form
  const {createAppUiI18n}=await import('./uiCatalogues.mjs'),ui=createAppUiI18n().forLocale('en');const summary=(d,q)=>ui.t('topics.findSummary',{debates:ui.t('topics.story.count.debates',{count:d},{count:d}),questions:ui.t('topics.story.count.questions',{count:q},{count:q})});assert.equal(summary(1,1),'1 plenary debate · 1 question');assert.equal(summary(1,2),'1 plenary debate · 2 questions');assert.equal(summary(2,1),'2 plenary debates · 1 question');
 
 });
+
+test('risers require a real 1.5 ratio and retain the earlier average',()=>{
+ const data={periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{},items:[{key:'place:IRN',series:[{period:'2025-Q1',question:10},{period:'2025-Q2',question:10},{period:'2025-Q3',question:14}]}]};assert.equal(riser(data,2,'q',false),null);data.items[0].series[2].question=15;assert.equal(riser(data,2,'q',false).ratio,1.5);data.items[0].series[0].question=0;data.items[0].series[1].question=0;assert.equal(riser(data,2,'q',false).average,0);
+});
