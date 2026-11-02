@@ -10,6 +10,7 @@ import {rawProposalAssertion} from './amendment-benchmark-proposal-oracle.mjs';
 import {rawResolutionUnits,rawResolutionPointUnits,nativeFinnishFirst} from './amendment-benchmark-resolution-oracle.mjs';
 import {expectedOperation} from './amendment-benchmark-operation-oracle.mjs';
 import {expectedLanguageScope,verifyLanguageScope} from './amendment-benchmark-scope-oracle.mjs';
+import {assertRecastReading} from './amendment-recast-oracle.mjs';
 
 
 // Only these affirmative observations remove a row from the denominator.
@@ -312,6 +313,15 @@ function verifyResolutionInsertion(text,wording,target,placement) {
 /** Independent assertions on the returned source coordinates, never another
  * placement implementation. Unknown oracle grammars stay placed-unverified. */
 export function verifyPlacement(input) {
+  const result=verifyProposalPlacement(input);
+  if(result.status!=='verified')return result;
+  // A recast's legal reading omits its struck deletions and markers; the
+  // native Word runs must establish that reading for every touched row.
+  const recast=assertRecastReading({proposal:input.items?.[input.placement.itemIndex]?.proposal,placement:input.placement,nativeQuoted:input.nativeQuoted});
+  return recast&&recast.status!=='verified'?recast:result;
+}
+
+function verifyProposalPlacement(input) {
   const result=verifyKnownPlacement(input);
   const proposal=input.items?.[input.placement.itemIndex]?.proposal;
   if(result.status!=='unverified'||!proposal||!['oracle-address-grammar-unavailable','oracle-address-unit-unavailable','oracle-introductory-part-unavailable','oracle-insertion-grammar-unavailable'].includes(result.reason))return result;
