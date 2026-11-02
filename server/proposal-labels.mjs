@@ -2,7 +2,7 @@ import {LATIN_NUMBER_SUFFIXES,latinSuffixParts} from './legal-latin-numbering.mj
 
 // Surface forms are deliberately language-specific. Proposal headings were checked
 // against COM(2025)87 DOCX in all 24 languages; amendment forms include the public
-// EP amendment excerpts in server/fixtures. See docs/PROPOSAL_STRUCTURE.md.
+// EP amendment excerpts in server/fixtures.
 const rows = {
   bg:['Член','съображение','параграф','точка|буква','приложение','нова|нов|ново'],
   cs:['Článek|Čl.','bod odůvodnění','odstavec|odst.','bod|písmeno|písm.','příloha','nový|nová|nové'],

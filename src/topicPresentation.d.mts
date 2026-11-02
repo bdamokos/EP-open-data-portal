@@ -16,3 +16,4 @@ export function agendaTitle(title:string):string;
 export function isEuPlace(iso3:string|null|undefined):boolean;
 
 export function withBoundaryTies<T>(rows:T[],limit:number,score:(row:T)=>number):T[];
+export function monthRangeLabel(period:string,language?:string):string;

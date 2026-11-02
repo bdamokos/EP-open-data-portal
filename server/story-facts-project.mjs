@@ -1,6 +1,6 @@
 import {rootSourceValues,sourceByteChunks} from './topic-source-stream.mjs';
 import {TopicDiskMap,topicBatches} from './topic-disk-map.mjs';
-import {storyTables,stageStoryInput,storyInput,queueStoryRead} from './story-facts-storage.mjs';
+import {storyTables,stageStoryInput,storyInput,queueStoryRead,storyEventType,adoptHeldEventSnapshots} from './story-facts-storage.mjs';
 import {array,tail,unique,titles,storyReference,wholeTextOutcome,debateAgenda,debateFormat,debatePlaces,speakerEligible,proceduralAgenda,votingDebate} from './story-facts-model.mjs';
 import {speechParentDocumentId} from './speech-agenda.mjs';
 import {countryLabels} from './topic-roles.mjs';
@@ -88,10 +88,12 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   const title=d.titles.en||Object.values(d.titles)[0]||'',format=debateFormat(agenda?.conflicted?null:agenda,documents),geography=debatePlaces(title,documents.flatMap(doc=>doc.places),format);
   const joint=/^Joint debate [–—-] /.test(agenda?.headings?.en||'');
   const roleCounts=speakerRoles.get(d.id);
-  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id),d.speechLabels),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
+  const procedural=proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',d.id),d.speechLabels,storyEventType(store,d.id)?.type,Boolean(storyEventType(store,d.id)?.conflicted)),{speechLabels,...seed}=d,body={...seed,...counts,procedural,agendaClassified:Boolean(agenda&&!agenda.conflicted&&(agenda.type||Object.keys(agenda.formats||{}).length)),speakerRoles:roleCounts,...agendaLink,format,joint:joint?agenda.headings.en.replace(/^Joint debate [–—-] /,''):null,jointHeadings:joint?agenda.headings:{},procedures:agenda?.conflicted?[]:agenda?.procedures||[],docs:documents.map(doc=>doc.id),creId:d.creIds.every(id=>id.startsWith('CRE-10-'+d.date+'-ITM-'))?speechParentDocumentId(d.creIds):null,...geography};
   put.run(generation,'debate',d.id,d.date,JSON.stringify(body));addLinks('debate-document',d.id,body.docs);addLinks('debate-procedure',d.id,body.procedures);
   for(const p of procedural?[]:body.places)place.run(generation,p.id,'debate',d.id,d.date,p.basis);
-  if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
+  const read=storyInput(store,'event',d.id);if(!event||!event.executedKnown)queueStoryRead(store,'event',d.id);
+  // Read again only when no retained observation holds the event's type.
+  if(read&&!Object.hasOwn(read,'type')&&!storyEventType(store,d.id))queueStoryRead(store,'event',d.id,{refresh:true});
   if(!agenda||!Object.keys(agenda.formats||{}).length)queueStoryRead(store,'agenda','MTG-PL-'+d.date,{unavailable:d.date<'2024-12-16'});
  }} )());
  const topicKeys=store.db.prepare("SELECT DISTINCT m.key FROM json_each(?) j CROSS JOIN record_topic_memberships m INDEXED BY record_topic_record CROSS JOIN record_topic_concepts c WHERE m.generation=? AND m.record_id=j.value AND c.generation=m.generation AND c.key=m.key AND c.role IN ('topic','keyword')");
@@ -100,6 +102,9 @@ async function projectStoryFacts(store,generation,{concepts,onProgress=()=>{},so
   yield;const body=JSON.parse(row.body),ids=row.kind==='document'?[row.id]:unique([row.id,body.agendaId,...body.docs].filter(Boolean));
   for(const key of topicKeys.all(JSON.stringify(ids),generation))topic.run(generation,key.key,row.kind,row.id,row.date);
  }} )());
+ // Event reads queued by this pass that a held debate snapshot already answers settle now. Their inputs
+ // arrive after classification, so the publication stays dirty for a follow-up rebuild.
+ if(adoptHeldEventSnapshots(store).changed)store.set('storyInputsAfterClassification',true);
  onProgress('story-facts');
  await applyStrongPlaces(store,generation,{concepts,fact,docsFor});onProgress('story-places');
  const jobs={};for(const row of store.db.prepare('SELECT kind,state,COUNT(*) n FROM story_jobs GROUP BY kind,state').iterate())(jobs[row.kind]??={})[row.state]=row.n;
@@ -123,7 +128,7 @@ async function applyStrongPlaces(store,generation,{concepts,fact,docsFor}){
  };
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,kind,date,group_key,body FROM record_topic_records WHERE generation=? AND kind='debate' ORDER BY id").iterate(generation)){
   yield;const r=JSON.parse(row.body),known=fact('debate',row.id);if(known){save(row,r,known.procedural?{procedural:true,places:[]}:known);continue;}
-  const agenda=storyInput(store,'agenda',row.id),docs=docsFor(row.id),title=r.titles?.en||Object.values(r.titles||{})[0]||'';save(row,r,proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',row.id))?{procedural:true,places:[]}:debatePlaces(title,docs.flatMap(d=>d.places),debateFormat(agenda,docs)));
+  const agenda=storyInput(store,'agenda',row.id),docs=docsFor(row.id),title=r.titles?.en||Object.values(r.titles||{})[0]||'';save(row,r,proceduralAgenda(agenda)||votingDebate(storyInput(store,'event',row.id),[],storyEventType(store,row.id)?.type,Boolean(storyEventType(store,row.id)?.conflicted))?{procedural:true,places:[]}:debatePlaces(title,docs.flatMap(d=>d.places),debateFormat(agenda,docs)));
  }} )());
  await topicBatches(store,(function*(){for(const row of store.db.prepare("SELECT id,kind,date,group_key,body FROM record_topic_records WHERE generation=? AND kind='speech' ORDER BY id").iterate(generation)){
   yield;const r=JSON.parse(row.body),parent=parentGet.get(generation,row.id)?.parent,known=parent?fact('debate',parent):null;if(known)save(row,r,known.procedural?{places:[]}:known,parent);

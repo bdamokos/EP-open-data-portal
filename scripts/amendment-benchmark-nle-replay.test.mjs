@@ -19,8 +19,8 @@ test('a legacy runtime without the production native seam retains its own source
  const result=await sourceReplay(cache,runtime).proposal(options);
  assert.equal(invoked,1);assert.deepEqual(result.baseline.gaps,['legacy-missing-report-reference']);assert.deepEqual(result.items,[]);
 });
-test('an unrelated missing sealed report remains fatal',async()=>{
- const runtime=await replayRuntime(root),failure=Error('input-not-in-snapshot: exact report');
+test('a sealed report integrity failure remains fatal',async()=>{
+ const runtime=await replayRuntime(root),failure=Error('Cache hash mismatch: exact report');
  const cache={sealed:new Set(),get:async()=>{throw failure;},assertHealthy(){throw failure;}};
  await assert.rejects(sourceReplay(cache,runtime).proposal(options),error=>error===failure);
 });

@@ -20,9 +20,22 @@ const settledLinks=(id,now)=>agendaFreshMs(agendaEndpoint(id),now)===Infinity;
 const readerVersions={votes:MEMBER_VOTES_VERSION,attendance:MEMBER_ATTENDANCE_VERSION,calendar:SITTING_CALENDAR_VERSION};
 const discoveryKey=now=>[3,brusselsDay(now).slice(0,4),...Object.values(readerVersions)].join(':');
 const agendaCursorKey='agenda:cursor',agendaDispatchPages=8;
+// These jobs retain PVCRE agenda items, including procedural items and votes.
+// The queue name does not imply that every item is a PLENARY_DEBATE.
+const debateParserVersion=2;
+const eventIdentity=value=>typeof value==='string'?value.replace(/^https?:\/\/data\.europarl\.europa\.eu\//,''):null;
 const validDebate=(record,id)=>{
-  const node=record?.payload?.data?.find(node=>String(node?.id).replace(/^https?:\/\/data\.europarl\.europa\.eu\//,'')==='eli/dl/event/'+id),links=node?.consists_of;
-  return Boolean(node&&tail(node.had_activity_type)==='PLENARY_DEBATE'&&node.activity_date===id.slice(7,17)&&(Array.isArray(links)||typeof links==='string'||links&&typeof links==='object'&&typeof links.id==='string'));
+  if(!/^MTG-PL-\d{4}-\d{2}-\d{2}-PVCRE-ITM-\d+(?:-\d+)*$/.test(id))return false;
+  const nodes=record?.payload?.data?.filter(node=>eventIdentity(node?.id)==='eli/dl/event/'+id||node?.activity_id===id);
+  if(nodes?.length!==1)return false;
+  const node=nodes[0],links=node.consists_of;
+  return eventIdentity(node.id)==='eli/dl/event/'+id&&(node.activity_id===undefined||node.activity_id===id)&&
+    ['PLENARY_DEBATE','PLENARY_ACTIVITY','PLENARY_VOTE','PLENARY_VOTE_EXPLANATIONS'].some(type=>eventIdentity(node.had_activity_type)==='def/ep-activities/'+type)&&
+    node.activity_date===id.slice(7,17)&&
+    (links===undefined||links!==null&&array(links).every(link=>{
+      const ref=eventIdentity(typeof link==='object'?link?.id:link);
+      return ref!==null&&(new RegExp('^eli/dl/event/'+id+'-\\d+(?:-\\d+)*$').test(ref)||new RegExp('^eli/dl/event/'+id.slice(0,17)+'-[A-Z0-9]+(?:-[A-Z0-9]+)*$').test(ref)&&ref!=='eli/dl/event/'+id);
+    }));
 };
 const observationTime=record=>typeof record?.fetchedAt==='number'?record.fetchedAt:Date.parse(record?.fetchedAt);
 const fresh=source=>source&&!source.stale&&!source.refreshInProgress&&!source.refreshError;
@@ -71,7 +84,7 @@ export class SittingSnapshotCollector {
   }
   due(){
     const now=this.store.clock();
-    return this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscovery')!==discoveryKey(now)||this.writer.hasDue(now);
+    return this.store.get('sittingDebateParser')!==debateParserVersion||this.store.get('sittingSnapshotSchema')!==SITTING_SNAPSHOT_SCHEMA||this.hints.size>0||this.store.get('sittingSnapshotDiscovery')!==discoveryKey(now)||this.writer.hasDue(now);
   }
   discoverSittings(nodes){
     for(const node of nodes){
@@ -84,6 +97,15 @@ export class SittingSnapshotCollector {
   }
   admit(){
     this.store.assertWriter();
+    if(this.store.get('sittingDebateParser')!==debateParserVersion)this.store.transaction(()=>{
+      // Reopen only old parser failures; complete held bytes and transport
+      // backoffs remain untouched. Historical misses retain their age decay.
+      const now=this.store.clock();
+      const update=this.store.db.prepare('UPDATE sitting_snapshots SET next_check=MIN(next_check,?) WHERE kind=? AND version=? AND id=?');
+      const rows=this.store.db.prepare("SELECT kind,version,id,attempts FROM sitting_snapshots WHERE kind='debate' AND complete=0 AND error IN ('Collection source has invalid metadata.','Exact debate links unavailable.')").iterate();
+      for(const job of rows)update.run(now+retryDelay(job,now,transientSourceDelay(job.attempts)),job.kind,job.version,job.id);
+      this.store.set('sittingDebateParser',debateParserVersion);
+    });
     const key=discoveryKey(this.store.clock());
     if(this.store.get('sittingSnapshotDiscovery')!==key){
       // A new reader must never write its projection under an older version's
@@ -117,7 +139,7 @@ export class SittingSnapshotCollector {
     const requestLimit=Math.min(worker.budget,worker.requests+requestBudget);
     const rejectionKey='sittingSnapshotRejection:'+JSON.stringify([job.kind,job.version,job.id]);
     const retryNext=error=>{
-      const {rejection,confirmed}=confirmSourceRejection(this.store.get(rejectionKey),error,{descriptor:error.snapshotSource||JSON.stringify([job.kind,job.id]),parserVersion:job.version,now});
+      const {rejection,confirmed}=confirmSourceRejection(this.store.get(rejectionKey),error,{descriptor:error.snapshotSource||JSON.stringify([job.kind,job.id]),parserVersion:job.kind==='debate'?debateParserVersion:job.version,now});
       if(rejection)this.store.set(rejectionKey,rejection);
       else this.store.db.prepare('DELETE FROM meta WHERE key=?').run(rejectionKey);
       return now+retryDelay(job,now,Math.max(Math.max(retryAfter,error.retryAfter||0)*1000,confirmed?SOURCE_RECHECK_MS:sourceMissing(error)||error.upstreamStatus===404?missingSourceDelay(job.attempts):transientSourceDelay(job.attempts)));
@@ -139,7 +161,7 @@ export class SittingSnapshotCollector {
         const boundary=job.kind==='calendar'&&collectionBoundary(job,this.store.clock())===-Infinity?this.store.clock()-SIX_HOURS:collectionBoundary(job,this.store.clock());
         const rejected=this.store.get(rejectionKey);
         if(cached&&Array.isArray(cached.payload?.data)&&Number.isFinite(fetchedAt)&&fetchedAt>=boundary&&fetchedAt<=this.store.clock()&&
-          validCollectionRecord(cached,job,this.store.clock())&&(job.kind!=='calendar'||fresh(cached))&&(!rejected||sourceObservationHash(cached)!==rejected.hash)){
+          validCollectionRecord(cached,job,this.store.clock())&&(job.kind!=='calendar'||fresh(cached))&&(job.kind==='debate'||!rejected||sourceObservationHash(cached)!==rejected.hash)){
           worker.controller.signal.throwIfAborted();this.store.assertWriter();
           const record={...cached,fetchedAt:new Date(fetchedAt).toISOString()};
           this.writer.stage(job,key,record,this.store.clock());return observeRecord(key,record);
@@ -149,6 +171,8 @@ export class SittingSnapshotCollector {
       let record;
       try{
         record=await worker.request(endpoint,params,{...options,priority:'background',staleWhileRevalidate:false,snapshotObservation:true});
+        // Observation age is refreshable metadata, not a permanent byte/parser failure.
+        if(collectionJob&&!observedAfterBoundary(record,job,this.store.clock()))throw Object.assign(new Error('Collection observation needs refresh.'),{code:'source_observation_stale'});
         if(collectionJob&&!validCollectionRecord(record,job,this.store.clock()))throw rejectedRecord(record);
       }
       catch(error){
@@ -206,6 +230,11 @@ export class SittingSnapshotCollector {
           if(!validDebate(value,job.id)){
             this.writer.unstage(job,JSON.stringify(['/events/'+job.id,{}]));
             throw Object.assign(new Error('Exact debate links unavailable.'),{code:'source_parser_rejection',sourceHash:sourceObservationHash(value)});
+          }
+          const node=value.payload.data.find(node=>eventIdentity(node.id)==='eli/dl/event/'+job.id);
+          for(const link of array(node.consists_of)){
+            const id=eventIdentity(typeof link==='object'?link?.id:link)?.slice('eli/dl/event/'.length);
+            if(id&&new RegExp('^'+job.id+'-\\d+(?:-\\d+)*$').test(id))this.writer.enqueue('debate',1,id);
           }
           complete=true;next=settledLinks(job.id,now)?Number.MAX_SAFE_INTEGER:now+SIX_HOURS;
         }else if(job.kind==='calendar'){

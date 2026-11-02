@@ -946,6 +946,23 @@ test('Finnish published negative paragraph insertions require a unique first par
  }
 });
 
+test('a suffixed insertion after a provision merged into its predecessor row goes before the next neighbour', () => {
+  const recitals=motion(['K.\twhereas one;L.\twhereas merged;','M.\twhereas two;','N.\twhereas three;','1.\tCalls for action.']);
+  for(const targetLabel of ['Recital L a (new)','Recital L b (new)']){
+    const result=placement(recitals,{targetLabel,originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution',referenceText:'After recital L'});
+    assert.equal(result.status,'placed',result.reason);
+    assert.deepEqual([result.insertAfter,result.insertBefore],[3,4]);
+    assert.ok(result.evidence.some(item=>item.basis==='merged-provision'&&item.anchor==='K'));
+  }
+  const paragraphs=motion(['A.\twhereas one;','71.\tUrges;72.\tStresses;','73.\tCalls;','74.\tNotes.']);
+  assert.deepEqual(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution'}).insertAfter,4);
+  const absent=motion(['K.\twhereas one;','M.\twhereas two;','1.\tCalls for action.']);
+  assert.equal(placement(absent,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found','a label with no printed source stays withheld');
+  const twoMissing=motion(['K.\twhereas one;L.\twhereas merged;','N.\twhereas three;','1.\tCalls for action.']);
+  assert.equal(placement(twoMissing,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found');
+  assert.equal(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution',referenceText:'After § 73'}).reason,'conflicting_target_evidence');
+});
+
 test('a resolution paragraph original with detached source notes matches by body, note position and note text', () => {
   const text={...motion(['1.\tFirst.','2.\tStresses the Crisis Regulation;','3.\tThird.']),notesStatus:'extracted',
     noteAnchors:[{paragraph:4,offset:33,note:'25',label:'25'}],notes:[{id:'25',label:'25',text:'Regulation (EU) 2024/1359.'}]};
@@ -994,21 +1011,4 @@ test('negative first provisions precede the first published sibling of their kin
   assert.equal(resolveAmendmentPlacement(twoOnes,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'(-a)\tnew;',targetLabel:'Paragraph 1 – point ‑a (new)',referenceText:'§ 1, before point a'}).status,'unresolved','two paragraphs 1 leave the parent ambiguous');
   const opinion=document(['The European Parliament,','–\thaving regard to its rules,','1.\tRecalls one;','2.\tRecalls two;','A.\twhereas the opinion;'],{textLanguage:'en'});
   assert.equal(resolveAmendmentPlacement(opinion,{language:'en',baseline:'motion-resolution',originalText:'',proposedText:'-A.\twhereas new;',targetLabel:'Recital -A (new)'}).status,'unresolved');
-});
-
-test('a suffixed insertion after a provision merged into its predecessor row goes before the next neighbour', () => {
-  const recitals=motion(['K.\twhereas one;L.\twhereas merged;','M.\twhereas two;','N.\twhereas three;','1.\tCalls for action.']);
-  for(const targetLabel of ['Recital L a (new)','Recital L b (new)']){
-    const result=placement(recitals,{targetLabel,originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution',referenceText:'After recital L'});
-    assert.equal(result.status,'placed',result.reason);
-    assert.deepEqual([result.insertAfter,result.insertBefore],[3,4]);
-    assert.ok(result.evidence.some(item=>item.basis==='merged-provision'&&item.anchor==='K'));
-  }
-  const paragraphs=motion(['A.\twhereas one;','71.\tUrges;72.\tStresses;','73.\tCalls;','74.\tNotes.']);
-  assert.deepEqual(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution'}).insertAfter,4);
-  const absent=motion(['K.\twhereas one;','M.\twhereas two;','1.\tCalls for action.']);
-  assert.equal(placement(absent,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found','a label with no printed source stays withheld');
-  const twoMissing=motion(['K.\twhereas one;L.\twhereas merged;','N.\twhereas three;','1.\tCalls for action.']);
-  assert.equal(placement(twoMissing,{targetLabel:'Recital L a (new)',originalText:'',proposedText:'La.\twhereas new;',baseline:'motion-resolution'}).reason,'relative_target_not_found');
-  assert.equal(placement(paragraphs,{targetLabel:'Paragraph 72 a (new)',originalText:'',proposedText:'72a.\tRecalls;',baseline:'motion-resolution',referenceText:'After § 73'}).reason,'conflicting_target_evidence');
 });

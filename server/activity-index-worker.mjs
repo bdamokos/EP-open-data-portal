@@ -1,3 +1,4 @@
+import {dispatchBaseBackfill} from './base-source-backfill-dispatch.mjs';
 import {topicBootstrapRequired} from './topic-projection-state.mjs';
 import {topicBuildWindowOpen} from './topic-build-window.mjs';
 import {topicRebuildDue} from './topic-publication.mjs';
@@ -560,19 +561,25 @@ export class ActivityWorker {
   async outsideTask(task) {
     const {generation,body}=task;
     if(task.kind==='outside-roster') {
-      const params={'mandate-date':body.date,limit:1000,offset:body.offset};
+      // Old workers persisted a short first page, then retried its boundary
+      // member forever. Re-read that page rather than publish stale partial IDs.
+      const prior=body.offset>0 && body.ids.length<1000?{...body,offset:0,ids:[],sources:[]}:body;
+      const params={'mandate-date':body.date,limit:1000,offset:prior.offset};
       const r=await this.request('/meps/show-current',params);
       const ids=r.payload.data.map(person=>String(person.identifier || tail(person.id))).filter(id=>/^[1-9]\d*$/.test(id));
-      if(ids.some(id=>body.ids.includes(id)))throw new Error('Dated MEP roster repeated a member.');
+      if(new Set(ids).size!==ids.length || ids.some(id=>prior.ids.includes(id)))throw new Error('Dated MEP roster repeated a member.');
       const url=new URL(ODP_BASE+'/meps/show-current');for(const [key,value] of Object.entries({...params,format:'application/ld+json'}))url.searchParams.set(key,String(value));
-      const sources=[...body.sources,{url:url.href,fetchedAt:r.fetchedAt}];
-      if(r.payload.data.length) {
-        if(ids.length!==r.payload.data.length)throw new Error('Dated MEP roster contains an invalid identity.');
-        this.store.taskProgress(task,{...body,ids:[...body.ids,...ids],sources,offset:body.offset+r.payload.data.length});
+      const sources=[...prior.sources,{url:url.href,fetchedAt:r.fetchedAt}];
+      if(ids.length!==r.payload.data.length)throw new Error('Dated MEP roster contains an invalid identity.');
+      const members=[...prior.ids,...ids];
+      // A short page ends this collection. A further request at its boundary
+      // can repeat the final member instead of returning an empty page.
+      if(r.payload.data.length===params.limit) {
+        this.store.taskProgress(task,{...prior,ids:members,sources,offset:prior.offset+r.payload.data.length});
         return;
       }
-      if(!body.ids.length)throw new Error('Dated MEP roster is unavailable.');
-      this.store.putSource(generation,'outside:roster:'+body.date,'outside-roster',{date:body.date,ids:body.ids,sources},r.fetchedAt);
+      if(!members.length)throw new Error('Dated MEP roster is unavailable.');
+      this.store.putSource(generation,'outside:roster:'+body.date,'outside-roster',{date:body.date,ids:members,sources},r.fetchedAt);
       for(const source of this.store.db.prepare("SELECT key,kind,body FROM sources WHERE generation=? AND kind IN ('speech','outside-speech') AND json_extract(body,'$.outside.date')=?").all(generation,body.date)) {
         const speech=JSON.parse(source.body).outside;recordOutside(this.store,generation,speech);
         if(source.kind==='outside-speech' && !this.store.db.prepare('SELECT 1 FROM outside_contributions WHERE generation=? AND speech=? LIMIT 1').get(generation,speech.id))this.store.db.prepare('DELETE FROM sources WHERE generation=? AND key=?').run(generation,source.key);
@@ -811,11 +818,6 @@ export class ActivityWorker {
         await projectionYield(undefined,{signal:this.controller.signal});
       }
       await this.fillProjectionBatch();
-      const baseBackfillDeadline=Math.min(this.runDeadline,this.monotonic()+10_000);
-      if(baseBackfillDue)do {
-        if(this.stopped||this.controller.signal.aborted||this.monotonic()>=baseBackfillDeadline)break;
-        if(!await this.baseBackfill.step(this.controller.signal))break;
-      }while(this.baseBackfill.due());
       // Persist the optional lane's share across one-request iterations.
       const bodyTurn=Number(this.store.get('documentBodyTurn')||0)+1;
       this.store.set('documentBodyTurn',bodyTurn);
@@ -832,6 +834,15 @@ export class ActivityWorker {
         }while(!due&&this.sittingSnapshots.due());
       }
       if(!due) {
+        // Re-evaluate after every whole step: a refresh boundary or another
+        // collector becoming ready must yield back to the normal scheduler.
+        const idle=()=>!this.due()&&!this.sittingSnapshots?.due()&&!this.press?.due()&&!this.officialContext?.due();
+        while(!this.stopped&&!this.controller.signal.aborted&&this.requests<this.budget&&this.monotonic()<this.runDeadline&&this.baseBackfill?.due()){
+          if(!idle())return;
+          if(!await dispatchBaseBackfill(this))break;
+          if(!idle())return;
+          if(this.documentBodies.due())await this.documentBodies.step(this,{requestBudget:1});
+        }
         // Local migrations must progress even when no upstream job is due.
         // Yield between commits and keep each idle turn within one second.
         const localDeadline=Math.min(this.runDeadline,this.monotonic()+1000);
@@ -978,7 +989,7 @@ export class ActivityWorker {
           // checkpoint until the cursor completes or this run reaches a bound.
           if(!dispatchTask&&cycle&&(amendmentDocumentRouteRepairPending(this.store,generation)||(this.recoveryMode==='backfill'&&amendmentDocumentRouteVerificationPending(this.store,generation)||declaredDebateRecoveryDue(this.store,generation))))continue;
           const task=voiceTask?.groupVoiceJob?voiceTask:dispatchTask;
-          // Reserve one of 32 busy dispatches; idle capacity still fills sources.
+          // One optional slot covers backfill and the topic/story collectors.
           if(await dispatchCollector(this,{busy:Boolean(task)}))continue;
           if(!task)break;
           ordinaryCollectorTurn(this);
