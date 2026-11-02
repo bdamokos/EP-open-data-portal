@@ -78,7 +78,7 @@ wireCollectorAdmission(upstreamQueue);
 function sourceQueue(source,{backgroundRank=0}={}) {
   if(!['odp','website','documents','document-files','multimedia','player','https://oeil.europarl.europa.eu','https://publications.europa.eu'].includes(source))throw new Error('Unknown upstream source.');
   if(upstreamBridge)return upstreamBridge.queue(source);
-  if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},adaptive:true}:{})));
+  if(!sourceQueues.has(source))sourceQueues.set(source,wireCollectorAdmission(new UpstreamQueue(source==='https://oeil.europarl.europa.eu'?{interval:1000,maximum:1,backgroundMaximum:1}:source==='https://publications.europa.eu'?{rateLimit:{maximum:500,windowMs:300_000,foregroundReserve:100},interval:750,adaptive:true}:{})));
   const queue=sourceQueues.get(source);
   if(source==='odp'&&backgroundRank>0&&!queue.adaptive){const mode=odpPacing('backfill');Object.assign(pacing,mode);queue.adaptive=true;queue.interval=Math.max(queue.interval,mode.interval);queue.minimumInterval=queue.interval;}
   return queue;
@@ -170,7 +170,7 @@ export function odpLanguage(value) {
     );
   return value;
 }
-export async function boundedUpstream(operation, {source='odp',priority=backfillContext()?'background':'interactive',signal=priority==='background'?undefined:requestSignal(),backgroundRank=0}={}) {
+export async function boundedUpstream(operation, {source='odp',priority=backfillContext()?'background':'interactive',signal=priority==='background'?undefined:requestSignal(),backgroundRank=backfillContext()?1:0}={}) {
   const queue=sourceQueue(source,{backgroundRank});
   return queue.run(operation,{priority,signal,backgroundRank});
 }
@@ -178,9 +178,9 @@ export function backoffUpstream(seconds,{source='odp'}={}) {
   sourceQueue(source).backoff(seconds);
 }
 export function upstreamResponseError(response,{source='odp'}={}) {
+  sourceQueue(source).recordResponse?.(response.status??response.statusCode);
   if(![429,503].includes(response.status??response.statusCode))return null;
   const seconds=retryAfterSeconds(response.headers?.get?response.headers.get('retry-after'):response.headers?.['retry-after']);
-  sourceQueue(source).recordResponse?.(response.status??response.statusCode);
   backoffUpstream(seconds,{source});
   return Object.assign(new HttpError(503,'upstream_busy','The public source is temporarily limiting requests. Please try again after the pause.'),{retryAfter:seconds,retryAt:Date.now()+seconds*1000});
 }
@@ -417,7 +417,7 @@ export async function odp(
       const reschedule=new AbortController();
       try {
         // Each attempt is admitted separately, including background retries.
-        const response = await sourceQueue('odp').runHeld(releaseSlot=>{
+        const response = await sourceQueue('odp',{backgroundRank:backfillContext()?1:0}).runHeld(releaseSlot=>{
           // Retain the connection through status handling and body consumption.
           release=releaseSlot;
           return observedOdpFetch(url, {
@@ -429,7 +429,7 @@ export async function odp(
           signal: AbortSignal.any([reschedule.signal,AbortSignal.timeout(25_000),...(budget.signal?[budget.signal]:[])]),
           redirect: 'error',
           });
-        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner,yieldBackground:()=>reschedule.abort()});
+        },{priority:entry.readers>0||!entry.backgroundOwner?'interactive':'background',signal:budget.signal,owner:entry,backgroundOwner:entry.backgroundOwner,backgroundRank:backfillContext()?1:0,yieldBackground:()=>reschedule.abort()});
         if(response.status===429||response.status===503){
           const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));
           rateFailures++;

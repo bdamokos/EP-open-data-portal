@@ -39,8 +39,8 @@ export class UpstreamQueue {
       catch(error){release();reject(error);}
     });
   }
-  runHeld(operation,{priority='interactive',signal,owner,backgroundOwner=priority==='background',yieldBackground}={}) {
-    return this.enqueue(priority,{signal,owner,backgroundOwner,yieldBackground},(release,resolve,reject)=>{
+  runHeld(operation,{priority='interactive',signal,owner,backgroundOwner=priority==='background',yieldBackground,backgroundRank=0}={}) {
+    return this.enqueue(priority,{signal,owner,backgroundOwner,yieldBackground,backgroundRank},(release,resolve,reject)=>{
       try{Promise.resolve(operation(release,signal)).then(resolve,error=>{release();reject(error);});}
       catch(error){release();reject(error);}
     });

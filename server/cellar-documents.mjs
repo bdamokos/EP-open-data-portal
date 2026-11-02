@@ -16,6 +16,7 @@ import {getSharedOfficialContextSources} from './official-context.mjs';
 import {parsePublicLegalXhtml} from './public-legal-xhtml.mjs';
 import {languageCode} from './ep-links.mjs';
 
+export const CELLAR_RDF_ACCEPT='application/rdf+xml;notice=tree';
 export const CELLAR_DOCX_MIME='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 // This is a transport compatibility type, not support for Akoma Ntoso.
 export const CELLAR_DECLARED_DOCX_MIME='application/zip;type=akn4eu';
@@ -93,6 +94,25 @@ export class CellarDocuments {
     this.structuredQueue=new UpstreamQueue({maximum:1});
     this.disk=directory?new CacheDiskBudget(directory,{clock,maxBytes:CELLAR_LIMITS.diskBytes,maxEntries:4096,pattern:/^[a-f0-9]{64}\.(?:json|blob)$/}):null;
   }
+  async retainResponse(observation,buffer){
+    const directory=this.directory&&path.dirname(this.directory),context=backfillContext();
+    const publish=async value=>{
+      if(context&&await context.held?.({url:value.url,...value.request,descriptor:value.descriptor}))return;
+      if(!await retainBaseObservation(value,buffer,{directory})&&directory&&context){context.full=true;throw Object.assign(new Error('Base source storage full'),{code:'base_source_full'});}
+    };
+    await publish(observation);
+    // These are observed redirect URLs, never inferred work aliases.
+    if(observation.resolvedSourceUrl&&observation.resolvedSourceUrl!==observation.url)
+      await publish({...observation,url:observation.resolvedSourceUrl,descriptor:observation.descriptor?{...observation.descriptor,url:observation.resolvedSourceUrl}:undefined});
+  }
+  async retainMetadata(record){
+    if(backfillContext())await this.retainResponse({url:record.url,resolvedSourceUrl:record.resolvedSourceUrl,status:200,fetchedAt:record.fetchedAt,request:{accept:CELLAR_RDF_ACCEPT},headers:{'content-type':'application/rdf+xml'},provenance:{store:'official-context-v1',representation:'cached-utf8-xml'}},Buffer.from(record.xml));
+    return record;
+  }
+  async retainContent(record){
+    const {source}=record;
+    await this.retainResponse({url:source.url,resolvedSourceUrl:source.resolvedSourceUrl,status:200,fetchedAt:source.fetchedAt,request:{accept:source.accept,language:source.language.split('/').at(-1).toLowerCase()},headers:{'content-type':source.contentType},descriptor:{...source,byteSize:null,issued:null}},record.buffer);
+  }
   async request(input,{accept,language,validators={},maximum=CELLAR_LIMITS.metadataBytes}={}) {
     checkBackfillCapacity();
     const held=await backfillContext()?.held?.({url:cellarTransportUrl(input),accept,language});
@@ -109,6 +129,7 @@ export class CellarDocuments {
           if(contentRequest&&backfillContext())backfillContext().downloaded=true;
           signal.throwIfAborted();
           const response=await this.fetchSource(target,{headers:{Accept:selectedAccept,'User-Agent':userAgent('Commission proposal context'),...(language?{'Accept-Language':language}:{}),...(selectedValidators.etag?{'If-None-Match':selectedValidators.etag}:{}),...(selectedValidators.lastModified?{'If-Modified-Since':selectedValidators.lastModified}:{})},redirect:'manual',signal});
+          if(backfillContext())upstreamResponseError(response,{source:new URL(initial).origin});
           if([301,302,303,307,308].includes(response.status)) {
             const location=response.headers.get('location');await response.body?.cancel();
             if(!location||redirects===CELLAR_LIMITS.redirects)throw failure('cellar_redirect','The CELLAR redirect chain is incomplete or too long.');
@@ -117,7 +138,7 @@ export class CellarDocuments {
             return {redirect:next};
           }
           if([429,503].includes(response.status)) {
-            const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));if(backfillContext())upstreamResponseError(response,{source:new URL(initial).origin});this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
+            const retryAfter=retryAfterSeconds(response.headers.get('retry-after'));this.sources.queues.get(new URL(initial).origin)?.backoff(retryAfter);await response.body?.cancel();
             throw Object.assign(failure('cellar_limited','CELLAR is temporarily limiting requests.'),{retryAfter});
           }
           const contentType=response.headers.get('content-type')||null;
@@ -131,7 +152,7 @@ export class CellarDocuments {
           } else if(response.status===200) {
             if(!matchesRepresentation(contentType,selectedAccept)){await response.body?.cancel();throw failure('cellar_type','CELLAR returned an unexpected representation.');}
             const buffer=await limitedCellarBody(response,maximum);signal.throwIfAborted();
-            await retainBaseObservation({url:initial,resolvedSourceUrl:target,status:200,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:selectedAccept,...(language?{language}:{})},headers:{'content-type':contentType},descriptor:{url:initial,language:language??null,byteSize:null,issued:null}},buffer,{directory:this.directory&&path.dirname(this.directory)});
+            await this.retainResponse({url:initial,resolvedSourceUrl:target,status:200,fetchedAt:new Date(this.clock()).toISOString(),request:{accept:selectedAccept,...(language?{language}:{})},headers:{'content-type':contentType},descriptor:{url:initial,language:language??null,byteSize:null,issued:null}},buffer);
             return {status:200,url:target,accept:selectedAccept,contentType,buffer,etag:response.headers.get('etag'),lastModified:response.headers.get('last-modified')};
           } else await response.body?.cancel();
           throw failure(response.status===300?'cellar_multipart':[404,406,410].includes(response.status)?'cellar_unavailable':'cellar_http','The requested CELLAR representation is unavailable.');
@@ -152,27 +173,27 @@ export class CellarDocuments {
   async metadata(celex) {
     if(/^[03]/.test(celex))existingLawCelex(celex);else if(celex?.includes('AG'))councilCelex(celex);else proposalCelex(celex);
     const encoded=encodeURIComponent(celex).replaceAll('(','%28').replaceAll(')','%29'),url=`https://publications.europa.eu/resource/celex/${encoded}`;
-    return waitForRequest(this.sources.cache.get(['proposal-tree-v1',celex],async()=>{
-      const result=await this.request(url,{accept:'application/rdf+xml;notice=tree'});
+    return this.retainMetadata(await waitForRequest(this.sources.cache.get(['proposal-tree-v1',celex],async()=>{
+      const result=await this.request(url,{accept:CELLAR_RDF_ACCEPT});
       if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
       const xml=result.buffer.toString('utf8');validateTree(xml,celex);
       return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
-    },{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');validateTree(record.xml,celex);}}));
+    },{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');validateTree(record.xml,celex);}})));
   }
   async metadataByWork(workId,{celex}={}) {
     proposalCelex(celex);
     if(!CELLAR_WORK_PATTERN.test(workId))throw failure('cellar_work','Invalid proposal work identifier.');
     const url=cellarTransportUrl(workId+'/rdf/tree/full',{redirect:true});
     const validate=xml=>{if(!cellarGraph(xml).values(workId,'resource_legal_id_celex').includes(celex))throw failure('cellar_metadata','The metadata tree does not identify the requested work.');};
-    return waitForRequest(this.sources.cache.get(['proposal-work-tree-v1',workId,celex],async()=>{
-      const result=await this.request(url,{accept:'application/rdf+xml;notice=tree'});
+    return this.retainMetadata(await waitForRequest(this.sources.cache.get(['proposal-work-tree-v1',workId,celex],async()=>{
+      const result=await this.request(url,{accept:CELLAR_RDF_ACCEPT});
       if(result.status!==200)throw failure('cellar_metadata','The proposal metadata is unavailable.');
       const xml=result.buffer.toString('utf8');validate(xml);
       return {url,resolvedSourceUrl:result.url,fetchedAt:new Date(this.clock()).toISOString(),xml};
     },{freshMs:backfillContext()?Infinity:CELLAR_LIMITS.metadataFreshMs,validate:record=>{
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw failure('cellar_metadata','Invalid saved proposal metadata.');
       validate(record.xml);
-    }}));
+    }})));
   }
   remember(key,record) {
     if(this.memory.has(key))this.bytes-=this.memory.get(key).buffer.length;
@@ -195,7 +216,7 @@ export class CellarDocuments {
   }
   async save(key,record) {
     requestSignal()?.throwIfAborted();
-    await retainBaseObservation({url:record.source.url,resolvedSourceUrl:record.source.resolvedSourceUrl,status:200,fetchedAt:record.source.fetchedAt,request:{accept:record.source.accept,language:record.source.language.split('/').at(-1).toLowerCase()},headers:{'content-type':record.source.contentType},descriptor:{...record.source,byteSize:null,issued:null}},record.buffer,{directory:this.directory&&path.dirname(this.directory)});
+    await this.retainContent(record);
     this.remember(key,record);
     if(this.directory)try {
       const blob=record.source.sha256+'.blob';await writeCacheFile(path.join(this.directory,blob),record.buffer);await this.disk.saved(blob,record.buffer.length);
@@ -216,7 +237,7 @@ export class CellarDocuments {
     if(this.pending.has(key))return waitForRequest(this.pending.get(key));
     const task=sharedRequest(async owner=>{
       const old=await this.stored(key,identity),age=old?this.clock()-Date.parse(old.source.checkedAt):Infinity;
-      if(old&&backfillContext())backfillContext().hit?.();
+      if(old&&backfillContext()){backfillContext().hit?.();await this.retainContent(old);}
       if(old&&(backfillContext()||age>=0&&age<=this.freshMs))return {...old,source:{...old.source,stale:false,refreshError:null}};
       const failureAt=this.failures.get(key);
       if(old&&failureAt&&this.clock()-failureAt.at<60_000)return {...old,source:{...old.source,stale:true,refreshError:failureAt.code}};

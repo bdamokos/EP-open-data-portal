@@ -1,3 +1,4 @@
+import {baseSourceKey} from './base-source-descriptor.mjs';
 import {backfillContext} from './base-source-backfill-context.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,readdir,unlink,stat} from 'node:fs/promises';
@@ -57,7 +58,7 @@ export class BaseSourceStore {
     // A failed reconciliation remains failed, rather than admitting against a
     // partially reconstructed index. Restart can retry it safely.
     await (this.ready??=this.reconcile());
-    const key=hash(JSON.stringify([url,request.accept??null,request.language??null]));
+    const key=baseSourceKey(url,request);
     const record={...observation,schemaVersion:1,key,sha256:hash(body),bytes:body.length};
     const json=JSON.stringify(record),bytes=Buffer.byteLength(json);if(bytes>256*1024)return false;
     const old=this.records.get(key),existing=this.blobs.get(record.sha256);

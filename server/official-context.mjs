@@ -1,7 +1,7 @@
 import {backfillContext,checkBackfillCapacity} from './base-source-backfill-context.mjs';
 import {retainBaseObservation} from './base-source-store.mjs';
 import {integerFromEnvironment} from './config.mjs';
-import {boundedUpstream,backoffUpstream} from './odp.mjs';
+import {boundedUpstream,backoffUpstream,upstreamResponseError} from './odp.mjs';
 import {hintOfficialContext} from './official-context-hints.mjs';
 import {XMLParser} from 'fast-xml-parser';
 import path from 'node:path';
@@ -79,6 +79,7 @@ export class OfficialContextSources {
           const result=await boundedUpstream(()=>{hop.admitted();return budget.run(async()=>{
             await this.beforeFetch?.(source.origin,{dailyLimit});
             const response=await this.fetchSource(target,{headers:{Accept:target.includes('/webapi/')?'application/sparql-results+json':'text/html','User-Agent':userAgent('legislative context')},redirect:'manual',signal});
+            if(backfillContext())upstreamResponseError(response,{source:source.origin});
             if([301,302,303,307,308].includes(response.status)){
               const next=response.headers.get('location');await response.body?.cancel();if(!next)throw new HttpError(502,'official_redirect','The source redirect is incomplete.');
               const redirected=officialSourceUrl(new URL(next,target));
@@ -106,12 +107,20 @@ export class OfficialContextSources {
       if(record.url!==url||!Number.isFinite(Date.parse(record.fetchedAt)))throw new HttpError(502,'official_source_identity','The saved official source could not be verified.');
       validate?.(record);
     }}));
-    if(waitForFresh&&record.viewCache?.stale){const pending=this.cache.pending.get(this.cache.key(key));if(!pending)throw new HttpError(503,'official_source_unavailable','The official source is temporarily unavailable.');const fresh=await waitForRequest(pending);return {...fresh.value,viewCache:{stale:false}};}
+    const retain=async value=>{
+      const context=backfillContext();
+      if(context&&value.data&&!await context.held?.({url,accept:'application/sparql-results+json'})){
+        const saved=await retainBaseObservation({url,status:200,fetchedAt:value.fetchedAt,request:{accept:'application/sparql-results+json'},headers:{'content-type':'application/sparql-results+json'},provenance:{store:'official-context-v1',representation:'cached-json-serialization'}},Buffer.from(JSON.stringify(value.data)),{directory:this.directory&&path.dirname(this.directory)});
+        if(!saved){context.full=true;throw Object.assign(new Error('Base source storage full'),{code:'base_source_full'});}
+      }
+      return value;
+    };
+    if(waitForFresh&&record.viewCache?.stale){const pending=this.cache.pending.get(this.cache.key(key));if(!pending)throw new HttpError(503,'official_source_unavailable','The official source is temporarily unavailable.');const fresh=await waitForRequest(pending);return retain({...fresh.value,viewCache:{stale:false}});}
     if(priority==='background') {
       const pending=this.cache.pending.get(this.cache.key(key));
-      if(pending)return (await waitForRequest(pending)).value;
+      if(pending)return retain((await waitForRequest(pending)).value);
     }
-    return record;
+    return retain(record);
   }
 }
 

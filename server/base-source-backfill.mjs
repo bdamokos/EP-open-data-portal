@@ -1,10 +1,9 @@
 // The optional lane runs only inside the existing leased source writer.
 import {runWithRequestSignal} from './request-budget.mjs';
-import {CellarDocuments} from './cellar-documents.mjs';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
-import {runBaseBackfill} from './base-source-backfill-context.mjs';
+import {runBaseBackfill,backfillContext,retryableBaseSelection} from './base-source-backfill-context.mjs';
 import {baseSourceStore} from './base-source-store.mjs';
 import {odp} from './odp.mjs';
 import {downloadDocx} from './document-text.mjs';
@@ -75,10 +74,12 @@ export class BaseSourceBackfill {
       if(selections.length===1){
         const record=selections[0],buffer=await readFile(path.join(this.retention.directory,record.sha256+'.blob'));
         if(hash(buffer)!==record.sha256)throw new Error('retained-selection-hash');
-        const selected=JSON.parse(buffer);if(!['available','partial'].includes(selected.status))return selected;
-        const documents=new CellarDocuments();
-        for(const item of selected.items||[])await documents.content({...item,celex:selected.celex,language:item.languageUri});
-        return {...selected,status:selected.gaps?.length?'partial':'available'};
+        const selected=JSON.parse(buffer);
+        if(!['available','partial'].includes(selected.status)&&!retryableBaseSelection(selected))return selected;
+        if(backfillContext())backfillContext().selection=selected;
+        // Re-enter the normal resolver so failed/omitted parts and metadata are
+        // acquired too. Its identity guard runs before native content requests.
+        // The original job input keeps the selection record key stable.
       }
       if(job.kind==='proposal'&&!job.reportId&&!job.celex)return {status:'unresolved',gaps:['proposal-identity-unavailable']};
       return this[job.kind==='proposal'?'proposal':job.kind==='council'?'council':'law'](job);
@@ -89,8 +90,17 @@ export class BaseSourceBackfill {
     const files=distributionEvidenceFor(work).descriptors.filter(f=>f.language===job.language);
     if(files.length!==1)return {status:'unresolved',gaps:[files.length?'ambiguous-docx-distribution':'language-unavailable']};
     const descriptor=files[0];
-    if(await this.held({url:descriptor.url,descriptor})||await amendmentSourceStore(this.store).read(descriptor)){this.hits++;return {status:'available'};}
-    await this.download(descriptor.url,{priority:'background',signal,expectedByteSize:descriptor.byteSize,directory:this.directory,retainedDescriptor:descriptor});return {status:'available'};
+    if(await this.held({url:descriptor.url,descriptor}))return {status:'available'};
+    const held=await amendmentSourceStore(this.store).read(descriptor);
+    if(held){
+      this.hits++;
+      if(!await this.retention.save({url:descriptor.url,status:200,fetchedAt:held.fetchedAt,request:{accept:'*/*',language:descriptor.language},headers:{'content-type':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},descriptor:{...descriptor,format:'DOCX',sourceId:job.target}},held.buffer)){
+        if(backfillContext())backfillContext().full=true;
+        throw Object.assign(new Error('Base source storage full'),{code:'base_source_full'});
+      }
+      return {status:'available'};
+    }
+    await this.download(descriptor.url,{priority:'background',signal,expectedByteSize:descriptor.byteSize,directory:this.directory,retainedDescriptor:{...descriptor,format:'DOCX',sourceId:job.target}});return {status:'available'};
   }
   async step(signal){
     this.store.assertWriter();
@@ -102,7 +112,7 @@ export class BaseSourceBackfill {
       const result=await runBaseBackfill(context,()=>runWithRequestSignal(signal,()=>this.collect(JSON.parse(row.body),signal)));
       if(result.status!=='available'){
         reason=JSON.stringify(result.gaps||[result.status]);
-        const transient=/rate|limited|timeout|cancel|busy|http|source-unavailable|stale|fetch|request|ECONN/i.test(reason);
+        const transient=retryableBaseSelection(result);
         state=transient?'pending':'unresolved';if(transient)retry=this.clock()+300_000;
       }else if(this.hits&&!context.downloaded)state='skipped-held';
     }catch(error){reason=error.code||error.message;state=/invalid|unsupported|404|410|format|exceeds|size does not match|Unapproved/.test(reason)?'failed':'pending';retry=Math.max(this.clock()+300_000,error.retryAt||0,this.clock()+Number(error.retryAfter||0)*1000);}
