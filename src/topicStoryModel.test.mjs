@@ -53,7 +53,7 @@ test('unknown author origin never becomes an assertion that only other-country M
 test('term totals count distinct group keys instead of repeating a dossier across quarters',()=>{const f=facts();f.topics['eurovoc:123']={label:'Human rights',groups:{'2025-Q1':1,'2025-Q2':1},members:[['A-10-2025-0001','document','2025-01-01','2025-0001'],['A-10-2025-0002','document','2025-04-01','2025-0001']]};const summary=lines(f,{topic:'eurovoc:123',period:undefined})[0];assert.equal(summary.values.groups.text.values.count,'one');assert.equal(summary.values.groups.text.counts.count,1);});
 
 test('story debate headings and their record links remove only leading agenda numbering',()=>{
- const f=facts();f.debates=[{...debate('numbered','FRA',20),title:'19.2. Exact heading (debate)',rawTitle:'19.2. Exact heading (debate)'}];const rows=lines(f);const serialized=JSON.stringify(rows);assert(!serialized.includes('19.2.'));assert(serialized.includes('Exact heading (debate)'));assert.equal(f.debates[0].rawTitle,'19.2. Exact heading (debate)');
+ const f=facts();f.debates=[{...debate('numbered','FRA',20),title:'19.2. Exact heading (debate)',rawTitle:'19.2. Exact heading (debate)'}];const rows=lines(f);const serialized=JSON.stringify(rows);assert(!serialized.includes('19.2.'));assert(serialized.includes('Exact heading'));assert(!serialized.includes('(debate)'));assert.equal(f.debates[0].rawTitle,'19.2. Exact heading (debate)');
 });
 
 test('story debate selection busiest selection requires at least three MEP speakers',()=>{
