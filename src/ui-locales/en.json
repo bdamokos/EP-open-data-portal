@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} recorded position",
   "membervotes.tsx.count.recorded.positions": "{count} recorded positions",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Final vote on the whole text",
   "membervotes.tsx.final.vote.outcome.position": "Final vote · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Find adopted text",
   "membervotes.tsx.finding.latest.recorded.votes": "Finding latest recorded votes…",

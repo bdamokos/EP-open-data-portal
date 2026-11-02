@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} registreret stemmeafgivelse",
   "membervotes.tsx.count.recorded.positions": "{count} registrerede stemmeafgivelser",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Endelig afstemning om hele teksten",
   "membervotes.tsx.final.vote.outcome.position": "Endelig afstemning · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Find vedtaget tekst",
   "membervotes.tsx.finding.latest.recorded.votes": "Finder seneste registrerede afstemninger…",

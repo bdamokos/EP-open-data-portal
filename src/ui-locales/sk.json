@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} zaznamenaný postoj",
   "membervotes.tsx.count.recorded.positions": "Počet zaznamenaných postojov: {count}",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Záverečné hlasovanie o celom texte",
   "membervotes.tsx.final.vote.outcome.position": "Záverečné hlasovanie · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Nájsť prijatý text",
   "membervotes.tsx.finding.latest.recorded.votes": "Hľadajú sa posledné zaznamenané hlasovania…",

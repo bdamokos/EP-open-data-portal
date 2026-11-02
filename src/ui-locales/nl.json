@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} geregistreerd standpunt",
   "membervotes.tsx.count.recorded.positions": "{count} geregistreerde standpunten",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Eindstemming over de gehele tekst",
   "membervotes.tsx.final.vote.outcome.position": "Eindstemming · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Aangenomen tekst zoeken",
   "membervotes.tsx.finding.latest.recorded.votes": "Nieuwste geregistreerde stemmen zoeken…",

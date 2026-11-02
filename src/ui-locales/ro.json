@@ -1546,7 +1546,6 @@
   "membervotes.tsx.count.recorded.position": "{count} poziție înregistrată",
   "membervotes.tsx.count.recorded.positions": "{count} de poziții înregistrate",
   "membervotes.tsx.decision.outcome": "{decision} · {outcome}",
-  "membervotes.tsx.final.vote.on.the.whole.text": "Vot final asupra textului integral",
   "membervotes.tsx.final.vote.outcome.position": "Vot final · {outcome} · {position}",
   "membervotes.tsx.find.adopted.text": "Căutați textul adoptat",
   "membervotes.tsx.finding.latest.recorded.votes": "Se caută cele mai recente voturi înregistrate…",
