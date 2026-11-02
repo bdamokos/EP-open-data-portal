@@ -6,7 +6,7 @@ import {countryIdentity} from './topic-country-identity.mjs';
 import {languagePreference} from './language-order.mjs';
 import {HttpError} from './http-utils.mjs';
 import {RECORD_TOPICS_VERSION,validTopicKey} from './record-topics.mjs';
-export const TOPICS_VERSION=14;
+export const TOPICS_VERSION=15;
 export const topicKinds=['debate','document','question','speech','vote'];
 export const quarter=date=>date.slice(0,4)+'-Q'+Math.ceil(Number(date.slice(5,7))/3);
 export function topicPeriods(now=Date.now()){
@@ -116,7 +116,7 @@ export class RecordTopics{
  parts.keywords=orderRecordKeywords(parts.keywords,{title:r.titles?.[languagePreference(Object.keys(r.titles||{}),language)[0]]||'',concepts:new Map(keywordKeys.map(key=>[key,this.rawConcepts.get(key)])),counts:shared});}
  return {id:r.id,kind:r.kind,status:r.status,...parts};}
  query(params,view='records'){this._state=undefined;this.concepts.clear();this.rawConcepts.clear();this.rankCounts.clear();return this.store.readSnapshot(()=>this.querySnapshot(params,view));}
- querySnapshot(params,view){
+ querySnapshot(params,view,chartOnly=false){
  const allowed=view==='records'?['ids','lang']:view==='search'?['q','lang','askers']:view==='overview'?['role','lang','askers']:['key','lang','kind','keyword','place','from','to','offset','askers'];
  for(const k of params.keys())if(!allowed.includes(k)||params.getAll(k).length!==1)throw new HttpError(400,'invalid_query','Unsupported topic parameter.');
  const language=params.get('lang')||'en',generation=this.state?.generation,askers=params.get('askers')||'all';if(!['all','home','elsewhere','not-home'].includes(askers))throw new HttpError(400,'invalid_query','Choose question authors.');
@@ -154,6 +154,30 @@ export class RecordTopics{
  for(const r of this.db.prepare("SELECT substr(q.date,1,4)||'-Q'||CAST((CAST(substr(q.date,6,2) AS INTEGER)+2)/3 AS INTEGER) period,q.askers,COUNT(*) n FROM record_topic_question_places q JOIN (SELECT m.record_id,m.generation "+selection+") s ON s.generation=q.generation AND s.record_id=q.record_id WHERE q.key=? GROUP BY period,q.askers").iterate(...args,key)){const s=series.find(s=>s.period===r.period);if(s)s['question'+r.askers[0].toUpperCase()+r.askers.slice(1)]=r.n;}
  }
  for(const s of series){const condition=selection+" AND substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER)=?";s.groups=this.db.prepare('SELECT COUNT(DISTINCT group_key) n '+condition).get(...args,s.period).n;const winner=this.db.prepare('SELECT group_key,MAX(date) date,COUNT(*) n '+condition+' GROUP BY group_key ORDER BY n DESC,date DESC,group_key LIMIT 1').get(...args,s.period);if(winner){const row=this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND (id=? OR group_key=?) ORDER BY id=? DESC LIMIT 1').get(generation,winner.group_key,winner.group_key,winner.group_key);s.top=top({key:winner.group_key,date:winner.date,titles:row?JSON.parse(row.body).titles:{}});}}
+ // Peak periods and group winners include every tie. Counts are distinct
+ // records of the metric kind; group n counts its matching records in that period.
+ const peaks={},peakTitles=new Map(),metrics=['question','document','debate','groups',...(concept?.role==='place'?['questionHome','questionElsewhere','questionUnknown','questionNotHome']:[])];
+ const metricValue=(s,m)=>m==='questionNotHome'?(s.questionElsewhere||0)+(s.questionUnknown||0):s[m]||0;
+ for(const metric of metrics){const maximum=Math.max(0,...series.map(s=>metricValue(s,metric)));peaks[metric]=[];if(!maximum)continue;
+  for(const point of series.filter(s=>metricValue(s,metric)===maximum)){
+   let scope=selection+" AND substr(m.date,1,4)||'-Q'||CAST((CAST(substr(m.date,6,2) AS INTEGER)+2)/3 AS INTEGER)=?",values=[...args,point.period];
+   if(metric!=='groups'){scope+=' AND m.kind=?';values.push(metric.startsWith('question')?'question':metric);}
+   if(metric.startsWith('question')&&metric!=='question'){const origin=metric==='questionNotHome'?"IN ('elsewhere','unknown')":metric==='questionHome'?"='home'":metric==='questionElsewhere'?"='elsewhere'":"='unknown'";scope+=` AND EXISTS (SELECT 1 FROM record_topic_question_places q WHERE q.generation=m.generation AND q.record_id=m.record_id AND q.key=? AND q.askers ${origin})`;values.push(key);}
+   const groups=[];let topCount;
+   for(const row of this.db.prepare('SELECT group_key,MAX(date) date,COUNT(*) n '+scope+' GROUP BY group_key ORDER BY n DESC,date DESC,group_key').iterate(...values)){
+    if(topCount===undefined)topCount=row.n;if(row.n!==topCount)break;
+    let base=peakTitles.get(row.group_key);if(!base){const raw=this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND id=?').get(generation,row.group_key)||this.db.prepare('SELECT body FROM record_topic_records WHERE generation=? AND group_key=? ORDER BY date DESC,id LIMIT 1').get(generation,row.group_key);base=raw?JSON.parse(raw.body):{id:row.group_key,titles:{}};peakTitles.set(row.group_key,base);}
+    const languageUsed=languagePreference(Object.keys(base.titles||{}),language)[0];groups.push({key:row.group_key,kind:base.groupKind||'record',title:base.titles?.[languageUsed]||row.group_key,language:languageUsed||null,date:row.date,n:row.n});
+   }
+   peaks[metric].push({period:point.period,n:maximum,groups});
+  }
+ }
+ if(chartOnly)return {periods,series,peaks,total,groupsTotal:groupTotal};
+ // chart keeps key/keyword/place filters, but spans the full term and all kinds
+ // and author origins. Existing top-level fields retain every requested filter.
+ const chartParams=new URLSearchParams(params);for(const name of ['kind','from','to','askers','offset'])chartParams.delete(name);
+ const scoped=['kind','from','to','askers','offset'].some(name=>params.has(name)&&!(name==='offset'&&Number(params.get(name))===0));
+ const chart=scoped?this.querySnapshot(chartParams,'detail',true):{periods,series,peaks,total,groupsTotal:groupTotal};
  const facets={keywords:[],places:[],topics:[]};for(const row of this.db.prepare('SELECT f.key,COUNT(*) n FROM record_topic_memberships f JOIN (SELECT m.record_id,m.generation '+selection+') s ON s.generation=f.generation AND s.record_id=f.record_id GROUP BY f.key ORDER BY n DESC,f.key').iterate(...args)){const c=this.concept(row.key,language);if(c&&c.role!=='hidden')facets[c.role==='topic'?'topics':c.role==='place'?'places':'keywords'].push({key:c.key,label:c.label,...(c.id?{id:c.id,iso3:c.iso3}:{}),n:row.n});}
  const groups=this.db.prepare('SELECT group_key,MAX(date) date '+selection+' GROUP BY group_key ORDER BY date DESC,group_key LIMIT 20 OFFSET ?').all(...args,offset).map(g=>{
  const recordScope=' FROM record_topic_records r JOIN (SELECT m.record_id,m.generation '+selection+' AND m.group_key=?) s ON s.generation=r.generation AND s.record_id=r.id';
@@ -164,6 +188,6 @@ export class RecordTopics{
  const title=r=>r.titles?.[languagePreference(Object.keys(r.titles||{}),language)[0]]||r.id;
  return {key:g.group_key,kind:representative.groupKind,title:title(base),date:g.date,...(base.reference?{reference:base.reference}:{}),...(representative.groupKind==='procedure'?{procedureId:g.group_key}:{}),...(representative.groupKind==='debate'?{agendaId:g.group_key}:{}),items:rows.filter(r=>r.kind!=='speech').map(r=>({id:r.id,kind:r.kind,title:title(r),date:r.date,members:r.members})),speechCount,speakers:[...speakers.values()]};
  });
- return {ready:true,coverage,...extras,groupsTotal:groupTotal,concept,periods,series,facets,groups,total,nextOffset:offset+20<groupTotal?offset+20:null};
+ return {ready:true,coverage,...extras,groupsTotal:groupTotal,concept,periods,series,peaks,chart,facets,groups,total,nextOffset:offset+20<groupTotal?offset+20:null};
  }
 }
