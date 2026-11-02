@@ -56,9 +56,8 @@ export function rawExistingLawReferences(buffer,runtime) {
   return result;
 }
 
-// A newly supported declared representation cannot rewrite a sealed406. Only
-// that exact absent URL/Accept/language observation is an acquisition gap;
-// every unrelated missing input still goes through InputCache's fatal check.
+// Keep the sealed 406 and its declaration evidence. The absent advertised
+// request is also a results-only frozen-input gap, never a new HTTP observation.
 export async function missingDeclaredRepresentation(cache,url,request) {
   if(!cache.sealed||request.accept!=='application/zip;type=akn4eu'||cache.sealed.has(JSON.stringify([url,request])))return null;
   const original={...request,accept:'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'};
@@ -66,6 +65,7 @@ export async function missingDeclaredRepresentation(cache,url,request) {
   if(!cache.sealed.has(key))return null;
   const input=await cache.get(url,{...original,raw:true});
   if(advertisedRepresentation(input)!==request.accept)return null;
+  await cache.get(url,{...request,raw:true});
   const {body,...source}=input;
   return Object.assign(new Error('The declared representation was not acquired in this snapshot.'),{code:'missing-declared-representation',source,request:{url,...request}});
 }

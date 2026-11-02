@@ -132,7 +132,7 @@ export async function main(args=process.argv.slice(2)) {
   try {
     const manifest=[...records.values()].map(r=>r.meta).sort((a,b)=>a.url.localeCompare(b.url,'en')||JSON.stringify(a.request||{}).localeCompare(JSON.stringify(b.request||{}),'en'));
     for(const {meta,file} of records.values()){const name=path.join(temporary,digest(key(meta)));await symlink(file,name+'.body');await writeFile(name+'.json',JSON.stringify(meta));}
-    const cache=new InputCache(temporary,{cap:0,fetchMissing:false});await cache.seal(manifest);
+    const cache=new InputCache(temporary,{cap:0,fetchMissing:false});await cache.seal(manifest,{snapshotId:snapshotSha256});
     const calls=[],get=cache.get.bind(cache);cache.get=async(url,options={})=>{calls.push({url,request:options.accept?{accept:options.accept,...(options.language?{language:options.language}:{})}:null});return get(url,options);};
     const runtime=await replayRuntime(root),rows=[];
     const replay=sourceReplay(cache,runtime);

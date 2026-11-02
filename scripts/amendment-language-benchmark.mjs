@@ -2,7 +2,7 @@ import {mkdir,readFile,writeFile,rm,appendFile} from 'node:fs/promises';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {InputCache,digest,outsideRepository} from './amendment-benchmark-cache.mjs';
+import {InputCache,digest,outsideRepository,observeFrozenInputs,withFrozenInputGaps} from './amendment-benchmark-cache.mjs';
 import {replayRuntime,sourceReplay,publicDocumentUrl} from './amendment-benchmark-replay.mjs';
 import {rawDocument,rawExpected,verifyLanguagePlacement} from './amendment-language-oracle.mjs';
 
@@ -60,7 +60,7 @@ export function languageMetrics(rows) {
     const selected=rows.filter(r=>r.language===language),paired=selected.filter(r=>r.published!==false&&english.get(r.identity)?.published!==false&&english.has(r.identity));
     const sameOutcome=paired.filter(r=>r.outcome===english.get(r.identity).outcome);
     const located=paired.filter(r=>parityLocation(r)&&parityLocation(english.get(r.identity)));
-    return {language,total:selected.length,published:selected.filter(r=>r.published!==false).length,counts:count(selected.map(r=>r.outcome)),unverifiedByReason:count(selected.filter(r=>r.outcome==='placed-unverified').map(r=>r.reason)),withheldByReason:count(selected.filter(r=>r.outcome==='withheld').map(r=>r.reason)),paired:paired.length,sameOutcome:sameOutcome.length,locatedPairs:located.length,sameLocation:located.filter(r=>parityLocation(r)&&parityLocation(english.get(r.identity))&&JSON.stringify(parityLocation(r))===JSON.stringify(parityLocation(english.get(r.identity)))).length,behindEnglishWithheld:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='withheld').length,behindEnglishUnverified:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='placed-unverified').length,behindEnglish:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome!=='correct').length};
+    return {language,total:selected.length,published:selected.filter(r=>r.published!==false).length,counts:count(selected.map(r=>r.outcome)),unverifiedByReason:count(selected.filter(r=>r.outcome==='placed-unverified').map(r=>r.reason)),withheldByReason:count(selected.filter(r=>['withheld','acquisition-unavailable'].includes(r.outcome)).map(r=>r.reason)),paired:paired.length,sameOutcome:sameOutcome.length,locatedPairs:located.length,sameLocation:located.filter(r=>parityLocation(r)&&parityLocation(english.get(r.identity))&&JSON.stringify(parityLocation(r))===JSON.stringify(parityLocation(english.get(r.identity)))).length,behindEnglishWithheld:paired.filter(r=>english.get(r.identity).outcome==='correct'&&['withheld','acquisition-unavailable'].includes(r.outcome)).length,behindEnglishUnverified:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome==='placed-unverified').length,behindEnglish:paired.filter(r=>english.get(r.identity).outcome==='correct'&&r.outcome!=='correct').length};
   });
 }
 export function compareLanguages(current,baseline,calibration) {
@@ -91,7 +91,7 @@ export function compareLanguages(current,baseline,calibration) {
   return {warnings,failed:regressions.length>0||falsePlacements.length>0,regressions,falsePlacements: falsePlacements.map(r=>r.key),deltas:languageMetrics(current.rows).map(m=>({language:m.language,correct:(m.counts.correct||0)-(languageMetrics(baseline.rows).find(b=>b.language===m.language).counts.correct||0)}))};
 }
 export function languageMarkdown(result) {
-  return '# Amendment language parity\n\nCheckout: '+result.code.head+'. Snapshot: '+result.snapshotId+'. Raw source replay; '+result.rows.length+' language observations.\n\n| Language | Planned / published | Correct legal placement | No change | Placed unverified | Withheld | False | Same outcome / EN pairs | Same location / verified pairs | Behind EN |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'+result.metrics.map(m=>`| ${m.language} | ${m.total} / ${m.published} | ${m.counts.correct||0} | ${m.counts['not-applicable']||0} | ${m.counts['placed-unverified']||0} | ${m.counts.withheld||0} | ${m.counts['false-placement']||0} | ${m.sameOutcome}/${m.paired} | ${m.sameLocation}/${m.locatedPairs} | ${m.behindEnglish} |`).join('\n')+'\n\nNo-change observations remain in the planned and published totals and are never credited as legal placements. Outcome parity includes shared withholding. Location parity compares independent semantic section/scope/address keys, never translated paragraph offsets; unknown locations are excluded and counted separately. Insertion parity compares the existing predecessor boundary; published a/b, bis/ter and alphabet conventions remain in the source label. Lag behind English includes both withholding and weaker oracle coverage; JSON separates them.\n\n'+result.metrics.map(m=>'**'+m.language+' withheld:** '+JSON.stringify(m.withheldByReason)).join('\n\n')+'\n\nFalse placements:\n\n'+(result.rows.filter(r=>r.outcome==='false-placement').map(r=>'- '+r.key+': '+r.reason+'; '+JSON.stringify(r.verification)).join('\n')||'None.')+'\n';
+  return '# Amendment language parity\n\nCheckout: '+result.code.head+'. Snapshot: '+result.snapshotId+'. Raw source replay; '+result.rows.length+' language observations.\n\n| Language | Planned / published | Correct legal placement | No change | Placed unverified | Withheld | False | Same outcome / EN pairs | Same location / verified pairs | Behind EN |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n'+result.metrics.map(m=>`| ${m.language} | ${m.total} / ${m.published} | ${m.counts.correct||0} | ${m.counts['not-applicable']||0} | ${m.counts['placed-unverified']||0} | ${(m.counts.withheld||0)+(m.counts['acquisition-unavailable']||0)} | ${m.counts['false-placement']||0} | ${m.sameOutcome}/${m.paired} | ${m.sameLocation}/${m.locatedPairs} | ${m.behindEnglish} |`).join('\n')+'\n\nNo-change observations remain in the planned and published totals and are never credited as legal placements. Outcome parity includes shared withholding. Location parity compares independent semantic section/scope/address keys, never translated paragraph offsets; unknown locations are excluded and counted separately. Insertion parity compares the existing predecessor boundary; published a/b, bis/ter and alphabet conventions remain in the source label. Lag behind English includes both withholding and weaker oracle coverage; JSON separates them.\n\n'+result.metrics.map(m=>'**'+m.language+' withheld:** '+JSON.stringify(m.withheldByReason)).join('\n\n')+'\n\nFalse placements:\n\n'+(result.rows.filter(r=>r.outcome==='false-placement').map(r=>'- '+r.key+': '+r.reason+'; '+JSON.stringify(r.verification)).join('\n')||'None.')+'\n';
 }
 async function acquire(cache,runtime) {
   const publications=[],replay=sourceReplay(cache,runtime);
@@ -129,29 +129,42 @@ async function acquire(cache,runtime) {
   }
   return publications;
 }
-async function evaluate(publications,cache,runtime) {
+export async function evaluateLanguages(publications,cache,runtime) {
   const replay=sourceReplay(cache,runtime),rows=[];
   for(const publication of publications) {
-    await cache.json(publicDocumentUrl(publication.documentId));
+    const publicationInput=await cache.json(publicDocumentUrl(publication.documentId));
     for(const e of publication.editions) {
-      let extraction,extractionError,rawAmendments,rawText,text,amendmentBuffer,items=[],rawItems=[],nativeItems=[];
-      if(e.body){const input=await cache.get(e.body.url);if(input.ok){rawText={...rawDocument(input.body),motionDocument:['motion','joint-motion'].includes(publication.type)};text={...runtime.docxContent(input.body),textLanguage:e.language,sourceUrl:input.url,status:'available'};}}
-      if(e.wording){const input=await cache.get(e.wording.url);if(input.ok){amendmentBuffer=input.body;rawAmendments=rawDocument(input.body).amendments;try{extraction=runtime.extractAmendments(input.body,{listId:publication.listId,targetDocumentId:publication.documentId,language:e.language,sourceUrl:input.url,fetchedAt:input.fetchedAt});}catch{extractionError='amendment-parser-error';}}}
-      for(const number of publication.numbers) {
+      const edition=await observeFrozenInputs(cache,async()=>{
+        let extraction,extractionError,rawAmendments,rawText,text,amendmentBuffer,items=[],rawItems=[],nativeItems=[];
+        if(e.body){const input=await cache.get(e.body.url);if(input.ok){rawText={...rawDocument(input.body),motionDocument:['motion','joint-motion'].includes(publication.type)};text={...runtime.docxContent(input.body),textLanguage:e.language,sourceUrl:input.url,status:'available'};}}
+        if(e.wording){const input=await cache.get(e.wording.url);if(input.ok){amendmentBuffer=input.body;rawAmendments=rawDocument(input.body).amendments;try{extraction=runtime.extractAmendments(input.body,{listId:publication.listId,targetDocumentId:publication.documentId,language:e.language,sourceUrl:input.url,fetchedAt:input.fetchedAt});}catch{extractionError='amendment-parser-error';}}}
+        return {extraction,extractionError,rawAmendments,rawText,text,amendmentBuffer,items,rawItems,nativeItems};
+      });
+      let {extraction,extractionError,rawAmendments,rawText,text,amendmentBuffer,items,rawItems,nativeItems}=edition.value;
+      let projectionGaps=[];
+      const evaluateRow=async number=> {
+        cache.noteFrozenInputs?.([publicationInput.input,...edition.gaps,...(items.length?projectionGaps:[])]);
         const identity=publication.listId+':'+number,key=identity+':'+e.language,expectedMatches=rawAmendments?.filter(a=>a.number===number)||[],matches=extraction?.amendments.filter(a=>a.number===number)||[];
         const expected=expectedMatches.length===1?rawExpected(expectedMatches[0],e.language):null,wording=matches.length===1?matches[0]:null;
         let placement={status:'unresolved',reason:!e.wording?'language-wording-unpublished':!e.body?'language-body-unpublished':!wording?extractionError||'amendment-not-extracted':'baseline-unavailable'},verification={status:'not-applicable',reason:'not-placed'};
         if(wording&&(text||expected?.scope)&&typeof wording.originalText==='string'&&typeof wording.proposedText==='string'&&!runtime.amendmentTextLosses(extraction,wording).length) {
           if(wording.baseline==='commission-proposal'&&!items.length) {
-            const proposal=await replay.proposal({reportId:publication.documentId,language:e.language,documentReferences:wording.documentReferences});items=proposal.items;
-            for(const item of proposal.baseline.items||[]) {const input=await cache.get(item.source.url,{accept:runtime.CELLAR_DOCX_MIME,language:item.languageUri.split('/').at(-1).toLowerCase()});rawItems.push(rawDocument(input.body));nativeItems.push(input.body);}
+            const observed=await observeFrozenInputs(cache,async()=>{
+              const proposal=await replay.proposal({reportId:publication.documentId,language:e.language,documentReferences:wording.documentReferences});items=proposal.items;
+              for(const item of proposal.baseline.items||[]) {const input=await cache.get(item.source.url,{accept:runtime.CELLAR_DOCX_MIME,language:item.languageUri.split('/').at(-1).toLowerCase()});if(input.frozenInputGap)continue;rawItems.push(rawDocument(input.body));nativeItems.push(input.body);}
+            });
+            projectionGaps=observed.gaps;
           }
           placement=runtime.documentContextPlacement({chosen:{...wording,targetLabelLanguage:e.language},text,items:wording.baseline==='commission-proposal'?items:null,resolutionDocument:true});
           verification=verifyLanguagePlacement({expected,placement,text,items:wording.baseline==='commission-proposal'?items:null,rawText,rawItems,nativeQuoted:nativeItems[placement.itemIndex]?{proposalBuffer:nativeItems[placement.itemIndex],amendmentBuffer,number}:undefined});
         } else if(wording)placement.reason='wording-unavailable';
         const outcome=verification.status==='failed'?'false-placement':placement.status==='placed'?(verification.status==='verified'?'correct':'placed-unverified'):placement.status==='not-applicable'&&verification.status==='verified'?'not-applicable':'withheld';
         const savedPlacement={...placement};delete savedPlacement.originalText;
-        rows.push({key,identity,documentId:publication.documentId,listId:publication.listId,number,language:e.language,published:Boolean(e.wording),outcome,reason:placement.status==='placed'||placement.status==='not-applicable'?verification.reason:placement.reason,location:verification.location||null,expected:expected?{operation:expected.operation,...(expected.scope?{scope:expected.scope}:{}),originalSha256:typeof expected.originalText==='string'?digest(expected.originalText):null,proposedSha256:typeof expected.proposedText==='string'?digest(expected.proposedText):null,section:expected.section,sectionKind:expected.sectionKind,targetLabel:expected.targetLabel,...(expected.underlyingTargetLabel?{underlyingSection:expected.underlyingSection,underlyingTargetLabel:expected.underlyingTargetLabel}:{}),sourcePath:expected.path,cellPaths:expected.cellPaths,gap:expected.gap}:null,placement:savedPlacement,verification,sources:{wording:e.wording?.url||null,body:e.body?.url||null}});
+        return {key,identity,documentId:publication.documentId,listId:publication.listId,number,language:e.language,published:Boolean(e.wording),outcome,reason:placement.status==='placed'||placement.status==='not-applicable'?verification.reason:placement.reason,location:verification.location||null,expected:expected?{operation:expected.operation,...(expected.scope?{scope:expected.scope}:{}),originalSha256:typeof expected.originalText==='string'?digest(expected.originalText):null,proposedSha256:typeof expected.proposedText==='string'?digest(expected.proposedText):null,section:expected.section,sectionKind:expected.sectionKind,targetLabel:expected.targetLabel,...(expected.underlyingTargetLabel?{underlyingSection:expected.underlyingSection,underlyingTargetLabel:expected.underlyingTargetLabel}:{}),sourcePath:expected.path,cellPaths:expected.cellPaths,gap:expected.gap}:null,placement:savedPlacement,verification,sources:{wording:e.wording?.url||null,body:e.body?.url||null}};
+      };
+      for(const number of publication.numbers) {
+        const observed=await observeFrozenInputs(cache,()=>evaluateRow(number));
+        rows.push(withFrozenInputGaps(observed.value,observed.gaps));
       }
       process.stderr.write('Language edition: '+publication.documentId+' '+e.language+'\n');
     }
@@ -171,13 +184,13 @@ export async function languageMain(opts) {
       await writeFile(snapshotFile,JSON.stringify(snapshot,null,2)+'\n',{flag:'wx'});
     }
     if(snapshot.schemaVersion!==1||snapshot.snapshotId!==digest(JSON.stringify({sample:snapshot.sample,inputs:snapshot.inputs})))throw new Error('Invalid language snapshot.');
-    await cache.seal(snapshot.inputs);
+    await cache.seal(snapshot.inputs,{snapshotId:snapshot.snapshotId});
     if(opts.acquireOnly){process.stdout.write(JSON.stringify({snapshotId:snapshot.snapshotId,requests:cache.requests})+'\n');return;}
     const runtimeRoot=path.resolve(opts.runtimeRoot||root),code=await runtimeIdentity(runtimeRoot),oracleFingerprint=await oracleIdentity();
-    const rows=await evaluate(snapshot.sample,cache,runtime);
+    const rows=await evaluateLanguages(snapshot.sample,cache,runtime);
     if(JSON.stringify(code)!==JSON.stringify(await runtimeIdentity(runtimeRoot))||oracleFingerprint!==await oracleIdentity())throw new Error('Measured checkout/oracle changed during replay.');
     const harnessFingerprint=digest(Buffer.concat(await Promise.all(['amendment-language-benchmark.mjs','amendment-benchmark.mjs','amendment-benchmark-cache.mjs','amendment-benchmark-replay.mjs'].map(file=>readFile(new URL(file,import.meta.url))))));
-    const result={schemaVersion:1,oracleVersion:1,oracleFingerprint,harnessFingerprint,snapshotId:snapshot.snapshotId,sample:snapshot.sample,inputs:snapshot.inputs,code,rows,metrics:languageMetrics(rows)};
+    const result={schemaVersion:1,oracleVersion:1,oracleFingerprint,harnessFingerprint,snapshotId:snapshot.snapshotId,sample:snapshot.sample,inputs:snapshot.inputs,code,...(cache.frozenInputGaps.size?{acquisition:{requests:cache.requests,frozenInputGaps:cache.frozenObservations()}}:{}),rows,metrics:languageMetrics(rows)};
     const ledger=path.join(directory,'ratchet.jsonl');let records=[];
     try{records=(await readFile(ledger,'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);}catch(e){if(e.code!=='ENOENT')throw e;}
     const baselineFile=opts.baseline||records.at(-1)?.file;
