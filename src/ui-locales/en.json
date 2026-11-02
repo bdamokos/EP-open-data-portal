@@ -2393,6 +2393,8 @@
   "topics.less": "Show less",
   "topics.all": "Show all",
   "topics.more": "More",
+  "topics.coverage": "Policy areas collected for {collected} of {referenced} dossiers",
+  "topics.metric.questionNotHome": "Questions naming it, leaving out MEPs’ own country",
   "topics.classifying": "Some dossiers are still being classified.",
   "topics.cellCount": "{topic}, {period}: {quantity}",
   "topics.barCount": "{period}: {quantity}",
