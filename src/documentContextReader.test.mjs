@@ -1315,3 +1315,17 @@ test('report quotation labels the comparison base without a legal-text placement
  assert.equal(h.container.querySelector('[data-context-target]'),null);
  assert(![...h.container.querySelectorAll('button')].some(b=>b.textContent==='Go to amendment'));
 });
+
+test('an insertion after a table\'s last cell renders after the whole table',async t=>{
+  // A-10-2026-0081 AM58: paragraph 149 introduces a table; 149a follows it.
+  const paragraphs=['The European Parliament,','149. Notes the appropriations as follows:','Party','Total','150. Next provision;'];
+  const containers=['body','body','table-cell','table-cell','body'];
+  const value=overlayResponse({insertAfter:3,insertBefore:4});
+  Object.assign(value.document.selectedText,{paragraphs,formatStatus:'extracted',paragraphFormats:paragraphs.map(()=>({})),tables:[{rows:[[{start:2,end:3},{start:3,end:4}]],bordered:true}],
+    paragraphSources:paragraphs.map((_,ordinal)=>({path:'p'+ordinal,ordinal,container:containers[ordinal],containerPath:containers[ordinal]==='body'?'body':'cell'+ordinal}))});
+  const h=await harness(t,()=>value);await h.render({request:overlayRequest,language:'en'});
+  const block=h.container.querySelector('[data-amendment-block="true"][data-context-target="true"]');
+  assert(block);assert.equal(block.closest('td'),null,'the block is not inside a table cell');
+  assert.equal(block.nextElementSibling?.getAttribute('data-source-paragraph'),'4');
+  assert(block.previousElementSibling?.matches('table'),'the table precedes the block');
+});

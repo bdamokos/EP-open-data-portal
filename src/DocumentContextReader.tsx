@@ -138,6 +138,10 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
   const extracted=publicationBody(allParagraphs,id,text?.textLanguage);
   const exactBody=extracted.exact&&Number.isInteger(extracted.start)&&extracted.start>=0&&extracted.paragraphs.length===allParagraphs.length-extracted.start&&extracted.paragraphs.every((paragraph,index)=>paragraph===allParagraphs[extracted.start+index]);
   const placementStart=placed ? ((placement?.operation==='insert') ? placement.insertAfter : placement?.span?.start) : undefined;
+  // An insertion after a table's last cell follows the whole table, before
+  // the next body paragraph (A-10-2026-0081 AM58), not inside that cell.
+  const sources=text?.paragraphSources;
+  const afterTable=Boolean(placed&&placement?.operation==='insert'&&placement.insertAfter!==undefined&&placement.insertBefore!==undefined&&sources?.[placement.insertAfter]?.container==='table-cell'&&sources?.[placement.insertBefore]?.container==='body');
   const body=((exactBody && (!found||indices.every(index=>index>=extracted.start))) && (!placed||placementStart!==undefined&&placementStart>=extracted.start)) ? extracted : ({paragraphs:allParagraphs,start:0});
   const notes=text?.notes||[],anchors=text?.noteAnchors||[],links=text?.documentLinks||[],objects=text?.documentObjects||[];
   const annotatedSpan=((placed && placement?.span) && (typeof wording?.originalText==='string')) ? mapContextAnnotations(allParagraphs,placement.span,wording.originalText,anchors,links) : null;
@@ -194,6 +198,7 @@ function DocumentBody({id,language,interfaceLanguage,onLanguageChange,amendmentR
             paragraphProps={sourceIndex=>{const selected=Boolean(found&&indices.includes(sourceIndex)),reportSelected=sourceIndex===reportHeading;return {'data-source-paragraph':String(sourceIndex),'data-context-target':selected ? 'true' : undefined,'data-report-amendment':reportSelected ? 'true' : undefined,className:selected ? 'document-context-target' : undefined,tabIndex:(selected||reportSelected) ? (-1) : undefined};}}
             renderParagraph={(sourceIndex,paragraph)=>{
               if(placed&&placement?.span&&sourceIndex>=placement.span.start&&sourceIndex<=placement.span.end)return (sourceIndex===placement.span.start) ? amendmentBlock(true) : null;
+              if(placed&&placement?.operation==='insert'&&afterTable)return (sourceIndex===placement.insertBefore) ? <Fragment key={sourceIndex}>{amendmentBlock(true)}{paragraph}</Fragment> : paragraph;
               return ((placed && (placement?.operation==='insert')) && (sourceIndex===placement.insertAfter)) ? <Fragment key={sourceIndex}>{paragraph}{amendmentBlock(true)}</Fragment> : paragraph;
             }}
             renderText={(sourceIndex,paragraph,from,to,final,marks)=><DocumentObjectText assets={text?.imageAssets} text={paragraph} paragraph={sourceIndex} from={from} to={to} final={final} objects={objects} logo={logo} sourceUrl={sourceUrl} anchors={anchors.filter(anchor=>anchor.paragraph===sourceIndex)} links={links.filter(link=>link.paragraph===sourceIndex)} marks={marks} notePrefix={notePrefix}/>}/><DocumentNotes assets={text?.imageAssets} notes={notes} prefix={notePrefix}/></div>
