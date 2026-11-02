@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Zobraziť úradný dokument",
   "questionStatus.1": "Zodpovedané",
   "questionStatus.2": "Zatiaľ bez odpovede",
+  "questions.earlierInTerm": "Zobraziť staršie otázky zo súčasného volebného obdobia",
+  "questions.periodEnd": "Koniec zoznamu za obdobie {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} min",
   "readerretry.minutes_minutes.24f934": "{minutes} min",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Ďalšie pokusy boli po neúspešnej požiadavke pozastavené. Skúste to znova o {wait}.",
@@ -2363,5 +2365,6 @@
   "questionanswerer.signatory": "Odpovedá: {person}, {institution}",
   "questionanswerer.institution": "Odpovedá: {institution}",
   "questionanswerer.institution.commission": "Európska komisia",
-  "questionanswerer.institution.council": "Rada"
+  "questionanswerer.institution.council": "Rada",
+  "textsearch.advanced_options": "Ďalšie možnosti"
 }

@@ -1,3 +1,4 @@
+import {conceptLabel} from './oeil-labels.mjs';
 import {readableStoryState} from './topic-projection-state.mjs';
 import {existsSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
@@ -78,7 +79,8 @@ export function storyFacts(store,params,{pressFilename}={}){
  const q=storyQuery(params),state=readableStoryState(store,{askers:q.askers}),generation=state?.dataGeneration||state?.generation;
  if(!state)return {ready:false};
  const db=store.db,periods=topicPeriods(),selectedPeriods=q.period?[q.period]:periods,key=q.scope==='map'?q.zoom:q.scope==='place'?q.key.slice(6):q.key,dimension=[generation,q.scope,key,q.askers];
- const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),q.language)[0];return {value:values?.[lang]||fallback,language:lang||null};};
+ // Story titles keep English selection; request lang selects policy labels below.
+ const choose=(values,fallback='')=>{const lang=languagePreference(Object.keys(values||{}),'en')[0];return {value:values?.[lang]||fallback,language:lang||null};};
  const zeroCounts=()=>({...emptyStoryCounts(),...(q.scope==='map'?{placesWithQuestions:0,placesWithDebates:0,placesWithAdoptedTexts:0}:{})});
  const rows=db.prepare('SELECT period,body FROM story_scope_counts INDEXED BY story_count_scope WHERE generation=? AND scope=? AND key=? AND askers=?').all(...dimension),cells=new Map(rows.map(r=>[r.period,{...zeroCounts(),...JSON.parse(r.body)}]));
  const counts=cells.get(q.period||'')||zeroCounts(),periodCounts=periods.map(period=>({period,...(cells.get(period)||zeroCounts())}));
@@ -134,7 +136,7 @@ export function storyFacts(store,params,{pressFilename}={}){
   pressReady=true;const read=pdb.prepare("SELECT l.value,r.id,r.url,json_extract(r.body,'$.title') title,COALESCE(json_extract(r.body,'$.publishedLocal'),json_extract(r.body,'$.publishedAt')) date FROM links l JOIN releases r ON r.id=l.release WHERE l.kind='procedure' AND l.value>=? AND l.value<? AND COALESCE(json_extract(r.body,'$.listed'),1)<>0 ORDER BY date DESC,r.id");
   for(const id of procedureIds)if(/^\d{4}-\d{4}[A-Z]?$/.test(id))for(const row of read.iterate(id.replace('-','/')+'(',id.replace('-','/')+')')){const m=row.value.match(/^(\d{4})\/(\d{4}[A-Z]?)\([A-Z]+\)$/);if(m&&m[1]+'-'+m[2]===id)(press[id]??=[]).push({id:row.id,url:row.url,title:row.title,date:row.date?.slice(0,10)||null,reference:row.value,ref:row.value});}
  }}catch{pressReady=false;}finally{pdb.close();}}
- let topic=null;if(q.scope==='topic'){const c=db.prepare('SELECT body FROM record_topic_concepts WHERE generation=? AND key=?').get(generation,q.key);topic={key:q.key,label:choose(c?JSON.parse(c.body).labels:{},q.key).value,groups:Object.fromEntries(periodCounts.map(p=>[p.period,p.groups]))};}
+ let topic=null;if(q.scope==='topic'){const c=db.prepare('SELECT body FROM record_topic_concepts WHERE generation=? AND key=?').get(generation,q.key);topic={key:q.key,...conceptLabel(c?JSON.parse(c.body):{key:q.key},q.language),groups:Object.fromEntries(periodCounts.map(p=>[p.period,p.groups]))};}
  const docs=[...documents.values()],blocks=selectedPeriods.map(period=>({period,counts:cells.get(period)||zeroCounts(),debates:debates.filter(d=>d.q===period).map(d=>d.id),docs:docs.filter(d=>d.q===period||d.outcome?.date&&quarter(d.outcome.date)===period).map(d=>d.id),questions:questions.filter(d=>d.q===period).map(d=>d.id)}));
  return {ready:true,scope:q.scope,key:q.key,period:q.period,mode:q.mode,askers:q.askers,zoom:q.zoom,periods,partial:store.get('recordTopicCalendar')?.partial,counts,periodCounts,winners,periodWinners,sets,page,debatesTotal:counts.debates,debates,docs,questions,press,topic,topics:topic?{[topic.key]:topic}:{},blocks,series,summary:{debates:counts.debates,documents:counts.documents,questions:counts.questions},coverage:{...store.get('storyCoverage'),press:{ready:pressReady}}};
 }

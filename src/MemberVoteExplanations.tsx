@@ -1,5 +1,5 @@
 import {UiMessage, useUiI18n} from './UiI18nReact';
-import {useSpeechTranslation} from './SpeechTranslation';
+import {useSpeechTranslation,SpeechTextStatus} from './SpeechTranslation';
 import {useId,useState} from 'react';
 import {useData} from './data';
 import {transcriptParagraphs,TranscriptText} from './Transcript';
@@ -22,9 +22,8 @@ function ExplanationReader({item,language}:{item:Explanation;language:string}) {
   const paragraphs=transcriptParagraphs(body?.xml||null).paragraphs;
   const video=useSpeechVideo((state.data?.id===item.id) ? state.data : item.speech,language);
   return <div className="vote-explanation-reader">
-    <div className="vote-explanation-tools"><TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} onChange={value=>{translation.reset();setSelected(value);}} visibleLabel={false}
-      note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.control}{video.toggle}</div>
-    {video.panel}{translation.originalGap&&<p><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
+    <div className="vote-explanation-tools">{video.toggle}</div>
+    {video.panel}<TextLanguagePicker available={state.availableTextLanguages} requested={language} value={body?.textLanguage||null} offer={!translation.showingOriginal} onChange={value=>{translation.reset();setSelected(value);}} status={<SpeechTextStatus translation={translation}/>} note={<TextLanguageFallback requested={translation.selected} actual={body?.textLanguage||null} interfaceLanguage={language}/>}/>{translation.originalGap&&<p><UiMessage id="batch4.speechinterventions.tsx.original.text.unavailable"/></p>}
     {state.loading&&!body&&<p role="status"><UiMessage id="membervoteexplanations.loading.explanation"/></p>}
     {state.error&&<p role="alert"><UiMessage id="membervoteexplanations.transcript.unavailable.retry" values={{retry: <button type="button" disabled={state.loading} onClick={state.retry}><UiMessage id="membervoteexplanations.retry.transcript"/></button>}}/></p>}
     {(paragraphs.length>0) ? <div lang={body?.textLanguage||''}>{paragraphs.map((paragraph,index)=><p key={index}><TranscriptText paragraph={paragraph}/></p>)}</div> : (body&&!state.loading&&<p><UiMessage id="batch4.speechinterventions.tsx.transcript.unavailable"/></p>)}

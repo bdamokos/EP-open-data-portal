@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Se officielt dokument",
   "questionStatus.1": "Besvaret",
   "questionStatus.2": "Intet svar endnu",
+  "questions.earlierInTerm": "Vis tidligere spørgsmål fra den nuværende valgperiode",
+  "questions.periodEnd": "Slut på listen for {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minut",
   "readerretry.minutes_minutes.24f934": "{minutes} minutter",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Nyt forsøg er sat på pause efter en mislykket anmodning. Prøv igen om {wait}.",
@@ -2363,5 +2365,6 @@
   "questionanswerer.signatory": "Besvaret af: {person}, {institution}",
   "questionanswerer.institution": "Besvaret af: {institution}",
   "questionanswerer.institution.commission": "Europa-Kommissionen",
-  "questionanswerer.institution.council": "Rådet"
+  "questionanswerer.institution.council": "Rådet",
+  "textsearch.advanced_options": "Flere muligheder"
 }

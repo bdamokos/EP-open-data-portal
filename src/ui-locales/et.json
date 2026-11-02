@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Vaata ametlikku dokumenti",
   "questionStatus.1": "Vastatud",
   "questionStatus.2": "Vastust veel pole",
+  "questions.earlierInTerm": "Näita praeguse koosseisu varasemaid küsimusi",
+  "questions.periodEnd": "Ajavahemiku {dates} loendi lõpp.",
   "readerretry.minutes_minute.15a750": "{minutes} minuti",
   "readerretry.minutes_minutes.24f934": "{minutes} minuti",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Pärast ebaõnnestunud päringut on korduskatse peatatud. Proovi uuesti {wait} pärast.",
@@ -2363,5 +2365,6 @@
   "questionanswerer.signatory": "Vastaja: {person}, {institution}",
   "questionanswerer.institution": "Vastaja: {institution}",
   "questionanswerer.institution.commission": "Euroopa Komisjon",
-  "questionanswerer.institution.council": "Nõukogu"
+  "questionanswerer.institution.council": "Nõukogu",
+  "textsearch.advanced_options": "Rohkem valikuid"
 }

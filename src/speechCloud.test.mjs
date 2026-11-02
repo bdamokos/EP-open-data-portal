@@ -32,27 +32,33 @@ const result=(rows,nextPage=null,restarted=false)=>({
   window:{start:'2026-10-07',end:'2026-10-07'},nextPage,
 });
 
-test('missing translation counts offer known language choices and switch the analysis language',async t=>{
-  const calls=[];
-  const ui=await cloud(t,async input=>{
-    const language=new URL(input,'http://localhost').searchParams.get('lang');calls.push(language);
-    const data=result(speeches.slice(0,1));data.language=language;
-    if(language==='en')Object.assign(data.coverage,{missingLanguage:2,missingLanguageAlternatives:[{language:'de',count:1},{language:'ro',count:1}]});
-    return Response.json(data);
+test('the cloud analyses the interface language without a language choice and keeps missing counts',async t=>{
+  for(const [interfaceLanguage,requested] of [['de','de'],['en','en'],[undefined,'en']])await t.test(String(interfaceLanguage),async t=>{
+    const calls=[];
+    const ui=await cloud(t,async input=>{
+      const language=new URL(input,'http://localhost').searchParams.get('lang');calls.push(language);
+      const data=result(speeches.slice(0,1));data.language=language;
+      Object.assign(data.coverage,{missingLanguage:2,missingLanguageAlternatives:[{language:'ro',count:2}]});
+      return Response.json(data);
+    });
+    await ui.render({member:1,interfaceLanguage});
+    assert.deepEqual(calls,[requested]);
+    assert(![...ui.container.querySelectorAll('option')].some(option=>option.value===requested),'no analysis-language options');
+    assert.equal(ui.container.querySelector('.explorer-cloud-alternatives'),null);
+    assert.equal(ui.container.querySelector('.text-language-note'),null);
+    assert.match(ui.container.textContent,/2 without text in this language/);
   });
-  await ui.render({member:1});
-  assert.match(ui.container.textContent,/2 without text in this language/);
-  const alternative=[...ui.container.querySelectorAll('.explorer-cloud-alternatives button')].find(node=>node.textContent==='German (1)');
-  assert(alternative);assert.match(ui.container.textContent,/Romanian \(1\)/);
-  await act(async()=>alternative.click());
-  assert.deepEqual(calls,['en','de']);
-  assert.equal(ui.container.querySelector('.explorer-cloud-alternatives'),null);
-  assert.equal(ui.container.querySelector('select').value,'de');
 });
-test('available language counts do not introduce an unrelated analysis-limit warning',async t=>{
+test('an interface language without word filtering falls back to English and says so',async t=>{
+  const calls=[];
+  const ui=await cloud(t,async input=>{const language=new URL(input,'http://localhost').searchParams.get('lang');calls.push(language);const data=result(speeches.slice(0,1));data.language=language;return Response.json(data);});
+  await ui.render({member:1,interfaceLanguage:'xx'});
+  assert.deepEqual(calls,['en']);
+  assert.match(ui.container.querySelector('.text-language-note').textContent,/unavailable · showing/);
+});
+test('missing language counts do not introduce an unrelated analysis-limit warning',async t=>{
   const ui=await cloud(t,async()=>{const data=result(speeches.slice(0,1));Object.assign(data.coverage,{missingLanguage:5,missingLanguageAlternatives:[{language:'de',count:5}]});return Response.json(data);});
   await ui.render({member:1});
-  assert.equal(ui.container.querySelector('.explorer-cloud-alternatives button')?.textContent,'German (5)');
   assert.match(ui.container.textContent,/5 without text in this language/);assert.doesNotMatch(ui.container.textContent,/Speech analysis limit/);
 });
 

@@ -23,10 +23,18 @@ test('kicker renders +N and place links, keeps keywords reader-only, and hides e
  const compact=renderToStaticMarkup(h(TopicLine,{record}));assert.match(compact,/\+1/);assert.match(compact,/place=IRN/);assert.match(compact,/topic=oeil%3A1.10/);assert(!compact.includes('Customs'));
  const full=renderToStaticMarkup(h(TopicLine,{record,full:true}));assert.match(full,/Customs/);assert.match(full,/topic=eurovoc%3A123/);
  assert.equal(renderToStaticMarkup(h(TopicLine,{record:{...record,topics:[],places:[],keywords:[]}})),'');
+ const translated={...record,topics:[{key:'oeil:1.10',label:'Magyar név',labelLanguage:'hu',labelSource:'explorer-translation'}]};
+ const translatedMarkup=renderToStaticMarkup(h(TopicLine,{record:translated,full:true,language:'fr'}));
+ assert.match(translatedMarkup,/lang="hu"[^>]*>Magyar név/);
+ assert.match(translatedMarkup,/<details[^>]*><summary>Sources<\/summary><p[^>]*>Policy-area names translated by the explorer/);
+ assert(!renderToStaticMarkup(h(TopicLine,{record:translated,language:'fr'})).includes('translated by'));
+ assert(!full.includes('translated by'));
+
  assert.match(renderToStaticMarkup(h(TopicLine,{record:{...record,status:'unavailable',topics:[],places:[],keywords:[]},full:true})),/Unavailable/);
  const {default:PlacesMap}=await load('/src/PlacesMap.tsx');const map=renderToStaticMarkup(h(PlacesMap,{data:{items:[{key:'place:IRN',iso3:'IRN',label:'Iran',series:[]}]},period:'2026-Q1',mode:'q',own:false,zoom:'world',pause:()=>{}}));assert.match(map,/<a tabindex="-1" aria-hidden="true"[^>]+href=/);assert.match(map,/place=IRN/);
  const {TopicStory}=await load('/src/TopicStory.tsx');
  const rareData={periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{},items:[{key:'place:IRN',label:'Iran',series:[{period:'2025-Q3',question:8,document:3,top:{key:'MTG-PL-1',title:'A debate (debate)'}}]}]};const rare=renderToStaticMarkup(h(TopicStory,{data:rareData,index:2,mode:'q',own:false}));assert.match(rare,/rarely asked about before/);assert(!rare.includes('Infinity')&&!rare.includes('Biggest debate'));assert.match(renderToStaticMarkup(h(TopicStory,{data:rareData,index:2,mode:'d',own:false})),/Biggest debate/);
+ const voteData={...rareData,items:[{...rareData.items[0],series:[{...rareData.items[0].series[0],top:{key:'MTG-PL-2025-09-10-PVCRE-ITM-7-2',title:'Support for Ukraine (vote)',kind:'record'}}]}]};const voteStory=renderToStaticMarkup(h(TopicStory,{data:voteData,index:2,mode:'d',own:false}));assert(!voteStory.includes('Biggest debate')&&!voteStory.includes('(vote)'),'a voting-time group is never named the biggest debate');
  const tieData={periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{},items:['Iran','Georgia'].map((label,i)=>({key:'place:'+['IRN','GEO'][i],label,series:[{period:'2025-Q1',document:2},{period:'2025-Q2',document:2},{period:'2025-Q3',document:10}]}))};const tied=renderToStaticMarkup(h(TopicStory,{data:tieData,index:2,mode:'d',own:false}));assert(tied.includes('Georgia')&&tied.includes('Iran')&&tied.includes('each'));
  for(const mode of ['d','q']){const single={periods:['2026-Q1'],partial:{},items:[{key:'place:IRN',label:'Iran',series:[{period:'2026-Q1',document:1,question:1}]}]},text=renderToStaticMarkup(h(TopicStory,{data:single,index:0,mode,own:false}));assert(text.includes(mode==='d'?'1 document':'1 question'));assert(!text.includes(mode==='d'?'1 documents':'1 questions'));}
 

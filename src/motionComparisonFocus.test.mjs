@@ -36,7 +36,7 @@ async function harness(t,initial={}) {
   const container=document.createElement('div');document.body.append(container);root=createRoot(container);
   const render=props=>act(async()=>root.render(createElement(MotionComparison,{...pair,language:'en',...initial,...props})));
   await render();
-  const stage=()=>container.querySelectorAll('.explorer-diff-controls select')[0],language=()=>container.querySelectorAll('.explorer-diff-controls select')[1]||null;
+  const stage=()=>container.querySelectorAll('.explorer-diff-controls select')[0],language=()=>container.querySelector('.text-language-line select');
   const change=(select,value)=>act(async()=>{assert(select,'Missing native select');select.focus();select.value=value;select.dispatchEvent(new window.Event('change',{bubbles:true}));});
   const finish=(request,data,status=200)=>act(async()=>{assert(request&&!request.finished,'Missing unfinished comparison request');request.finished=true;request.resolve(Response.json(data,{status}));});
   const wait=()=>act(async()=>new Promise(resolve=>setTimeout(resolve,400)));
@@ -45,7 +45,7 @@ async function harness(t,initial={}) {
 }
 
 test('comparison language selection keeps its native focused control while a different-language route is pending',async t=>{
-  const h=await harness(t);await h.finish(h.requests[0],comparison());
+  const h=await harness(t,{language:'hu'});await h.finish(h.requests[0],comparison('original-joint','hu',{textLanguage:'en'}));
   const select=h.language();assert(select);assert.deepEqual([...select.options].map(option=>option.value),['en','fr']);
   await h.change(select,'fr');
   assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
@@ -58,7 +58,7 @@ test('comparison language selection keeps its native focused control while a dif
 });
 
 test('comparison errors and retries retain only the current pair catalog, and authoritative unavailable results can clear it',async t=>{
-  const h=await harness(t);await h.finish(h.requests[0],comparison());
+  const h=await harness(t,{language:'hu'});await h.finish(h.requests[0],comparison('original-joint','hu',{textLanguage:'en'}));
   const select=h.language();await h.change(select,'fr');
   await h.finish(h.requests.at(-1),{error:{message:'Fixture source failure'}},503);await h.wait();
   assert(h.language()===select);assert(document.activeElement===select);assert.equal(select.value,'fr');
@@ -81,6 +81,12 @@ test('comparison errors and retries retain only the current pair catalog, and au
   assert.equal(h.container.querySelector('.explorer-diff-rows'),null);
 });
 
+test('the comparison offers no language picker for the requested language',async t=>{
+  const h=await harness(t);await h.finish(h.requests[0],comparison());
+  assert.equal(h.language(),null);assert.equal(h.container.querySelectorAll('.explorer-diff-controls select').length,1);
+  assert.equal(h.container.querySelector('.explorer-diff-rows').lang,'en');
+});
+
 test('requested comparison language and actual fallback remain distinct while native focus persists',async t=>{
   const h=await harness(t,{language:'hu'});
   assert.equal(h.requests[0].url.searchParams.get('lang'),'hu');
@@ -98,8 +104,8 @@ test('requested comparison language and actual fallback remain distinct while na
 
 test('unadmitted actual language metadata keeps the valid requested choice without inventing language options',async t=>{
   for(const actual of ['mul','und'])await t.test(actual,async t=>{
-    const h=await harness(t,{language:'hu'}),admitted=['hu','en','fr'];
-    await h.finish(h.requests[0],comparison('original-joint','hu',{availableLanguages:admitted}));
+    const h=await harness(t,{language:'hu'}),admitted=['de','en','fr'];
+    await h.finish(h.requests[0],comparison('original-joint','hu',{textLanguage:'en',availableLanguages:admitted}));
     const select=h.language();await h.change(select,'fr');
     assert.equal(h.requests.at(-1).url.searchParams.get('lang'),'fr');
     await h.finish(h.requests.at(-1),comparison('original-joint','fr',{textLanguage:actual,availableLanguages:admitted}));
@@ -115,10 +121,10 @@ test('unadmitted actual language metadata keeps the valid requested choice witho
 });
 
 test('rapid language intent ignores obsolete completion, keeps moved focus, and announces only the latest concise comparison',async t=>{
-  const h=await harness(t),announcements=[];
+  const h=await harness(t,{language:'de'}),announcements=[];
   const status=h.status(),observer=new h.window.MutationObserver(()=>{if(status.textContent)announcements.push(status.textContent);});
   observer.observe(status,{subtree:true,childList:true,characterData:true});t.after(()=>observer.disconnect());
-  await h.finish(h.requests[0],comparison('original-joint','en',{availableLanguages:['en','fr','hu']}));
+  await h.finish(h.requests[0],comparison('original-joint','de',{textLanguage:'en',availableLanguages:['en','fr','hu']}));
   const select=h.language();await h.change(select,'fr');const obsolete=h.requests.at(-1);
   await h.change(select,'hu');const current=h.requests.at(-1);
   assert(h.language()===select);assert.equal(select.value,'hu');assert.equal(current.url.searchParams.get('lang'),'hu');

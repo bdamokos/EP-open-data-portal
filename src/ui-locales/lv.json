@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Skatīt oficiālo dokumentu",
   "questionStatus.1": "Atbildēts",
   "questionStatus.2": "Atbildes vēl nav",
+  "questions.earlierInTerm": "Rādīt agrākus pašreizējā sasaukuma jautājumus",
+  "questions.periodEnd": "Laikposma {dates} saraksta beigas.",
   "readerretry.minutes_minute.15a750": "{minutes} minūte",
   "readerretry.minutes_minutes.24f934": "{minutes} minūtes",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Pēc neveiksmīga pieprasījuma atkārtošana ir apturēta. Līdz nākamajam mēģinājumam: {wait}.",
@@ -2363,5 +2365,6 @@
   "questionanswerer.signatory": "Atbildētājs: {person}, {institution}",
   "questionanswerer.institution": "Atbildētājs: {institution}",
   "questionanswerer.institution.commission": "Eiropas Komisija",
-  "questionanswerer.institution.council": "Padome"
+  "questionanswerer.institution.council": "Padome",
+  "textsearch.advanced_options": "Vairāk iespēju"
 }

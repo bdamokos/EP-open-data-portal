@@ -13,6 +13,7 @@ import {ProposalNotes} from './ProposalNotes';
 import {WordingDiff} from './components/WordingDiff';
 import {AmendmentJustification} from './components/AmendmentJustification';
 import {FindInText} from './TextSearch';
+import {TextLanguageFallback} from './TextLanguagePicker';
 
 const units=(list:ProposalUnit[]):ProposalUnit[]=>list.flatMap(unit=>[unit,...units(unit.children)]);
 const safeHref=(raw:string|undefined|null)=>{try{const url=new URL(raw||'');return (((url.protocol==='https:') && (!url.username)) && (!url.password)) ? url.href : null;}catch{return null;}};
@@ -188,7 +189,7 @@ export function ProposalContextText({data,wording,amendmentId,language,showOrigi
   };
   return <>
     <p className="proposal-context-summary">{(showOriginalLink && official) ? <a href={official} target="_blank" rel="noreferrer"><>{identity} ↗</></a> : identity} {showOriginalLink&&<>· <a href={report} target="_blank" rel="noreferrer">{data.documentId.startsWith('A-') ? <UiMessage id="proposalcontexttext.parliament.report"/> : <UiMessage id="proposalcontexttext.parliament.document"/>}</a></>}</p>
-    <p className="document-context-language"><UiMessage id="membervotes.tsx.text.language.language" values={{language: baseline.language.toUpperCase()}}/></p>
+    {baseline.language!==language&&<p className="document-context-language"><TextLanguageFallback requested={language} actual={baseline.language} interfaceLanguage={language}/></p>}
     <div className="document-context-tools"><FindInText target={reader} label={existing ? ui.t("proposalcontexttext.find.in.existing.act") : (council ? ui.t("proposalcontexttext.find.in.council.position") : ui.t("proposalcontexttext.find.in.proposal"))}/></div>
     {placed ? <div className="document-context-passage"><button type="button" onClick={showAmendment}><UiMessage id="batch6.documentcontextreader.go.to.amendment.179"/></button></div> : <p className="document-context-notice" role="status">{proposalPlacementReasonsUi(ui)[placement?.reason||'']||ui.t("batch6.documentcontextreader.the.amendment.s.location.could.not.be.determined.67")}</p>}
     {missingFiles>0&&<p className="document-context-notice"><UiMessage id="coverage.filesUnloaded" values={{count:missingFiles}}/></p>}

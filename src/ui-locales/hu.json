@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Hivatalos dokumentum megtekintése",
   "questionStatus.1": "Megválaszolva",
   "questionStatus.2": "Még nincs válasz",
+  "questions.earlierInTerm": "Korábbi kérdések megjelenítése a jelenlegi ciklusból",
+  "questions.periodEnd": "Vége a listának ({dates}).",
   "readerretry.minutes_minute.15a750": "{minutes} perc",
   "readerretry.minutes_minutes.24f934": "{minutes} perc",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Az újrapróbálás sikertelen kérés után szünetel. Próbálja újra {wait} múlva.",
@@ -2363,5 +2365,6 @@
   "questionanswerer.signatory": "Válaszadó: {person}, {institution}",
   "questionanswerer.institution": "Válaszadó: {institution}",
   "questionanswerer.institution.commission": "Európai Bizottság",
-  "questionanswerer.institution.council": "Tanács"
+  "questionanswerer.institution.council": "Tanács",
+  "textsearch.advanced_options": "További beállítások"
 }

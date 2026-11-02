@@ -14,12 +14,13 @@ const speech=(language)=>({id:speechId,kind:'PLENARY_DEBATE_SPEECH',start:null,e
 
 test('ready corpus metadata keeps source-discovered languages available through the detail fallback',async t=>{
   const h=await harness(t,(route,params)=>route.startsWith('speech-transcript/')?
-    params.get('lang')==='en'?{id:speechId,available:true,xml:'<speech><p>Stored English variant.</p></speech>',textLanguage:'en',translationType:'original',availableTextLanguages:['en'],metadata:{...speech('en'),xml:null,availableTextLanguages:['en','fr','de']}}:{id:speechId,available:false}:
+    params.get('lang')==='en'?{id:speechId,available:true,xml:'<speech><p>Stored German variant.</p></speech>',textLanguage:'de',translationType:'original',availableTextLanguages:['de'],metadata:{...speech('de'),xml:null,availableTextLanguages:['fr','de']}}:{id:speechId,available:false}:
     route.startsWith('speech/')?{...speech(params.get('lang')),availableTextLanguages:['en','fr','de']}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
-  const picker=h.container.querySelector('.insight-reader-heading select');assert(picker);
-  assert.deepEqual([...picker.options].map(option=>option.value),['en','fr','de']);
-  assert.equal(h.container.querySelector('.insight-reader-text').textContent,'Stored English variant.');
+  // English is not retained, so the stored German fallback offers the other source-discovered editions.
+  const picker=h.container.querySelector('.text-language-line select');assert(picker);
+  assert.deepEqual([...picker.options].map(option=>option.value),['de','fr']);
+  assert.equal(h.container.querySelector('.insight-reader-text').textContent,'Stored German variant.');
   assert(!h.requests.includes(`speech/${speechId}?lang=en`),'complete retained metadata avoids the detail request');
   await h.change(picker,'fr');
   const text=h.container.querySelector('.insight-reader-text');assert.equal(text.lang,'fr');
@@ -33,11 +34,11 @@ test('speaker names and sitting roles follow the UI independently of the selecte
     {value:'Γεάδης Γεάδη',script:'Grek',language:null,source:'ODP person'},
   ]};
   const connectedId=speechId+'2';
-  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')),id:route.slice('speech/'.length),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-03-25-PVCRE-ITM-1',titles:{en:'Public debate fixture'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:{...person,sittingRole:undefined,office:null},onBehalfOf:[]},replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
+  const h=await harness(t,(route,params)=>route.startsWith('speech/')?{...speech(params.get('lang')==='en'?'de':params.get('lang')),id:route.slice('speech/'.length),speakers:[person]}:route.startsWith('speech-context/')?{speechId,unavailable:false,debates:[{id:'MTG-PL-2026-03-25-PVCRE-ITM-1',titles:{en:'Public debate fixture'},records:[{id:connectedId,start:null,intervention:{type:'speech',speaker:{...person,sittingRole:undefined,office:null},onBehalfOf:[]},replyTo:null,exchangeId:null}],exchanges:[],coverage:{complete:true,available:1,expected:1}}]}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
   assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
   assert.equal(h.container.querySelector('.insight-secondary').textContent,'Vice-President of the European Parliament · Chairing the sitting');
-  await h.change(h.container.querySelector('.insight-reader-heading select'),'fr');
+  await h.change(h.container.querySelector('.text-language-line select'),'fr');
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   assert.equal(h.container.querySelector('h3').textContent,'Geadis Geadi');
   assert(h.container.querySelector('.insight-secondary').textContent.includes('Vice-President'));
@@ -124,7 +125,7 @@ test('reader controls stay English while EN/HU/FR source passages and language c
       assert.equal(effectiveLanguage(body()),language);
       assert(body().textContent.includes(sourceText));
       assert.equal(body().closest('[aria-live],[role="status"]'),null,'source text stays outside status regions');
-      assert.equal(effectiveLanguage(h.container.querySelector('.insight-reader-heading select')),'en');
+      assert.equal(h.container.querySelector('.text-language-line select'),null,'the requested edition needs no language picker');
       assert.equal(effectiveLanguage(h.container.querySelector('button[aria-label^="Find in"]')),'en');
       if(kind==='question') {
         assert.equal(effectiveLanguage(h.container.querySelector('.insight-reader-source > p')),language,'extracted headers retain source language');
@@ -138,11 +139,21 @@ test('reader controls stay English while EN/HU/FR source passages and language c
         assert.equal(effectiveLanguage(h.container.querySelector('.speech-translation')),'en');
         assert.equal(h.container.querySelector('.insight-source-document'),null);
       }
-      const next=language==='fr'?'hu':'fr';
-      await h.change(h.container.querySelector('.insight-reader-heading select'),next);assert.equal(effectiveLanguage(body()),next);
-      await h.change(h.container.querySelector('.insight-reader-heading select'),'en');assert.equal(effectiveLanguage(body()),'en');
-      assert.equal(effectiveLanguage(h.container.querySelector('button[aria-label^="Find in"]')),'en');
     }
+  });
+});
+
+test('a fallback edition offers an English picker whose choices keep their actual source tags',async t=>{
+  for(const kind of ['question','speech'])await t.test(kind,async t=>{
+    // Irish is requested but unpublished, so the reader shows English and offers the other editions.
+    const fixture=language=>language==='ga'?'en':language;
+    const h=await harness(t,(route,params)=>route.startsWith('document/')?question(fixture(params.get('lang'))):route.startsWith('speech/')?speech(fixture(params.get('lang'))):undefined);
+    await h.render(el(kind==='question'?h.InsightQuestionReader:h.InsightSpeechReader,{id:kind==='question'?questionId:speechId,language:'ga'}),'ga');
+    const body=()=>h.container.querySelector('.insight-reader-text'),picker=()=>h.container.querySelector('.text-language-line select');
+    assert.equal(effectiveLanguage(body()),'en');assert(picker());assert.equal(effectiveLanguage(picker()),'en');
+    assert.deepEqual([...picker().options].map(option=>option.value),['en','fr','hu']);
+    for(const next of ['fr','hu','en']){await h.change(picker(),next);assert.equal(effectiveLanguage(body()),next);assert(body().textContent.includes(sourceText));}
+    assert.equal(effectiveLanguage(h.container.querySelector('button[aria-label^="Find in"]')),'en');
   });
 });
 
@@ -207,8 +218,7 @@ test('cloud response terms, source title metadata and localized dates remain sep
     const h=await harness(t,route=>route==='insights/speech-cloud'?cloudData():undefined),opened=[];
     await h.render(el(h.SpeechCloud,{member:1,interfaceLanguage:language,onSpeech:(...args)=>opened.push(args)}),language);
     assert.equal(effectiveLanguage(h.container.querySelector('h3')),'en');
-    assert.equal(effectiveLanguage(h.container.querySelector('.explorer-cloud-controls select')),'en');
-    assert([...h.container.querySelector('.explorer-cloud-controls select').querySelectorAll('option')].every(option=>effectiveLanguage(option)===language));
+    assert(![...h.container.querySelectorAll('.explorer-cloud-controls option')].some(option=>option.value===language),'the cloud follows the interface language without a picker');
     assert.equal(effectiveLanguage(h.container.querySelector('.explorer-cloud-words button')),'fr','response language wins over requested text language');
     assert([...h.container.querySelectorAll('.explorer-cloud-caption span')].every(span=>effectiveLanguage(span)===language));
     await h.click(h.container.querySelector('.explorer-cloud-words button'));
@@ -220,7 +230,7 @@ test('cloud response terms, source title metadata and localized dates remain sep
     assert.deepEqual(buttons.map(button=>effectiveLanguage(button.querySelector('strong'))),['fr','','','mul','und']);
     assert(buttons.every(button=>effectiveLanguage(button.querySelector('small'))===language));
     assert(buttons.every(button=>effectiveLanguage(button.querySelector('.explorer-cloud-read-action'))==='en'));
-    await h.click(buttons[0]);assert.deepEqual(opened,[['known','en']],'language markup must not change the selected speech language');
+    await h.click(buttons[0]);assert.deepEqual(opened,[['known',language]],'the speech opens in the interface language of the cloud, not its markup language');
   });
 });
 
@@ -303,7 +313,7 @@ test('compound reader headings retain date-bearing status and find names with th
   const h=await harness(t,route=>route.startsWith('document/')?question('fr'):undefined);
   const heading='Answer 2 · 2026. márc. 25.';
   await h.render(el(h.InsightQuestionReader,{id:questionId,language:'hu',heading}));await h.settle(375);
-  const select=h.container.querySelector('.insight-reader-heading select'),find=h.container.querySelector('button[aria-label^="Find in"]'),status=h.container.querySelector('[aria-live]');
+  const select=h.container.querySelector('.text-language-line select'),find=h.container.querySelector('button[aria-label^="Find in"]'),status=h.container.querySelector('[aria-live]');
   assert.equal(h.container.querySelector('h3').textContent,heading);assert.equal(effectiveLanguage(h.container.querySelector('h3')),'en');
   assert.equal(select.getAttribute('aria-label'),'Text language');assert.equal(select.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(select),'en');
   assert.equal(find.getAttribute('aria-label'),'Find in '+heading.toLowerCase());assert.equal(find.hasAttribute('aria-labelledby'),false);assert.equal(effectiveLanguage(find),'en');
@@ -313,7 +323,7 @@ test('compound reader headings retain date-bearing status and find names with th
 
 
 test('speech video opens beside its heading and transcript language changes do not retune or close it',async t=>{
-  const h=await harness(t,(route,params)=>route.startsWith('speech-media/')?{available:false,status:'audio-unavailable',reason:'Requested fixture channel is unavailable.'}:route.startsWith('speech/')?{...speech(params.get('lang')),start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z'}:undefined);
+  const h=await harness(t,(route,params)=>route.startsWith('speech-media/')?{available:false,status:'audio-unavailable',reason:'Requested fixture channel is unavailable.'}:route.startsWith('speech/')?{...speech(params.get('lang')==='en'?'de':params.get('lang')),start:'2026-03-25T10:00:00Z',end:'2026-03-25T10:01:00Z'}:undefined);
   await h.render(el(h.InsightSpeechReader,{id:speechId,language:'en'}),'en');
   const toggle=h.container.querySelector('.explorer-speech-transcript-heading .explorer-video-toggle');assert(toggle);
   const panel=document.getElementById(toggle.getAttribute('aria-controls'));
@@ -321,7 +331,7 @@ test('speech video opens beside its heading and transcript language changes do n
   assert(panel.previousElementSibling.classList.contains('explorer-speech-transcript-heading'),'the player stays next to the control rather than after the transcript');
   await h.click(toggle);assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
   assert.equal(panel.querySelector('select'),null);
-  await h.change(h.container.querySelector('.insight-reader-heading select'),'fr');
+  await h.change(h.container.querySelector('.text-language-line select'),'fr');
   assert.equal(h.container.querySelector('.insight-reader-text').lang,'fr');
   assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.equal(panel.hidden,false);
   assert.deepEqual(h.requests.filter(route=>route.startsWith('speech-media/')),[`speech-media/${speechId}?lang=en`]);
@@ -344,7 +354,7 @@ test('speech readers preserve source italics and notes inside timed paragraphs, 
   await h.click(h.container.querySelector('.intervention-read'));
   const connected=h.container.querySelector('.intervention-connected-text');
   assert.deepEqual([...connected.querySelectorAll('i')].map(node=>node.textContent),[...body.querySelectorAll('i')].map(node=>node.textContent));
-  assert.equal(connected.querySelectorAll('p')[2].textContent,body.querySelectorAll('p')[1].textContent);
+  assert.equal(connected.querySelectorAll('p')[1].textContent,body.querySelectorAll('p')[1].textContent);
   assert.equal(connected.querySelectorAll('i').length,4,'parentheses in spoken text do not acquire italics');
 });
 
@@ -363,8 +373,7 @@ test('inline original toggle preserves source text, returns to translation, and 
   assert.equal(h.container.querySelector('.insight-reader-text').textContent,'English translation.');
   assert(button('Close video'),'open video is not closed by a text change');
   await h.click(button('Show original (French)'));
-  await h.change(h.container.querySelector('.insight-reader-heading select'),'en');
-  assert.equal(h.container.querySelector('.insight-reader-text').lang,'en','dropdown clears the inline override even when the parent language was already English');
+  assert.equal(h.container.querySelector('.text-language-line select'),null,'an original shown by choice is not a fallback');
 });
 
 test('original toggle withholds a translated fallback and keeps a return path',async t=>{

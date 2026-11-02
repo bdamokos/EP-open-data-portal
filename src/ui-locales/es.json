@@ -2010,6 +2010,8 @@
   "proposalmath.view_official_document": "Ver documento oficial",
   "questionStatus.1": "Respondida",
   "questionStatus.2": "Aún sin respuesta",
+  "questions.earlierInTerm": "Mostrar preguntas anteriores de la legislatura actual",
+  "questions.periodEnd": "Fin de la lista del periodo {dates}.",
   "readerretry.minutes_minute.15a750": "{minutes} minuto",
   "readerretry.minutes_minutes.24f934": "{minutes} minutos",
   "readerretry.retry_paused_after_a_failed_request_try_again_in_wait.c89efa": "Reintento en pausa tras una solicitud fallida. Inténtelo de nuevo en {wait}.",
@@ -2363,5 +2365,6 @@
   "questionanswerer.signatory": "Respondida por: {person}, {institution}",
   "questionanswerer.institution": "Respondida por: {institution}",
   "questionanswerer.institution.commission": "Comisión Europea",
-  "questionanswerer.institution.council": "Consejo"
+  "questionanswerer.institution.council": "Consejo",
+  "textsearch.advanced_options": "Más opciones"
 }
