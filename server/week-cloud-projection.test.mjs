@@ -153,3 +153,12 @@ test('old projection schemas fall back until preparation and worker refill',asyn
   assert.equal(f.store.get('weekCloudSchema'),2);assert(f.store.acquire());assert.equal(f.store.weekCloud(params(f)),null);
   await fillWeekCloud(f.store,async()=>f.store.assertWriter());assert.equal(f.store.weekCloud(params(f)).coverage.transcripts,8);
 });
+test('concurrent week fallback requests retain one shared build',async t=>{
+  const f=weekCloudFixture(8);t.after(()=>f.close());let reads=0,release,started;
+  const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+  const service=localCloud(f,async p=>f.store.weekCloud(p));
+  service.readCorpusPage=async p=>{reads++;started();await gate;return f.store.speechPage(p);};
+  const first=service.query(query());await entered;
+  const second=service.query(query());await new Promise(resolve=>setImmediate(resolve));release();
+  const [a,b]=await Promise.all([first,second]);assert.equal(reads,1);assert.deepEqual(a,b);
+});

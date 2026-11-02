@@ -111,7 +111,7 @@ export class SpeechCloudInsights {
       }
     }
     const status=this.store.status(),{page,...selection}=query,key=JSON.stringify([status.servingGeneration,this.store.get?.('demographicRevision')||0,selection]);let state=this.states.get(key);
-    if(projectionMiss&&page===0){this.states.delete(key);state=null;}
+    if(projectionMiss&&page===0&&!state?.pending){this.states.delete(key);state=null;}
     // A fresh visit refreshes coverage, while an ongoing walk keeps its cursor.
     if(state&&page===0&&state.availabilityRevision!==status.availabilityRevision){this.states.delete(key);state=null;}
     if(state?.scope?.catalogue&&calendarNeedsRefresh(state.scope.catalogue)&&this.clock()-state.at>=60_000){this.states.delete(key);return {...await this.query({...query,page:0},restarts),restarted:true};}
