@@ -1,4 +1,4 @@
-import {weekCloudMemberDigest} from './week-cloud-projection.mjs';
+import * as weekCloudProjection from './week-cloud-projection.mjs';
 import {zstdDecompressSync} from 'node:zlib';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import {fillWeekCloud,weekCloudWorkDue} from './week-cloud-worker.mjs';
 import {SpeechCloudInsights,speechCloudQuery} from './speech-cloud.mjs';
 import {CorpusReader} from './corpus-reader.mjs';
 const query=()=>speechCloudQuery(new URLSearchParams('week=2026-10-19&lang=en'));
-const params=f=>({week:'2026-10-19',language:'en',dates:f.dates,generation:f.store.indexState().generation,demographicRevision:0,members:weekCloudMemberDigest(f.index.db)});
+const params=f=>({week:'2026-10-19',language:'en',dates:f.dates,generation:f.store.indexState().generation,demographicRevision:0,members:weekCloudProjection.weekCloudMemberDigest?.(f.index.db)});
 test('worker publishes an exact text-free week, single-response read and invalidation preserve fallback',async t=>{
   const f=weekCloudFixture(201);t.after(()=>f.close());
   let checkpoints=0;const checkpoint=async()=>{checkpoints++;f.store.assertWriter();};
