@@ -1,3 +1,4 @@
+import {RetainedProjections} from './amendment-benchmark-projections.mjs';
 import {readFile,readdir,realpath,stat,lstat} from 'node:fs/promises';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -111,7 +112,12 @@ finally: c.close()
     }
     return records;
   }
-  async get(url,request) {
+  async get(url,request,{cache}={}) {
+    if(cache&&(new URL(url).origin===cache.apiBase||/^https:\/\/data\.europarl\.europa\.eu\/api\/v2\//.test(url))) {
+      this.projections??=new RetainedProjections(await this.file('index/activities-v1.sqlite'));
+      try {const projection=await this.projections.getProjection(url,cache);if(projection)return {...projection,...(request?{request}:{})};}
+      catch(error){if(error.code!=='acquisition-unavailable')throw error;}
+    }
     const unavailable=(reason='retained-attestation-missing')=>({url,status:null,ok:false,fetchedAt:null,bytes:0,sha256:digest(''),error:'acquisition-unavailable',acquisitionUnavailable:true,acquisitionUnavailableReason:reason,...(request?{request}:{}),headers:{},body:Buffer.alloc(0)});
     const bases=this.baseRecords.filter(s=>s.url===url&&(!request||(s.request?.accept===request.accept||s.request?.accept==='*/*'&&s.descriptor?.format==='DOCX'&&request.accept==='application/vnd.openxmlformats-officedocument.wordprocessingml.document')&&(!request.language||s.request?.language===request.language)));
     if(bases.length>1)throw new Error('Ambiguous retained base observations: '+url);

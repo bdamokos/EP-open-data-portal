@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {hasCouncilQuotation,reportCouncilQuotation} from '../server/report-council-quotation.mjs';
 import {verifyRejection} from './amendment-rejection-oracle.mjs';
 import {mkdir,readFile,writeFile,readdir,rm,appendFile,mkdtemp} from 'node:fs/promises';
 import path from 'node:path';
@@ -223,10 +224,11 @@ export async function evaluateReport(rows,sample,cache,{runtime,replay,selection
         sourceUrl:replay?(structured?baseline?.items?.[0]?.source?.url||publicDocumentUrl(row.targetDocumentId):text?.sourceUrl||publicDocumentUrl(row.targetDocumentId)):input.url,
         ...(replay?{projection:{mode:'cached-source-replay',celex:baseline?.celex??null,status:baseline?.status??text?.status,reason:text?.reason??null,fileDeclarationSource:text?.fileDeclarationSource??null,workId:baseline?.workId??null,itemSources:baseline?.items?.map(({itemId,source})=>({itemId,url:source.url,sha256:source.sha256,fetchedAt:source.fetchedAt}))||[]}}:{}),
       };
-      if(stages.S2.status==='passed'&&(matching||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
+      if(stages.S2.status==='passed'&&(matching||hasCouncilQuotation(wording)||expectedLanguageScope(wording)||wording.originalText===''&&/rejects|rejette|respinge/u.test(wording.proposedText))) {
         const references=[...new Set((row.decisions||[]).filter(d=>(d.amendmentIds||[]).includes(row.id)&&d.source?.url&&d.source?.fetchedAt).map(d=>d.reference).filter(value=>typeof value==='string'))];
         const opts={...wording,targetLabelLanguage:language,resolutionDocument:true,referenceText:references[0]};
         stages.S5=(runtime?.documentContextPlacement||documentContextPlacement)({chosen:opts,text,baseline,items:structured?items:null,referenceTexts:references,resolutionDocument:true});
+        if(stages.S5.status==='unresolved'&&text?.nativeBuffer)stages.S5=reportCouncilQuotation(text.nativeBuffer,wording,{operation:stages.S5.operation,reportId:row.targetDocumentId,sourceUrl:text.sourceUrl,fetchedAt:text.fetchedAt})??stages.S5;
         documentOperation=verifyRejection({id:row.id,language,buffer:fetched.body,wording,placement:stages.S5});
         stages.S6=verifyPlacement({placement:stages.S5,wording,items:structured?items:null,text,target,nativeQuoted:nativeProposalInputs?.[stages.S5.itemIndex]?{proposalBuffer:nativeProposalInputs[stages.S5.itemIndex],amendmentBuffer:fetched.body,number:row.number}:undefined});
         if(replay) {
@@ -260,7 +262,7 @@ async function checkoutIdentity(root,runtime) {
 }
 
 async function harnessIdentity(root) {
-  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs'];
+  const files=['scripts/amendment-benchmark.mjs','scripts/amendment-benchmark-selection.mjs','scripts/amendment-benchmark-sample.mjs','scripts/amendment-benchmark-model.mjs','scripts/amendment-footnote-oracle.mjs','scripts/amendment-elision-oracle.mjs','scripts/amendment-quoted-sibling-oracle.mjs','scripts/amendment-benchmark-cache.mjs','scripts/amendment-benchmark-producers.mjs','scripts/amendment-benchmark-replay.mjs','scripts/amendment-benchmark-resolution-oracle.mjs','scripts/amendment-oracle-grammar.mjs','scripts/amendment-language-vocabulary.mjs','scripts/amendment-benchmark-languages.mjs','scripts/amendment-benchmark-operation-oracle.mjs','scripts/amendment-benchmark-scope-oracle.mjs','scripts/fixtures/amendment-language-scope-oracle.json','scripts/amendment-benchmark-proposal-oracle.mjs','scripts/amendment-benchmark-source-diagnostics.mjs','scripts/amendment-benchmark-quoted-oracle.mjs','scripts/amendment-benchmark-letter-point-oracle.mjs','scripts/amendment-benchmark-citation-bindings.mjs','scripts/amendment-benchmark-citation-calibration.mjs','package-lock.json','scripts/amendment-rejection-oracle.mjs','scripts/fixtures/amendment-rejection-oracle.json','scripts/amendment-benchmark-retained.mjs','scripts/amendment-benchmark-projections.mjs'];
   return {files:Object.fromEntries(await Promise.all(files.map(async file=>[file,digest(await readFile(path.join(root,file)))])))};
 }
 
