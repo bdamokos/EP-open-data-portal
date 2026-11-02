@@ -76,3 +76,38 @@ test('filter changes keep the page and chart on screen while records load',async
  assert.equal(node.querySelector('h1')?.textContent,'Greece');assert(node.querySelector('.topic-chart'));assert.notEqual(document.activeElement,node.querySelector('h1'));
  release();await wait(()=>node.textContent.includes('Group document'));assert.notEqual(document.activeElement,node.querySelector('h1'));
 });
+
+test('heat strip sorts by the term, the last full quarter or the current quarter so far, with full row labels',async t=>{
+ const window=new Window({url:'http://localhost/?view=topics'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ const long='Relations with/in the context of international organisations: UN, OSCE, OECD, Council of Europe, EBRD',row=(key,label,q3,q4,total)=>({key,label,groupsTotal:total,series:[{period:'2026-Q3',groups:q3},{period:'2026-Q4',groups:q4}]});
+ t.mock.method(globalThis,'fetch',async input=>Response.json({ready:true,periods:['2026-Q3','2026-Q4'],partial:new URL(String(input),location.href).searchParams.get('lang')==='fr'?{first:null,last:null}:{first:null,last:'2026-10-29'},items:[row('oeil:a','Term leader',1,0,30),row('oeil:b','Full quarter leader',9,1,10),row('oeil:c',long,2,5,7)]}));
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ const labels=()=>[...node.querySelectorAll('.topic-heat tbody th a')].map(a=>a.textContent),options=()=>[...node.querySelectorAll('.topic-sort button')].map(b=>b.textContent),press=async text=>act(async()=>[...node.querySelectorAll('.topic-sort button')].find(b=>b.textContent===text).click());
+ await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelector('.topic-heat'));
+ assert.equal(node.querySelector('.topic-sort [role=group]').getAttribute('aria-labelledby'),node.querySelector('.topic-sort > span').id);
+ assert.deepEqual(options(),['This term','2026 Q3','2026 Q4 so far']);assert.deepEqual(labels(),['Term leader','Full quarter leader',long]);assert.equal(node.querySelector('.topic-heat th[aria-sort]'),null);
+ const link=node.querySelector('.topic-heat tbody tr:last-child th a');assert.equal(link.getAttribute('title'),null);assert.equal(link.textContent,long);
+ await press('2026 Q4 so far');await wait(()=>labels()[0]===long);assert.equal(new URL(location.href).searchParams.get('t-sort'),'current');assert.match(node.querySelector('.topic-heat th[aria-sort=descending]').textContent,/2026 Q4/);
+ await press('2026 Q3');await wait(()=>labels()[0]==='Full quarter leader');assert.equal(new URL(location.href).searchParams.get('t-sort'),'last');assert.match(node.querySelector('.topic-heat th[aria-sort=descending]').textContent,/2026 Q3/);
+ // Once the latest quarter is complete it is the last full quarter, and a saved current-quarter sort follows it.
+ await press('2026 Q4 so far');await act(async()=>root.render(createElement(Topics,{language:'fr'})));await wait(()=>options().length===2);assert.equal(new URL(location.href).searchParams.get('t-sort'),'current');assert.deepEqual(options(),['This term','2026 Q4']);assert.equal(node.querySelector('.topic-sort button[aria-pressed=true]').textContent,'2026 Q4');assert.equal(labels()[0],long);
+});
+
+test('places put the time control, map and story first and the ranked list and finder after',async t=>{
+ const window=new Window({url:'http://localhost/?view=topics&t-tab=places'}),globals={window,document:window.document,location:window.location,history:window.history,Event:window.Event,PopStateEvent:window.PopStateEvent,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true},old=new Map(Object.keys(globals).map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));for(const [k,v]of Object.entries(globals))Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});window.HTMLElement.prototype.scrollIntoView=function(){};
+ let root,load;t.after(async()=>{if(root)await act(async()=>root.unmount());if(load)await load.close();await window.happyDOM.close();for(const [k,d]of old)d?Object.defineProperty(globalThis,k,d):delete globalThis[k];});
+ const data={ready:true,periods:['2025-Q1','2025-Q2','2025-Q3'],partial:{first:null,last:'2025-07-01'},items:[{key:'place:IRN',id:'IRN',iso3:'IRN',label:'Iran',series:[{period:'2025-Q2',question:10},{period:'2025-Q3',question:12}]}]};t.mock.method(globalThis,'fetch',async input=>{const u=new URL(String(input),location.href);return u.pathname==='/api/topics/story-facts'?Response.json({ready:false}):Response.json(data);});
+ load=await freshLoader({configFile:false,server:{middlewareMode:true,hmr:false,ws:false,watch:null},optimizeDeps:{noDiscovery:true},oxc:{jsx:{runtime:'automatic'}}},{sharedServerKey:'topics-history'});const {Topics}=await load('/src/Topics.tsx'),{createRoot}=await import('react-dom/client'),node=document.createElement('div');document.body.append(node);root=createRoot(node);
+ const wait=async predicate=>{for(let i=0;i<60&&!predicate();i++)await act(async()=>new Promise(r=>setTimeout(r,20)));assert(predicate(),node.textContent);};
+ await act(async()=>root.render(createElement(Topics,{language:'en'})));await wait(()=>node.querySelector('.places-map'));
+ const order=[...node.querySelectorAll('.topic-time,.places-map,.places-caption,.places-ranking,.topic-finder')].map(e=>e.className.split(' ')[0]);
+ assert.deepEqual(order,['topic-time','places-map','places-caption','places-ranking','topic-finder']);
+ assert(node.querySelector('.places-stage .topic-time + .places-map'),'the map follows its time control directly');
+ assert.equal(node.querySelectorAll('.topic-finder').length,1);assert(node.querySelector('.places-side .topic-finder'));
+ assert.equal(node.querySelector('.places-quarter').textContent,'2025 Q2');assert.equal(node.querySelector('.places-quarter').getAttribute('aria-live'),'polite');
+ const slider=node.querySelector('.places-scrubber input[type=range]');assert.equal(slider.getAttribute('aria-label'),'Quarter');assert.equal(slider.getAttribute('aria-valuetext'),'2025 Q2');
+ assert.deepEqual([...node.querySelectorAll('.places-ends span')].map(s=>s.textContent),['2025 Q1','2025 Q3 so far']);
+ await act(async()=>node.querySelector('.places-scrubber button[aria-label="Next quarter"]').click());await wait(()=>node.querySelector('.places-quarter').textContent==='2025 Q3 so far');assert.equal(new URL(location.href).searchParams.get('t-q'),'2025-Q3');
+});
