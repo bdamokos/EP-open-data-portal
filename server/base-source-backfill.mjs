@@ -55,8 +55,10 @@ export class BaseSourceBackfill {
   }
   jobsForList(g,list){
     if(!exact(list.targetDocumentId))return [];
-    const lists=this.store.db.prepare("SELECT body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(g,list.targetDocumentId).map(r=>JSON.parse(r.body));
-    return backfillJobs({...list,extraction:{amendments:lists.flatMap(l=>(l.extraction?.amendments||[]).map(r=>({...r,language:r.language||l.extraction.language})))}});
+    const sources=this.store.db.prepare("SELECT key,body FROM sources WHERE generation=? AND kind='amendment-list' AND json_extract(body,'$.targetDocumentId')=?").all(g,list.targetDocumentId);
+    const listIds=new Set(sources.map(r=>r.key.slice('amendment:list:'.length))),lists=sources.map(r=>JSON.parse(r.body));
+    const indexed=this.store.db.prepare('SELECT body FROM amendments WHERE generation=? AND target=?').all(g,list.targetDocumentId).flatMap(r=>{const row=JSON.parse(r.body);return [row,...(row.variants||[])];}).filter(r=>listIds.has(r.listId));
+    return backfillJobs({...list,extraction:{amendments:[...lists.flatMap(l=>(l.extraction?.amendments||[]).map(r=>({...r,language:r.language||l.extraction.language}))),...indexed]}});
   }
   async held({url,accept,language,descriptor}){
     await (this.retention.ready??=this.retention.reconcile());

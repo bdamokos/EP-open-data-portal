@@ -69,3 +69,9 @@ test('union of wording languages across lists; no undeclared language download a
  worker.hits=0;assert.equal((await worker.collect({kind:'document',target,language:'en'})).status,'available');
  assert.deepEqual((await worker.collect({kind:'document',target,language:'fr'})).gaps,['language-unavailable']);assert.equal(downloads,0);
 });
+test('indexed wording variants contribute languages only for exact target list IDs',async t=>{
+ const {dir,store,retention}=await fixture(t);
+ store.db.prepare('INSERT INTO amendments(generation,id,target,body) VALUES (1,?,?,?)').run(target+'-AM-1',target,JSON.stringify({listId:'one',language:'de',proposedText:'Text',variants:[{listId:'one',language:'hu',originalText:'Szöveg'},{listId:'unrelated',language:'it',originalText:'Testo'}]}));
+ const worker=new BaseSourceBackfill(store,{directory:dir,retention,log:()=>{}});
+ assert.deepEqual([...new Set(worker.jobsForList(1,list).map(j=>j.language))],['de','en','fr','hu']);
+});
