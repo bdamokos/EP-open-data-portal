@@ -36,3 +36,15 @@ test('final group and question-place writes commit bounded batches, yield, and f
  const transaction=store.transaction.bind(store),changes=()=>store.db.prepare('SELECT total_changes() n').get().n;let maximum=0,turns=0;store.transaction=fn=>transaction(()=>{const before=changes(),result=fn();maximum=Math.max(maximum,changes()-before);return result;});const timer=setInterval(()=>{turns++;},0);try{await finishTopicProjectionBatched(store,1,[concept]);}finally{clearInterval(timer);}assert(turns>1);assert(maximum<600,'one finalization batch wrote '+maximum+' rows');assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_groups WHERE generation=1').get().n,1000);assert.equal(store.db.prepare('SELECT COUNT(*) n FROM record_topic_question_places WHERE generation=1').get().n,1000);
  store.set('recordTopicProjection',null);const renew=store.renew.bind(store);let calls=0;store.renew=()=>++calls>2?false:renew();await assert.rejects(finishTopicProjectionBatched(store,1,[concept]),/lease was lost/);assert.equal(store.get('recordTopicProjection'),null);
 });
+
+test('backoff and a used window stop builds waking or blocking the writer',async t=>{
+ const {ActivityWorker}=await import('./activity-index-worker.mjs'),{topicBuildFailed,topicBuildStarted}=await import('./topic-build-gate.mjs');
+ const dir=await mkdtemp(path.join(tmpdir(),'topics-gate-'));let now=Date.parse('2026-11-02T03:10:00Z');const store=new ActivityStore(dir,{clock:()=>now,initializeIndexes:true});store.acquire();t.after(async()=>{store.close();await rm(dir,{recursive:true,force:true});});
+ store.set('active',1);const worker=new ActivityWorker(store,{clock:()=>now});worker.generationExecutor=async()=>assert.fail('not called');
+ assert.equal(worker.topicBuildStep(),'topics','an unreadable projection bootstraps');
+ topicBuildFailed(store,new Error('heap'),now);assert.equal(worker.topicBuildStep(),null);assert.equal(topicRebuildDue(store,now,'00:00-24:00'),false);
+ now+=15*60_000;assert.equal(worker.topicBuildStep(),'topics');
+ store.set('recordTopicProjection',{version:RECORD_TOPICS_VERSION,generation:1,askerSubsets:['all','home','elsewhere','not-home']});store.set('storyProjection',{version:STORY_FACTS_VERSION,generation:1,dataGeneration:1});store.set('topicProjectionDirty',true);store.set('topicBuildState',null);
+ assert(topicRebuildDue(store,now));topicBuildStarted(store,now);assert.equal(topicRebuildDue(store,now+60_000),false,'one refresh per window');assert.equal(worker.topicBuildStep(),null);
+ now+=86400_000;assert(topicRebuildDue(store,now));
+});

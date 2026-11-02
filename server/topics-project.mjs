@@ -118,7 +118,9 @@ export async function buildTopics(store,{generation=store.get('active'),sourceGe
  let batch=[];
  for(const row of store.db.prepare('SELECT body FROM topic_speech_inputs ORDER BY id').iterate()){
   const n=JSON.parse(row.body),p=projectRecordTopics([n]).records[0];if(!p)continue;const parent=!n.conflicted&&n.parentIds?.length===1?parents.get(n.parentIds[0]):null;
-  if(parent){p.assignments=parent.assignments.map(a=>({...a,paths:a.paths.map(path=>({...path,basis:'debate',steps:[{from:p.id,field:'inverse_consists_of',to:parent.id},...path.steps]}))}));p.status=parent.status;}
+  // Inherited paths keep only the speech→debate step; the debate's stored
+  // record completes each chain. Copying them dominated projection size.
+  if(parent){p.assignments=parent.assignments.map(a=>({key:a.key,role:a.role,paths:[{basis:'debate',inherited:true,steps:[{from:p.id,field:'inverse_consists_of',to:parent.id}],sources:[]}]}));p.status=parent.status;}
   batch.push(p);if(batch.length>=10){store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});batch=[];store.renew();await new Promise(setImmediate);}
  }
  if(batch.length)store.transaction(()=>{store.assertWriter();putTopicRecords(store,generation,batch);});
