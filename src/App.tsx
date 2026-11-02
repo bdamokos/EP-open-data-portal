@@ -566,6 +566,15 @@ export default function App() {
     observer.observe(filters);
     return ()=>{observer.disconnect();setFiltersPassed(false);};
   },[wallVisible]);
+  // Focus scrolling keeps portrait controls clear of the sticky count row.
+  useLayoutEffect(()=>{
+    const page=document.querySelector<HTMLElement>(".explorer"),results=page?.querySelector<HTMLElement>(".explorer-results");
+    if(!wallVisible||!page||!results||typeof ResizeObserver!=='function')return;
+    const measure=()=>page.style.setProperty("--explorer-results-height",`${results.getBoundingClientRect().height}px`);
+    measure();
+    const observer=new ResizeObserver(measure);observer.observe(results);
+    return ()=>{observer.disconnect();page.style.removeProperty("--explorer-results-height");};
+  },[wallVisible,directory]);
   const showFilters=()=>{
     const page=document.querySelector<HTMLElement>(".explorer"),heading=page?.querySelector<HTMLElement>(".explorer-wall h1");
     page?.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});

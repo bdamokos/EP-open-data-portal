@@ -266,6 +266,8 @@
   /* The count row stays as a slim bar once the filters scroll away. */
   .explorer-results { position: sticky; top: 0; z-index: 2; margin-inline: calc(-1 * var(--explorer-gutter)); padding: 8px var(--explorer-gutter); background: var(--bg); }
   .explorer-results.is-stuck { border-bottom: 1px solid var(--line); }
+  .explorer:has(> .explorer-wall:not([hidden])) { scroll-padding-top: calc(var(--explorer-results-height, 68px) + 8px); }
+  .explorer-portraits :focus { scroll-margin-top: calc(var(--explorer-results-height, 68px) + 8px); }
   .explorer-profile-body [id], .explorer-activity-results-title { scroll-margin-top: calc(var(--explorer-tabs-height, 60px) + 12px); }
   .explorer-footer { margin-top: auto; }
 }
