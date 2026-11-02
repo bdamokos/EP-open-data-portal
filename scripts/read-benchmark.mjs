@@ -103,4 +103,4 @@ export async function main(args=process.argv.slice(2)) {
   if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,`Base revision: ${reference.result.commit}\n\n${report}`);
   if(compareReads(reference.result,result).failures.length)process.exitCode=1;
 }
-if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)await main();
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{console.error(error);process.exitCode=1;});

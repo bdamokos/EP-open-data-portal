@@ -103,6 +103,9 @@ test('cached comparison skips measurement, verifies trees and preserves measurem
     assert.equal(result.commit,commit);
     assert.equal(result.tree,tree);
     assert.equal(result.measuredCommit,'measured-sha');
+    const cli=execFileSync(process.execPath,['scripts/read-benchmark.mjs','--compare','HEAD','--cached-base',cached,'--cached-head',cached],{encoding:'utf8',env:process.env});
+    assert.match(cli,/Gate passed/);
+    assert.match(cli,/restored from cache/);
     writeFileSync(cached,JSON.stringify({...profile,tree:'wrong',scenarios:[row()]}));
     await assert.rejects(main(['--compare','HEAD','--cached-base',cached,'--cached-head',cached]),/tree does not match/);
   } finally {
