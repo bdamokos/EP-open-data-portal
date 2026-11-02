@@ -15,7 +15,7 @@ async function harness(t,{component='TopicStories',url='?view=topics&t-tab=place
   const u=new URL(input,location.href);calls.push(u);
   if(u.pathname==='/api/source-record'){sourceReads.push(u);return Response.json({error:{message:'Forbidden per-row EP read'}},{status:500});}
   let q;if(u.pathname==='/api/topics/story-facts'){const p=new URLSearchParams(u.search);p.delete('v');try{q=storyQuery(p);}catch(e){invalid.push(u.href);return Response.json({error:{message:e.message}},{status:400});}}
-  const special=respond?.(u,q);if(special!==undefined)return special instanceof Response?special:Response.json(special);
+  const special=await respond?.(u,q);if(special!==undefined)return special instanceof Response?special:Response.json(special);
   if(q)return Response.json(q.list?recordLinkPage(q):q.scope==='map'?mapLinkFacts(q):placeLinkFacts(q.key?.replace('place:','')));
   if(u.pathname==='/api/topics/detail')return Response.json(topicLinkDetail(u.searchParams.get('key')));
   if(u.pathname==='/api/topics/overview')return Response.json({ready:true,periods:storyPeriods,partial:{},items:Object.entries(storyLabels).map(([id,label])=>({id,iso3:id,key:'place:'+id,label,series:[],counts:{},groupsTotal:0,total:0}))});
@@ -79,7 +79,7 @@ test('missing records keep the unavailable state instead of lowering the claimed
 });
 
 test('the actual page-list heading includes its claim and returns focus to the sentence',async t=>{
- const h=await harness(t,{component:'Topics',url:'?view=topics&topic=oeil:3.70.03&t-q=2026-Q3'});await h.wait('debates and dossiers');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent.includes('debates and dossiers'));assert(link);await act(async()=>link.click());const heading=h.node.querySelector('#topic-records h2');assert(heading.textContent.includes(link.textContent),heading.textContent);const back=heading.querySelector('a');assert(back.textContent.includes('Back to the sentence'));await act(async()=>back.click());assert.equal(document.activeElement.id,link.id);
+ const h=await harness(t,{component:'Topics',url:'?view=topics&topic=oeil:3.70.03&t-q=2026-Q3'});await h.wait('debates and dossiers');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent.includes('debates and dossiers'));assert(link);await act(async()=>link.click());const heading=h.node.querySelector('#topic-records h2');assert(heading.textContent.includes(link.textContent),heading.textContent);const back=heading.querySelector('a');assert(back.textContent.includes('Back to the sentence'));assert(heading.textContent.includes(' ↑ Back to the sentence'));await act(async()=>back.click());assert.equal(document.activeElement.id,link.id);
 });
 test('document history Back restores the originating rendered story link and selection',async t=>{
  const origin='?view=topics&place=IRN&t-q=2026-Q1&t-mode=d&t-zoom=eu&t-own=0',h=await harness(t,{component:'Topics',url:origin});await h.wait('Exact adopted text 1');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Exact adopted text 1');assert(link);const id=link.id;await act(async()=>link.click());await h.wait(sourceDocuments[0].title);const state=history.state;let backCalls=0;t.mock.method(history,'back',()=>{backCalls++;history.replaceState(state,'',origin);window.dispatchEvent(new window.PopStateEvent('popstate'));});await act(async()=>h.node.querySelector('.topic-story-records > a').click());await h.wait('Exact adopted text 1');assert.equal(backCalls,1);assert.equal(document.activeElement.id,id);for(const[k,v]of Object.entries({'t-mode':'d','t-zoom':'eu','t-own':'0'}))assert.equal(new URL(location.href).searchParams.get(k),v);
@@ -90,4 +90,36 @@ test('a directly shared EU set preserves the key selection in its Back URL',asyn
 
 test('a rendered claim never shrinks when its complete set contains fewer IDs than advertised',async t=>{
  const h=await harness(t,{props:{selection:{...selection,period:'2025-Q3'}},respond:(u,q)=>{if(q?.scope==='map'){const f=mapLinkFacts(q);f.sets.urgencyDebates['2025-Q3']=f.sets.urgencyDebates['2025-Q3'].slice(0,7);return f;}}});await h.wait('Eight urgency debates');const link=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Eight urgency debates');assert(link);const key=new URL(link.href).searchParams.get('t-records');assert.equal(parseStorySetKey(key).expected,8);await act(async()=>{history.pushState({},'',link.href);window.dispatchEvent(new window.PopStateEvent('popstate'));});await h.wait('Records unavailable.');assert.equal(h.node.querySelectorAll('article').length,0);assert(!h.node.textContent.includes('7 urgency debates'));
+});
+
+for(const baseline of [false,true])test('policy record headings and onward names retain label language'+(baseline?' on baselines':''),async t=>{
+ const period=baseline?'2025-Q1,2025-Q2':'2025-Q1',key=storySetKey({text:'',records:[],browse:{list:'questions',periods:baseline?period:undefined}},{topic:'oeil:8.20',period:'2025-Q1'});
+ const h=await harness(t,{component:'TopicStoryRecords',url:'?view=topics&topic=oeil:8.20&t-records='+encodeURIComponent(key),props:{selection:{...selection,topic:'oeil:8.20'}},respond:u=>{if(u.pathname==='/api/topics/detail'){const d=topicLinkDetail('oeil:8.20');d.concept={...d.concept,label:'Politique climatique',labelLanguage:'fr'};return d;}}});await h.wait('Politique climatique');await h.wait(baseline?'before':'questions about');assert.equal(h.node.querySelector('h1 [lang=fr]').textContent,'Politique climatique');assert.equal(h.node.querySelector('.topic-story-records > p:last-child a [lang=fr]').textContent,'Politique climatique');
+});
+test('tie headings carry each source name as a language-tagged element',async t=>{
+ const key='questions:COL%2CTUR:2025-Q3:all',h=await harness(t,{component:'TopicStoryRecords',url:'?view=topics&t-records='+encodeURIComponent(key),props:{selection:{...selection,labels:{}}},respond:u=>u.pathname==='/api/topics/overview'?{ready:true,items:[{id:'COL',key:'place:COL',label:'Colombie',labelLanguage:'fr'},{id:'TUR',key:'place:TUR',label:'Turquie',labelLanguage:'fr'}]}:undefined});await h.wait('questions each on');assert.equal(h.node.querySelectorAll('h1 [lang=fr]').length,2);assert.equal(h.node.querySelectorAll('h2 [lang=fr]').length,2);assert.equal(h.node.querySelectorAll('section > a [lang=fr]').length,2);
+});
+test('a place heading never exposes its raw code or takes focus before names arrive',async t=>{
+ let release;const pending=new Promise(r=>release=r);t.after(()=>release(topicLinkDetail('place:TUR')));
+ const h=await harness(t,{component:'TopicStoryRecords',url:'?view=topics&t-records='+encodeURIComponent('questions:TUR:2025-Q4:elsewhere'),props:{selection:{...selection,labels:{}}},respond:u=>u.pathname==='/api/topics/detail'?pending:undefined});await act(async()=>new Promise(r=>setTimeout(r,30)));assert(!h.node.querySelector('h1'));assert(!h.node.textContent.includes('about TUR'));await act(async()=>release(topicLinkDetail('place:TUR')));await h.wait('questions about Türkiye');assert.equal(document.activeElement,h.node.querySelector('h1'));
+});
+test('the publication reader labels plenary documents as documents',async t=>{
+ const h=await harness(t,{component:'TopicStoryDocument',props:{selection:{...selection,place:'IRN'},id:sourceDocuments[0].id}});await h.wait(sourceDocuments[0].title);assert.equal(h.node.querySelector('.insight-reader-heading h3').textContent,'Document');
+});
+for(const list of ['documents','urgency-debates','places'])test('non-question '+list+' set meta contains only its period',async t=>{
+ const scope=list==='documents'?'IRN':'map',key=list+':'+scope+':2026-Q3:not-home',h=await harness(t,{component:'TopicStoryRecords',url:'?view=topics&t-records='+encodeURIComponent(key),props:{selection:{...selection,...(scope==='IRN'?{place:scope}:{})}}});assert.equal(h.node.querySelector('.topic-story-records > p').textContent,'2026 Q3');
+});
+test('fallback Texts counts never link the broader overview count to a narrower story set',async t=>{
+ const h=await harness(t,{component:'TopicStory',props:{data:{periods:['2026-Q3'],partial:{},items:[{key:'place:IRN',label:'Iran',series:[{period:'2026-Q3',document:12}]}]},index:0,mode:'d',own:true}});assert(h.node.textContent.includes('12'));assert.equal(h.node.querySelectorAll('a').length,0);
+});
+test('place lists sort by localized names rather than authority codes',async t=>{
+ const h=await harness(t,{component:'TopicStoryRecords',url:'?view=topics&t-records='+encodeURIComponent('places:map:2026-Q3:all'),props:{selection:{...selection,labels:{DEU:'Germany',FRA:'France'}}},respond:(u,q)=>{if(q?.scope==='map'){const f=mapLinkFacts(q);f.series={DEU:{'2026-Q3':{adoptedTexts:1}},FRA:{'2026-Q3':{adoptedTexts:1}}};return f;}}});await h.wait('Showing 2 of 2');assert.deepEqual([...h.node.querySelectorAll('summary')].map(s=>s.textContent),['France','Germany']);
+});
+test('rise links use the destination heading as their accessible name',async t=>{
+ const h=await harness(t,{props:{selection}});await h.wait('Questions about Colombia');const about=[...h.node.querySelectorAll('.topic-story a')].find(a=>a.textContent==='Questions about Colombia');assert(about.getAttribute('aria-label')?.includes('13 questions about Colombia'));
+
+});
+
+test('peak quarter references include their period in the link identity',async t=>{
+ const h=await harness(t,{props:{selection:{...selection,place:'GRC',period:undefined}},respond:(u,q)=>{if(q?.scope==='place'){const f=placeLinkFacts('GRC');f.periodCounts.forEach(r=>r.debateSpeakerAppearances=['2025-Q1','2025-Q2'].includes(r.period)?9:0);return f;}}});await h.wait('2025 Q1');const links=[...h.node.querySelectorAll('.topic-story a')].filter(a=>['2025 Q1','2025 Q2'].includes(a.textContent));assert.equal(links.length,2);assert.equal(new Set(links.map(a=>a.id)).size,2);
 });

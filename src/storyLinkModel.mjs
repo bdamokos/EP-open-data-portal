@@ -52,6 +52,7 @@ export function storyLinkClaims(lines,s={}) {
   if(/exact\.(questionRise|questionJumped|documentRise)|map\.rise\.(jumped|rose)|map\.texts\.rise/.test(id)){
    const ps=values.places||[values.place],source=values.place||ps[0],b=source?.browse;
    values.about=phrase(source,msg(id.includes('document')||id.includes('.texts.')?'links.textsAbout':'links.questionsAbout',{place:plain(values.places||values.place)}));
+   const amount=countValue(values.number??values.count);if(amount!==null&&values.about?.records)values.about.expected=amount;
    if(b&&ps.length>1)values.about.browse={...b,places:ps.map(p=>p.browse?.place).filter(Boolean).sort().join(','),place:undefined};
    if(Object.hasOwn(values,'count'))values.count=plain(values.count);if(Object.hasOwn(values,'number'))values.number=plain(values.number);
    if(values.average?.browse&&ps.length>1)values.average={...values.average,browse:{...values.average.browse,places:ps.map(p=>p.browse?.place).filter(Boolean).sort().join(','),place:undefined}};
